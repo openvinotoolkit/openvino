@@ -201,8 +201,6 @@ void AutoSchedule::init() {
         m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
-        // Warm up the cache blobs for the remaining candidate devices.
-        compile_for_all_other_devices_for_cache();
         auto recycleTask = [this]() mutable {
             wait_actual_compiled_model_ready();
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
@@ -291,6 +289,8 @@ void AutoSchedule::init() {
         }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+    // Trigger cache pre-compilation for the remaining candidate devices in background.
+    compile_for_all_other_devices_for_cache();
 }
 
 void AutoSchedule::compile_for_all_other_devices_for_cache() {
@@ -313,18 +313,26 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
         return;
     }
     const std::string& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+    if (!m_precompile_executor) {
+        m_precompile_executor =
+            m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
+                "AutoDeviceCachePreCompilation",
+                static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                0 /*default threads per stream, workaround for ticket 62376*/});
+    }
+
     for (const auto& device : m_context->m_device_priorities) {
         // Skip the actual device and CPU (already handled by CPU_HELP).
         if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
             continue;
         }
-        m_executor->run([this, device, model, model_path] {
+        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model, model_path] {
             const auto compile_begin = std::chrono::steady_clock::now();
             try {
                 // Follow the same model-source priority as the blob existence check: model first, then path.
                 SoCompiledModel precompile_model = model
-                    ? m_context->m_ov_core->compile_model(model->clone(), device.device_name, device.config)
-                    : m_context->m_ov_core->compile_model(model_path, device.device_name, device.config);
+                    ? core->compile_model(model->clone(), device.device_name, device.config)
+                    : core->compile_model(model_path, device.device_name, device.config);
                 // The cache blob is generated during compilation; release the compiled model right away
                 // so we do not keep holding device resources.
                 precompile_model._ptr.reset();
@@ -575,6 +583,10 @@ AutoSchedule::~AutoSchedule() {
         // it's necessary to wait the compile model threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
+    }
+    if (m_precompile_executor) {
+        m_plugin->get_executor_manager()->clear("AutoDeviceCachePreCompilation");
+        m_precompile_executor.reset();
     }
     if (m_plugin)
         m_plugin->unregister_priority(m_context->m_model_priority,
