@@ -935,6 +935,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        const auto t_chunk = std::chrono::steady_clock::now();
+        const auto chunk_start_pos = kvcache_desc.num_stored_tokens;
+        std::chrono::steady_clock::time_point t_mark;
+        double prep_ms = 0.0, infer_ms = 0.0;
+        const auto lap = [&t_mark]() {
+            const auto now = std::chrono::steady_clock::now();
+            const auto ms = std::chrono::duration_cast<std::chrono::microseconds>(now - t_mark).count() / 1000.0;
+            t_mark = now;
+            return ms;
+        };
+        t_mark = t_chunk;
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
@@ -1040,9 +1051,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
         });
 
+        prep_ms = lap();
         m_llm_profile["1/prefill:3b.infer"].record([&]() {
             m_prefill_request->infer();
         });
+        infer_ms = lap();
 
         m_llm_profile["1/prefill:3c.post_chunk"].record([&]() {
             // Accumulate Eagle3 last_hidden_state from this chunk
@@ -1078,6 +1091,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
             }
         });
+
+        const auto post_ms = lap();
+        LOG_INFO("Prefill chunk @" << chunk_start_pos << " len " << current_prompts_len << ": prepare " << prep_ms
+                                   << " ms, infer " << infer_ms << " ms, post+kv " << post_ms << " ms"
+                                   << (m_continued_prefill_base > 0u ? " (continued)" : ""));
 
         if (is_last_chunk) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
