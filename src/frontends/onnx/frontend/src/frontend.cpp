@@ -103,7 +103,7 @@ bool is_graph_iterator_enabled() {
                    "Expected 1 (enable) or 0 (disable).");
 }
 
-// !!! Experimental feature, it may be changed or removed in the future !!!
+// Marks Constants which offset in an external data file is unknown with an index in order of walking through the model
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
@@ -118,7 +118,6 @@ void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
             ov::WeightlessCacheAttribute(0, idx, const_node->get_element_type());
     }
 }
-// !!! End of Experimental feature
 
 ov::frontend::FrameworkNodeExtractor make_onnx_extractor() {
     return [](const std::shared_ptr<ov::Node>& node) -> std::optional<std::pair<std::string, std::string>> {
@@ -267,9 +266,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    // !!! Experimental feature, it may be changed or removed in the future !!!
     enumerate_constants(model);
-    // !!! End of Experimental feature
 
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
