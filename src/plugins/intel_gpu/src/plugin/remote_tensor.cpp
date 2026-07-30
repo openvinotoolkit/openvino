@@ -375,8 +375,13 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
+        const auto buffer_size = m_va_mem.size > -1 ? static_cast<size_t>(m_va_mem.size) : m_layout.bytes_count();
+        if (m_mmap_tensor) {
+            GPU_DEBUG_TRACE_DETAIL << "Wrapping file-mapped host buffer of " << buffer_size << " bytes at " << m_va_mem.ptr
+                                   << " into a RemoteTensor" << std::endl;
+        }
         m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
+                                        buffer_size,
                                         cldnn::allocation_type::cl_mem,
                                         m_layout);
         break;
