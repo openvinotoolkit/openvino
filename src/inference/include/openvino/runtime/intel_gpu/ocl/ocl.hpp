@@ -347,6 +347,18 @@ public:
     }
 
     /**
+     * @brief This function is used to obtain a remote tensor object from a file.
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param file_path Path to the file containing tensor data
+     * @return A remote tensor instance
+     */
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const std::filesystem::path& file_path) {
+        auto data = ov::read_tensor_data(file_path, type, shape);
+        return create_tensor(type, shape, VirtualAddressMemory{std::as_const(data).data(), static_cast<int64_t>(data.get_byte_size())});
+    }
+
+    /**
      * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
      * @param type Tensor element type
      * @param shape Tensor shape
