@@ -80,7 +80,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     auto create_const_or_param = [&](const std::string& name,
                                      const std::shared_ptr<ov::frontend::onnx::TensorONNXPlace>& input_tensor) {
         std::shared_ptr<ov::Node> node;
-        if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr) {
+        if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr ||
+            !input_tensor->get_data_any().empty()) {
             Tensor tensor = Tensor(input_tensor);
             node = tensor.get_ov_constant();
         } else if (input_tensor->get_partial_shape() == PartialShape{0}) {  // empty constant
@@ -209,7 +210,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         if (!m_tensor_values.count(name)) {
             auto place_it = all_tensor_places.find(name);
             if (place_it != all_tensor_places.end() &&
-                (place_it->second->get_data() != nullptr || place_it->second->get_data_location() != nullptr)) {
+                (place_it->second->get_data() != nullptr || place_it->second->get_data_location() != nullptr ||
+                 !place_it->second->get_data_any().empty())) {
                 create_const_or_param(name, place_it->second);
             } else if (auto parent_value = lookup_tensor(name); parent_value.get_node() != nullptr) {
                 // lookup_tensor() resolved the name from a parent scope. For non-constant
