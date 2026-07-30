@@ -60,6 +60,7 @@ protected:
 };
 
 TEST_P(GroupedMatMulCompressedLayerTest_GPU, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_results();
 }
