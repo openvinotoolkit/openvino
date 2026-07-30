@@ -349,19 +349,17 @@ public:
 
     /**
      * @brief This function is used to obtain a remote tensor object from a file.
+     * The plugin memory-maps the file and keeps the mapping alive for the whole tensor lifetime,
+     * so the file must not be modified until the returned tensor is destroyed.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param file_path Path to the file containing tensor data
-     * @param offset_in_bytes Offset in bytes from the beginning of the file
+     * @param file_descriptor Descriptor with the path and offset of the file containing tensor data
      * @return A remote tensor instance
      */
-    ClBufferTensor create_tensor(const element::Type type,
-                                 const Shape& shape,
-                                 const std::filesystem::path& file_path,
-                                 std::size_t offset_in_bytes = 0) {
+    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const FileDescriptor& file_descriptor) {
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::MMAPED_FILE},
-                         {ov::intel_gpu::file_path.name(), file_path.string()},
-                         {ov::intel_gpu::file_offset.name(), offset_in_bytes}};
+                         {ov::intel_gpu::file_path.name(), file_descriptor.path.string()},
+                         {ov::intel_gpu::file_offset.name(), file_descriptor.offset}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
