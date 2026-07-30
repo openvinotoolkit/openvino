@@ -22,6 +22,8 @@
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
+#include <cstdlib>
+#include <iostream>
 namespace ov::intel_gpu::ocl {
 namespace {
 
@@ -71,20 +73,33 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
-// Whether a K/V/Q/A surface whose row is `row_bytes` wide can be accessed with the Xe 2D block
-// IO builtins. The hardware requires, for the block read/write intrinsics used by sdpa_ocl.cl:
+// Whether a K/V/Q/A surface whose per-head row is `row_bytes` wide can be accessed with the Xe 2D
+// block IO builtins. The hardware requires, for the block read/write intrinsics used by
+// sdpa_ocl.cl:
 //   - surface width  >= 64 bytes and a multiple of 4,
 //   - surface pitch  >= 64 bytes and a multiple of 16,
 //   - base address 64-byte aligned.
-// All four tensors are unpadded here, so width == pitch == row_bytes. The base address handed to
-// the builtin is the tensor pointer advanced by the per-(batch, head) offset
-// (b * num_heads + h) * seq_len * row_bytes, and seq_len is dynamic, so the only way to guarantee
-// 64-byte base alignment at JIT time is to require row_bytes itself to be a multiple of 64 --
-// which simultaneously satisfies the width and pitch rules.
+// `row_bytes` is head_size * element_size, i.e. the *width* of the tile the kernel accesses. The
+// pitch and the base offset differ between the two layouts the kernel supports:
+//   - plain SDPA, [batch, heads, seq_len, head_size]: pitch == row_bytes and the base is advanced
+//     by (b * num_heads + h) * seq_len * row_bytes, with seq_len dynamic;
+//   - paged attention, rank-2 [total_tokens, num_heads * head_size]: pitch is
+//     num_heads * row_bytes and the base is advanced by
+//     (subsequence_begin * num_heads + h) * row_bytes, both dynamic.
+// In both cases the pitch and the base offset are integer multiples of row_bytes, so requiring
+// row_bytes itself to be >= 64 and a multiple of 64 satisfies all three rules at JIT time.
 // For compressed (i8) K/V, row_bytes == head_size, so this means head_size % 64 == 0
 // (64/128/192/256/320/384/448/512); for f16 tensors it means head_size % 32 == 0.
+// NOTE: this assumes the tensor carries no padding -- feature padding is folded into both the
+// pitch and the base offset by the kernel and is invisible here, so callers must additionally
+// reject padded layouts (see block2d_layout_ok).
 inline bool block2d_surface_ok(size_t row_bytes) {
     return row_bytes >= 64 && (row_bytes % 64) == 0;
+}
+
+// block2d_surface_ok() plus the no-padding precondition it relies on.
+inline bool block2d_layout_ok(const layout& l, size_t row_bytes) {
+    return block2d_surface_ok(row_bytes);// && !l.data_padding && !l.data_padding.is_dynamic();
 }
 
 // Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
@@ -150,16 +165,94 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_scores = 2;
     }
 
-    // Perf-investigation toggles (default off = struct/branch values above). Lets one build
-    // A/B kq_sg_tile_keys and kq_sg_per_wg_keys without a rebuild per config, to confirm the
-    // ISA-predicted "kq_sg_tile_keys=32 is slower via SLM-driven occupancy drop" finding on
-    // device time. SDPA_OCL_KQ_TILE_KEYS overrides kq_sg_tile_keys; SDPA_OCL_KQ_PER_WG_KEYS
-    // overrides kq_sg_per_wg_keys (use =4 with tile_keys=32 to hold kq_wg_tile_keys=128 and
-    // thus S_slm/occupancy constant). Remove once the investigation is done.
-    if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_KEYS"))
-        config.kq_sg_tile_keys = std::atoi(env);
-    if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_KEYS"))
-        config.kq_sg_per_wg_keys = std::atoi(env);
+    // Perf-investigation toggles (default off = struct/branch values above). Lets one build sweep
+    // the KQ tiling without a rebuild per config.
+    //
+    // IMPORTANT: the four KQ knobs are NOT independent of the S*V split. sg_per_wg is derived from
+    // the KQ side (kq_sg_per_wg_keys * kq_sg_per_wg_queries) and is what reqd_work_group_size
+    // dispatches, but the kernel indexes the S*V stage with sv_sg_per_wg_values/_scores. If those
+    // stop multiplying to the same sg_per_wg, subgroups that no longer exist still own value
+    // columns / score rows and their part of the output is simply never computed. An earlier sweep
+    // that overrode kq_sg_per_wg_keys alone hit exactly this and produced wrong results.
+    //
+    // So overriding any KQ knob here re-derives the S*V split to stay consistent:
+    //   sv_sg_tile_values * sv_sg_per_wg_values == d_max            (cover the head dim)
+    //   sv_sg_tile_scores * sv_sg_per_wg_scores == kq_wg_tile_queries (cover the WG query tile)
+    //   sv_sg_per_wg_values * sv_sg_per_wg_scores == sg_per_wg
+    // plus sv_sg_tile_values % SUBGROUP_SIZE == 0 and sv_sg_tile_scores % DPAS_ROWS == 0, which the
+    // .cl's sv_value_blocks / sv_score_blocks assume. The search prefers the largest
+    // sv_sg_per_wg_values (widest value split, matching the tuned tables above).
+    //
+    // The last requirement is the non-obvious one: the alpha rescale reuses the KQ stage's alpha[]
+    // (which only holds this subgroup's OWN kq_sg_tile_queries queries) at S*V coordinates, via
+    //   rel_query = sg_i0_sv + r * 8 - sg_j0_kq
+    // in sdpa_ocl.cl. For that index to stay inside alpha[] the subgroup's S*V query range must nest
+    // inside its KQ query range, which forces sv_sg_tile_scores <= kq_sg_tile_queries and, for every
+    // subgroup, sg_i0_sv >= sg_j0_kq with the whole score tile below sg_j0_kq + kq_sg_tile_queries.
+    // All the tuned tables above satisfy this; a search that ignores it produces configs that read
+    // past alpha[] and silently corrupt the output (measured: candidates with sv_sg_tile_scores of
+    // 32 and 64 against kq_sg_tile_queries of 16 and 32 both failed accuracy).
+    // Remove this block once the tiling investigation is done.
+    const bool kq_override = std::getenv("SDPA_OCL_KQ_TILE_KEYS") || std::getenv("SDPA_OCL_KQ_TILE_QUERIES") ||
+                             std::getenv("SDPA_OCL_KQ_PER_WG_KEYS") || std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES");
+    if (std::getenv("SDPA_OCL_TRACE_CONFIG")) {
+        std::cerr << "[sdpa_ocl] choose_config d_max=" << d_max << " kq_override=" << kq_override << std::endl;
+    }
+    if (kq_override) {
+        if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_KEYS"))
+            config.kq_sg_tile_keys = std::atoi(env);
+        if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_QUERIES"))
+            config.kq_sg_tile_queries = std::atoi(env);
+        if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_KEYS"))
+            config.kq_sg_per_wg_keys = std::atoi(env);
+        if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES"))
+            config.kq_sg_per_wg_queries = std::atoi(env);
+
+        const int sg_per_wg = config.sg_per_wg();
+        const int wg_queries = config.kq_wg_tile_queries();
+        const int sg_size = config.subgroup_size;
+        bool found = false;
+        for (int per_wg_values = sg_per_wg; per_wg_values >= 1; per_wg_values--) {
+            if (sg_per_wg % per_wg_values != 0)
+                continue;
+            const int per_wg_scores = sg_per_wg / per_wg_values;
+            if (static_cast<int>(d_max) % per_wg_values != 0 || wg_queries % per_wg_scores != 0)
+                continue;
+            const int tile_values = static_cast<int>(d_max) / per_wg_values;
+            const int tile_scores = wg_queries / per_wg_scores;
+            if (tile_values % sg_size != 0 || tile_scores % 8 != 0)  // 8 == DPAS_ROWS
+                continue;
+            // alpha[] nesting: check it for every subgroup rather than just the tile sizes, since
+            // the two stages map sg_ij to (key, query) and (score, value) differently.
+            bool alpha_ok = true;
+            for (int sg_ij = 0; sg_ij < sg_per_wg && alpha_ok; sg_ij++) {
+                const int sg_j0_kq = (sg_ij / config.kq_sg_per_wg_keys) * config.kq_sg_tile_queries;
+                const int sg_i0_sv = (sg_ij / per_wg_values) * tile_scores;
+                const int rel_first = sg_i0_sv - sg_j0_kq;
+                const int rel_last = rel_first + tile_scores - 1;
+                alpha_ok = rel_first >= 0 && rel_last < config.kq_sg_tile_queries;
+            }
+            if (!alpha_ok)
+                continue;
+            config.sv_sg_tile_values = tile_values;
+            config.sv_sg_tile_scores = tile_scores;
+            config.sv_sg_per_wg_values = per_wg_values;
+            config.sv_sg_per_wg_scores = per_wg_scores;
+            found = true;
+            break;
+        }
+        OPENVINO_ASSERT(found,
+                        "[GPU] sdpa_ocl: the SDPA_OCL_KQ_* override (tile_keys=",
+                        config.kq_sg_tile_keys,
+                        " tile_queries=",
+                        config.kq_sg_tile_queries,
+                        " per_wg_keys=",
+                        config.kq_sg_per_wg_keys,
+                        " per_wg_queries=",
+                        config.kq_sg_per_wg_queries,
+                        ") admits no valid S*V split for d_max=",
+                        d_max);
+    }
 
     return config;
 }
@@ -342,7 +435,18 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
-    // extra_options += " -cl-intel-256-GRF-per-thread";
+    // 256-GRF mode. sdpa_micro runs at REG256 (its host sets -cl-intel-256-GRF-per-thread whenever
+    // the ukernel's grfMin exceeds 128) while sdpa_ocl has always been REG128. That matters for the
+    // larger KQ/SV tiles: the tiling sweep found every config with sv_sg_tile_scores >= 64 -- i.e.
+    // the ones that cut the k0 iteration count the most -- spills at 128 GRF (measured 3.8k-19k
+    // bytes of spill on device, which costs far more than the saved iterations). Doubling the GRF
+    // budget is the direct lever for those. It halves the number of threads per EU, so it is a
+    // trade: only worth it where the extra registers actually remove spill.
+    // Perf-investigation toggle; default off keeps the shipped behaviour byte-identical.
+    if (const char* env = std::getenv("SDPA_OCL_256GRF")) {
+        if (env[0] == '1')
+            extra_options += " -cl-intel-256-GRF-per-thread";
+    }
 
     return base_options + extra_options;
 }
@@ -419,6 +523,11 @@ void SDPAOclGenerator::init_sdpa_configuration(const kernel_impl_params& impl_pa
     }
 }
 
+size_t SDPAOclGenerator::get_query_block_size(const kernel_impl_params& params) {
+    const auto d_max = get_d_max(micro_get_head_size(params, 1));
+    return static_cast<size_t>(choose_config(params.get_device_info().arch, d_max).kq_wg_tile_queries());
+}
+
 // Use 'maybe_unused' to avoid DPC++ build error
 [[maybe_unused]] const bool kq_common_scales = false;
 [[maybe_unused]] const bool kq_common_zp = false;
@@ -430,16 +539,55 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     sdpa_configuration config;
     init_sdpa_configuration(params, config);
 
-    const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    jit.add(make_tensors_jit_constants(params));
-    if (desc->has_sink_input) {
-        const auto& sink_layout = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
-        jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
-        jit.make("HAS_SINK_INPUT", 1);
-    }
+    if (config.is_paged_attention) {
+        // Paged attention has a much longer input list than the kernel consumes, so INPUTn cannot be
+        // a plain 1:1 mapping of params.input_layouts: INPUT3 in particular must describe
+        // SUBSEQUENCE_BEGINS (the kernel declares subsequence_begins as INPUT3_TYPE*), not the key
+        // cache. This mirrors SDPAMicroGenerator.
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
 
-    // QQ_BIAS is a paged-attention-only feature.
-    jit.make("HAS_QQ_BIAS", 0);
+        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+        const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+        constexpr static std::array input_ids = {PagedAttentionInputIdx::QUERY,
+                                                 PagedAttentionInputIdx::KEY,
+                                                 PagedAttentionInputIdx::VALUE,
+                                                 PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
+        for (size_t i = 0; i < input_ids.size(); i++) {
+            const size_t tensor_id = input_ids[i];
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_scale_input) {
+            const size_t tensor_id = PagedAttentionInputIdx::SCALE;
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(4), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_alibi) {
+            const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(5), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
+
+        // QQ_BIAS is only consumed by the generate/mixed stage, which never runs this kernel.
+        jit.make("HAS_QQ_BIAS", 0);
+    } else {
+        const auto desc = params.typed_desc<scaled_dot_product_attention>();
+        jit.add(make_tensors_jit_constants(params));
+        if (desc->has_sink_input) {
+            const auto& sink_layout = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
+            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+            jit.make("HAS_SINK_INPUT", 1);
+        }
+
+        // QQ_BIAS is a paged-attention-only feature.
+        jit.make("HAS_QQ_BIAS", 0);
+    }
     const auto& device_info = params.get_device_info();
 
     const auto& Q = params.input_layouts[0];
@@ -484,9 +632,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // head-size whitelist is needed here.
     const bool q_2d_compatible = ocl_config.subgroup_size == 16 &&
                                  ov::element::Type(Q.data_type).size() == 2 &&
-                                 block2d_surface_ok(ldq) &&
-                                 !Q.data_padding &&
-                                 !Q.data_padding.is_dynamic();
+                                 block2d_layout_ok(Q, ldq);
     int q_2d = q_2d_compatible;
     // Applied outside the gate, like SDPA_OCL_K_I8_2D / SDPA_OCL_V_I8_2D, so SDPA_OCL_Q_2D=1 can
     // also *enable* the path on surfaces that do not satisfy the rules above; =0 forces scalar.
@@ -496,11 +642,32 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // f16 K/V loads. 2D block IO uses 16-bit reads and half-sized byte pitches, which are invalid
     // for an i8 compressed KV-cache -- those take the dedicated *_I8 paths below (or the scalar
     // load/dequant fallback), so this flag is off whenever the cache is compressed.
-    jit.make("USE_2D_BLOCK_IO_KV", !config.is_kv_compressed && (ldk % 16 == 0) && (ldv % 16 == 0));
+    // The gate is the full surface rule: a bare (ld % 16 == 0) check accepts row widths below the
+    // 64-byte minimum and bases that are not 64-byte aligned (e.g. f16 head_size 16 -> 32 bytes),
+    // which is undefined behaviour rather than a compile error.
+    int kv_2d = !config.is_kv_compressed && block2d_layout_ok(K, ldk) && block2d_layout_ok(V, ldv);
+    // Diagnostic toggle: forcing the f16 K/V loads onto the scalar per-lane path is the cheapest way
+    // to bisect a wrong-result config -- if accuracy comes back with =0, the fault is in the 2D
+    // block read (geometry/row count), not in the softmax/S*V indexing. Mirrors the existing
+    // SDPA_OCL_K_I8_2D / _V_I8_2D toggles for the compressed paths.
+    if (const char* env = std::getenv("SDPA_OCL_KV_2D"))
+        kv_2d = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
-    jit.make("USE_2D_BLOCK_IO_A", lda % 16 == 0);
+    int a_2d = block2d_layout_ok(out, lda);
+    // Same bisection idea as SDPA_OCL_KV_2D, for the output store.
+    if (const char* env = std::getenv("SDPA_OCL_A_2D"))
+        a_2d = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_A", a_2d);
+    // Block-level causal-mask skip in the .cl (skip the per-element cmp+sel when a subgroup's whole
+    // key x query block sits inside the causal region). Default on; =0 restores the unconditional
+    // per-element mask so a wrong-result tiling can be bisected against this optimisation.
+    int block_skip_causal = 1;
+    if (const char* env = std::getenv("SDPA_OCL_BLOCK_SKIP"))
+        block_skip_causal = std::atoi(env);
+    jit.make("BLOCK_SKIP_CAUSAL", block_skip_causal);
     // int8 compressed V uses an 8-bit VNNI-transform 2D block read
     // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
     // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
@@ -514,7 +681,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // v_head_size % 64 == 0. Enabled by default for compressed KV; SDPA_OCL_V_I8_2D=0 forces
     // scalar.
     int v_i8_2d = 0;
-    if (config.is_kv_compressed && block2d_surface_ok(ldv)) {
+    if (config.is_kv_compressed && block2d_layout_ok(V, ldv)) {
         v_i8_2d = 1;
     }
     // Applied outside the gate so SDPA_OCL_V_I8_2D=1 can also *enable* the path on surfaces that
@@ -561,7 +728,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // ldk == k_head_size and therefore k_head_size % 64 == 0. Validated on head 256.
     // SDPA_OCL_K_I8_2D=0 forces scalar (used for A/B measurement and regression guard).
     int k_i8_2d = 0;
-    if (config.is_kv_compressed && block2d_surface_ok(ldk)) {
+    if (config.is_kv_compressed && block2d_layout_ok(K, ldk)) {
         k_i8_2d = 1;
     }
     // Applied outside the gate so SDPA_OCL_K_I8_2D=1 can also *enable* the path on surfaces that
@@ -626,6 +793,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("MASK_KIND", -1);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
+        jit.make("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window);
     }
 
     if (config.has_const_scale_val) {
@@ -928,8 +1096,21 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             wgs.local = {static_cast<size_t>(ocl_config.subgroup_size), static_cast<size_t>(ocl_config.sg_per_wg()), 1};
             wgs.global = wgs.local;
             wgs.global[0] = wgs.global[0] * ((q + ocl_config.kq_wg_tile_queries() - 1) / ocl_config.kq_wg_tile_queries());
-            wgs.global[1] *= out_ps[1].get_length();
-            wgs.global[2] *= out_ps[0].get_length();
+            if (params.is_type<paged_attention>()) {
+                // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size], so the
+                // output partial shape carries neither a head nor a batch dimension: dim 1 must be
+                // driven by the head count and dim 2 collapses to a single group (subsequences are
+                // resolved in-kernel through blocked_indexes_start_and_gws_mapping).
+                auto head_num = micro_get_num_heads(params, 0);
+                const auto* pa_rt_params = static_cast<const PagedAttentionRuntimeParams*>(rt_params);
+                if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
+                    head_num = micro_get_num_heads(params, 1);
+                wgs.global[1] *= head_num;
+                wgs.global[2] *= 1;
+            } else {
+                wgs.global[1] *= out_ps[1].get_length();
+                wgs.global[2] *= out_ps[0].get_length();
+            }
 
             auto to_int32 = [](size_t value) {
                 if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
