@@ -2993,4 +2993,49 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
+TEST(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    const size_t float_size = sizeof(float);
+    const ov::Shape shape{16};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * float_size;
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+
+    // Store input data in a file at a page-aligned offset.
+    const std::filesystem::path file_path{"gpu_remote_tensor_from_file.bin"};
+    constexpr std::size_t offset = 4096;  // page-aligned (and cache-line aligned) offset
+    {
+        std::vector<float> values(element_count, 2.0f);
+        std::ofstream file(file_path, std::ios::binary);
+        file.seekp(offset);
+        file.write(reinterpret_cast<const char*>(values.data()), byte_size);
+    }
+
+    void* output_ptr = ov::util::aligned_alloc(byte_size, core.get_property(target_device, ov::intel_gpu::cacheline_size));
+    std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
+
+    {
+        auto remote_input_tensor =
+            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{file_path, offset});
+        ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
+        auto remote_output_tensor =
+            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::VirtualAddressMemory(output_ptr));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), remote_input_tensor);
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
+
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(output_ptr);
+    std::filesystem::remove(file_path);
+}
+
 #endif  // OV_GPU_WITH_OCL_RT
