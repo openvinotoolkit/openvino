@@ -71,10 +71,6 @@ std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& e
     return nullptr;
 }
 
-std::vector<std::string> utils::getAvailableDevicesNames(const ov::SoPtr<IEngineBackend>& engineBackend) {
-    return engineBackend == nullptr ? std::vector<std::string>() : engineBackend->getDeviceNames();
-}
-
 std::string utils::getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBackend,
                                      const std::string& specifiedDeviceName) {
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
@@ -114,30 +110,6 @@ ov::device::LUID utils::getDeviceLUID(const ov::SoPtr<IEngineBackend>& engineBac
     return ov::device::LUID{{
         0,
     }};
-}
-
-std::string utils::getBackendName(const ov::SoPtr<IEngineBackend>& engineBackend) {
-    if (engineBackend == nullptr) {
-        OPENVINO_THROW("No available backend");
-    }
-
-    return engineBackend->getName();
-}
-
-uint32_t utils::getDriverVersion(const ov::SoPtr<IEngineBackend>& engineBackend) {
-    if (engineBackend == nullptr) {
-        OPENVINO_THROW("No available backend");
-    }
-
-    return engineBackend->getDriverVersion();
-}
-
-uint32_t utils::getGraphExtVersion(const ov::SoPtr<IEngineBackend>& engineBackend) {
-    if (engineBackend == nullptr) {
-        OPENVINO_THROW("No available backend");
-    }
-
-    return engineBackend->getGraphExtVersion();
 }
 
 uint32_t utils::getSteppingNumber(const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -232,13 +204,6 @@ ov::device::Type utils::getDeviceType(const ov::SoPtr<IEngineBackend>& engineBac
     }
 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
-}
-
-bool utils::isCommandQueueExtSupported(const ov::SoPtr<IEngineBackend>& engineBackend) {
-    if (engineBackend == nullptr) {
-        OPENVINO_THROW("No available backend");
-    }
-    return engineBackend->isCommandQueueExtSupported();
 }
 
 uint32_t utils::getOptimalNumberOfInferRequestsInParallel(std::string_view platform,

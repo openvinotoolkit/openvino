@@ -173,6 +173,10 @@ void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     }
 }
 
+std::vector<std::string> getAvailableDevicesNames(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
+    return backend == nullptr ? std::vector<std::string>() : backend->getDeviceNames();
+}
+
 bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
     using namespace intel_npu;
 
@@ -388,7 +392,7 @@ void PluginPropertyManager::registerProperties() const {
 
     // clang-format off
     register_property_with_custom_function(_properties, ov::available_devices.name(), true, [&](const Config&) {
-        return utils::getAvailableDevicesNames(_backend);
+        return getAvailableDevicesNames(_backend);
     });
     register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, [&](const Config&) {
         return optimizationCapabilities;
@@ -415,7 +419,11 @@ void PluginPropertyManager::registerProperties() const {
         return utils::getDeviceTotalMemSize(_backend, get_specified_device_name(config));
     });
     register_property_with_custom_function(_properties, ov::intel_npu::driver_version.name(), true, [&](const Config&) {
-        return utils::getDriverVersion(_backend);
+        if (_backend == nullptr) {
+            OPENVINO_THROW("No available backend");
+        }
+
+        return _backend->getDriverVersion();
     });
     register_property_with_custom_function(_properties, ov::device::uuid.name(), true, [&](const Config& config) {
         auto devUuid = utils::getDeviceUuid(_backend, get_specified_device_name(config));
@@ -425,19 +433,22 @@ void PluginPropertyManager::registerProperties() const {
         return utils::getDeviceLUID(_backend, get_specified_device_name(config));
     });
     register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [&](const Config& config) {
-        if (utils::getAvailableDevicesNames(_backend).size() > 1) {
+        if (getAvailableDevicesNames(_backend).size() > 1) {
             return std::string("NPU." + config.get<DEVICE_ID>());
         }
         return std::string("NPU");
     });
     register_property_with_custom_function(_properties, ov::intel_npu::backend_name.name(), false, [&](const Config&) {
-        return utils::getBackendName(_backend);
+        if (_backend == nullptr) {
+            OPENVINO_THROW("No available backend");
+        }
+        return _backend->getName();
     });
 
-    try_register_property_with_custom_function(_properties, ov::device::architecture.name(), !utils::getAvailableDevicesNames(_backend).empty(), true, [&](const Config& config) {
+    try_register_property_with_custom_function(_properties, ov::device::architecture.name(), !getAvailableDevicesNames(_backend).empty(), true, [&](const Config& config) {
         return utils::getDeviceArchitecture(_backend, get_specified_device_name(config));
     });
-    try_register_property_with_custom_function(_properties, ov::device::full_name.name(), !utils::getAvailableDevicesNames(_backend).empty(), true, [&](const Config& config) {
+    try_register_property_with_custom_function(_properties, ov::device::full_name.name(), !getAvailableDevicesNames(_backend).empty(), true, [&](const Config& config) {
         return utils::getFullDeviceName(_backend, get_specified_device_name(config));
     });
 
