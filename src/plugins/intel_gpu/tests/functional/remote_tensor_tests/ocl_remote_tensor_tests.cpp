@@ -603,6 +603,28 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     }
 }
 
+TEST(OVRemoteTensorTests, smoke_CreateTensorFromFile) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const ov::Shape shape{1, 2, 2, 2};
+    const std::filesystem::path file_path{"ocl_remote_tensor_file.bin"};
+    std::vector<float> values(ov::shape_size(shape), 1.0f);
+    {
+        std::ofstream file(file_path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+    }
+
+    auto core = ov::Core();
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    auto tensor = context.create_tensor(ov::element::f32, shape, file_path);
+
+    EXPECT_TRUE(tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
+    EXPECT_NE(tensor.get(), nullptr);
+
+    std::filesystem::remove(file_path);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_GPU,
     OVRemoteTensorInputBlob_Test,
