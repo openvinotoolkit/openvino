@@ -1857,7 +1857,7 @@ void primitive_inst::do_runtime_in_place_concat() {
     concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, true);
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
-        if (_impl_params->output_layouts[0] != preds_layouts[i]) {
+        if (dep.first->_impl_params->output_layouts[0] != preds_layouts[i]) {
             dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
             GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
