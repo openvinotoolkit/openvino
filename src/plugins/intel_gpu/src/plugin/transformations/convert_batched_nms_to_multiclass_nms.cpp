@@ -12,6 +12,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -34,6 +35,7 @@
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 namespace {
@@ -45,18 +47,10 @@ bool is_const_one_like(const std::shared_ptr<ov::Node>& node) {
     if (!node) {
         return false;
     }
-
-    if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-        return constant->cast_vector<float>() == std::vector<float>{1.0f};
-    }
-
-    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
-    if (!convert) {
-        return false;
-    }
-
-    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr());
-    return constant && constant->cast_vector<float>() == std::vector<float>{1.0f};
+    // Resolves through a Convert (or any other constant-foldable chain) to the underlying
+    // Constant, so this also covers the "Convert(Constant)" case the matched graph can contain.
+    const auto constant = ov::util::get_constant_from_source(node->output(0));
+    return ov::op::util::has_constant_value<float>(constant, 1.0f);
 }
 
 bool is_integral_to_fp_convert(const std::shared_ptr<ov::Node>& node) {
