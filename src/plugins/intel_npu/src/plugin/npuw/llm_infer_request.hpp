@@ -8,6 +8,7 @@
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_continuation.hpp"
 #include "llm_eagle3_extension.hpp"
 #include "llm_infer_base_request.hpp"
 #include "llm_kvcache_strategy.hpp"
@@ -103,6 +104,22 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    // Continuous prefill. Runs the granted keep transaction, prefilling only the
+    // delta on top of the preserved KV prefix.
+    void infer_continued_prefill(ov::SoPtr<ov::ITensor> input_ids,
+                                 ov::SoPtr<ov::ITensor> attention_mask,
+                                 ov::SoPtr<ov::ITensor> position_ids,
+                                 ov::SoPtr<ov::ITensor> per_layer_inputs,
+                                 uint32_t keep);
+    // Staging preparation for a continued prefill. Zeroes the prefill staging tensors,
+    // restores the preserved prefix attention mask and selects the generate variant,
+    // without touching KV or resetting the strategy.
+    void prepare_for_continued_prefill(uint32_t keep,
+                                       int64_t total_prompt_length,
+                                       ov::SoPtr<ov::ITensor> attention_mask);
+    // Validates the delta position ids as a sequence against the latched baseline.
+    void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids, uint32_t keep) const;
+
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
 
@@ -160,6 +177,14 @@ protected:
 
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
+
+    // Continuous prefill transaction coordinator, disabled unless the compiled model
+    // reports the capability.
+    ContinuationCoordinator m_continuation;
+    // Absolute KV position the current chunked prefill started at. Non-zero only while
+    // a continued prefill is running, where the caller tensors hold just the delta and
+    // must be indexed relative to this base.
+    uint32_t m_continued_prefill_base = 0u;
 
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
