@@ -125,7 +125,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           kernel_arguments(kernel_arguments),
           build_options(build_options),
           output_layouts(output_layouts),
-          gws(gws.size() ? gws : std::vector<size_t>{output_layouts[0].count()}),
+          gws(!gws.empty() ? gws : std::vector<size_t>{output_layouts[0].count()}),
           lws(lws),
           kernels_code(kernels_code),
           op(op),

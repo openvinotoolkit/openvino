@@ -127,6 +127,37 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     return cache.at(device);
 }
 
+static bool parse_driver_version(const std::string& driver_version, size_t num_components, std::vector<int>& components) {
+    components.assign(num_components, 0);
+    const char* first = driver_version.data();
+    const char* last = driver_version.data() + driver_version.size();
+    for (size_t i = 0; i < num_components; i++) {
+        auto [ptr, ec] = std::from_chars(first, last, components[i]);
+        if (ec != std::errc())
+            return false;
+        if (i + 1 < num_components) {
+            // Expect a '.' separator before the next component
+            if (ptr == last || *ptr != '.')
+                return false;
+            first = ptr + 1;
+        }
+    }
+    return true;
+}
+
+static bool driver_version_supports_microkernels(const std::string& driver_version) {
+    std::vector<int> v;
+#ifdef _WIN32
+    if (!parse_driver_version(driver_version, 4, v))
+        return false;
+    return std::tie(v[0], v[1], v[2], v[3]) >= std::make_tuple(31, 0, 101, 6987);
+#else
+    if (!parse_driver_version(driver_version, 3, v))
+        return false;
+    return std::tie(v[0], v[1], v[2]) >= std::make_tuple(24, 22, 29735);
+#endif
+}
+
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
 
@@ -135,6 +166,13 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     static std::map<cldnn::device*, bool> cache;
     if (cache.find(device) != cache.end()) {
         return cache.at(device);
+    }
+
+    // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
+    // known to support microkernels, skip building the igc_check probe kernel.
+    if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
+        cache[device] = true;
+        return true;
     }
 
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
