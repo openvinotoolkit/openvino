@@ -105,8 +105,7 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
             if (local_off >= size) {
                 return;
             }
-            const size_t read_size =
-                (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
+            const size_t read_size = (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
             if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
                 ok.store(false, std::memory_order_relaxed);
             }
