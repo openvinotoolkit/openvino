@@ -395,6 +395,9 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
     OPENVINO_ASSERT(err == CL_SUCCESS, "clCreateBuffer with CL_MEM_USE_HOST_PTR failed!");
 #endif
 
+    GPU_DEBUG_TRACE_DETAIL << "Created host buffer of " << data_size << " bytes from cpu address " << cpu_address
+                           << " (access_flags=" << access_flags << ", allocation type=" << allocation << ")" << std::endl;
+
     std::shared_ptr<MemoryTracker> tracker = nullptr;
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
     tracker = std::make_shared<MemoryTracker>(nullptr,
