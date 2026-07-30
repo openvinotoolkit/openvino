@@ -12,8 +12,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
+#include "jit_binary_call_emitter.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
