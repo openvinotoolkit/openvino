@@ -193,6 +193,29 @@ Common steps and safe-output jobs are factored into
 and pulled into a workflow via the `imports:` key. Imported `steps:` are prepended to the importing
 workflow, and imported `safe-outputs.jobs:` become callable safe outputs for the agent.
 
+Each shared `.md` file defines only the job *interface and wiring* — its inputs, `permissions:`, and the
+sequence of steps. The actual **logic lives in standalone Python scripts** under
+[`.github/scripts/agentic-workflows`](../../../../.github/scripts/agentic-workflows) (one script per job,
+plus a shared [`common.py`](../../../../.github/scripts/agentic-workflows/common.py)). A shared job step
+sparse-checks-out that scripts directory, sets up Python, and runs its script, for example:
+
+```yaml
+- name: Checkout agentic-workflow scripts
+  uses: actions/checkout@...
+  with:
+    sparse-checkout: .github/scripts/agentic-workflows
+- name: Set up Python
+  uses: actions/setup-python@...
+- name: Send Teams notification
+  shell: python
+  run: |
+    export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
+    python .github/scripts/agentic-workflows/notify_teams.py
+```
+
+To change what a job *does*, edit its script under `.github/scripts/agentic-workflows/`; to change its
+inputs, permissions, or step wiring, edit the shared `.md` and recompile.
+
 | Shared file | Kind | Used by | Purpose |
 | --- | --- | --- | --- |
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | both | Pre-download failed logs and pre-locate error hints before the agent starts. |

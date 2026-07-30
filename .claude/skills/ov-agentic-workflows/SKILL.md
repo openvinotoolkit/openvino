@@ -26,7 +26,10 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
 * **Compiled output**: each source `<name>.md` compiles to a generated `<name>.lock.yml` in the same
   directory. This is what GitHub Actions actually runs.
 * **Shared building blocks**: step/job fragments imported by one or more agentic workflows live under
-  `.github/workflows/shared/agentic-workflows/*.md`.
+  `.github/workflows/shared/agentic-workflows/*.md`. Each such `.md` defines only the job *interface and
+  wiring* (inputs, `permissions:`, steps); the actual logic lives in standalone Python scripts under
+  `.github/scripts/agentic-workflows/*.py` (one per job, plus a shared `common.py`). A shared job step
+  sparse-checks-out that scripts directory and runs its script.
 * **Known examples today**: `ci-doctor.md` (on-demand PR investigator) and `ci-doctor-mq.md` (automatic
   merge-queue investigator). Do not assume this is the complete list — check `.github/workflows/*.md`
   for the current set of `gh-aw` sources, since more will be added over time.
@@ -72,12 +75,17 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
 3. Recompile and commit both files.
 
 ### Add or change a shared safe-output job or step
-1. Edit the file under `.github/workflows/shared/agentic-workflows/`. A *step* fragment has no `on:`
-   and is prepended to importers; a *safe-output job* lives under `safe-outputs.jobs:`.
-2. Ensure every consuming workflow lists the file under `imports:` and that its body instructs the
+1. Decide what you are changing:
+   * **Job logic** (what the step actually does) lives in `.github/scripts/agentic-workflows/<name>.py`
+     (shared helpers in `common.py`) — edit the Python there.
+   * **Job interface / wiring** (inputs, `permissions:`, which script runs, step order) lives in the
+     shared `.md` under `.github/workflows/shared/agentic-workflows/` — edit that, then recompile.
+2. A *step* fragment has no `on:` and is prepended to importers; a *safe-output job* lives under
+   `safe-outputs.jobs:`.
+3. Ensure every consuming workflow lists the file under `imports:` and that its body instructs the
    agent when to call the new safe output.
-3. Give each safe-output job the **narrowest** `permissions:` it needs.
-4. Recompile every workflow that imports the file.
+4. Give each safe-output job the **narrowest** `permissions:` it needs.
+5. Recompile every workflow that imports the file (only needed when the `.md` changed).
 
 ### Add a new safe output
 - Define the job (inputs, `permissions`, steps) in a shared file (or inline if genuinely single-use),
