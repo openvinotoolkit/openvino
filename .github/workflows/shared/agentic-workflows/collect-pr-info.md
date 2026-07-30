@@ -1,10 +1,17 @@
 ---
 description: |
-  Shared pre-agent step for the CI Doctor merge-queue workflow. Resolves the
-  pull request behind a merge-queue (`merge_group`) run and pre-collects its
-  metadata into /tmp/gh-aw/agent/ci-doctor/.
+  Shared pre-agent step for the CI Doctor workflows. Resolves the pull request
+  under investigation and pre-collects its metadata into
+  /tmp/gh-aw/agent/ci-doctor/.
 
-  Output layout:
+  The step auto-detects its mode from the environment (no parameters required):
+    - run mode (RUN_ID set):    resolve the PR behind a merge-queue
+      (`merge_group`) run from its `gh-readonly-queue/<base>/pr-<number>-<sha>`
+      head branch (CI Doctor — Merge Queue).
+    - pr mode  (PR_NUMBER set): the PR number is already known, e.g. a
+      `/ci-doctor` pull-request comment (CI Doctor).
+
+  Output layout (identical in both modes):
     - /tmp/gh-aw/agent/ci-doctor/pr-info.json  (structured PR metadata)
     - /tmp/gh-aw/agent/ci-doctor/pr-info.txt   (human-readable summary)
 steps:
@@ -19,6 +26,7 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+      PR_NUMBER: ${{ github.event.issue.number }}
     run: |
       export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
       python .github/scripts/agentic-workflows/collect_pr_info.py

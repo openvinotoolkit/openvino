@@ -1,17 +1,22 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Pre-collect pull-request metadata for the CI Doctor merge-queue workflow.
+"""Pre-collect pull-request metadata for the CI Doctor workflows.
 
 Used by the shared pre-agent step
-(.github/workflows/shared/agentic-workflows/collect-pr-info.md). This script
-resolves that data deterministically before the agent session and writes it to
-``/tmp/gh-aw/agent/ci-doctor/pr-info.json`` (plus a human-readable
-``pr-info.txt``).
+(.github/workflows/shared/agentic-workflows/collect-pr-info.md). Auto-detects its
+mode from the environment (mirroring ``download_failure_logs.py``):
+  - run mode (RUN_ID set):    a merge-queue (``merge_group``) run carries no
+    direct PR context, so the PR number is recovered from the merge-queue head
+    branch (``gh-readonly-queue/<base>/pr-<number>-<sha>``), falling back to the
+    run's associated ``pull_requests``.
+  - pr mode  (PR_NUMBER set): the PR number is already known (e.g. a
+    ``/ci-doctor`` pull-request comment), so the PR is fetched directly.
 
-The PR number is taken from the merge-queue head branch
-(``gh-readonly-queue/<base>/pr-<number>-<sha>``); if that is unavailable it falls
-back to the run's associated ``pull_requests``.
+Resolving it deterministically before the session and writing it to
+``/tmp/gh-aw/agent/ci-doctor/pr-info.json`` (plus a human-readable
+``pr-info.txt``) lets the agent populate the Teams ``PR`` / ``Author`` fields and
+scope its source inspection to the PR diff.
 """
 
 from __future__ import annotations
@@ -130,8 +135,23 @@ def write_outputs(pr_info: dict[str, Any] | None) -> None:
             handle.write(f"  {path}\n")
 
 
-def collect(repo: "Repository", run_id: str) -> None:
-    """Resolve and persist the PR metadata for ``run_id``."""
+def persist_pull(repo: "Repository", pr_number: str) -> None:
+    """Fetch PR ``pr_number`` and persist its metadata (or the no-PR fallback)."""
+    try:
+        pull = repo.get_pull(int(pr_number))
+    except Exception as error:
+        print(f"Could not fetch PR #{pr_number}: {error}")
+        write_outputs(None)
+        return
+
+    pr_info = build_pr_info(pull)
+    write_outputs(pr_info)
+    print(f"Wrote PR info to {PR_INFO_JSON} and {PR_INFO_TXT}")
+    print(f"  PR #{pr_info['pr_number']} by @{pr_info['author']}: {pr_info['title']}")
+
+
+def run_mode(repo: "Repository", run_id: str) -> None:
+    """Resolve and persist the PR metadata behind a merge-queue run."""
     print(f"=== CI Doctor: Collecting PR info for run {run_id} ===")
 
     try:
@@ -148,17 +168,13 @@ def collect(repo: "Repository", run_id: str) -> None:
         return
     print(f"Resolved PR #{pr_number} from run {run_id}")
 
-    try:
-        pull = repo.get_pull(int(pr_number))
-    except Exception as error:
-        print(f"Could not fetch PR #{pr_number}: {error}")
-        write_outputs(None)
-        return
+    persist_pull(repo, pr_number)
 
-    pr_info = build_pr_info(pull)
-    write_outputs(pr_info)
-    print(f"Wrote PR info to {PR_INFO_JSON} and {PR_INFO_TXT}")
-    print(f"  PR #{pr_info['pr_number']} by @{pr_info['author']}: {pr_info['title']}")
+
+def pr_mode(repo: "Repository", pr_number: str) -> None:
+    """Persist the PR metadata for an already-known PR number."""
+    print(f"=== CI Doctor: Collecting PR info for PR #{pr_number} ===")
+    persist_pull(repo, pr_number)
 
 
 def main() -> None:
@@ -166,15 +182,20 @@ def main() -> None:
 
     repo_name = os.environ.get("REPO", "")
     run_id = (os.environ.get("RUN_ID") or "").strip()
+    pr_number = (os.environ.get("PR_NUMBER") or "").strip()
     token = os.environ.get("GH_TOKEN", "")
 
-    if not run_id:
-        print("RUN_ID is not set; no merge-queue run to collect PR info for.")
+    if not run_id and not pr_number:
+        print("Neither RUN_ID nor PR_NUMBER is set; no PR to collect info for.")
         write_outputs(None)
         return
 
     repo = github_client(token).get_repo(repo_name)
-    collect(repo, run_id)
+
+    if run_id:
+        run_mode(repo, run_id)
+    else:
+        pr_mode(repo, pr_number)
 
 
 if __name__ == "__main__":
