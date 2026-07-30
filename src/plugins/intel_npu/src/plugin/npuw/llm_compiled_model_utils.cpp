@@ -53,6 +53,17 @@ bool ov::npuw::util::is_encoder_embedding_model(const std::shared_ptr<ov::Model>
     return has_sdpa;
 }
 
+void ov::npuw::util::validate_encoder_embedding_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& param : model->get_parameters()) {
+        for (const auto& name : param->get_output_tensor(0).get_names()) {
+            OPENVINO_ASSERT(name.find("past_key_values") == std::string::npos,
+                            "Encoder embedding model has an unexpected autoregressive KV-cache input '",
+                            name,
+                            "'.");
+        }
+    }
+}
+
 std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::shared_ptr<ov::Model>& model) {
     // The position embedding is a Gather(weight[max_position_embeddings, hidden], position_ids).
     // Find that Gather by name and read dim 0 of its data input (port 0), walking through any

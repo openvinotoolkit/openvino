@@ -6,7 +6,6 @@
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
-#include "embedding/prepare_encoder_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "llm_compiled_model_utils.hpp"
@@ -827,7 +826,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                  << (m_is_encoder_embedding ? "bidirectional encoder: single-forward, prefill-only path"
                                             : "autoregressive decoder: reconstructed prefill/KV path"));
         if (m_is_encoder_embedding) {
-            LOG_DEBUG("Encoder (bidirectional) text-embedding model rebuild");
+            LOG_DEBUG("Encoder (bidirectional) text-embedding model: no graph rebuild needed");
             // A bidirectional encoder attends over the whole sequence at once; chunked prefill is
             // semantically invalid for it. Force a single whole-sequence forward.
             m_use_chunk_prefill = false;
@@ -844,7 +843,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     max_prompt_len = *max_pos;
                 }
             }
-            ov::npuw::util::PrepareEncoderEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
+            ov::npuw::util::validate_encoder_embedding_model(kvcache_model);
         } else {
             LOG_DEBUG("Text-embedding model rebuild");
             ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
