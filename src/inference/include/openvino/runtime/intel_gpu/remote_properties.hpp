@@ -182,6 +182,8 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::DX_BUFFER;
     } else if (str == "BUFFER_FROM_HANDLE") {
         share_mem_type = SharedMemType::BUFFER_FROM_HANDLE;
+    } else if (str == "MMAPED_FILE") {
+        share_mem_type = SharedMemType::MMAPED_FILE;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
