@@ -107,7 +107,7 @@ function(ov_download_tbb)
                 ARCHIVE_WIN "oneapi-tbb-2021.13.3-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "ca381b2a82fbe70e117741c9b67aa7a1f6b3f9643452666357033af842cab71a"
+                SHA256 "fa25090696575d863fc54b4a2125ecf620db9f039fe5c3d7a98d6a85bcc49d06"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with gcc 4.8 (glibc 2.17)
