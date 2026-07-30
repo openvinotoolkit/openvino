@@ -358,11 +358,8 @@ public:
                                  const Shape& shape,
                                  const std::filesystem::path& file_path,
                                  std::size_t offset_in_bytes = 0) {
-        auto data = std::make_shared<ov::Tensor>(ov::read_tensor_data(file_path, type, shape, offset_in_bytes));
-        auto tensor = create_tensor(type,
-                                    shape,
-                                    VirtualAddressMemory{std::as_const(*data).data(), static_cast<int64_t>(data->get_byte_size())});
-        return ClBufferTensor(tensor, std::move(data));
+        auto data = ov::read_tensor_data(file_path, type, shape, offset_in_bytes);
+        return create_tensor(type, shape, VirtualAddressMemory{std::as_const(data).data(), static_cast<int64_t>(data.get_byte_size())});
     }
 
     /**
