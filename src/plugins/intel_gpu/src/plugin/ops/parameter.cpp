@@ -95,7 +95,7 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
             p.inputLayouts.insert({ port_index, input_layout });
         }
 
-        std::string suffix = "";
+        std::string suffix;
         std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
             if (batch > 1)
