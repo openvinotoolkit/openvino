@@ -207,24 +207,14 @@ inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
-/// Gemma4-style MoE: separate gate/up expert MatMuls (GeLU activation) and a
-/// Softmax->TopK router with ReduceSum->Divide renormalization plus per-expert
-/// learned scale (Gather) and an extra Slice before scatter, matching NPUW's
-/// Gemma4Expert + Gemma4Router patterns (real Gemma4-26B-A4B).
-inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
-    ModelBuilder mb;
-    auto cfg = make_test_model_config();
-    cfg.num_experts = 8;
-    cfg.num_experts_per_tok = 2;
-    cfg.moe_factory = make_gemma4_moe_ffn;
-    return mb.build_llm(cfg);
-}
-
-/// Gemma4 26B A4B-like MoE model: inputs_embeds + token_type_ids + MoE FFN + dangling
-/// per_layer_inputs (proj_dim=0), matching the real Gemma4 26B A4B MoE input structure.
+/// Gemma4 26B A4B MoE model: inputs_embeds + token_type_ids + Gemma4-style MoE FFN
+/// (separate gate/up MatMuls with GeLU activation, Softmax->TopK router with
+/// ReduceSum->Divide renormalization plus per-expert learned scale Gather and an extra
+/// Slice before scatter, matching NPUW's Gemma4Expert + Gemma4Router patterns) + dangling
+/// per_layer_inputs (proj_dim=0) matching the real Gemma4-26B-A4B input structure.
 /// per_layer_inputs is a graph parameter with shape [1,-1,0,0]: it exists by name so the
 /// compilation pipeline can find it, but carries no data (proj_dim=0).
-inline std::shared_ptr<ov::Model> build_gemma4_moe_style_test_model() {
+inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
     auto cfg = make_test_model_config();
     cfg.use_inputs_embeds = true;
     cfg.use_token_type_ids = true;
