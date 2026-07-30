@@ -12,6 +12,7 @@
 #include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
 
+#include <algorithm>
 #include <any>
 #include <cmath>
 #include <cstddef>
@@ -68,12 +69,12 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
     // Instead of checking ==1 ==2 branch, iterate throught the vector
-    for (const auto& postOp : attrs.postOps ){
+    for (const auto& postOp : attrs.postOps) {
         if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
-                                                        activation->alpha(),
-                                                        activation->beta(),
-                                                        activation->gamma());
+                                                         activation->alpha(),
+                                                         activation->beta(),
+                                                         activation->gamma());
         } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(&postOp)) {
             fqInputScale = fq->inputScale();
             fqInputShift = fq->inputShift();
@@ -122,19 +123,16 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
-    const bool hasQuantizationPostOp = std::any_of(
-        config.attrs.postOps.begin(),
-        config.attrs.postOps.end(),
-        [](const std::any& op){
+    const bool hasQuantizationPostOp =
+        std::any_of(config.attrs.postOps.begin(), config.attrs.postOps.end(), [](const std::any& op) {
             return std::any_cast<FakeQuantizePostOp>(&op) != nullptr;
-        }
-    );
-    const bool isQuantizedU8       = srcDesc->getPrecision() == ov::element::u8 &&
-                                     any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
-                                     dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
-    const bool isQuantizedI8       = srcDesc->getPrecision() == ov::element::i8 &&
-                                     weiDesc->getPrecision() == ov::element::i8 &&
-                                     dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
+        });
+    const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
+                               any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
+                               dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
+    const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
+                               weiDesc->getPrecision() == ov::element::i8 &&
+                               dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
     const bool isQuantizedI8DstF32 = srcDesc->getPrecision() == ov::element::i8 &&
                                      weiDesc->getPrecision() == ov::element::i8 &&
                                      dstDesc->getPrecision() == ov::element::f32;
@@ -165,8 +163,8 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
         const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
-                                    ? ov::element::i8
-                                    : ov::element::u8;
+                                      ? ov::element::i8
+                                      : ov::element::u8;
         aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
             getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
     }
@@ -179,8 +177,8 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
                                                      weightsInfo,
                                                      dilation,
                                                      activationLayerInfo,
-                                                     false, //enable fast math
-                                                     1); //num_groups
+                                                     false,  // enable fast math
+                                                     1);     // num_groups
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -194,8 +192,8 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       weightsInfo,
                       dilation,
                       activationLayerInfo,
-                      false, //enable fast math
-                      1); //num_groups
+                      false,  // enable fast math
+                      1);     // num_groups
     return neConv;
 }
 

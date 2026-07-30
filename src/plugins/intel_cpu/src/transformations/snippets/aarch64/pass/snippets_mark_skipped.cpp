@@ -35,6 +35,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/convolution_backprop_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"

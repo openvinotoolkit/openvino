@@ -16,6 +16,7 @@
 #include "acl_utils.hpp"
 #include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
