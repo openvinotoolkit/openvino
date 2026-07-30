@@ -12,6 +12,7 @@
 #include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -332,10 +333,7 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
 
     std::ostringstream formatted;
     formatted << version;
-    std::string formatted_str = formatted.str();
-    while (!formatted_str.empty() && (formatted_str.back() == '\n' || formatted_str.back() == '\r')) {
-        formatted_str.pop_back();
-    }
+    const std::string formatted_str{ov::util::rtrim(formatted.str())};
     const auto to_string_fn = Napi::Function::New(
         env,
         [formatted_str](const Napi::CallbackInfo& cb) -> Napi::Value {
