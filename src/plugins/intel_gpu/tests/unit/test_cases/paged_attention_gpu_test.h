@@ -18,6 +18,7 @@
 #include <openvino/core/except.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
+#include <cstring>
 #include <optional>
 
 #include "openvino/runtime/properties.hpp"
@@ -1831,6 +1832,40 @@ public:
         cldnn::network::ptr network;
     };
 
+    void validate_zero_key_cache_scales(const cldnn::memory::ptr& key_cache_mem, const T& p) {
+        ASSERT_TRUE(p.kv_cache_compression);
+        ASSERT_EQ(p.key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL);
+
+        constexpr float zero_range = 0.004f;
+        const bool is_int4 = p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4;
+        const size_t quantized_values = is_int4 ? p.block_size / 2 : p.block_size;
+        const size_t adjusted_block_size = quantized_values + 2 * sizeof(ov::float16);
+        const float expected_inv_scale = zero_range / (is_int4 ? 15.0f : 255.0f);
+        const float tolerance = is_int4 ? 1e-5f : 1e-6f;
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_bytes(key_cache_mem,
+                                                                         tests::get_test_stream());
+
+        for (const int physical_block : pam->block_indices) {
+            for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
+                const size_t block_head_offset =
+                    (static_cast<size_t>(physical_block) * p.num_kv_heads + head) * p.k_head_size * adjusted_block_size;
+                for (size_t dim = 0; dim < static_cast<size_t>(p.k_head_size); ++dim) {
+                    const size_t scale_offset = block_head_offset + dim * adjusted_block_size + quantized_values;
+                    ov::float16 stored_inv_scale;
+                    std::memcpy(&stored_inv_scale, cache_bytes.data() + scale_offset, sizeof(stored_inv_scale));
+                    const float inv_scale = static_cast<float>(stored_inv_scale);
+
+                    EXPECT_TRUE(std::isfinite(inv_scale))
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                    EXPECT_GT(inv_scale, 0.0f)
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                    EXPECT_NEAR(inv_scale, expected_inv_scale, tolerance)
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                }
+            }
+        }
+    }
+
     gpu_outputs run_gpu_inference(PagedAttentionManager& pam, T& p) {
         gpu_outputs result;
 
@@ -2179,37 +2214,6 @@ public:
         result.outputs = network->execute();
         result.network = network;
 
-        if (p.zero_key_data) {
-            ASSERT_TRUE(p.kv_cache_compression);
-            ASSERT_EQ(p.key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL);
-
-            const bool is_int4 = kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
-            const size_t adjusted_head_size = is_int4 ? p.k_head_size / 2 : p.k_head_size;
-            const size_t adjusted_block_size = p.block_size + (is_int4 ? 8 : 4);
-            const float expected_inv_scale = is_int4 ? (0.001f / 15.0f) : (1.0f / 255.0f);
-            const size_t scales_per_packed_dim = is_int4 ? 2 : 1;
-            const size_t num_blocks = pam.block_indices.back() + 1;
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(result.key_cache_mem,
-                                                                               tests::get_test_stream());
-
-            for (size_t block = 0; block < num_blocks; ++block) {
-                for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
-                    const size_t block_head_offset =
-                        (block * p.num_kv_heads + head) * adjusted_head_size * adjusted_block_size;
-                    for (size_t dim = 0; dim < adjusted_head_size; ++dim) {
-                        const size_t dim_offset = block_head_offset + dim * adjusted_block_size;
-                        const size_t comp_offset = (dim_offset + p.block_size) / sizeof(ov::float16);
-                        for (size_t scale_idx = 0; scale_idx < scales_per_packed_dim; ++scale_idx) {
-                            const float inv_scale = static_cast<float>(cache_ptr[comp_offset + scale_idx * 2]);
-                            EXPECT_TRUE(std::isfinite(inv_scale));
-                            EXPECT_GT(inv_scale, 0.0f);
-                            EXPECT_NEAR(inv_scale, expected_inv_scale, 1e-5f);
-                        }
-                    }
-                }
-            }
-        }
-
         last_output_data_mem = result.outputs.at("output_data").get_memory();
 
         return result;
@@ -2220,6 +2224,10 @@ public:
         auto& pam = *this->pam;
 
         auto result = run_gpu_inference(pam, p);
+
+        if (p.zero_key_data) {
+            validate_zero_key_cache_scales(result.key_cache_mem, p);
+        }
 
         if (!run_reference) {
             return;
@@ -2969,7 +2977,6 @@ struct paged_attention_test_params {
     std::optional<std::vector<int>> xattention_block_size = std::nullopt;
 
     ov::element::Type kv_cache_precision = ov::element::dynamic;
-    bool zero_key_data = false;
 
     // test query-to-query attention bias
     bool has_qq_bias = false;
@@ -2987,6 +2994,9 @@ struct paged_attention_test_params {
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
     // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
     bool force_flashattn_v2 = false;
+
+    // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
+    bool zero_key_data = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
