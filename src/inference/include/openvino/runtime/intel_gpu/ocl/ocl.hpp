@@ -360,10 +360,14 @@ public:
      * @param type Tensor element type
      * @param shape Tensor shape
      * @param file_path Path to the file containing tensor data
+     * @param offset_in_bytes Offset in bytes from the beginning of the file
      * @return A remote tensor instance
      */
-    ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const std::filesystem::path& file_path) {
-        auto data = std::make_shared<ov::Tensor>(ov::read_tensor_data(file_path, type, shape));
+    ClBufferTensor create_tensor(const element::Type type,
+                                 const Shape& shape,
+                                 const std::filesystem::path& file_path,
+                                 std::size_t offset_in_bytes = 0) {
+        auto data = std::make_shared<ov::Tensor>(ov::read_tensor_data(file_path, type, shape, offset_in_bytes));
         auto tensor = create_tensor(type,
                                     shape,
                                     VirtualAddressMemory{std::as_const(*data).data(), static_cast<int64_t>(data->get_byte_size())});
