@@ -85,6 +85,7 @@ private:
     std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_cpu_va(const ov::element::Type type, const ov::Shape& shape, VirtualAddressMemory cpu_va, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_handle(const ov::element::Type type, const ov::Shape& shape, SharedBufferHandle handle, TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_file(const ov::element::Type type, const ov::Shape& shape, const std::string& file_path, size_t offset);
     std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
     std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
