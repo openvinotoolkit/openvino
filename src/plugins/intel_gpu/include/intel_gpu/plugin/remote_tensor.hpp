@@ -44,7 +44,8 @@ public:
                      cldnn::shared_surface surf = 0,
                      uint32_t plane = 0,
                      ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
-                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr));
+                     ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr),
+                     ov::Tensor mmap_tensor = {});
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
