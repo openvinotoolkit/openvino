@@ -53,6 +53,11 @@ using VirtualAddressMemory = ov::intel_gpu::VirtualAddressMemory;
  */
 class ClBufferTensor : public RemoteTensor {
 public:
+    using RemoteTensor::RemoteTensor;
+
+    ClBufferTensor(const RemoteTensor& tensor, std::shared_ptr<ov::Tensor> data)
+        : RemoteTensor(tensor), m_data(std::move(data)) {}
+
     /**
      * @brief Checks that type defined runtime parameters are presented in remote object
      * @param tensor a tensor to check
