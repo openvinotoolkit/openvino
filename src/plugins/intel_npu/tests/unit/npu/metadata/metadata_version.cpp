@@ -225,6 +225,79 @@ TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsTensorBounds) {
     ASSERT_ANY_THROW(read_metadata_from(tensor));
 }
 
+TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsStreamBounds) {
+    std::stringstream stream;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t compatDescLenOffset =
+        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const uint64_t badLen = compatDesc.size() + 0xFF;
+    std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
+
+    std::stringstream malformedStream(blob);
+    ASSERT_ANY_THROW(read_metadata_from(malformedStream));
+}
+
+TEST_F(MetadataUnitTests, oversizedCompatibilityDescriptorLengthIsRejected) {
+    std::stringstream stream;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t compatDescLenOffset =
+        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const uint64_t oversizedLen = 0x10000000000ULL;
+    std::memcpy(&blob[compatDescLenOffset], &oversizedLen, sizeof(oversizedLen));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
+}
+
+TEST_F(MetadataUnitTests, oversizedCompatibilityDescriptorLengthIsRejectedFromStream) {
+    std::stringstream stream;
+    const std::string compatDesc = "platform=NPU3720;tiles=2;etc=...";
+    auto meta = Metadata<METADATA_VERSION_2_6>(0,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               std::nullopt,
+                                               compatDesc);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const size_t compatDescLenOffset =
+        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
+    const uint64_t oversizedLen = 0x10000000000ULL;
+    std::memcpy(&blob[compatDescLenOffset], &oversizedLen, sizeof(oversizedLen));
+
+    std::stringstream malformedStream(blob);
+    EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+}
+
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;

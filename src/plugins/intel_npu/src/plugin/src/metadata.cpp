@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -208,7 +209,35 @@ void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
-        stream->get().read(destination, size);
+        auto& source = stream->get();
+
+        const auto currentPos = source.tellg();
+        source.seekg(0, std::ios::end);
+        const auto endPos = source.tellg();
+        source.seekg(currentPos);
+
+        if (currentPos == std::streampos(-1) || endPos == std::streampos(-1) || endPos < currentPos) {
+            OPENVINO_THROW("NPU metadata: failed to determine remaining stream size.");
+        }
+
+        const auto remainingBytes = endPos - currentPos;
+        if (remainingBytes > static_cast<std::streamoff>(std::numeric_limits<size_t>::max())) {
+            OPENVINO_THROW("NPU metadata: remaining stream size exceeds supported range.");
+        }
+
+        const size_t remaining = static_cast<size_t>(remainingBytes);
+        if (size > remaining) {
+            OPENVINO_THROW("NPU metadata: attempted to read ",
+                           size,
+                           " bytes from stream but only ",
+                           remaining,
+                           " bytes remain.");
+        }
+
+        source.read(destination, static_cast<std::streamsize>(size));
+        if (!source) {
+            OPENVINO_THROW("NPU metadata: stream read failed while reading ", size, " bytes.");
+        }
     } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
         const size_t available = tensor->get().get_byte_size();
@@ -334,7 +363,41 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     uint64_t reqs_len;
     read_data_from_source(reinterpret_cast<char*>(&reqs_len), sizeof(reqs_len));
     if (reqs_len > 0) {
-        std::string reqs(reqs_len, '\0');
+        size_t remaining = 0;
+        if (const std::reference_wrapper<const ov::Tensor>* source =
+                std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+            const size_t available = source->get().get_byte_size();
+            remaining = (_cursorOffset <= available) ? available - _cursorOffset : 0;
+        } else if (const std::reference_wrapper<std::istream>* source =
+                       std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+            auto& stream = source->get();
+            const auto currentPos = stream.tellg();
+            stream.seekg(0, std::ios::end);
+            const auto endPos = stream.tellg();
+            stream.seekg(currentPos);
+
+            if (currentPos == std::streampos(-1) || endPos == std::streampos(-1) || endPos < currentPos) {
+                OPENVINO_THROW("NPU metadata: failed to determine remaining stream size for compatibility descriptor.");
+            }
+
+            const auto remainingBytes = endPos - currentPos;
+            if (remainingBytes > static_cast<std::streamoff>(std::numeric_limits<size_t>::max())) {
+                OPENVINO_THROW("NPU metadata: remaining stream size exceeds supported range.");
+            }
+            remaining = static_cast<size_t>(remainingBytes);
+        } else {
+            OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
+        }
+
+        if (reqs_len > remaining) {
+            OPENVINO_THROW("NPU metadata: compatibility descriptor length ",
+                           reqs_len,
+                           " exceeds remaining bytes ",
+                           remaining,
+                           ".");
+        }
+
+        std::string reqs(static_cast<size_t>(reqs_len), '\0');
         read_data_from_source(reqs.data(), reqs_len);
         _compatibilityDescriptor = std::move(reqs);
     }
