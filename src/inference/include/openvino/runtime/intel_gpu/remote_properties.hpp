@@ -121,6 +121,7 @@ enum class SharedMemType {
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
     CPU_VA = 8,              //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin
+    MMAPED_FILE = 9,         //!< Memory-mapped file buffer read and wrapped by the plugin
 };
 
 /**
