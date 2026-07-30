@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-30-13-41-45-000-30540715415",
+  "timestamp": "2026-07-30T13:41:45Z",
+  "run_id": "30540715415",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30540715415",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37114",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37114",
+  "author": "Maxim-Doronin",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race fails - import_model call count mismatch",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache fails: import_model expected 3 times but called once"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n  Expected: to be called 3 times\n    Actual: called once - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2047 ms)"
+  ],
+  "root_cause": "The test CachingTest.LoadMultiWithConfig_race is a race-condition stress test that runs up to ~140 iterations to provoke a concurrent cache import_model call. The test expects import_model to be called exactly 3 times (one per device), but under the current run only 1 call occurred before the 2-second test window expired. This is a timing-sensitive flaky test: if threads don't all compete within the 2-second window, fewer import_model calls are recorded. The failure is not caused by the PR's change (src/plugins/intel_npu/tests/driver_version.json, unrelated to inference/caching), confirming this is a pre-existing test flakiness.",
+  "reproduction_steps": "Run on Windows CI with reduced system load; run `caching_test.exe --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache` multiple times.",
+  "recommended_actions": [
+    "Re-add PR #37114 to the merge queue - the failure is unrelated to the PR change.",
+    "File a known flaky test issue for CachingTest.LoadMultiWithConfig_race and add it to the flaky test list.",
+    "Consider increasing the race timeout or relaxing the EXPECT_CALL count from exactly 3 to at-least 1."
+  ],
+  "prevention_strategies": "Race-condition tests should use flexible call count expectations (AtLeast(1)) and/or longer timeout windows to avoid CI flakiness.",
+  "historical_context": "This type of mock call count mismatch in race tests is a common flakiness pattern in Windows CI runners which can be slower/more variable than Linux."
+}
