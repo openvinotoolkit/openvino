@@ -7,7 +7,6 @@
 #include "dynamic_quantize/dynamic_quantize_kernel_ref.h"
 #include "dynamic_quantize/dynamic_quantize_kernel_selector.h"
 #include "dynamic_quantize_inst.h"
-#include "fully_connected_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -39,12 +38,8 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
 
         // In Some model, the feature size could be dynamic in input0.
-        // It refers to IFM value of weight of fully connected.
-        auto user_node = impl_param.prog->get_node(impl_param.desc->id).get_users().front();
-        if (user_node != nullptr && user_node->is_type<fully_connected>()) {
-            auto& fc_node = user_node->as<fully_connected>();
-            params.fc_ifm_size = fc_node.weights().get_output_layout().feature();
-        }
+        // It refers to IFM value of weight of fully connected, resolved when the primitive was created.
+        params.fc_ifm_size = primitive->innermost_size;
 
         if (impl_param.output_layouts.size() > 2)
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
