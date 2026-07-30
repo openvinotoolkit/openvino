@@ -50,7 +50,7 @@ static size_t get_shape_data_size(const layout& l) {
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : std::string()) {
     if (prim) {
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
@@ -195,17 +195,27 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
+const std::vector<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.insert(static_cast<uint32_t>(val));
+        OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(),
+            "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
+        const auto v32 = static_cast<uint32_t>(val);
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), v32);
+        if (it == memory_dependencies.end() || *it != v32) {
+            memory_dependencies.insert(it, v32);
+        }
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
+    if (dep.may_use_mempool() && may_use_mempool()) {
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), static_cast<uint32_t>(dep.get_unique_id()));
+        if (it == memory_dependencies.end() || *it != static_cast<uint32_t>(dep.get_unique_id())) {
+            memory_dependencies.insert(it, static_cast<uint32_t>(dep.get_unique_id()));
+        }
+    }
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
@@ -251,7 +261,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
-    if (onednn_post_ops.size()) {
+    if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
         for (auto& fused_prim_desc : onednn_post_ops) {

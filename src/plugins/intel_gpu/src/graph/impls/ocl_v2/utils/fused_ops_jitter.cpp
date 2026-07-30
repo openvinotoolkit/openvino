@@ -12,6 +12,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "jitter.hpp"
+#include "kernel_selector/jitter.h"
 #include "openvino/core/type/element_type.hpp"
 #include "quantize_inst.h"
 
@@ -701,18 +702,14 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     // 2. If in given configuration data can't be loaded by a simple UNIT_BLOCK_READx call or load from casted ptr,
     //    we can gather the data to vector
     if (conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ) {
-        bool multiple_elements = false;
-        // For dynamic shape input tensor, check any one of static dimension has more than one element.
         if (input_tensor.is_dynamic()) {
-            for (const auto& dim : input_tensor.get_partial_shape()) {
-                if (dim.is_static() && dim.get_length() > 1) {
-                    multiple_elements = true;
-                    break;
-                }
-            }
+            const auto has_multiple_elements = kernel_selector::GetTensorHasMultipleElementsCondition(get_input_tensor_name(input_id).str());
+            auto block_load = make_block_read(input_dt, vec_size, in_ptr + index_func_call);
+            auto scalar_load = broadcast(in_ptr[index_func_call], input_dt, vec_size);
+            return ternary(JitTerm{"(" + has_multiple_elements + ")"}, block_load, scalar_load);
         }
 
-        if ((input_tensor.is_static() && input_tensor.count() > 1) || multiple_elements) {
+        if (input_tensor.count() > 1) {
             // Currently we assume that in such scenario we can safely load sub_group_size elements from the pointer
             return make_block_read(input_dt, vec_size, in_ptr + index_func_call);
         }

@@ -194,7 +194,7 @@ std::string resample_inst::to_string(resample_node const& node) {
 
     if (desc->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES) {
         std::string axesAndScalesDump;
-        std::string delim = "";
+        std::string delim;
         for (size_t i = 0; i < desc->axes.size(); i++) {
             axesAndScalesDump += delim;
             delim = ", ";

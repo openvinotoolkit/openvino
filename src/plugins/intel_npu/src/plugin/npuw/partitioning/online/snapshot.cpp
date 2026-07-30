@@ -765,10 +765,13 @@ void Snapshot::earlyRegroup() {
                 HNDL_MOE(GPTOSSRouter);
                 HNDL_MOE(Qwen3Expert);
                 HNDL_MOE(Qwen3Router);
+                HNDL_MOE(Gemma4Expert);
+                HNDL_MOE(Gemma4Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
                 HNDL_ATTN(SDPADecomposed);
+                HNDL_ATTN(QuantizedSDPAWithGlobalMask);
                 HNDL_ATTN(GQA);
                 HNDL_ATTN(SDPACompressed);
 #undef HNDL_MOE
@@ -1040,7 +1043,10 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
             return {};
         }
         for (const auto& el : cons) {
-            if (el->dstNodes().size() > 1 || el->srcNodes().size() > 1) {
+            // Note: a consumer group with no destination (e.g. it feeds a Result directly)
+            // has nothing to look up via dstNodes().front() below - reject it here rather
+            // than triggering undefined behavior on an empty vector.
+            if (el->dstNodes().empty() || el->dstNodes().size() > 1 || el->srcNodes().size() > 1) {
                 return {};
             }
         }

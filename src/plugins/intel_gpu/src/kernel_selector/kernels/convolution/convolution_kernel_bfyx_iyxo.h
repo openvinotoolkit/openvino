@@ -13,7 +13,7 @@ class ConvolutionKernel_bfyx_iyxo : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_bfyx_iyxo() : Parent("convolution_gpu_bfyx_iyxo") {}
-    virtual ~ConvolutionKernel_bfyx_iyxo() {}
+    ~ConvolutionKernel_bfyx_iyxo() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
