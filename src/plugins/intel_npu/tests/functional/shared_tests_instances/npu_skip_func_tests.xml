@@ -925,9 +925,11 @@ Example:
 
     <!-- E#210236-->
     <skip_config>
-        <message>Test fails sporadically on NPU Windows drivers</message>
+        <message>Test fails sporadically on NPU Windows drivers older than 07 2026</message>
         <enable_rules>
             <operating_system>windows</operating_system>
+            <driver_version>1688</driver_version>
+            <driver_version>2020568</driver_version>
         </enable_rules>
         <filters>
             <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>

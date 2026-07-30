@@ -98,6 +98,10 @@ target_include_directories(${TARGET_NAME}
     PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+if (ENABLE_IO_URING AND LINUX)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::liburing)
+endif()
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})

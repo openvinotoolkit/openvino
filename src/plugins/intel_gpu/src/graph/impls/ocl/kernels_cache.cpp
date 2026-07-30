@@ -284,7 +284,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         return;
     }
 
-    std::string current_dump_file_name = "";
+    std::string current_dump_file_name;
     if (dump_sources) {
         current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
