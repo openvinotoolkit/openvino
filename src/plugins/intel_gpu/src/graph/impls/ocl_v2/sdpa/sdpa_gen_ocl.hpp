@@ -34,6 +34,12 @@ public:
     static void update_pa_sdpa_configuration(const sdpa_configuration& sdpa_config);
     size_t get_tile_qsize(const KernelData& kernel_data);
 
+    // Number of queries a single workgroup of this kernel consumes (the KQ workgroup query tile).
+    // Paged attention must use exactly this value as the stride of
+    // blocked_indexes_start_and_gws_mapping, otherwise the dispatched workgroup count and the
+    // per-workgroup query offsets disagree and part of every subsequence is left uncomputed.
+    static size_t get_query_block_size(const kernel_impl_params& params);
+
 private:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
 
