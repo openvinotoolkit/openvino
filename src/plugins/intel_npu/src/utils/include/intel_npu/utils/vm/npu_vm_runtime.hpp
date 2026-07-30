@@ -72,7 +72,8 @@ extern "C" {
 typedef enum _npu_vm_runtime_version_t {
     NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),           ///< version 1.0
     NPU_VM_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),           ///< version 1.1
-    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_1,  ///< latest known version
+    NPU_VM_RUNTIME_VERSION_2_0 = ZE_MAKE_VERSION(2, 0),           ///< version 2.0
+    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_2_0,  ///< latest known version
     NPU_VM_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
 } npu_vm_runtime_version_t;
 
@@ -225,6 +226,20 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 );
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Init VM runtime execution context with flags (v2.0)
+/// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
+///          API version is 2.0 or later. The initflag bitmask controls how the
+///          interpreter configures its internal command list for this context.
+///          Pass the same flags that will be supplied to npuVMRuntimeExecute2 so
+///          the interpreter can prepare the context accordingly.
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
+    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
+    uint64_t initflag,                 ///< [in] bitmask of npu_vm_runtime_execute_flags_t values
+    npu_vm_runtime_execution_context_handle_t*
+        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
+);
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroy VM runtime instance
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeDestroyExecutionContext(
     npu_vm_runtime_execution_context_handle_t
@@ -257,6 +272,111 @@ typedef struct _npu_vm_runtime_predict_output_shape_params_t2 {
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape2(
     npu_vm_runtime_handle_t hRuntime,                       ///< [in] handle of VM runtime object
     npu_vm_runtime_predict_output_shape_params_t2* pParams  ///< [in] pointer to predict output shape parameters
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Version 2.0
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Execution flags for npuVMRuntimeExecute2
+/// @details Bitmask passed in npu_vm_runtime_execute_params2_t::flags.
+///          Controls how the interpreter creates and manages its internal
+///          command list for the given executionContext.
+typedef uint64_t npu_vm_runtime_execute_flags_t;
+
+/// @brief If set, interpreter will NOT use an immediate command list.
+///        Interpreter creates a normal command list internally and submits
+///        it via the provided commandQueue on each Execute2 call.
+///        If NOT set (0 / default), interpreter creates an internal immediate
+///        command list on the first Execute2 call (lazy, stored in
+///        executionContext) and reuses it for all subsequent calls.
+#define NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE 0x1ULL
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Opaque wait identifier returned by npuVMRuntimeExecute2
+/// @details Passed to npuVMRuntimeHostSync to block until the corresponding
+///          inference completes. The interpreter manages the underlying
+///          synchronization primitive (event or fence) transparently.
+typedef uint64_t npu_vm_runtime_wait_id_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Execute parameters for npuVMRuntimeExecute2
+/// @details Plugin provides Level Zero context handles and a commandQueue.
+///          The interpreter creates and owns all internal command lists
+///          (immediate or normal) based on flags, lazily on the first call
+///          per executionContext, storing them inside executionContext.
+///          Plugin never creates or manages command lists directly in this path.
+typedef struct _npu_vm_runtime_execute_params2_t {
+    /// @brief Level Zero context. Used by interpreter to create internal CLs.
+    ze_context_handle_t ctx;
+
+    /// @brief Level Zero device. Used by interpreter to create internal CLs.
+    ze_device_handle_t device;
+
+    /// @brief Graph DDI table extension pointer.
+    ze_graph_dditable_ext_t* graphDdiTableExt;
+
+    /// @brief Command queue for submitting normal command lists.
+    ///        When flags & NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE:
+    ///          interpreter submits its internal normal CL via this queue.
+    ///        When flags == 0 (immediate CL path):
+    ///          interpreter uses this queue's desc to configure the
+    ///          internal immediate CL (priority, ordinal, etc.) on first call.
+    ze_command_queue_handle_t commandQueue;
+
+    /// @brief Bitmask of npu_vm_runtime_execute_flags_t values.
+    uint64_t flags;
+
+    /// @brief Input tensor MemRef handles.
+    npu_vm_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+
+    /// @brief Output tensor MemRef handles.
+    npu_vm_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+
+    /// @brief Execution context. Interpreter stores its internal CLs here
+    ///        and reuses them across Execute2 calls.
+    npu_vm_runtime_execution_context_handle_t executionContext;
+} npu_vm_runtime_execute_params2_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Execute VM runtime (v2.0)
+/// @details Replaces npuVMRuntimeExecute + npuVMRuntimeUpdateMutableCommandList.
+///          On the first call per executionContext, interpreter lazily creates
+///          its internal command list based on flags and stores it in
+///          executionContext. Returns an opaque waitId for host synchronization.
+///
+///          flags == 0 (immediate CL path, default):
+///            Interpreter creates an internal immediate command list once,
+///            using the commandQueue desc for configuration. On every call,
+///            interpreter updates graph arguments and appends graph execute
+///            to the immediate CL (device executes immediately). Returns
+///            waitId backed by an internal event.
+///
+///          flags & NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE (normal CL path):
+///            Interpreter creates an internal normal command list once.
+///            On every call, interpreter resets the CL, updates graph arguments,
+///            appends graph execute, closes the CL, and submits via commandQueue.
+///            Returns waitId backed by an internal fence or event.
+///
+///          In both paths, call npuVMRuntimeHostSync(hRuntime, waitId) to block
+///          until the inference completes.
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeExecute2(
+    npu_vm_runtime_handle_t hRuntime,           ///< [in]  handle of VM runtime object
+    npu_vm_runtime_execute_params2_t* pParams,  ///< [in]  pointer to v2 execution parameters
+    npu_vm_runtime_wait_id_t* pWaitId           ///< [out] opaque wait identifier for host sync
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Block host until the inference identified by waitId completes (v2.0)
+/// @details The interpreter internally calls zeEventHostSynchronize or
+///          zeFenceHostSynchronize depending on which primitive backs the waitId.
+///          After this call returns SUCCESS, the waitId is consumed and must not
+///          be reused. Output buffers are safe to read after this returns.
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeHostSync(
+    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
+    npu_vm_runtime_wait_id_t waitId    ///< [in] wait identifier returned by npuVMRuntimeExecute2
 );
 
 #if defined(__cplusplus)
