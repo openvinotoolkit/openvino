@@ -685,7 +685,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
         if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
-            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights(Grp)?_Kleidiai.*)"));
         }
         if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
             patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
