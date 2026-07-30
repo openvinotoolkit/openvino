@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # the whole generate call, so we wrap them once and reuse. Keyed by (layer_name,
 # id(kv_cache_tensor)) so it invalidates if vLLM rebuilds the KV allocator.
 _pa_kv_ovt_cache = {}
+_pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
 
 
 # Small helpers for the zero placeholders we return when vLLM has no attn_meta
@@ -417,35 +418,38 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        # Per-layer sliding_window. Read from vLLM layer_obj.impl (backend impl)
-        # or fall back to layer_obj itself. Full-attention layers report None
+        # Per-layer sliding_window is architecture-static — cache it per
+        # (compiled model id, layer_name). Read from vLLM layer_obj.impl on
+        # first call, reuse thereafter. Full-attention layers report None
         # or 0; sliding-attention layers report their window size (e.g. 512
         # for Gemma-4). Passed as a scalar i32.
-        sliding_window_val = 0
-        if ctx is not None and layer_name != "shared":
-            try:
-                nc_layers = ctx.no_compile_layers
-                lo = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
-                sw = None
-                if lo is not None:
-                    impl = getattr(lo, "impl", None)
-                    sw = getattr(impl, "sliding_window", None) if impl is not None else None
-                    if sw is None:
-                        sw = getattr(lo, "sliding_window", None)
-                if sw is not None:
-                    # vLLM stores sliding_window as a tuple (w-1, w-1) or
-                    # (w-1, 0) for sliding layers, (-1, -1) for full-attention.
-                    # The OV PA op wants: 0 for disabled, N for "last N tokens".
-                    if isinstance(sw, (tuple, list)):
-                        sw = sw[0] if sw else -1
-                    sw_int = int(sw)
-                    # Map vLLM's -1 (no window) to 0 (OV's "disabled"). vLLM
-                    # stores (w-1); pass through as-is — OV kernel does
-                    # ncausal > sliding_window comparison, exclusive so w-1 works.
-                    sliding_window_val = 0 if sw_int < 0 else sw_int
-            except Exception:
-                pass
-        sliding_window_np = np.array(sliding_window_val, dtype=np.int32)
+        _sw_key = (id(compiled), layer_name)
+        sliding_window_np = _pa_sliding_window_cache.get(_sw_key)
+        if sliding_window_np is None:
+            sliding_window_val = 0
+            if ctx is not None and layer_name != "shared":
+                try:
+                    nc_layers = ctx.no_compile_layers
+                    lo = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
+                    sw = None
+                    if lo is not None:
+                        impl = getattr(lo, "impl", None)
+                        sw = getattr(impl, "sliding_window", None) if impl is not None else None
+                        if sw is None:
+                            sw = getattr(lo, "sliding_window", None)
+                    if sw is not None:
+                        # vLLM stores sliding_window as a tuple (w-1, w-1) or
+                        # (w-1, 0) for sliding layers, (-1, -1) for full-attention.
+                        # The OV PA op wants: 0 for disabled, N for "last N tokens".
+                        if isinstance(sw, (tuple, list)):
+                            sw = sw[0] if sw else -1
+                        sw_int = int(sw)
+                        # Map vLLM's -1 (no window) to 0 (OV's "disabled").
+                        sliding_window_val = 0 if sw_int < 0 else sw_int
+                except Exception:
+                    pass
+            sliding_window_np = np.array(sliding_window_val, dtype=np.int32)
+            _pa_sliding_window_cache[_sw_key] = sliding_window_np
 
         _sm = _shared_meta
         for field, name in fields.items():

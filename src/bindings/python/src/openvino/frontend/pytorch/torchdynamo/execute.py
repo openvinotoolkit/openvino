@@ -243,9 +243,9 @@ def openvino_execute(
             return list(_eager_out)
         return _eager_out
     if _call_kwargs is not None:
-        res = req.infer(_call_kwargs, share_inputs=True, share_outputs=False)
+        res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
     else:
-        res = req.infer(ov_inputs, share_inputs=True, share_outputs=False)
+        res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
     import os as _os_pc
     if _os_pc.environ.get("OV_PERF_COUNT_OUT"):
         _pc_path = _os_pc.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
