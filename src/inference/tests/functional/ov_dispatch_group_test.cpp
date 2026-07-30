@@ -175,6 +175,43 @@ TEST_F(DispatchGroupTest, divergent_enumeration_non_shared_device) {
     EXPECT_EQ(resolved_tag(core, "1"), "B");  // B-only device -> B
 }
 
+// --- unload / lifetime (design 6): resolved group instances tear down cleanly ---
+
+// unload_plugin on a dispatch-group name frees the resolved instances (cached under internal
+// keys), and a subsequent request re-resolves and reloads without error.
+TEST_F(DispatchGroupTest, unload_plugin_frees_group_and_reloads) {
+    script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(CAPABLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core), "A");            // constructs the winner
+    OV_ASSERT_NO_THROW(core.unload_plugin(device));  // frees it
+    EXPECT_EQ(resolved_tag(core), "A");            // re-resolves and reloads cleanly
+}
+
+// Two per-id winners coexist and both unload together via the group name.
+TEST_F(DispatchGroupTest, unload_plugin_frees_all_group_winners) {
+    script("0,aa," + std::to_string(PREFERRED) + ";1,bb," + std::to_string(SERVABLE),
+           "0,aa," + std::to_string(CAPABLE) + ";1,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "0"), "A");  // constructs winner A (GPU#0)
+    EXPECT_EQ(resolved_tag(core, "1"), "B");  // constructs winner B (GPU#1)
+    OV_ASSERT_NO_THROW(core.unload_plugin(device));
+    EXPECT_EQ(resolved_tag(core, "0"), "A");  // both re-resolve after unload
+    EXPECT_EQ(resolved_tag(core, "1"), "B");
+}
+
+// Repeated Core create/destroy with a resolved group must not crash or leak (RAII teardown).
+TEST_F(DispatchGroupTest, repeated_core_lifecycle_is_clean) {
+    script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(CAPABLE));
+    for (int i = 0; i < 5; ++i) {
+        ov::Core core;
+        core.register_plugins(xml_path.string());
+        EXPECT_EQ(resolved_tag(core), "A");
+        // core goes out of scope here: both the winner instance and its .so must release.
+    }
+}
+
 }  // namespace
 
 #endif  // OPENVINO_STATIC_LIBRARY

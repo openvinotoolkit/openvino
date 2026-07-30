@@ -1540,6 +1540,28 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
 
 void ov::CoreImpl::unload_plugin(const std::string& device_name) {
     std::lock_guard<std::mutex> lock(get_mutex());
+
+    // A dispatch group caches its resolved instances under internal keys (e.g. "GPU#0",
+    // "GPU#1"), not under the bare name; erase all of them so unload frees every winner.
+    const auto reg_it = m_plugin_registry.find(device_name);
+    if (reg_it != m_plugin_registry.end() && reg_it->second.is_dispatch_group()) {
+        const std::string prefix = device_name + '#';
+        bool erased = false;
+        for (auto it = m_plugins.begin(); it != m_plugins.end();) {
+            if (it->first.rfind(prefix, 0) == 0) {
+                it = m_plugins.erase(it);
+                erased = true;
+            } else {
+                ++it;
+            }
+        }
+        if (!erased) {
+            OPENVINO_THROW("Device with \"", device_name, "\" name is not registered in the OpenVINO Runtime");
+        }
+        reg_it->second.m_extensions.clear();
+        return;
+    }
+
     auto it = m_plugins.find(device_name);
     if (it == m_plugins.end()) {
         OPENVINO_THROW("Device with \"", device_name, "\" name is not registered in the OpenVINO Runtime");
