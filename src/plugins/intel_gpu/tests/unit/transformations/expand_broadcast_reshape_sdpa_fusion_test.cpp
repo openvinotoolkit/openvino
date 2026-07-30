@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
-
-#include <memory>
-#include <openvino/op/scatter_update.hpp>
-#include <openvino/op/variadic_split.hpp>
-
 #include "common_test_utils/ov_test_utils.hpp"
-#include "intel_gpu/op/kv_cache.hpp"
-#include "intel_gpu/op/read_value.hpp"
-#include "intel_gpu/op/sdpa.hpp"
+
+#include "ov_ops/rotary_positional_embeddings.hpp"
+
 #include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
+#include "openvino/op/concat.hpp"
+
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+
+#include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
+
+#include <memory>
 
 using namespace testing;
 using namespace ov::intel_gpu;
