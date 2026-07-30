@@ -2213,6 +2213,25 @@ void primitive_inst::prepare_primitive() {
                     << ", "
                     << "can_be_optimized=" << can_be_optimized() << ")" << std::endl;
 
+    if (true) {
+        std::cerr << "[PROBE_BUFFER_PTR] " << id()
+                  << " opt=" << can_be_optimized()
+                  << " OUT=" << (_outputs.empty() || !_outputs[0] ? nullptr : _outputs[0]->buffer_ptr());
+        for (size_t d = 0; d < _deps.size(); ++d) {
+            auto* dp = _deps[d].first;
+            std::cerr << " IN[" << d << "]=" << dp->id() << "@"
+                      << (dp->_outputs.empty() || !dp->_outputs[0] ? nullptr : dp->_outputs[0]->buffer_ptr());
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "[PROBE_BUFFER_LAYOUT] " << id() << " kern=" << _impl->get_kernel_name()
+                  << " opt=" << can_be_optimized()
+                  << " OUT=" << _impl_params->output_layouts[0].to_short_string();
+        for (size_t k = 0; k < _impl_params->input_layouts.size() && k < 2; ++k)
+            std::cerr << " IN[" << k << "]=" << _impl_params->input_layouts[k].to_short_string();
+        std::cerr << std::endl;
+    }
+
     const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
     if (!_exec_deps.empty()) {
         // Prepare dependencies events in case of OOO queue, CPU implementation,
