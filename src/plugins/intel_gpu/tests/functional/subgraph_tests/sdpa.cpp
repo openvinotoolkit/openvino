@@ -30,7 +30,6 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/variadic_split.hpp"
 
-
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -132,8 +131,8 @@ protected:
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
         if (query_shape != query_reshape_shape) {
             const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
-                ov::Shape{ query_reshape_shape.size() },
-                query_reshape_shape);
+                                                                        ov::Shape{query_reshape_shape.size()},
+                                                                        query_reshape_shape);
             query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
             reshape = true;
         }
@@ -142,7 +141,7 @@ protected:
         std::shared_ptr<ov::op::v1::Reshape> key_reshaped;
         if (key_shape != key_reshape_shape) {
             const auto key_reshape_params =
-                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ key_reshape_shape.size() }, key_reshape_shape);
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{key_reshape_shape.size()}, key_reshape_shape);
             key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
             reshape = true;
         }
@@ -151,7 +150,7 @@ protected:
         std::shared_ptr<ov::op::v1::Reshape> value_reshaped;
         if (value_shape != value_reshape_shape) {
             const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
-                ov::Shape{ value_reshape_shape.size() },
+                ov::Shape{value_reshape_shape.size()},
                 value_reshape_shape);
             value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
             reshape = true;
@@ -283,7 +282,7 @@ protected:
         if (reshape) {
             qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_input, false, false);
             const auto qkv_reshape_params =
-                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ query_shape.size() }, query_shape.to_shape());
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
             qkv_reshaped = std::make_shared<ov::op::v1::Reshape>(qkv, qkv_reshape_params, true);
             output = std::make_shared<ov::op::v0::Result>(qkv_reshaped->output(0));
         } else {
@@ -324,7 +323,7 @@ protected:
                                 inType,
                                 *itTargetShape,
                                 ov::test::utils::InputGenerateData(0, 8, 32, 1));
-                            inputs.insert({ param, tensor });
+                            inputs.insert({param, tensor});
                             break;
                         }
                     }
@@ -370,7 +369,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false,
+                                                           0,
                                                            1),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
@@ -382,7 +381,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false,
+                                                           0,
                                                            1),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
@@ -394,7 +393,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false,
+                                                           0,
                                                            1),
                                            std::make_tuple(ov::PartialShape{1, 10, 77, 64},
                                                            ov::Shape{10, 77, 64},
@@ -406,7 +405,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false,
+                                                           0,
                                                            1),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{1, 10, 1024, 64},
@@ -418,7 +417,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            -0.025f,
-                                                           false,
+                                                           0,
                                                            1),
                                            std::make_tuple(ov::PartialShape{1, 8, 10, 256},
                                                            ov::Shape{1, 8, 10, 256},
