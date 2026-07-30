@@ -608,22 +608,48 @@ TEST(OVRemoteTensorTests, smoke_CreateTensorFromFile) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-    const ov::Shape shape{1, 2, 2, 2};
+    auto core = ov::Core();
+    auto model = ov::test::behavior::getDefaultNGraphFunctionForTheDevice();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    auto input = model->get_parameters().at(0);
+    auto output = model->get_results().at(0);
+    const ov::Shape input_shape{1, 2, 32, 32};
+
+    // Prepare input data and store it in a file at a page-aligned offset.
+    auto input_data = ov::test::utils::create_and_fill_tensor(input->get_element_type(), input_shape);
     const std::filesystem::path file_path{"ocl_remote_tensor_file.bin"};
-    std::vector<float> values(ov::shape_size(shape), 1.0f);
-    constexpr std::size_t offset = 4096;
+    constexpr std::size_t offset = 4096;  // page-aligned (and cache-line aligned) offset
     {
         std::ofstream file(file_path, std::ios::binary);
         file.seekp(offset);
-        file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+        file.write(reinterpret_cast<const char*>(input_data.data()), input_data.get_byte_size());
     }
 
-    auto core = ov::Core();
-    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
-    auto tensor = context.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{file_path, offset});
+    // Regular inference to get the reference output.
+    auto inf_req_regular = compiled_model.create_infer_request();
+    inf_req_regular.set_tensor(input, input_data);
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(output);
 
-    EXPECT_TRUE(tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
-    EXPECT_NE(tensor.get(), nullptr);
+    // Inference using a remote tensor memory-mapped from the file.
+    auto context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto remote_tensor =
+        context.create_tensor(input->get_element_type(), input_shape, ov::intel_gpu::FileDescriptor{file_path, offset});
+    ASSERT_TRUE(remote_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
+
+    auto inf_req_shared = compiled_model.create_infer_request();
+    inf_req_shared.set_tensor(input, remote_tensor);
+    inf_req_shared.infer();
+    auto output_tensor_shared = inf_req_shared.get_tensor(output);
+
+    // Compare results.
+    {
+        ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
+        OV_ASSERT_NO_THROW(output_tensor_regular.data());
+        OV_ASSERT_NO_THROW(output_tensor_shared.data());
+        ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
+    }
 
     std::filesystem::remove(file_path);
 }
