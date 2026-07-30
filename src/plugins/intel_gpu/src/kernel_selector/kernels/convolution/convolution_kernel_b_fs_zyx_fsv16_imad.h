@@ -14,7 +14,7 @@ public:
     using Parent = ConvolutionKernelBase;
     using BlockParams = DispatchData::BlockParams;
     Convolution_kernel_b_fs_zyx_fsv16_imad() : ConvolutionKernelBase("convolution_gpu_b_fs_zyx_fsv16_imad") {}
-    virtual ~Convolution_kernel_b_fs_zyx_fsv16_imad() {}
+    ~Convolution_kernel_b_fs_zyx_fsv16_imad() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

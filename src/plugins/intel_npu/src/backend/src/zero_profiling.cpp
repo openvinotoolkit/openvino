@@ -35,8 +35,16 @@ struct ZeProfilingTypeId<uint8_t> {
 };
 
 bool ProfilingPool::create() {
-    auto ret =
-        _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(_graph->get_handle(), _profiling_count, &_handle);
+    // To avoid  dynamic infer flow + perf_count_enabled calling static_cast<ze_graph_handle_t> which is not supported
+    // in dynamic graph
+    if (_graph->is_dynamic()) {
+        return false;
+    }
+
+    auto ret = _init_structs->getProfilingDdiTable().pfnProfilingPoolCreate(
+        static_cast<ze_graph_handle_t>(_graph->get_handle()),
+        _profiling_count,
+        &_handle);
     return ((ZE_RESULT_SUCCESS == ret) && (_handle != nullptr));
 }
 

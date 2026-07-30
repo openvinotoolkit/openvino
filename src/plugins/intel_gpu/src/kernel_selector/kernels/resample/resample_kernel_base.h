@@ -42,7 +42,7 @@ public:
     using DispatchData = CommonDispatchData;
     using KernelBaseOpenCL::KernelBaseOpenCL;
 
-    virtual ~ResampleKernelBase() {}
+    ~ResampleKernelBase() override {}
 
 protected:
     bool Validate(const Params& p) const override;

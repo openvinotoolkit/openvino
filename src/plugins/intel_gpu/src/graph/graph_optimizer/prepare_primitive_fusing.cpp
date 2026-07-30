@@ -220,7 +220,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         if (node->get_dependencies().size() > 1)
             continue;
         if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
-           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
+           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(false).get_partial_shape().size()) - 1))
             continue;
 
         auto& dep_node = node->get_dependency(0);
@@ -368,7 +368,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             bias_node.users.push_back(&new_node);
 
             // Remove all edges connected with peer node
-            while (eltw_node.get_dependencies().size() > 0) {
+            while (!eltw_node.get_dependencies().empty()) {
                 auto& dep = eltw_node.get_dependency(eltw_node.get_dependencies().size() - 1);
                 p.remove_connection(dep, eltw_node);
             }
@@ -686,11 +686,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto has_reorder_behind_mvn = [&]() -> bool {
                 // MVN with rank size 3 always requires Reorder and Reshape. This pattern always run simple formats(bfyx..).
-                if (node.get_dependencies().size() > 0 && node.get_dependency(0).is_type<reshape>()) {
+                if (!node.get_dependencies().empty() && node.get_dependency(0).is_type<reshape>()) {
                     auto& reshape_node = node.get_dependency(0);
-                    if (reshape_node.get_dependencies().size() > 0 && reshape_node.get_dependency(0).is_type<reorder>()) {
+                    if (!reshape_node.get_dependencies().empty() && reshape_node.get_dependency(0).is_type<reorder>()) {
                         auto& reorder_node = reshape_node.get_dependency(0);
-                        if (reorder_node.get_dependencies().size() > 0 && reorder_node.get_dependency(0).is_type<mvn>()) {
+                        if (!reorder_node.get_dependencies().empty() && reorder_node.get_dependency(0).is_type<mvn>()) {
                             return true;
                         }
                     }
@@ -919,6 +919,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= legacy_fusion;
 
+            // fp8 concatenation/scatter_update take a byte-copy kernel path that cannot run fused ops
+            // (ACTIVATION does not compile on the 1-byte fp8 struct), so block fusion into an fp8 output.
+            if (should_fuse && input.get_output_layout().data_type == data_types::f8e4m3 &&
+                (input.is_type<concatenation>() || input.is_type<scatter_update>())) {
+                should_fuse = false;
+            }
+
             if (!should_fuse)
                 return;
 
@@ -1000,7 +1007,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
+            // fp8 scatter_update byte-copies its data; fused ops don't compile on the fp8 struct, so don't fuse into it.
+            should_fuse |=
+                input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
 
             should_fuse |= input_data.is_type<scatter_nd_update>() && quantize_node.get_scale_shift_opt();
 

@@ -12,7 +12,7 @@ namespace kernel_selector {
 class ConvolutionKernel_yxfb_Ref : public ConvolutionKernelBase {
 public:
     ConvolutionKernel_yxfb_Ref() : ConvolutionKernelBase("convolution_gpu_yxfb_ref") {}
-    virtual ~ConvolutionKernel_yxfb_Ref() {}
+    ~ConvolutionKernel_yxfb_Ref() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
