@@ -10,7 +10,6 @@
  */
 #pragma once
 
-#include <filesystem>
 #include <string>
 
 #include "openvino/runtime/core.hpp"
