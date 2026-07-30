@@ -2,11 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <numeric>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "intel_gpu/runtime/engine.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/op/add.hpp"
@@ -20,17 +17,19 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/variadic_split.hpp"
+
 
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
@@ -49,7 +48,8 @@ protected:
         auto constant2 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
         auto constant3 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});
         auto input = std::make_shared<ov::op::v0::Parameter>(inType, inputShape);
-        auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{}, std::vector<int64_t>{0});
+        auto split_axis_op =
+            std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{}, std::vector<int64_t>{0});
         auto split = std::make_shared<ov::op::v1::Split>(input, split_axis_op, 3);
 
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), constant1, false);
@@ -131,7 +131,9 @@ protected:
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
         if (query_shape != query_reshape_shape) {
-            const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_reshape_shape.size()}, query_reshape_shape);
+            const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
+                ov::Shape{ query_reshape_shape.size() },
+                query_reshape_shape);
             query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
             reshape = true;
         }
@@ -139,7 +141,8 @@ protected:
         const auto key = std::make_shared<ov::op::v0::Parameter>(inType, key_shape);
         std::shared_ptr<ov::op::v1::Reshape> key_reshaped;
         if (key_shape != key_reshape_shape) {
-            const auto key_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{key_reshape_shape.size()}, key_reshape_shape);
+            const auto key_reshape_params =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ key_reshape_shape.size() }, key_reshape_shape);
             key_reshaped = std::make_shared<ov::op::v1::Reshape>(key, key_reshape_params, true);
             reshape = true;
         }
@@ -147,7 +150,9 @@ protected:
         const auto value = std::make_shared<ov::op::v0::Parameter>(inType, value_shape);
         std::shared_ptr<ov::op::v1::Reshape> value_reshaped;
         if (value_shape != value_reshape_shape) {
-            const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{value_reshape_shape.size()}, value_reshape_shape);
+            const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
+                ov::Shape{ value_reshape_shape.size() },
+                value_reshape_shape);
             value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
             reshape = true;
         }
@@ -277,7 +282,8 @@ protected:
         std::shared_ptr<ov::op::v0::Result> output;
         if (reshape) {
             qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value_input, false, false);
-            const auto qkv_reshape_params = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{query_shape.size()}, query_shape.to_shape());
+            const auto qkv_reshape_params =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ query_shape.size() }, query_shape.to_shape());
             qkv_reshaped = std::make_shared<ov::op::v1::Reshape>(qkv, qkv_reshape_params, true);
             output = std::make_shared<ov::op::v0::Result>(qkv_reshaped->output(0));
         } else {
@@ -314,9 +320,11 @@ protected:
                     std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
                     for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                         if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                            const auto& tensor =
-                                ov::test::utils::create_and_fill_tensor(inType, *itTargetShape, ov::test::utils::InputGenerateData(0, 8, 32, 1));
-                            inputs.insert({param, tensor});
+                            const auto& tensor = ov::test::utils::create_and_fill_tensor(
+                                inType,
+                                *itTargetShape,
+                                ov::test::utils::InputGenerateData(0, 8, 32, 1));
+                            inputs.insert({ param, tensor });
                             break;
                         }
                     }
