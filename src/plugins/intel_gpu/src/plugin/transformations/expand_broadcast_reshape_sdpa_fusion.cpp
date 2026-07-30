@@ -136,7 +136,6 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
             auto value_source = pattern_map.at(expand_value_m).get_node()->input_value(0).get_node()->input_value(0);
             sdpa->input(1).replace_source_output(key_source);
             sdpa->input(2).replace_source_output(value_source);
-            std::cout << " A transformation happen " << std::endl;
             return true;
         }
 
@@ -320,7 +319,6 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
-        std::cout << " B transformation happen 1" << std::endl;
         ov::replace_node(sdpa, sdpa_new);
 
         return true;
