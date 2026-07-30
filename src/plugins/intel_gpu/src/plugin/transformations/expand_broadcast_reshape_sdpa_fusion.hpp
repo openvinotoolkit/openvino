@@ -8,10 +8,10 @@
 
 namespace ov::intel_gpu {
 
-class UnsqueezeBroadcastReshapeSDPAFusion : public ov::pass::MatcherPass {
+class ExpandBroadcastReshapeSDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("UnsqueezeBroadcastReshapeSDPAFusion");
-    UnsqueezeBroadcastReshapeSDPAFusion();
+    OPENVINO_MATCHER_PASS_RTTI("ExpandBroadcastReshapeSDPAFusion");
+   ExpandBroadcastReshapeSDPAFusion();
 };
 
 }   // namespace ov::intel_gpu

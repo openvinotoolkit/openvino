@@ -2,45 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "expand_broadcast_reshape_sdpa_fusion.hpp"
 
-#include <optional>
-
-#include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/sdpa.hpp"
-#include "openvino/core/graph_util.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
+#include <optional>
 
 namespace ov::intel_gpu {
 using ov::pass::pattern::op::Or;
 
-UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
+ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     using namespace ov::pass::pattern;
 
     // ── Pattern A predicates ──
     auto unsqueeze_predicate = rank_equals(5) && consumers_count(1);
+
     auto broadcast_predicate = unsqueeze_predicate && [](const ov::Output<ov::Node>& output) -> bool {
         const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
         return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::BIDIRECTIONAL;
     };
+
     auto reshape_predicate = rank_equals(4) && consumers_count(1);
 
     // ── Shared inputs ──
     auto input_a_m = any_input();
     auto input_attn_mask_m = any_input();
     auto input_scale_m = any_input();
-
     // ── Pattern A: KVCache → [Unsqueeze|Reshape](5D) → Broadcast(BIDIRECTIONAL) → Reshape(4D) → [Convert] ──
     auto input_b_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
     auto input_c_kvcache_m = wrap_type<ov::intel_gpu::op::KVCache>({any_input(), any_input()});
@@ -59,6 +60,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
 
     auto unsqueeze_b_m = wrap_type<ov::op::v0::Unsqueeze>({input_b_kvcache_m, axes_const_b_m}, unsqueeze_predicate);
     auto unsqueeze_c_m = wrap_type<ov::op::v0::Unsqueeze>({input_c_kvcache_m, axes_const_c_m}, unsqueeze_predicate);
+
     auto pre_reshape_b_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_b_m, any_input()}, unsqueeze_predicate);
     auto pre_reshape_c_m = wrap_type<ov::op::v1::Reshape>({pre_reshape_input_c_m, any_input()}, unsqueeze_predicate);
 
@@ -119,9 +121,11 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
     auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        if (transformation_callback(m.get_match_root()))
+        if (transformation_callback(m.get_match_root())) {
             return false;
+        }
         const auto& pattern_map = m.get_pattern_value_map();
+
         auto sdpa = ov::as_type_ptr<op::SDPA>(m.get_match_root());
 
         // ── Pattern B path: bypass reshape→expand→reshape by rewiring SDPA inputs directly ──
@@ -132,6 +136,7 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             auto value_source = pattern_map.at(expand_value_m).get_node()->input_value(0).get_node()->input_value(0);
             sdpa->input(1).replace_source_output(key_source);
             sdpa->input(2).replace_source_output(value_source);
+            std::cout << " A transformation happen " << std::endl;
             return true;
         }
 
@@ -140,34 +145,34 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         auto broadcast_c = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(broadcast_c_m).get_node_shared_ptr());
 
         auto get_input_shape = [](const std::shared_ptr<ov::op::v3::Broadcast>& broadcast) -> std::vector<int32_t> {
-            if (!broadcast)
-                return {};
+            if (!broadcast) return {};
             auto input_node = broadcast->get_input_node_shared_ptr(0);
             if (input_node && input_node->get_output_partial_shape(0).is_static()) {
-                const auto pshape = input_node->get_output_shape(0);
+                auto pshape = input_node->get_output_shape(0);
                 std::vector<int32_t> result(pshape.size());
-                std::transform(pshape.begin(), pshape.end(), result.begin(), [](size_t v) {
-                    return static_cast<int32_t>(v);
-                });
+                std::transform(pshape.begin(), pshape.end(), result.begin(),
+                    [](size_t v) { return static_cast<int32_t>(v); });
                 return result;
             }
             return {};
         };
 
-        auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape, const std::vector<int32_t>& target_shape, bool is_static_output) {
-            if (is_static_output) {
-                if (input_shape.empty() || input_shape.size() != target_shape.size())
-                    return false;
-                int diff_cnt = 0;
-                for (size_t i = 0; i < input_shape.size(); ++i)
-                    if (input_shape[i] != target_shape[i])
-                        ++diff_cnt;
-                return diff_cnt == 1;
-            } else {
-                return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) {
-                           return s != 1;
-                       }) == 1;
-            }
+        auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape,
+            const std::vector<int32_t>& target_shape,
+            bool is_static_output) {
+                if (is_static_output) {
+                    // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
+                    if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
+                    int diff_cnt = 0;
+                    for (size_t i = 0; i < input_shape.size(); ++i) {
+                        if (input_shape[i] != target_shape[i]) ++diff_cnt;
+                    }
+                    return diff_cnt == 1;
+                }
+                else {
+                    // For dynamic output shapes, check the target_shape pattern
+                    return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
+                }
         };
 
         std::vector<int32_t> target_shape_val_b;
@@ -176,8 +181,9 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             target_shape_val_b = target_shape_constant_b->cast_vector<int32_t>();
             std::vector<int32_t> input_shape_b = get_input_shape(broadcast_b);
             bool is_static_b = broadcast_b->get_output_partial_shape(0).is_static();
-            if (!valid_broadcast_target_shape(input_shape_b, target_shape_val_b, is_static_b))
+            if (!valid_broadcast_target_shape(input_shape_b, target_shape_val_b, is_static_b)) {
                 return false;
+            }
         }
 
         std::vector<int32_t> target_shape_val_c;
@@ -186,56 +192,83 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
             target_shape_val_c = target_shape_constant_c->cast_vector<int32_t>();
             std::vector<int32_t> input_shape_c = get_input_shape(broadcast_c);
             bool is_static_c = broadcast_c->get_output_partial_shape(0).is_static();
-            if (!valid_broadcast_target_shape(input_shape_c, target_shape_val_c, is_static_c))
+            if (!valid_broadcast_target_shape(input_shape_c, target_shape_val_c, is_static_c)) {
                 return false;
+            }
         }
 
-        if (target_shape_val_b != target_shape_val_c)
+        // Expect the same broadcast rules for key and value inputs
+        if (target_shape_val_b != target_shape_val_c) {
             return false;
+        }
 
         auto ensure_4d = [&](const ov::Output<ov::Node>& input,
                              const std::shared_ptr<ov::Node>& orig_5d_expansion,
                              const std::shared_ptr<ov::Node>& orig_broadcast) -> std::optional<ov::Output<ov::Node>> {
             const auto& pshape = input.get_partial_shape();
-            if (pshape.rank().is_static() && pshape.rank().get_length() == 4)
-                return input;
 
+            if (pshape.rank().is_static() && pshape.rank().get_length() == 4) {
+                return input;
+            }
+
+            // Check which axis the Broadcast node is expanding
             auto pshape_in = orig_broadcast->get_input_partial_shape(0);
             auto pshape_out = orig_broadcast->get_output_partial_shape(0);
             int broadcast_axis = -1;
+
             for (size_t i = 0; i < pshape_in.size(); ++i) {
-                if (pshape_in[i].is_static() && pshape_out[i].is_static() && pshape_in[i].get_length() == 1 && pshape_out[i].get_length() > 1) {
-                    broadcast_axis = static_cast<int>(i);
-                    break;
+                if (pshape_in[i].is_static() && pshape_out[i].is_static()) {
+                    if (pshape_in[i].get_length() == 1 && pshape_out[i].get_length() > 1) {
+                        broadcast_axis = static_cast<int>(i);
+                        break;
+                    }
                 }
             }
-            if (broadcast_axis == -1)
-                return std::nullopt;
 
+            if (broadcast_axis == -1) return std::nullopt;
+
+            // handle if the 5D expansion was a reshape
             if (auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(orig_5d_expansion)) {
-                auto ps = reshape_node->get_output_partial_shape(0);
+                auto pshape = reshape_node->get_output_partial_shape(0);
                 bool orig_special_zero = reshape_node->get_special_zero();
                 std::vector<int64_t> shape_vec;
-                for (const auto& dim : ps)
-                    shape_vec.push_back(dim.is_static() ? dim.get_length() : (orig_special_zero ? 0 : -1));
+                for (const auto& dim : pshape) {
+                    if (dim.is_static()) {
+                        shape_vec.push_back(dim.get_length());
+                    }
+                    else {
+                        shape_vec.push_back(orig_special_zero ? 0 : -1);
+                    }
+                }
+                // Remove the broadcast axis
                 shape_vec.erase(shape_vec.begin() + broadcast_axis);
-                auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, shape_vec);
+
+                auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 4 }, shape_vec);
                 auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input, new_shape_const, orig_special_zero);
                 new_reshape->set_friendly_name(input.get_node()->get_friendly_name() + "_dynamic_4d_reshape");
-                ov::copy_runtime_info({orig_5d_expansion, orig_broadcast}, {new_shape_const, new_reshape});
+                ov::copy_runtime_info({ orig_5d_expansion, orig_broadcast }, { new_shape_const, new_reshape });
                 return new_reshape->output(0);
             }
 
             if (auto unsqueeze_node = ov::as_type_ptr<ov::op::v0::Unsqueeze>(orig_5d_expansion)) {
-                auto ps = unsqueeze_node->get_output_partial_shape(0);
+                auto pshape = unsqueeze_node->get_output_partial_shape(0);
                 std::vector<int64_t> shape_vec;
-                for (const auto& dim : ps)
-                    shape_vec.push_back(dim.is_static() ? dim.get_length() : 0);
+                for (const auto& dim : pshape) {
+                    if (dim.is_static()) {
+                        shape_vec.push_back(dim.get_length());
+                    }
+                    else {
+                        shape_vec.push_back(0);
+                    }
+                }
+
+                // Remove the broadcast axis
                 shape_vec.erase(shape_vec.begin() + broadcast_axis);
-                auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, shape_vec);
+
+                auto new_shape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 4 }, shape_vec);
                 auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input, new_shape_const, true);
                 new_reshape->set_friendly_name(input.get_node()->get_friendly_name() + "_dynamic_4d_unsqueeze_to_reshape");
-                ov::copy_runtime_info({orig_5d_expansion, orig_broadcast}, {new_shape_const, new_reshape});
+                ov::copy_runtime_info({ orig_5d_expansion, orig_broadcast }, { new_shape_const, new_reshape });
                 return new_reshape->output(0);
             }
 
@@ -243,46 +276,44 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         };
 
         std::shared_ptr<ov::Node> k_5d;
-        if (pattern_map.count(pre_reshape_b_m))
-            k_5d = pattern_map.at(pre_reshape_b_m).get_node_shared_ptr();
-        else if (pattern_map.count(unsqueeze_b_m))
-            k_5d = pattern_map.at(unsqueeze_b_m).get_node_shared_ptr();
+        if (pattern_map.count(pre_reshape_b_m)) k_5d = pattern_map.at(pre_reshape_b_m).get_node_shared_ptr();
+        else if (pattern_map.count(unsqueeze_b_m)) k_5d = pattern_map.at(unsqueeze_b_m).get_node_shared_ptr();
 
         std::shared_ptr<ov::Node> v_5d;
-        if (pattern_map.count(pre_reshape_c_m))
-            v_5d = pattern_map.at(pre_reshape_c_m).get_node_shared_ptr();
-        else if (pattern_map.count(unsqueeze_c_m))
-            v_5d = pattern_map.at(unsqueeze_c_m).get_node_shared_ptr();
+        if (pattern_map.count(pre_reshape_c_m)) v_5d = pattern_map.at(pre_reshape_c_m).get_node_shared_ptr();
+        else if (pattern_map.count(unsqueeze_c_m)) v_5d = pattern_map.at(unsqueeze_c_m).get_node_shared_ptr();
 
         auto k_bc = pattern_map.at(broadcast_b_m).get_node_shared_ptr();
         auto v_bc = pattern_map.at(broadcast_c_m).get_node_shared_ptr();
 
         OutputVector data_inputs;
-        data_inputs.push_back(pattern_map.at(input_a_m).get_node_shared_ptr());  // Q input
-
+        data_inputs.push_back(pattern_map.at(input_a_m).get_node_shared_ptr());               // Q input
         if (pattern_map.count(unsqueeze_b_m) || pattern_map.count(pre_reshape_b_m)) {
-            auto opt_key = ensure_4d(k_5d->input_value(0), k_5d, k_bc);
-            if (!opt_key)
-                return false;
-            data_inputs.push_back(opt_key.value());
-        } else {
+            ov::Output<ov::Node> key_input = k_5d->input_value(0);
+            auto opt_key_input = ensure_4d(key_input, k_5d, k_bc);
+            if (!opt_key_input) return false;
+            data_inputs.push_back(opt_key_input.value());
+        }
+        else {
             return false;
         }
 
         if (pattern_map.count(unsqueeze_c_m) || pattern_map.count(pre_reshape_c_m)) {
-            auto opt_val = ensure_4d(v_5d->input_value(0), v_5d, v_bc);
-            if (!opt_val)
-                return false;
-            data_inputs.push_back(opt_val.value());
-        } else {
+            ov::Output<ov::Node> value_input = v_5d->input_value(0);
+            auto opt_value_input = ensure_4d(value_input, v_5d, v_bc);
+            if (!opt_value_input) return false;
+            data_inputs.push_back(opt_value_input.value());
+        }
+        else {
             return false;
         }
 
         if (pattern_map.find(sdpa_with_attn_mask_m) != pattern_map.end()) {
-            data_inputs.push_back(sdpa->get_input_source_output(3));  // attn_mask
-        } else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
-            data_inputs.push_back(sdpa->get_input_source_output(3));  // attn_mask
-            data_inputs.push_back(sdpa->get_input_source_output(4));  // scale
+            data_inputs.push_back(sdpa->get_input_source_output(3)); // attn_mask
+        }
+        else if (pattern_map.find(sdpa_with_attn_mask_and_scale_m) != pattern_map.end()) {
+            data_inputs.push_back(sdpa->get_input_source_output(3)); // attn_mask
+            data_inputs.push_back(sdpa->get_input_source_output(4)); // scale
         }
 
         auto order_a = sdpa->get_input0_transpose_order();
@@ -291,14 +322,16 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         auto order_d = sdpa->get_output_transpose_order();
 
         auto sdpa_new = std::make_shared<op::SDPA>(data_inputs, sdpa->get_causal(), order_a, order_b, order_c, order_d);
+
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);
+        std::cout << " B transformation happen 1" << std::endl;
         ov::replace_node(sdpa, sdpa_new);
 
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "UnsqueezeBroadcastReshapeSDPAFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa_m, "ExpandBroadcastReshapeSDPAFusion");
     this->register_matcher(m, callback);
 }
 
