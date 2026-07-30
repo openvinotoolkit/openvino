@@ -154,6 +154,8 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "DX_BUFFER";
     case SharedMemType::BUFFER_FROM_HANDLE:
         return os << "BUFFER_FROM_HANDLE";
+    case SharedMemType::MMAPED_FILE:
+        return os << "MMAPED_FILE";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
