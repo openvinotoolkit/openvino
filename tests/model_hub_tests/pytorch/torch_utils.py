@@ -44,8 +44,8 @@ def extract_unsupported_ops_from_exception(e: str) -> list:
     return []
 
 
-def skip_unsupported_npu_precommit(model_name, ie_device, skip_map):
-    """Skip a precommit model that fails NPU compile-only on the current NPU_PLATFORM.
+def skip_npu_precommit(model_name, ie_device, skip_map):
+    """Skip a precommit model that is out of the NPU scope on the current NPU_PLATFORM.
 
     `skip_map` maps a model name to the platforms where it must be skipped: either
     the string "*" (all platforms) or an iterable of platform ids (e.g. {"3720"}).
@@ -58,7 +58,7 @@ def skip_unsupported_npu_precommit(model_name, ie_device, skip_map):
         return
     current = os.environ.get("NPU_PLATFORM", "")
     if platforms == "*" or current in platforms:
-        pytest.skip(f"{model_name}: NPU compile-only unsupported on platform {current or 'unknown'}")
+        pytest.skip(f"{model_name}: out of NPU scope on platform {current or 'unknown'}")
 
 
 class TestTorchConvertModel(TestConvertModel):
@@ -81,7 +81,7 @@ class TestTorchConvertModel(TestConvertModel):
             return flattenize_structure(inputs)
 
     def npu_static_input(self):
-        # NPU has no dynamic shapes: declare static input dims from the traced example so the compiler can compile
+        # NPU requires static shapes: use example input dims
         example = self.example
         tensors = list(example.values()) if isinstance(example, dict) else flattenize_tuples(example)
         return [PartialShape(list(t.shape)) for t in tensors]

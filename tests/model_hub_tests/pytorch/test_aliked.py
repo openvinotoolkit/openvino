@@ -15,12 +15,12 @@ import torch
 from openvino import convert_model, Model, PartialShape, Type
 from openvino.frontend import ConversionExtension
 
-from torch_utils import TestTorchConvertModel, skip_unsupported_npu_precommit
+from torch_utils import TestTorchConvertModel, skip_npu_precommit
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
-# Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
+# Precommit models out of the NPU scope, per platform ("*" = all platforms).
 NPU_PRECOMMIT_SKIP = {
     "aliked-n16rot": "*",
 }
@@ -79,10 +79,10 @@ def read_image(path, idx):
 
 class TestAlikedConvertModel(TestTorchConvertModel):
     def setup_class(self):
-        # On NPU aliked is unsupported (see NPU_PRECOMMIT_SKIP), so skip the whole class
+        # On NPU aliked is out of scope (see NPU_PRECOMMIT_SKIP), so skip the whole class
         # before the native `sh build.sh` step in setup (which also fails on Windows).
         if "NPU" in os.environ.get("TEST_DEVICE", ""):
-            pytest.skip("aliked is skipped on NPU (models unsupported in compile-only)")
+            pytest.skip("aliked is out of the NPU scope")
 
         self.repo_dir = tempfile.TemporaryDirectory()
         os.system(
@@ -140,7 +140,7 @@ class TestAlikedConvertModel(TestTorchConvertModel):
     @pytest.mark.precommit
     @pytest.mark.parametrize("name", get_supported_precommit_models())
     def test_convert_model_all_models_default(self, name, ie_device):
-        skip_unsupported_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
