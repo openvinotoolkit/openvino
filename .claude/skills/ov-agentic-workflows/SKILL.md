@@ -37,7 +37,7 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
 ## Golden rules
 
 1. **Never edit a `.lock.yml` by hand.** It is generated. Edit the `.md` source (or an imported shared
-   file), then recompile.
+   file), then recompile. If a user skips recompilation, tell them to recompile themselves before committing.  
 2. **Always recompile after editing** any `.md` source or imported file:
    ```bash
    gh aw compile
