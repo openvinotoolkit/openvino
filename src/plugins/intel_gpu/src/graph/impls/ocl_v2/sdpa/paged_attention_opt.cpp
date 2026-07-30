@@ -5,6 +5,7 @@
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
+#include "sdpa_gen_ocl.hpp"
 #include "sdpa_gen_micro.hpp"
 // clang-format on
 #include "paged_attention_opt.hpp"
@@ -1334,7 +1335,10 @@ public:
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
     Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
+    // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
+    const char* env = std::getenv("TEST_USE_SDPA_OCL");
+    const bool use_ocl = env && env[0] == '1';
+    Stage::Ptr pa_sdpa_micro = use_ocl ? make_stage<SDPAOclGenerator>(true) : make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
 #endif
 
@@ -1377,7 +1381,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
-            return !pa_sdpa_micro->kd.micro_kernels.empty();
+            return use_ocl || !pa_sdpa_micro->kd.micro_kernels.empty();
         if (stage == PagedAttentionStage::MIXED)
             return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
         return false;
@@ -1445,18 +1449,18 @@ public:
         return wg_tile_q;
     }
 
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
+    size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
             if (stage == PagedAttentionStage::PREFILL)
-                return get_micro_tile_qsize(pa_sdpa_micro->kd);
+                return use_ocl ? SDPAOclGenerator::get_query_block_size(params) : get_micro_tile_qsize(pa_sdpa_micro->kd);
             if (stage == PagedAttentionStage::MIXED)
                 return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
         }
         return default_block_size;
     }
 #else
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
+    size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         return default_block_size;
     }
@@ -1514,7 +1518,7 @@ public:
         rt_params->use_micro_sdpa = false;
 #endif
 
-        rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
+        rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
             if (desc->has_sink_input) {
@@ -1698,7 +1702,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if (!params.is_dynamic()) {
-            auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
+            auto block_size = get_query_block_size(params, stage, can_use_micro_sdpa);
             paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage, block_size);
         }
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
