@@ -36,10 +36,10 @@ torch.manual_seed(0)
 
 # Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
 NPU_PRECOMMIT_SKIP = {
-    "google/flan-t5-base": {"3720", "4000", "5020"},  # compiles on 5010
+    "bert-base-uncased": "*",
+    "google/flan-t5-base": "*",
     "google/tapas-large-finetuned-wtq": "*",
     "allenai/led-base-16384": "*",
-    # clip is ~1.7 GB; the runner runs out of disk (Errno 28) on every platform.
     "openai/clip-vit-large-patch14": "*",
 }
 

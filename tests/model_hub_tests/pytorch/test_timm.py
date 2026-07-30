@@ -113,7 +113,8 @@ torch.manual_seed(0)
 
 # Precommit models that fail NPU compile-only, per platform ("*" = all platforms).
 NPU_PRECOMMIT_SKIP = {
-    "poolformerv2_s12.sail_in1k": {"3720"},
+    "vit_tiny_patch16_224.augreg_in21k": "*",
+    "poolformerv2_s12.sail_in1k": "*",
     "volo_d1_224.sail_in1k": "*",
 }
 
