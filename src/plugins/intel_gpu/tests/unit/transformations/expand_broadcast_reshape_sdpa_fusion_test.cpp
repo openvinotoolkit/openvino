@@ -247,8 +247,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion5) {
         auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
         auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
         auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
-        auto value_transpose =
-            std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
         auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_val);
         auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape, false);
         auto value_pre_reshape = std::make_shared<ov::op::v1::Reshape>(value_transpose, shape, false);
@@ -298,8 +297,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion6) {
         auto sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 256, 128});
         auto key_rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin}, ov::op::internal::RoPE::Config());
         auto transpose_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 256, 8, 128});
-        auto value_transpose =
-            std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
+        auto value_transpose = std::make_shared<ov::op::v1::Transpose>(transpose_input, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3}));
         auto shape_k = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_k_val);
         auto key_pre_reshape = std::make_shared<ov::op::v1::Reshape>(key_rope, shape_k, false);
         auto shape_v = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{5}, shape_v_val);
@@ -364,7 +362,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion7) {
         auto inputs = ov::OutputVector{input_q, key_reshape, value_reshape};
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{ sdpa }, ov::ParameterVector{ input_q, rope_key_input_1, rope_key_input_2, cos, sin, pre_reshape_value_input_1, pre_reshape_value_input_2 });
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_key_input_1, rope_key_input_2, cos, sin, pre_reshape_value_input_1, pre_reshape_value_input_2});
         manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
     }
     {
