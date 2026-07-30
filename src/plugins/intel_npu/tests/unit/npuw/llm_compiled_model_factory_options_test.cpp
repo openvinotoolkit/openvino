@@ -14,6 +14,10 @@
 
 #include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -884,6 +888,51 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsBertTabl
     const auto max_pos = ov::npuw::util::get_max_position_embeddings(build_embedding_model());
     ASSERT_TRUE(max_pos.has_value());
     EXPECT_EQ(*max_pos, 512u);
+}
+
+// A bare embedding lookup: Gather(table[rows, hidden], indices, axis=0). `behind_convert` adds
+// the Convert that a compressed weight leaves between the table and the Gather.
+std::shared_ptr<ov::Model> build_embedding_lookup_model(const std::string& name, size_t rows, bool behind_convert) {
+    constexpr size_t hidden = 4u;
+    const std::vector<float> values(rows * hidden, 0.1f);
+
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    indices->set_friendly_name("input_ids");
+
+    const auto weight_type = behind_convert ? ov::element::f16 : ov::element::f32;
+    auto weight = ov::op::v0::Constant::create(weight_type, ov::Shape{rows, hidden}, values);
+    weight->set_friendly_name(name + ".weight");
+
+    std::shared_ptr<ov::Node> table = weight;
+    if (behind_convert) {
+        table = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+    }
+
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(table, indices, axis);
+    gather->set_friendly_name(name);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{gather->output(0)}, ov::ParameterVector{indices});
+}
+
+// A compressed position table sits behind the Convert that decompression leaves in place, so the
+// table size has to be read through it rather than off the Gather's immediate input.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsTableBehindConvert) {
+    const auto model = build_embedding_lookup_model("embeddings.position_embeddings", 256u, true);
+    const auto max_pos = ov::npuw::util::get_max_position_embeddings(model);
+    ASSERT_TRUE(max_pos.has_value());
+    EXPECT_EQ(*max_pos, 256u);
+}
+
+// The word and token-type tables are the same shape of lookup as the position table. Reading one
+// of those by mistake would be worse than reading nothing: the token-type table has two rows and
+// would clamp the sequence length to nothing at all.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsIgnoresOtherEmbeddingTables) {
+    const auto words = build_embedding_lookup_model("embeddings.word_embeddings", 30522u, false);
+    EXPECT_FALSE(ov::npuw::util::get_max_position_embeddings(words).has_value());
+
+    const auto types = build_embedding_lookup_model("embeddings.token_type_embeddings", 2u, false);
+    EXPECT_FALSE(ov::npuw::util::get_max_position_embeddings(types).has_value());
 }
 
 // A bidirectional encoder embedding model has no autoregressive generate step. It must compile

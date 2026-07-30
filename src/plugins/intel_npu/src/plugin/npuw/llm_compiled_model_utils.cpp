@@ -6,8 +6,15 @@
 
 #include <cstring>
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 bool ov::npuw::util::has_input(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     auto inputs = model->inputs();
@@ -65,26 +72,35 @@ void ov::npuw::util::validate_encoder_embedding_model(const std::shared_ptr<ov::
 }
 
 std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::shared_ptr<ov::Model>& model) {
-    // The position embedding is a Gather(weight[max_position_embeddings, hidden], position_ids).
-    // Find that Gather by name and read dim 0 of its data input (port 0), walking through any
-    // Convert/decompression nodes in between.
+    namespace opp = ov::pass::pattern;
+
+    // Every embedding table in a BERT-like encoder is read by the same shape of subgraph: a rank-2
+    // constant [rows, hidden] behind a Gather, with whatever Convert (and, for compressed weights,
+    // Subtract and Multiply) decompression left in place. Spell those intermediates out rather
+    // than walking a fixed number of hops through whatever happens to sit above the Gather.
+    auto table = opp::wrap_type<ov::op::v0::Constant>();
+    auto converted = opp::optional<ov::op::v0::Convert>({table->output(0)});
+    auto unzeroed = opp::optional<ov::op::v1::Subtract>({converted->output(0), opp::any_input()});
+    auto scaled = opp::optional<ov::op::v1::Multiply>({unzeroed->output(0), opp::any_input()});
+    auto lookup = opp::wrap_type<ov::op::v8::Gather>({scaled->output(0), opp::any_input(), opp::any_input()});
+
+    // The word, token-type and position tables are all the same lookup, so the topology on its own
+    // cannot tell them apart and the exported name has to do it. It now chooses among candidates
+    // the pattern has already established are embedding tables, instead of being the only thing
+    // between us and an unrelated Gather. Picking the wrong table here would be expensive: the
+    // token-type one has two rows and would clamp the sequence length to nothing.
+    opp::Matcher matcher(lookup, "npuw::PositionEmbeddingTable");
     for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<ov::op::v8::Gather>(op)) {
+        if (!ov::is_type<ov::op::v8::Gather>(op) ||
+            op->get_friendly_name().find("position_embeddings") == std::string::npos) {
             continue;
         }
-        if (op->get_friendly_name().find("position_embeddings") == std::string::npos) {
+        if (!matcher.match(op->output(0))) {
             continue;
         }
-        auto src = op->input_value(0);  // the position-embedding weight (possibly behind Convert)
-        for (int hops = 0; hops < 4 && src.get_node(); ++hops) {
-            const auto& ps = src.get_partial_shape();
-            if (ps.rank().is_static() && ps.size() == 2 && ps[0].is_static()) {
-                return static_cast<uint32_t>(ps[0].get_length());
-            }
-            if (src.get_node()->get_input_size() == 0) {
-                break;
-            }
-            src = src.get_node()->input_value(0);
+        const auto& table_shape = matcher.get_pattern_value_map().at(table).get_partial_shape();
+        if (table_shape.rank().is_static() && table_shape.size() == 2 && table_shape[0].is_static()) {
+            return static_cast<uint32_t>(table_shape[0].get_length());
         }
     }
     return std::nullopt;
