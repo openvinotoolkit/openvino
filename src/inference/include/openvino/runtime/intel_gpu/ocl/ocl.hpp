@@ -43,6 +43,7 @@ using gpu_handle_param = void*;
 
 using SharedBufferHandle = ov::intel_gpu::SharedBufferHandle;
 using VirtualAddressMemory = ov::intel_gpu::VirtualAddressMemory;
+using FileDescriptor = ov::intel_gpu::FileDescriptor;
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
