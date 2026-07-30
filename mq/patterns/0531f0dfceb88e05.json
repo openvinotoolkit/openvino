@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "cpu test executable not exist in install directory|Code Issue",
+  "signature_hash": "0531f0dfceb88e05",
+  "title": "CPU test executables missing from openvino_tests artifact",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-07-30T07:55:27Z",
+  "last_seen": "2026-07-30T07:55:27Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30517592080"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/36246"],
+  "recent_timestamps": ["2026-07-30T07:55:27Z"],
+  "rerun_search_string": null
+}

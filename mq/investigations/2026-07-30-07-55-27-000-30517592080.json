@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-30-07-55-27-000-30517592080",
+  "timestamp": "2026-07-30T07:55:27Z",
+  "run_id": "30517592080",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30517592080",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36246",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36246",
+  "author": "ceciliapeng2011",
+  "category": "Code Issue",
+  "title": "CPU test executables missing from openvino_tests artifact",
+  "signature": "cpu test executable not exist in install directory|Code Issue",
+  "signature_hash": "0531f0dfceb88e05",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "ov_cpu_unit_tests: No such file or directory (exit code 127)"
+    },
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Test executable file ov_cpu_func_tests is not exist! (exit code 255)"
+    }
+  ],
+  "key_errors": [
+    "/__w/_temp/f64fc09c-5dc8-4146-b924-8a1ce275fab2.sh: line 2: /home/runner/_work/openvino/openvino/install/tests/ov_cpu_unit_tests: No such file or directory",
+    "ERROR:test_parallel_runner:Test executable file /__w/openvino/openvino/install/tests/ov_cpu_func_tests is not exist!"
+  ],
+  "root_cause": "The openvino_tests artifact downloaded by both CPU test jobs does not contain the CPU plugin test binaries (ov_cpu_unit_tests and ov_cpu_func_tests). The openvino_tests artifact (ID: 8749969858) was successfully downloaded and extracted, but the CPU-specific test executables were absent from the archive. This strongly indicates that the build/packaging step for PR #36246 (branch cecilia/transpose_split_fuse) omitted or failed to install the CPU plugin test targets into the install directory, likely due to a CMake change in the PR that altered what gets included in the tests package.",
+  "reproduction_steps": "N/A - requires the build artifact from this specific PR run",
+  "recommended_actions": [
+    "Inspect the build job logs for PR #36246 to determine if ov_cpu_unit_tests and ov_cpu_func_tests were built and installed",
+    "Check if PR #36246 modifies CMakeLists.txt or install() rules for CPU plugin test targets",
+    "Review the build artifact (openvino_tests) content listing from the build job to confirm if CPU test binaries are present",
+    "Re-trigger the pipeline after fixing any CMake packaging issue"
+  ],
+  "prevention_strategies": "Add a validation step after the build that checks required CPU test binaries exist in the install directory before proceeding to test jobs. CI could also validate artifact contents at packaging time.",
+  "historical_context": "This appears to be the first occurrence of CPU test binaries missing from the openvino_tests artifact in this investigation database."
+}

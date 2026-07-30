@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 91,
+  "total": 92,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -889,6 +889,17 @@
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
       "pr_number": "37079"
+    },
+    {
+      "investigation_id": "2026-07-30-07-55-27-000-30517592080",
+      "run_id": "30517592080",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30517592080",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-30T07:55:27Z",
+      "title": "CPU test executables missing from openvino_tests artifact",
+      "category": "Code Issue",
+      "signature_hash": "0531f0dfceb88e05",
+      "pr_number": "36246"
     }
   ]
 }
