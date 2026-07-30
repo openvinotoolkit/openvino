@@ -12,6 +12,7 @@ dynamic_quantize_kernel_selector::dynamic_quantize_kernel_selector() {
     Attach<DynamicQuantizeKernelRef>();
     Attach<DynamicQuantizeKernelOpt>();
     Attach<DynamicQuantizeKernelKVCache>();
+    Attach<DynamicQuantizeKernelOptOrgRefToBeReverted>();
 }
 
 KernelsData dynamic_quantize_kernel_selector::GetBestKernels(const Params& params) const {

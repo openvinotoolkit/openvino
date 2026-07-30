@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "kernel_base_opencl.h"
 #include "dynamic_quantize_kernel_ref.h"
 
@@ -13,8 +15,8 @@ namespace kernel_selector {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class DynamicQuantizeKernelOpt : public KernelBaseOpenCL {
 public:
-    DynamicQuantizeKernelOpt() : KernelBaseOpenCL("dynamic_quantize_gpu_opt") {}
-    ~DynamicQuantizeKernelOpt() override {}
+    explicit DynamicQuantizeKernelOpt(const std::string& kernel_name = "dynamic_quantize_gpu_opt") : KernelBaseOpenCL(kernel_name) {}
+    virtual ~DynamicQuantizeKernelOpt() {}
 
     virtual JitConstants GetJitConstants(const dynamic_quantize_params& params) const;
     virtual CommonDispatchData SetDefault(const dynamic_quantize_params& params) const;
@@ -26,5 +28,10 @@ public:
 protected:
     bool Validate(const Params&) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
+};
+
+class DynamicQuantizeKernelOptOrgRefToBeReverted : public DynamicQuantizeKernelOpt {
+public:
+    DynamicQuantizeKernelOptOrgRefToBeReverted() : DynamicQuantizeKernelOpt("dynamic_quantize_gpu_opt_org_ref_to_be_reverted") {}
 };
 }  // namespace kernel_selector
