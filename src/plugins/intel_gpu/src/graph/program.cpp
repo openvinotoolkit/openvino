@@ -230,8 +230,7 @@ program::program(engine& engine, const ExecutionConfig& config)
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
-program::~program() {
-}
+program::~program() = default;
 
 void program::init_program() {
     set_options();
@@ -1987,7 +1986,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
-    
+
     const auto& dev_info = get_engine().get_device_info();
     if (!ob.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
         if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ob.get_offset()); pad > 0) {

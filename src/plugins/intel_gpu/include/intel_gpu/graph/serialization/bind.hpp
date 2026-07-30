@@ -51,10 +51,12 @@ struct saver_storage {
         map.insert(pair);
     }
 
-private:
-    saver_storage() = default;
+public:
     saver_storage(const saver_storage&) = delete;
     void operator=(const saver_storage&) = delete;
+
+private:
+    saver_storage() = default;
 
     std::unordered_map<std::string, save_function> map;
 };
@@ -85,10 +87,12 @@ struct loader_storage {
         map.insert(pair);
     }
 
-private:
-    loader_storage() = default;
+public:
     loader_storage(const loader_storage&) = delete;
     void operator=(const loader_storage&) = delete;
+
+private:
+    loader_storage() = default;
 
     std::unordered_map<std::string, FuncT> map;
 };
@@ -115,8 +119,11 @@ private:
         saver_storage<BufferType>::instance().set_save_function({T::get_type_info_s(), save});
     }
 
+public:
     buffer_binder(const buffer_binder&) = delete;
     void operator=(const buffer_binder&) = delete;
+
+private:
 
     template <typename Derived>
     static const Derived* downcast(const void* base_ptr) {
@@ -148,6 +155,7 @@ private:
         }});
     }
 
+public:
     buffer_binder(const buffer_binder&) = delete;
     void operator=(const buffer_binder&) = delete;
 };
@@ -171,6 +179,7 @@ private:
         }});
     }
 
+public:
     buffer_binder(const buffer_binder&) = delete;
     void operator=(const buffer_binder&) = delete;
 };

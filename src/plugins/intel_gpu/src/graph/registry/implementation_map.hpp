@@ -17,9 +17,12 @@ namespace cldnn {
 
 template <typename T, typename primitive_type>
 class singleton_list : public std::vector<T> {
-    singleton_list() : std::vector<T>() {}
+public:
     singleton_list(singleton_list const&) = delete;
     void operator=(singleton_list const&) = delete;
+
+private:
+    singleton_list() : std::vector<T>() {}
 
 public:
     using type = primitive_type;
