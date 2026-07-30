@@ -347,6 +347,50 @@ TEST_F(dynamic_quantization_gpu_tests, compare_opt_and_opt_ref_execution_time_no
         return std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count();
     };
 
+    auto run_impl_and_collect_outputs = [&](const std::string& impl_name) -> std::vector<memory::ptr> {
+        auto in_layout_f32 = layout{data_shape, data_types::f32, format::bfyx};
+        auto scales_ps = ov::PartialShape::dynamic(input_shape.size());
+
+        dynamic_quantize::Attributes dq_config;
+        dq_config.quantization_type = QuantizationType::Symmetric;
+        dq_config.quantization_dt = data_types::i8;
+        dq_config.scale_dt = data_types::f16;
+        dq_config.zp_dt = data_types::dynamic;
+        dq_config.group_sizes = std::vector<uint64_t>(input_shape.size(), 1);
+        dq_config.group_sizes.back() = 128;
+        dq_config.scales_zp_output_order = {0, 1, 2};
+        dq_config.output_storage_type = OutputStorageType::Planar;
+
+        topology topology(
+            input_layout("input", in_layout_f32),
+            reorder("reorder_1", input_info("input"), layout{data_shape, data_types::f16, format::bfyx}),
+            dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), dq_config),
+            reorder("reorder_data", input_info("dyn_quan_prim", 0), layout{data_shape, data_types::f16, format::bfyx}),
+            reorder("reorder_scale", input_info("dyn_quan_prim", 1), layout{scales_ps, data_types::f16, format::bfyx})
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        ov::intel_gpu::ImplementationDesc dyn_quan_impl_desc = {format::bfyx, impl_name, impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"dyn_quan_prim", dyn_quan_impl_desc}}));
+
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        std::vector<memory::ptr> output_buffers;
+
+        for (const auto& output : outputs) {
+            auto output_layout = output.second.get_layout();
+            auto output_mem = output.second.get_memory();
+            output_buffers.push_back(engine.reinterpret_buffer(*output_mem, output_layout));
+        }
+
+        return output_buffers;
+    };
+
     long long opt_time_us = 0;
     long long opt_ref_time_us = 0;
     EXPECT_NO_THROW(opt_time_us = run_impl_and_measure("dynamic_quantize_gpu_opt"));
@@ -354,6 +398,34 @@ TEST_F(dynamic_quantization_gpu_tests, compare_opt_and_opt_ref_execution_time_no
 
     std::cout << "[dynamic_quantize][compare] dynamic_quantize_gpu_opt execute() time: " << opt_time_us << " us" << std::endl;
     std::cout << "[dynamic_quantize][compare] dynamic_quantize_gpu_opt_ref execute() time: " << opt_ref_time_us << " us" << std::endl;
+
+    std::vector<memory::ptr> opt_outputs;
+    std::vector<memory::ptr> opt_ref_outputs;
+    std::vector<memory::ptr> ref_outputs;
+    EXPECT_NO_THROW(opt_outputs = run_impl_and_collect_outputs("dynamic_quantize_gpu_opt"));
+    EXPECT_NO_THROW(opt_ref_outputs = run_impl_and_collect_outputs("dynamic_quantize_gpu_opt_org_ref_to_be_reverted"));
+    EXPECT_NO_THROW(ref_outputs = run_impl_and_collect_outputs("dynamic_quantize_gpu_ref"));
+
+    auto compare_outputs = [&](const std::vector<memory::ptr>& actual,
+                               const std::vector<memory::ptr>& expected,
+                               const std::string& actual_impl_name) {
+        ASSERT_EQ(expected.size(), actual.size());
+
+        for (size_t out_idx = 0; out_idx < expected.size(); ++out_idx) {
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> actual_ptr(actual[out_idx], get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> expected_ptr(expected[out_idx], get_test_stream());
+
+            ASSERT_EQ(expected_ptr.size(), actual_ptr.size());
+            for (size_t val_idx = 0; val_idx < expected_ptr.size(); ++val_idx) {
+                const int abs_error_threshold = 2;
+                ASSERT_NEAR(expected_ptr[val_idx], actual_ptr[val_idx], abs_error_threshold)
+                    << "impl=" << actual_impl_name << ", output_idx=" << out_idx << ", val_idx=" << val_idx;
+            }
+        }
+    };
+
+    compare_outputs(opt_outputs, ref_outputs, "dynamic_quantize_gpu_opt");
+    compare_outputs(opt_ref_outputs, ref_outputs, "dynamic_quantize_gpu_opt_org_ref_to_be_reverted");
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {
