@@ -22,7 +22,6 @@ steps:
   - name: Install PyGithub
     run: python -m pip install --quiet PyGithub
   - name: Download CI failure logs
-    shell: python
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}

@@ -69,7 +69,6 @@ safe-outputs:
           with:
             python-version: '3.13'
         - name: Send Teams notification
-          shell: python
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
             RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}

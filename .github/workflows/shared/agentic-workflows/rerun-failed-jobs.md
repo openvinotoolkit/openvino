@@ -39,7 +39,6 @@ safe-outputs:
         - name: Install PyGithub
           run: python -m pip install --quiet PyGithub
         - name: Re-run failed jobs
-          shell: python
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |

@@ -50,7 +50,6 @@ safe-outputs:
           with:
             python-version: '3.13'
         - name: Send recurring failure escalation to Teams
-          shell: python
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           run: |
