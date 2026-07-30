@@ -397,7 +397,10 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
 
     std::shared_ptr<MemoryTracker> tracker = nullptr;
 #ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
-    tracker = std::make_shared<MemoryTracker>(nullptr,
+    // Host memory imported via CL_MEM_FORCE_HOST_MEMORY_INTEL is owned by the caller, so it is not
+    // accounted by default. When track_memory is set (e.g. memory the plugin mmap-ed itself) the
+    // engine is passed so the allocation is tracked and logged.
+    tracker = std::make_shared<MemoryTracker>(track_memory ? this : nullptr,
                                               cpu_address,
                                               data_size,
                                               allocation);
