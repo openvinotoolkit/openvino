@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-30-14-24-18-000-30544415611",
+  "timestamp": "2026-07-30T14:24:18Z",
+  "run_id": "30544415611",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30544415611",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37073",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37073",
+  "author": "praasz",
+  "category": "Infrastructure",
+  "title": "CPU functional tests fail with Not enough CPU resources on Windows runner",
+  "signature": "not enough cpu resources|Infrastructure",
+  "signature_hash": "c0a049cd23cea298",
+  "confidence": "High",
+  "failed_jobs": [
+    "CPU functional tests"
+  ],
+  "key_errors": [
+    "Not enough CPU resources! (istreams_executor.cpp:187) in smoke_Model_Distribution_MatMul tests with MODEL_DISTRIBUTION_POLICY=TENSOR_PARALLEL"
+  ],
+  "root_cause": "20 MatMulLayerTest tests with MODEL_DISTRIBUTION_POLICY=TENSOR_PARALLEL all fail because the Windows CI runner does not have sufficient CPU resources to satisfy the tensor parallel executor thread requirements. The error originates from istreams_executor.cpp:187, which throws when the requested thread count exceeds available CPU resources. The failing PR (#37073) only modifies Python async_infer_queue bindings and is unrelated to the CPU tensor parallel path. This is an infrastructure resource constraint on the Windows runner."
+}

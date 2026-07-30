@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "not enough cpu resources|Infrastructure",
+  "signature_hash": "c0a049cd23cea298",
+  "title": "CPU functional tests fail with Not enough CPU resources on Windows runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-07-30T14:24:18Z",
+  "last_seen": "2026-07-30T14:24:18Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30544415611"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37073"],
+  "recent_timestamps": ["2026-07-30T14:24:18Z"],
+  "rerun_search_string": "Not enough CPU resources"
+}
