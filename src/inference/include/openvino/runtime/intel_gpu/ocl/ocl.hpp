@@ -362,8 +362,11 @@ public:
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const std::filesystem::path& file_path) {
-        auto data = ov::read_tensor_data(file_path, type, shape);
-        return create_tensor(type, shape, VirtualAddressMemory{std::as_const(data).data(), static_cast<int64_t>(data.get_byte_size())});
+        auto data = std::make_shared<ov::Tensor>(ov::read_tensor_data(file_path, type, shape));
+        auto tensor = create_tensor(type,
+                                    shape,
+                                    VirtualAddressMemory{std::as_const(*data).data(), static_cast<int64_t>(data->get_byte_size())});
+        return ClBufferTensor(tensor, std::move(data));
     }
 
     /**
