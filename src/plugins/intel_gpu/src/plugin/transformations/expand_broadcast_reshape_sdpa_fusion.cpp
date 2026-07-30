@@ -150,15 +150,15 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 auto pshape = input_node->get_output_shape(0);
                 std::vector<int32_t> result(pshape.size());
                 std::transform(pshape.begin(), pshape.end(), result.begin(),
-                                [](size_t v) { return static_cast<int32_t>(v); });
+                               [](size_t v) { return static_cast<int32_t>(v); });
                 return result;
             }
             return {};
         };
 
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape,
-                                                                      const std::vector<int32_t>& target_shape,
-                                                                      bool is_static_output) {
+                                                const std::vector<int32_t>& target_shape,
+                                                bool is_static_output) {
                 if (is_static_output) {
                     // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
                     if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
@@ -167,8 +167,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                         if (input_shape[i] != target_shape[i]) ++diff_cnt;
                     }
                     return diff_cnt == 1;
-                }
-                else {
+                } else {
                     // For dynamic output shapes, check the target_shape pattern
                     return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
                 }
@@ -206,6 +205,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                              const std::shared_ptr<ov::Node>& orig_broadcast) -> std::optional<ov::Output<ov::Node>> {
             const auto& pshape = input.get_partial_shape();
 
+            // If it's already 4D, we don't need to do anything
             if (pshape.rank().is_static() && pshape.rank().get_length() == 4) {
                 return input;
             }
@@ -235,7 +235,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                     if (dim.is_static()) {
                         shape_vec.push_back(dim.get_length());
                     } else {
-                        shape_vec.push_back(orig_special_zero ? 0 : -1);
+                       shape_vec.push_back(orig_special_zero ? 0 : -1);
                     }
                 }
                 // Remove the broadcast axis
