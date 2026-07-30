@@ -375,7 +375,7 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
     return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
-memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
+memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags, bool track_memory) {
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
 
