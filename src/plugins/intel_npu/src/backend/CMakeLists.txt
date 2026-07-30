@@ -4,7 +4,24 @@
 
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_backend.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_device.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_variable_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_backend.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_pipeline.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_profiling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_variable_state.cpp
+)
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 

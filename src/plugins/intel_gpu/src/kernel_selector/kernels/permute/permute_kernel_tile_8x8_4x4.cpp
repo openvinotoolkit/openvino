@@ -76,7 +76,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 static inline std::string GetTiledOutputOrder(const permute_params& params) {
     std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
-    std::string order_str = "";
+    std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
 
     if (dim_diff == 0) {
@@ -103,8 +103,8 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
             order_str = "b, w, z * INPUT0_SIZE_Y + y, x * TILE_SIZE + lh, (f * TILE_SIZE)";
         }
     } else {
-        std::string out_y_str = "";
-        std::string out_z_str = "";
+        std::string out_y_str;
+        std::string out_z_str;
         const auto& output = params.outputs[0];
         if (params.has_dynamic_outputs()) {
             DimensionAccessHelperJit dims(output);
@@ -137,7 +137,7 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";

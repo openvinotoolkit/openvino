@@ -37,7 +37,7 @@ public:
      * @return std::pair<Key, Value>
      */
     std::pair<Key, Value> get_lru_element() const {
-        if (_lru_data_list.size()) {
+        if (!_lru_data_list.empty()) {
             return _lru_data_list.back();
         } else {
             return std::make_pair(Key(), Value());
