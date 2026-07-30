@@ -11,7 +11,6 @@
 #pragma once
 
 #include <filesystem>
-#include <memory>
 #include <string>
 
 #include "openvino/runtime/core.hpp"
