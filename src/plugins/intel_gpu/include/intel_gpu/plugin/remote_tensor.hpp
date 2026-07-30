@@ -19,6 +19,7 @@
 #endif
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
