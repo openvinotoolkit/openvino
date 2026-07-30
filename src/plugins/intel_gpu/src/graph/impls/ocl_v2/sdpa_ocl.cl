@@ -38,15 +38,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
         global half *A,
+#if IS_PAGED_ATTENTION
+        const __global INPUT3_TYPE* subsequence_begins,
+    #if !IS_PREFILL
+        const __global INPUT3_TYPE* past_lens,
+        const __global INPUT3_TYPE* block_indices,
+        const __global INPUT3_TYPE* block_indices_begins,
+    #endif
+#endif
 #if WITH_ATTN_MASK
         const global half *msk,
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
 #endif
+#if IS_PAGED_ATTENTION
+        const __global int* blocked_indexes_start_and_gws_mapping
+#else
         const int d,
         const int k,
         const int q
+#endif
     #ifdef KV_COMPRESSED
         , const global KEY_ATTR_SCALES_DATA_T *K_scales
     #if KEY_ZERO_POINTS
@@ -59,9 +71,38 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
         )
 {
+#if IS_PAGED_ATTENTION
+    const uint query_block_idx = get_group_id(0) << 1;
+    const uint block_start_pos = blocked_indexes_start_and_gws_mapping[query_block_idx];
+    const uint gws_mapping = blocked_indexes_start_and_gws_mapping[query_block_idx + 1];
+    const uint subsequence_begin = subsequence_begins[gws_mapping];
+    const uint subsequence_end = subsequence_begins[gws_mapping + 1];
+    const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
+    int q = subsequence_end - subsequence_begin;
+    #if HAS_QQ_BIAS
+        const uint qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
+        const uint cumulated_spec_num = qq_bias_begins[gws_mapping];
+    #endif
+    #if IS_PREFILL
+        const int past_len = 0;
+        const int k = q;
+    #else
+        const int past_len = past_lens[gws_mapping];
+        const int k = q + past_len;
+    #endif
+    const int d = HEAD_SIZE;
+#endif
+
     const size_t lane  = get_sub_group_local_id();
     const size_t sg_ij = get_local_id(1);
+#if IS_PAGED_ATTENTION
+    // Query blocks are handed out through blocked_indexes_start_and_gws_mapping, so the block this
+    // workgroup owns is not a plain function of get_group_id(0): it is the block start recorded in
+    // that buffer, expressed relative to the beginning of its own subsequence.
+    const size_t wg_j0 = subsequence_query_block_idx;
+#else
     const size_t wg_j0 = get_group_id(0) * kq_wg_tile_queries;
+#endif
     const size_t b0 = get_group_id(1);     // heads_num
     const size_t b1 = get_group_id(2);     // batch
     const size_t b0_kv = b0 / KV_GROUP_SIZE;
@@ -104,10 +145,35 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     scale *= LOG2E;
 
+    /* Row stride (in elements) of the Q/K/V/A matrices. */
+#if IS_PAGED_ATTENTION
+    // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size]: there is no Y
+    // dimension, so the generic QRY_S2/KEY_S2/VAL_S2/DST_S2 (Y pitch) macros are all 0 here and the
+    // token stride has to be derived from the head layout instead.
+    const uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+    const uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+    const uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
+    const uint lda = HEAD_SIZE * HEADS_NUM;
+#else
+    const uint ldq = QRY_S2;
+    const uint ldk = KEY_S2;
+    const uint ldv = VAL_S2;
+    const uint lda = DST_S2;
+#endif
+
+#if IS_PAGED_ATTENTION
+    // Tokens of all subsequences are packed into one matrix, so a batch index does not exist:
+    // seek to the first token of this workgroup's subsequence and to this head's column slice.
+    Q += (size_t)subsequence_begin * ldq + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+    K += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+    V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+    A += (size_t)subsequence_begin * lda + b0 * HEAD_SIZE;
+#else
     Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
     K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
+#endif
 #if WITH_ATTN_MASK
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
@@ -119,10 +185,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-    const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = QRY_S2 * (int)sizeof(QRY_DATA_T);
-    const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = KEY_S2 * (int)sizeof(KEY_DATA_T);
-    const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = VAL_S2 * (int)sizeof(VAL_DATA_T);
-    const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = DST_S2 * (int)sizeof(half);
+    const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = (int)ldq * (int)sizeof(QRY_DATA_T);
+    const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
+    const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
+    const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
     local uint  Q_slm[DKS * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
     local uint  S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
     local float S_sum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];
@@ -154,12 +220,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             ushort16 qv = (ushort16)0;
             if (query < q) {
                 if (head_base + DPAS_K <= d) {
-                    qv = vload16(0, (global ushort *)(Q + (size_t)query * QRY_S2 + head_base));
+                    qv = vload16(0, (global ushort *)(Q + (size_t)query * ldq + head_base));
                 } else {
                     #pragma unroll
                     for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
                         if (head_base + head_offset < d) {
-                            qv[head_offset] = as_ushort(Q[(size_t)query * QRY_S2 + head_base + head_offset]);
+                            qv[head_offset] = as_ushort(Q[(size_t)query * ldq + head_base + head_offset]);
                         }
                     }
                 }
@@ -187,10 +253,40 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    for (int k0 = 0; k0 < k; k0 += kq_wg_tile_keys) {
+    // Causal upper bound on the key loop. With IS_CAUSAL every key > query is masked to -inf, so a
+    // workgroup owning queries [wg_j0, wg_j0 + kq_wg_tile_queries) can never need a key beyond
+    // wg_j0 + kq_wg_tile_queries - 1. Without this bound the loop walks the FULL key range and
+    // every k0 tile past the diagonal is pure waste: it loads K/V, runs the DPAS, then throws the
+    // result away in the causal mask. At q = k = 1024 with kq_wg_tile_queries = 32 that is 256
+    // tile-iterations instead of 144 (1.78x), and it is why sdpa_micro -- which has had this bound
+    // since day one (causal_k = min(k, wg_j0 + wg_tile_n)) -- wins despite a less efficient
+    // per-tile inner loop.
+    // The non-causal case keeps the full range, and the bound is a no-op there.
+#if IS_CAUSAL
+    const int causal_k = min(k, (int)wg_j0 + kq_wg_tile_queries);
+#else
+    const int causal_k = k;
+#endif
+
+    // Sliding-window lower bound, the mirror of causal_k and the counterpart of sdpa_micro's
+    // window_k0_begin. The mask below keeps only (query - SLIDING_WINDOW_SIZE, query], so the
+    // smallest key this workgroup can need is for its smallest query, wg_j0:
+    //   key > wg_j0 - SLIDING_WINDOW_SIZE  =>  first needed key = wg_j0 - SLIDING_WINDOW_SIZE + 1.
+    // Every k0 tile below that is entirely outside the window and would be masked away wholesale,
+    // exactly the waste causal_k removes at the top end. Round down to a k0 tile boundary so the
+    // loop keeps its kq_wg_tile_keys stride and key_base stays tile-aligned (the 2D block reads
+    // and the S_slm indexing both assume that).
+#if IS_CAUSAL && SLIDING_WINDOW_SIZE
+    const int window_k_begin = max(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    const int window_k0_begin = (window_k_begin / kq_wg_tile_keys) * kq_wg_tile_keys;
+#else
+    const int window_k0_begin = 0;
+#endif
+
+    for (int k0 = window_k0_begin; k0 < causal_k; k0 += kq_wg_tile_keys) {
         const int key_base = k0 + sg_i0_kq;
-        const bool first = (k0 == 0);
-        const bool last = (k0 + kq_wg_tile_keys >= k);
+        const bool first = (k0 == window_k0_begin);
+        const bool last = (k0 + kq_wg_tile_keys >= causal_k);
 
         float8 S_tile[kq_key_blocks][kq_query_blocks];
         #pragma unroll
@@ -279,9 +375,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 }
             }
 #elif USE_2D_BLOCK_IO_KV
-            intel_sub_group_2d_block_read_16b_16r16x1c(
-                (global void *)K, KD_w, KD_h, KD_p,
-                (int2)(db * DPAS_K, key_base), (private ushort *)&k_raw[0]);
+            // The _16r builtin returns exactly 16 key rows == 2 key-blocks of 8. A subgroup owns
+            // kq_sg_tile_keys keys == kq_key_blocks blocks, so issue one read per 16-key group
+            // instead of assuming a single read covers the whole tile: with kq_sg_tile_keys == 32
+            // (kq_key_blocks == 4) a lone read filled only k_raw[0..1] and left k_raw[2..3]
+            // uninitialised, silently corrupting S for the upper half of the tile.
+            #pragma unroll
+            for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+                intel_sub_group_2d_block_read_16b_16r16x1c(
+                    (global void *)K, KD_w, KD_h, KD_p,
+                    (int2)(db * DPAS_K, key_base + kg * SUBGROUP_SIZE),
+                    (private ushort *)&k_raw[kg * (SUBGROUP_SIZE / DPAS_ROWS)]);
+            }
 #else
             const int head = db * DPAS_K + lane;
             #pragma unroll
@@ -307,13 +412,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     if (head < d && key < k) {
                         #ifdef KV_COMPRESSED
                             #if KEY_ZERO_POINTS
-                                const float deq_k = (convert_float(K[(size_t)key * KEY_S2 + head]) - k_zp) * k_sc;
+                                const float deq_k = (convert_float(K[(size_t)key * ldk + head]) - k_zp) * k_sc;
                             #else
-                                const float deq_k = convert_float(K[(size_t)key * KEY_S2 + head]) * k_sc;
+                                const float deq_k = convert_float(K[(size_t)key * ldk + head]) * k_sc;
                             #endif
                             k_raw[mb][key_offset] = as_ushort((half)deq_k);
                         #else
-                            k_raw[mb][key_offset] = as_ushort(K[(size_t)key * KEY_S2 + head]);
+                            k_raw[mb][key_offset] = as_ushort(K[(size_t)key * ldk + head]);
                         #endif
                     }
                 }
@@ -398,6 +503,38 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int qb = 0; qb < kq_query_blocks; ++qb) {
             float lmax = -INFINITY;
+            // Whether this subgroup's (key x query) block can touch the causal boundary at all.
+            // Keys run [key_base, key_base + kq_sg_tile_keys), queries run
+            // [wg_j0 + sg_j0_kq + qb*SUBGROUP_SIZE, + SUBGROUP_SIZE), so if the block's LAST key is
+            // <= its FIRST query every element is inside the causal region and the per-element
+            // predicate is a no-op. Measured at q = k = 4096 with the default tiling: 96.6% of
+            // blocks are in that class, yet the old code still issued cmp+sel for all 16 keys in
+            // every one of them -- 32 sel + 8 cmp per (qb, k0) iteration, and the causal-mask
+            // region was 16% of the whole loop body. sdpa_micro has always had this block-level
+            // skip (its `if (causal_k_end > causal_q_begin)` guard around
+            // tile_predicated_assignment_t); this is the ocl counterpart.
+            // causal_block_clear is uniform across the subgroup (no lane term), so IGC turns the
+            // branch into straight-line code for the common case rather than a per-lane select.
+#if IS_CAUSAL
+    #if BLOCK_SKIP_CAUSAL
+            const int blk_key_last = key_base + kq_sg_tile_keys - 1;
+            const int blk_query_first = (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE;
+        #if SLIDING_WINDOW_SIZE
+            // With a window the block must also sit fully inside it: the oldest key the block's
+            // LAST query may attend is (blk_query_last - SLIDING_WINDOW_SIZE), so the block's
+            // FIRST key must be newer than that.
+            const int blk_query_last = blk_query_first + SUBGROUP_SIZE - 1;
+            const bool causal_block_clear =
+                blk_key_last <= blk_query_first && key_base > blk_query_last - SLIDING_WINDOW_SIZE;
+        #else
+            const bool causal_block_clear = blk_key_last <= blk_query_first;
+        #endif
+    #else
+            // BLOCK_SKIP_CAUSAL=0 keeps the original always-mask behaviour, so a wrong-result
+            // config can be bisected against this optimisation.
+            const bool causal_block_clear = false;
+    #endif
+#endif
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 #pragma unroll
@@ -423,8 +560,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         }
                     #endif
 #if IS_CAUSAL
-                    if (key > query) {
-                        s = -INFINITY;
+                    if (!causal_block_clear) {
+    #if SLIDING_WINDOW_SIZE
+                        // Keys outside (query - SLIDING_WINDOW_SIZE, query] are dropped, matching
+                        // sdpa_micro's greater_than() predicate.
+                        if (key > query || key <= query - SLIDING_WINDOW_SIZE) {
+    #else
+                        if (key > query) {
+    #endif
+                            s = -INFINITY;
+                        }
                     }
 #endif
                     S_tile[mb][qb][mm] = s;
@@ -670,24 +815,24 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                     // key0/key1 here, not by the value (head-dim) index.
                                     const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
                                     #if VAL_ZERO_POINTS
-                                        vv[0] = (half)((convert_float(V[(size_t)key0 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
+                                        vv[0] = (half)((convert_float(V[(size_t)key0 * ldv + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
                                     #else
-                                        vv[0] = (half)(convert_float(V[(size_t)key0 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off0]));
+                                        vv[0] = (half)(convert_float(V[(size_t)key0 * ldv + value]) * convert_float(V_scales[v_comp_off0]));
                                     #endif
                                 #else
-                                    vv[0] = V[(size_t)key0 * VAL_S2 + value];
+                                    vv[0] = V[(size_t)key0 * ldv + value];
                                 #endif
                             }
                             if (key1 < k) {
                                 #ifdef KV_COMPRESSED
                                     const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
                                     #if VAL_ZERO_POINTS
-                                        vv[1] = (half)((convert_float(V[(size_t)key1 * VAL_S2 + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
+                                        vv[1] = (half)((convert_float(V[(size_t)key1 * ldv + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
                                     #else
-                                        vv[1] = (half)(convert_float(V[(size_t)key1 * VAL_S2 + value]) * convert_float(V_scales[v_comp_off1]));
+                                        vv[1] = (half)(convert_float(V[(size_t)key1 * ldv + value]) * convert_float(V_scales[v_comp_off1]));
                                     #endif
                                 #else
-                                    vv[1] = V[(size_t)key1 * VAL_S2 + value];
+                                    vv[1] = V[(size_t)key1 * ldv + value];
                                 #endif
                             }
                             vb[cd][key_pair] = as_int(vv);
@@ -741,7 +886,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int out_row = row + rr;
                     const int out_col = col + lane;
                     if (out_row < q && out_col < d)
-                        A[(size_t)out_row * DST_S2 + out_col] = out[rr];
+                        A[(size_t)out_row * lda + out_col] = out[rr];
                 }
 #if USE_2D_BLOCK_IO_A
             }
