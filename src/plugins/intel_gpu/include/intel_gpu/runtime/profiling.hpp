@@ -189,8 +189,8 @@ public:
 
 private:
     bool profiling_enabled = false;
-    std::chrono::high_resolution_clock::time_point _start = {};
-    std::chrono::high_resolution_clock::time_point _finish = {};
+    std::chrono::high_resolution_clock::time_point _start;
+    std::chrono::high_resolution_clock::time_point _finish;
     std::chrono::nanoseconds custom_duration = {};
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
@@ -385,7 +385,7 @@ private:
         return footprint;
     }
 
-    std::string _stage_name = {};
+    std::string _stage_name;
     bool _lifetime_logging_mode = false;
     bool _print_mem_usage = false;
     bool _is_active = false;
