@@ -1410,7 +1410,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
 // For conv, Check padded input and weight propagated by implicit crop are handled properly
 TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
     auto& engine = get_test_engine();
-    const std::string no_bias = "";
+    const std::string no_bias;
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 5, 4 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 3, 2 } });
 
@@ -1471,7 +1471,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
 // For deconv, Check padded input and weight propagated by implicit crop are handled properly
 TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
     auto& engine = get_test_engine();
-    const std::string no_bias = "";
+    const std::string no_bias;
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 1, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });

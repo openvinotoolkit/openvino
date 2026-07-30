@@ -182,7 +182,7 @@ TEST_P(weights_layout_test, size_check) {
         ASSERT_EQ(ordered_dims[i], p.size[p.expected_order[i]]);
     }
 
-    if (p.expected_pitches.size() > 0)
+    if (!p.expected_pitches.empty())
         ASSERT_EQ(l.get_pitches(), p.expected_pitches);
     else {
         l.get_pitches();

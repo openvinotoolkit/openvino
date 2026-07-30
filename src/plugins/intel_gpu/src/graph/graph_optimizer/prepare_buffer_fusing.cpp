@@ -747,7 +747,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
                 const auto h_size = reshape_ps[1].get_length();
                 reshape_lower_sizes[1] = lower_sizes[crop_axis] * h_size;
                 reshape_upper_sizes[1] = upper_sizes[crop_axis] * h_size;
-                reshape_dyn_pad_mask[1] = 1;
+                reshape_dyn_pad_mask[1] = true;
             } else {
                 // Fallback: mirror update_in_place_crop_padding_simple_data_format
                 // axis-mapping so build-time (dyn mask) and runtime (mask +
@@ -777,7 +777,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                 reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                reshape_dyn_pad_mask[reshape_axis] = 1;
+                reshape_dyn_pad_mask[reshape_axis] = true;
             }
 
             user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
