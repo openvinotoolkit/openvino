@@ -358,8 +358,10 @@ public:
                                  const Shape& shape,
                                  const std::filesystem::path& file_path,
                                  std::size_t offset_in_bytes = 0) {
-        auto data = ov::read_tensor_data(file_path, type, shape, offset_in_bytes);
-        return create_tensor(type, shape, VirtualAddressMemory{std::as_const(data).data(), static_cast<int64_t>(data.get_byte_size())});
+        AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::MMAPED_FILE},
+                         {ov::intel_gpu::file_path.name(), file_path.string()},
+                         {ov::intel_gpu::file_offset.name(), offset_in_bytes}};
+        return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 
     /**
