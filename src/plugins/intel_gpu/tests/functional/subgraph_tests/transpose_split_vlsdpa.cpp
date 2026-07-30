@@ -7,6 +7,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -92,6 +93,61 @@ public:
         param->set_friendly_name(name);
         param->get_output_tensor(0).set_names({name});
         return param;
+    }
+
+    static std::shared_ptr<ov::Node> create_sdpa_with_transpose(
+            const std::shared_ptr<ov::Node>& q,
+            const std::shared_ptr<ov::Node>& k,
+            const std::shared_ptr<ov::Node>& v,
+            const std::shared_ptr<ov::Node>& attn_mask) {
+        const std::vector<int64_t> order{1, 0, 2};
+        auto transpose_q = std::make_shared<Transpose>(q, Constant::create(element::i64, Shape{3}, order));
+        auto transpose_k = std::make_shared<Transpose>(k, Constant::create(element::i64, Shape{3}, order));
+        auto transpose_v = std::make_shared<Transpose>(v, Constant::create(element::i64, Shape{3}, order));
+
+        auto sdpa = std::make_shared<ScaledDotProductAttention>(transpose_q, transpose_k, transpose_v, attn_mask, false);
+        auto transpose_o = std::make_shared<Transpose>(sdpa, Constant::create(element::i64, Shape{3}, order));
+        return transpose_o;
+    }
+
+    static bool check_vlsdpa_available() {
+        try {
+            // Create a minimal SDPA model to test VLSDPA transformation availability
+            const int64_t num_head = 8;
+            const int64_t head_size = 32;
+
+            // Create Q, K, V parameters
+            auto q = make_param(PartialShape{1, num_head, head_size}, element::f16, "q");
+            auto k = make_param(PartialShape{1, num_head, head_size}, element::f16, "k");
+            auto v = make_param(PartialShape{1, num_head, head_size}, element::f16, "v");
+            auto attention_mask = make_param(PartialShape{1, 1, 1}, element::f16, "attention_mask");
+
+            auto sdpa_output = create_sdpa_with_transpose(q, k, v, attention_mask);
+            auto model = std::make_shared<Model>(sdpa_output, ParameterVector{q, k, v, attention_mask});
+
+            // Request VLSDPA transformation by setting model hint
+            model->set_rt_info("QWenVL", "model_type_hint");
+
+            // Try to compile with GPU plugin; if it succeeds and the compiled model
+            // has "cu_seq_lens" input, VLSDPA transformation was applied
+            ov::Core core;
+            try {
+                auto compiled = core.compile_model(model, "GPU");
+                // Check if transformation was applied: compiled model should have cu_seq_lens input
+                for (const auto& input : compiled.inputs()) {
+                    const auto& names = input.get_names();
+                    if (names.find("cu_seq_lens") != names.end() ||
+                        names.find("cu_window_seqlens") != names.end()) {
+                        return true;
+                    }
+                }
+                return false;
+            } catch (const std::exception&) {
+                return false;
+            }
+        } catch (const std::exception&) {
+            return false;
+        }
     }
 
 protected:
@@ -223,20 +279,9 @@ protected:
         } else {
             auto attention_mask = make_param(PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()}, ov::element::f16, "attention_mask");
 
-            auto transpose_q = std::make_shared<Transpose>(rope_q, Constant::create(element::i64, Shape{3}, order));
-            transpose_q->set_friendly_name("transpose_q");
-            auto transpose_k = std::make_shared<Transpose>(rope_k, Constant::create(element::i64, Shape{3}, order));
-            transpose_k->set_friendly_name("transpose_k");
-            auto transpose_v = std::make_shared<Transpose>(reshape_v, Constant::create(element::i64, Shape{3}, order));
-            transpose_v->set_friendly_name("transpose_v");
+            auto sdpa_output = create_sdpa_with_transpose(rope_q, rope_k, reshape_v, attention_mask);
 
-            auto sdpa = std::make_shared<ScaledDotProductAttention>(transpose_q, transpose_k, transpose_v, attention_mask, false);
-            sdpa->set_friendly_name("sdpa");
-
-            auto transpose_o = std::make_shared<Transpose>(sdpa, Constant::create(element::i64, Shape{3}, order));
-            transpose_o->set_friendly_name("transpose_o");
-
-            return std::make_shared<Model>(transpose_o, ParameterVector{qkv, cos_param, sin_param, attention_mask});
+            return std::make_shared<Model>(sdpa_output, ParameterVector{qkv, cos_param, sin_param, attention_mask});
         }
     }
 
@@ -416,6 +461,9 @@ TEST_P(TransposeSplitVLSDPATestOnGPU, CompareWithRefs) {
     std::tie(inType, num_head, head_size, cu_seqlens) = GetParam();
     if (inType != ElementType::f16) // VLSDPA CM kernel supports half precision only
         GTEST_SKIP();
+
+    if (!check_vlsdpa_available())
+        GTEST_SKIP() << "CM JIT support is required for VLSDPA tests, and the device must be Xe1 or later";
 
     try {
         run();

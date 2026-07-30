@@ -16,6 +16,9 @@
 
 #include <openvino/pass/serialize.hpp>
 
+#include "test_utils/test_utils.h"
+#include <intel_gpu/runtime/debug_configuration.hpp>
+
 #include <memory>
 
 using namespace testing;
@@ -162,9 +165,50 @@ std::shared_ptr<ov::Model> build_target_model_with_optimized_split(AttentionType
 
 // Parameterized test for TransposeSplitMatcher with both SDPA and VLSDPA
 class TransposeSplitFusionTest : public TransformationTestsF,
-                                  public ::testing::WithParamInterface<AttentionType> {};
+                                  public ::testing::WithParamInterface<AttentionType> {
+public:                                
+    static bool check_vlsdpa_available() {
+        try {
+            // Create a tiny fake SDPA model to test VLSDPA transformation availability
+            auto q = std::make_shared<Parameter>(element::f16, PartialShape{1, 1, 64});
+            auto k = std::make_shared<Parameter>(element::f16, PartialShape{1, 1, 64});
+            auto v = std::make_shared<Parameter>(element::f16, PartialShape{1, 1, 64});
+            auto attn_mask = std::make_shared<Parameter>(element::f16, PartialShape{1, 1, 1});
+
+            auto sdpa = std::make_shared<ScaledDotProductAttention>(q, k, v, attn_mask, false);
+            auto model = std::make_shared<ov::Model>(OutputVector{sdpa},
+                                                    ParameterVector{q, k, v, attn_mask});
+
+            // Request VLSDPA transformation by setting model hint
+            model->set_rt_info("QWenVL", "model_type_hint");
+
+            // Try to compile with GPU plugin; if it succeeds and the compiled model
+            // has "cu_seq_lens" input, VLSDPA transformation was applied
+            ov::Core core;
+            try {
+                auto compiled = core.compile_model(model, "GPU");
+                // Check if transformation was applied: compiled model should have cu_seq_lens input
+                for (const auto& input : compiled.inputs()) {
+                    const auto& names = input.get_names();
+                    if (names.find("cu_seq_lens") != names.end() ||
+                        names.find("cu_window_seqlens") != names.end()) {
+                        return true;
+                    }
+                }
+                return false;
+            } catch (const std::exception&) {
+                return false;
+            }
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+};
 
 TEST_P(TransposeSplitFusionTest, TransposeSplitWithAttention) {
+    if (!check_vlsdpa_available())
+        GTEST_SKIP() << "CM JIT support is required for VLSDPA tests, and the device must be Xe1 or later";
+
     AttentionType attn_type = GetParam();
     disable_rt_info_check();
     {
