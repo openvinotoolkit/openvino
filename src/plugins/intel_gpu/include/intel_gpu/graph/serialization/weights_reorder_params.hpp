@@ -99,6 +99,6 @@ namespace cldnn {
                 _out_desc = std::make_shared<dnnl::memory::desc>(out);
             }
         };
-    }
+    }  // namespace onednn
 #endif
-}
+}  // namespace cldnn
