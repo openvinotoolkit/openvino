@@ -157,20 +157,20 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         };
 
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape,
-                                                const std::vector<int32_t>& target_shape,
-                                                bool is_static_output) {
-                if (is_static_output) {
-                    // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
-                    if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
-                    int diff_cnt = 0;
-                    for (size_t i = 0; i < input_shape.size(); ++i) {
-                        if (input_shape[i] != target_shape[i]) ++diff_cnt;
-                    }
-                    return diff_cnt == 1;
-                } else {
-                    // For dynamic output shapes, check the target_shape pattern
-                    return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
+                                               const std::vector<int32_t>& target_shape,
+                                               bool is_static_output) {
+            if (is_static_output) {
+                // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
+                if (input_shape.empty() || (input_shape.size() != target_shape.size())) return false;
+                int diff_cnt = 0;
+                for (size_t i = 0; i < input_shape.size(); ++i) {
+                    if (input_shape[i] != target_shape[i]) ++diff_cnt;
                 }
+                return diff_cnt == 1;
+            } else {
+                // For dynamic output shapes, check the target_shape pattern
+                return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
+            }
         };
 
         std::vector<int32_t> target_shape_val_b;
