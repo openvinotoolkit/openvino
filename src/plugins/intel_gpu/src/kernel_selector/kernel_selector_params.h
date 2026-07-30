@@ -206,6 +206,8 @@ public:
                         uint32_t axisY : 1;
                         uint32_t axisZ : 1;
                         uint32_t axisW : 1;
+                        uint32_t axisU : 1;
+                        uint32_t axisV : 1;
                         uint32_t axisFeature : 1;
                         uint32_t axisBatch : 1;
                         uint32_t kernelPerInput : 1;
@@ -407,9 +409,9 @@ struct EngineInfo {
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
-    std::string deviceId = "";
-    std::string driverVersion = "";
-    std::vector<size_t> supportedSimdSizes = {};
+    std::string deviceId;
+    std::string driverVersion;
+    std::vector<size_t> supportedSimdSizes;
 
     DeviceFeaturesKey get_supported_device_features_key() const;
 };
@@ -424,10 +426,8 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
-        return;
     }
     virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
-        return;
     }
 
 protected:
@@ -634,7 +634,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<dep_info> dep_data = {};
+    std::vector<dep_info> dep_data;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }
@@ -663,7 +663,7 @@ struct base_params : public Params {
     };
 
     std::vector<base_activation_params> activations;
-    std::vector<fused_operation_desc> fused_ops = {};
+    std::vector<fused_operation_desc> fused_ops;
     MultiDataTensor inputs;
     MultiDataTensor outputs;
 
