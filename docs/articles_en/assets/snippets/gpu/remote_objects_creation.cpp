@@ -72,7 +72,7 @@ int main() {
 {
     //! [wrap_file]
     std::filesystem::path file_path{"input.bin"};
-    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_path);
+    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_path, 4096);
     //! [wrap_file]
 }
 
