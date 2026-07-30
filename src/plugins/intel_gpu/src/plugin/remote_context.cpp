@@ -278,6 +278,27 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_handle(c
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, handle);
 }
 
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(const ov::element::Type type,
+                                                                   const ov::Shape& shape,
+                                                                   const std::string& file_path,
+                                                                   size_t offset) {
+    // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
+    // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
+    auto mmap_tensor = ov::read_tensor_data(file_path, type, shape, offset);
+    void* data_ptr = std::as_const(mmap_tensor).data();
+    const auto size = static_cast<int64_t>(mmap_tensor.get_byte_size());
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
+                                              shape,
+                                              type,
+                                              TensorType::BT_CPU_VA,
+                                              nullptr,
+                                              0,
+                                              0,
+                                              ov::intel_gpu::SharedBufferHandle{},
+                                              VirtualAddressMemory{data_ptr, size},
+                                              mmap_tensor);
+}
+
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, TensorType::BT_BUF_INTERNAL);
 }
