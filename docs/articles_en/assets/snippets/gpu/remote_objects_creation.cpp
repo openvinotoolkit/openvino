@@ -71,8 +71,10 @@ int main() {
 
 {
     //! [wrap_file]
-    std::filesystem::path file_path{"input.bin"};
-    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_path, 4096);
+    // The plugin memory-maps the file and keeps the mapping alive for the tensor lifetime,
+    // so the file must not be modified until the returned tensor is destroyed.
+    ov::intel_gpu::FileDescriptor file_descriptor{"input.bin", /*offset_in_bytes=*/0};
+    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_descriptor);
     //! [wrap_file]
 }
 
