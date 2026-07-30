@@ -20,8 +20,7 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_b,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
-    : ov::op::v0::MatMul()
-    , m_order_a(order_a)
+    : m_order_a(order_a)
     , m_order_b(order_b)
     , m_order_c(order_c)
     , m_output_type(output_type) {

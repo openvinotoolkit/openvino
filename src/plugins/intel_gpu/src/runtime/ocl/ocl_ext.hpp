@@ -562,7 +562,7 @@ public:
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() : Image2D() { }
+    ImageVA() { }
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -746,7 +746,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() : Platform() { }
+    PlatformVA() { }
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
@@ -1081,7 +1081,7 @@ private:
 class KernelIntel : public Kernel {
     using Kernel::Kernel;
 public:
-    explicit KernelIntel(const UsmHelper& usmHelper) : Kernel(), _usmHelper(usmHelper) {}
+    explicit KernelIntel(const UsmHelper& usmHelper) : _usmHelper(usmHelper) {}
     KernelIntel(const Kernel &other, const UsmHelper& usmHelper) : Kernel(other), _usmHelper(usmHelper) { }
 
     KernelIntel clone() const {
