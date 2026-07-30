@@ -204,7 +204,6 @@ public:
             this->set_output_padding(cldnn::padding({static_cast<int32_t>(new_batch_pad), 0, 0, 0}, {0, 0, 0, 0}));
         }
 
-        return;
     }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }

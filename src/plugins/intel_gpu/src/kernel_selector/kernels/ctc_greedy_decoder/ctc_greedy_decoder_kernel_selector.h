@@ -15,7 +15,7 @@ public:
     }
 
     ctc_greedy_decoder_kernel_selector();
-    virtual ~ctc_greedy_decoder_kernel_selector() {}
+    ~ctc_greedy_decoder_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

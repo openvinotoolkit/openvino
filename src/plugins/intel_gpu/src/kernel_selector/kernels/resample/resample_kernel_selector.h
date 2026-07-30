@@ -16,7 +16,7 @@ public:
 
     resample_kernel_selector();
 
-    virtual ~resample_kernel_selector() {}
+    ~resample_kernel_selector() override {}
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
