@@ -29,9 +29,15 @@ constexpr const char* kDeepstackVisualEmbedsParamName = "deepstack_visual_embeds
 
 bool has_input(const std::shared_ptr<ov::Model>& model, const std::string& name);
 
+// Returns the KV-cache Concat that feeds an SDPA's key input through the autoregressive
+// Concat->Broadcast->Reshape chain, or nullptr if the key input does not have that shape.
+// Classification and reconstruction both key on this pattern, so they share one predicate
+// instead of two that have to be kept in step by hand.
+std::shared_ptr<ov::Node> find_kv_cache_concat(const std::shared_ptr<ov::Node>& sdpa);
+
 // Returns true for a non-autoregressive (bidirectional encoder, e.g. BERT) text-embedding
-// model: one that has ScaledDotProductAttention but NO autoregressive KV-cache concat pattern
-// (Concat->Broadcast->Reshape on the SDPA key input) that the Qwen3-Embedding-style path needs.
+// model: one that has ScaledDotProductAttention but none of the KV-cache concat pattern that
+// the Qwen3-Embedding-style path needs in order to reconstruct a prefill/KV model.
 // Used to route encoder embedders to the dedicated, KV/RoPE-free embedding path.
 bool is_encoder_embedding_model(const std::shared_ptr<ov::Model>& model);
 
