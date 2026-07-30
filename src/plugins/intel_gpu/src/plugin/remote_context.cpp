@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
