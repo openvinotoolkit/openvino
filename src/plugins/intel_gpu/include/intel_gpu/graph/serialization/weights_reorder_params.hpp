@@ -66,7 +66,7 @@ namespace cldnn {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     namespace onednn {
         struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
-            WeightsReorderParamsOneDNN() : cldnn::WeightsReorderParams() {}
+            WeightsReorderParamsOneDNN() {}
             WeightsReorderParamsOneDNN(const layout& in_layout,
                                        const layout& out_layout,
                                        const dnnl::memory::desc& in_desc,

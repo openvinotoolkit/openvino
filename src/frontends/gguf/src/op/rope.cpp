@@ -158,16 +158,35 @@ OutputVector translate_rope(const NodeContext& context) {
         res = (n_rot < head_dim) ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
                                  : rotated;
     } else if (mode == TYPE_IMROPE) {
-        // Use output_shape, not data_node->get_shape() which throws on a dynamic dim.
-        int64_t n_dims = output_shape[3];
+        // Partial rotary (ggml n_dims < head_dim): only the first n_rot dims of every head are
+        // rotated, the tail is passed through unchanged -- e.g. qwen3.5 has head_dim 256 but
+        // rope.dimension_count 64. cos/sin carry width n_rot/2, so the rotated block must be
+        // exactly n_rot wide; using the full head here rotates the pass-through tail and corrupts
+        // every full-attention layer. (Use output_shape, not data_node->get_shape() which throws
+        // on a dynamic dim.)
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
+
+        Output<Node> rotary_in = data_node;
+        Output<Node> pass_through;
+        if (n_rot < head_dim) {
+            auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto n_rot_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {n_rot});
+            auto head_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
+            rotary_in = std::make_shared<ov::op::v8::Slice>(data_node, zero, n_rot_c, one, neg_one);
+            pass_through = std::make_shared<ov::op::v8::Slice>(data_node, n_rot_c, head_c, one, neg_one);
+        }
+
         auto cos_sin_shape = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
                                                                     ov::Shape{4},
-                                                                    std::vector<int64_t>{1, -1, 1, (n_dims >> 1)});
+                                                                    std::vector<int64_t>{1, -1, 1, (n_rot >> 1)});
         auto cos_reshaped = std::make_shared<ov::op::v1::Reshape>(cos_theta_node, cos_sin_shape, true);
         auto sin_reshaped = std::make_shared<ov::op::v1::Reshape>(sin_theta_node, cos_sin_shape, true);
 
         auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {3});
-        auto split_a = std::make_shared<ov::op::v1::Split>(data_node, split_axis, 2);
+        auto split_a = std::make_shared<ov::op::v1::Split>(rotary_in, split_axis, 2);
         auto x0 = split_a->output(0);
         auto x1 = split_a->output(1);
         auto mul_a = std::make_shared<ov::op::v1::Multiply>(x0, cos_reshaped);
@@ -178,7 +197,9 @@ OutputVector translate_rope(const NodeContext& context) {
         auto mul_d = std::make_shared<ov::op::v1::Multiply>(x1, cos_reshaped);
         auto add = std::make_shared<ov::op::v1::Add>(mul_c, mul_d);
 
-        res = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sub, add}, 3);
+        Output<Node> rotated = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sub, add}, 3);
+        res = (n_rot < head_dim) ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, 3)
+                                 : rotated;
     }
 
     // Fail cleanly on an unmapped mode rather than dereferencing a null res downstream.
