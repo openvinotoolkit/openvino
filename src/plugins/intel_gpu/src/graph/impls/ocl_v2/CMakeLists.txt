@@ -41,14 +41,14 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
   COMMENT "Updating file if the file changed (${CODEGEN_INCDIR}/${KERNEL_SOURCES}) ..."
 )
 
-add_custom_target(run_ocl_codegen ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
+add_custom_target(run_ocl_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
     BYPASS
         ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-        DEPENDENCIES run_ocl_codegen
+        DEPENDENCIES run_ocl_codegen${OV_GPU_SUFFIX}
         ADD_CLANG_FORMAT
 )
 

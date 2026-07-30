@@ -13,12 +13,15 @@ if(ENABLE_ONEDNN_FOR_GPU)
     # twice (ZE and OCL differ, e.g. LTO is disabled for ZE) without colliding.
     function(build_onednn_gpu GPU_RUNTIME SUFFIX)
         include(ExternalProject)
+        # Plain (non-CACHE) locals: a COMBINED build calls this function twice, and CACHE would
+        # freeze the first runtime's values, making the second reuse the same install dir/lib
+        # name and collide. These names are only used within this function.
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build${SUFFIX}")
-        set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}" CACHE PATH "Installation path for oneDNN GPU library (${GPU_RUNTIME})")
+        set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root${SUFFIX}")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;MATMUL;REORDER;POOLING;REDUCTION;RNN")
         set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XE2;XE3;XE3P")
-        set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu${SUFFIX}" CACHE STRING "Name of oneDNN library for Intel GPU Plugin (${GPU_RUNTIME})")
+        set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu${SUFFIX}")
 
         if(X86_64)
             set(ONEDNN_TARGET_ARCH "X64" CACHE STRING "" FORCE)
@@ -129,8 +132,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
-        set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+        # ONEDNN_GPU_LIB_PATH escapes to src/cmake/openvino.cmake (OpenVINOConfig PATH_VARS) so it
+        # must be cached; FORCE lets a second (COMBINED) call overwrite the first. It matters only
+        # for static single-RT installs (shared builds link oneDNN into the plugin .so), so which
+        # twin's path wins in a COMBINED (shared) build is immaterial.
+        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library" FORCE)
+        set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu)
         if(GPU_RUNTIME STREQUAL "ZE")
             set(ONEDNN_GPU_RT "ZE")
             # OneDNN is using different version of L0 headers

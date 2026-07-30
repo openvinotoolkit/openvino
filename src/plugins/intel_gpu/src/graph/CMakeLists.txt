@@ -110,13 +110,13 @@ set(CODEGEN_TEST_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/common_utils/test_kernels_d
 
 enable_testing()
 
-add_custom_target(run_codegen_test
+add_custom_target(run_codegen_test${OV_GPU_SUFFIX}
     COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
     DEPENDS "${CODEGEN_SCRIPT}"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-add_test(NAME TestOCLCodePreprocessing
+add_test(NAME TestOCLCodePreprocessing${OV_GPU_SUFFIX}
          COMMAND ${Python3_EXECUTABLE} -B ${CODEGEN_TEST_SCRIPT}
          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -149,7 +149,7 @@ ov_add_target(
             ${EXTRA_LINK_LIBRARIES}
             openvino::reference # for loop primitive subroutines
     DEPENDENCIES
-        run_codegen_test
+        run_codegen_test${OV_GPU_SUFFIX}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
