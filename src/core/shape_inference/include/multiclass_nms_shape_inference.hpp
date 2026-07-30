@@ -95,7 +95,12 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
             auto& selected_boxes = output_shapes[0][0];
             if (nms_top_k > -1) {
                 const auto boxes_upper_bound = boxes_shape[1].get_max_length();
-                selected_boxes = TDim(boxes_upper_bound < 0 ? nms_top_k : std::min<V>(boxes_upper_bound, nms_top_k));
+                // nms_top_k is only an upper bound on the per-class box count, not the actual
+                // value. When num_boxes is unknown, the real value may turn out smaller once the
+                // shape becomes static, so the dimension must stay dynamic (bounded by
+                // nms_top_k) instead of being collapsed to a static nms_top_k.
+                selected_boxes = (boxes_upper_bound < 0) ? TDim(0, nms_top_k)
+                                                         : TDim(std::min<V>(boxes_upper_bound, nms_top_k));
             } else {
                 selected_boxes = boxes_shape[1];
             }
@@ -108,7 +113,10 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
 
             if (keep_top_k > -1 &&
                 (selected_boxes.get_max_length() < 0 || keep_top_k < selected_boxes.get_max_length())) {
-                selected_boxes = TDim(keep_top_k);
+                // Same reasoning as above: only collapse to a static keep_top_k when
+                // selected_boxes is already static (a known worst-case count being tightened);
+                // otherwise keep it dynamic, bounded by keep_top_k.
+                selected_boxes = selected_boxes.is_static() ? TDim(keep_top_k) : TDim(0, keep_top_k);
             }
 
             selected_boxes *= num_images;
