@@ -396,7 +396,7 @@ public:
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);
-
+        conv_onednn_impl->set_weights_zero_point_data_type(wzp_data_type);
 
         return conv_onednn_impl;
     }
