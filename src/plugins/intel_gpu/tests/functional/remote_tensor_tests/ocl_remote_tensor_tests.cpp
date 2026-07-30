@@ -620,7 +620,7 @@ TEST(OVRemoteTensorTests, smoke_CreateTensorFromFile) {
 
     auto core = ov::Core();
     auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
-    auto tensor = context.create_tensor(ov::element::f32, shape, file_path, offset);
+    auto tensor = context.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{file_path, offset});
 
     EXPECT_TRUE(tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
     EXPECT_NE(tensor.get(), nullptr);
