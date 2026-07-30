@@ -14,6 +14,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -24,18 +25,22 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
+namespace v0 = ov::op::v0;
+
 ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGatherMatmulCompressed(
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
     const SupportsPredicate& supports_config,
-    bool convert_u4zp_to_u8) {
+    bool convert_u4zp_to_u8,
+    bool enable_parameter_weights) {
     using namespace ov::pass::pattern;
     using ov::op::internal::GatherMatmul;
     using ov::op::internal::GatherMatmulCompressed;
 
     auto activation = any_input(type_matches_any(supported_activation_types));
-    auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
+    auto weights_block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types,
+                                                                                         std::set<size_t>{3},
+                                                                                         enable_parameter_weights);
     auto indices = any_input();
     auto bias = any_input();
     auto gather_matmul = wrap_type<GatherMatmul>({activation, weights_block, indices, bias});
@@ -63,12 +68,20 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
                                                                                                   batched_weights,
                                                                                                   result_nodes);
 
+        // VCL can't handle element::dynamic ZP placeholder; use weight element type.
+        // GPU detects "no ZP" via count()==0 (not element type)
+        std::shared_ptr<ov::Node> final_zp = bgm_input_zp;
+        if (enable_parameter_weights && bgm_input_zp->get_output_element_type(0) == ov::element::dynamic) {
+            const auto weight_et = weights_block->get_anchor("weights", pattern_map).value().get_element_type();
+            final_zp = v0::Constant::create(weight_et, ov::Shape{0}, std::vector<int>{0});
+            result_nodes.push_back(final_zp);
+        }
         auto new_bgm = std::make_shared<GatherMatmulCompressed>(pattern_map.at(activation),
                                                                 bgm_input_b,
                                                                 pattern_map.at(indices),
                                                                 pattern_map.at(bias),
                                                                 bgm_input_scale,
-                                                                bgm_input_zp);
+                                                                final_zp);
 
         const size_t IC = *(weights_shape.rbegin());
         const size_t OC = *(weights_shape.rbegin() + 1);
