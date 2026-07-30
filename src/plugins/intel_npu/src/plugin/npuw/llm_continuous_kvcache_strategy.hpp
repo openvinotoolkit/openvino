@@ -35,6 +35,11 @@ public:
                                     const std::shared_ptr<ov::IAsyncInferRequest>& new_req,
                                     const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
+
+    // Continuous prefill. Repack the preserved KV prefix [0, keep) into the prefill
+    // model's past KV layout so the chunked prefill can resume from `keep`.
+    std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) override;
+    void apply_continued_prefill(ContinuedPrefillPlan& plan) override;
 };
 
 }  // namespace npuw

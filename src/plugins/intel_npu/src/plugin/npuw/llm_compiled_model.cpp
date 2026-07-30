@@ -1675,11 +1675,13 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
     if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
         return false;
     }
-    // Every static exclusion above passed, but this change carries the protocol only:
-    // nothing attaches the coordinator to the variable state yet, so a proposal would
-    // throw. A capability the request cannot honour must never be advertised, so the
-    // answer stays false until the delta prefill path lands and lifts this.
-    return false;
+    if (m_is_block_kv_cache) {
+        // Only the contiguous strategy can plan a continuation so far, and the block
+        // strategy would raise from the base class in preflight. Block support lands
+        // in the follow-up change.
+        return false;
+    }
+    return true;
 }
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
