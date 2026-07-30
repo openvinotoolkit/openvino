@@ -8,16 +8,6 @@
 #include "../logging.hpp"
 #include "../util.hpp"
 
-ov::SoPtr<ov::ITensor> ov::npuw::EncoderEmbeddingInferRequest::create_prefill_output_tensor() {
-    const auto& out_port = m_prefill_request->get_outputs()[0];
-    auto out_shape = out_port.get_shape();
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-
-    auto prefill_shape = ov::Shape(out_shape);
-    prefill_shape[layer_ids::INPUT_IDS_SEQ_LEN_DIM] = kvcache_desc.max_prompt_size;
-    return ov::get_tensor_impl(ov::Tensor(out_port.get_element_type(), prefill_shape));
-}
-
 ov::npuw::EncoderEmbeddingInferRequest::EncoderEmbeddingInferRequest(
     const std::shared_ptr<LLMCompiledModel>& compiled_model)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
@@ -28,7 +18,19 @@ ov::npuw::EncoderEmbeddingInferRequest::EncoderEmbeddingInferRequest(
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
     }
 
-    m_prefill_output = create_prefill_output_tensor();
+    m_prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_request->get_outputs()[0]);
+
+    // The encoder is compiled as one static forward over the whole padded sequence, so its own
+    // output tensor already has the shape the caller expects and is handed back as-is. That, and
+    // zeroing the padding in infer(), both rely on the hidden state being [1, L, hidden].
+    const auto& out_shape = m_prefill_out_tensor->get_shape();
+    const auto max_prompt_size = m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size;
+    OPENVINO_ASSERT(out_shape.size() == 3u && out_shape[0] == 1u &&
+                        out_shape[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == max_prompt_size,
+                    "Encoder embedding model must produce a [1, ",
+                    max_prompt_size,
+                    ", hidden] hidden state, got ",
+                    out_shape);
 }
 
 void ov::npuw::EncoderEmbeddingInferRequest::infer() {
@@ -98,13 +100,16 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
 
     m_prefill_request->infer();
 
-    // Copy the valid (front) rows of the hidden state into the right-sized output tensor; the
-    // remaining padded rows stay zeroed. Downstream pooling uses attention_mask to ignore them.
-    uu::fill_tensor_bytes(m_prefill_output, 0u);
-    auto output_tensor = m_prefill_request->get_tensor(m_prefill_request->get_outputs()[0]);
-    auto src = uu::make_tensor_slice(output_tensor, layer_ids::INPUT_IDS_SEQ_LEN_DIM, 0, prompt_len);
-    auto dst = uu::make_tensor_slice(m_prefill_output, layer_ids::INPUT_IDS_SEQ_LEN_DIM, 0, prompt_len);
-    uu::copy_tensor_by_dim(src, dst, layer_ids::INPUT_IDS_SEQ_LEN_DIM, layer_ids::INPUT_IDS_SEQ_LEN_DIM);
+    // The caller reads the compiled model's output tensor directly, so only the padding needs
+    // attention: zero the trailing rows so they cannot reach a consumer that pools without
+    // applying attention_mask. Batch is 1, so those rows are contiguous and a byte fill is enough.
+    if (prompt_len < kvcache_desc.max_prompt_size) {
+        auto padding = uu::make_tensor_slice(m_prefill_out_tensor,
+                                             layer_ids::INPUT_IDS_SEQ_LEN_DIM,
+                                             prompt_len,
+                                             kvcache_desc.max_prompt_size);
+        uu::fill_tensor_bytes(padding, 0u);
+    }
 
     LOG_DEBUG("Done");
 }
@@ -112,7 +117,7 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::EncoderEmbeddingInferRequest::get_tensor(
     const ov::Output<const ov::Node>& port) const {
     if (port == get_outputs()[0]) {
-        return m_prefill_output;
+        return m_prefill_out_tensor;
     }
     return ov::ISyncInferRequest::get_tensor(port);
 }

@@ -24,13 +24,13 @@ public:
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
 private:
-    ov::SoPtr<ov::ITensor> create_prefill_output_tensor();
-
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
 
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
 
-    ov::SoPtr<ov::ITensor> m_prefill_output;
+    // The compiled encoder's own output tensor, returned to the caller unchanged: it is already
+    // sized [1, max_prompt_size, hidden], so there is nothing to copy it into.
+    ov::SoPtr<ov::ITensor> m_prefill_out_tensor;
 };
 
 }  // namespace npuw
