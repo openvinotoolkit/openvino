@@ -611,8 +611,10 @@ TEST(OVRemoteTensorTests, smoke_CreateTensorFromFile) {
     const ov::Shape shape{1, 2, 2, 2};
     const std::filesystem::path file_path{"ocl_remote_tensor_file.bin"};
     std::vector<float> values(ov::shape_size(shape), 1.0f);
+    constexpr std::size_t offset = 4096;
     {
         std::ofstream file(file_path, std::ios::binary);
+        file.seekp(offset);
         file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
     }
 
