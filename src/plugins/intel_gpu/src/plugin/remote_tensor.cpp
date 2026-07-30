@@ -439,6 +439,7 @@ void RemoteTensorImpl::update_hash() {
         m_hash = cldnn::hash_combine(0, m_mem);
         m_hash = cldnn::hash_combine(m_hash, m_shared_buffer_handle);
         m_hash = cldnn::hash_combine(m_hash, m_va_mem);
+        m_hash = cldnn::hash_combine(m_hash, m_mmap_tensor ? std::as_const(m_mmap_tensor).data() : nullptr);
         m_hash = cldnn::hash_combine(m_hash, m_surf);
         m_hash = cldnn::hash_combine(m_hash, m_plane);
         m_hash = cldnn::hash_combine(m_hash, m_shape.size());
