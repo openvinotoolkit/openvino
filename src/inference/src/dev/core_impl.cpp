@@ -244,7 +244,12 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
             const auto& compiled_blob = blob_hint->second.as<ov::Tensor>();
             compiled_model = context ? plugin.import_model(compiled_blob, context, config)
                                      : plugin.import_model(compiled_blob, config);
+        } catch (const std::exception& ex) {
+            OPENVINO_WARN("Failed to import model from compiled blob hint: ", ex.what(),
+                          ". Falling back to compilation.");
         } catch (...) {
+            OPENVINO_WARN("Failed to import model from compiled blob hint: unknown exception. ",
+                          "Falling back to compilation.");
         }
     }
     return compiled_model;
