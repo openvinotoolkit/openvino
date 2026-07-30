@@ -59,6 +59,14 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, cl
 
 #endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
+#if !defined(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT)
+#define CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT 0x1065
+#endif
+
+#if !defined(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT)
+#define CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT 0x1068
+#endif
+
 /***************************************************************
 * cl_intel_command_queue_families
 ***************************************************************/
