@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-07-30-09-14-37-090-30326124760",
+  "timestamp": "2026-07-30T09:14:37Z",
+  "run_id": "30326124760",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30326124760",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36894",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36894",
+  "author": "isanghao",
+  "category": "Code Issue",
+  "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+  "signature": "accuracy validation failed assertionerror in test export model precommit opt gptq katuni4ka|Code Issue",
+  "signature_hash": "671a331e9a60933e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] \u2014 AssertionError: Accuracy validation failed (max diff 0.0687)"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] FAILED",
+    "E           AssertionError: Accuracy validation failed\nMax diff is 0.06871891021728516",
+    "gptqmodel-6.0.3 + transformers-5.5.3 installed; OV export diverges from PyTorch reference"
+  ],
+  "root_cause": "The test installs gptqmodel==6.0.3 and transformers==5.5.3 (upgraded from 4.47.1), then exports katuni4ka/opt-125m-gptq via the PyTorch FX frontend. The OV inference results diverge from the PyTorch baseline with a max difference of ~0.069. This is a deterministic accuracy failure observed consistently since 2026-07-27 across 23 runs and multiple PRs \u2014 not related to the GPU MOE fix in PR #36894. The likely root cause is a behavior change introduced by upgrading transformers from 4.47.x to 5.5.x or gptqmodel to 6.0.3 that affects how the opt-gptq model is decoded/quantized through the FX frontend.",
+  "reproduction_steps": "pip install gptqmodel==6.0.3 transformers==5.5.3; pytest install/tests/model_hub_tests/pytorch/test_llm.py::TestLLMModel::test_export_model_precommit[CPU-opt_gptq-katuni4ka/opt-125m-gptq] -v",
+  "recommended_actions": [
+    "Pin transformers and gptqmodel versions in the test requirements to the last known-good version (transformers<5.0 or gptqmodel<6.0).",
+    "Investigate the opt-gptq model conversion path in the PyTorch FX frontend for numerical regressions with gptqmodel 6.0.3.",
+    "This is a pre-existing CI-wide issue not caused by PR #36894 \u2014 the PR author should be notified and the merge queue should be unblocked once the root cause is confirmed."
+  ],
+  "prevention_strategies": "Pin external dependency versions (transformers, gptqmodel) in CI test requirements files. Add a pre-merge check for dependency version bumps that could affect accuracy tests.",
+  "historical_context": "Recurring since 2026-07-27T12:33:21Z, 23 occurrences total across multiple PRs (36860, 36894, 36957, 37020, 37029, 37071, 37079, 35116)."
+}
