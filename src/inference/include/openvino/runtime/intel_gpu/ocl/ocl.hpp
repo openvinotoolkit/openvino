@@ -95,6 +95,9 @@ public:
     operator cl::Buffer() {
         return cl::Buffer(get(), true);
     }
+
+private:
+    std::shared_ptr<ov::Tensor> m_data;
 };
 
 /**
