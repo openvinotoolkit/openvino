@@ -70,6 +70,13 @@ int main() {
 }
 
 {
+    //! [wrap_file]
+    std::filesystem::path file_path{"input.bin"};
+    auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, file_path);
+    //! [wrap_file]
+}
+
+{
     //! [wrap_cl_mem]
     cl_mem shared_buffer = allocate_cl_mem(input_size);
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
