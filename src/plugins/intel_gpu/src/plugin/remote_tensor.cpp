@@ -170,7 +170,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
-                                   ov::intel_gpu::VirtualAddressMemory va_mem)
+                                   ov::intel_gpu::VirtualAddressMemory va_mem,
+                                   ov::Tensor mmap_tensor)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -180,7 +181,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_surf(surf)
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem) {
+    , m_va_mem(va_mem)
+    , m_mmap_tensor(std::move(mmap_tensor)) {
     update_hash();
     allocate();
 }
