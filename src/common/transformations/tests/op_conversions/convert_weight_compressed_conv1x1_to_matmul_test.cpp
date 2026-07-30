@@ -338,4 +338,79 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
     };
     model = CreateConv3x3();
 }
+
+// Regression test for the NCHW/NHWC layout mismatch when the Convolution output is consumed by a
+// Reshape and the spatial size H*W > 1 (see PR #37133). This mirrors the self-attention projections
+// of the machine-translation Transformer model that regressed: a weight-compressed 1x1 Convolution
+// producing NCHW [1, Cout, 1, W] (W > 1) feeding a Reshape to [Cout, W].
+//
+// MatMul(transpose_b=true) produces channel-last output [N, H, W, Cout], while the Convolution it
+// replaces produces channel-second NCHW [N, Cout, H, W]. Reshape never reorders elements, so the
+// matched Reshape (built for the Convolution's NCHW output) must receive NCHW data. The pass must
+// therefore restore NCHW order (Reshape to [N, H, W, Cout] + Transpose [0, 3, 1, 2]) before the
+// matched Reshape. Without that restoration (the pre-fix behaviour) the channel/spatial ordering is
+// silently scrambled whenever H*W > 1, and the produced graph differs from the reference below, so
+// this test fails.
+class ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial : public TransformationTestsF {
+public:
+    ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial() {
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+    }
+};
+
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x1_reshape_consumer_spatial_gt_1) {
+    const int Cin = 10;
+    const int Cout = 15;
+    const int W = 5;  // spatial size > 1 - exposes the NHWC/NCHW mismatch
+
+    {
+        // input [1, 1, W, Cin] -> Transpose[0,3,1,2] -> conv input [1, Cin, 1, W]
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
+        auto in_transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto act_node = std::make_shared<ov::opset1::Transpose>(input, in_transpose_const);
+
+        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin, 1, 1}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1, 1, 1}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+
+        auto conv = std::make_shared<ov::opset1::Convolution>(act_node,
+                                                              mul,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1},
+                                                              ov::op::PadType::EXPLICIT);
+        // conv output NCHW [1, Cout, 1, W] -> Reshape to [Cout, W]
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(conv, reshape_const, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
+
+        // weights squeezed to 2D [Cout, Cin]
+        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+
+        // activation is used directly (input transpose is absorbed); MatMul(transpose_b=true)
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);  // -> [1, 1, W, Cout] NHWC
+
+        // Restore NCHW: Reshape to [N, H, W, Cout] then Transpose [0, 3, 1, 2]
+        auto nhwc_shape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {-1, 1, W, Cout});
+        auto nhwc = std::make_shared<ov::opset1::Reshape>(matmul, nhwc_shape_const, false);
+        auto nhwc_to_nchw_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto nchw = std::make_shared<ov::opset1::Transpose>(nhwc, nhwc_to_nchw_const);  // -> [1, Cout, 1, W]
+
+        // matched Reshape to [Cout, W]
+        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
+        auto reshape = std::make_shared<ov::opset1::Reshape>(nchw, reshape_const, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
+    }
+}
 }  // namespace ov::test
