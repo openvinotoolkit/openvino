@@ -108,7 +108,7 @@ class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
                                                                  float,             // 7: scale value
                                                                  float,             // 8: abs_threshold
                                                                  float,             // 9: rel_threshold
-                                                                 bool,              // 10: is_complex_gqa
+                                                                 int,               // 10: complex_gqa_mode
                                                                  float>>            // 11: kv_num_head_factor
 {
 protected:
@@ -125,7 +125,7 @@ protected:
         const ov::PartialShape value_shape = std::get<4>(params);
         const ov::Shape value_reshape_shape = std::get<5>(params);
         const ov::PartialShape attention_mask_shape = std::get<6>(params);
-        bool is_complex_gqa = std::get<10>(params);
+        int complex_gqa_mode = std::get<10>(params);
         float kv_num_head_factor = std::get<11>(params);
 
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
@@ -157,7 +157,7 @@ protected:
 
         ov::ParameterVector model_params = {query, key, value};
 
-        if (is_complex_gqa) {
+        if (complex_gqa_mode == 1) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [10, 842]
@@ -198,7 +198,7 @@ protected:
             auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_shape.size()}, reshape2_shape);
             key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
             value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
-        } else if (kv_num_head_factor > 1) {
+        } else if (complex_gqa_mode == 2) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [1, 1]
@@ -350,7 +350,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           false,
+                                                           2,
                                                            4),
                                            std::make_tuple(ov::PartialShape{10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
@@ -412,8 +412,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            -0.025f,
                                                            false,
                                                            1),
-                                           std::make_tuple(ov::PartialShape{1, 1, 10, 256},
-                                                           ov::Shape{1, 1, 10, 256},
+                                           std::make_tuple(ov::PartialShape{1, 8, 10, 256},
+                                                           ov::Shape{1, 8, 10, 256},
                                                            ov::PartialShape{1, 1, 10, 256},
                                                            ov::Shape{1, 1, 10, 256},
                                                            ov::PartialShape{1, 1, 10, 256},
@@ -422,7 +422,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           true,
+                                                           1,
                                                            8)));
 
 }  // namespace
