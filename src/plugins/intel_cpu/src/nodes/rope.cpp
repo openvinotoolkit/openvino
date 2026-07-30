@@ -245,8 +245,9 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
 };
 
 // LTX-Video 3D spatial-temporal RoPE: x [batch, seq, rotary_ndims] with separate full-width cos/sin
-// tables. Interleaved complex pairs, rotation accumulated in f32 (cos/sin ports are f32) and rounded
-// once on store, so bf16 stays as precise as PyTorch.
+// tables. Interleaved complex pairs; each element keeps its own cos/sin (the two halves of a pair
+// need not share an angle). Accumulated in f32 (cos/sin ports are f32) and rounded once on store,
+// so bf16 stays as precise as PyTorch.
 template <typename T>
 struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
@@ -279,7 +280,7 @@ struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
                 auto real = static_cast<float>(x[r]);
                 auto imag = static_cast<float>(x[r + 1]);
                 dst[r] = static_cast<T>(cos[r] * real - sin[r] * imag);
-                dst[r + 1] = static_cast<T>(sin[r] * real + cos[r] * imag);
+                dst[r + 1] = static_cast<T>(sin[r + 1] * real + cos[r + 1] * imag);
             }
         });
     }
