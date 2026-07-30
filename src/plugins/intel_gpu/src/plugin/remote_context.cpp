@@ -188,6 +188,10 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 mem = extract_object(params, ov::intel_gpu::cpu_va);
                 auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
                 return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
+            } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
+                const auto path = extract_object(params, ov::intel_gpu::file_path);
+                const auto offset = extract_object(params, ov::intel_gpu::file_offset);
+                return { reuse_memory_from_file(type, shape, path, offset), nullptr };
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
