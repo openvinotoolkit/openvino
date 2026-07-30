@@ -812,15 +812,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
     if (m_is_embedding) {
-        // Distinguish autoregressive (Qwen3-Embedding-style) from non-autoregressive bidirectional
-        // encoders (BERT: xiaobu, bge, Conan). The latter cannot be reconstructed into a prefill/KV
-        // model and must run as a single static forward. The check keys on the KV-cache concat
-        // pattern on the SDPA key input; log the verdict at INFO so a misclassified model (e.g.
-        // an unusual decoder topology routed to the encoder path) is diagnosable from the logs.
+        // Both embedding flavours only ever prefill; what differs is how they attend. An
+        // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
+        // reconstruct, which is what lets it prefill in chunks. A bidirectional encoder (BERT:
+        // xiaobu, bge, Conan) attends over the whole sequence at once and has no KV cache to
+        // rebuild, so it runs as a single static forward instead. The check keys on the KV-cache
+        // concat on the SDPA key input; log the verdict at INFO so a model that lands on the wrong
+        // side of it (an unusual decoder topology, say) is diagnosable from the logs.
         m_is_encoder_embedding = ov::npuw::util::is_encoder_embedding_model(kvcache_model);
         LOG_INFO("Text-embedding model classified as "
-                 << (m_is_encoder_embedding ? "bidirectional encoder: single-forward, prefill-only path"
-                                            : "autoregressive decoder: reconstructed prefill/KV path"));
+                 << (m_is_encoder_embedding ? "bidirectional encoder: whole-sequence forward, no KV cache"
+                                            : "autoregressive decoder: causal mask and reconstructed KV cache"));
         if (m_is_encoder_embedding) {
             LOG_DEBUG("Encoder (bidirectional) text-embedding model: no graph rebuild needed");
             // A bidirectional encoder attends over the whole sequence at once; chunked prefill is
@@ -1406,18 +1408,19 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         write_model_meta(raw_stream);
     }
 
-    // Serialize bank name.
-    // Encoder embedding models are prefill-only (no kvcache/generate compiled model), so use the
-    // prefill model's weight bank; otherwise prefill and kvcache must share the same bank.
-    const auto& p_bank = m_prefill_compiled->get_weights_bank();
-    const auto& kv_bank = m_kvcache_compiled ? m_kvcache_compiled->get_weights_bank() : p_bank;
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // Serialize bank name. Prefill and kvcache have to share a bank, so either one names it. An
+    // encoder embedding model is prefill-only, and then there is no kvcache model to compare
+    // against and the prefill bank is simply the only one.
+    const auto& bank = m_prefill_compiled->get_weights_bank();
+    NPUW_ASSERT(bank && "Prefill model should have a weights bank!");
+    NPUW_ASSERT((!m_kvcache_compiled || m_kvcache_compiled->get_weights_bank() == bank) &&
+                "Prefill and KVCache models' weight bank should be shared!");
     auto stream = Stream::writer(raw_stream);
-    auto bank_name = kv_bank->get_name();
+    auto bank_name = bank->get_name();
     stream & bank_name;
 
     if (!is_weightless) {
-        stream&* kv_bank;
+        stream&* bank;
     }
 
     LOG_INFO("Done.");

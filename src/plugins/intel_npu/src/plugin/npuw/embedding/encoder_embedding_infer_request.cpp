@@ -44,8 +44,8 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
 
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
     OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
-    // The compiled encoder is static [1, L]: reject batched inputs and mask/ids disagreements
-    // up front — the raw copies below would otherwise write past the static input tensors.
+    // The compiled encoder is static [1, L], so reject batched inputs and mask/ids disagreements
+    // up front. The raw copies below would otherwise write past the static input tensors.
     OPENVINO_ASSERT(input_ids->get_shape()[0] == 1,
                     "Encoder embedding model expects batch size 1, got shape ",
                     input_ids->get_shape());
@@ -68,8 +68,9 @@ void ov::npuw::EncoderEmbeddingInferRequest::infer() {
     auto input_ids_in = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::input_ids));
     auto attn_mask_in = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
 
-    // Bidirectional encoders use learned ABSOLUTE positions, so valid tokens must sit at the front
-    // (right-padding): token i keeps position i, and CLS/mean pooling sees the real tokens first.
+    // An encoder derives each token's position from where it sits in the sequence, so valid tokens
+    // have to be at the front (right-padding): token i keeps position i, and CLS or mean pooling
+    // sees the real tokens first.
     uu::fill_tensor_bytes(input_ids_in, 0u);
     uu::fill_tensor<int64_t>(attn_mask_in, 0);
 

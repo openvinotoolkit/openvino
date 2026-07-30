@@ -13,8 +13,10 @@ namespace ov {
 namespace npuw {
 
 // Infer request for non-autoregressive bidirectional encoder (e.g. BERT) text-embedding models.
-// A single static forward over the whole (right-padded) sequence; no KV cache, no chunking, no
-// position_ids (absolute positions are internal to the model). Compare EmbeddingInferRequest,
+// A single static forward over the whole (right-padded) sequence, with no KV cache and no
+// chunking. No position_ids are injected: the encoder works out its own positions, so this path
+// does not care whether they are the learned absolute ones that BERT, RoBERTa and XLM-R use or
+// the RoPE and ALiBi schemes some newer encoders have moved to. Compare EmbeddingInferRequest,
 // which targets the autoregressive (Qwen3-Embedding-style) reconstructed prefill model.
 class EncoderEmbeddingInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:

@@ -42,7 +42,7 @@ std::shared_ptr<ov::Node> find_kv_cache_concat(const std::shared_ptr<ov::Node>& 
 bool is_encoder_embedding_model(const std::shared_ptr<ov::Model>& model);
 
 // Sanity-checks a model routed to the encoder embedding path. A bidirectional encoder is
-// self-contained: it builds its own non-causal mask from `attention_mask`, uses learned absolute
+// self-contained: it builds its own non-causal mask from `attention_mask`, works out its own
 // positions and has no KV cache. Unlike the autoregressive path there is nothing to inject into
 // the graph, so the only thing left to establish is that no autoregressive KV-cache input slipped
 // through the classification. Throws if one did.
