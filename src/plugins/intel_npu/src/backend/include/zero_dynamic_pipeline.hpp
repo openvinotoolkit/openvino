@@ -23,7 +23,22 @@ struct VMExecutionContext {
     ~VMExecutionContext();
 
     // Create the context for vmRuntime if not created yet; returns the handle.
-    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
+    // When useV2 is true (API version >= 2.0), npuVMRuntimeCreateExecutionContext2 is called with initflag
+    // so the runtime can configure the context for the chosen execution path
+    // (immediate vs. shared command queue). Pass the same flags used for Execute2.
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime,
+                                                     bool useV2 = false,
+                                                     uint64_t initflag = 0);
+
+    // Destroy the context so it will be lazily recreated on the next ensure() call.
+    // Use this when the command queue configuration changes and the internally cached
+    // immediate command list must be recreated with the new queue's parameters.
+    void reset() {
+        if (_handle != nullptr) {
+            npuVMRuntimeDestroyExecutionContext(_handle);
+            _handle = nullptr;
+        }
+    }
 };
 
 struct DynamicArguments {
@@ -55,14 +70,18 @@ class DynamicPipeline final : public IPipeline {
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
-            _commandLists.reserve(numCommandLists);
-            for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
-            }
+        PipelinedCommandLists(size_t numCommandLists,
+                             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                             bool useV2 = false) {
+            if (!useV2) {
+                _commandLists.reserve(numCommandLists);
+                for (size_t i = 0; i < numCommandLists; i++) {
+                    _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
+                }
 
-            for (size_t i = 0; i < numCommandLists; i++) {
-                _commandListHandles.push_back(_commandLists[i]->handle());
+                for (size_t i = 0; i < numCommandLists; i++) {
+                    _commandListHandles.push_back(_commandLists[i]->handle());
+                }
             }
 
             _arguments = std::make_shared<DynamicArguments>();
@@ -165,9 +184,20 @@ private:
                             ze_command_queue_handle_t commandQueue,
                             ze_fence_handle_t fence,
                             ze_event_handle_t event);
+    void execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
+                               DynamicArguments& args,
+                               ze_command_queue_handle_t commandQueue,
+                               uint64_t execFlags);
 
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
+    bool _use_v2_api = false;
+    // Exec flags derived once at init from config (e.g. SHARED_COMMON_QUEUE).
+    // These reflect static configuration choices and do not change at runtime.
+    uint64_t _exec_flags = 0;
+    std::vector<npu_vm_runtime_wait_id_t> _wait_ids;
+    size_t _current_push_index = 0;
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 
