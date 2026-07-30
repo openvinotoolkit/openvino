@@ -375,10 +375,13 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
+        // Track (account and log) the host memory only when the plugin owns the mapping (file-mmap case).
+        const bool track_memory = static_cast<bool>(m_mmap_tensor);
         m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
                                         m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
                                         cldnn::allocation_type::cl_mem,
-                                        m_layout);
+                                        m_layout,
+                                        track_memory);
         break;
     }
 #ifdef _WIN32
