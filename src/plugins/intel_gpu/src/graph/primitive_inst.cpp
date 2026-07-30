@@ -680,7 +680,7 @@ void primitive_inst::realloc_intermediates() {
     if (buffer_descs.empty())
         return;
 
-    GPU_DEBUG_CODE(std::string memalloc_info = "");
+    GPU_DEBUG_CODE(std::string memalloc_info);
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         auto need_lockable = buffer_descs[i].m_lockable;
         auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
@@ -1161,7 +1161,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                           true);
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
-            GPU_DEBUG_CODE(std::string memalloc_info = "");
+            GPU_DEBUG_CODE(std::string memalloc_info);
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
@@ -3097,8 +3097,7 @@ std::string primitive_inst::get_implementation_name() const {
 ImplementationsFactory::ImplementationsFactory(const program_node* node)
     : m_node(node)
     , m_available_impls(node->type()->get_supported_implementations(*node))
-    , m_static_impls_cache(node->get_program().get_implementations_cache())
-    , m_dynamic_impls_cache() {
+    , m_static_impls_cache(node->get_program().get_implementations_cache()) {
     if (node->get_selected_impl() && node->get_selected_impl()->is_dynamic()) {
         m_dynamic_impls_cache.emplace_back(node->get_selected_impl()->clone());
     }
