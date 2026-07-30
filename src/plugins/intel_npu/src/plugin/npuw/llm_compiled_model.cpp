@@ -801,10 +801,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
-    LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
-    LOG_VERB("Maximum prompt length: " << max_prompt_len);
-
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
@@ -841,6 +837,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                              << max_prompt_len << ") exceeds the model's max_position_embeddings (" << *max_pos
                              << "); clamping the static sequence length to " << *max_pos << ".");
                     max_prompt_len = *max_pos;
+                    // Write the clamp back so the reported property matches what actually got
+                    // compiled. GenAI reads NPUW_LLM_MAX_PROMPT_LEN off the compiled model to
+                    // decide how long a prompt it may submit, and a stale larger value would let
+                    // it send one this model cannot take, failing at infer time instead of here.
+                    m_cfg.update({{"NPUW_LLM_MAX_PROMPT_LEN", std::to_string(max_prompt_len)}});
                 }
             }
             ov::npuw::util::validate_encoder_embedding_model(kvcache_model);
@@ -856,6 +857,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
+
+    // Reported after the embedding branch, since an encoder embedding model turns chunking off and
+    // may clamp the prompt length. Logging earlier would print values that never took effect.
+    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
+    LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
+    LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 

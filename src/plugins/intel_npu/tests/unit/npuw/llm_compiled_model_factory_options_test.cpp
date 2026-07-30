@@ -965,6 +965,10 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+
+    // The clamped length is what got compiled, so it has to be what the property reports. GenAI
+    // reads this back to decide how long a prompt it may submit.
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
 }
 
 }  // namespace
