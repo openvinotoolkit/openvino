@@ -10,6 +10,8 @@
  */
 #pragma once
 
+#include <filesystem>
+
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
