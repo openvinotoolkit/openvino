@@ -267,5 +267,36 @@ struct VirtualAddressMemory {
     void* ptr = nullptr;
     int64_t size = -1;  ///< Buffer size in bytes; -1 means "derive from tensor shape"
 };
+
+/**
+ * @brief File descriptor for wrapping tensor data memory-mapped from a file as a GPU plugin tensor.
+ * The plugin memory-maps the file and keeps the mapping alive for the whole tensor lifetime,
+ * so the file must not be modified until the returned tensor is destroyed.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+struct FileDescriptor {
+    explicit FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
+        : path(file_path),
+          offset(offset_in_bytes) {
+        OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
+    }
+
+    std::filesystem::path path;   ///< File path
+    std::size_t offset = 0;       ///< Offset in bytes to read from the file
+};
+
+/**
+ * @brief This key identifies the file path
+ * in a memory-mapped tensor parameter map.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<std::string> file_path{"FILE_PATH"};
+
+/**
+ * @brief This key identifies the offset in bytes from the beginning of the file
+ * in a memory-mapped tensor parameter map.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<std::size_t> file_offset{"FILE_OFFSET"};
 }  // namespace intel_gpu
 }  // namespace ov
