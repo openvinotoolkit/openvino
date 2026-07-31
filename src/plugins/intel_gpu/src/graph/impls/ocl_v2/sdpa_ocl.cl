@@ -789,6 +789,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         }
                     }
                 }
+            #elif V_F16_MULTIBLOCK_READ && USE_2D_BLOCK_IO_KV && sv_value_blocks == 2
+                intel_sub_group_2d_block_read_transform_16b_16r16x2c(
+                    (global void *)V, VD_w, VD_h, VD_p,
+                    (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[0]);
             #elif USE_2D_BLOCK_IO_KV
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd) {
