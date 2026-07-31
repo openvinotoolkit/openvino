@@ -18,7 +18,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOu
     const ov::Shape output_classes_shape = ov::Shape{rois_num};
     const ov::Shape output_scores_shape = ov::Shape{rois_num};
 
-    const auto& output_type = op->get_input_element_type(0);
+    const auto output_type = op->get_input_element_type(0);
 
     const auto boxes_data = get_floats(inputs[0], inputs[0].get_shape());
     const auto input_deltas_data = get_floats(inputs[1], inputs[1].get_shape());
@@ -60,10 +60,9 @@ template <>
 bool evaluate_node<ov::op::v6::ExperimentalDetectronDetectionOutput>(std::shared_ptr<ov::Node> node,
                                                                      ov::TensorVector& outputs,
                                                                      const ov::TensorVector& inputs) {
-    const auto element_type =
-        (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-            ? node->get_input_element_type(1)
-            : node->get_output_element_type(0);
+    auto element_type = node->get_output_element_type(0);
+    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
+        element_type = node->get_input_element_type(1);
 
     switch (element_type) {
     case ov::element::boolean:
