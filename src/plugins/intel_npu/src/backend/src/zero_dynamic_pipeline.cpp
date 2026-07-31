@@ -711,13 +711,13 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    const size_t number_of_command_lists = _command_lists.size();
+    const size_t command_list_index = _use_v2_api ? 0 : batch_index;
 
-    OPENVINO_ASSERT(batch_index < number_of_command_lists,
+    OPENVINO_ASSERT(command_list_index < _command_lists.size(),
                     "Command list index is higher than the number of Command lists ",
-                    batch_index);
+                    command_list_index);
 
-    _command_lists.at(batch_index)
+    _command_lists.at(command_list_index)
         ->updateMutableCommandList(index,
                                    zeroTensor->data(),
                                    get_strides(tensor->get_strides(), elementSize),
