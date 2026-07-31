@@ -97,7 +97,7 @@ bool evaluate(const std::shared_ptr<op::v13::NMSRotated>& op, TensorVector& outp
                            info.sort_result_descending,
                            info.clockwise);
 
-    const auto& selected_scores_type = (outputs.size() < 2) ? element::f32 : outputs[1].get_element_type();
+    const auto selected_scores_type = (outputs.size() < 2) ? element::f32 : outputs[1].get_element_type();
 
     // Postprocessing steps are needed to align the shapes and types of the `indices` and the `scores` output.
     // The shapes of the mentioned outputs have dynamic dimension defined by the number of the selected boxes.

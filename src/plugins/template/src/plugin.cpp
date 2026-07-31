@@ -137,13 +137,13 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     cacheConfig.inferencePrecision = ov::element::f32;
     for (const auto& op : model->get_ops()) {
         if (auto pa = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
-            const auto& key_et = pa->get_input_element_type(3);
-            const auto& val_et = pa->get_input_element_type(4);
+            const auto key_et = pa->get_input_element_type(3);
+            const auto val_et = pa->get_input_element_type(4);
             if (!key_et.is_dynamic())
                 cacheConfig.keyCachePrecision = key_et;
             if (!val_et.is_dynamic())
                 cacheConfig.valueCachePrecision = val_et;
-            const auto& qry_et = pa->get_input_element_type(0);
+            const auto qry_et = pa->get_input_element_type(0);
             if (!qry_et.is_dynamic())
                 cacheConfig.inferencePrecision = qry_et;
             break;

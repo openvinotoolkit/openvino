@@ -172,7 +172,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
         if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
             auto vector_tensor = std::dynamic_pointer_cast<ov::template_plugin::VectorImpl>(tensor._ptr);
             OPENVINO_ASSERT(vector_tensor, "Template plugin supports only VectorTensor with remote context.");
-            const auto& element_type = vector_tensor->get_element_type();
+            const auto element_type = vector_tensor->get_element_type();
             void* data = vector_tensor->get_data();
             OPENVINO_ASSERT(data != nullptr);
             // Create backend tenor

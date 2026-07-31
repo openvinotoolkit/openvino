@@ -46,8 +46,8 @@ template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v6::CTCGreedyDecoderSeqLen>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    const auto& dataType = inputs[0].get_element_type();
-    const auto& seqLenType = inputs[1].get_element_type();
+    const auto dataType = inputs[0].get_element_type();
+    const auto seqLenType = inputs[1].get_element_type();
     if (dataType == ov::element::f16 && seqLenType == ov::element::i32) {
         ctc_greedy_decoder_v6::evaluate<ov::element::f16, ov::element::i32, ET>(op, outputs, inputs);
     } else if (dataType == ov::element::f32 && seqLenType == ov::element::i32) {
