@@ -353,10 +353,6 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
-    // UINT2 compressed weights are not supported by this kernel; the reference kernel handles them.
-    if (wt == WeightsType::UINT2) {
-        DO_NOT_USE_THIS_KERNEL(params.layerID);
-    }
 
     return true;
 }
@@ -692,7 +688,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
@@ -752,13 +748,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4) {
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
             } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
             } else {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
             }
         } else {
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));

@@ -349,10 +349,10 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
 
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
-        case kernel_selector::weights_type::INT4:
-            return data_types::i4;
         case kernel_selector::weights_type::UINT2:
             return data_types::u2;
+        case kernel_selector::weights_type::INT4:
+            return data_types::i4;
         case kernel_selector::weights_type::UINT4:
             return data_types::u4;
         case kernel_selector::weights_type::INT8:

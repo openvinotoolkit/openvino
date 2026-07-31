@@ -1763,7 +1763,7 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
     return MakeTypeJitConstants(Datatype::UNSUPPORTED, macroName);
 }
 
-JitConstants make_int4_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
+JitConstants make_sub_byte_packed_type_jit_constant(const std::string& macro_name, WeightsType wt, size_t pack_size) {
     OPENVINO_ASSERT(pack_size % 2 == 0 && pack_size != 0 && pack_size <= 16);
     std::string type_string;
     OPENVINO_ASSERT(wt != WeightsType::UINT2 || pack_size % 4 == 0);
