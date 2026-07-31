@@ -52,17 +52,16 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
         "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
         "u16, i16, f8e4m3, f8e5m2 or f4e2m1.");
 
-    // The ONNX spec requires the zero point to be 0 for low precision floating point types.
-    // f8e4m3, f8e5m2 and f4e2m1 all encode 0.0 as the all-zero bit pattern,
-    // so checking that every raw byte is zero is sufficient.
+    // The ONNX spec requires the zero point to be 0 for low precision floating point types,
+    // so when it is a constant, decode it and check that every element is equal to 0.0.
     if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2 ||
         y_zero_point_et == ov::element::f4e2m1) {
         const auto zp_const = ov::util::get_constant_from_source(y_zero_point);
         if (zp_const) {
-            const auto raw = zp_const->cast_vector<float>();
+            const auto values = zp_const->cast_vector<float>();
             CHECK_VALID_NODE(onnx_node,
-                             std::all_of(raw.begin(),
-                                         raw.end(),
+                             std::all_of(values.begin(),
+                                         values.end(),
                                          [](const float value) {
                                              return value == 0.0f;
                                          }),
