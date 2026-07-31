@@ -11,6 +11,7 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -143,7 +144,10 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
 
     OutputVector ov_op_inputs;
-    std::vector<int64_t> null_input_positions;
+
+    const auto make_empty_optional_input = []() {
+        return v0::Constant::create(ov::element::f32, ov::Shape{0}, {})->output(0);
+    };
 
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
         auto total_num_heads_node =
@@ -188,15 +192,15 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    // Process optional inputs: only add non-NullNode inputs and record omitted positions.
+    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
     FRONT_END_OP_CONVERSION_CHECK(
         common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
         "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
-    for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
-        if (!ov::op::util::is_null(onnx_op_inputs[i])) {
+    for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
+        if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
             ov_op_inputs.push_back(onnx_op_inputs[i]);
         } else {
-            null_input_positions.push_back(static_cast<int64_t>(i));
+            ov_op_inputs.push_back(make_empty_optional_input());
         }
     }
 
@@ -211,8 +215,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            v_quant_type,
                                                            local_window_size,
                                                            sliding_window_cache != 0,
-                                                           smooth_softmax != 0,
-                                                           null_input_positions)
+                                                           smooth_softmax != 0)
         ->outputs();
 }
 
