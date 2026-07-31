@@ -197,7 +197,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     if (_apiVersion >= NPU_VM_RUNTIME_VERSION_2_0) {
         _use_v2_api = true;
-        _wait_ids.resize(_batch_size ? _batch_size : 1, 0);
         // Derive exec flags once from the initial command queue descriptor.
         // SHARED_COMMON_QUEUE is a config-time setting that does not change via set_property,
         // so there is no need to recompute this on every push.
@@ -221,11 +220,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
+    const size_t pipeline_batch_size = _use_v2_api ? 1 : _batch_size;
 
-    _command_lists.reserve(_batch_size);
+    _command_lists.reserve(pipeline_batch_size);
     if (batch_size >= 1) {
-        _logger.debug("Initializing %zu command list group(s) (batch size %zu)", batch_size, batch_size);
-        for (size_t i = 0; i < _batch_size; i++) {
+        _logger.debug("Initializing %zu command list group(s) (batch size %zu)", pipeline_batch_size, batch_size);
+        for (size_t i = 0; i < pipeline_batch_size; i++) {
             _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, _use_v2_api));
         }
     } else {
@@ -239,7 +239,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         }
     }
 
-    for (size_t i = 0; i < _batch_size; i++) {
+    for (size_t i = 0; i < pipeline_batch_size; i++) {
         _logger.debug("Set args for command list number: %zu", i);
 
         _command_lists.at(i)->initArguments(_graph->get_metadata());
@@ -328,7 +328,6 @@ void DynamicPipeline::push() {
 
     auto commandQueueHandle = _command_queue->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        _current_push_index = i;
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
 
         auto& command_lists = _command_lists.at(i);
@@ -494,7 +493,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
         OPENVINO_THROW("Failed to execute VM runtime engine (v2)");
     }
 
-    _wait_ids.at(_current_push_index) = waitId;
+    _wait_id = waitId;
     _logger.debug("execute_vm_runtime_v2 - completed, waitId=%lu", static_cast<unsigned long>(waitId));
 }
 
@@ -636,10 +635,10 @@ void DynamicPipeline::pull() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         if (_use_v2_api) {
-            if (npuVMRuntimeHostSync(vmRuntime, _wait_ids.at(i)) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                OPENVINO_THROW("npuVMRuntimeHostSync failed for batch slot ", i);
+            if (npuVMRuntimeHostSync(vmRuntime, _wait_id) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("npuVMRuntimeHostSync failed");
             }
-            _wait_ids.at(i) = 0;
+            _wait_id = 0;
         } else {
             if (_sync_output_with_fences) {
                 _fences.at(i)->hostSynchronize();
