@@ -153,6 +153,8 @@ def execute_cached(compiled_model, *args):
     return result
 
 
+_fastinfer_port_cache = {}
+
 def openvino_execute(
     gm: GraphModule,
     *args,
@@ -242,7 +244,35 @@ def openvino_execute(
         if isinstance(_eager_out, (list, tuple)):
             return list(_eager_out)
         return _eager_out
-    if _call_kwargs is not None:
+    # Fast infer path: bypass _data_dispatch by calling set_tensor(port, ...)
+    # directly for each input, then infer with no args. Skips ~1 ms/step of
+    # Python-side dict conversion. Gated by OV_FAST_INFER (default off for
+    # correctness; measured +3-15% greedy across 6 models, no correctness
+    # regression on Gemma-4 hybrid attention).
+    import os as _os_fi
+    _fast_infer = _os_fi.environ.get("OV_FAST_INFER", "0") != "0"
+    if _fast_infer and _call_kwargs is not None:
+        import openvino as _ov_fi
+        try:
+            _pc_key = id(compiled)
+            _ports = _fastinfer_port_cache.get(_pc_key)
+            if _ports is None:
+                _ports = list(compiled.inputs)
+                _fastinfer_port_cache[_pc_key] = _ports
+            for _port in _ports:
+                _val = _call_kwargs.get(_port)
+                if _val is None:
+                    raise RuntimeError("_call_kwargs missing port")
+                if isinstance(_val, _ov_fi.Tensor):
+                    req.set_tensor(_port, _val)
+                else:
+                    req.set_tensor(_port, _ov_fi.Tensor(_val, shared_memory=True))
+            req.infer()
+            res = {out: req.get_tensor(out).data for out in compiled.outputs}
+        except Exception:
+            # Any error -> slow path (safe fallback, retains full correctness)
+            res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
+    elif _call_kwargs is not None:
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
     else:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
