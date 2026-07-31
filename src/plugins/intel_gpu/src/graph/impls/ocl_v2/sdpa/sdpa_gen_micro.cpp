@@ -1125,8 +1125,24 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         int vs_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.make("KEY_SCALES", kq_scale_mask);
         jit.make("VAL_SCALES", vs_scale_mask);
-        jit.make("KEY_GROUP_SIZE", head_size);
-        jit.make("VAL_GROUP_SIZE", head_size);
+
+        // Derive group size from the scale tensor shape.
+        // Scale shape is [batch, heads, seq, num_groups], where num_groups = head_size / group_size.
+        // If seq == 1, the scale is broadcast across all tokens (per-channel quantization).
+        const auto key_scale_seq = key_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto key_scale_groups = key_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto key_group_size = head_size / key_scale_groups;
+        const auto val_scale_seq = value_cache_comp_scale.get_partial_shape()[2].get_length();
+        const auto val_scale_groups = value_cache_comp_scale.get_partial_shape()[3].get_length();
+        const auto val_group_size = head_size / val_scale_groups;
+        jit.make("KEY_GROUP_SIZE", key_group_size);
+        jit.make("VAL_GROUP_SIZE", val_group_size);
+        const bool is_key_by_channel = (key_scale_seq == 1 && key_scale_groups > 1);
+        const bool is_value_by_channel = (val_scale_seq == 1 && val_scale_groups > 1);
+        if (is_key_by_channel)
+            jit.make("IS_KEY_BY_CHANNEL", 1);
+        if (is_value_by_channel)
+            jit.make("IS_VALUE_BY_CHANNEL", 1);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1642,8 +1658,20 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         }
 
         if (configuration.is_kv_compressed) {
-            problem_kq.aqGroupM = 1;
-            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
+            const auto key_cache_id = micro_get_key_cache_id(params);
+            const auto& key_cache_comp_scale_layout = params.input_layouts[key_cache_id];
+            const auto key_scale_seq = key_cache_comp_scale_layout.get_partial_shape()[2].get_length();
+            const auto key_scale_groups = key_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto key_group_size = k_head_size / key_scale_groups;
+            // KQ GEMM: A=K[M=seq_k, K=head_size]
+            // Per-channel broadcast (seq=1): all tokens share same scale, each head_size element has own scale
+            //   -> aqGroupM = tile_m (don't vary scale per token), aqGroupK = group_size
+            // Per-token (seq>1): each token has own scale(s)
+            //   -> aqGroupM = 1 (vary per token), aqGroupK = group_size
+            problem_kq.aqGroupM = (key_scale_seq == 1)
+                ? config->unroll_m_kq * config->wg_m_kq
+                : 1;
+            problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(key_group_size);
         }
 
         opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
@@ -1762,9 +1790,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // (Layout::T would give stride-1 = 2-byte intervals, which is wrong.)
         // This differs from K*Q where A = K[m=tokens, k=head_dim], scale is [tokens, 1],
         // and Layout::T is needed to get the token stride via ldkq.
-
+  
         opts_vs.scaleA = true;
-        opts_vs.offsetA = true;
+        opts_vs.offsetA = true; 
     } else {
         const auto value_cache_id = micro_get_value_cache_id(params);
         if (configuration.is_kv_compressed && !vs_common_scales) {
@@ -1788,8 +1816,23 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         }
 
         if (configuration.is_kv_compressed) {
-            problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
-            problem_vs.aqGroupK = 1;
+            const auto value_cache_id = micro_get_value_cache_id(params);
+            const auto& value_cache_comp_scale_layout = params.input_layouts[value_cache_id];
+            const auto val_scale_seq = value_cache_comp_scale_layout.get_partial_shape()[2].get_length();
+            const auto val_scale_groups = value_cache_comp_scale_layout.get_partial_shape()[3].get_length();
+            const auto val_group_size = v_head_size / val_scale_groups;
+            // VS GEMM: A=V[M=head_size, K=seq_k]
+            // Per-channel broadcast (seq=1): each head_size row has own scale, all tokens share it
+            //   -> aqGroupM = 1 (vary per head_size), aqGroupK = tile_k (don't vary per token)
+            // Per-token (seq>1): all head_size share one scale per token
+            //   -> aqGroupM = head_size (don't vary per head_size), aqGroupK = 1 (vary per token)
+            if (val_scale_seq == 1) {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(val_group_size);
+                problem_vs.aqGroupK = config->unroll_m_kq * config->wg_m_kq;
+            } else {
+                problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
+                problem_vs.aqGroupK = 1;
+            }
         }
 
         opts_vs.scaleA = configuration.is_kv_compressed && !vs_common_scales;
