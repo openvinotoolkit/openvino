@@ -7,6 +7,7 @@
 #include <cmath>
 #include <vector>
 
+#include "common_test_utils/test_case.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -117,4 +118,35 @@ TEST(ONNXFeFloatTypes, cast_float32_to_float8e8m0) {
 
     ASSERT_EQ(model->get_results().size(), 1);
     EXPECT_EQ(model->get_results()[0]->get_element_type(), ov::element::f8e8m0);
+}
+
+TEST(ONNXFeFloatTypes, dequantize_linear_float8e8m0_scale) {
+    const auto model = convert_model("dequantize_linear_f8e8m0_scale.onnx");
+
+    ASSERT_EQ(model->get_results().size(), 1);
+    EXPECT_EQ(model->get_results()[0]->get_element_type(), ov::element::f32);
+
+    ov::test::TestCase test_case(model);
+    test_case.add_expected_output<float>(ov::Shape{6}, {0.0f, 1.0f, 2.0f, -2.0f, 12.0f, -12.0f});
+    test_case.run();
+}
+
+TEST(ONNXFeFloatTypes, quantize_dequantize_linear_float4e2m1) {
+    const auto model = convert_model("quant_dequant_f4e2m1.onnx");
+
+    ASSERT_EQ(model->get_results().size(), 1);
+    EXPECT_EQ(model->get_results()[0]->get_element_type(), ov::element::f32);
+
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>(ov::Shape{6}, {0.0f, 1.0f, 2.0f, -2.0f, 12.0f, 20.0f});
+    // 20.0 / 2.0 = 10.0 saturates to the maximal f4e2m1 value (6.0)
+    test_case.add_expected_output<float>(ov::Shape{6}, {0.0f, 1.0f, 2.0f, -2.0f, 12.0f, 12.0f});
+    test_case.run();
+}
+
+TEST(ONNXFeFloatTypes, quantize_linear_float4e2m1_zero_point) {
+    const auto model = convert_model("quantize_linear_f4e2m1_zero_point.onnx");
+
+    ASSERT_EQ(model->get_results().size(), 1);
+    EXPECT_EQ(model->get_results()[0]->get_element_type(), ov::element::f4e2m1);
 }
