@@ -312,7 +312,7 @@ void Reorder::prepareParams() {
             if (dstStrides.back() != 1) {
                 return false;
             }
-            for (int i = inDims.size() - 1; i > 0; i--) {
+            for (int i = static_cast<int>(inDims.size()) - 1; i > 0; i--) {
                 if (dstStrides[i - 1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim) {
                     return false;
                 }

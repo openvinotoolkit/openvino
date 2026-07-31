@@ -454,10 +454,10 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                 const auto& maxDims = shape.getMaxDims();
                 const auto& dims = shape.getDims();
                 for (size_t i = 0; i < dims.size() - 2; ++i) {
-                    lastOutputSpatialDims[i] =
+                    lastOutputSpatialDims[i] = static_cast<int32_t>(
                         dims[i + 2] == Shape::UNDEFINED_DIM
                             ? std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64)))
-                            : dims[i + 2];
+                            : dims[i + 2]);
                 }
             }
 
@@ -1226,7 +1226,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
                                                       Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
     // idx =0 case
-    auto desc = prim_desc.src_desc(idx);
+    auto desc = prim_desc.src_desc(static_cast<int>(idx));
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1234,7 +1234,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
 }
 
 std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    auto desc = prim_desc.dst_desc(idx);
+    auto desc = prim_desc.dst_desc(static_cast<int>(idx));
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }

@@ -506,7 +506,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 inline VectorDims getBlockND(const VectorDims& shape) {
-    int shapeRank = shape.size();
+    int shapeRank = static_cast<int>(shape.size());
     VectorDims blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
