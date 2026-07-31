@@ -41,6 +41,7 @@ ov_add_test_target(
 # interop tests compile. COMBINED ships both runtimes, so compile both sets; single-RT its own.
 if(GPU_RT_TYPE STREQUAL "COMBINED")
     target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1 OV_GPU_WITH_OCL_RT=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin_ocl)
 else()
     ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
 endif()
