@@ -729,6 +729,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             this->_outputs[0] = concat_inst->_outputs[0];
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return;
+        } else if (!_outputs.empty() && _outputs[0] != nullptr &&
+                   !concat_inst->_outputs.empty() && concat_inst->_outputs[0] != nullptr &&
+                   get_network().get_engine().is_the_same_buffer(*_outputs[0], *concat_inst->_outputs[0])) {
+            // In-place concat optimization is rejected now, but a previous execution with this optimization
+            // may have the same memory aliased to its deps' outputs and itself's output. In this case, we
+            // need to reallocate the memory for this node to avoid memory corruption.
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reallocate memory for concat " << concat_inst->id() 
+                                   << " after rejected in-place concat" << std::endl;
+            clear_output_memory();
         }
     }
 
