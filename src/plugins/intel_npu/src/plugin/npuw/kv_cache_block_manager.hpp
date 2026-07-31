@@ -183,6 +183,16 @@ private:
     std::shared_ptr<const ov::IPlugin> plugin_;  ///< Plugin for memory allocation
 
     /**
+     * @brief Rebuild the free block ID stack from the current allocation flags.
+     *
+     * Pushes in descending ID order so the smallest free ID is handed out first,
+     * keeping allocation order aligned with block ID order. Shared by every path
+     * that changes allocation state, since the ordering is what keeps a retained
+     * prefix contiguous once freed IDs are reacquired.
+     */
+    void rebuild_free_block_ids();
+
+    /**
      * @brief Validate block ID
      */
     void validate_block_id(uint32_t block_id) const;

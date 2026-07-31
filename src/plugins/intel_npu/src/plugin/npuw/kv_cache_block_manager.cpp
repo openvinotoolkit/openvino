@@ -166,16 +166,24 @@ void KVCacheBlockManager::release(uint32_t keep_warm_count) {
                                                    << keep_warm_count << " warm");
     }
 
-    // Rebuild free stack (push in reverse order so block 0 is on top)
-    std::stack<uint32_t> empty;
-    free_block_ids_.swap(empty);
-    for (uint32_t i = max_blocks_; i > 0; --i) {
-        free_block_ids_.push(i - 1);
-    }
+    rebuild_free_block_ids();
 }
 
 void KVCacheBlockManager::clear_all() {
     release(0);
+}
+
+void KVCacheBlockManager::rebuild_free_block_ids() {
+    // Push in descending ID order so the smallest free ID ends up on top of the stack
+    // and is handed out first. Allocation order then follows block ID order, which is
+    // what keeps a truncated prefix contiguous when the freed suffix is reacquired.
+    std::stack<uint32_t> empty;
+    free_block_ids_.swap(empty);
+    for (uint32_t i = max_blocks_; i > 0; --i) {
+        if (!blocks_[i - 1].is_allocated) {
+            free_block_ids_.push(i - 1);
+        }
+    }
 }
 
 void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
@@ -194,15 +202,7 @@ void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
         block.num_tokens = 0;
     }
 
-    // Rebuild the free stack so the smallest free ID is allocated first. This keeps
-    // logical append order intact when the freed suffix IDs are reacquired.
-    std::stack<uint32_t> empty;
-    free_block_ids_.swap(empty);
-    for (uint32_t i = max_blocks_; i > 0; --i) {
-        if (!blocks_[i - 1].is_allocated) {
-            free_block_ids_.push(i - 1);
-        }
-    }
+    rebuild_free_block_ids();
 
     LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
                                                    << " suffix block(s) freed");

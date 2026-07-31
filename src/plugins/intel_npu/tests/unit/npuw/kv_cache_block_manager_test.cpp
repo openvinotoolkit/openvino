@@ -291,6 +291,31 @@ TEST_F(KVCacheBlockManagerTest, TruncateAllocatedPreservesAppendOrder) {
     EXPECT_EQ(manager->get_block_tokens(first.value()), 0u);
 }
 
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedKeepsSuffixTensorsWarm) {
+    std::vector<uint32_t> ids;
+    std::vector<void*> data_before;
+    for (int i = 0; i < 3; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        ids.push_back(id.value());
+        data_before.push_back(manager->get_block_tensor(id.value())->data());
+    }
+
+    manager->truncate_allocated(1);
+
+    // Retained prefix keeps its tensor untouched.
+    EXPECT_EQ(manager->get_block_tensor(ids[0])->data(), data_before[0]);
+
+    // Suffix tensors are kept warm, so reacquiring those IDs must not re-allocate.
+    // Without this the first prefill chunk of a continuation pays allocation latency.
+    for (size_t i = 1; i < ids.size(); ++i) {
+        auto reacquired = manager->allocate_block();
+        ASSERT_TRUE(reacquired.has_value());
+        EXPECT_EQ(reacquired.value(), ids[i]);
+        EXPECT_EQ(manager->get_block_tensor(reacquired.value())->data(), data_before[i]);
+    }
+}
+
 TEST_F(KVCacheBlockManagerTest, TruncateAllocatedRejectsOverKeep) {
     ASSERT_TRUE(manager->allocate_block().has_value());
     EXPECT_THROW(manager->truncate_allocated(2), ov::Exception);
