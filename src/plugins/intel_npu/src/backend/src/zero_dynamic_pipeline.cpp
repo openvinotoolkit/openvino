@@ -197,8 +197,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     if (_apiVersion >= NPU_VM_RUNTIME_VERSION_2_0) {
         _use_v2_api = true;
-        _exec_flags = _graph->get_command_queue_desc().shared_common_queue() ? NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE
-                                                                             : 0;
+        // Derive exec flags once from the initial command queue descriptor.
+        // SHARED_COMMON_QUEUE is a config-time setting that does not change via set_property,
+        // so there is no need to recompute this on every push.
+        _exec_flags = _graph->get_command_queue_desc().shared_common_queue()
+                          ? NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE
+                          : 0;
         _logger.debug("DynamicPipeline: using v2.0 VM runtime API, exec_flags=0x%lx",
                       static_cast<unsigned long>(_exec_flags));
     } else {
@@ -212,7 +216,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
-
     _command_list_group = std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, _use_v2_api);
 
     if (!_use_v2_api && _sync_output_with_fences) {
