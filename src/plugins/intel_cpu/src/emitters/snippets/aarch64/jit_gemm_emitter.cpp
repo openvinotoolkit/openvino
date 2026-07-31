@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -101,8 +100,8 @@ void jit_gemm_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel_execut
     OV_CPU_JIT_EMITTER_ASSERT(kernel_executor, "GemmKai executor is not initialized");
 
     const auto& call_address_reg = get_call_address_reg();
-    std::unordered_set<size_t> exclude_spill = {};
-    store_context(exclude_spill);
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(typename ExecutorT::call_args), sp_alignment);
     emit_stack_preserve(reserved_stack_size);
@@ -139,7 +138,7 @@ void jit_gemm_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel_execut
 
     emit_stack_restore(reserved_stack_size);
 
-    restore_context(exclude_spill);
+    spill.postamble();
 }
 
 bool jit_gemm_emitter::is_f16_executor() const {
