@@ -22,6 +22,56 @@
 #include "zero_infer_request.hpp"
 
 namespace intel_npu {
+
+namespace {
+
+bool use_v2_api(npu_vm_runtime_version_t apiVersion) {
+    return apiVersion >= NPU_VM_RUNTIME_VERSION_2_0;
+}
+
+uint64_t get_exec_flags(const CommandQueueDesc& commandQueueDesc) {
+    uint64_t execFlags = 0;
+    if (commandQueueDesc.shared_common_queue()) {
+        execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE;
+    }
+
+    switch (commandQueueDesc.priority()) {
+    case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW:
+        execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_LOW;
+        break;
+    case ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH:
+        execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_HIGH;
+        break;
+    default:
+        break;
+    }
+
+    if (commandQueueDesc.workload().has_value()) {
+        switch (commandQueueDesc.workload().value()) {
+        case ZE_WORKLOAD_TYPE_DEFAULT:
+            execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_DEFAULT;
+            break;
+        case ZE_WORKLOAD_TYPE_BACKGROUND:
+            execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_BACKGROUND;
+            break;
+        default:
+            break;
+        }
+    }
+
+    const uint32_t commandQueueOptions = commandQueueDesc.options();
+    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO) != 0) {
+        execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_TURBO;
+    }
+    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0) {
+        execFlags |= NPU_VM_RUNTIME_EXEC_FLAG_DEVICE_SYNC;
+    }
+
+    return execFlags;
+}
+
+}  // namespace
+
 struct MemRefTypeImpl {
     npu_vm_runtime_mem_ref_handle_t _memRef;
     bool _ptrUpdated = false;
@@ -195,21 +245,15 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         OPENVINO_THROW("Failed to get VM runtime version, error code: ", versionResult);
     }
 
-    if (_apiVersion >= NPU_VM_RUNTIME_VERSION_2_0) {
-        _use_v2_api = true;
-        // Derive exec flags once from the initial command queue descriptor.
-        // SHARED_COMMON_QUEUE is a config-time setting that does not change via set_property,
-        // so there is no need to recompute this on every push.
-        _exec_flags = _graph->get_command_queue_desc().shared_common_queue()
-                          ? NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE
-                          : 0;
+    if (use_v2_api(_apiVersion)) {
+        _exec_flags = get_exec_flags(_graph->get_command_queue_desc());
         _logger.debug("DynamicPipeline: using v2.0 VM runtime API, exec_flags=0x%lx",
                       static_cast<unsigned long>(_exec_flags));
     } else {
         _logger.debug("DynamicPipeline: using v1.x VM runtime API");
     }
 
-    if (!_use_v2_api && !_sync_output_with_fences) {
+    if (!use_v2_api(_apiVersion) && !_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
@@ -220,19 +264,20 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
-    const size_t pipeline_batch_size = _use_v2_api ? 1 : _batch_size;
+    const size_t pipeline_batch_size = use_v2_api(_apiVersion) ? 1 : _batch_size;
 
     _command_lists.reserve(pipeline_batch_size);
     if (batch_size >= 1) {
         _logger.debug("Initializing %zu command list group(s) (batch size %zu)", pipeline_batch_size, batch_size);
         for (size_t i = 0; i < pipeline_batch_size; i++) {
-            _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, _use_v2_api));
+            _command_lists.emplace_back(
+                std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, use_v2_api(_apiVersion)));
         }
     } else {
         OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
     }
 
-    if (!_use_v2_api && _sync_output_with_fences) {
+    if (!use_v2_api(_apiVersion) && _sync_output_with_fences) {
         _fences.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
             _fences.emplace_back(std::make_unique<Fence>(_command_queue));
@@ -319,11 +364,15 @@ void DynamicPipeline::push() {
     if (command_queue_version_changed) {
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
-        if (_sync_output_with_fences && !_use_v2_api) {
+        if (_sync_output_with_fences && !use_v2_api(_apiVersion)) {
             for (size_t i = 0; i < _fences.size(); i++) {
                 _fences[i] = std::make_unique<Fence>(_command_queue);
             }
         }
+    }
+
+    if (use_v2_api(_apiVersion)) {
+        _exec_flags = get_exec_flags(command_queue_desc);
     }
 
     auto commandQueueHandle = _command_queue->handle();
@@ -343,7 +392,7 @@ void DynamicPipeline::push() {
             }
         }
 
-        if (_use_v2_api) {
+        if (use_v2_api(_apiVersion)) {
             execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, _exec_flags);
         } else {
             ze_fence_handle_t fence = nullptr;
@@ -576,7 +625,10 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        params.executionContext = _executionContext.ensure(vmRuntime, _use_v2_api, _exec_flags);
+        if (use_v2_api(_apiVersion)) {
+            _exec_flags = get_exec_flags(_graph->get_command_queue_desc());
+        }
+        params.executionContext = _executionContext.ensure(vmRuntime, use_v2_api(_apiVersion), _exec_flags);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
@@ -631,10 +683,10 @@ void DynamicPipeline::pull() {
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
 
     const npu_vm_runtime_handle_t vmRuntime =
-        _use_v2_api ? static_cast<npu_vm_runtime_handle_t>(_graph->get_handle()) : nullptr;
+        use_v2_api(_apiVersion) ? static_cast<npu_vm_runtime_handle_t>(_graph->get_handle()) : nullptr;
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_use_v2_api) {
+        if (use_v2_api(_apiVersion)) {
             if (npuVMRuntimeHostSync(vmRuntime, _wait_id) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 OPENVINO_THROW("npuVMRuntimeHostSync failed");
             }
@@ -657,7 +709,7 @@ void DynamicPipeline::pull() {
 
 void DynamicPipeline::reset() const {
     _logger.debug("reset - started");
-    if (!_use_v2_api) {
+    if (!use_v2_api(_apiVersion)) {
         for (size_t i = 0; i < _command_lists.size(); ++i) {
             if (_sync_output_with_fences) {
                 _fences.at(i)->reset();
@@ -711,7 +763,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    const size_t command_list_index = _use_v2_api ? 0 : batch_index;
+    const size_t command_list_index = use_v2_api(_apiVersion) ? 0 : batch_index;
 
     OPENVINO_ASSERT(command_list_index < _command_lists.size(),
                     "Command list index is higher than the number of Command lists ",
