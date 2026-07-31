@@ -15,7 +15,6 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
@@ -51,7 +50,7 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
-    auto activation = optional<ov::op::v4::Swish, ov::op::v0::Relu>({add});
+    auto activation = optional<ov::op::v4::Swish>({add});
 
     ov::pass::pattern::op::Predicate predicate =
         require_int_fq_output ? type_matches_any({element::i8, element::u8}) : ov::pass::pattern::op::Predicate();
