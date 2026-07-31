@@ -1,0 +1,86 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  node {
+    input: "data"
+    input: "indices"
+    input: "scales"
+    output: "output"
+    op_type: "GatherBlockQuantized"
+    attribute {
+      name: "bits"
+      i: 8
+      type: INT
+    }
+    attribute {
+      name: "block_size"
+      i: 16
+      type: INT
+    }
+    attribute {
+      name: "gather_axis"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "quantize_axis"
+      i: 1
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "gather_block_quantized_uint8"
+  initializer {
+    dims: 2
+    dims: 32
+    data_type: 2
+    name: "data"
+    raw_data: "\202\202\202\202\202\202\202\202\202\202\202\202\202\202\202\202||||||||||||||||\200\200\200\200\200\200\200\200\200\200\200\200\200\200\200\200\210\210\210\210\210\210\210\210\210\210\210\210\210\210\210\210"
+  }
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 1
+    name: "scales"
+    raw_data: "\000\000\000?\000\000\200@\000\000\000@\000\000\200>"
+  }
+  input {
+    name: "indices"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 21
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

@@ -41,7 +41,7 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
         if (!convert)
             return false;
         auto type = convert->get_destination_type();
-        if (type != element::f32)
+        if (!type.is_real())
             return false;
         auto tfl_quantize = ov::as_type_ptr<TFLQuantize>(tfl_quantize_node);
         if (!tfl_quantize)
@@ -49,7 +49,7 @@ pass::TFLQuantizeConvert::TFLQuantizeConvert() {
 
         const auto replace_f32_convert = [](const std::shared_ptr<v0::Convert>& consumer_convert,
                                             const std::shared_ptr<TFLQuantize>& producer) -> bool {
-            if (!consumer_convert || consumer_convert->get_destination_type() != element::f32)
+            if (!consumer_convert || !consumer_convert->get_destination_type().is_real())
                 return false;
             consumer_convert->input(0).replace_source_output(producer->output(0));
             consumer_convert->output(0).replace(producer->output(0));
@@ -176,7 +176,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         const auto is_constant =
             ov::is_type<v0::Constant>(tfl_quantize->get_input_node_shared_ptr(0));  // for Constant case
 
-        FRONT_END_GENERAL_CHECK(in_type == out_type || in_type == element::f32 || out_type == element::f32,
+        FRONT_END_GENERAL_CHECK(in_type == out_type || in_type.is_real() || out_type.is_real(),
                                 "TFLQuantized types do not match: in_type = ",
                                 in_type,
                                 " out_type = ",
@@ -195,18 +195,22 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
         const auto& scale_node = v0::Constant::create(element::f32, scale_shape, scale);
 
         if (is_constant) {
+            // Dequantize constant weights directly into the requested floating type (f32 for typical
+            // models, f16 for fully float16 models) so the produced constant matches the consuming op.
+            const auto deq_type = out_type.is_real() ? out_type : element::f32;
+            const auto& const_scale = v0::Constant::create(deq_type, scale_shape, scale);
             fuse_zp_to_weights(output, zp, zp_shape);
             ov::Output<ov::Node> zp_input;
             if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                     return i != 0;
                 })) {
-                zp_input = zp_node;
+                zp_input = v0::Constant::create(deq_type, zp_shape, zp);
             }
-            output = ov::decomposition::low_precision_dequantize(output, scale_node, zp_input);
+            output = ov::decomposition::low_precision_dequantize(output, const_scale, zp_input);
             tfl_quantize->output(0).replace(output);
             return true;
         }
-        if (in_type != element::f32) {
+        if (!in_type.is_real()) {
             output = make_shared<v0::Convert>(output, element::f32);
         }
 
@@ -221,9 +225,9 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
 
         Output<Node> input_low, input_high, output_low, output_high;
 
-        if (out_type != element::f32) {
+        if (!out_type.is_real()) {
             /*
-                Quantize case when it must provide non-float32 output
+                Quantize case when it must provide non-float output
                 Calculating default values for input/output low/high (example calculations for int8):
                 output_low = lower bound for original type (-128)
                 output_high = upper bound for original type (127)
@@ -235,9 +239,9 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
             input_high =
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
-        } else if (in_type != element::f32) {
+        } else if (!in_type.is_real()) {
             /*
-                Dequantize case when it must accept non-float32 input
+                Dequantize case when it must accept non-float input
                 Calculating default values for input/output low/high (example calculations for int8):
                 input_low = lower bound for original type (-128)
                 input_high = upper bound for original type (127)
@@ -251,7 +255,7 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_high, zp_node), scale_node);
         } else {
             /*
-                Requantize (QDQ) case when it accepts float32 for input and output
+                Requantize (QDQ) case when both input and output are real (float) types
                 Calculating default values for input/output low/high (example calculations for int8):
                 input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
                 input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)

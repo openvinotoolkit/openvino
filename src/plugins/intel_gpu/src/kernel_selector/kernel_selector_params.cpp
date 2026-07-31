@@ -83,6 +83,15 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::BF16:
             key.inputType.val.BF16 = 1;
             break;
+        case Datatype::F8E4M3:
+            key.inputType.val.F8E4M3 = 1;
+            break;
+        case Datatype::F8E5M2:
+            key.inputType.val.F8E5M2 = 1;
+            break;
+        case Datatype::F8E8M0:
+            key.inputType.val.F8E8M0 = 1;
+            break;
         default:
             break;
     }
@@ -127,6 +136,15 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
             break;
         case Datatype::BF16:
             key.outputType.val.BF16 = 1;
+            break;
+        case Datatype::F8E4M3:
+            key.outputType.val.F8E4M3 = 1;
+            break;
+        case Datatype::F8E5M2:
+            key.outputType.val.F8E5M2 = 1;
+            break;
+        case Datatype::F8E8M0:
+            key.outputType.val.F8E8M0 = 1;
             break;
         default:
             break;
@@ -332,6 +350,12 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
             break;
         case ConcatAxis::W:
             key.restrict.val.dedicated.concat.axisW = 1;
+            break;
+        case ConcatAxis::U:
+            key.restrict.val.dedicated.concat.axisU = 1;
+            break;
+        case ConcatAxis::V:
+            key.restrict.val.dedicated.concat.axisV = 1;
             break;
         case ConcatAxis::FEATURE:
             key.restrict.val.dedicated.concat.axisFeature = 1;

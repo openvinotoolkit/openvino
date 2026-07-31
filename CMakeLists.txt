@@ -2,13 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CPACK_GENERATOR STREQUAL "DEB")
-    # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
-    cmake_minimum_required(VERSION 3.20)
-else()
-    # 3.18: default choice as minimum version for onnx 1.18
-    cmake_minimum_required(VERSION 3.18)
-endif()
+# 3.26 is required by the bundled ONNX version.
+cmake_minimum_required(VERSION 3.26)
 
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY

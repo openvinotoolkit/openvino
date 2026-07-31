@@ -134,7 +134,7 @@ void EmbeddingBagOffset::initFromInputs() {
 void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     const int*& indices,
                                     size_t& size,
-                                    int& weightsIdx,
+                                    size_t& weightsIdx,
                                     bool& withWeight) {
     CPU_NODE_ASSERT(embIndex < _offsetsLen, "Invalid embedding bag index.");
     CPU_NODE_ASSERT(static_cast<size_t>(offsetsData_[embIndex]) < _indicesLen, "Offset value exceeds indices size.");

@@ -26,14 +26,14 @@ public:
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr create_subbuffer(const memory& memory, const layout& new_layout, size_t offset) override;
-    memory_ptr create_mmap_hostbuffer(const void* mmapped_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
+    memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
+    memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
     memory_ptr import_buffer(const layout&, ov::intel_gpu::os_handle_param external_handle) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
-
     void release_external_memory(cl_mem) const;
 
-    void* get_user_context() const override;
+    void* get_user_context(runtime_types rt_type) const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
     allocation_type detect_usm_allocation_type(const void* memory) const override;
@@ -56,6 +56,7 @@ public:
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
+    memory_ptr create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags);
     std::string _extensions;
 };
 

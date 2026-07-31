@@ -13,7 +13,7 @@ class ConvolutionKernel_Winograd_2x3_s1 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_Winograd_2x3_s1() : ConvolutionKernelBase("convolution_gpu_winograd_2x3_s1") {}
-    virtual ~ConvolutionKernel_Winograd_2x3_s1() {}
+    ~ConvolutionKernel_Winograd_2x3_s1() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

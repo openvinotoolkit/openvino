@@ -39,7 +39,7 @@ struct DeviceOps {
     }
 
     bool match(device_info& info) const {
-        if (dev_id_list.size() > 0) {
+        if (!dev_id_list.empty()) {
             return std::find(dev_id_list.begin(), dev_id_list.end(), info.device_id) != dev_id_list.end();
         }
 
@@ -101,8 +101,6 @@ const std::vector<DeviceOps> device_ops_table = {
     { { {12,  0,  0}, {12,  9, MAX_REVISION} }, {     0,     16,     32,      0,      0,    64 }, {} },    // TGL, RKL, ADL
     { { {12, 10,  0}                         }, {     0,     16,     32,      0,      0,    64 }, {} },    // DG1
     { { {12, 55,  0}, {12, 57, MAX_REVISION} }, {     0,     16,     32,    128,    256,     0 }, {} },    // DG2
-    { { {12, 60,  0}, {12, 60, 1}            }, {    16,     32,     64,    512,   1024,     0 }, {} },    // PVC_XL
-    { { {12, 60,  3}, {12, 61, 7}            }, {    32,     32,     64,    512,   1024,     0 }, {} },    // PVC_XT
     { { {12, 70,  0}, {12, 71, MAX_REVISION} }, {     0.5,   16,     32,      0,      0,    64 }, {} },    // MTL/ARL-S
     { { {12, 74,  0}, {12, 74, MAX_REVISION} }, {     0.5,   16,     32,    128,    256,     0 }, {} },    // ARL-H
     { { {20,  1,  0}, {20,  2, MAX_REVISION} }, {     1,     16,     32,    128,    256,     0 }, {} },    // BMG

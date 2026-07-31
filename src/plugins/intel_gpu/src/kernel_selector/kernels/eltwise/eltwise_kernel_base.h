@@ -96,7 +96,7 @@ struct eltwise_fuse_params : fuse_params {
 class EltwiseKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~EltwiseKernelBase() {}
+    ~EltwiseKernelBase() override {}
 
     using DispatchData = CommonDispatchData;
     JitConstants GetJitConstantsCommon(const eltwise_params& params, bool useVload8) const;

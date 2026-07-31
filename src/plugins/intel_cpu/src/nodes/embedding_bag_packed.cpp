@@ -123,7 +123,7 @@ void EmbeddingBagPacked::initFromInputs() {
 void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     const int*& indices,
                                     size_t& size,
-                                    int& weightsIdx,
+                                    size_t& weightsIdx,
                                     bool& withWeight) {
     CPU_NODE_ASSERT(embIndex < _batch * _indicesPerBag, "Invalid embedding bag index.");
 

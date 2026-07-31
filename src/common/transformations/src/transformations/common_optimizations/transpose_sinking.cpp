@@ -100,6 +100,11 @@ ov::pass::TransposeFQ::TransposeFQ() {
         if (!transpose_order || !fq)
             return false;
 
+        // Sink only when the FakeQuantize represents both quantize and dequantize:
+        // input_low == output_low and input_high == output_high
+        if (!op_util::fq_ranges_are_equal(fq))
+            return false;
+
         ov::NodeVector new_ops;
 
         const auto& reverse_order_constant = get_reversed_order_constant(transpose_order);

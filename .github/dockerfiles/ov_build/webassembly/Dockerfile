@@ -24,6 +24,9 @@ RUN apt-get update && \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
+# Emscripten base image has CMake 3.22.x; OpenVINO now requires >=3.26.
+RUN python3 -m pip install --no-cache-dir cmake==3.26.4
+
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \

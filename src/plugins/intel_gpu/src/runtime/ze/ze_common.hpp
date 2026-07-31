@@ -7,6 +7,7 @@
 #include "openvino/core/except.hpp"
 #define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include "openvino/zero_api.hpp"
+#undef ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 
 #include <limits>
 #include <string>
@@ -57,7 +58,7 @@ inline const ::ov::ZeroApi& get_ze_api_instance() {
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
         const auto& ze_api = get_ze_api_instance();                                                         \
         if (ze_api.symbol == nullptr) {                                                                     \
-            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+            return ZE_RESULT_ERROR_UNSUPPORTED_FEATURE;                                                     \
         }                                                                                                   \
         return ze_api.symbol(std::forward<Args>(args)...);                                                  \
     }

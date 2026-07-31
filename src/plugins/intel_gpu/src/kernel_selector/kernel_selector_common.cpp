@@ -157,6 +157,9 @@ std::string toString(Datatype dType) {
         case Datatype::INT64:  return "INT64";
         case Datatype::F16:    return "F16";
         case Datatype::F32:    return "F32";
+        case Datatype::F8E4M3: return "F8E4M3";
+        case Datatype::F8E5M2: return "F8E5M2";
+        case Datatype::F8E8M0: return "F8E8M0";
         default: return "";
     }
 }
@@ -410,6 +413,8 @@ std::string toString(ConcatAxis a) {
         case ConcatAxis::Y:       return "Y";
         case ConcatAxis::Z:       return "Z";
         case ConcatAxis::W:       return "W";
+        case ConcatAxis::U:       return "U";
+        case ConcatAxis::V:       return "V";
         case ConcatAxis::FEATURE: return "FEATURE";
         case ConcatAxis::BATCH:   return "BATCH";
         default: return "";

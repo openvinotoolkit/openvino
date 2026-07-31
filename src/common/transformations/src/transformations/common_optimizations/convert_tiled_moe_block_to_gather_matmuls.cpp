@@ -20,6 +20,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
@@ -74,7 +75,8 @@ struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> end_reshape_target_shape, end_reshape;
     std::shared_ptr<ov::Node> router_topk_indices, chosen_experts, scatter_elements_update;
     std::shared_ptr<ov::Node> router_transpose, router_reshape, optional_unsqueeze;
-    std::shared_ptr<ov::Node> mul3, reduce_sum;
+    std::shared_ptr<ov::Node> mul3, reduceSum_keepDims, reduceSum_squeeze, reduceSum_noKeepDims;
+    std::shared_ptr<ov::Node> reduce_sum;
 };
 
 MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
@@ -127,10 +129,16 @@ MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& s
     p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
     p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
-    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
-                                                     pattern::consumers_count(1),
-                                                     {{"keep_dims", false}});
+    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze});
+    // For ARM, Reduce ops are implemented with keep_dims=true followed by Squeeze operation
+    p.reduceSum_keepDims = pattern::wrap_type<ov::op::v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                                     pattern::consumers_count(1),
+                                                                     {{"keep_dims", true}});
+    p.reduceSum_squeeze = pattern::wrap_type<ov::op::v0::Squeeze>({p.reduceSum_keepDims, pattern::any_input()});
+    p.reduceSum_noKeepDims = pattern::wrap_type<ov::op::v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                                       pattern::consumers_count(1),
+                                                                       {{"keep_dims", false}});
+    p.reduce_sum = p.reduceSum_squeeze | p.reduceSum_noKeepDims;
 
     return p;
 }
@@ -142,7 +150,8 @@ struct MOE3GEMMPatternNodes {
     std::shared_ptr<ov::Node> end_reshape_target_shape, end_reshape;
     std::shared_ptr<ov::Node> router_topk_indices, chosen_experts, scatter_elements_update;
     std::shared_ptr<ov::Node> router_transpose, router_reshape, optional_unsqueeze;
-    std::shared_ptr<ov::Node> mul3, reduce_sum;
+    std::shared_ptr<ov::Node> mul3, reduceSum_keepDims, reduceSum_squeeze, reduceSum_noKeepDims;
+    std::shared_ptr<ov::Node> reduce_sum;
 };
 
 MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
@@ -181,10 +190,16 @@ MOE3GEMMPatternNodes build_3gemm_pattern(const std::vector<ov::element::Type>& s
     p.router_reshape = pattern::wrap_type<v1::Reshape>({p.router_transpose, pattern::any_input()});
     p.optional_unsqueeze = pattern::optional<v0::Unsqueeze>({p.router_reshape, pattern::any_input()});
 
-    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze}, pattern::consumers_count(1));
-    p.reduce_sum = pattern::wrap_type<v1::ReduceSum>({p.mul3, pattern::any_input()},
-                                                     pattern::consumers_count(1),
-                                                     {{"keep_dims", false}});
+    p.mul3 = pattern::wrap_type<v1::Multiply>({p.end_reshape, p.optional_unsqueeze});
+    // For ARM, Reduce ops are implemented with keep_dims=true followed by Squeeze operation
+    p.reduceSum_keepDims = pattern::wrap_type<ov::op::v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                                     pattern::consumers_count(1),
+                                                                     {{"keep_dims", true}});
+    p.reduceSum_squeeze = pattern::wrap_type<ov::op::v0::Squeeze>({p.reduceSum_keepDims, pattern::any_input()});
+    p.reduceSum_noKeepDims = pattern::wrap_type<ov::op::v1::ReduceSum>({p.mul3, pattern::any_input()},
+                                                                       pattern::consumers_count(1),
+                                                                       {{"keep_dims", false}});
+    p.reduce_sum = p.reduceSum_squeeze | p.reduceSum_noKeepDims;
 
     return p;
 }
@@ -257,11 +272,26 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
 
-        const auto reduce_sum_node = pm.at(p.reduce_sum).get_node_shared_ptr();
-        const auto new_reduce_sum =
-            reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
-        ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
-        new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
+        std::shared_ptr<ov::Node> new_reduce_sum = nullptr;
+        std::string new_reduce_sum_friendly_name;
+        if (pm.find(p.reduceSum_squeeze) != pm.end()) {
+            const auto reduce_node = pm.at(p.reduceSum_keepDims).get_node_shared_ptr();
+            const auto squeeze_node = pm.at(p.reduceSum_squeeze).get_node_shared_ptr();
+            const auto new_reduce_node =
+                reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
+            ov::copy_runtime_info(reduce_node, new_reduce_node);
+            new_reduce_sum =
+                squeeze_node->clone_with_new_inputs({new_reduce_node->output(0), squeeze_node->input_value(1)});
+            ov::copy_runtime_info(squeeze_node, new_reduce_sum);
+            new_reduce_sum_friendly_name = squeeze_node->get_friendly_name();
+        } else {
+            const auto reduce_node = pm.at(p.reduceSum_noKeepDims).get_node_shared_ptr();
+            new_reduce_sum =
+                reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
+            ov::copy_runtime_info(reduce_node, new_reduce_sum);
+            new_reduce_sum_friendly_name = reduce_node->get_friendly_name();
+        }
+        new_reduce_sum->set_friendly_name(new_reduce_sum_friendly_name);
 
         const auto& end_reshape_out = pm.at(p.end_reshape);
         const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();
@@ -344,11 +374,27 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
             final_mul_node->clone_with_new_inputs({down_gathered_mm->output(0), router_unsqueeze->output(0)});
         ov::copy_runtime_info(final_mul_node, new_final_mul);
         new_final_mul->set_friendly_name(final_mul_node->get_friendly_name());
-        const auto reduce_sum_node = pm.at(p.reduce_sum).get_node_shared_ptr();
-        const auto new_reduce_sum =
-            reduce_sum_node->clone_with_new_inputs({new_final_mul->output(0), reduce_sum_node->input_value(1)});
-        ov::copy_runtime_info(reduce_sum_node, new_reduce_sum);
-        new_reduce_sum->set_friendly_name(reduce_sum_node->get_friendly_name());
+
+        std::shared_ptr<ov::Node> new_reduce_sum = nullptr;
+        std::string new_reduce_sum_friendly_name;
+        if (pm.find(p.reduceSum_squeeze) != pm.end()) {
+            const auto reduce_node = pm.at(p.reduceSum_keepDims).get_node_shared_ptr();
+            const auto squeeze_node = pm.at(p.reduceSum_squeeze).get_node_shared_ptr();
+            const auto new_reduce_node =
+                reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
+            ov::copy_runtime_info(reduce_node, new_reduce_node);
+            new_reduce_sum =
+                squeeze_node->clone_with_new_inputs({new_reduce_node->output(0), squeeze_node->input_value(1)});
+            ov::copy_runtime_info(squeeze_node, new_reduce_sum);
+            new_reduce_sum_friendly_name = squeeze_node->get_friendly_name();
+        } else {
+            const auto reduce_node = pm.at(p.reduceSum_noKeepDims).get_node_shared_ptr();
+            new_reduce_sum =
+                reduce_node->clone_with_new_inputs({new_final_mul->output(0), reduce_node->input_value(1)});
+            ov::copy_runtime_info(reduce_node, new_reduce_sum);
+            new_reduce_sum_friendly_name = reduce_node->get_friendly_name();
+        }
+        new_reduce_sum->set_friendly_name(new_reduce_sum_friendly_name);
 
         const auto& end_reshape_out = pm.at(p.end_reshape);
         const auto end_reshape_rank = end_reshape_out.get_partial_shape().rank();

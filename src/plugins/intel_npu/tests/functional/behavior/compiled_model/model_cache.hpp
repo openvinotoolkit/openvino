@@ -7,8 +7,10 @@
 #include <behavior/compiled_model/model_cache.hpp>
 #include <memory>
 
+#include "common/utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
@@ -159,7 +161,33 @@ namespace test {
 
 namespace behavior {
 
-using OVWeightlessCacheAccuracyNPU = WeightlessCacheAccuracy;
+class OVWeightlessCacheAccuracyNPU : public WeightlessCacheAccuracy {
+protected:
+    void SetUp() override {
+        WeightlessCacheAccuracy::SetUp();
+
+        // Encryption not requested or secure compilation support is available
+        // > Nothing to skip, continue with the test
+        if (!m_do_encryption || !ov::test::utils::isGraphExtVersionLowerThan(1u, 17u)) {
+            return;
+        }
+
+        // Encryption requested and secure compilation support is not available for DRIVER path
+        // > Search compiler type in test config; for empty test config, check device default compiler
+        // > Skip test for DRIVER compiler
+        const auto& params = GetParam();
+        const auto& config = std::get<4>(params);
+
+        const auto it = config.find(ov::intel_npu::compiler_type.name());
+        const bool testUsesDriverCompiler =
+            (it != config.end()) ? (it->second.as<ov::intel_npu::CompilerType>() == ov::intel_npu::CompilerType::DRIVER)
+                                 : ov::test::utils::isDefaultDriverCompiler(m_target_device);
+
+        if (testUsesDriverCompiler) {
+            GTEST_SKIP() << "Secure compilation is not supported by the current DRIVER compiler.";
+        }
+    }
+};
 
 TEST_P(OVWeightlessCacheAccuracyNPU, SimpleTestModel) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
