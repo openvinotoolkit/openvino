@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/mamba2.hpp"
@@ -28,20 +29,24 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace ov::test {
 namespace {
 
-// Builds a loop-based Mamba2 recurrence model:
+// Builds a loop-based Mamba2 recurrence model matching the time-major raw-input export:
+//   dA_t = exp(A * dt_t); dBx_t = (dt_t * B_t) outer x_t
 //   state_t = state_{t-1} * dA_t + dBx_t ; y_t = reduce_sum(state_t * C_t, axis=state_size)
-// External Loop inputs (in order): trip_count, exec_cond, dA, dBx, C, recurrent_state, output_buffer.
-// External Loop outputs: output[B,H,L,P], output_recurrent_state[B,H,P,N].
+// B/C are provided per group and expanded to heads via Unsqueeze/Tile/Reshape outside the loop.
+// External Loop inputs (in order): trip_count, exec_cond, dt, B, x, C, recurrent_state, output_buffer.
+// External Loop outputs: output[B,T,H,P], output_recurrent_state[B,H,P,N].
 //
 // \param with_post_loop appends the flatten/Concat/Slice/Reshape round-trip seen in real models.
 // \param break_body replaces the state `Add` with `Subtract` so the body no longer matches Mamba2.
 std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
+                                               int32_t num_groups,
                                                int32_t head_dim,
                                                int32_t state_size,
                                                ov::element::Type dtype = ov::element::f32,
@@ -49,74 +54,103 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
                                                bool break_body = false) {
     using namespace ov::op;
 
-    ov::PartialShape dA_shape{-1, num_heads, -1, 1, 1};
-    ov::PartialShape dBx_shape{-1, num_heads, -1, head_dim, state_size};
-    ov::PartialShape C_shape{-1, num_heads, -1, state_size};
+    const int32_t heads_per_group = num_heads / num_groups;
+
+    ov::PartialShape dt_shape{-1, -1, num_heads};
+    ov::PartialShape B_shape{-1, -1, num_groups, state_size};
+    ov::PartialShape x_shape{-1, -1, num_heads, head_dim};
+    ov::PartialShape C_shape{-1, -1, num_groups, state_size};
     ov::PartialShape state_shape{-1, num_heads, head_dim, state_size};
 
-    auto dA = std::make_shared<v0::Parameter>(dtype, dA_shape);
-    auto dBx = std::make_shared<v0::Parameter>(dtype, dBx_shape);
+    auto dt = std::make_shared<v0::Parameter>(dtype, dt_shape);
+    auto B = std::make_shared<v0::Parameter>(dtype, B_shape);
+    auto x = std::make_shared<v0::Parameter>(dtype, x_shape);
     auto C = std::make_shared<v0::Parameter>(dtype, C_shape);
     auto h0 = std::make_shared<v0::Parameter>(dtype, state_shape);
 
-    // output accumulator buffer: zeros with shape [B, H, L, P]
-    auto shape_of_dBx = std::make_shared<v3::ShapeOf>(dBx);
-    auto slice_start = v0::Constant::create(ov::element::i64, {1}, {0});
-    auto slice_stop = v0::Constant::create(ov::element::i64, {1}, {4});
-    auto slice_step = v0::Constant::create(ov::element::i64, {1}, {1});
-    auto slice_axis = v0::Constant::create(ov::element::i64, {1}, {0});
-    auto out_buffer_shape = std::make_shared<v8::Slice>(shape_of_dBx, slice_start, slice_stop, slice_step, slice_axis);
-    auto core_init = std::make_shared<v3::Broadcast>(v0::Constant::create(dtype, {}, {0.0f}), out_buffer_shape);
+    // A is a per-head constant embedded in the graph (log-decay rates).
+    auto A = v0::Constant::create(dtype, {static_cast<size_t>(num_heads)}, std::vector<float>(num_heads, -0.5f));
 
-    // trip count = seq_len (dim 2 of dBx)
-    auto trip_index = v0::Constant::create(ov::element::i64, {1}, {2});
+    // Expand B/C from [B, T, G, N] to [B, T, H, N] via Unsqueeze -> Tile -> Reshape.
+    auto expand_groups = [&](const std::shared_ptr<v0::Parameter>& src) {
+        auto unsq_axis = v0::Constant::create(ov::element::i32, {}, {3});
+        auto src_5d = std::make_shared<v0::Unsqueeze>(src, unsq_axis);
+        auto tile_shape = v0::Constant::create(ov::element::i64, {5}, {1, 1, 1, heads_per_group, 1});
+        auto tiled = std::make_shared<v0::Tile>(src_5d, tile_shape);
+        auto target = v0::Constant::create(ov::element::i64, {4}, {0, 0, num_heads, state_size});
+        return std::make_shared<v1::Reshape>(tiled, target, true);
+    };
+    auto B_expanded = expand_groups(B);
+    auto C_expanded = expand_groups(C);
+
+    // output accumulator buffer: zeros with shape [B, T, H, P]
+    auto shape_of_x = std::make_shared<v3::ShapeOf>(x);
+    auto core_init = std::make_shared<v3::Broadcast>(v0::Constant::create(dtype, {}, {0.0f}), shape_of_x);
+
+    // trip count = seq_len (dim 1 of x)
+    auto trip_index = v0::Constant::create(ov::element::i64, {1}, {1});
     auto trip_axis = v0::Constant::create(ov::element::i64, {}, {0});
-    auto trip_count_i64 = std::make_shared<v8::Gather>(shape_of_dBx, trip_index, trip_axis);
+    auto trip_count_i64 = std::make_shared<v8::Gather>(shape_of_x, trip_index, trip_axis);
     auto trip_count = std::make_shared<v0::Convert>(trip_count_i64, ov::element::i32);
 
     // -------- Loop body --------
     auto timestep = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{});
-    auto dA_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, 1, 1, 1});
-    auto dBx_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, 1, head_dim, state_size});
-    auto C_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, 1, state_size});
+    auto dt_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads});
+    auto B_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
+    auto x_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, head_dim});
+    auto C_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
     auto last_state = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, head_dim, state_size});
-    auto core_out = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, -1, head_dim});
+    auto core_out = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, -1, num_heads, head_dim});
 
-    auto axis2 = v0::Constant::create(ov::element::i32, {}, {2});
+    auto axis0 = v0::Constant::create(ov::element::i32, {}, {0});
+    auto axis1 = v0::Constant::create(ov::element::i32, {}, {1});
     auto minus1 = v0::Constant::create(ov::element::i32, {1}, {-1});
     auto minus2 = v0::Constant::create(ov::element::i32, {1}, {-2});
 
-    auto dA_sq = std::make_shared<v0::Squeeze>(dA_t, axis2);
-    auto dBx_sq = std::make_shared<v0::Squeeze>(dBx_t, axis2);
-    auto C_sq = std::make_shared<v0::Squeeze>(C_t, axis2);
+    auto dt_sq = std::make_shared<v0::Squeeze>(dt_t, axis1);
+    auto B_sq = std::make_shared<v0::Squeeze>(B_t, axis1);
+    auto x_sq = std::make_shared<v0::Squeeze>(x_t, axis1);
+    auto C_sq = std::make_shared<v0::Squeeze>(C_t, axis1);
 
-    auto state_decay = std::make_shared<v1::Multiply>(last_state, dA_sq);
+    // dA_t = exp(A * dt_t) -> [B, H, 1, 1]
+    auto A_unsq = std::make_shared<v0::Unsqueeze>(A, axis0);
+    auto dA = std::make_shared<v1::Multiply>(A_unsq, dt_sq);
+    auto dA_exp = std::make_shared<v0::Exp>(dA);
+    auto dA_4d = std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Unsqueeze>(dA_exp, minus1), minus1);
+
+    // dBx_t = (dt_t * B_t) outer x_t -> [B, H, P, N]
+    auto dt_B = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_sq, minus1), B_sq);
+    auto dBx = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_B, minus2),
+                                              std::make_shared<v0::Unsqueeze>(x_sq, minus1));
+
+    auto state_decay = std::make_shared<v1::Multiply>(last_state, dA_4d);
     std::shared_ptr<ov::Node> state_new;
     if (break_body) {
-        state_new = std::make_shared<v1::Subtract>(state_decay, dBx_sq);
+        state_new = std::make_shared<v1::Subtract>(state_decay, dBx);
     } else {
-        state_new = std::make_shared<v1::Add>(state_decay, dBx_sq);
+        state_new = std::make_shared<v1::Add>(state_decay, dBx);
     }
 
     auto C_unsq = std::make_shared<v0::Unsqueeze>(C_sq, minus2);
     auto y = std::make_shared<v1::Multiply>(state_new, C_unsq);
     auto y_sum = std::make_shared<v1::ReduceSum>(y, minus1, false);
-    auto y_unsq = std::make_shared<v0::Unsqueeze>(y_sum, axis2);
+    auto y_unsq = std::make_shared<v0::Unsqueeze>(y_sum, axis1);
 
     auto timestep_unsq = std::make_shared<v0::Unsqueeze>(timestep, v0::Constant::create(ov::element::i32, {1}, {0}));
-    auto core_out_new = std::make_shared<v3::ScatterUpdate>(core_out, timestep_unsq, y_unsq, axis2);
+    auto core_out_new = std::make_shared<v3::ScatterUpdate>(core_out, timestep_unsq, y_unsq, axis1);
 
     auto body_cond = v0::Constant::create(ov::element::boolean, {1}, {true});
     auto body = std::make_shared<ov::Model>(ov::OutputVector{body_cond, state_new, core_out_new},
-                                            ov::ParameterVector{timestep, dA_t, dBx_t, C_t, last_state, core_out},
+                                            ov::ParameterVector{timestep, dt_t, B_t, x_t, C_t, last_state, core_out},
                                             "mamba2_body");
 
     // -------- Loop --------
     auto loop = std::make_shared<v5::Loop>(trip_count, v0::Constant::create(ov::element::boolean, {1}, {true}));
     loop->set_function(body);
-    loop->set_sliced_input(dA_t, dA, 0, 1, 1, -1, 2);
-    loop->set_sliced_input(dBx_t, dBx, 0, 1, 1, -1, 2);
-    loop->set_sliced_input(C_t, C, 0, 1, 1, -1, 2);
+    loop->set_sliced_input(dt_t, dt, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(B_t, B_expanded, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(x_t, x, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(C_t, C_expanded, 0, 1, 1, -1, 1);
     loop->set_merged_input(last_state, h0, state_new);
     loop->set_merged_input(core_out, core_init, core_out_new);
     loop->set_special_body_ports({0, 0});
@@ -150,7 +184,7 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
     }
 
     return std::make_shared<ov::Model>(ov::OutputVector{final_output, final_state},
-                                       ov::ParameterVector{dA, dBx, C, h0});
+                                       ov::ParameterVector{dt, B, x, C, h0});
 }
 
 size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::string& type_name) {
@@ -166,7 +200,7 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::str
 }  // namespace
 
 TEST(TransformationTests, Mamba2Fusion_FuseLoop) {
-    auto model = build_looped_mamba2(/*num_heads=*/4, /*head_dim=*/8, /*state_size=*/16);
+    auto model = build_looped_mamba2(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Mamba2Fusion>();
@@ -178,6 +212,7 @@ TEST(TransformationTests, Mamba2Fusion_FuseLoop) {
 
 TEST(TransformationTests, Mamba2Fusion_FuseLoopWithPostLoopReshape) {
     auto model = build_looped_mamba2(/*num_heads=*/4,
+                                     /*num_groups=*/2,
                                      /*head_dim=*/8,
                                      /*state_size=*/16,
                                      ov::element::f32,
@@ -193,6 +228,7 @@ TEST(TransformationTests, Mamba2Fusion_FuseLoopWithPostLoopReshape) {
 
 TEST(TransformationTests, Mamba2Fusion_DoesNotFuseOnBrokenBody) {
     auto model = build_looped_mamba2(/*num_heads=*/4,
+                                     /*num_groups=*/2,
                                      /*head_dim=*/8,
                                      /*state_size=*/16,
                                      ov::element::f32,
