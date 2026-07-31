@@ -20,7 +20,7 @@ bool evaluate_node<ov::op::v15::StringTensorPack>(std::shared_ptr<ov::Node> node
                        .front()
                        .to_shape();
     outputs.front().set_shape(output_shape);
-    const auto& indices_type = node->get_input_element_type(0);
+    const auto indices_type = node->get_input_element_type(0);
     const auto& data_shape = node->get_input_shape(0);
     int64_t string_count = std::accumulate(data_shape.begin(), data_shape.end(), 1, std::multiplies<int64_t>());
     switch (indices_type) {

@@ -50,7 +50,7 @@ template <>
 bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::Node> node,
                                                            ov::TensorVector& outputs,
                                                            const ov::TensorVector& inputs) {
-    const auto element_type = node->get_input_element_type(0);
+    const auto& element_type = node->get_input_element_type(0);
     const auto& mask_element_type = node->get_input_size() >= 4 ? node->get_input_element_type(3) : element_type;
 #define CASE(type)                                                             \
     case ov::element::type: {                                                  \

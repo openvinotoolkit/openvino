@@ -181,7 +181,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
     constexpr size_t axes_port = 3;
     constexpr size_t max_num_of_ports = 4;
 
-    const auto input_et = inputs[0].get_element_type();
+    element::Type input_et = inputs[0].get_element_type();
     size_t type_size = input_et.size();
 
     PartialShape input_shape{inputs[data_port].get_shape()};
@@ -296,7 +296,7 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
     constexpr size_t axes_port = 2;
     constexpr size_t max_num_of_ports = 3;
 
-    const auto input_et = inputs[0].get_element_type();
+    element::Type input_et = inputs[0].get_element_type();
     size_t type_size = input_et.size();
 
     PartialShape input_shape{inputs[data_port].get_shape()};
@@ -426,7 +426,7 @@ template <>
 bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
                                             ov::TensorVector& outputs,
                                             const ov::TensorVector& inputs) {
-    const auto element_type = node->get_output_element_type(0);
+    const auto& element_type = node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:

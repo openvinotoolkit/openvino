@@ -25,7 +25,7 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGeneratePro
     const ov::Shape output_rois_shape = ov::Shape{post_nms_count, 4};
     const ov::Shape output_scores_shape = ov::Shape{post_nms_count};
 
-    const auto& output_type = op->get_input_element_type(0);
+    const auto output_type = op->get_input_element_type(0);
 
     const auto& im_info_shape = inputs[0].get_shape();
     const auto& anchors_shape = inputs[1].get_shape();
@@ -69,10 +69,9 @@ template <>
 bool evaluate_node<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>(std::shared_ptr<ov::Node> node,
                                                                                   ov::TensorVector& outputs,
                                                                                   const ov::TensorVector& inputs) {
-    const auto element_type =
-        (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
-            ? node->get_input_element_type(1)
-            : node->get_output_element_type(0);
+    auto element_type = node->get_output_element_type(0);
+    if (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
+        element_type = node->get_input_element_type(1);
 
     switch (element_type) {
     case ov::element::boolean:

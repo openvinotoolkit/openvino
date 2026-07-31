@@ -22,8 +22,8 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMS>& node,
 
     outputs[0].set_shape(inputs[0].get_shape());
 
-    const auto in_type = inputs[0].get_element_type();
-    const auto out_type = outputs[0].get_element_type();
+    const auto& in_type = inputs[0].get_element_type();
+    const auto& out_type = outputs[0].get_element_type();
 
     // The type compression mechanism is implemented for F16 only
     // The scale is expected to have the same type as the first input
