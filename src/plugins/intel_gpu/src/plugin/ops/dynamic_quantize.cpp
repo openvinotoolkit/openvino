@@ -13,7 +13,8 @@ namespace ov::intel_gpu {
 
 // Quantization groups are formed along the innermost input dimension, so its length drives the kernel's
 // group count. When the input keeps that dimension dynamic, it can still be recovered from the weights of
-// the consuming FullyConnected, whose IFM equals it.
+// the consuming FullyConnected, whose IFM equals it. Returns 0 when it stays unknown, which makes the opt
+// kernel reject the primitive so that the ref kernel is used instead.
 static size_t get_innermost_size(const std::shared_ptr<ov::op::internal::DynamicQuantize>& op) {
     const auto& in_shape = op->get_input_partial_shape(0);
     const auto& innermost_dim = in_shape[in_shape.size() - 1];
@@ -32,10 +33,11 @@ static size_t get_innermost_size(const std::shared_ptr<ov::op::internal::Dynamic
         if (!ifm.is_static())
             continue;
 
-        // Bail out if the users disagree, as a single value cannot describe all of them
+        // Every user consumes the same activations, so they have to agree on the length
         const auto ifm_size = static_cast<size_t>(ifm.get_length());
-        if (innermost_size != 0 && innermost_size != ifm_size)
-            return 0;
+        OPENVINO_ASSERT(innermost_size == 0 || innermost_size == ifm_size,
+                        "[GPU] Users of ", op->get_friendly_name(), " disagree on the innermost size: ",
+                        innermost_size, " vs ", ifm_size);
         innermost_size = ifm_size;
     }
 
