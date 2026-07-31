@@ -45,7 +45,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         if (!constant) {
             // Non-Constant (e.g. Parameter): insert runtime Reshape to fold group dims
             const auto& ps = node->get_output_partial_shape(0);
-            if (!ps.rank().is_static() || static_cast<size_t>(ps.rank().get_length()) <= final_weights_rank) {
+            if (!ps.is_static() || static_cast<size_t>(ps.rank().get_length()) <= final_weights_rank) {
                 return node;
             }
             OPENVINO_ASSERT(static_cast<size_t>(ps.rank().get_length()) == final_weights_rank + 1,
