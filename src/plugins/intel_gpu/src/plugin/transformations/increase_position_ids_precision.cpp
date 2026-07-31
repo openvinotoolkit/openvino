@@ -599,7 +599,6 @@ IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
 
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const std::string dump_folder = "C:\\dev\\ahnyoung\\cvs_working\\bench_result\\graphs";
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();
