@@ -59,6 +59,14 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, cl
 
 #endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
+#if !defined(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT)
+#define CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT 0x1065
+#endif
+
+#if !defined(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT)
+#define CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT 0x1068
+#endif
+
 /***************************************************************
 * cl_intel_command_queue_families
 ***************************************************************/
@@ -486,27 +494,27 @@ public:
 
     SharedSurfLock(cl_command_queue queue,
         std::vector<cl_mem>& surfaces,
-        cl_int * err = NULL)
+        cl_int * err = nullptr)
         : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
-        if (pfn_acquire != NULL && !m_surfaces.empty()) {
+        if (pfn_acquire != nullptr && !m_surfaces.empty()) {
             cl_int error = pfn_acquire(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),
-                0, NULL, NULL);
+                0, nullptr, nullptr);
 
-            if (error != CL_SUCCESS && m_errPtr != NULL) {
+            if (error != CL_SUCCESS && m_errPtr != nullptr) {
                 *m_errPtr = error;
             }
         }
     }
 
     ~SharedSurfLock() {
-        if (pfn_release != NULL && !m_surfaces.empty()) {
+        if (pfn_release != nullptr && !m_surfaces.empty()) {
             cl_int error = pfn_release(m_queue,
                 static_cast<cl_uint>(m_surfaces.size()),
                 m_surfaces.data(),
-                0, NULL, NULL);
-            if (error != CL_SUCCESS && m_errPtr != NULL) {
+                0, nullptr, nullptr);
+            if (error != CL_SUCCESS && m_errPtr != nullptr) {
                 *m_errPtr = error;
             }
         }
@@ -542,7 +550,7 @@ public:
         uint32_t surface,
 #endif
         uint32_t plane,
-        cl_int * err = NULL) {
+        cl_int * err = nullptr) {
         cl_int error;
         object_ = pfn_clCreateFromMediaSurfaceINTEL(
             context(),
@@ -556,13 +564,13 @@ public:
             &error);
 
         detail::errHandler(error);
-        if (err != NULL) {
+        if (err != nullptr) {
             *err = error;
         }
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() : Image2D() { }
+    ImageVA() { }
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -746,7 +754,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() : Platform() { }
+    PlatformVA() { }
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
@@ -769,14 +777,14 @@ public:
 #else
         const char* fname = "clGetDeviceIDsFromVA_APIMediaAdapterINTEL";
 #endif
-        if (devices == NULL) {
+        if (devices == nullptr) {
             return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
         }
 
         PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL =
             try_load_entrypoint<PFN_clGetDeviceIDsFromMediaAdapterINTEL>(object_, fname);
 
-        if (NULL == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
+        if (nullptr == pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
             return CL_INVALID_PLATFORM;
         }
 
@@ -787,7 +795,7 @@ public:
             media_adapter,
             media_adapter_set,
             0,
-            NULL,
+            nullptr,
             &n);
         if (err != CL_SUCCESS && err != CL_DEVICE_NOT_FOUND) {
             return detail::errHandler(err, fname);
@@ -802,7 +810,7 @@ public:
                 media_adapter_set,
                 n,
                 ids.data(),
-                NULL);
+                nullptr);
             if (err != CL_SUCCESS) {
                 return detail::errHandler(err, fname);
             }
@@ -1081,7 +1089,7 @@ private:
 class KernelIntel : public Kernel {
     using Kernel::Kernel;
 public:
-    explicit KernelIntel(const UsmHelper& usmHelper) : Kernel(), _usmHelper(usmHelper) {}
+    explicit KernelIntel(const UsmHelper& usmHelper) : _usmHelper(usmHelper) {}
     KernelIntel(const Kernel &other, const UsmHelper& usmHelper) : Kernel(other), _usmHelper(usmHelper) { }
 
     KernelIntel clone() const {

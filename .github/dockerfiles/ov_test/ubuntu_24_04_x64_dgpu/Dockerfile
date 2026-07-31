@@ -18,6 +18,7 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
+        git-lfs \
         gpg-agent \
         tzdata \
         wget \
