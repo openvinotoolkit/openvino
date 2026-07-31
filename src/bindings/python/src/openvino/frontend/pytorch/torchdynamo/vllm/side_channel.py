@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 # id(kv_cache_tensor)) so it invalidates if vLLM rebuilds the KV allocator.
 _pa_kv_ovt_cache = {}
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
+# Per-layer static state cache: (id(compiled), layer_name) -> dict with
+#   meta_layer_name: resolved vLLM layer name (post KV-sharing redirect)
+#   layer_obj: reference to vLLM layer object
+#   kv_cache_id: id(layer_obj.kv_cache) at cache-fill time (invalidation key)
+# Skips per-step _placeholder_to_real, nc_layers.get, kv_sharing chase.
+_pa_layer_static_cache = {}
 
 
 # Small helpers for the zero placeholders we return when vLLM has no attn_meta
@@ -231,32 +237,39 @@ def _bind_paged_attention_side_channel(compiled):
         kv_cache = None
         # For the shared Parameter group, fall back to any real layer's
         # attn_metadata (per-seq fields are identical across layers).
-        if layer_name == "shared":
-            # _first_real_layer is a placeholder like "unknown_layer"; map it to
-            # a real vLLM layer name via the same mapping as per-layer params.
-            meta_layer_name = (_placeholder_to_real(_first_real_layer) if _first_real_layer else None) \
-                              or (_real_layer_names[0] if _real_layer_names else None)
-        else:
-            meta_layer_name = _placeholder_to_real(layer_name) or layer_name
-        if ctx is not None:
-            try:
-                am_map = ctx.attn_metadata
-                if isinstance(am_map, dict) and meta_layer_name is not None:
-                    attn_meta = am_map.get(meta_layer_name)
-                # kv cache: vLLM stores it in static_forward_context (per layer).
-                # For the shared group, KV isn't relevant — leave as None so it
-                # falls through to dummy tensors (unused, layer-specific KV is
-                # still bound by the per-layer key_cache/value_cache entries).
-                if layer_name != "shared":
+        # Layer-static state cache: meta_layer_name, layer_obj, and kv_cache
+        # identity are architecture-static within one generate() call. Cache
+        # them per (id(compiled), layer_name). Invalidate the entry if the
+        # layer's kv_cache tensor identity changes (vLLM re-allocated).
+        _static_key = (id(compiled), layer_name)
+        _static = _pa_layer_static_cache.get(_static_key)
+        if _static is not None:
+            # Verify cached kv_cache still valid (fast path when it is)
+            _cached_layer_obj = _static["layer_obj"]
+            if _cached_layer_obj is not None:
+                try:
+                    _cur_kv = _cached_layer_obj.kv_cache
+                    if isinstance(_cur_kv, list):
+                        _cur_kv = _cur_kv[ctx.virtual_engine] if ctx is not None else _cur_kv[0]
+                    if id(_cur_kv) != _static["kv_cache_id"]:
+                        _static = None  # invalidate
+                except Exception:
+                    _static = None
+
+        if _static is None:
+            # Slow path: resolve layer_obj + meta_layer_name + KV sharing chase
+            if layer_name == "shared":
+                meta_layer_name = (_placeholder_to_real(_first_real_layer) if _first_real_layer else None) \
+                                  or (_real_layer_names[0] if _real_layer_names else None)
+            else:
+                meta_layer_name = _placeholder_to_real(layer_name) or layer_name
+            layer_obj = None
+            _resolved_kv_id = None
+            if ctx is not None and layer_name != "shared":
+                try:
                     nc_layers = ctx.no_compile_layers
                     layer_obj = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
-                    # KV sharing (Gemma-4 has last num_kv_shared_layers=20
-                    # layers reuse KV of an earlier same-type layer): read the
-                    # target layer's kv_cache instead. Reuse the same OV-side
-                    # allocation via cache_key redirection below.
-                    # KV sharing: Gemma-4 has last num_kv_shared_layers=20
-                    # layers reuse KV of an earlier same-type layer. Redirect
-                    # to target's kv_cache and OV allocation.
+                    # KV sharing (Gemma-4 hybrid): redirect to target layer
                     kv_sharing_tgt = getattr(layer_obj, "kv_sharing_target_layer_name", None) if layer_obj is not None else None
                     if kv_sharing_tgt is not None:
                         tgt_obj = nc_layers.get(kv_sharing_tgt) if isinstance(nc_layers, dict) else None
@@ -264,10 +277,33 @@ def _bind_paged_attention_side_channel(compiled):
                             layer_obj = tgt_obj
                             meta_layer_name = kv_sharing_tgt
                     if layer_obj is not None and hasattr(layer_obj, "kv_cache"):
-                        kv_cache = layer_obj.kv_cache
-                        # kv_cache may be list indexed by virtual_engine
-                        if isinstance(kv_cache, list):
-                            kv_cache = kv_cache[ctx.virtual_engine]
+                        _kvc = layer_obj.kv_cache
+                        if isinstance(_kvc, list):
+                            _kvc = _kvc[ctx.virtual_engine]
+                        _resolved_kv_id = id(_kvc)
+                except Exception:
+                    pass
+            _static = {
+                "meta_layer_name": meta_layer_name,
+                "layer_obj": layer_obj,
+                "kv_cache_id": _resolved_kv_id,
+            }
+            _pa_layer_static_cache[_static_key] = _static
+
+        meta_layer_name = _static["meta_layer_name"]
+        layer_obj = _static["layer_obj"]
+
+        # Fetch per-step attn_meta and kv_cache using cached refs
+        if ctx is not None:
+            try:
+                if meta_layer_name is not None:
+                    am_map = ctx.attn_metadata
+                    if isinstance(am_map, dict):
+                        attn_meta = am_map.get(meta_layer_name)
+                if layer_name != "shared" and layer_obj is not None and hasattr(layer_obj, "kv_cache"):
+                    kv_cache = layer_obj.kv_cache
+                    if isinstance(kv_cache, list):
+                        kv_cache = kv_cache[ctx.virtual_engine]
             except Exception:
                 pass
 
