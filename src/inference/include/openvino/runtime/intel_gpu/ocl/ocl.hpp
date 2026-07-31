@@ -357,8 +357,7 @@ public:
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const FileDescriptor& file_descriptor) {
         AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::MMAPED_FILE},
-                         {ov::intel_gpu::file_path.name(), file_descriptor.path.string()},
-                         {ov::intel_gpu::file_offset.name(), file_descriptor.offset}};
+                         {ov::intel_gpu::file_descriptor.name(), file_descriptor}};
         return create_tensor(type, shape, params).as<ClBufferTensor>();
     }
 

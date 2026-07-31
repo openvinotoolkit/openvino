@@ -189,9 +189,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
                 return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
             } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
-                const auto path = extract_object(params, ov::intel_gpu::file_path);
-                const auto offset = extract_object(params, ov::intel_gpu::file_offset);
-                return { reuse_memory_from_file(type, shape, path, offset), nullptr };
+                const auto fd = extract_object(params, ov::intel_gpu::file_descriptor);
+                return { reuse_memory_from_file(type, shape, fd.path, fd.offset), nullptr };
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
@@ -285,7 +284,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
     auto mmap_tensor = ov::read_tensor_data(file_path, type, shape, offset);
-    void* data_ptr = std::as_const(mmap_tensor).data();
+    const void* data_ptr = mmap_tensor.data();
     const auto size = static_cast<int64_t>(mmap_tensor.get_byte_size());
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
                                               shape,
@@ -295,7 +294,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               0,
                                               0,
                                               ov::intel_gpu::SharedBufferHandle{},
-                                              VirtualAddressMemory{data_ptr, size},
+                                              VirtualAddressMemory{const_cast<void*>(data_ptr), size},
                                               mmap_tensor);
 }
 

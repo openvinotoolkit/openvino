@@ -274,29 +274,22 @@ struct VirtualAddressMemory {
  * so the file must not be modified until the returned tensor is destroyed.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-struct FileDescriptor {
+struct FileDescriptor { //need to be merged with ov::intel_npu::FileDescriptor in future
     explicit FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
         : path(file_path),
           offset(offset_in_bytes) {
         OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
     }
 
-    std::filesystem::path path;   ///< File path
-    std::size_t offset = 0;       ///< Offset in bytes to read from the file
+    std::filesystem::path path;  ///< File path
+    std::size_t offset = 0;      ///< Offset in bytes to read from the file
 };
 
 /**
- * @brief This key identifies the file path
+ * @brief This key identifies the file descriptor
  * in a memory-mapped tensor parameter map.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-static constexpr Property<std::string> file_path{"FILE_PATH"};
-
-/**
- * @brief This key identifies the offset in bytes from the beginning of the file
- * in a memory-mapped tensor parameter map.
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<std::size_t> file_offset{"FILE_OFFSET"};
+static constexpr Property<FileDescriptor> file_descriptor{"FILE_DESCRIPTOR"};
 }  // namespace intel_gpu
 }  // namespace ov
