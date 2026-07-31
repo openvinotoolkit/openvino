@@ -267,18 +267,11 @@ struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
         auto seq_len = t_src.size(1);
         auto rotary_dims = m_config.rotary_ndims;
 
-        OPENVINO_ASSERT(
-            (t_cos.size(0) == 1 || t_cos.size(0) == batch_size) && (t_cos.size(1) == 1 || t_cos.size(1) == seq_len) &&
-                (t_sin.size(0) == 1 || t_sin.size(0) == batch_size) && (t_sin.size(1) == 1 || t_sin.size(1) == seq_len),
-            "RoPE LTX: cos/sin batch/seq must be 1 or match the input");
-
         cpu_parallel->parallel_for2d(batch_size, seq_len, [&](size_t b, size_t p) {
             auto* x = t_src.ptr<T>(b, p);
-            // cos/sin tables may broadcast over batch/seq
-            auto cb = b < t_cos.size(0) ? b : 0;
-            auto cp = p < t_cos.size(1) ? p : 0;
-            const float* cos = t_cos.ptr<float>(cb, cp);
-            const float* sin = t_sin.ptr<float>(cb, cp);
+            // allow_broadcast handles size-1 cos/sin batch/seq natively
+            const float* cos = &t_cos.at<float>({b, p, 0}, true);
+            const float* sin = &t_sin.at<float>({b, p, 0}, true);
             auto* dst = t_dst.ptr<T>(b, p);
 
             for (size_t r = 0; r < rotary_dims; r += 2) {
