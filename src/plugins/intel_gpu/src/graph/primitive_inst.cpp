@@ -2259,26 +2259,12 @@ void primitive_inst::prepare_primitive() {
                       << (dp->_outputs.empty() || !dp->_outputs[0] ? nullptr : dp->_outputs[0]->buffer_ptr());
         }
         std::cerr << std::endl;
-        
-        auto padstr = [](const layout& l) {
-            std::stringstream s;
-            s << "lowerbound[";
-            for (size_t i = 0; i < l.get_rank(); ++i) s << l.data_padding._lower_size[i] << (i + 1 < l.get_rank() ? "," : "");
-            s << "] ";
-            s << "upperbound[";
-            for (size_t i = 0; i < l.get_rank(); ++i) s << l.data_padding._upper_size[i] << (i + 1 < l.get_rank() ? "," : "");
-            s << "] ";
-            s << "mask[";
-            for (size_t i = 0; i < l.get_rank(); ++i) s << (l.data_padding._dynamic_dims_mask[i] ? '1' : '0');
-            s << "]";
-            return s.str();
-        };
 
         std::cerr << "[PROBE_BUFFER_LAYOUT] " << id() << " kern=" << _impl->get_kernel_name()
                   << " opt=" << can_be_optimized()
-                  << " OUT=" << _impl_params->output_layouts[0].to_short_string() << " " << padstr(_impl_params->output_layouts[0]);
+                  << " OUT=" << _impl_params->output_layouts[0].to_short_string();
         for (size_t k = 0; k < _impl_params->input_layouts.size() && k < 2; ++k)
-            std::cerr << " IN[" << k << "]=" << _impl_params->input_layouts[k].to_short_string() << " " << padstr(_impl_params->input_layouts[k]);
+            std::cerr << " IN[" << k << "]=" << _impl_params->input_layouts[k].to_short_string();
         std::cerr << std::endl;
     }
 
