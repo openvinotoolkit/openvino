@@ -672,11 +672,22 @@ void ov::CoreImpl::register_compile_time_plugins() {
             register_plugin_in_registry_unsafe(device_name, desc);
         }
 #else
-        const auto& plugin_path = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
-        if (m_plugin_registry.find(device_name) == m_plugin_registry.end() && ov::util::file_exists(plugin_path)) {
+        // A device may map to several candidate libraries (a dispatch group); keep the ones
+        // that exist. The first present candidate is primary, the rest are extra candidates.
+        if (m_plugin_registry.find(device_name) == m_plugin_registry.end()) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
-            PluginDescriptor desc{plugin_path, config};
-            register_plugin_in_registry_unsafe(device_name, desc);
+            std::vector<std::filesystem::path> present;
+            for (const auto& p : plugin.second.m_plugin_paths) {
+                const auto resolved = ov::util::get_compiled_plugin_path(p);
+                if (ov::util::file_exists(resolved))
+                    present.push_back(resolved);
+            }
+            if (!present.empty()) {
+                PluginDescriptor desc{present.front(), config};
+                for (size_t i = 1; i < present.size(); ++i)
+                    desc.m_candidates.push_back({present[i], config, nullptr});
+                register_plugin_in_registry_unsafe(device_name, desc);
+            }
         }
 #endif
     }

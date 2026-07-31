@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# This script runs via `cmake -P`, which does not inherit the project's policy defaults;
+# enable the IN_LIST if() operator explicitly (used to dedup devices below).
+cmake_policy(SET CMP0057 NEW)
+
 foreach(var OV_DEVICE_MAPPING BUILD_SHARED_LIBS OV_PLUGINS_HPP_HEADER OV_PLUGINS_HPP_HEADER_IN)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is required, but not defined")
@@ -14,11 +18,20 @@ set(OV_PLUGINS_DECLARATIONS "")
 set(OV_PLUGINS_MAP_DEFINITION
     "    static const std::map<Key, Value> plugins_hpp = {")
 
+# Collect the ordered device list and, for shared builds, the list of libraries per device
+# (a device may map to more than one library — a dispatch group). Static builds stay 1:1.
+set(ov_ordered_devices)
 foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
     string(REPLACE ":" ";" dev_map "${dev_map}")
     list(GET dev_map 0 mapped_dev_name)
     list(GET dev_map 1 actual_dev_name)
+    if(NOT mapped_dev_name IN_LIST ov_ordered_devices)
+        list(APPEND ov_ordered_devices ${mapped_dev_name})
+    endif()
+    list(APPEND ${mapped_dev_name}_ACTUAL_NAMES "${actual_dev_name}")
+endforeach()
 
+foreach(mapped_dev_name IN LISTS ov_ordered_devices)
     # definitions
     set(dev_config "{")
     if(${mapped_dev_name}_CONFIG)
@@ -34,9 +47,9 @@ foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
     endif()
     set(dev_config "${dev_config}}")
 
-
     if(NOT BUILD_SHARED_LIBS)
-        # common
+        # Static builds are single-RT (COMBINED is prohibited), so exactly one library.
+        list(GET ${mapped_dev_name}_ACTUAL_NAMES 0 actual_dev_name)
         set(_OV_CREATE_PLUGIN_FUNC "create_plugin_engine_${actual_dev_name}")
         set(_OV_CREATE_EXTENSION_FUNC "create_extensions_${actual_dev_name}")
 
@@ -53,8 +66,15 @@ foreach(dev_map IN LISTS OV_DEVICE_MAPPING)
         set(OV_PLUGINS_MAP_DEFINITION "${OV_PLUGINS_MAP_DEFINITION}
         { \"${mapped_dev_name}\", Value { ${_OV_CREATE_PLUGIN_FUNC}, ${_OV_CREATE_EXTENSION_FUNC}, ${dev_config} } },")
     else()
+        # Shared build: one-or-more candidate libraries → a braced initializer list of paths.
+        set(dev_paths "{")
+        foreach(actual_dev_name IN LISTS ${mapped_dev_name}_ACTUAL_NAMES)
+            set(dev_paths "${dev_paths} \"${actual_dev_name}\",")
+        endforeach()
+        set(dev_paths "${dev_paths} }")
+
         set(OV_PLUGINS_MAP_DEFINITION "${OV_PLUGINS_MAP_DEFINITION}
-        { \"${mapped_dev_name}\", Value { \"${actual_dev_name}\", ${dev_config} } },")
+        { \"${mapped_dev_name}\", Value { ${dev_paths}, ${dev_config} } },")
     endif()
 endforeach()
 
