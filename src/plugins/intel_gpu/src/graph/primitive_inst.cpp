@@ -1856,6 +1856,7 @@ void primitive_inst::do_runtime_in_place_concat() {
         // values.
 
         bool padding_reverted = false;
+        size_t dep_idx = 0;
         for (auto& dep : concat_inst->_deps) {
             if (dep.first->_impl_params->output_layouts[0] != dep.first->get_node().get_output_layout(0)) {
                 dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
@@ -1864,6 +1865,14 @@ void primitive_inst::do_runtime_in_place_concat() {
                                        << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
                 padding_reverted = true;
             }
+            if (dep_idx < concat_inst->_impl_params->input_layouts.size() &&
+                concat_inst->_impl_params->input_layouts[dep_idx] != dep.first->get_node().get_output_layout(0)) {
+                concat_inst->_impl_params->input_layouts[dep_idx] = dep.first->get_node().get_output_layout(0);
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of input " << dep_idx << " : "
+                                       << concat_inst->_impl_params->input_layouts[dep_idx].to_string() << std::endl;
+                padding_reverted = true;
+            }
+            ++dep_idx;
         }
         if (padding_reverted)
             concat_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
