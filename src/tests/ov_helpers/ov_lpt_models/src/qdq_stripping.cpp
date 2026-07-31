@@ -29,11 +29,10 @@ namespace subgraph {
 ov::Output<ov::Node> QDQStrippingFunction::build_fq(const ov::Output<ov::Node>& input,
                                                     const QuantizationParams& qp,
                                                     size_t levels,
-                                                    int mixed_precision) {
-    auto in_precision = (mixed_precision == 2) ? ov::element::f16 : ov::element::f32;
-    auto out_precision = (mixed_precision >= 1) ? ov::element::f16 : ov::element::f32;
-    auto il = ov::op::v0::Constant::create(in_precision, {}, {qp.i_l});
-    auto ih = ov::op::v0::Constant::create(in_precision, {}, {qp.i_h});
+                                                    bool mixed_precision) {
+    auto out_precision = mixed_precision ? ov::element::f16 : ov::element::f32;
+    auto il = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.i_l});
+    auto ih = ov::op::v0::Constant::create(ov::element::f32, {}, {qp.i_h});
     auto ol = ov::op::v0::Constant::create(out_precision, {}, {qp.o_l});
     auto oh = ov::op::v0::Constant::create(out_precision, {}, {qp.o_h});
     return std::make_shared<ov::op::v0::FakeQuantize>(input, il, ih, ol, oh, levels);
@@ -614,7 +613,7 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mixed_precision_pattern(
         };
 
     const auto& q_params = quantization_params.at(quantization_precision);
-    auto input_fq = build_fq(params[0], q_params, 256, 1);
+    auto input_fq = build_fq(params[0], q_params, 256, true);
 
     auto input_convert1 = std::make_shared<ov::op::v0::Convert>(input_fq, quantization_precision);
     auto input_convert2 = std::make_shared<ov::op::v0::Convert>(input_convert1, ov::element::f16);

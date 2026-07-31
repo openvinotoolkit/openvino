@@ -28,7 +28,7 @@ public:
     static ov::Output<ov::Node> build_fq(const ov::Output<ov::Node>& input,
                                          const QuantizationParams& qp,
                                          size_t levels = 65536,
-                                         int mixed_precision = 0);
+                                         bool mixed_precision = false);
     static ov::Output<ov::Node> build_dq(const ov::Output<ov::Node>& input,
                                          const ov::element::Type& quantization_precision,
                                          const QuantizationParams& qp,
