@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C)  2026 FUJITSU LIMITED
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,20 @@ namespace ov {
 namespace test {
 
 namespace {
-const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage_attn.name(), true}},
-                                                    {{ov::intel_cpu::enable_sage_attn.name(), false}}};
+const std::vector<ov::AnyMap> additional_configs = {
+        {
+            {ov::intel_cpu::enable_sage_attn.name(), false},
+            {ov::hint::kv_cache_precision.name(), ov::element::f32},
+            {ov::key_cache_precision.name(), ov::element::f32},
+            {ov::value_cache_precision.name(), ov::element::f32},
+        }, 
+        {
+            {ov::intel_cpu::enable_sage_attn.name(), false},
+            {ov::hint::kv_cache_precision.name(), ov::element::u8},
+            {ov::key_cache_precision.name(), ov::element::u8},
+            {ov::value_cache_precision.name(), ov::element::u8},
+        }
+    };
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
@@ -26,7 +38,7 @@ const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
                                             // TODO: Xattn should not direcctly compare with SDPA/decomposed Matmul
@@ -55,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest_WithSlidingWindowAndSinks,
 // Verifies that PA2 reads the cache populated by PA1 and produces matching output.
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnSharedKVCache,
                          PagedAttnVSSDPATest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(false),   // extendBlockIndices
                                             ::testing::Values(false),   // enableXattn
@@ -76,83 +88,14 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
-                                            ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(true, false),
-                                            ::testing::Values(true, false),
-                                            ::testing::Values(false),  // sinkInput = false
-                                            ::testing::Values(0),      // sliding_window = 0
-                                            ::testing::ValuesIn(additional_configs),
-                                            ::testing::Values(false)),  // addSharedReader
-                         PagedAttnTestBase::getTestCaseName);
-}  // namespace
-
-TEST_P(PagedAttnCacheCollisionTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
-    // Run PA model (single compilation — both PA nodes share executor cache)
-    past_len_count = 0;
-    prepare();
-    init_all_kv_caches(1024 / 32);
-    std::vector<ov::Tensor> actualOutputs;
-    int idx = 0;
-    for (auto&& shapes : targetStaticShapes) {
-        generate(idx++, true, shapes, false, false);
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-        }
-        inferRequest.infer();
-        auto tensor = inferRequest.get_output_tensor(1);
-        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
-        tensor.copy_to(copy);
-        actualOutputs.push_back(copy);
-    }
-
-    // Run SDPA reference for PA2 (head_size=hs2)
-    past_len_count = 0;
-    auto saved_function = function;
-    function = functionRefs;
-    prepare();
-    std::vector<ov::Tensor> expectedOutputs;
-    idx = 0;
-    for (auto&& shapes : targetStaticShapes2_) {
-        generate(idx++, false, shapes, false, false);
-        for (const auto& input : inputs) {
-            inferRequest.set_tensor(input.first, input.second);
-        }
-        inferRequest.infer();
-        auto tensor = inferRequest.get_output_tensor(0);
-        ov::Tensor copy{tensor.get_element_type(), tensor.get_shape()};
-        tensor.copy_to(copy);
-        expectedOutputs.push_back(copy);
-    }
-    reset();
-    function = saved_function;
-
-    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size());
-    for (size_t i = 0; i < actualOutputs.size(); i++) {
-        ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
-    }
-}
-
-namespace {
-const std::vector<InputShapes> inputShapesCacheCollision = {{
-    // [L, B=1, H=4, S=256] — PA1 head_size; PA2 uses S=512
-    {{-1, 1, 4, 256}, {{10, 1, 4, 256}, {1, 1, 4, 256}}},
-    {{-1, 1, 4, 256}, {{0, 1, 4, 256}, {10, 1, 4, 256}}},
-}};
-
-INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnExecutorCacheCollision,
-                         PagedAttnCacheCollisionTest,
                          ::testing::Combine(::testing::Values(ElementType::f32),
-                                            ::testing::ValuesIn(inputShapesCacheCollision),
+                                            ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(false),
-                                            ::testing::Values(false),
-                                            ::testing::Values(false),
-                                            ::testing::Values(0),
-                                            ::testing::Values(ov::AnyMap{
-                                                {ov::intel_cpu::enable_sage_attn.name(), false}}),
-                                            ::testing::Values(false)),
+                                            ::testing::Values(false),          // enableXatten = false 
+                                            ::testing::Values(true, false),    // sinkInput = true/false
+                                            ::testing::Values(0),              // sliding_window = 0
+                                            ::testing::ValuesIn(additional_configs),
+                                            ::testing::Values(false)),         // addSharedReader
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

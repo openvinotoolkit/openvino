@@ -46,6 +46,7 @@ network: defaults
 
 imports:
   - shared/agentic-workflows/download-failure-logs.md
+  - shared/agentic-workflows/collect-pr-info.md
   - shared/agentic-workflows/notify-teams.md
   - shared/agentic-workflows/notify-teams-recurring.md
   - shared/agentic-workflows/rerun-failed-jobs.md
@@ -103,6 +104,7 @@ Logs have been pre-downloaded before this session started:
 - **Job metadata**: `/tmp/gh-aw/agent/ci-doctor/logs/failed-jobs.json` — structured list of failed jobs and their failed steps
 - **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log` — full job logs downloaded from GitHub Actions
 - **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/*-hints.txt` — pre-located error lines (from logs) via generic grep heuristics
+- **PR info**: `/tmp/gh-aw/agent/ci-doctor/pr-info.json` (structured) and `/tmp/gh-aw/agent/ci-doctor/pr-info.txt` (human-readable) — the pull request behind this merge-queue run, resolved before the session. Includes `pr_number`, `pr_url`, `author`, `title`, `base_branch`, `head_sha`, `labels`, and the list of `changed_files`. **Use these values verbatim for the analysis and safe-outputs.** If the file is empty (`{}`) or `pr-info.txt` says no PR could be associated, treat the PR/Author fields as `not_found` and skip `add_comment`. Prefer the `changed_files` list when scoping PR-diff source inspection (Phase 4).
 
 **Start here**: Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` first — it lists every file location and the first few hint matches. Then examine the relevant hint files to jump directly to error locations (read ~50 lines around each hinted line number before loading the full log).
 
@@ -513,7 +515,7 @@ Additionally, **when the failure is associated with a PR in the merge queue**, p
 
 Post a concise, actionable remediation comment on the affected merge-queue PR so the author has the context and next steps. Call `add_comment` **at most once per investigation** and **only** when a PR can be identified.
 
-- **`item_number`** (required) — The number of the affected PR in the merge queue (the same value reported as `notify_teams.pr_number`). This is required because the `workflow_run` trigger carries no PR context; the comment cannot be posted without it.
+- **`item_number`** (required) — The number of the affected PR in the merge queue (the `pr_number` from `/tmp/gh-aw/agent/ci-doctor/pr-info.json`, i.e. the same value reported as `notify_teams.pr_number`). This is required because the `workflow_run` trigger carries no PR context; the comment cannot be posted without it. If `pr-info.json` identifies no PR, skip the comment.
 
 - **`body`** (required) — Markdown comment body. Keep it focused and short. GitHub renders standard Markdown here (headings, bold, inline code, fenced code blocks with backticks, lists, links). Use this structure:
 
@@ -563,9 +565,9 @@ Provide all required fields and include the optional PR-related fields whenever 
 
 - **`failed_workflow`** (required) — Name of the workflow whose run is being investigated, taken from `get_workflow_run` (field `name`). For example: `Linux (Ubuntu 22.04, Python 3.11)`. Never pass the name of this CI Failure Doctor MQ workflow itself.
 
-- **`pr_number`** / **`pr_url`** (optional) — Provide both together when the failure is associated with a PR in the merge queue. Omit both if no PR can be identified.
+- **`pr_number`** / **`pr_url`** (optional) — Read both directly from the pre-collected `/tmp/gh-aw/agent/ci-doctor/pr-info.json` (`pr_number`, `pr_url`). Provide them together whenever that file identifies a PR. Omit both only if the file is empty (`{}`) or no PR could be resolved. Do not re-derive these from the run metadata yourself.
 
-- **`author`** (optional) — GitHub login of the PR author or commit author when known. Omit if it cannot be determined from the workflow run / PR metadata.
+- **`author`** (optional) — Read from the `author` field of `/tmp/gh-aw/agent/ci-doctor/pr-info.json`. Omit only if the file has no PR / empty `author`.
 
 - **`db_entries`** (required) — Current total number of unique entries in the CI Doctor MQ investigation database. Compute it during Phase 5 by counting distinct files under `/tmp/gh-aw/repo-memory/default/mq/investigations/` (including the one this run just wrote) and pass the resulting non-negative integer as a string (e.g., `"42"`). If the directory does not yet exist, report `"0"` (or `"1"` if you just created the first entry). Note: counting files under any path other than `/tmp/gh-aw/repo-memory/default/mq/investigations/` will give a wrong result.
 
