@@ -274,7 +274,7 @@ struct VirtualAddressMemory {
  * so the file must not be modified until the returned tensor is destroyed.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
-struct FileDescriptor { //need to be merged with ov::intel_npu::FileDescriptor in future
+struct FileDescriptor {  //need to be merged with ov::intel_npu::FileDescriptor in future
     explicit FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
         : path(file_path),
           offset(offset_in_bytes) {
