@@ -520,20 +520,20 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs128_K2560_sym_prec
                                 PrecomputeSum::Enabled);
 }
 
-// Sub-group cooperative mode (SMALL_GS_SG) for GS=64, 32, 16
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs64_sg) {
+// LARGE_GS mode for small group sizes (GS=64, 32, 16)
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs64) {
     this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 64,
                                 data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
                                 "dynamic_quantize_gpu_opt");
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs32_sg) {
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs32) {
     this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 32,
                                 data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
                                 "dynamic_quantize_gpu_opt");
 }
 
-TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs16_sg) {
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs16) {
     this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 16,
                                 data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
                                 "dynamic_quantize_gpu_opt");

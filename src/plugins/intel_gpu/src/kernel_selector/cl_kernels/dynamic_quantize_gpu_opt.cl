@@ -44,6 +44,7 @@
     #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
+#define BLOCKS_PER_GROUP (QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE)
 
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
@@ -148,7 +149,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const uint b = (uint)get_global_id(2);
     const uint f_grp = get_global_id(1) * VEC_SIZE * SIMD / QUANTIZE_GROUP_SIZE;
     const uint sglid = get_sub_group_local_id();
-    const uint blockid = (uint)get_global_id(1) % (QUANTIZE_GROUP_SIZE / VEC_SIZE / SIMD);
+    const uint blockid = (uint)get_global_id(1) % BLOCKS_PER_GROUP;
 #if OUTPUT_DIMS == 2
     const uint input_offset = INPUT0_GET_INDEX (b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
     const uint output_offset = OUTPUT_GET_INDEX(b, f_grp * QUANTIZE_GROUP_SIZE + VEC_SIZE * sglid, 0, 0);
@@ -165,7 +166,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #endif
     const uint offset = b_offset + VEC_SIZE * sglid;
 
-#if (QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE) > 1
+#if BLOCKS_PER_GROUP > 1
     const uint local_id = get_local_id(1);
     __local half local_mem_max[BLOCK_NUM];
     __local half local_mem_min[BLOCK_NUM];
@@ -202,7 +203,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     min_value = sub_group_reduce_min(grp_min);
 #endif
 
-#if (QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE) > 1
+#if BLOCKS_PER_GROUP > 1
     const uint blocks_per_group = QUANTIZE_GROUP_SIZE / block_size;
     const uint group_id = local_id / blocks_per_group;
     const uint block_in_group = local_id % blocks_per_group;
@@ -222,7 +223,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if ASYMMETRIC_QUANTIZATION
     min_value = fmin(min_value, local_mem_min[group_base_idx]);
 #endif
-    unroll_for (int j = 1; j < QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE; j++) {
+    unroll_for (int j = 1; j < BLOCKS_PER_GROUP; j++) {
         max_value = fmax(max_value, local_mem_max[group_base_idx + j]);
 #if ASYMMETRIC_QUANTIZATION
         min_value = fmin(min_value, local_mem_min[group_base_idx + j]);
@@ -260,7 +261,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     // Reduce within subgroup
     precomputed_reduction = sub_group_reduce_add(precomputed_reduction);
 
-#if (QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE) > 1
+#if BLOCKS_PER_GROUP > 1
     // Store to local memory for cross-block aggregation
     if (sglid == 0) {
         local_mem_reduction[local_id] = precomputed_reduction;
@@ -271,7 +272,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     // Aggregate reduction across all blocks in this quantization group
     if (sglid == 0 && block_in_group == 0) {
         int total_reduction = 0;
-        unroll_for (int j = 0; j < QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE; j++) {
+        unroll_for (int j = 0; j < BLOCKS_PER_GROUP; j++) {
             total_reduction += local_mem_reduction[group_base_idx + j];
         }
         precomputed_reduction = total_reduction;
