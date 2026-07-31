@@ -212,7 +212,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     matmul_op.set_transpose_b(desc->weights_transposed);
     auto get_ranked_shape = [](const layout& input_layout, size_t rank) {
         auto shape = input_layout.get<ShapeType>();
-        if (shape.rank().is_static() && shape.size() > rank && rank <= 4) {
+        if (input_layout.is_static() && shape.rank().is_static() && shape.size() > rank && rank <= 4) {
             if constexpr (std::is_same_v<ShapeType, ov::PartialShape>) {
                 return ShapeType(std::vector<ov::Dimension>(shape.begin(), shape.begin() + rank));
             } else {
