@@ -186,7 +186,7 @@ Graph::~Graph() {
             }
         };
 
-        if (host_exec_times.size() >= 1) {
+        if (!host_exec_times.empty()) {
             print_entry("First", host_exec_times[0], 1);
         }
 
@@ -738,7 +738,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.node_name = layerName;
 
         if (combinePrimByIRLayers) {
-            std::string kernelId = "";
+            std::string kernelId;
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
             for (auto &id : profilingIDs) {
                 auto iter = perfMap.find(id);
@@ -775,7 +775,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if (perfIter == perfMap.end())  continue;
 
         bool existInProfiling = std::find(profilingIDs.begin(), profilingIDs.end(), primId) != profilingIDs.end();
-        if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
+        if ((!existInProfiling || (existInProfiling && perfIter->second.first.empty())) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
             if (!event)
