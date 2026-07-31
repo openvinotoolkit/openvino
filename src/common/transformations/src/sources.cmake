@@ -131,6 +131,7 @@ set(CONTROL_FLOW_SOURCES
 set(FP16_COMPRESSION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/align_mixed_fp32_fp16_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_compression_only_to_legacy.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/disable_bf16_comp_ltx_rope.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_legacy_precision_attribute.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_decompression_convert_constant_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_floatpoint_range.cpp
