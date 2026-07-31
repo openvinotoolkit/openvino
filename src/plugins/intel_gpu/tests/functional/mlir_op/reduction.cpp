@@ -23,7 +23,7 @@ using ReduceParams = std::tuple<ov::Shape,             // Input shape
                                 bool>;                 // Keep dims
 
 template <typename ReduceOp>
-class ReduceTest : public testing::WithParamInterface<ReduceParams>, public ov::test::MlirSubgraphStaticTest {
+class ReduceTest : public testing::WithParamInterface<ReduceParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReduceParams>& obj) {
         const auto& [input_shape, precision, axes, keep_dims] = obj.param;

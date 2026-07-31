@@ -87,7 +87,7 @@ static std::shared_ptr<ov::Node> build_matmul_rmsnorm(ov::element::Type prec,
 using MatMulRmsnormParams = std::tuple<ov::Shape,   // A shape
                                        ov::Shape>;  // B shape
 
-class MatMulRmsnormTest : public testing::WithParamInterface<MatMulRmsnormParams>, public ov::test::MlirSubgraphStaticTest {
+class MatMulRmsnormTest : public testing::WithParamInterface<MatMulRmsnormParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsnormParams>& obj) {
         const auto& [a_shape, b_shape] = obj.param;
@@ -140,7 +140,7 @@ using MatMulRmsnormConcatParams = std::tuple<ov::Shape,   // A0 shape
                                              ov::Shape,   // A1 shape
                                              ov::Shape>;  // B shape
 
-class MatMulRmsnormConcatTest : public testing::WithParamInterface<MatMulRmsnormConcatParams>, public ov::test::MlirSubgraphStaticTest {
+class MatMulRmsnormConcatTest : public testing::WithParamInterface<MatMulRmsnormConcatParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsnormConcatParams>& obj) {
         const auto& [a0_shape, a1_shape, b_shape] = obj.param;

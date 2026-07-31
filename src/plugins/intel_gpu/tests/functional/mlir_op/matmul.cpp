@@ -18,7 +18,7 @@ using BatchMatMulParams = std::tuple<ov::Shape,  // A shape
                                      bool,       // transpose B
                                      ov::element::Type>;
 
-class BatchMatMulTest : public testing::WithParamInterface<BatchMatMulParams>, public ov::test::MlirSubgraphStaticTest {
+class BatchMatMulTest : public testing::WithParamInterface<BatchMatMulParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchMatMulParams>& obj) {
         const auto& [a_shape, b_shape, tr_a, tr_b, prec] = obj.param;
@@ -63,7 +63,7 @@ using DynamicMatMulParams = std::tuple<ov::test::InputShape,  // A shape (M, K)
                                        ov::element::Type>;
 
 class DynamicMatMulTest : public testing::WithParamInterface<DynamicMatMulParams>,
-                          public ov::test::MlirSubgraphTest {
+                          virtual public ov::test::MlirSubgraphTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicMatMulParams>& obj) {
         const auto& [a_shape, b_shape, prec] = obj.param;

@@ -35,7 +35,7 @@ typedef std::tuple<ov::element::Type,                 // netPrecision
                    > ScaledAttnGPUTestParams;
 
 class ScaledAttnLayerGPUMlirTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>,
-                               public ov::test::MlirSubgraphTest {
+                               virtual public ov::test::MlirSubgraphTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj);
 

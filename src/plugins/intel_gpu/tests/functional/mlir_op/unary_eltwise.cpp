@@ -23,7 +23,7 @@ namespace {
 using UnaryElementwiseParams = std::tuple<ov::Shape, ov::element::Type>;
 
 template <typename Op>
-class UnaryElementwiseTest : public testing::WithParamInterface<UnaryElementwiseParams>, public ov::test::MlirSubgraphStaticTest {
+class UnaryElementwiseTest : public testing::WithParamInterface<UnaryElementwiseParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<UnaryElementwiseParams>& obj) {
         const auto& [shape, precision] = obj.param;

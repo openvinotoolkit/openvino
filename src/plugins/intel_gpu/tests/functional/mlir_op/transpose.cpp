@@ -18,7 +18,7 @@ namespace {
 // Params: input shape, order, precision
 using TransposeParams = std::tuple<ov::Shape, std::vector<int64_t>, ov::element::Type>;
 
-class TransposeTest : public testing::WithParamInterface<TransposeParams>, public ov::test::MlirSubgraphStaticTest {
+class TransposeTest : public testing::WithParamInterface<TransposeParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TransposeParams>& obj) {
         const auto& [shape, order, precision] = obj.param;
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_SUITE_P(mlir_Transpose, TransposeTest, transpose_params, Transp
 // Params: input shape, output shape, order, precision
 using ReshapeAndTransposeParams = std::tuple<ov::Shape, ov::Shape, std::vector<int64_t>, ov::element::Type>;
 
-class ReshapeAndTransposeTest : public testing::WithParamInterface<ReshapeAndTransposeParams>, public ov::test::MlirSubgraphStaticTest {
+class ReshapeAndTransposeTest : public testing::WithParamInterface<ReshapeAndTransposeParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapeAndTransposeParams>& obj) {
         const auto& [input_shape, output_shape, order, precision] = obj.param;
