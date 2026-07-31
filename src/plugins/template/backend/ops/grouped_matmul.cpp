@@ -25,7 +25,7 @@ struct Evaluate : ov::element::NoAction<bool> {
                              const ov::Shape& out_shape,
                              size_t num_groups) {
         if (offsets_tensor) {
-            const auto& offsets_et = offsets_tensor->get_element_type();
+            const auto offsets_et = offsets_tensor->get_element_type();
             if (offsets_et == ov::element::i32) {
                 ov::reference::grouped_matmul(mat_a.data<const T>(),
                                               mat_b.data<const T>(),

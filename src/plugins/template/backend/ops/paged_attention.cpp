@@ -55,13 +55,13 @@ bool evaluate(const ov::op::PagedAttentionExtension* pa_op,
     // Map "present but empty" inputs to nullptr. These are logically optional
     // but must be passed as empty tensors since PA has no optional positional inputs.
     const void* alibi_ptr = inputs[11].get_size() > 0 ? inputs[11].data() : nullptr;
-    const auto& alibi_et = alibi_ptr ? inputs[11].get_element_type() : ov::element::dynamic;
+    const auto alibi_et = alibi_ptr ? inputs[11].get_element_type() : ov::element::dynamic;
     const void* trig_lut_ptr = inputs[16].get_size() > 0 ? inputs[16].data() : nullptr;
-    const auto& trig_lut_et = trig_lut_ptr ? inputs[16].get_element_type() : ov::element::dynamic;
+    const auto trig_lut_et = trig_lut_ptr ? inputs[16].get_element_type() : ov::element::dynamic;
     const void* xattn_thresh_ptr = inputs[17].get_size() > 0 ? inputs[17].data() : nullptr;
-    const auto& xattn_thresh_et = xattn_thresh_ptr ? inputs[17].get_element_type() : ov::element::dynamic;
+    const auto xattn_thresh_et = xattn_thresh_ptr ? inputs[17].get_element_type() : ov::element::dynamic;
     const void* sinks_ptr = inputs[20].get_size() > 0 ? inputs[20].data() : nullptr;
-    const auto& sinks_et = sinks_ptr ? inputs[20].get_element_type() : ov::element::dynamic;
+    const auto sinks_et = sinks_ptr ? inputs[20].get_element_type() : ov::element::dynamic;
     const int32_t* arkv_evict_ptr = inputs[22].get_size() > 0 ? inputs[22].data<int32_t>() : nullptr;
     const int32_t* arkv_indices_ptr = inputs[23].get_size() > 0 ? inputs[23].data<int32_t>() : nullptr;
     const int32_t* arkv_begins_ptr = inputs[24].get_size() > 0 ? inputs[24].data<int32_t>() : nullptr;

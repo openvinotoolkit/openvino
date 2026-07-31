@@ -86,7 +86,7 @@ void function(const std::shared_ptr<ov::Model>& function, const ov::TensorVector
     for (const auto& parameter : parameters) {
         const auto& parameterIndex = function->get_parameter_index(parameter);
         const auto& parameterShape = parameter->get_shape();
-        const auto& parameterType = parameter->get_element_type();
+        const auto parameterType = parameter->get_element_type();
         const auto& parameterSize = ov::shape_size(parameterShape) * parameterType.size();
 
         const auto& input = inputs[parameterIndex];

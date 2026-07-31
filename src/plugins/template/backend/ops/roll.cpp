@@ -8,7 +8,7 @@
 #include "openvino/op/roll.hpp"
 
 bool evaluate(const std::shared_ptr<ov::op::v7::Roll>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
-    const auto& shiftType = inputs[1].get_element_type();
+    const auto shiftType = inputs[1].get_element_type();
     std::vector<int64_t> shift_int64;
     if (shiftType == ov::element::i32) {
         auto shift = inputs[1].data<const int32_t>();
@@ -20,7 +20,7 @@ bool evaluate(const std::shared_ptr<ov::op::v7::Roll>& op, ov::TensorVector& out
                            return static_cast<int64_t>(elem);
                        });
     }
-    const auto& axesType = inputs[2].get_element_type();
+    const auto axesType = inputs[2].get_element_type();
     std::vector<int64_t> axes_int64;
     if (axesType == ov::element::i32) {
         auto axes = inputs[2].data<const int32_t>();

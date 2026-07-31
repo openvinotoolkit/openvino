@@ -106,7 +106,7 @@ public:
 
 private:
     static std::shared_ptr<Model> CreateFunction(const GatedDeltaNetParams& params) {
-        const auto& elementType = params.qData.data.get_element_type();
+        const auto elementType = params.qData.data.get_element_type();
         const auto query = std::make_shared<op::v0::Parameter>(elementType, params.qShape);
         const auto key = std::make_shared<op::v0::Parameter>(elementType, params.kShape);
         const auto value = std::make_shared<op::v0::Parameter>(elementType, params.vShape);
