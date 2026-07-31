@@ -315,7 +315,101 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const ov::AnyMap&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
+    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
+        return std::vector<std::string>{"NPU"};
+    });
+    register_property_with_custom_function( _properties, ov::device::capabilities.name(), true, [this](const ov::AnyMap&) {
+        return _optimizationCapabilities;
+    });
+    register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const ov::AnyMap&) {
+        return _rangeForAsyncInferRequests;
+    });
+    register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const ov::AnyMap&) {
+        return _rangeForStreams;
+    });
+    register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const ov::AnyMap&) {
+        return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    });
+    register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const ov::AnyMap&) {
+        return std::shared_ptr<const ov::Model>(nullptr);
+    });
+    register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [this](const ov::AnyMap&) {
+        return _internalSupportedProperties;
+    });
+    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [](const ov::AnyMap&) {
+        return utils::STANDARD_PAGE_SIZE;
+    });
+    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, [this](const ov::AnyMap&) {
+        std::vector<ov::PropertyName> caching_props{};
+        for (auto prop : _cachingProperties) {
+            if (_config.isAvailable(prop)) {
+                caching_props.emplace_back(prop);
+            }
+        }
+        return caching_props;
+    });
+    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const ov::AnyMap&) {
+        std::vector<ov::PropertyName> supportedProperties;
+        for (auto& property : _properties) {
+            if (property.second.isPublic && property.second.isSupported()) {
+                supportedProperties.emplace_back(ov::PropertyName(property.first, property.second.mutability));
+            }
+        }
+        return supportedProperties;
+    });
 
+    // Special case: this property is always registered because it's supported by the implementation,
+    // but it's not visible in supported_properties if the driver doesn't support it.
+    register_property_with_custom_visibility<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially.name(), [this] {
+        if (_backend && _backend->getInitStructs()) {
+            if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+                return true;
+            }
+        }
+        return false;
+    }());
+
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), has_backend, false, [this](const ov::AnyMap&) {
+        if (_backend == nullptr) {
+            OPENVINO_THROW("No available backend");
+        }
+        return _backend->getName();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::driver_version.name(), has_backend, true, [this](const ov::AnyMap&) {
+        if (_backend == nullptr) {
+            OPENVINO_THROW("No available backend");
+        }
+        return _backend->getDriverVersion();
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::pci_info.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getPciInfo(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::gops.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getGops(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::type.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getDeviceType(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getDeviceAllocMemSize(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getDeviceTotalMemSize(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::uuid.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        auto devUuid = utils::getDeviceUuid(_backend, _config.get<intel_npu::DEVICE_ID>());
+        return decltype(ov::device::uuid)::value_type{devUuid};
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::architecture.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        const auto devName = utils::getDeviceName(_backend, _config.get<intel_npu::DEVICE_ID>());
+        return utils::getPlatformByDeviceName(devName);
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::full_name.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
+        return utils::getFullDeviceName(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
+    register_property_with_support_and_custom_function(_properties, ov::device::luid.name(), has_backend_and_valid_device, _backend != nullptr && _backend->isLUIDExtSupported(), [this](const ov::AnyMap&) {
+            return utils::getDeviceLUID(_backend, _config.get<intel_npu::DEVICE_ID>());
+    });
     register_property_with_support_and_custom_function(_config, _properties, ov::intel_npu::enable_strides_for.name(),
         [this]() {  // support predicate
             // If this is already disabled in the config, do not perform extra checks and return false.
@@ -388,102 +482,6 @@ void PluginPropertyManager::registerProperties() {
             }
             return _config.get<MAX_TILES>();
         });
-
-    // Special case: this property is always registered because it's supported by the implementation,
-    // but it's not visible in supported_properties if the driver doesn't support it.
-    register_property_with_custom_visibility<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially.name(), [this] {
-        if (_backend && _backend->getInitStructs()) {
-            if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
-                return true;
-            }
-        }
-        return false;
-    }());
-    // clang-format on
-
-    for_each_exposed_npuw_option([this](auto tag) {
-        using Opt = typename decltype(tag)::type;
-        register_npuw_property<Opt>(_config, _properties);
-    });
-
-    // clang-format off
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::backend_name.name(), has_backend, false, [this](const ov::AnyMap&) {
-        return utils::getBackendName(_backend);
-    });
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::driver_version.name(), has_backend, true, [this](const ov::AnyMap&) {
-        return utils::getDriverVersion(_backend);
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::pci_info.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getPciInfo(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::gops.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getGops(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::type.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getDeviceType(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_alloc_mem_size.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getDeviceAllocMemSize(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::intel_npu::device_total_mem_size.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getDeviceTotalMemSize(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::uuid.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        auto devUuid = utils::getDeviceUuid(_backend, _config.get<intel_npu::DEVICE_ID>());
-        return decltype(ov::device::uuid)::value_type{devUuid};
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::architecture.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getDeviceArchitecture(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::full_name.name(), has_backend_and_valid_device, true, [this](const ov::AnyMap&) {
-        return utils::getFullDeviceName(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-    register_property_with_support_and_custom_function(_properties, ov::device::luid.name(), has_backend_and_valid_device, _backend != nullptr && utils::isLUIDSupported(_backend), [this](const ov::AnyMap&) {
-        return utils::getDeviceLUID(_backend, _config.get<intel_npu::DEVICE_ID>());
-    });
-
-    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
-        return std::vector<std::string>{"NPU"};
-    });
-    register_property_with_custom_function( _properties, ov::device::capabilities.name(), true, [this](const ov::AnyMap&) {
-        return _optimizationCapabilities;
-    });
-    register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const ov::AnyMap&) {
-        return _rangeForAsyncInferRequests;
-    });
-    register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const ov::AnyMap&) {
-        return _rangeForStreams;
-    });
-    register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const ov::AnyMap&) {
-        return utils::getAvailableDevicesNames(_backend);
-    });
-    register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const ov::AnyMap&) {
-        return std::shared_ptr<const ov::Model>(nullptr);
-    });
-    register_property_with_custom_function(_properties, ov::internal::supported_properties.name(), false, [this](const ov::AnyMap&) {
-        return _internalSupportedProperties;
-    });
-    register_property_with_custom_function(_properties, ov::internal::cache_header_alignment.name(), false, [](const ov::AnyMap&) {
-        return utils::STANDARD_PAGE_SIZE;
-    });
-    register_property_with_custom_function(_properties, ov::internal::caching_properties.name(), false, [this](const ov::AnyMap&) {
-        std::vector<ov::PropertyName> caching_props{};
-        for (auto prop : _cachingProperties) {
-            if (_config.isAvailable(prop)) {
-                caching_props.emplace_back(prop);
-            }
-        }
-        return caching_props;
-    });
-    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const ov::AnyMap&) {
-        std::vector<ov::PropertyName> supportedProperties;
-        for (auto& property : _properties) {
-            if (property.second.isPublic && property.second.isSupported()) {
-                supportedProperties.emplace_back(ov::PropertyName(property.first, property.second.mutability));
-            }
-        }
-        return supportedProperties;
-    });
     // clang-format on
 
     register_property_with_support_and_custom_function(
@@ -547,6 +545,11 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap& arguments) {  // value getter
             return validateCompatibilityDescriptor(_backend, arguments);
         });
+
+    for_each_exposed_npuw_option([this](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        register_npuw_property<Opt>(_config, _properties);
+    });
 }
 
 void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
