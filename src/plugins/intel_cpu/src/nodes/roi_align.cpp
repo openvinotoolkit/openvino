@@ -1020,8 +1020,8 @@ void ROIAlign::executeSpecified() {
         float binHeight = roiHeight / static_cast<float>(pooledH);
         float binWidth = roiWidth / static_cast<float>(pooledW);
 
-        auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
-        auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
+        auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(std::ceil(binWidth)) : samplingRatio;
+        auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(std::ceil(binHeight)) : samplingRatio;
 
         uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
         numSamples[n] = numSamplesInBin;

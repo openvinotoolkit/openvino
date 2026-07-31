@@ -4,6 +4,7 @@
 #include "softmax.h"
 
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -327,7 +328,7 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data,
 
             float expSum = 0;
             for (int c = 0; c < C; c++) {
-                dst_data[b * C * H * W + c * H * W + offset] = exp(src_data[b * C * H * W + c * H * W + offset] - max);
+                dst_data[b * C * H * W + c * H * W + offset] = std::exp(src_data[b * C * H * W + c * H * W + offset] - max);
                 expSum += dst_data[b * C * H * W + c * H * W + offset];
             }
 

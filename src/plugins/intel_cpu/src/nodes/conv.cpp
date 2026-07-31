@@ -804,12 +804,12 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         // @todo padding should be updated by the graph optimizer / transformation
         for (size_t j = 0; j < m_attrs.paddingR.size(); j++) {
             int with_group = m_attrs.isGrouped ? 1 : 0;
-            int krn = static_cast<int>(weightDims[with_group + 2 + j]);
-            int src = static_cast<int>(getInputShapeAtPort(0).getStaticDims()[2 + j]);
-            int dst = static_cast<int>(fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j]);
+            auto krn = static_cast<int>(weightDims[with_group + 2 + j]);
+            const auto src = static_cast<int>(getInputShapeAtPort(0).getStaticDims()[2 + j]);
+            const auto dst = static_cast<int>(fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j]);
 
             krn = static_cast<int>((krn - 1) * (m_attrs.dilation[j] + 1) + 1);
-            int calc_dst = static_cast<int>((src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1);
+            const auto calc_dst = static_cast<int>((src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1);
             m_attrs.paddingR[j] = (dst - calc_dst) * m_attrs.stride[j];
         }
     }

@@ -1421,7 +1421,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
-                                              (abs(ol / (oh - ol) - il / (ih - il)) < 0.001F);
+                                              (std::abs(ol / (oh - ol) - il / (ih - il)) < 0.001F);
             }
 
             if (isFakeQuantizationWithScale) {
@@ -2243,7 +2243,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     auto isPerTensor =
         [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
             return std::all_of(v.cbegin(), v.cend(), [&](float val) {
-                return abs(val - ref) < zero_thr;
+                return std::abs(val - ref) < zero_thr;
             });
         };
     size_t OC = std::max({inputScale.size(),
@@ -2352,7 +2352,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     // we can save an additional eltwise linear for negligible shift
     if (all_of(1U, f.ish.size(), f.clo.size(), f.chi.size())) {
         auto range = (f.chi[0] - f.clo[0]);
-        if (abs(f.ish[0]) < range * 0.00001F) {
+        if (std::abs(f.ish[0]) < range * 0.00001F) {
             f.ish[0] = 0.0F;
         }
     }
