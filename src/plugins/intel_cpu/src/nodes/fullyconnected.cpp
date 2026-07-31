@@ -287,12 +287,12 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
-            dim += dims.size();
+            dim += static_cast<int>(dims.size());
         }
         CPU_NODE_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
                         getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +
                             ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
-        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
+        auto splited_dim_vec = split_parts(static_cast<int>(dims[dim]), tp_cfg.w_size);
 
         VectorDims new_dims = std::move(dims);
         new_dims[dim] = splited_dim_vec[tp_cfg.w_rank];
@@ -354,7 +354,7 @@ void FullyConnected::execTensorParallelSync() {
             return parts;
         };
 
-        const int dim = dims.size() - 1;
+        const int dim = static_cast<int>(dims.size() - 1);
         // selected dim bytes
         auto channel_size = dims[dim] * prec.size();
         // total bytes
@@ -362,7 +362,7 @@ void FullyConnected::execTensorParallelSync() {
         // the steps need to copy.
         const size_t count = (mem_size / channel_size);
 
-        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
+        auto splited_dim_vec = split_parts(static_cast<int>(dims[dim]), tp_cfg.w_size);
         const auto strideSize = splited_dim_vec[0] * prec.size();
 
         tp_cfg.sub_memory->_memorys_table[tp_cfg.id][tp_cfg.w_rank].send_buf = cur_dst->getData();
@@ -722,7 +722,7 @@ void FullyConnected::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
-        memory[argumentId] = getSrcMemoryAtPort(inputId);
+        memory[static_cast<int>(argumentId)] = getSrcMemoryAtPort(inputId);
     }
 
     memory[ARG_DST] = getDstMemoryAtPort(0);

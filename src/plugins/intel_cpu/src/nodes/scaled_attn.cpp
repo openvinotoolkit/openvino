@@ -193,11 +193,11 @@ struct MHAKernel {
 #endif
         float sum = 0.0F;
         for (int i = 0; i < len; i++) {
-            a[i] = exp(a[i] - max);
+            a[i] = std::exp(a[i] - max);
             sum += a[i];
         }
         if (sink != nullptr) {
-            sum += exp((*sink) - max);
+            sum += std::exp((*sink) - max);
         }
         float scale = 1.0F / sum;
         for (int i = 0; i < len; i++) {
