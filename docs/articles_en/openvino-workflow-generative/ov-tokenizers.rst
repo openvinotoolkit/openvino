@@ -136,7 +136,7 @@ You can use converted tokenizers in C++ pipelines with prebuild binaries.
 
 1. Download :doc:`OpenVINO archive distribution <../../get-started/install-openvino>` for your OS and extract the archive.
 
-2. Download `OpenVINO Tokenizers prebuild libraries <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/>`__. To ensure compatibility, the first three numbers of the OpenVINO Tokenizers version should match the OpenVINO version and OS.
+2. Download `OpenVINO Tokenizers prebuild libraries <https://storage.openvinotoolkit.org/repositories/openvino_tokenizers/packages/2026.3.0.0/>`__. To ensure compatibility, the first three numbers of the OpenVINO Tokenizers version should match the OpenVINO version and OS.
 
 3. Extract OpenVINO Tokenizers archive into the OpenVINO installation directory:
 
@@ -332,5 +332,4 @@ Additional Resources
 * `OpenVINO Tokenizers Notebook <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/openvino-tokenizers>`__
 * `Text generation C++ samples that support most popular models like LLaMA 3 <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-
 
