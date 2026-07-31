@@ -168,8 +168,9 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
     }
     supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
-    auto range =
-        BlockedDescCreator::makeFilteredRange(creators, static_cast<unsigned>(inputDataShape.getRank()), supportedTypes);
+    auto range = BlockedDescCreator::makeFilteredRange(creators,
+                                                       static_cast<unsigned>(inputDataShape.getRank()),
+                                                       supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
         config.inConfs[0].setMemDesc(itr->second->createSharedDesc(precision, inputDataShape));

@@ -91,7 +91,7 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
     attrs.axis = static_cast<int>(shuffleChannels->get_axis());
-    attrs.dataRank = getInputShapeAtPort(0).getRank();
+    attrs.dataRank = static_cast<int>(getInputShapeAtPort(0).getRank());
     if (attrs.axis < 0) {
         attrs.axis += attrs.dataRank;
     }
