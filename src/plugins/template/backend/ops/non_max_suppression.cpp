@@ -166,7 +166,7 @@ bool evaluate(const std::shared_ptr<ov::op::v9::NonMaxSuppression>& op,
                                        &valid_outputs,
                                        info.sort_result_descending);
 
-    const auto selected_scores_type = (outputs.size() < 3) ? ov::element::f32 : outputs[1].get_element_type();
+    auto selected_scores_type = (outputs.size() < 3) ? ov::element::f32 : outputs[1].get_element_type();
 
     ov::reference::nms_postprocessing(outputs,
                                       info.output_type,
