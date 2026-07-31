@@ -206,6 +206,8 @@ public:
                         uint32_t axisY : 1;
                         uint32_t axisZ : 1;
                         uint32_t axisW : 1;
+                        uint32_t axisU : 1;
+                        uint32_t axisV : 1;
                         uint32_t axisFeature : 1;
                         uint32_t axisBatch : 1;
                         uint32_t kernelPerInput : 1;
@@ -424,10 +426,8 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
-        return;
     }
     virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
-        return;
     }
 
 protected:
