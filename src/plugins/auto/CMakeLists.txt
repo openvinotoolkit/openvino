@@ -11,8 +11,6 @@ set (TARGET_NAME "openvino_auto_plugin")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/*.cpp)
 
 # Build the optional IPF telemetry client used by the device utilization monitor.
-# OV_AUTO_IPF_AVAILABLE is set by thirdparty/CMakeLists.txt when IPF can be built.
-set(OV_AUTO_IPF_AVAILABLE OFF)
 add_subdirectory(thirdparty)
 
 # WA for issue 141313
@@ -53,11 +51,9 @@ target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads)
 # plain-C ABI (ClientApiC.h). No IPF-compiled objects are embedded into this plugin,
 # so ${TARGET_NAME} keeps following OpenVINO's normal /MD (Release) or /MDd (Debug)
 # convention regardless of IPF's own (fixed /MD) runtime library choice.
-if(OV_AUTO_IPF_AVAILABLE)
+if(TARGET openvino::ipf_client_api)
     target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF ClientApi_IMPORTS)
-    target_include_directories(${TARGET_NAME} PRIVATE
-        $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_link_libraries(${TARGET_NAME} PRIVATE ClientApi)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::ipf_client_api nlohmann_json::nlohmann_json)
     message(STATUS "[AUTO] IPF support successfully enabled for ${TARGET_NAME}")
 else()
     message(STATUS "[AUTO] IPF support disabled")

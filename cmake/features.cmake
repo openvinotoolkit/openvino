@@ -131,6 +131,7 @@ ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
+ov_dependent_option (ENABLE_IPF_CLIENT_API "Enable IPF ClientApi integration for AUTO device telemetry" ON "MSVC;ENABLE_AUTO" OFF)
 ov_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
 ov_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 ov_option (ENABLE_TEMPLATE "Enable template plugin" ON)
