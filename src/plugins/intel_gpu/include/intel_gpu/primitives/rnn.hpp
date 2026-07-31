@@ -177,7 +177,7 @@ struct lstm_seq : public RNNParams<lstm_seq> {
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
     using RNNParams::RNNParams;
-    lstm_seq() : RNNParams() {
+    lstm_seq() {
         weights = W.pid;
         input = x.pid;
     }

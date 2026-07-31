@@ -59,6 +59,14 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_SUB_GROUP_SIZES_INTEL, cl
 
 #endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
+#if !defined(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT)
+#define CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT 0x1065
+#endif
+
+#if !defined(CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT)
+#define CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT 0x1068
+#endif
+
 /***************************************************************
 * cl_intel_command_queue_families
 ***************************************************************/
@@ -562,7 +570,7 @@ public:
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() : Image2D() { }
+    ImageVA() { }
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -746,7 +754,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() : Platform() { }
+    PlatformVA() { }
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
@@ -1081,7 +1089,7 @@ private:
 class KernelIntel : public Kernel {
     using Kernel::Kernel;
 public:
-    explicit KernelIntel(const UsmHelper& usmHelper) : Kernel(), _usmHelper(usmHelper) {}
+    explicit KernelIntel(const UsmHelper& usmHelper) : _usmHelper(usmHelper) {}
     KernelIntel(const Kernel &other, const UsmHelper& usmHelper) : Kernel(other), _usmHelper(usmHelper) { }
 
     KernelIntel clone() const {
