@@ -1850,6 +1850,24 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
+        
+        // If the in-place concat optimization is not possible on this iteration, but it is applied
+        // previously, we need to reset the paddings of its deps' output layouts to the natrual
+        // values.
+
+        bool padding_reverted = false;
+        for (auto& dep : concat_inst->_deps) {
+            if (dep.first->_impl_params->output_layouts[0] != dep.first->get_node().get_output_layout(0)) {
+                dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
+                dep.first->_impl_params->output_layouts[0] = dep.first->get_node().get_output_layout(0);
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of dep " << dep.first->id() << " : "
+                                       << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
+                padding_reverted = true;
+            }
+        }
+        if (padding_reverted)
+            concat_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        
         return;
     }
 
