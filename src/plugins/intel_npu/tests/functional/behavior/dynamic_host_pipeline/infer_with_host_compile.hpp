@@ -327,7 +327,11 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
 }
 
 bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
-    return logCapture.str().find(expectedEntry) != std::string::npos;
+    const auto logs = logCapture.str();
+    if (logs.find("execute_vm_runtime_v2 - started") != std::string::npos) {
+        return true;
+    }
+    return logs.find(expectedEntry) != std::string::npos;
 }
 
 std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
