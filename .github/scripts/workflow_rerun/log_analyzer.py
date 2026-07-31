@@ -100,7 +100,7 @@ class LogAnalyzer:
             category = pattern_data.get('category') or NO_CATEGORY
 
             LOGGER.info(f'ADDING RERUN SEARCH STRING FROM PATTERN {pattern_file.name}: '
-                        f'"{rerun_search_string}"')
+                        f'"{rerun_search_string}" (CATEGORY: {category})')
             self._errors_to_look_for.append(
                 ErrorData(error_text=rerun_search_string,
                           ticket=CI_DOCTOR_PATTERN_TICKET,
@@ -171,12 +171,13 @@ class LogAnalyzer:
         """
         for error in self._errors_to_look_for:
 
-            LOGGER.info(f'LOOKING FOR "{error["error_text"]}" ERROR...')
+            LOGGER.info(f'LOOKING FOR "{error["error_text"]}" ERROR (CATEGORY: {error["category"]})...')
 
             for log_file in self._log_files:
                 if self._is_error_in_log(error_to_look_for=error['error_text'],
                                          log_file_path=log_file['path']):
-                    LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. TICKET: {error["ticket"]}')
+                    LOGGER.info(f'FOUND "{error["error_text"]}" ERROR IN {log_file["path"]}. '
+                                f'TICKET: {error["ticket"]}. CATEGORY: {error["category"]}')
                     self.found_matching_error = True
                     self.found_error_ticket = error['ticket']
                     self.matched_error_text = error['error_text']
