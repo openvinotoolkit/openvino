@@ -17,13 +17,15 @@
 #include "openvino/op/subtract.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
 namespace {
 
 // Params: lhs shape, rhs shape, precision
 using BinaryElementwiseParams = std::tuple<ov::Shape, ov::Shape, ov::element::Type>;
 
 template <typename Op>
-class BinaryElementwiseTest : public testing::WithParamInterface<BinaryElementwiseParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class BinaryElementwiseTest : public testing::WithParamInterface<BinaryElementwiseParams>, public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BinaryElementwiseParams>& obj) {
         const auto& [lhs_shape, rhs_shape, precision] = obj.param;
@@ -109,7 +111,7 @@ INSTANTIATE_TS(ModTest);
 using BinaryElementwiseConstParams = std::tuple<ov::Shape, ov::Shape, ov::element::Type>;
 
 template <typename Op>
-class BinaryElementwiseConstTest : public testing::WithParamInterface<BinaryElementwiseConstParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class BinaryElementwiseConstTest : public testing::WithParamInterface<BinaryElementwiseConstParams>, public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BinaryElementwiseConstParams>& obj) {
         const auto& [input_shape, const_shape, precision] = obj.param;

@@ -8,6 +8,8 @@
 #include "openvino/op/parameter.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
 namespace {
 
 using BatchMatMulParams = std::tuple<ov::Shape,  // A shape
@@ -16,7 +18,7 @@ using BatchMatMulParams = std::tuple<ov::Shape,  // A shape
                                      bool,       // transpose B
                                      ov::element::Type>;
 
-class BatchMatMulTest : public testing::WithParamInterface<BatchMatMulParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class BatchMatMulTest : public testing::WithParamInterface<BatchMatMulParams>, public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchMatMulParams>& obj) {
         const auto& [a_shape, b_shape, tr_a, tr_b, prec] = obj.param;
@@ -61,7 +63,7 @@ using DynamicMatMulParams = std::tuple<ov::test::InputShape,  // A shape (M, K)
                                        ov::element::Type>;
 
 class DynamicMatMulTest : public testing::WithParamInterface<DynamicMatMulParams>,
-                          virtual public ov::test::SubgraphBaseTest {
+                          public ov::test::MlirSubgraphTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicMatMulParams>& obj) {
         const auto& [a_shape, b_shape, prec] = obj.param;
