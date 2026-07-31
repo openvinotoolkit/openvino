@@ -13,6 +13,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
@@ -66,15 +67,27 @@ TrainingBatchNorm make_training_batch_norm(const ov::Output<ov::Node>& x,
                                            const ov::Output<ov::Node>& var,
                                            double epsilon,
                                            double momentum) {
-    const auto axes = statistics_axes(x);
-    const auto mean_keep_dims = std::make_shared<v1::ReduceMean>(x, axes, true);
-    const auto deviation = std::make_shared<v1::Subtract>(x, mean_keep_dims);
+    // ONNX requires the batch statistics to be calculated in float to avoid overflow for float16 inputs
+    const auto& x_type = x.get_element_type();
+    const bool accumulate_in_f32 = x_type.is_real() && x_type.bitwidth() < ov::element::f32.bitwidth();
+    const ov::Output<ov::Node> data =
+        accumulate_in_f32 ? std::make_shared<v0::Convert>(x, ov::element::f32)->output(0) : x;
+
+    const auto axes = statistics_axes(data);
+    const auto mean_keep_dims = std::make_shared<v1::ReduceMean>(data, axes, true);
+    const auto deviation = std::make_shared<v1::Subtract>(data, mean_keep_dims);
     const auto var_keep_dims =
         std::make_shared<v1::ReduceMean>(std::make_shared<v1::Multiply>(deviation, deviation), axes, true);
 
     const auto channels_shape = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    const ov::Output<ov::Node> current_mean = std::make_shared<v1::Reshape>(mean_keep_dims, channels_shape, false);
-    const ov::Output<ov::Node> current_var = std::make_shared<v1::Reshape>(var_keep_dims, channels_shape, false);
+    const ov::Output<ov::Node> mean_1d = std::make_shared<v1::Reshape>(mean_keep_dims, channels_shape, false);
+    const ov::Output<ov::Node> var_1d = std::make_shared<v1::Reshape>(var_keep_dims, channels_shape, false);
+
+    // BatchNormInference requires all its inputs to have the same element type
+    const ov::Output<ov::Node> current_mean =
+        accumulate_in_f32 ? std::make_shared<v1::ConvertLike>(mean_1d, x)->output(0) : mean_1d;
+    const ov::Output<ov::Node> current_var =
+        accumulate_in_f32 ? std::make_shared<v1::ConvertLike>(var_1d, x)->output(0) : var_1d;
 
     const auto y = std::make_shared<v5::BatchNormInference>(x, scale, bias, current_mean, current_var, epsilon);
 
@@ -86,8 +99,9 @@ TrainingBatchNorm make_training_batch_norm(const ov::Output<ov::Node>& x,
             std::make_shared<v1::Multiply>(running, momentum_const),
             std::make_shared<v1::Multiply>(std::make_shared<v1::ConvertLike>(current, running), rest_const));
     };
-    const auto running_mean = update_running_stat(mean, current_mean);
-    const auto running_var = update_running_stat(var, current_var);
+    // the running statistics are updated with the values calculated in the accumulation precision
+    const auto running_mean = update_running_stat(mean, mean_1d);
+    const auto running_var = update_running_stat(var, var_1d);
 
     return {y, running_mean, running_var, current_mean, current_var};
 }

@@ -626,6 +626,44 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset1) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_f16) {
+    // Batch Normalization in the training mode with a float16 input. ONNX requires the batch statistics
+    // to be calculated in float, otherwise the accumulated sum overflows the float16 range.
+    auto model = convert_model("batchnorm_training_mode_f16.onnx");
+
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::string(op->get_type_name()) == "ReduceMean") {
+            EXPECT_EQ(op->get_output_element_type(0), element::f32);
+        }
+    }
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::float16>({ov::float16(30000.f),
+                                      ov::float16(30016.f),
+                                      ov::float16(29984.f),
+                                      ov::float16(30000.f),
+                                      ov::float16(1.f),
+                                      ov::float16(2.f),
+                                      ov::float16(3.f),
+                                      ov::float16(4.f)});                    // data {1, 2, 1, 4}
+    test_case.add_input<ov::float16>({ov::float16(1.f), ov::float16(1.f)});  // scale
+    test_case.add_input<ov::float16>({ov::float16(0.f), ov::float16(0.f)});  // bias
+    test_case.add_input<float>({0.f, 0.f});                                  // mean
+    test_case.add_input<float>({1.f, 1.f});                                  // var
+    test_case.add_expected_output<ov::float16>(Shape{1, 2, 1, 4},
+                                               {ov::float16(0.f),
+                                                ov::float16(1.414f),
+                                                ov::float16(-1.414f),
+                                                ov::float16(0.f),
+                                                ov::float16(-1.342f),
+                                                ov::float16(-0.4473f),
+                                                ov::float16(0.4473f),
+                                                ov::float16(1.342f)});
+    test_case.add_expected_output<float>(Shape{2}, {3000.f, 0.25f});  // running mean
+    test_case.add_expected_output<float>(Shape{2}, {13.7f, 1.025f});  // running var
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     // Simple ReLU test
     auto model = convert_model("relu.onnx");
