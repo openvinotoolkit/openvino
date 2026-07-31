@@ -226,20 +226,6 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime execution context with flags (v2.0)
-/// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
-///          API version is 2.0 or later. The initflag bitmask controls how the
-///          interpreter configures its internal command list for this context.
-///          Pass the same flags that will be supplied to npuVMRuntimeExecute2 so
-///          the interpreter can prepare the context accordingly.
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
-    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    uint64_t initflag,                 ///< [in] bitmask of npu_vm_runtime_execute_flags_t values
-    npu_vm_runtime_execution_context_handle_t*
-        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
-);
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroy VM runtime instance
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeDestroyExecutionContext(
     npu_vm_runtime_execution_context_handle_t
@@ -278,6 +264,20 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 /// @brief Version 2.0
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Init VM runtime execution context with flags (v2.0)
+/// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
+///          API version is 2.0 or later. The initflag bitmask controls how the
+///          interpreter configures its internal command list for this context.
+///          Pass the same flags that will be supplied to npuVMRuntimeExecute2 so
+///          the interpreter can prepare the context accordingly.
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
+    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
+    uint64_t initflag,                 ///< [in] bitmask of npu_vm_runtime_execute_flags_t values
+    npu_vm_runtime_execution_context_handle_t*
+        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
+);
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Execution flags for npuVMRuntimeExecute2
 /// @details Bitmask passed in npu_vm_runtime_execute_params2_t::flags.
 ///          Controls how the interpreter creates and manages its internal
@@ -291,6 +291,18 @@ typedef uint64_t npu_vm_runtime_execute_flags_t;
 ///        command list on the first Execute2 call (lazy, stored in
 ///        executionContext) and reuses it for all subsequent calls.
 #define NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE 0x1ULL
+
+/// @brief Queue priority hints supplied by the plugin command queue descriptor.
+#define NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_LOW 0x2ULL
+#define NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_HIGH 0x4ULL
+
+/// @brief Queue workload hints supplied by the plugin command queue descriptor.
+#define NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_DEFAULT 0x8ULL
+#define NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_BACKGROUND 0x10ULL
+
+/// @brief Queue option hints supplied by the plugin command queue descriptor.
+#define NPU_VM_RUNTIME_EXEC_FLAG_TURBO 0x20ULL
+#define NPU_VM_RUNTIME_EXEC_FLAG_DEVICE_SYNC 0x40ULL
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Opaque wait identifier returned by npuVMRuntimeExecute2
