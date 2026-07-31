@@ -53,7 +53,7 @@ template <>
 bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::Node> node,
                                             ov::TensorVector& outputs,
                                             const ov::TensorVector& inputs) {
-    const auto& element_type = node->get_output_element_type(0);
+    const auto element_type = node->get_output_element_type(0);
 
     using ov::op::v16::SegmentMax;
     using namespace ov::element;

@@ -426,7 +426,7 @@ template <>
 bool evaluate_node<ov::op::v4::Interpolate>(std::shared_ptr<ov::Node> node,
                                             ov::TensorVector& outputs,
                                             const ov::TensorVector& inputs) {
-    const auto& element_type = node->get_output_element_type(0);
+    const auto element_type = node->get_output_element_type(0);
 
     switch (element_type) {
     case ov::element::boolean:

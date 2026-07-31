@@ -74,7 +74,7 @@ bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> n
     using ov::op::v16::SparseFillEmptyRows;
     using namespace ov::element;
 
-    switch (const auto& element_type = node->get_output_element_type(1); element_type) {
+    switch (const auto element_type = node->get_output_element_type(1); element_type) {
     case i8:
         return evaluate_data_type<i8>(ov::as_type_ptr<SparseFillEmptyRows>(node), outputs, inputs);
     case i32:

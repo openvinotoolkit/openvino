@@ -60,7 +60,7 @@ template <>
 bool evaluate_node<ov::op::v6::ExperimentalDetectronDetectionOutput>(std::shared_ptr<ov::Node> node,
                                                                      ov::TensorVector& outputs,
                                                                      const ov::TensorVector& inputs) {
-    const auto& element_type =
+    const auto element_type =
         (ov::is_type<ov::op::v1::Select>(node) || ov::is_type<ov::op::util::BinaryElementwiseComparison>(node))
             ? node->get_input_element_type(1)
             : node->get_output_element_type(0);
