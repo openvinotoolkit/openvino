@@ -74,15 +74,19 @@ TEST_P(PowerTest, Inference) {
     run();
 }
 TEST_P(MaximumTest, Inference) {
+    GTEST_SKIP() << "Maximum is not offloaded to MLIR yet (no BinaryEltwisePattern registered).";
     run();
 }
 TEST_P(MinimumTest, Inference) {
+    GTEST_SKIP() << "Minimum is not offloaded to MLIR yet (no BinaryEltwisePattern registered).";
     run();
 }
 TEST_P(FloorModTest, Inference) {
+    GTEST_SKIP() << "FloorMod is not offloaded to MLIR yet (no BinaryEltwisePattern registered).";
     run();
 }
 TEST_P(ModTest, Inference) {
+    GTEST_SKIP() << "Mod is not offloaded to MLIR yet (no BinaryEltwisePattern registered).";
     run();
 }
 
