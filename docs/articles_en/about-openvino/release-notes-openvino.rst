@@ -29,7 +29,7 @@ We are considering transitioning to C++20 as the default standard starting with 
 More Gen AI coverage and frameworks integrations to minimize code changes
 -------------------------------------------------------------------------
 
-* New models supported (production ready):
+* New models supported:
 
   * On CPU, GPU, and NPU: SmolLM3-3B, LFM2-1.2B, LFM2.5-1.2B
 
