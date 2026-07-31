@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -27,6 +26,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/region_yolo.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/cpp/bit_cast.hpp"
@@ -46,7 +46,9 @@
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
+#endif
 using namespace dnnl::impl::utils;
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -324,19 +326,19 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
     }
 
     if (ov::element::bf16 == output_prec) {
-        if (!mayiuse(avx512_core)) {
+        if (!ov::with_cpu_x86_avx512_core()) {
             output_prec = ov::element::f32;
         }
     }
 
     impl_desc_type impl_type = [&] {
-        if (mayiuse(x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;

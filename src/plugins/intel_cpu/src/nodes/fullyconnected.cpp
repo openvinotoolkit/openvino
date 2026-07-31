@@ -5,7 +5,6 @@
 #include "fullyconnected.h"
 
 #include <algorithm>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -41,6 +40,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -98,7 +98,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
     // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
     // path handle bf16 inference precision.
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (ov::with_cpu_x86_avx512_core_amx()) {
         return {Type_t::f32};
     }
     return {Type_t::f32, Type_t::bf16};
@@ -152,12 +152,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        if (!ov::with_cpu_x86_avx2()) {
             return false;
         }
 
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            config.inferencePrecision == ov::element::bf16) {
+        if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
@@ -520,7 +519,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
         return false;
     }
 

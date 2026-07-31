@@ -4,17 +4,20 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <vector>
+
+#include "openvino/core/visibility.hpp"
+#include "utils/cpu_utils.hpp"
 #ifndef OPENVINO_ARCH_ARM64
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "cpu/x64/jit_generator.hpp"
 #endif
-#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 

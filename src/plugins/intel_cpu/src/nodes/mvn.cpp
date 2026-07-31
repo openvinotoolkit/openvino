@@ -9,7 +9,6 @@
 #include <cmath>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -41,6 +40,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
@@ -62,9 +62,11 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
 
@@ -2098,19 +2100,19 @@ void MVN::initSupportedPrimitiveDescriptors() {
 #endif  // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
     }();
 
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         // nspc
         if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
             pushDesc(LayoutType::nspc, impl_type);
@@ -2277,7 +2279,7 @@ void MVN::prepareParams() {
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<MVNExecutorBase> {
         std::shared_ptr<MVNExecutorBase> executor;
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             executor = std::make_shared<MVNJitExecutor>(key.mvnAttrs, key.attr);
         } else {
             executor = std::make_shared<MVNRefExecutor>(key.mvnAttrs);
@@ -2386,11 +2388,11 @@ void MVN::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
                                   const VectorDims& shape5d,
                                   const CpuParallelPtr& cpu_parallel) {
     size_t blk_size = 1;  // blk size in vmm
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         blk_size = 4;
     }
 
@@ -2637,9 +2639,9 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                                    const void* post_ops_data_,
                                    const VectorDims& shape5d) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         blk_size = 8;
     } else {
         blk_size = 4;
@@ -2772,7 +2774,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                                   const VectorDims& shape5d,
                                   const CpuParallelPtr& cpu_parallel) {
     size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
     } else {
         blk_size = 8;
@@ -3050,7 +3052,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
 }
 
 bool MVN::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41)) {
+    if (!ov::with_cpu_x86_sse42()) {
         return false;
     }
     // limit post ops to unary when shape transformed on channel

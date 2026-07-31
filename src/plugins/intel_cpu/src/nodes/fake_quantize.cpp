@@ -14,7 +14,6 @@
 #include <common/c_types_map.hpp>
 #include <common/nstl.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -47,6 +46,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -66,9 +66,11 @@
 using namespace dnnl;
 using namespace ov;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1454,7 +1456,7 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     }
     if (any_of(dims.size(), 4U, 5U)) {
         if (getAxis() == 1) {
-            auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+            auto blkFormat = ov::with_cpu_x86_avx512_core() ? LayoutType::nCsp16c : LayoutType::nCsp8c;
             return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
         }
         return {LayoutType::ncsp};
@@ -1503,18 +1505,18 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = []() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
     }();
-    if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
+    if (!ov::with_cpu_x86_sse42() || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {

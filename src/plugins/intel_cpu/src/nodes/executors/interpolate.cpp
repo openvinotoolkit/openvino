@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -16,6 +15,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::intel_cpu;
@@ -253,7 +253,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
             weightPtr[4] = reinterpret_cast<float*>(&indexTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&indexTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41) ? srcDataSize : 1;
+        int scale = ov::with_cpu_x86_sse42() ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
@@ -577,7 +577,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
                 });
             src_data = src_data_pad;
         } else if (interpAttrs.layout == InterpolateLayoutType::block) {
-            size_t blkSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+            size_t blkSize = ov::with_cpu_x86_avx512_core() ? 16 : 8;
             size_t CB = div_up(srcDimPad5d[1], blkSize);
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);

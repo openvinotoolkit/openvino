@@ -16,7 +16,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_parallel.hpp"
 #include "dnnl_extension_utils.h"
@@ -75,15 +74,16 @@
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
-#include "kernels/x64/brgemm_kernel.hpp"
 #include "utils/precision_support.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "kernels/x64/brgemm_kernel.hpp"
+#endif
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    include "nodes/common/cpu_convert.h"
 #endif
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -316,6 +316,7 @@ struct MHAKernel {
     }
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
 template <typename T>
 struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     // q: [B, H, q_len, S]
@@ -655,6 +656,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                        d_scale);
     }
 };
+#endif  // OPENVINO_ARCH_X86_64
 
 #ifdef OV_CPU_WITH_ACL
 template <typename T>
@@ -2996,7 +2998,7 @@ ov::element::Type ScaledDotProductAttention::getKeyCachePrecision() {
     const auto rtPrecision = getRuntimePrecision();
     const auto keyHint = context->getConfig().keyCachePrecision;
     const auto valueHint = context->getConfig().valueCachePrecision;
-    const bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
+    const bool enableKVCacheFP16 = m_config.config.fuse_concat && ov::with_cpu_x86_avx2() &&
                                    rtPrecision != ov::element::bf16 && all_of(ov::element::f16, keyHint, valueHint);
     return side_cache_precision(m_key_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO,
                                 keyHint,
@@ -3008,7 +3010,7 @@ ov::element::Type ScaledDotProductAttention::getValueCachePrecision() {
     const auto rtPrecision = getRuntimePrecision();
     const auto keyHint = context->getConfig().keyCachePrecision;
     const auto valueHint = context->getConfig().valueCachePrecision;
-    const bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
+    const bool enableKVCacheFP16 = m_config.config.fuse_concat && ov::with_cpu_x86_avx2() &&
                                    rtPrecision != ov::element::bf16 && all_of(ov::element::f16, keyHint, valueHint);
     return side_cache_precision(m_value_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO,
                                 valueHint,
@@ -3019,7 +3021,7 @@ ov::element::Type ScaledDotProductAttention::getValueCachePrecision() {
 ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
     // bf16 should be enabled only when platform supports
-    if (rtPrecision == ov::element::bf16 && (ov::with_cpu_x86_bfloat16() || mayiuse(cpu_isa_t::avx2_vnni_2))) {
+    if (rtPrecision == ov::element::bf16 && (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2())) {
         rtPrecision = ov::element::bf16;
     } else if (rtPrecision == ov::element::f16 && ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         rtPrecision = ov::element::f16;

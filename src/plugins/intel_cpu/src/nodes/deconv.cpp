@@ -22,7 +22,6 @@
 
 #include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -52,6 +51,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
@@ -357,7 +357,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (!withGroups && deconvAttrs.stride.back() > 3) {
         return false;
     }
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (!ov::with_cpu_x86_avx512_core()) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) {
                 return dim == Shape::UNDEFINED_DIM;
@@ -384,10 +384,10 @@ bool Deconvolution::canBeExecutedInInt8() const {
 
     // not supported in oneDNN
     int channelBlock = [&]() {
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return 16;
         }
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return 8;
         }
         return 4;
@@ -395,7 +395,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
     }
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3) {
+    if (!ov::with_cpu_x86_avx512_core() && deconvAttrs.stride.back() > 3) {
         return false;
     }
 
@@ -526,7 +526,7 @@ std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const 
         return {memory::format_tag::nc};
     case 3:
         // Ticket 156640
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
             return {memory::format_tag::ncw,
                     memory::format_tag::nCw8c,
                     memory::format_tag::nCw16c,

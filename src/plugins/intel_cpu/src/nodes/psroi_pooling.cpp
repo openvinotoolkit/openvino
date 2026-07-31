@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -28,6 +27,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/deformable_psroi_pooling.hpp"
 #include "openvino/op/psroi_pooling.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
@@ -36,7 +36,6 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
 
 namespace ov::intel_cpu::node {
@@ -149,13 +148,13 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;

@@ -10,7 +10,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -22,6 +21,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
 #include "utils/general_utils.h"
@@ -35,7 +35,6 @@
 #include <vector>
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -69,9 +68,9 @@ bool RMSNormKey::operator==(const RMSNormKey& rhs) const {
 static std::shared_ptr<kernel::JitKernelBase> createJitKernel(const kernel::jit_rms_compile_params& param) {
     std::shared_ptr<kernel::JitKernelBase> res;
 
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx512_core>>(param);
-    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         res = std::make_shared<kernel::jit_rms_kernel<dnnl::impl::cpu::x64::avx2>>(param);
     }
 
@@ -145,10 +144,10 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     }
 
     auto impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
         return impl_desc_type::ref;
@@ -196,7 +195,7 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     try {
         const auto rms = ov::as_type_ptr<const ov::op::internal::RMS>(op);
         if (rms) {
-            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+            if (!ov::with_cpu_x86_avx2()) {
                 errorMessage = "RMSNorm needs avx2+.";
                 return false;
             }

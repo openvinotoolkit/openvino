@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -50,6 +49,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 #include "utils/general_utils.h"
@@ -257,8 +257,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         }
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
-    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !context->isGraphQuantized();
+    const bool isAvx2FP32 = !ov::with_cpu_x86_avx512_core() && ov::with_cpu_x86_avx2() && !context->isGraphQuantized();
     useJitPlanar = ((all_of(1U, IC, groupOC * groupNum)) && isAvx2FP32);
 }
 
@@ -323,7 +322,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
     // WA heuristic to avoid regressions introduced by avx2 brgconv.
-    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !useJitPlanar;
+    const bool isBrgConvAvailable = ov::with_cpu_x86_avx2() && !useJitPlanar;
     if (isBrgConvAvailable) {
         return priorities;
     }
@@ -837,9 +836,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     // per-channel zp If zero point is pertensor, both legacy zp and stock zp would be passed into conv node. The conv
     // node would determine how to create post-ops attribute and prioritize to choose final onednn kernel.
     if (m_attrs.inputZeroPointsType == ZeroPointsType::PerTensor &&
-        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
-         impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
-         impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2))) {
+        (ov::with_cpu_x86_avx512_core_amx() || ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx2_vnni_2())) {
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     } else {
         m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;

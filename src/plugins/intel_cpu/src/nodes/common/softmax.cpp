@@ -7,10 +7,10 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_parallel.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/bfloat16.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -27,11 +27,13 @@
 #    include "utils/cpu_utils.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#endif
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
@@ -257,7 +259,7 @@ SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPr
     : input_prec(inpPrc),
       output_prec(outPrc) {
     if (ov::element::bf16 == output_prec) {
-        if (!mayiuse(avx512_core)) {
+        if (!ov::with_cpu_x86_avx512_core()) {
             OPENVINO_THROW("SoftmaxGeneric doesn't support BF16 precision on this target.");
         }
     }
