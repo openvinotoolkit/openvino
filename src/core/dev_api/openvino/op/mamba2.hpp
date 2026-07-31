@@ -10,12 +10,15 @@ namespace ov::op::internal {
 ///
 /// \brief Operator performing the Mamba2 selective state-space model (SSM) recurrence.
 ///
-/// Implements the time-sequential single-step recurrence used by Mamba2 mixers in hybrid
-/// Mamba2 models such as NemotronH (see arXiv:2405.21060). The discretized inputs `dA`,
-/// `dBx` and `C` are precomputed and vectorized over the sequence outside of this op; the
-/// operation only performs the state recurrence and the per-token readout:
+/// Implements the time-sequential recurrence used by Mamba2 mixers in hybrid Mamba2 models
+/// such as NemotronH (see arXiv:2405.21060). The operation consumes the raw, time-major
+/// projections and performs the discretization (exp, outer product), the state scan and the
+/// per-token readout internally (H = num_heads, G = num_groups, P = head_dim, N = state_size):
+///     dA_t    = exp(A * dt_t)
+///     dBx_t   = (dt_t * B_t) outer x_t
 ///     state_t = state_{t-1} * dA_t + dBx_t
 ///     y_t     = reduce_sum(state_t * C_t, axis=state_size)
+/// The `B` and `C` matrices are provided per group and broadcast to the `H` heads inside the op.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Mamba2 : public ov::op::Op {
 public:
@@ -24,17 +27,23 @@ public:
     Mamba2() = default;
     /// \brief Constructs a Mamba2 operation.
     ///
-    /// \param dA Discretized state transition tensor of shape [batch, num_heads, seq_len, 1, 1].
-    /// \param dBx Discretized input contribution (B * x) of shape
-    ///        [batch, num_heads, seq_len, head_dim, state_size].
-    /// \param C Per-token output projection of shape [batch, num_heads, seq_len, state_size].
+    /// \param A Per-head negative log-decay rates of shape [num_heads].
+    /// \param dt Per-token time steps of shape [batch, seq_len, num_heads].
+    /// \param B Per-group input matrix of shape [batch, seq_len, num_groups, state_size].
+    /// \param x Input hidden states of shape [batch, seq_len, num_heads, head_dim].
+    /// \param C Per-group output matrix of shape [batch, seq_len, num_groups, state_size].
     /// \param recurrent_state Initial SSM hidden state of shape
     ///        [batch, num_heads, head_dim, state_size].
-    Mamba2(const Output<Node>& dA, const Output<Node>& dBx, const Output<Node>& C, const Output<Node>& recurrent_state);
+    Mamba2(const Output<Node>& A,
+           const Output<Node>& dt,
+           const Output<Node>& B,
+           const Output<Node>& x,
+           const Output<Node>& C,
+           const Output<Node>& recurrent_state);
 
     /// \brief Constructs a Mamba2 operation from an input vector.
     ///
-    /// \param args Input tensor vector in order: dA, dBx, C, recurrent_state.
+    /// \param args Input tensor vector in order: A, dt, B, x, C, recurrent_state.
     explicit Mamba2(const ov::OutputVector& args);
 
     void validate_and_infer_types() override;
