@@ -476,6 +476,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_opset1_float_p) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
+// The opset 1 'p' attribute is a float, so non-integer values must not be truncated.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_opset1_fractional_p) {
+    auto model = convert_model("lp_pool_opset1_fractional_p.onnx");
+
+    Inputs inputs{std::vector<float>(1 * 1 * 4 * 4)};
+    std::iota(std::begin(inputs.front()), std::end(inputs.front()), 0.f);
+
+    std::vector<float> expected_output{7.412289f, 11.936901f, 26.713474f, 31.712298f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(Shape{1, 1, 2, 2}, expected_output);
+    test_case.run_with_tolerance_as_fp(1e-5f);
+}
+
 // Zero padding must not contribute to the pooled Lp norm.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p1_pads) {
     auto model = convert_model("lp_pool_p1_pads.onnx");

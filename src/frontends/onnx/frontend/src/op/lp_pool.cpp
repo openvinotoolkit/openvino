@@ -58,7 +58,7 @@ ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
 
 ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
     // In opset 1 the 'p' attribute is a float, since opset 2 it is an integer.
-    const auto p_norm = static_cast<std::int64_t>(node.get_attribute_value<float>("p", 2.f));
+    const auto p_norm = node.get_attribute_value<float>("p", 2.f);
     return pooling::PoolingFactory(node).make_lp_pool(p_norm);
 }
 
@@ -74,7 +74,7 @@ static bool registered = register_multiple_translators();
 namespace opset_2 {
 ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
     const auto p_norm = node.get_attribute_value<std::int64_t>("p", 2);
-    return pooling::PoolingFactory(node).make_lp_pool(p_norm);
+    return pooling::PoolingFactory(node).make_lp_pool(static_cast<float>(p_norm));
 }
 
 ONNX_OP("LpPool", OPSET_SINCE(2), ai_onnx::opset_2::lp_pool);

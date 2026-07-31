@@ -53,10 +53,11 @@ public:
     /// \brief      Creates Lp pooling ONNX operation.
     ///
     /// \param[in]  p_norm  The p value of the Lp norm computed over each pooling window.
+    ///                     Non-integer values are supported, as required by the opset 1 schema.
     ///
     /// \return     Vector of output nodes.
     ///
-    ov::OutputVector make_lp_pool(int64_t p_norm) const;
+    ov::OutputVector make_lp_pool(float p_norm) const;
 
 protected:
     /// \brief Creates an average pooling operation matching the attributes of the ONNX node.

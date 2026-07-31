@@ -93,8 +93,8 @@ ov::OutputVector PoolingFactory::make_avg_pool() const {
     return {make_avg_pool_op(m_inputs.at(0), !count_include_pad)};
 }
 
-ov::OutputVector PoolingFactory::make_lp_pool(int64_t p_norm) const {
-    CHECK_VALID_NODE(m_onnx_node, p_norm > 0, "Only positive values are supported for 'p' attribute.");
+ov::OutputVector PoolingFactory::make_lp_pool(float p_norm) const {
+    CHECK_VALID_NODE(m_onnx_node, p_norm > 0.f, "Only positive values are supported for 'p' attribute.");
 
     const auto& data = m_inputs.at(0);
 
@@ -102,8 +102,8 @@ ov::OutputVector PoolingFactory::make_lp_pool(int64_t p_norm) const {
     // The sum is obtained from an average pooling which always divides by the (constant)
     // kernel volume, hence exclude_pad has to be disabled.
     ov::Output<ov::Node> pooled = std::make_shared<v0::Abs>(data);
-    if (p_norm != 1) {
-        const auto p_const = v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(p_norm)});
+    if (p_norm != 1.f) {
+        const auto p_const = v0::Constant::create(ov::element::f32, ov::Shape{}, {p_norm});
         pooled = std::make_shared<v1::Power>(pooled, std::make_shared<v1::ConvertLike>(p_const, data));
     }
 
@@ -113,8 +113,8 @@ ov::OutputVector PoolingFactory::make_lp_pool(int64_t p_norm) const {
         v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(shape_size(m_kernel_shape))});
     pooled = std::make_shared<v1::Multiply>(pooled, std::make_shared<v1::ConvertLike>(kernel_volume, data));
 
-    if (p_norm != 1) {
-        const auto inv_p = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f / static_cast<float>(p_norm)});
+    if (p_norm != 1.f) {
+        const auto inv_p = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f / p_norm});
         pooled = std::make_shared<v1::Power>(pooled, std::make_shared<v1::ConvertLike>(inv_p, data));
     }
 
