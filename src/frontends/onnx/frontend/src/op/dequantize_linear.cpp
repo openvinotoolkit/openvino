@@ -7,6 +7,7 @@
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
+#include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -37,7 +38,16 @@ ov::element::Type get_dequantization_precision(const ov::frontend::onnx::Node& n
                                                const ov::Output<ov::Node>& scale) {
     const auto output_dtype = node.get_attribute_value<int64_t>("output_dtype", 0);
     if (output_dtype != 0) {
-        return common::get_ov_element_type(output_dtype);
+        const auto& precision = common::get_ov_element_type(output_dtype);
+        // T3 of the ONNX spec. An unsupported type here wouldn't fail later - it would silently
+        // produce a graph doing the dequantization arithmetic in a wrong precision.
+        CHECK_VALID_NODE(
+            node,
+            precision == ov::element::f32 || precision == ov::element::f16 || precision == ov::element::bf16,
+            "The \"output_dtype\" attribute of DequantizeLinear must be one of the supported types: "
+            "f32, f16 or bf16. Got: ",
+            precision);
+        return precision;
     }
     const auto& scale_et = scale.get_element_type();
     return scale_et == ov::element::f8e8m0 ? ov::element::f32 : scale_et;

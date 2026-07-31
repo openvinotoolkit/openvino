@@ -150,3 +150,17 @@ TEST(ONNXFeFloatTypes, quantize_linear_float4e2m1_zero_point) {
     ASSERT_EQ(model->get_results().size(), 1);
     EXPECT_EQ(model->get_results()[0]->get_element_type(), ov::element::f4e2m1);
 }
+
+TEST(ONNXFeFloatTypes, dequantize_linear_invalid_output_dtype) {
+    // "output_dtype" set to INT32, which is not a valid output type of DequantizeLinear.
+    // Without validation this would silently produce a graph doing the dequantization in i32.
+    try {
+        convert_model("dequantize_linear_invalid_output_dtype.onnx");
+        FAIL() << "Expected an exception for an unsupported \"output_dtype\" attribute";
+    } catch (const std::exception& e) {
+        EXPECT_NE(std::string{e.what()}.find(
+                      "The \"output_dtype\" attribute of DequantizeLinear must be one of the supported types"),
+                  std::string::npos)
+            << e.what();
+    }
+}
