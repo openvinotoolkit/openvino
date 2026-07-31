@@ -69,6 +69,7 @@
 #include "weights_cache.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "xbyak/xbyak_util.h"
 #endif
 
