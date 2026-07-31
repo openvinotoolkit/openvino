@@ -99,8 +99,8 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
                 // value. When num_boxes is unknown, the real value may turn out smaller once the
                 // shape becomes static, so the dimension must stay dynamic (bounded by
                 // nms_top_k) instead of being collapsed to a static nms_top_k.
-                selected_boxes = (boxes_upper_bound < 0) ? TDim(0, nms_top_k)
-                                                         : TDim(std::min<V>(boxes_upper_bound, nms_top_k));
+                selected_boxes =
+                    (boxes_upper_bound < 0) ? TDim(0, nms_top_k) : TDim(std::min<V>(boxes_upper_bound, nms_top_k));
             } else {
                 selected_boxes = boxes_shape[1];
             }
