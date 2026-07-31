@@ -93,7 +93,7 @@ public:
         npu_config.enable(std::move(o_name), false);          \
     } while (0)
         REGISTER_OPTION(LOG_LEVEL);
-        REGISTER_OPTION(COMPILER_LOG_LEVEL);
+        REGISTER_OPTION(COMPILE_LOG_LEVEL);
         REGISTER_OPTION(CACHE_DIR);
         REGISTER_OPTION(CACHE_MODE);
         REGISTER_OPTION(COMPILED_BLOB);
@@ -218,22 +218,22 @@ TEST_P(PropertiesManagerTests, ExpectRunTimeSpecialBothPropertyIsSupported) {
     ASSERT_TRUE(isSupported);
 }
 
-using CompilerLogLevelPropertyTests = PropertiesManagerTests;
+using CompileLogLevelPropertyTests = PropertiesManagerTests;
 
-TEST_P(CompilerLogLevelPropertyTests, InheritsPluginLogLevelWhenUnset) {
+TEST_P(CompileLogLevelPropertyTests, InheritsPluginLogLevelWhenUnset) {
     propertiesManager->setProperty({{ov::log::level(ov::log::Level::DEBUG)}});
 
     ov::Any retrieved;
-    OV_ASSERT_NO_THROW(retrieved = propertiesManager->getProperty(ov::intel_npu::compiler_log_level.name()));
+    OV_ASSERT_NO_THROW(retrieved = propertiesManager->getProperty(ov::intel_npu::compile_log_level.name()));
     ASSERT_EQ(retrieved.as<ov::log::Level>(), ov::log::Level::DEBUG);
 }
 
-TEST_P(CompilerLogLevelPropertyTests, IsIndependentFromLogLevel) {
+TEST_P(CompileLogLevelPropertyTests, IsIndependentFromLogLevel) {
     propertiesManager->setProperty(
-        {{ov::log::level(ov::log::Level::DEBUG)}, {ov::intel_npu::compiler_log_level(ov::log::Level::ERR)}});
+        {{ov::log::level(ov::log::Level::DEBUG)}, {ov::intel_npu::compile_log_level(ov::log::Level::ERR)}});
 
     ov::Any compilerLevel;
-    OV_ASSERT_NO_THROW(compilerLevel = propertiesManager->getProperty(ov::intel_npu::compiler_log_level.name()));
+    OV_ASSERT_NO_THROW(compilerLevel = propertiesManager->getProperty(ov::intel_npu::compile_log_level.name()));
     ASSERT_EQ(compilerLevel.as<ov::log::Level>(), ov::log::Level::ERR);
 
     ov::Any pluginLevel;

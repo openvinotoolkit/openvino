@@ -698,10 +698,24 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const FilteredConfig& config,
+std::string serializeConfig(const FilteredConfig& originalConfig,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
+
+    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
+    // NPU_COMPILE_LOG_LEVEL, copy the config and overwrite LOG_LEVEL on the copy with that (resolved) value, then
+    // use the copy for the remainder of this function so every subsequent read observes the compiler-specific
+    // level instead of the plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy
+    // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
+    std::optional<FilteredConfig> configWithCompileLogLevel;
+    if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
+        std::ostringstream levelStr;
+        levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
+        configWithCompileLogLevel = originalConfig;
+        configWithCompileLogLevel->update({{ov::log::level.name(), levelStr.str()}});
+    }
+    const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 
     std::string content = {};
 
@@ -777,27 +791,6 @@ std::string serializeConfig(const FilteredConfig& config,
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
-    }
-
-    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key, so always (re)write that entry
-    // with the effective compiler log level: NPU_COMPILER_LOG_LEVEL when the user explicitly set it, otherwise the
-    // plugin LOG_LEVEL it inherits from.
-    std::ostringstream levelStr;
-    levelStr << COMPILER_LOG_LEVEL::resolve(config);
-    std::ostringstream logLevelEntry;
-    logLevelEntry << ov::log::level.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << levelStr.str()
-                  << VALUE_DELIMITER;
-
-    std::ostringstream existingLogLevel;
-    existingLogLevel << ov::log::level.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-    const std::regex existingLogLevelRe(existingLogLevel.str());
-    if (std::regex_search(content, existingLogLevelRe)) {
-        content = std::regex_replace(content, existingLogLevelRe, logLevelEntry.str());
-    } else {
-        if (!content.empty()) {
-            content += VALUES_SEPARATOR;
-        }
-        content += logLevelEntry.str();
     }
 
     // Special cases

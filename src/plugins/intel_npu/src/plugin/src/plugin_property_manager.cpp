@@ -289,10 +289,10 @@ void PluginPropertyManager::registerProperties() const {
     try_register_property_based_on_config<COMPILATION_NUM_THREADS>(_config, _properties, ov::compilation_num_threads.name());
     try_register_property_based_on_config<INFERENCE_PRECISION_HINT>(_config, _properties, ov::hint::inference_precision.name());
     try_register_property_based_on_config<LOG_LEVEL>(_config, _properties, ov::log::level.name());
-    // COMPILER_LOG_LEVEL has no default value (unset == "inherit LOG_LEVEL"), so the getter must resolve the
-    // effective value rather than calling config.get<COMPILER_LOG_LEVEL>() directly, which would throw when unset.
-    try_register_property_based_on_config_with_custom_function(_config, _properties, ov::intel_npu::compiler_log_level.name(),
-        [](const Config& config) -> ov::Any { return COMPILER_LOG_LEVEL::resolve(config); });
+    // COMPILE_LOG_LEVEL has no default value (unset == "inherit LOG_LEVEL"), so the getter must resolve the
+    // effective value rather than calling config.get<COMPILE_LOG_LEVEL>() directly, which would throw when unset.
+    try_register_property_based_on_config_with_custom_function(_config, _properties, ov::intel_npu::compile_log_level.name(),
+        [](const Config& config) -> ov::Any { return COMPILE_LOG_LEVEL::resolve(config); });
     try_register_property_based_on_config<CACHE_DIR>(_config, _properties, ov::cache_dir.name());
     try_register_property_based_on_config<CACHE_MODE>(_config, _properties, ov::cache_mode.name());
     try_register_property_based_on_config<COMPILED_BLOB>(_config, _properties, ov::hint::compiled_blob.name());

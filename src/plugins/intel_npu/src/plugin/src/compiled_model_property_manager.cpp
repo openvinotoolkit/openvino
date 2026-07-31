@@ -138,9 +138,6 @@ void CompiledModelPropertyManager::registerProperties() {
     try_register_property_based_on_config_as_read_only<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
     OPENVINO_SUPPRESS_DEPRECATED_END
     try_register_property_based_on_config_as_read_only<LOG_LEVEL>(_config, _properties, ov::log::level.name());
-    // COMPILER_LOG_LEVEL has no default value (unset == "inherit LOG_LEVEL"); report the resolved effective value.
-    register_property_with_custom_function(_properties, ov::intel_npu::compiler_log_level.name(), /*isPublic=*/false,
-        [](const Config& config) -> ov::Any { return COMPILER_LOG_LEVEL::resolve(config); });
     try_register_property_based_on_config_as_read_only<LOADED_FROM_CACHE>(_config, _properties, ov::loaded_from_cache.name());
     try_register_property_based_on_config_as_read_only<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode.name());
     try_register_property_based_on_config_as_read_only<EXECUTION_MODE_HINT>(_config, _properties, ov::hint::execution_mode.name());
@@ -179,6 +176,7 @@ void CompiledModelPropertyManager::registerProperties() {
     try_register_property_based_on_config_if_set_as_read_only<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
     try_register_property_based_on_config_if_set_as_read_only<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode.name());
     try_register_property_based_on_config_if_set_as_read_only<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
+    try_register_property_based_on_config_if_set_as_read_only<COMPILE_LOG_LEVEL>(_config, _properties, ov::intel_npu::compile_log_level.name());
 
     try_register_property_based_on_config_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const Config&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};

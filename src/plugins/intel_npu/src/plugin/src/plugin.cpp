@@ -212,21 +212,6 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(ov::AnyMap& properties) 
     return nullptr;
 }
 
-// Resolves the compiler log level to pass at compiler-creation time for CiP.
-// The CiD instead gets its log level per-call.
-// An explicit per-call NPU_COMPILER_LOG_LEVEL overwrites the default LOG_LEVEL.
-std::optional<ov::log::Level> read_compiler_log_level(const ov::AnyMap& properties, const Config& fallbackConfig) {
-    const auto compilerIt = properties.find(ov::intel_npu::compiler_log_level.name());
-    if (compilerIt != properties.end()) {
-        return compilerIt->second.as<ov::log::Level>();
-    }
-    const auto logIt = properties.find(ov::log::level.name());
-    if (logIt != properties.end()) {
-        return logIt->second.as<ov::log::Level>();
-    }
-    return COMPILER_LOG_LEVEL::resolve(fallbackConfig);
-}
-
 void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
     // Initialize (note: it will reset registered options)
     options.reset();
@@ -240,7 +225,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
-    REGISTER_OPTION(COMPILER_LOG_LEVEL);
+    REGISTER_OPTION(COMPILE_LOG_LEVEL);
     REGISTER_OPTION(CACHE_DIR);
     REGISTER_OPTION(CACHE_MODE);
     REGISTER_OPTION(COMPILED_BLOB);
@@ -443,10 +428,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend,
-                                        compilerType,
-                                        compilationPlatform,
-                                        read_compiler_log_level(localProperties, _propertiesManager->getConfig()));
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -796,10 +778,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend,
-                                        compilerType,
-                                        compilationPlatform,
-                                        read_compiler_log_level(localProperties, _propertiesManager->getConfig()));
+    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {

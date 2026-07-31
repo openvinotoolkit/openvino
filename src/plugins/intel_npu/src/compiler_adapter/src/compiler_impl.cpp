@@ -95,8 +95,7 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     }
 
 VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
-                                 const std::optional<IDevice::DeviceProperties>& deviceProperties,
-                                 const std::optional<ov::log::Level>& compilerLogLevel)
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _logHandle(nullptr),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
@@ -125,8 +124,7 @@ VCLCompilerImpl::VCLCompilerImpl(const std::string& libraryDir,
 
     vcl_compiler_desc_t compilerDesc;
     compilerDesc.version = _vclVersion;
-    const ov::log::Level effectiveCompilerLogLevel = compilerLogLevel.value_or(Logger::global().level());
-    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(effectiveCompilerLogLevel) + 1);
+    compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
     vcl_device_desc_t vclDeviceDesc = {};
     if (deviceProperties.has_value()) {

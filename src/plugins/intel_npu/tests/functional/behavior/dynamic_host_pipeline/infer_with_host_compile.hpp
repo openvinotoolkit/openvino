@@ -233,7 +233,7 @@ public:
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
-        configuration[ov::intel_npu::compiler_log_level.name()] = ov::log::Level::ERR;
+        configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {

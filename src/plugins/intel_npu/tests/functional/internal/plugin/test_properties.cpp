@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
-                         CompilerLogLevelPropertyTests,
+                         CompileLogLevelPropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);

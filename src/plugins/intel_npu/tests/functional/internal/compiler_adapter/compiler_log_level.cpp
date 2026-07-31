@@ -15,7 +15,7 @@
 
 namespace {
 
-class CompilerLogLevelSerializeConfigTests : public ::testing::Test {
+class CompileLogLevelSerializeConfigTests : public ::testing::Test {
 protected:
     std::shared_ptr<::intel_npu::OptionsDesc> options;
     std::unique_ptr<::intel_npu::FilteredConfig> config;
@@ -25,7 +25,7 @@ protected:
 
         options = std::make_shared<OptionsDesc>();
         options->add<LOG_LEVEL>();
-        options->add<COMPILER_LOG_LEVEL>();
+        options->add<COMPILE_LOG_LEVEL>();
 
         config = std::make_unique<FilteredConfig>(options);
 
@@ -48,35 +48,35 @@ protected:
     }
 };
 
-TEST_F(CompilerLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPluginLogSet) {
+TEST_F(CompileLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPluginLogSet) {
     config->update({{ov::log::level.name(), "LOG_DEBUG"}});
 
     const std::string flags = serialize();
 
     EXPECT_NE(flags.find(std::string(ov::log::level.name()) + "=\"LOG_DEBUG\""), std::string::npos) << flags;
-    EXPECT_EQ(flags.find(ov::intel_npu::compiler_log_level.name()), std::string::npos)
-        << "NPU_COMPILER_LOG_LEVEL must never be serialized under its own key: " << flags;
+    EXPECT_EQ(flags.find(ov::intel_npu::compile_log_level.name()), std::string::npos)
+        << "NPU_COMPILE_LOG_LEVEL must never be serialized under its own key: " << flags;
 }
 
-TEST_F(CompilerLogLevelSerializeConfigTests, CompilerLogLevelSetPrioritizedOverUnchangedPluginLogLevel) {
-    config->update({{ov::log::level.name(), "LOG_DEBUG"}, {ov::intel_npu::compiler_log_level.name(), "LOG_ERROR"}});
+TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverUnchangedPluginLogLevel) {
+    config->update({{ov::log::level.name(), "LOG_DEBUG"}, {ov::intel_npu::compile_log_level.name(), "LOG_ERROR"}});
 
     const std::string flags = serialize();
 
     EXPECT_NE(flags.find(std::string(ov::log::level.name()) + "=\"LOG_ERROR\""), std::string::npos) << flags;
     EXPECT_EQ(flags.find(std::string(ov::log::level.name()) + "=\"LOG_DEBUG\""), std::string::npos) << flags;
-    EXPECT_EQ(flags.find(ov::intel_npu::compiler_log_level.name()), std::string::npos)
-        << "NPU_COMPILER_LOG_LEVEL must never be serialized under its own key: " << flags;
+    EXPECT_EQ(flags.find(ov::intel_npu::compile_log_level.name()), std::string::npos)
+        << "NPU_COMPILE_LOG_LEVEL must never be serialized under its own key: " << flags;
 }
 
-TEST_F(CompilerLogLevelSerializeConfigTests, CompilerLogLevelSetPrioritizedOverChangedPluginLogLevel) {
-    config->update({{ov::intel_npu::compiler_log_level.name(), "LOG_TRACE"}});
+TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverChangedPluginLogLevel) {
+    config->update({{ov::intel_npu::compile_log_level.name(), "LOG_TRACE"}});
 
     const std::string flags = serialize();
 
     EXPECT_NE(flags.find(std::string(ov::log::level.name()) + "=\"LOG_TRACE\""), std::string::npos) << flags;
-    EXPECT_EQ(flags.find(ov::intel_npu::compiler_log_level.name()), std::string::npos)
-        << "NPU_COMPILER_LOG_LEVEL must never be serialized under its own key: " << flags;
+    EXPECT_EQ(flags.find(ov::intel_npu::compile_log_level.name()), std::string::npos)
+        << "NPU_COMPILE_LOG_LEVEL must never be serialized under its own key: " << flags;
 }
 
 }  // namespace
