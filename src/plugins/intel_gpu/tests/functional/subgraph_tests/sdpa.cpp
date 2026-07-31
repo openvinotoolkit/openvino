@@ -131,8 +131,8 @@ protected:
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
         if (query_shape != query_reshape_shape) {
             const auto query_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
-                                                                            ov::Shape{query_reshape_shape.size()},
-                                                                            query_reshape_shape);
+                                                                           ov::Shape{query_reshape_shape.size()},
+                                                                           query_reshape_shape);
             query_reshaped = std::make_shared<ov::op::v1::Reshape>(query, query_reshape_params, true);
             reshape = true;
         }
@@ -150,8 +150,8 @@ protected:
         std::shared_ptr<ov::op::v1::Reshape> value_reshaped;
         if (value_shape != value_reshape_shape) {
             const auto value_reshape_params = ov::op::v0::Constant::create(ov::element::i64,
-                                                        ov::Shape{value_reshape_shape.size()},
-                                                        value_reshape_shape);
+                                                                           ov::Shape{value_reshape_shape.size()},
+                                                                           value_reshape_shape);
             value_reshaped = std::make_shared<ov::op::v1::Reshape>(value, value_reshape_params, true);
             reshape = true;
         }
