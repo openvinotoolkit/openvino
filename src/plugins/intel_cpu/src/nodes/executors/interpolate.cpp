@@ -32,7 +32,7 @@ bool ov::intel_cpu::InterpolateExecutor::init(const InterpolateAttrs& interpolat
     srcDataSize = interpolateAttrs.inPrc.size();
     dstDataSize = interpolateAttrs.outPrc.size();
     dataRank = srcDims.size();
-    spatialDimSize = getSpatialDimsNum(dataRank);
+    spatialDimSize = static_cast<int>(getSpatialDimsNum(dataRank));
 
     switch (interpAttrs.mode) {
     case InterpolateMode::nearest: {
@@ -75,32 +75,32 @@ void ov::intel_cpu::InterpolateExecutor::buildTblNN(const VectorDims& srcDimPad5
                                                     const std::vector<float>& dataScales,
                                                     [[maybe_unused]] InterpolateLayoutType layout,
                                                     InterpolateNearestMode nearestMode) {
-    const int dimSize = dataRank;
+    const int dimSize = static_cast<int>(dataRank);
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.F;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2];
-    size_t IH = srcDimPad5d[3];
-    size_t IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2];
-    size_t OH = dstDim5d[3];
-    size_t OW = dstDim5d[4];
+    int ID = static_cast<int>(srcDimPad5d[2]);
+    int IH = static_cast<int>(srcDimPad5d[3]);
+    int IW = static_cast<int>(srcDimPad5d[4]);
+    int OD = static_cast<int>(dstDim5d[2]);
+    int OH = static_cast<int>(dstDim5d[3]);
+    int OW = static_cast<int>(dstDim5d[4]);
 
-    indexTable.resize(OD + OH + OW);
+    indexTable.resize(static_cast<size_t>(OD) + OH + OW);
     bool isDDownsample = fz < 1;
     bool isHDownsample = fy < 1;
     bool isWDownsample = fx < 1;
-    for (int oz = 0; oz < static_cast<int>(OD); oz++) {
+    for (int oz = 0; oz < OD; oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         indexTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
         indexTable[oz] = clipCoord(indexTable[oz], ID);
     }
-    for (int oy = 0; oy < static_cast<int>(OH); oy++) {
+    for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         indexTable[OD + oy] = nearestRound(iy, isHDownsample, nearestMode);
         indexTable[OD + oy] = clipCoord(indexTable[OD + oy], IH);
     }
-    for (int ox = 0; ox < static_cast<int>(OW); ox++) {
+    for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         indexTable[OD + OH + ox] = nearestRound(ix, isWDownsample, nearestMode);
         indexTable[OD + OH + ox] = clipCoord(indexTable[OD + OH + ox], IW);
@@ -205,16 +205,16 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
                                                             const VectorDims& dstDim5d,
                                                             const std::vector<float>& dataScales,
                                                             InterpolateLayoutType layout) {
-    int dimSize = dataRank;
+    int dimSize = static_cast<int>(dataRank);
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.F;
     float fy = (spatialDimSize > 1) ? dataScales[dimSize - 2] : 1.F;
     float fx = dataScales[dimSize - 1];
-    int ID = srcDimPad5d[2];
-    int IH = srcDimPad5d[3];
-    int IW = srcDimPad5d[4];
-    int OD = dstDim5d[2];
-    int OH = dstDim5d[3];
-    int OW = dstDim5d[4];
+    int ID = static_cast<int>(srcDimPad5d[2]);
+    int IH = static_cast<int>(srcDimPad5d[3]);
+    int IW = static_cast<int>(srcDimPad5d[4]);
+    int OD = static_cast<int>(dstDim5d[2]);
+    int OH = static_cast<int>(dstDim5d[3]);
+    int OW = static_cast<int>(dstDim5d[4]);
 
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -253,7 +253,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
             weightPtr[4] = reinterpret_cast<float*>(&indexTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&indexTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = ov::with_cpu_x86_sse42() ? srcDataSize : 1;
+        int scale = ov::with_cpu_x86_sse42() ? static_cast<int>(srcDataSize) : 1;
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
@@ -339,16 +339,16 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinear(const VectorDims& srcDim
                                                         const std::vector<float>& dataScales,
                                                         int kernel_width,
                                                         bool antialias) {
-    int dimSize = dataRank;
+    int dimSize = static_cast<int>(dataRank);
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.F;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    size_t ID = srcDimPad5d[2];
-    size_t IH = srcDimPad5d[3];
-    size_t IW = srcDimPad5d[4];
-    size_t OD = dstDim5d[2];
-    size_t OH = dstDim5d[3];
-    size_t OW = dstDim5d[4];
+    int ID = static_cast<int>(srcDimPad5d[2]);
+    int IH = static_cast<int>(srcDimPad5d[3]);
+    int IW = static_cast<int>(srcDimPad5d[4]);
+    int OD = static_cast<int>(dstDim5d[2]);
+    int OH = static_cast<int>(dstDim5d[3]);
+    int OW = static_cast<int>(dstDim5d[4]);
 
     if (IW != OW || IH != OH || ID != OD) {
         float ax = antialias ? fx : 1.0F;
@@ -437,13 +437,13 @@ void ov::intel_cpu::InterpolateExecutor::buildTblCubic(const VectorDims& srcDimP
                                                        const std::vector<float>& dataScales,
                                                        float cubicCoeff,
                                                        InterpolateLayoutType layout) {
-    int dimSize = dataRank;
+    int dimSize = static_cast<int>(dataRank);
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3];
-    int IW = srcDimPad5d[4];
-    int OH = dstDim5d[3];
-    int OW = dstDim5d[4];
+    int IH = static_cast<int>(srcDimPad5d[3]);
+    int IW = static_cast<int>(srcDimPad5d[4]);
+    int OH = static_cast<int>(dstDim5d[3]);
+    int OW = static_cast<int>(dstDim5d[4]);
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;

@@ -66,7 +66,7 @@ public:
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
 
-        auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
+        auto addEdge = [&](const NodePtr& parent, const NodePtr& child, int parentPort, int childPort) -> void {
             auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
             Node::addEdge(edge);
             edges.push_back(edge);
@@ -109,7 +109,7 @@ public:
                 addEdge(parentNode, currentNode, 0, 0);
                 auto constantsItr = conv.fusedConstNodes.find(currentNode);
                 if (constantsItr != conv.fusedConstNodes.end()) {
-                    size_t inpPort = 1LU;
+                    int inpPort = 1;
                     for (const auto& item : constantsItr->second) {
                         addEdge(item, currentNode, 0, inpPort++);
                     }
