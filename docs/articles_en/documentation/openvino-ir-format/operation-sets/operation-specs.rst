@@ -134,7 +134,6 @@ Operation Specifications
    Loop-5 <operation-specs/infrastructure/loop-5>
    MVN-1 <operation-specs/normalization/mvn-1>
    MVN-6 <operation-specs/normalization/mvn-6>
-   Mamba2 <operation-specs/internal/mamba2>
    MatMul-1 <operation-specs/matrix/matmul-1>
    MatrixNms-8 <operation-specs/sort/matrix-non-max-suppression-8>
    MaxPool-1 <operation-specs/pooling/max-pool-1>
@@ -236,6 +235,7 @@ Operation Specifications
    SquaredDifference-1 <operation-specs/arithmetic/squared-difference-1>
    Squeeze-1 <operation-specs/shape/squeeze-1>
    Squeeze-15 <operation-specs/shape/squeeze-15>
+   SSM <operation-specs/internal/ssm>
    STFT-15 <operation-specs/signals/stft-15>
    StridedSlice-1 <operation-specs/movement/strided-slice-1>
    StringTensorPack-15 <operation-specs/type/string-tensor-pack-15>
