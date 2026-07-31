@@ -25,12 +25,12 @@ ov::npuw::EncoderEmbeddingInferRequest::EncoderEmbeddingInferRequest(
     // zeroing the padding in infer(), both rely on the hidden state being [1, L, hidden].
     const auto& out_shape = m_prefill_out_tensor->get_shape();
     const auto max_prompt_size = m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size;
-    OPENVINO_ASSERT(out_shape.size() == 3u && out_shape[0] == 1u &&
-                        out_shape[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == max_prompt_size,
-                    "Encoder embedding model must produce a [1, ",
-                    max_prompt_size,
-                    ", hidden] hidden state, got ",
-                    out_shape);
+    OPENVINO_ASSERT(
+        out_shape.size() == 3u && out_shape[0] == 1u && out_shape[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == max_prompt_size,
+        "Encoder embedding model must produce a [1, ",
+        max_prompt_size,
+        ", hidden] hidden state, got ",
+        out_shape);
 }
 
 void ov::npuw::EncoderEmbeddingInferRequest::infer() {

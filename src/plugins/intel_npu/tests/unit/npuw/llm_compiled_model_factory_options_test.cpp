@@ -941,9 +941,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderCompilesPrefillOnly) 
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(),
-                                                     {{"NPUW_TEXT_EMBED", "YES"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(), {{"NPUW_TEXT_EMBED", "YES"}}, recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
     // No generate variant should be produced for an encoder embedding model.
@@ -960,8 +958,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
 
     // 1024 > BERT max_position_embeddings (512): must not throw, must clamp.
     ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(),
-                                                     {{"NPUW_TEXT_EMBED", "YES"},
-                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "1024"}},
+                                                     {{"NPUW_TEXT_EMBED", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "1024"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
