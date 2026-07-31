@@ -5,6 +5,8 @@
 #include "openvino/op/group_query_attention.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov::op::internal {
 
@@ -19,8 +21,7 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          const std::string& v_quant_type,
                                          int64_t local_window_size,
                                          bool sliding_window_cache,
-                                         bool smooth_softmax,
-                                         const std::vector<int64_t>& null_input_positions)
+                                         bool smooth_softmax)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -32,8 +33,7 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_v_quant_type(v_quant_type),
       m_local_window_size(local_window_size),
       m_sliding_window_cache(sliding_window_cache),
-      m_smooth_softmax(smooth_softmax),
-      m_null_input_positions(null_input_positions) {
+      m_smooth_softmax(smooth_softmax) {
     constructor_validate_and_infer_types();
 }
 
@@ -63,21 +63,6 @@ void GroupQueryAttention::validate_and_infer_types() {
     // with front eviction instead of growing. Otherwise present = past + current.
     if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic())) {
         output_kv_len += sequence_len;
-    }
-
-    const auto original_input_count = get_original_input_count();
-    std::vector<uint8_t> seen_positions(static_cast<size_t>(original_input_count), 0);
-    for (const auto pos : m_null_input_positions) {
-        OPENVINO_ASSERT(pos >= 0 && pos < original_input_count,
-                        "GroupQueryAttention null_input_positions contains out-of-range position: ",
-                        pos,
-                        ", expected in [0, ",
-                        original_input_count,
-                        ")");
-        OPENVINO_ASSERT(seen_positions[static_cast<size_t>(pos)] == 0,
-                        "GroupQueryAttention null_input_positions contains duplicate position: ",
-                        pos);
-        seen_positions[static_cast<size_t>(pos)] = 1;
     }
 
     // Query/activation (input 0) is always float; attention itself is computed in float precision.
@@ -156,19 +141,20 @@ void GroupQueryAttention::validate_and_infer_types() {
                               m_k_quant_type,
                               " and ",
                               m_v_quant_type);
-        // Check that ONNX positions 12 (k_scale) and 13 (v_scale) are present (not filtered out as NullNode)
+        // Check that ONNX positions 12 (k_scale) and 13 (v_scale) are present
+        // (i.e. not represented by empty constants).
         NODE_VALIDATION_CHECK(this,
                               has_input(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE)) &&
                                   has_input(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE)),
                               "GroupQueryAttention with quantized KV cache requires k_scale (ONNX input 12) and "
                               "v_scale (ONNX input 13) to be present");
-        // Verify that the computed input indices for k_scale and v_scale are valid
-        auto k_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::K_SCALE));
-        auto v_scale_idx = get_input_index(static_cast<int64_t>(GroupQueryAttentionInputs::V_SCALE));
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(static_cast<size_t>(k_scale_idx)) == element::f32 &&
-                                  get_input_element_type(static_cast<size_t>(v_scale_idx)) == element::f32,
-                              "GroupQueryAttention k_scale/v_scale must be f32");
+        // Verify that k_scale and v_scale are f32.
+        const auto k_scale_idx = static_cast<size_t>(GroupQueryAttentionInputs::K_SCALE);
+        const auto v_scale_idx = static_cast<size_t>(GroupQueryAttentionInputs::V_SCALE);
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(k_scale_idx) == element::f32 && get_input_element_type(v_scale_idx) == element::f32,
+            "GroupQueryAttention k_scale/v_scale must be f32");
     }
 
     if (m_do_rotary) {
@@ -185,6 +171,15 @@ void GroupQueryAttention::validate_and_infer_types() {
     }
 }
 
+bool GroupQueryAttention::has_input(int64_t input_position) const {
+    if (input_position < 0 || input_position >= static_cast<int64_t>(get_input_size())) {
+        return false;
+    }
+    const auto input_node = input_value(static_cast<size_t>(input_position)).get_node_shared_ptr();
+    const auto constant = ov::as_type_ptr<v0::Constant>(input_node);
+    return !(constant && ov::shape_size(constant->get_shape()) == 0);
+}
+
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
     visitor.on_attribute("do_rotary", m_do_rotary);
@@ -198,7 +193,6 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("smooth_softmax", m_smooth_softmax);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
-    visitor.on_attribute("null_input_positions", m_null_input_positions);
     return true;
 }
 
@@ -216,8 +210,7 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_v_quant_type,
                                                  m_local_window_size,
                                                  m_sliding_window_cache,
-                                                 m_smooth_softmax,
-                                                 m_null_input_positions);
+                                                 m_smooth_softmax);
 }
 
 }  // namespace ov::op::internal

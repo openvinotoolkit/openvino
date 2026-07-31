@@ -57,15 +57,11 @@ public:
         const auto rotary_interleaved = node->get_rotary_interleaved();
         // TODO: add softcap support
 
-        const auto get_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos,
-                                   const bool is_required = true) -> ov::Output<ov::Node> {
+        const auto get_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) -> ov::Output<ov::Node> {
             const auto original_pos = static_cast<int64_t>(input_pos);
             const bool exists = node->has_input(original_pos);
-            OPENVINO_ASSERT(!is_required || exists,
-                            "Missing required GroupQueryAttention input at original position ",
-                            original_pos);
-            return exists ? node->input_value(static_cast<size_t>(node->get_input_index(original_pos)))
-                          : ov::Output<ov::Node>{};
+            OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
+            return node->input_value(static_cast<size_t>(original_pos));
         };
 
         auto Q = get_input(ov::op::internal::GroupQueryAttentionInputs::QUERY);
@@ -74,8 +70,6 @@ public:
         auto past_key = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_KEY);
         auto past_value = get_input(ov::op::internal::GroupQueryAttentionInputs::PAST_VALUE);
         auto seqlens_k = get_input(ov::op::internal::GroupQueryAttentionInputs::SEQLENS_K);
-        auto cos_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::COS_CACHE, do_rotary);
-        auto sin_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::SIN_CACHE, do_rotary);
 
         // The length of all tokens (past + current) is `seqlens_k` + 1.
         // current = Q.shape[2], past = `seqlens_k` + 1 - current
@@ -99,6 +93,8 @@ public:
         const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
         if (do_rotary) {
+            auto cos_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::COS_CACHE);
+            auto sin_cache = get_input(ov::op::internal::GroupQueryAttentionInputs::SIN_CACHE);
             ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
                                                                              curr_seqlen_scalar,
                                                                              one_without_shape,
