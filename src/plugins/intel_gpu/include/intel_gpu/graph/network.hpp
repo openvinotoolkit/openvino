@@ -238,12 +238,10 @@ public:
 private:
     using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
-    // Number of remaining attempts to record stream
-    // TODO: Consider simple bool flag here "_enable_stream_recording"
-    int32_t _recording_attempts = 3;
     program::ptr _program;
     engine& _engine;
     stream::ptr _stream;
+    command_list::ptr _cmd_list = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
@@ -251,6 +249,8 @@ private:
     bool _enable_profiling = false;
     bool _reset_arguments;
     bool _reuse_variable_mem = false;
+    bool _is_recording_valid = false;
+    bool _enable_stream_recording = false;
 
     /* Common memory pointer for shape_info */
     memory::ptr _shape_info_ptr;
@@ -279,8 +279,8 @@ private:
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
-    /// @brief Discard the recording of the previous iteration
-    void discard_stream_recording();
+    /// @brief Invalidate the recording of the previous iteration
+    void invalidate_stream_recording();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);

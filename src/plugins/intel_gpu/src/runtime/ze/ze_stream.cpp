@@ -467,5 +467,33 @@ dnnl::stream& ze_stream::get_onednn_stream() {
 }
 #endif
 
+bool ze_stream::supports_recording() {
+    return true;
+}
+std::shared_ptr<command_list> ze_stream::create_command_list() {
+    // TODO
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void ze_stream::start_recording(command_list::ptr cmd_list) {
+    // TODO
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+bool ze_stream::is_recording() {
+    // TODO
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+command_list::ptr ze_stream::stop_recording() {
+    // TODO
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void ze_stream::enqueue_command_list(command_list::ptr cmd_list) {
+    // TODO
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 }  // namespace ze
 }  // namespace cldnn

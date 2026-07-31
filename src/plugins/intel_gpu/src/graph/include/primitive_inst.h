@@ -302,6 +302,8 @@ public:
     void clear_events();
     void reset_out_event();
 
+    bool can_be_recorded() const;
+
     void prepare_primitive();
     void execute();
     void init_kernels(const kernels_cache& kernels_cache) {

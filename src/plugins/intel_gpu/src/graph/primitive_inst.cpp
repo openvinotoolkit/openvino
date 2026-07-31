@@ -2061,6 +2061,11 @@ void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
 }
 
+bool primitive_inst::can_be_recorded() const {
+    // TODO: Whitelist only known primitives
+    return !_impl->is_cpu();
+}
+
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle(id() + "::prepare"));
     const auto& primitive_id = id();

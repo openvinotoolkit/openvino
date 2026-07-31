@@ -468,5 +468,28 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
     }
 }
 
+bool ocl_stream::supports_recording() {
+    return false;
+}
+std::shared_ptr<command_list> ocl_stream::create_command_list() {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void ocl_stream::start_recording(command_list::ptr cmd_list) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+bool ocl_stream::is_recording() {
+    return false;
+}
+
+command_list::ptr ocl_stream::stop_recording() {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void ocl_stream::enqueue_command_list(command_list::ptr cmd_list) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 }  // namespace ocl
 }  // namespace cldnn
