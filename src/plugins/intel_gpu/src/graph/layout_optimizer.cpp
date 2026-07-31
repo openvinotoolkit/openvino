@@ -1408,8 +1408,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         for (size_t i = 0; i < dep_size; i++) {
             auto in_lay_rank = node.get_input_layout(i).get_rank();
             const auto& shape_infer_deps = node.get_shape_infer_dependencies();
-            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), i) != shape_infer_deps.end() ||
-                node.is_fused_dep(i)) {
+            if (std::find(shape_infer_deps.begin(), shape_infer_deps.end(), i) != shape_infer_deps.end()) {
                 auto fmt = format::get_default_format(in_lay_rank, false, false);
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
