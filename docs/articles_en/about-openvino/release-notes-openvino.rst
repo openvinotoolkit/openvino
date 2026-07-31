@@ -24,18 +24,20 @@ OpenVINO Release Notes
 What's New
 ++++++++++
 
+We are considering transitioning to C++20 as the default standard starting with the 27.0 release. We welcome feedback from our customers and community members on this proposed change. Please share your thoughts and comments on the `OpenVINO community forum <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__.
+
 More Gen AI coverage and frameworks integrations to minimize code changes
 -------------------------------------------------------------------------
 
-* New models supported:
+* New models supported (production ready):
 
-  * On CPU and GPU: Harrier-OSS-v1 0.6B, SmolLM3-3B, Qwen3-8B with Eagle-3, MiniCPM5-1B
+  * On CPU, GPU, and NPU: SmolLM3-3B, LFM2-1.2B, LFM2.5-1.2B
 
-  * Extended GPU & NPUs: Yolo26
+  * On CPU and GPU: Harrier OSS-v1-0.6B, Qwen3-8B with EAGLE-3, MiniCPM5-1B, FLUX.2-klein-4B
 
-  * Extended to NPUs: LFM2, LFM2.5
+  * Extended to GPU and NPU: YOLO26
 
-  * Other models enabled on CPUs and GPUs: FLUX.2-klein, Qwen3-ASR, Qwen3-Omni, Gemma-3n, Qwen3-VL-Embedding-8B, Kokoro-82M
+  * Additional models available as early releases on CPU and GPU: Qwen3-ASR, Qwen3-Omni, Gemma-3n, Qwen3-VL-Embedding-8B, Kokoro-82M
 
 * Support for Hugging Face Transformers v5.5, ensuring compatibility with the latest model architectures on Hugging Face
 
@@ -44,18 +46,20 @@ Broader LLM model support and more model compression techniques
 
 * OpenVINO™ GenAI extends the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to deliver additional token-generation speedups on CPUs, GPUs, and NPUs.
 
-* MoE offloading to disk enabled, allowing 30B MoE models like Qwen3-30B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokens-per-second (TPS) generation rates.
-
 * Added GroupedMatMul to accelerate native execution of Mixture-of-Experts (MoE) models, enabling faster support for new MoE architectures and improving their out-of-the-box performance.
 
 * Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
 * Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding low-precision inference options for production deployments.
 
+* OpenVINO™ GenAI now supports three additional pipelines: Omni for multimodal workloads, ASR for speech recognition, and Embedding for multimodal embedding generation.
+
 More portability and performance to run AI at the edge, in the cloud or locally
 -------------------------------------------------------------------------------
 
 * Introducing support for Intel® Xeon® 6+ processors (formerly codenamed Clearwater Forest)
+
+* MoE offloading to disk enabled, allowing 30B MoE models like Qwen3-30B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokens-per-second (TPS) generation rates.
 
 * OpenVINO™ Model Server simplifies model deployment and unifies REST API endpoints, reducing command complexity while providing standard v1/chat/completions support for easier integration with other serving frameworks.
 
@@ -250,7 +254,7 @@ Jupyter Notebooks
 
   * `Document Parsing using Unlimited-OCR <https://openvinotoolkit.github.io/openvino_notebooks/?search=Document+Parsing+using+Unlimited-OCR>`__ (experimental)
 
-  * `Gemma 4 12B <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma+4>`__ (experimental)
+  * `Gemma-4-12b <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma+4>`__
 
 * Archived notebooks (still available in 2026.2 branch and on the Archived tab):
 
@@ -281,7 +285,25 @@ Jupyter Notebooks
 Known Issues
 ------------
 
-* CPU Plugin: The ``ENABLE_CPU_PINNING`` property is not currently supported on dual-sockets CWF Windows Servers. Its default value on these systems is No. If a user changes the value to Yes in the application, the application will crash on this system.
+| **Component: CPU Plugin**
+| ID: CVS-191433
+| Description:
+| The ``ENABLE_CPU_PINNING`` property is not currently supported on dual-socket CWF Windows Servers. Its default value on these systems is No. If a user changes the value to Yes in the application, the application will crash on this system.
+
+| **Component: GenAI**
+| ID: 191107
+| Description:
+| The updated chat template for Gemma 4 models cannot be parsed by the Minja templating engine because Minja does not support adjacent literal-string concatenation syntax. As a workaround, the previous chat-template version can be set manually for the GenAI pipeline with ``pipe.get_tokenizer().set_chat_template(chat_template)``. A specific revision of the chat template can be downloaded from the Hugging Face model card. For example, see the `Gemma-4-12B-it chat template <https://huggingface.co/google/gemma-4-12B-it/blob/657684fef0b5ac5d6bff39284ceb6ec3710b700e/chat_template.jinja>`__.
+
+| **Component: GPU Plugin**
+| ID: 187785, 187019
+| Description:
+| The Gemma 4 26B A4B model has an accuracy issue when the input prompt is long, and the agentic BFCL test fails on GPU. The Gemma 4 31B model has an accuracy issue when an image is included in the input.
+
+| **Component: GenAI NPU**
+| ID: 191130
+| Description:
+| Qwen3 LLM fails to load on NPU. Qwen3 compilation fails for context sizes greater than 8K. As a workaround, switching compilation to CID mode through the compiler in the driver should resolve the problem.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
