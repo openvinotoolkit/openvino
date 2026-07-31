@@ -2274,10 +2274,9 @@ void primitive_inst::prepare_primitive() {
             return s.str();
         };
 
-        std::cerr << "[PROBE_BUFFER_LAYOUT] " << id() << " kern=" << _impl->get_kernel_name() << "@" <<_impl.get()
+        std::cerr << "[PROBE_BUFFER_LAYOUT] " << id() << " kern=" << _impl->get_kernel_name()
                   << " opt=" << can_be_optimized()
-                  << " OUT=" << _impl_params->output_layouts[0].to_short_string() << " " << padstr(_impl_params->output_layouts[0])
-                  << " size=" << (_outputs.empty() || !_outputs[0] ? 0 : _outputs[0]->size());
+                  << " OUT=" << _impl_params->output_layouts[0].to_short_string() << " " << padstr(_impl_params->output_layouts[0]);
         for (size_t k = 0; k < _impl_params->input_layouts.size() && k < 2; ++k)
             std::cerr << " IN[" << k << "]=" << _impl_params->input_layouts[k].to_short_string() << " " << padstr(_impl_params->input_layouts[k]);
         std::cerr << std::endl;
