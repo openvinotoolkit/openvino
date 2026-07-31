@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/cpu_convert.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -53,7 +52,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;

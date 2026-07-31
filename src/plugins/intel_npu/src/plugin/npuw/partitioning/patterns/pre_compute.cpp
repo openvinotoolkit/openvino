@@ -17,10 +17,16 @@ namespace pre_compute = ov::npuw::patterns::pre_compute;
 
 namespace {
 // TODO: copied from common tests
+// Builds a [1, max_position_embeddings, rotary_ndims] sin/cos LUT.
+// When duplicate=true (LLama2-style rotate_half), rotary_ndims = inv_freq_size*2
+// and the second half mirrors the first (torch.cat([freqs, freqs], dim=-1)).
+// When duplicate=false (GPT-style), rotary_ndims = inv_freq_size with no mirroring.
 static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
-                                        const std::shared_ptr<ov::Node> inverse_frequencies) {
+                                        const std::shared_ptr<ov::Node> inverse_frequencies,
+                                        bool duplicate = true) {
     const auto inverse_freq_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(inverse_frequencies)->cast_vector<float>();
-    const size_t rotary_ndims = ov::shape_size(inverse_frequencies->get_shape()) * 2;
+    const size_t inv_freq_size = ov::shape_size(inverse_frequencies->get_shape());
+    const size_t rotary_ndims = duplicate ? inv_freq_size * 2 : inv_freq_size;
 
     std::vector<ov::float16> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
     std::vector<ov::float16> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
@@ -29,26 +35,55 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     //   y1 = cos(m*xita_i) * x1 - sin(m*xita_i) * x2
     //   y2 = cos(m*xita_i) * x2 + sin(m*xita_i) * x1
     //
-    for (size_t i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
-        auto xita_i = inverse_freq_fp32[i >> 1];
+    for (size_t k = 0; k < inv_freq_size; k++) {
+        auto xita_i = inverse_freq_fp32[k];
         ov::float16* psin = lut_sin.data();
         ov::float16* pcos = lut_cos.data();
         for (size_t m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
-            auto vsin = std::sin(xita_i * m);
-            auto vcos = std::cos(xita_i * m);
-            pcos[k] = ov::float16{vcos};
-            pcos[k + rotary_ndims / 2] = pcos[k];
-
-            psin[k] = ov::float16{vsin};
-            psin[k + rotary_ndims / 2] = psin[k];
+            pcos[k] = ov::float16{std::cos(xita_i * static_cast<float>(m))};
+            psin[k] = ov::float16{std::sin(xita_i * static_cast<float>(m))};
+            if (duplicate) {
+                pcos[k + inv_freq_size] = pcos[k];
+                psin[k + inv_freq_size] = psin[k];
+            }
         }
     }
+
     auto Cos =
         ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
     auto Sin =
         ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
 
     return {Cos, Sin};
+}
+
+static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_factor_node,
+                                     const std::shared_ptr<ov::Node> long_factor_node,
+                                     const std::shared_ptr<ov::Node> multiply_node,
+                                     const std::shared_ptr<ov::Node> power_node) {
+    const auto short_factor = ov::as_type_ptr<ov::op::v0::Constant>(short_factor_node)->cast_vector<float>();
+    const auto long_factor = ov::as_type_ptr<ov::op::v0::Constant>(long_factor_node)->cast_vector<float>();
+    const auto multiply_const = ov::as_type_ptr<ov::op::v0::Constant>(multiply_node)->cast_vector<float>();
+    const auto power_const = ov::as_type_ptr<ov::op::v0::Constant>(power_node)->cast_vector<float>();
+    auto factor_size = short_factor.size();
+
+    OPENVINO_ASSERT(short_factor.size() == multiply_const.size() && long_factor.size() == multiply_const.size(),
+                    "Invalid constants for LongRopePatternPhi_v5, expected same size for short_factor, long_factor "
+                    "and multiply_const");
+    OPENVINO_ASSERT(power_const.size() == 1,
+                    "Invalid constants for LongRopePatternPhi_v5, expected single value for power_const");
+
+    std::vector<float> freq(factor_size, 0.0f);
+    std::vector<float> freq_long(factor_size, 0.0f);
+    for (size_t i = 0; i < factor_size; i++) {
+        freq[i] = std::pow(short_factor[i] * multiply_const[i], power_const[0]);
+        freq_long[i] = std::pow(long_factor[i] * multiply_const[i], power_const[0]);
+    }
+
+    auto inv_freq = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq);
+    auto inv_freq_long = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape({factor_size}), freq_long);
+
+    return {inv_freq, inv_freq_long};
 }
 
 void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
@@ -90,6 +125,7 @@ void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, con
     auto gather_input_to_concat = rpe->matched_concat->input(0);
     gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
 }
+
 }  // namespace
 
 ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matcher("sin-cos-matcher") {
@@ -105,7 +141,9 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-    auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
+    // Optional Concat between Transpose and Sin/Cos: present in LLama2-style RoPE
+    // (torch.cat([freqs, freqs], dim=-1)), absent in GPT-style RoPE (inv_freq shape [1, n, 1]).
+    auto concat_2 = opp::optional<ov::op::v0::Concat>({transpose->output(0), opp::any_input()});
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
@@ -120,7 +158,13 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
-        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
+        // Determine if freq duplication was applied by inspecting the actual graph:
+        // sin's direct input is Concat (LLama2-style) or Transpose (GPT-style, no dup).
+        auto sin_input = this->matched_sin->input_value(0).get_node_shared_ptr();
+        this->duplicate_freqs = ov::is_type<ov::op::v0::Concat>(sin_input);
+
+        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name()
+                                     << " (duplicate_freqs=" << duplicate_freqs << ")");
 
         return true;
     };
@@ -197,13 +241,121 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
 }
 
+ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() : matcher("sin-cos-matcher") {
+    auto MakeConstant = []() {
+        return opp::wrap_type<ov::op::v0::Constant>();
+    };
+
+    auto make_select_pattern = [&](const std::shared_ptr<ov::Node>& position_ids,
+                                   const std::shared_ptr<ov::Node>& short_factor,
+                                   const std::shared_ptr<ov::Node>& long_factor,
+                                   const std::shared_ptr<ov::Node>& multiply_const,
+                                   const std::shared_ptr<ov::Node>& power_const) {
+        auto red_max = opp::wrap_type<ov::op::v1::ReduceMax>({position_ids, MakeConstant()});
+        auto add = opp::wrap_type<ov::op::v1::Add>({red_max, MakeConstant()});
+        auto context_limit = MakeConstant();
+        // max(position_ids) + 1 > original_max_position_embeddings
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({add, context_limit});
+
+        auto short_factor_conv = opp::optional<ov::op::v0::Convert>({short_factor->output(0)});
+        auto long_factor_conv = opp::optional<ov::op::v0::Convert>({long_factor->output(0)});
+
+        // max(position_ids) + 1 > original_max_position_embeddings ? long_factor : short_factor;
+        auto select = opp::wrap_type<ov::op::v1::Select>({greater, long_factor_conv, short_factor_conv});
+        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({select, multiply_const});
+        auto power = opp::wrap_type<ov::op::v1::Power>({multiply, power_const});
+        auto unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({power, MakeConstant()});
+        auto unsqueeze_1 = opp::optional<ov::op::v0::Unsqueeze>({unsqueeze, MakeConstant()});
+
+        return std::make_tuple(unsqueeze_1, greater, red_max, context_limit);
+    };
+
+    auto position_ids = opp::wrap_type<ov::op::v0::Parameter>();
+
+    auto short_factor = MakeConstant();
+    auto long_factor = MakeConstant();
+
+    auto multiply_const = MakeConstant();
+    auto power_const = MakeConstant();
+
+    auto select_cond_max_pos_id =
+        make_select_pattern(position_ids, short_factor, long_factor, multiply_const, power_const);
+    auto select = std::get<0>(select_cond_max_pos_id);
+    auto cond = std::get<1>(select_cond_max_pos_id);
+    auto max_pos_id = std::get<2>(select_cond_max_pos_id);
+    auto context_limit = std::get<3>(select_cond_max_pos_id);
+
+    auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
+    auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
+    // here we can seen inverse frequencies as a parameter or constant depending on partitioner passes
+    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({select, concat_1});
+    auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({position_ids, MakeConstant()});
+    auto convert = opp::wrap_type<ov::op::v0::Convert>({unsqueeze});
+    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
+    auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+    auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
+    auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
+    auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
+
+    init_cb = [=](const auto& matches) {
+        const auto& map_sin = matches.at(output_sin)[0];
+        const auto& map_cos = matches.at(output_cos)[0];
+
+        this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
+        this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
+        this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();
+        this->matched_long_factor = map_sin.at(long_factor).get_node_shared_ptr();
+        this->matched_context_limit = map_sin.at(context_limit).get_node_shared_ptr();
+        this->matched_multiply_const = map_sin.at(multiply_const).get_node_shared_ptr();
+        this->matched_power_const = map_sin.at(power_const).get_node_shared_ptr();
+        this->matched_cond = map_sin.at(cond).get_node_shared_ptr();
+        this->max_pos_id = map_sin.at(max_pos_id).get_node_shared_ptr();
+
+        this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
+        this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
+
+        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
+
+        return true;
+    };
+
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
+}
+
+std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_phi_v5_longrope_context_limit(
+    const std::shared_ptr<ov::Model>& model) {
+    auto long_rope = std::make_shared<ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5>();
+    std::optional<uint64_t> context_limit;
+    long_rope->transform_cb = [&]() {
+        auto limit_const = ov::as_type_ptr<ov::op::v0::Constant>(long_rope->matched_context_limit);
+        OPENVINO_ASSERT(limit_const, "Invalid LongRopePatternPhi_v5 match, expected constant context limit");
+
+        const auto limit_values = limit_const->cast_vector<int64_t>();
+        OPENVINO_ASSERT(limit_values.size() == 1,
+                        "Invalid LongRopePatternPhi_v5 context limit, expected a single scalar value");
+        OPENVINO_ASSERT(limit_values.front() >= 0,
+                        "Invalid LongRopePatternPhi_v5 context limit, expected a non-negative value");
+
+        const auto matched_limit = static_cast<uint64_t>(limit_values.front());
+        if (context_limit.has_value()) {
+            OPENVINO_ASSERT(context_limit.value() == matched_limit,
+                            "Inconsistent LongRopePatternPhi_v5 context limits detected in the model");
+        } else {
+            context_limit = matched_limit;
+        }
+    };
+    long_rope->run_on_model(model);
+    return context_limit;
+}
+
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
                                                                     const std::shared_ptr<ov::Model>& model,
                                                                     const std::string& longrope_input_name) {
     auto rpe = std::make_shared<RopePatternLLama2>();
 
     rpe->transform_cb = [&]() {
-        auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq);
+        auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq, rpe->duplicate_freqs);
         replaceSinCosByCache(max_prompt_len, cache, rpe.get());
     };
     rpe->run_on_model(model);
@@ -226,6 +378,33 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         max_pos_id_out.replace(max_pos_id_param->output(0));
     };
     long_rpe->run_on_model(model);
+
+    auto long_rpe_v5 = std::make_shared<LongRopePatternPhi_v5>();
+
+    long_rpe_v5->transform_cb = [&]() {
+        auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor,
+                                       long_rpe_v5->matched_long_factor,
+                                       long_rpe_v5->matched_multiply_const,
+                                       long_rpe_v5->matched_power_const);
+
+        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq[0]);
+        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq[1]);
+
+        auto select_cos =
+            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
+        auto select_sin =
+            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
+
+        // WA: to get correct sin-cos cache size
+        long_rpe_v5->matched_inv_freq = inv_freq[0];
+        replaceSinCosByCache(max_prompt_len, {select_cos, select_sin}, long_rpe_v5.get());
+
+        auto max_pos_id_out = long_rpe_v5->max_pos_id->output(0);
+        max_pos_id_param.reset(new ov::op::v0::Parameter(max_pos_id_out.get_element_type(), {1}));
+        max_pos_id_param->set_friendly_name(longrope_input_name);
+        max_pos_id_out.replace(max_pos_id_param->output(0));
+    };
+    long_rpe_v5->run_on_model(model);
 
     if (max_pos_id_param) {
         model->add_parameters({max_pos_id_param});

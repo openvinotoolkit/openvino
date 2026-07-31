@@ -68,7 +68,10 @@ describe("ov.InferRequest tests", () => {
       const inputMessagePairs = [
         ["string", "Cannot create a tensor from the passed Napi::Value."],
         [tensorData.slice(-10), /Memory allocated using shape and element::type mismatch/],
-        [new Float32Array(buffer, 4), "TypedArray.byteOffset has to be equal to zero."],
+        [
+          new Float32Array(buffer, 4),
+          /TypedArray.byteOffset must be zero for zero-copy tensor construction./,
+        ],
         [{}, /Invalid argument/], // Test for object that is not Tensor
       ];
 
@@ -401,5 +404,79 @@ describe("ov.InferRequest tests with missing outputs names", () => {
   it("Test inferAsync(inputData: Tensor[])", async () => {
     const result = await inferRequest.inferAsync([tensor]);
     assert.deepStrictEqual(Object.keys(result).length, 1);
+  });
+});
+
+describe("GC safety infer() / inferAsync()", () => {
+  const { reluLargeModel } = testModels;
+  const iterationCount = 5;
+  const elementCount = lengthFromShape(reluLargeModel.inputShape);
+  let compiledModel = null;
+  let inferRequest = null;
+
+  before(() => {
+    const core = new ov.Core();
+    const model = core.readModelSync(reluLargeModel.xml);
+    compiledModel = core.compileModelSync(model, "CPU");
+    inferRequest = compiledModel.createInferRequest();
+  });
+
+  it("original TypedArray is alive during infer()", async () => {
+    function testInfer() {
+      const inputData = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, inputData);
+      return inferRequest.infer({ [reluLargeModel.inputName]: tensor });
+    }
+
+    const results = [];
+    for (let i = 0; i < iterationCount; i++) {
+      results.push(testInfer());
+    }
+    for (const result of results) {
+      const data = result["relu_out"].getData();
+      assert.strictEqual(data[0], 128.0, "First element should be 128");
+      assert.strictEqual(data[elementCount - 1], 128.0, "Last element should be 128");
+    }
+  });
+
+  it("original TypedArray is alive during inferAsync()", async () => {
+    async function testInferAsync() {
+      const inputData = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, inputData);
+      return inferRequest.inferAsync({ [reluLargeModel.inputName]: tensor });
+    }
+
+    const promises = [];
+    for (let i = 0; i < iterationCount; i++) {
+      promises.push(testInferAsync());
+    }
+    if (typeof global.gc === "function") global.gc();
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      const data = result["relu_out"].getData();
+      assert.strictEqual(data[0], 128.0, "First element should be 128");
+      assert.strictEqual(data[elementCount - 1], 128.0, "Last element should be 128");
+    }
+  });
+
+  it("Full-cycle tensor converting test", () => {
+    function fillInferRequest(inferRequest) {
+      // 1. TypedArray → TensorWrap
+      const buf = new Float32Array(elementCount).fill(128.0);
+      const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, buf);
+      // 2. TensorWrap → ov::Tensor
+      inferRequest.setInputTensor(tensor);
+    }
+
+    fillInferRequest(inferRequest);
+
+    // Intermediate execution, where GC collects buffer
+    if (typeof global.gc === "function") global.gc();
+
+    // 3. the same ov::Tensor → new TensorWrap
+    const sameTensor = inferRequest.getInputTensor();
+
+    // 4. read data from buffer, but it is not available or rewrote
+    assert.deepStrictEqual(sameTensor.getData(), new Float32Array(elementCount).fill(128.0));
   });
 });

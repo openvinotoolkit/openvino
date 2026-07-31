@@ -10,6 +10,67 @@
 
 using namespace ov::frontend::tensorflow_lite;
 
+namespace {
+enum class TensorKind { INPUT, OUTPUT };
+
+std::map<size_t, TensorInfo> collect_tensor_info(
+    const flatbuffers::Vector<int32_t>* indices,
+    const flatbuffers::Vector<flatbuffers::Offset<tflite::Tensor>>* tensors,
+    size_t tensors_size,
+    const flatbuffers::Vector<flatbuffers::Offset<tflite::Buffer>>* buffers,
+    size_t buffers_size,
+    TensorKind kind) {
+    const auto kind_str = kind == TensorKind::INPUT ? "input" : "output";
+    FRONT_END_GENERAL_CHECK(indices != nullptr, "Operator has no ", kind_str, "s");
+    std::map<size_t, TensorInfo> info;
+    size_t i = 0;
+    for (auto idx : *indices) {
+        if (idx == -1)
+            continue;
+        FRONT_END_GENERAL_CHECK(idx >= 0 && static_cast<size_t>(idx) < tensors_size,
+                                "Operator ",
+                                kind_str,
+                                " tensor index ",
+                                idx,
+                                " is out of range. Number of tensors: ",
+                                tensors_size);
+        auto tensor = (*tensors)[idx];
+        FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", idx);
+        FRONT_END_GENERAL_CHECK(tensor->buffer() < buffers_size,
+                                "Tensor buffer index ",
+                                tensor->buffer(),
+                                " is out of range. Number of buffers: ",
+                                buffers_size);
+        info[i++] = TensorInfo{tensor, (*buffers)[tensor->buffer()]};
+    }
+    return info;
+}
+
+void populate_nodes(const tflite::SubGraph* graph, std::vector<ov::Any>& nodes) {
+    const auto operators = graph->operators();
+    FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators");
+    nodes.assign(operators->begin(), operators->end());
+    const auto outputs = graph->outputs();
+    const auto inputs = graph->inputs();
+    FRONT_END_GENERAL_CHECK(outputs != nullptr, "TFLite subgraph has no outputs");
+    FRONT_END_GENERAL_CHECK(inputs != nullptr, "TFLite subgraph has no inputs");
+    nodes.insert(nodes.begin(), outputs->begin(), outputs->end());
+    nodes.insert(nodes.begin(), inputs->begin(), inputs->end());
+}
+
+std::string get_builtin_operator_type(int32_t builtin_code) {
+    FRONT_END_GENERAL_CHECK(builtin_code >= tflite::BuiltinOperator_MIN && builtin_code <= tflite::BuiltinOperator_MAX,
+                            "Operator builtin code ",
+                            builtin_code,
+                            " is out of range [",
+                            static_cast<int>(tflite::BuiltinOperator_MIN),
+                            ", ",
+                            static_cast<int>(tflite::BuiltinOperator_MAX),
+                            "].");
+    return tflite::EnumNamesBuiltinOperator()[builtin_code];
+}
+}  // namespace
+
 GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::filesystem::path& path) {
     std::ifstream model_file(path, std::ios::binary | std::ios::in);
     FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
@@ -30,17 +91,7 @@ GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::filesystem::path& pa
     m_subgraphs = {sub_graphs->begin(), sub_graphs->end()};
     m_graph = m_subgraphs[0];
     FRONT_END_GENERAL_CHECK(m_graph != nullptr, "First subgraph is null in file: ", path);
-    const auto operators = m_graph->operators();
-    FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators in file: ", path);
-    auto operators_vec = std::vector<const tflite::Operator*>{operators->begin(), operators->end()};
-
-    m_nodes.assign(operators_vec.begin(), operators_vec.end());
-    auto outputs = m_graph->outputs();
-    auto inputs = m_graph->inputs();
-    FRONT_END_GENERAL_CHECK(outputs != nullptr, "TFLite subgraph has no outputs in file: ", path);
-    FRONT_END_GENERAL_CHECK(inputs != nullptr, "TFLite subgraph has no inputs in file: ", path);
-    m_nodes.insert(m_nodes.begin(), outputs->begin(), outputs->end());
-    m_nodes.insert(m_nodes.begin(), inputs->begin(), inputs->end());
+    populate_nodes(m_graph, m_nodes);
 }
 
 size_t GraphIteratorFlatBuffer::get_subgraph_size() const {
@@ -55,16 +106,7 @@ std::shared_ptr<GraphIterator> GraphIteratorFlatBuffer::get_subgraph(size_t idx)
     iterator->m_subgraphs = {};  // TODO: check if we need to pass all sub-graphs here (while in a while situation)
     iterator->m_graph = m_subgraphs[idx];
     FRONT_END_GENERAL_CHECK(iterator->m_graph != nullptr, "Subgraph at index ", idx, " is null");
-    const auto operators = iterator->m_graph->operators();
-    FRONT_END_GENERAL_CHECK(operators != nullptr, "TFLite subgraph has no operators");
-    auto operators_vec = std::vector<const tflite::Operator*>{operators->begin(), operators->end()};
-    iterator->m_nodes.assign(operators_vec.begin(), operators_vec.end());
-    auto outputs = iterator->m_graph->outputs();
-    auto inputs = iterator->m_graph->inputs();
-    FRONT_END_GENERAL_CHECK(outputs != nullptr, "TFLite subgraph has no outputs");
-    FRONT_END_GENERAL_CHECK(inputs != nullptr, "TFLite subgraph has no inputs");
-    iterator->m_nodes.insert(iterator->m_nodes.begin(), outputs->begin(), outputs->end());
-    iterator->m_nodes.insert(iterator->m_nodes.begin(), inputs->begin(), inputs->end());
+    populate_nodes(iterator->m_graph, iterator->m_nodes);
     return iterator;
 }
 
@@ -83,47 +125,10 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
         FRONT_END_GENERAL_CHECK(buffers != nullptr, "TFLite model has no buffers");
         const auto buffers_size = buffers->size();
 
-        std::map<size_t, TensorInfo> input_info = {}, output_info = {};
-        size_t i = 0;
-        FRONT_END_GENERAL_CHECK(node->inputs() != nullptr, "Operator has no inputs");
-        for (auto input : *node->inputs()) {
-            if (input == -1)
-                continue;
-            FRONT_END_GENERAL_CHECK(input >= 0 && static_cast<size_t>(input) < tensors_size,
-                                    "Operator input tensor index ",
-                                    input,
-                                    " is out of range. Number of tensors: ",
-                                    tensors_size);
-            auto tensor = (*tensors)[input];
-            FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", input);
-            FRONT_END_GENERAL_CHECK(tensor->buffer() < buffers_size,
-                                    "Tensor buffer index ",
-                                    tensor->buffer(),
-                                    " is out of range. Number of buffers: ",
-                                    buffers_size);
-            auto buffer = (*buffers)[tensor->buffer()];
-            input_info[i++] = TensorInfo{tensor, buffer};
-        }
-        i = 0;
-        FRONT_END_GENERAL_CHECK(node->outputs() != nullptr, "Operator has no outputs");
-        for (auto output : *node->outputs()) {
-            if (output == -1)
-                continue;
-            FRONT_END_GENERAL_CHECK(output >= 0 && static_cast<size_t>(output) < tensors_size,
-                                    "Operator output tensor index ",
-                                    output,
-                                    " is out of range. Number of tensors: ",
-                                    tensors_size);
-            auto tensor = (*tensors)[output];
-            FRONT_END_GENERAL_CHECK(tensor != nullptr, "Null tensor at index ", output);
-            FRONT_END_GENERAL_CHECK(tensor->buffer() < buffers_size,
-                                    "Tensor buffer index ",
-                                    tensor->buffer(),
-                                    " is out of range. Number of buffers: ",
-                                    buffers_size);
-            auto buffer = (*buffers)[tensor->buffer()];
-            output_info[i++] = TensorInfo{tensor, buffer};
-        }
+        auto input_info =
+            collect_tensor_info(node->inputs(), tensors, tensors_size, buffers, buffers_size, TensorKind::INPUT);
+        auto output_info =
+            collect_tensor_info(node->outputs(), tensors, tensors_size, buffers, buffers_size, TensorKind::OUTPUT);
         auto op_codes = m_model->operator_codes();
         FRONT_END_GENERAL_CHECK(op_codes != nullptr, "TFLite model has no operator codes");
         FRONT_END_GENERAL_CHECK(node->opcode_index() < op_codes->size(),
@@ -133,13 +138,10 @@ std::shared_ptr<DecoderBase> GraphIteratorFlatBuffer::get_decoder() const {
                                 op_codes->size());
         auto operator_code = (*op_codes)[node->opcode_index()];
         FRONT_END_GENERAL_CHECK(operator_code != nullptr, "Null operator code at index ", node->opcode_index());
-        std::string type;
-        if (operator_code->deprecated_builtin_code() <
-            tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code()];
-        } else {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
-        }
+        const auto deprecated_code = operator_code->deprecated_builtin_code();
+        std::string type = deprecated_code < tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES
+                               ? get_builtin_operator_type(deprecated_code)
+                               : get_builtin_operator_type(operator_code->builtin_code());
         if (type == "CUSTOM") {
             auto custom_code = operator_code->custom_code();
             FRONT_END_GENERAL_CHECK(custom_code != nullptr, "Operator has CUSTOM type but no custom_code string");

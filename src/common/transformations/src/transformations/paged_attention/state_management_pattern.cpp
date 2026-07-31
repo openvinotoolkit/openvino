@@ -5,6 +5,7 @@
 #include "transformations/paged_attention/state_management_pattern.hpp"
 
 #include <tuple>
+#include <unordered_set>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -15,6 +16,8 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_convert.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -236,7 +239,19 @@ static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gptoss_g
     auto bitwise_and_3 = wrap_type<v13::BitwiseAnd>({bitwise_and_2, any_input()});
     auto broadcast = wrap_type<v3::Broadcast>({bitwise_and_3, any_input()});
     auto select = wrap_type<v1::Select>({broadcast, any_input(), any_input()});
-    auto mask = wrap_type<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
+    auto mask = pattern::optional<v8::Slice>({select, any_input(), any_input(), any_input(), any_input()});
+
+    return {mask, offset};
+}
+
+static std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> gemma4_sliding_window_pattern() {
+    auto offset = wrap_type<v0::Constant>();
+    auto ge = wrap_type<v1::GreaterEqual>({any_input(), offset});
+    auto unsqueeze_0 = wrap_type<v0::Unsqueeze>({ge, any_input()});
+    auto unsqueeze_1 = wrap_type<v0::Unsqueeze>({unsqueeze_0, any_input()});
+    auto inner_select = wrap_type<v1::Select>({unsqueeze_1, any_input(), any_input()});
+    auto outer_select = wrap_type<v1::Select>({any_input(), any_input(), inner_select});
+    auto mask = pattern::optional<v8::Slice>({outer_select, any_input(), any_input(), any_input(), any_input()});
 
     return {mask, offset};
 }
@@ -295,6 +310,72 @@ static ov::Dimension extract_num_kv_heads(const std::shared_ptr<ov::Node>& unsqu
     }
 };
 
+// Only a per-tensor v0::FakeQuantize is tolerated on the KV path: its scalar limits broadcast onto the
+// flattened PA feed, so re-applying it in the callback is exact. A per-channel FakeQuantize cannot be
+// re-applied equivalently, so it is left unmatched here (the pass then does not convert this SDPA, as on
+// master) rather than silently dropping the quantization.
+static bool is_per_tensor_fake_quantize(const ov::Output<ov::Node>& out) {
+    auto fq = ov::as_type_ptr<v0::FakeQuantize>(out.get_node_shared_ptr());
+    if (!fq)
+        return false;
+    for (size_t i = 1; i < fq->get_input_size(); ++i) {
+        const auto& ps = fq->get_input_partial_shape(i);
+        if (!ps.is_static() || ov::shape_size(ps.to_shape()) != 1)
+            return false;
+    }
+    return true;
+}
+
+// Tolerate an optional activation-quantization op on a Q/K/V path: FP8 emulation inserts a
+// v13::FakeConvert (2 or 3 inputs), a8w8/SmoothQuant inserts a per-tensor v0::FakeQuantize (5 inputs).
+// Either is matched here and re-applied onto the rebuilt PA feed in the callback (see reapply_quant).
+static std::shared_ptr<ov::Node> optional_quantization(const std::shared_ptr<ov::Node>& input) {
+    auto fc_2 = wrap_type<v13::FakeConvert>({input, any_input()});
+    auto fc_3 = wrap_type<v13::FakeConvert>({input, any_input(), any_input()});
+    auto fq = wrap_type<v0::FakeQuantize>({input, any_input(), any_input(), any_input(), any_input()},
+                                          is_per_tensor_fake_quantize);
+    return std::make_shared<Or>(OutputVector{fc_2, fc_3, fq, input});
+}
+
+static bool depends_on(const ov::Output<ov::Node>& root, const ov::Node* target) {
+    bool found = false;
+    std::unordered_set<ov::Node*> visited;
+    ov::op::util::visit_path(
+        root.get_node(),
+        visited,
+        [&](ov::Node* node) {
+            if (node == target)
+                found = true;
+        },
+        [](ov::Node*) {
+            return false;
+        });
+    return found;
+}
+
+StateManagementPattern::KvCacheParams StateManagementPattern::find_or_create_kv_params(
+    const std::shared_ptr<ov::op::util::ReadValueBase>& k_rv,
+    const std::shared_ptr<ov::op::util::ReadValueBase>& v_rv,
+    PaParams& pa_params) {
+    const auto& k_var_id = k_rv->get_variable_id() + "/k";
+    const auto& v_var_id = v_rv->get_variable_id() + "/v";
+    auto k_name = "key_cache." + std::to_string(m_layer_index);
+    auto v_name = "value_cache." + std::to_string(m_layer_index);
+    bool write_kv_cache = true;
+
+    if (m_read_value_to_params.count(k_var_id) && m_read_value_to_params.count(v_var_id)) {
+        k_name = m_read_value_to_params.at(k_var_id);
+        v_name = m_read_value_to_params.at(v_var_id);
+        write_kv_cache = false;
+    }
+
+    auto k_param = pa_params.add(k_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    auto v_param = pa_params.add(v_name, ov::element::dynamic, ov::PartialShape::dynamic(4));
+    m_read_value_to_params.emplace(k_var_id, k_name);
+    m_read_value_to_params.emplace(v_var_id, v_name);
+    return {k_param, v_param, write_kv_cache};
+}
+
 ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                                                          ov::pass::paged_attention::PaResults& results,
                                                          const ov::pass::paged_attention::Options& options,
@@ -324,6 +405,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     k_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(0), k_concat});
     v_concat = std::make_shared<Or>(OutputVector{kv_concat_split->output(1), v_concat});
+
+    // a8w8 (SmoothQuant) inserts a per-tensor FakeQuantize right after the KV-cache Concat, before the
+    // GQA/MQA repeat_kv head expansion. Tolerate it here so the pattern still binds; it is re-applied on
+    // the PA feed in the callback. FP8 FakeConvert lands later (on the SDPA inputs) and is tolerated by
+    // the same helper there.
+    k_concat = optional_quantization(k_concat);
+    v_concat = optional_quantization(v_concat);
 
     auto kv_shaping = [=](const std::shared_ptr<Node>& kv_concat, std::shared_ptr<Node>& unsqueeze) {
         // Return unsqeeze (return param) to deduce number of kv heads in
@@ -375,24 +463,35 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
     std::shared_ptr<ov::Node> gptoss_gemma3_mask, gptoss_gemma3_offset;
     std::tie(gptoss_gemma3_mask, gptoss_gemma3_offset) = gptoss_gemma3_sliding_window_pattern();
 
+    // gemma4 sliding layer case
+    std::shared_ptr<ov::Node> gemma4_mask, gemma4_offset;
+    std::tie(gemma4_mask, gemma4_offset) = gemma4_sliding_window_pattern();
+
     // Scale's shape limitations according to SDPA specification
     auto scale_predicate = [=](const Output<Node>& output) -> bool {
         return output.get_partial_shape() == ov::PartialShape{} ||
                (output.get_partial_shape() == ov::PartialShape{1} && output.get_partial_shape()[0] == 1);
     };
 
-    auto q = any_input();
     auto scale_input = any_input(scale_predicate);
     auto sinks = any_input(ov::pass::pattern::has_static_shape() && ov::pass::pattern::rank_equals(4));
 
-    auto k_to_sdpa = std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
-    auto v_to_sdpa = std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+    std::shared_ptr<ov::Node> k_to_sdpa =
+        std::make_shared<Or>(OutputVector{k_concat, k_shaped, k_shaped_transposed, k_simply_shaped});
+    std::shared_ptr<ov::Node> v_to_sdpa =
+        std::make_shared<Or>(OutputVector{v_concat, v_shaped, v_shaped_transposed, v_simply_shaped});
+
+    auto q_inner = any_input();
+    auto q = optional_quantization(q_inner);
+    k_to_sdpa = optional_quantization(k_to_sdpa);
+    v_to_sdpa = optional_quantization(v_to_sdpa);
 
     auto mask_to_sdpa = std::make_shared<Or>(OutputVector{phi3_mask,
                                                           general_alibi_mask,
                                                           jais_alibi_mask,
                                                           baichuan2_13b_alibi_mask,
                                                           gptoss_gemma3_mask,
+                                                          gemma4_mask,
                                                           any_input()});
 
     auto sdpa_with_4_inputs = wrap_type<v13::ScaledDotProductAttention>({q, k_to_sdpa, v_to_sdpa, mask_to_sdpa});
@@ -403,15 +502,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
 
     auto sdpa_variants = std::make_shared<Or>(OutputVector{sdpa_with_4_inputs, sdpa_with_5_inputs, sdpa_with_6_inputs});
 
-    // Set to true once a sliding_attention layer matching the gptoss_gemma3 pattern is found
-    // alongside a token_type_ids model input - the combination that uniquely identifies Gemma3
-    // since pattern for full attention mask in Gemma3 is different than sliding window
-    // it has to be persistent in the callback, so shared_ptr is used
-    auto has_token_type_ids = std::make_shared<bool>(false);
-
     ov::matcher_pass_callback callback = [=, &pa_params, &results, &var_ids_to_remove](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto& real_q = pattern_map.at(q);
+        const auto& real_q = pattern_map.at(q_inner);
 
         auto sdpa_node = pattern_map
                              .at(pattern_map.count(sdpa_with_4_inputs)   ? sdpa_with_4_inputs
@@ -438,11 +531,26 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto num_k_heads = num_k_heads_dim.get_length();
         auto num_v_heads = num_v_heads_dim.get_length();
 
-        std::string layer_index_str = std::to_string(m_layer_index);
-        auto k_name = "key_cache." + layer_index_str;
-        auto v_name = "value_cache." + layer_index_str;
-        auto k_parameter = pa_params.add(k_name, element::dynamic, ov::PartialShape::dynamic(4));
-        auto v_parameter = pa_params.add(v_name, element::dynamic, ov::PartialShape::dynamic(4));
+        KvCacheParams kv_params;
+
+        if (pattern_map.count(kv_past_var)) {
+            auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(kv_past_var).get_node_shared_ptr());
+            if (!rv)
+                return false;
+            kv_params = find_or_create_kv_params(rv, rv, pa_params);
+            var_ids_to_remove.insert(rv->get_variable_id());
+        } else {
+            auto k_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(k_past_var).get_node_shared_ptr());
+            auto v_rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(pattern_map.at(v_past_var).get_node_shared_ptr());
+            if (!k_rv || !v_rv)
+                return false;
+            kv_params = find_or_create_kv_params(k_rv, v_rv, pa_params);
+            var_ids_to_remove.insert(k_rv->get_variable_id());
+            var_ids_to_remove.insert(v_rv->get_variable_id());
+        }
+
+        auto& k_parameter = kv_params.k;
+        auto& v_parameter = kv_params.v;
 
         // Set parameters to be in the same precision as the original K/V tensors,
         // that allows to avoid unnecessary Convert operations in the graph
@@ -517,6 +625,39 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         auto v_reshape =
             std::make_shared<v1::Reshape>(v_target_layout, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
 
+        Output<Node> q_to_pa = q_reshape;
+        Output<Node> k_to_pa = k_reshape;
+        Output<Node> v_to_pa = v_reshape;
+
+        // Re-apply the activation-quantization op matched by optional_quantization (per-tensor
+        // v0::FakeQuantize on the KV concat, or v13::FakeConvert on a Q/K/V input) onto the rebuilt PA
+        // feed. The same helper is applied at both the KV concat and the SDPA inputs, so in non-GQA
+        // graphs the SAME quant op is matched by both wraps of one path (e.g. k_concat and k_to_sdpa);
+        // the per-path dedup set re-clones it once for that path. A quant op that feeds two different
+        // PA inputs is still re-applied onto each of them, so the sets are kept per target (k/v/q)
+        // rather than shared across Q/K/V. The concat sites run first so a KV FakeQuantize nests inside
+        // the SDPA-input FakeConvert, matching the original graph order when both are present.
+        auto reapply_quant = [&](const std::shared_ptr<Node>& pattern_node,
+                                 Output<Node>& target,
+                                 std::unordered_set<const Node*>& seen) {
+            if (!pattern_map.count(pattern_node))
+                return;
+            auto node = pattern_map.at(pattern_node).get_node_shared_ptr();
+            if (!ov::as_type_ptr<v0::FakeQuantize>(node) && !ov::as_type_ptr<v13::FakeConvert>(node))
+                return;  // bypass branch matched: no quant op to re-apply
+            if (!seen.insert(node.get()).second)
+                return;  // same op matched by both wraps of this path: clone once
+            auto new_inputs = node->input_values();
+            new_inputs[0] = target;
+            target = node->clone_with_new_inputs(new_inputs);
+        };
+        std::unordered_set<const Node*> k_seen, v_seen, q_seen;
+        reapply_quant(k_concat, k_to_pa, k_seen);
+        reapply_quant(v_concat, v_to_pa, v_seen);
+        reapply_quant(q, q_to_pa, q_seen);
+        reapply_quant(k_to_sdpa, k_to_pa, k_seen);
+        reapply_quant(v_to_sdpa, v_to_pa, v_seen);
+
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
@@ -555,16 +696,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        for (const auto& read_value : {k_past_var, v_past_var, kv_past_var}) {
-            if (pattern_map.count(read_value)) {
-                if (auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(
-                        pattern_map.at(read_value).get_node_shared_ptr())) {
-                    var_ids_to_remove.insert(rv->get_variable_id());
-                }
-            }
-        }
-
-        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        OutputVector pa_arguments = {q_to_pa, k_to_pa, v_to_pa, k_parameter, v_parameter};
         pa_arguments.push_back(pa_params["past_lens"]);
         pa_arguments.push_back(pa_params["subsequence_begins"]);
         if (!options.use_per_layer_block_indices_inputs) {
@@ -580,9 +712,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             }
             sliding_window = std::make_shared<v1::Subtract>(v0::Constant::create(element::i32, Shape{}, {2}), offset);
         } else if (pattern_map.count(gptoss_gemma3_offset)) {
-            // gptoss_gemma3 pattern + token_type_ids input uniquely identifies Gemma3;
-            // gpt-oss shares this sliding window pattern but has no token_type_ids.
-            *has_token_type_ids = static_cast<bool>(pa_params.get("token_type_ids"));
             auto offset = pattern_map.at(gptoss_gemma3_offset).get_node_shared_ptr();
             if (pattern_map.at(gptoss_gemma3_offset).get_partial_shape().rank() != 0) {
                 offset = std::make_shared<v15::Squeeze>(offset);
@@ -591,6 +720,15 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
                 offset = std::make_shared<v0::Convert>(offset, element::i32);
             }
             sliding_window = std::make_shared<v1::Multiply>(offset, v0::Constant::create(element::i32, Shape{}, {-1}));
+        } else if (pattern_map.count(gemma4_offset)) {
+            auto offset = pattern_map.at(gemma4_offset).get_node_shared_ptr();
+            if (pattern_map.at(gemma4_offset).get_partial_shape().rank() != 0) {
+                offset = std::make_shared<v15::Squeeze>(offset);
+            }
+            if (offset->get_element_type() != element::i32) {
+                offset = std::make_shared<v0::Convert>(offset, element::i32);
+            }
+            sliding_window = offset;
         } else {
             sliding_window = v0::Constant::create(element::i32, Shape{}, {0});
         }
@@ -711,8 +849,12 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 24, v0::Constant::create(element::i32, Shape{0}, {}));
         }
 
-        if (*has_token_type_ids) {
-            std::shared_ptr<ov::Node> token_type_ids = pa_params["token_type_ids"];
+        // Meant to be used for Gemma family models with bidirectional image attention. If the condition is met for
+        // other models (ex. BERT) it's probably unintended behavior, as token_type_ids has been historically used
+        // in different contexts.
+        auto token_type_ids_param = pa_params.get("token_type_ids");
+        if (token_type_ids_param && depends_on(sdpa_node->input_value(3), token_type_ids_param.get())) {
+            std::shared_ptr<ov::Node> token_type_ids = token_type_ids_param;
             if (token_type_ids->get_element_type() != element::i32) {
                 token_type_ids = std::make_shared<v0::Convert>(token_type_ids, element::i32);
             }
@@ -738,7 +880,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28);
 
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
+        auto paged_attention =
+            std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;

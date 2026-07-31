@@ -251,7 +251,7 @@ template <class T> T    get_value(T* ptr, uint32_t index) { return ptr[index]; }
 
 template<typename T>
 void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args) {
-    cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(mem, get_test_stream());
 
     auto it = ptr.begin();
     for(auto x : args)
@@ -260,7 +260,7 @@ void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args) {
 
 template<typename T>
 void set_values(cldnn::memory::ptr mem, std::vector<T> args) {
-    cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(mem, get_test_stream());
 
     auto it = ptr.begin();
     for (auto x : args)
@@ -269,7 +269,7 @@ void set_values(cldnn::memory::ptr mem, std::vector<T> args) {
 
 template<typename T>
 void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> args) {
-    cldnn::mem_lock<T> mem_ptr(mem, get_test_stream());
+    cldnn::mem_lock<T, cldnn::mem_lock_type::write> mem_ptr(mem, get_test_stream());
     auto&& pitches = mem->get_layout().get_pitches();
     auto&& l = mem->get_layout();
     for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
@@ -289,7 +289,7 @@ template<typename T, typename std::enable_if<std::is_floating_point<T>::value ||
                                              std::is_same<T, ov::float16>::value>::type* = nullptr>
 void set_random_values(cldnn::memory::ptr mem, bool sign = false, unsigned significand_bit = 8, unsigned scale = 1)
 {
-    cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(mem, get_test_stream());
 
     std::mt19937 gen;
     for (auto it = ptr.begin(); it != ptr.end(); ++it) {
@@ -303,7 +303,7 @@ void set_random_values(cldnn::memory::ptr mem)
     using T1 = typename std::conditional<std::is_same<int8_t, T>::value, int, T>::type;
     using T2 = typename std::conditional<std::is_same<uint8_t, T1>::value, unsigned int, T1>::type;
 
-    cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    cldnn::mem_lock<T, cldnn::mem_lock_type::write> ptr(mem, get_test_stream());
 
     std::mt19937 gen;
     static std::uniform_int_distribution<T2> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());

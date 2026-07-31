@@ -13,11 +13,13 @@ ProcessorCount(PROCESSOR_COUNT)
 #      NATIVE_TARGETS <target1 target2 ..>
 #      [NATIVE_SOURCE_SUBDIR <subdir>]
 #      [CMAKE_ARGS <option1 option2 ...>]
+#      [BUILD_BYPRODUCTS <file1 file2 ...>]
 #   )
 #
 function(ov_native_compile_external_project)
     set(oneValueRequiredArgs NATIVE_INSTALL_DIR TARGET_NAME NATIVE_SOURCE_SUBDIR)
-    set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS)
+    set(oneValueOptionalArgs EXTRA_COMPILE_FLAGS)
+    set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS BUILD_BYPRODUCTS)
     cmake_parse_arguments(ARG "" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
     if(YOCTO_AARCH64 OR EMSCRIPTEN)
@@ -64,8 +66,11 @@ function(ov_native_compile_external_project)
     endif()
 
     # compile flags
+    if(ARG_EXTRA_COMPILE_FLAGS)
+        set(compile_flags "${ARG_EXTRA_COMPILE_FLAGS}")
+    endif()
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
-        set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
+        set(compile_flags "${compile_flags} -Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
     if(ARG_NATIVE_SOURCE_SUBDIR)
@@ -128,6 +133,7 @@ function(ov_native_compile_external_project)
                 --config Release
                 --parallel ${PROCESSOR_COUNT}
                 -- ${ARG_NATIVE_TARGETS}
+        BUILD_BYPRODUCTS ${ARG_BUILD_BYPRODUCTS}
         # Test Step Options:
         TEST_EXCLUDE_FROM_MAIN ON
         # Target Options:

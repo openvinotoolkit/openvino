@@ -10,14 +10,17 @@
 #include <common_test_utils/test_assertions.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
+#include "driver_compiler_adapter.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "plugin_compiler_adapter.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 using namespace intel_npu;
@@ -330,6 +333,45 @@ TEST_P(ZeroGraphTest, CheckNoThrowOnUnsupportedFeature) {
 }
 #endif
 
+TEST_P(ZeroGraphTest, DontDestroyZeroGraphWhenZeroContextIsDestroyed) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    std::string logs;
+    std::mutex logsMutex;
+
+    std::function<void(std::string_view)> logCb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logsMutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto localZeroInitMock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> localZeroInitStruct =
+        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(localZeroInitMock);
+
+    {
+        utils::LogCallbackGuard log_callback_guard(logCb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::WARNING);
+
+        auto localZeroGraphExt = std::make_shared<ZeGraphExtWrappers>(localZeroInitStruct);
+        serializeIR();
+        GraphDescriptor localGraphDescriptor;
+        OV_ASSERT_NO_THROW(localGraphDescriptor = localZeroGraphExt->getGraphDescriptor(serializedIR, ""));
+        OV_ASSERT_NO_THROW(localZeroGraphExt->initializeGraph(localGraphDescriptor));
+
+        ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(localZeroInitMock);
+
+        try {
+            localZeroGraphExt->destroyGraph(localGraphDescriptor);
+        } catch (const std::exception& ex) {
+            ASSERT_FALSE(true) << ex.what();
+        }
+    }
+    ASSERT_NE(logs.find("Context or graph is null while trying to destroy graph."), std::string::npos);
+    ASSERT_EQ(logs.find("failed to destroy graph handle"), std::string::npos);
+}
+
 using IsOptionSupported = ZeroGraphTest;
 
 TEST_P(IsOptionSupported, GetCompilerSupportedOptions) {
@@ -361,6 +403,23 @@ TEST_P(IsOptionSupported, PropertySupportedByDriver) {
     } else {
         ASSERT_TRUE(isOptionSupportedResult.has_value());
         ASSERT_TRUE(isOptionSupportedResult.value());
+    }
+}
+
+using EncryptionCallbacks = ZeroGraphTest;
+
+TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
+    auto localZeGraphExt = std::make_shared<ZeGraphExtWrappers>(zeroInitStruct);
+    serializeIR();
+    if (zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 17)) {
+        OV_EXPECT_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true),
+            ov::Exception,
+            testing::HasSubstr(
+                "Secure compilation was requested, but the current driver version does not support it."));
+    } else {
+        OV_ASSERT_NO_THROW(
+            localZeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache(), /* secureCompile = */ true));
     }
 }
 

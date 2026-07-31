@@ -45,7 +45,7 @@ struct roll_test : testing::TestWithParam<roll_test_params<T>> {
         const auto outputs = network->execute();
 
         auto output = outputs.at("reordered_roll").get_memory();
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {

@@ -252,6 +252,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"SDPAWithTransposeReshape", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::PagedAttention},
+        {"PaKVReorder", Type::PaKVReorder},
         {"RoPE", Type::RoPE},
         {"GatherCompressed", Type::Gather},
         {"CausalMaskPreprocess", Type::CausalMaskPreprocess},
@@ -265,7 +266,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"GatherMatmul", Type::GatherMatmul},
         {"GatherMatmulCompressed", Type::GatherMatmul},
         {"GatedDeltaNet", Type::GatedDeltaNet},
-        {"PagedGatedDeltaNet", Type::PagedGatedDeltaNet}};
+        {"PagedGatedDeltaNet", Type::PagedGatedDeltaNet},
+        {"PagedCausalConv1D", Type::PagedCausalConv1D}};
     return type_to_name_tbl;
 }
 
@@ -392,6 +394,7 @@ std::string NameFromType(const Type type) {
         CASE(Ngram);
         CASE(ScaledDotProductAttention);
         CASE(PagedAttention);
+        CASE(PaKVReorder);
         CASE(RoPE);
         CASE(CausalMaskPreprocess);
         CASE(LLMMLP);
@@ -403,6 +406,7 @@ std::string NameFromType(const Type type) {
         CASE(GatherMatmul);
         CASE(GatedDeltaNet);
         CASE(PagedGatedDeltaNet);
+        CASE(PagedCausalConv1D);
         CASE(Unknown);
     }
 #undef CASE
@@ -487,6 +491,8 @@ std::string algToString(const Algorithm alg) {
         CASE(FullyConnectedCompressed);
         CASE(FullyConnectedQuantized);
         CASE(FullyConnectedQuantizedLegacy);
+        CASE(GatherMatmulDefault);
+        CASE(GatherMatmulCompressed);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

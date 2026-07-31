@@ -14,7 +14,7 @@
 #include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "properties.hpp"
+#include "plugin_property_manager.hpp"
 
 namespace intel_npu {
 
@@ -87,7 +87,7 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     mutable Logger _logger;
-    std::unique_ptr<Properties> _propertiesManager;
+    std::unique_ptr<PluginPropertyManager> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

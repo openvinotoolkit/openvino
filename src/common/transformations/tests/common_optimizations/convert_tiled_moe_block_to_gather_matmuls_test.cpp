@@ -19,6 +19,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -30,6 +31,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/topk.hpp"
@@ -57,13 +59,35 @@ inline std::ostream& operator<<(std::ostream& os, const MoEType& type) {
     }
 }
 
-using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,  // moe_type
-                                                             bool,     // use_scatter_v12
-                                                             bool,     // use_broadcast_v3
-                                                             bool,     // skip_unsqueeze
-                                                             bool,     // matmul_transpose_b
-                                                             bool,     // additional_node_consumers
-                                                             bool>;    // transformation_should_be_applied
+enum class GateActivationType { SWISH, GELU };
+
+enum class AdditionalConsumersMode { NO, MATMULS, AFTER_MATMULS, REDUCE };
+
+inline std::ostream& operator<<(std::ostream& os, const AdditionalConsumersMode& mode) {
+    switch (mode) {
+    case AdditionalConsumersMode::NO:
+        return os << "NO";
+    case AdditionalConsumersMode::MATMULS:
+        return os << "MATMULS";
+    case AdditionalConsumersMode::AFTER_MATMULS:
+        return os << "AFTER_MATMULS";
+    case AdditionalConsumersMode::REDUCE:
+        return os << "REDUCE";
+    default:
+        OPENVINO_THROW("Unsupported AdditionalConsumersMode");
+    }
+}
+
+using ConvertTiledMoeBlockToGatherMatmulsParams = std::tuple<MoEType,                  // moe_type
+                                                             bool,                     // use_scatter_v12
+                                                             bool,                     // use_broadcast_v3
+                                                             bool,                     // skip_unsqueeze
+                                                             bool,                     // matmul_transpose_b
+                                                             AdditionalConsumersMode,  // additional_consumers_mode
+                                                             bool,                     // use_gelu_gate (3GeMM only)
+                                                             bool,                     // norm_before_tile (3GeMM only)
+                                                             bool,                     // reduce_sum_keep_dims
+                                                             bool>;  // transformation_should_be_applied
 
 inline std::shared_ptr<ov::Node> build_matmul_weights(const ov::Shape& weights_shape,
                                                       const ov::element::Type& weights_precision,
@@ -84,7 +108,8 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       bool reduce_sum_keep_dims,
+                                                       AdditionalConsumersMode additional_consumers_mode) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -272,19 +297,29 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     ov::ParameterVector params = {input};
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(reduce_sum)};
 
-    if (additional_node_consumers) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(after_tile_reshape));
-        results.push_back(std::make_shared<ov::op::v0::Result>(gate_up_add));
-        results.push_back(std::make_shared<ov::op::v0::Result>(multiply2));
-        results.push_back(std::make_shared<ov::op::v0::Result>(down_proj_add));
+    if (additional_consumers_mode == AdditionalConsumersMode::MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(gate_up_matmul));
+        results.push_back(std::make_shared<ov::op::v0::Result>(down_proj_matmul));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::AFTER_MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(add1));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::REDUCE) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(reduce_sum));
     }
 
     return std::make_shared<ov::Model>(results, params);
@@ -293,7 +328,8 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
                                                           bool use_broadcast_v3,
                                                           bool skip_unsqueeze,
-                                                          bool matmul_transpose_b) {
+                                                          bool matmul_transpose_b,
+                                                          bool reduce_sum_keep_dims) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -410,10 +446,19 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraphRef(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(down_gathered_mm, router_unsqueeze);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
@@ -442,7 +487,11 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
                                                        bool use_broadcast_v3,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
-                                                       bool additional_node_consumers) {
+                                                       AdditionalConsumersMode additional_consumers_mode,
+                                                       GateActivationType gate_activation = GateActivationType::SWISH,
+                                                       bool norm_before_tile = false,
+                                                       bool use_normalized_router = true,
+                                                       bool reduce_sum_keep_dims = false) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -462,8 +511,15 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
             std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),  // -1 flattens batch*seq_len
         false);
 
+    // Optional normalization scaling (e.g. RMS-norm) before tile
+    std::shared_ptr<ov::Node> tile_input = experts_reshape;
+    if (norm_before_tile) {
+        auto scale_const = ov::op::v0::Constant::create(data_precision, ov::Shape{}, {0.7071f});
+        tile_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, scale_const);
+    }
+
     auto tile = std::make_shared<ov::op::v0::Tile>(
-        experts_reshape,
+        tile_input,
         ov::op::v0::Constant::create(ov::element::i64,
                                      ov::Shape{2},
                                      std::vector<int64_t>{static_cast<int64_t>(number_of_experts), 1}));
@@ -488,7 +544,13 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     gate_matmul->set_friendly_name("GateMatMul");
 
-    auto swish = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    // Gate activation: Swish (SwiGLU) or Gelu (GeGLU)
+    std::shared_ptr<ov::Node> gate_act;
+    if (gate_activation == GateActivationType::GELU) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_matmul);
+    } else {
+        gate_act = std::make_shared<ov::op::v4::Swish>(gate_matmul);
+    }
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                            weights_precision,
                                            seed++,
@@ -498,7 +560,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     up_matmul->set_friendly_name("UpMatMul");
 
-    auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_matmul);
+    auto swiglu = std::make_shared<ov::op::v1::Multiply>(gate_act, up_matmul);
 
     auto down_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                              weights_precision,
@@ -515,29 +577,44 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
     auto reshape_2nd_consumer_router_matmul =
         std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights, false, matmul_transpose_b);
 
-    auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
+    // Router: normalized (softmax + topk normalization) or simple (raw TopK values)
+    ov::Output<ov::Node> router_topk_indices;
+    ov::Output<ov::Node> chosen_experts;
+    if (use_normalized_router) {
+        auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
 
-    auto router_topk_values_and_indices =
-        std::make_shared<ov::op::v11::TopK>(router_softmax,
-                                            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
-                                            -1,
-                                            ov::op::v11::TopK::Mode::MAX,
-                                            ov::op::v11::TopK::SortType::SORT_VALUES,
-                                            ov::element::i64);
+        auto router_topk_values_and_indices =
+            std::make_shared<ov::op::v11::TopK>(router_softmax,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+                                                -1,
+                                                ov::op::v11::TopK::Mode::MAX,
+                                                ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                ov::element::i64);
 
-    auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
-        router_topk_values_and_indices->output(0),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
-        true);
-    auto router_topk_values_normalization =
-        std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
-    auto router_topk_indices = router_topk_values_and_indices->output(1);
+        auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
+            router_topk_values_and_indices->output(0),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
+            true);
+        auto router_topk_values_normalization =
+            std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
+        router_topk_indices = router_topk_values_and_indices->output(1);
+        chosen_experts = router_topk_values_normalization;
+    } else {
+        auto router_topk_values_and_indices =
+            std::make_shared<ov::op::v11::TopK>(reshape_2nd_consumer_router_matmul,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+                                                -1,
+                                                ov::op::v11::TopK::Mode::MAX,
+                                                ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                ov::element::i64);
+        router_topk_indices = router_topk_values_and_indices->output(1);
+        chosen_experts = router_topk_values_and_indices->output(0);
+    }
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
 
-    auto zero_const =
-        ov::op::v0::Constant::create(router_topk_values_normalization->get_output_element_type(0), ov::Shape{1}, {0});
+    auto zero_const = ov::op::v0::Constant::create(chosen_experts.get_element_type(), ov::Shape{1}, {0});
     auto first_topk_dim = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(router_topk_indices, {0});
     auto bcast_target_shape =
         std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_topk_dim, number_of_experts_const}, 0);
@@ -554,13 +631,13 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
         scatter_elements_update = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
             broadcast_zero,
             router_topk_indices,
-            router_topk_values_normalization,
+            chosen_experts,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
     } else {
         scatter_elements_update = std::make_shared<ov::op::v3::ScatterElementsUpdate>(
             broadcast_zero,
             router_topk_indices,
-            router_topk_values_normalization,
+            chosen_experts,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
     }
 
@@ -601,10 +678,18 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(end_reshape, routing_weights_final);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     auto final_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
                                                             ov::Shape{2},
@@ -612,24 +697,36 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraph(bool use_scatter_v12,
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum, final_reshape_const, true);
 
     ov::ParameterVector params = {input};
-    ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(final_reshape)};
+    ov::ResultVector results;
+    if (use_normalized_router) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(final_reshape));
+    } else {
+        results.push_back(std::make_shared<ov::op::v0::Result>(reduce_sum));
+    }
 
-    if (additional_node_consumers) {
-        results.push_back(std::make_shared<ov::op::v0::Result>(after_tile_reshape));
+    if (additional_consumers_mode == AdditionalConsumersMode::MATMULS) {
         results.push_back(std::make_shared<ov::op::v0::Result>(gate_matmul));
-        results.push_back(std::make_shared<ov::op::v0::Result>(swish));
         results.push_back(std::make_shared<ov::op::v0::Result>(up_matmul));
-        results.push_back(std::make_shared<ov::op::v0::Result>(swiglu));
         results.push_back(std::make_shared<ov::op::v0::Result>(down_matmul));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::AFTER_MATMULS) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(gate_act));
+        results.push_back(std::make_shared<ov::op::v0::Result>(swiglu));
+    } else if (additional_consumers_mode == AdditionalConsumersMode::REDUCE) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(reduce_sum));
     }
 
     return std::make_shared<ov::Model>(results, params);
 }
 
-inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
-                                                          bool use_broadcast_v3,
-                                                          bool skip_unsqueeze,
-                                                          bool matmul_transpose_b) {
+inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(
+    bool use_scatter_v12,
+    bool use_broadcast_v3,
+    bool skip_unsqueeze,
+    bool matmul_transpose_b,
+    GateActivationType gate_activation = GateActivationType::SWISH,
+    bool norm_before_tile = false,
+    bool use_normalized_router = true,
+    bool reduce_sum_keep_dims = false) {
     // Fixed values that don't affect pass behavior
     const ov::PartialShape input_shape = {-1, -1, 256};
     const size_t topk = 4;
@@ -649,33 +746,58 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
                                      std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)}),
         false);
 
+    // The transformation captures experts_input (the Tile's direct predecessor) and unsqueezes it.
+    // When norm_before_tile=true, experts_input is the norm_multiply node, not experts_reshape.
+    std::shared_ptr<ov::Node> experts_input = experts_reshape;
+    if (norm_before_tile) {
+        auto scale_const = ov::op::v0::Constant::create(data_precision, ov::Shape{}, {0.7071f});
+        experts_input = std::make_shared<ov::op::v1::Multiply>(experts_reshape, scale_const);
+    }
+
     auto unsqueeze_experts =
-        std::make_shared<ov::op::v0::Unsqueeze>(experts_reshape,
+        std::make_shared<ov::op::v0::Unsqueeze>(experts_input,
                                                 ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
 
+    // Router weights always use seed=4 (4th in the source model's seed sequence)
     auto router_weights =
         build_matmul_weights(ov::Shape{hidden_size, number_of_experts}, weights_precision, 4, matmul_transpose_b);
 
     auto reshape_2nd_consumer_router_matmul =
         std::make_shared<ov::op::v0::MatMul>(experts_reshape, router_weights, false, matmul_transpose_b);
 
-    auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
+    // Router: normalized (softmax + normalization) or simple (raw TopK values)
+    ov::Output<ov::Node> router_topk_indices;
+    ov::Output<ov::Node> chosen_experts;
+    if (use_normalized_router) {
+        auto router_softmax = std::make_shared<ov::op::v1::Softmax>(reshape_2nd_consumer_router_matmul, 1);
 
-    auto router_topk_values_and_indices =
-        std::make_shared<ov::op::v11::TopK>(router_softmax,
-                                            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
-                                            -1,
-                                            ov::op::v11::TopK::Mode::MAX,
-                                            ov::op::v11::TopK::SortType::SORT_VALUES,
-                                            ov::element::i64);
+        auto router_topk_values_and_indices =
+            std::make_shared<ov::op::v11::TopK>(router_softmax,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+                                                -1,
+                                                ov::op::v11::TopK::Mode::MAX,
+                                                ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                ov::element::i64);
 
-    auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
-        router_topk_values_and_indices->output(0),
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
-        true);
-    auto router_topk_values_normalization =
-        std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
-    auto router_topk_indices = router_topk_values_and_indices->output(1);
+        auto router_topk_values_reduce = std::make_shared<ov::op::v1::ReduceSum>(
+            router_topk_values_and_indices->output(0),
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
+            true);
+        auto router_topk_values_normalization =
+            std::make_shared<ov::op::v1::Divide>(router_topk_values_and_indices->output(0), router_topk_values_reduce);
+        router_topk_indices = router_topk_values_and_indices->output(1);
+        chosen_experts = router_topk_values_normalization;
+    } else {
+        auto router_topk_values_and_indices =
+            std::make_shared<ov::op::v11::TopK>(reshape_2nd_consumer_router_matmul,
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {topk}),
+                                                -1,
+                                                ov::op::v11::TopK::Mode::MAX,
+                                                ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                ov::element::i64);
+        router_topk_indices = router_topk_values_and_indices->output(1);
+        chosen_experts = router_topk_values_and_indices->output(0);
+    }
 
     // Note: we need to use different seed to avoid the exact weights generation for the MatMuls with the same shape
     int seed = 1;
@@ -686,7 +808,13 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto gate_gathered_mm = std::make_shared<GatherMatmul>(unsqueeze_experts, gate_weights, router_topk_indices);
 
-    auto swish = std::make_shared<ov::op::v4::Swish>(gate_gathered_mm);
+    // Gate activation: Swish (SwiGLU) or Gelu (GeGLU)
+    std::shared_ptr<ov::Node> gate_act;
+    if (gate_activation == GateActivationType::GELU) {
+        gate_act = std::make_shared<ov::op::v7::Gelu>(gate_gathered_mm);
+    } else {
+        gate_act = std::make_shared<ov::op::v4::Swish>(gate_gathered_mm);
+    }
 
     auto up_weights = build_matmul_weights(ov::Shape{number_of_experts, hidden_size, intermediate_size},
                                            weights_precision,
@@ -695,7 +823,7 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto up_gathered_mm = std::make_shared<GatherMatmul>(unsqueeze_experts, up_weights, router_topk_indices);
 
-    auto swiglu = std::make_shared<ov::op::v1::Multiply>(swish, up_gathered_mm);
+    auto swiglu = std::make_shared<ov::op::v1::Multiply>(gate_act, up_gathered_mm);
 
     auto down_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                              weights_precision,
@@ -704,8 +832,9 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto down_gathered_mm = std::make_shared<GatherMatmul>(swiglu, down_weights, router_topk_indices);
 
+    // The transformation replaces the scatter chain with transpose + unsqueeze of chosen_experts
     auto router_transpose = std::make_shared<ov::op::v1::Transpose>(
-        router_topk_values_normalization,
+        chosen_experts,
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{1, 0}));
 
     auto router_unsqueeze =
@@ -714,10 +843,19 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto mul3 = std::make_shared<ov::op::v1::Multiply>(down_gathered_mm, router_unsqueeze);
 
-    auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
-        mul3,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
-        false);
+    std::shared_ptr<ov::Node> reduce_sum = nullptr;
+    if (reduce_sum_keep_dims) {
+        auto reduce_dim_constant =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0});
+        auto reduce_sum_w_keep_dims = std::make_shared<ov::op::v1::ReduceSum>(mul3, reduce_dim_constant, true);
+        reduce_sum = std::make_shared<ov::op::v0::Squeeze>(reduce_sum_w_keep_dims, reduce_dim_constant);
+
+    } else {
+        reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(
+            mul3,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+            false);
+    }
 
     const auto number_of_experts_const =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(number_of_experts)});
@@ -738,13 +876,17 @@ inline std::shared_ptr<ov::Model> initMoE3GeMMSubgraphRef(bool use_scatter_v12,
 
     auto final_reshape = std::make_shared<ov::op::v1::Reshape>(reduce_sum, slice_shape, true);
 
-    auto final_reshape_const = ov::op::v0::Constant::create(ov::element::i64,
-                                                            ov::Shape{2},
-                                                            std::vector<int64_t>{0, static_cast<int64_t>(hidden_size)});
-    auto original_final_reshape = std::make_shared<ov::op::v1::Reshape>(final_reshape, final_reshape_const, true);
-
     ov::ParameterVector params = {input};
-    return std::make_shared<ov::Model>(ov::OutputVector{original_final_reshape}, params);
+    if (use_normalized_router) {
+        auto final_reshape_const =
+            ov::op::v0::Constant::create(ov::element::i64,
+                                         ov::Shape{2},
+                                         std::vector<int64_t>{0, static_cast<int64_t>(hidden_size)});
+        auto original_final_reshape = std::make_shared<ov::op::v1::Reshape>(final_reshape, final_reshape_const, true);
+        return std::make_shared<ov::Model>(ov::OutputVector{original_final_reshape}, params);
+    } else {
+        return std::make_shared<ov::Model>(ov::OutputVector{final_reshape}, params);
+    }
 }
 
 class ConvertTiledMoeBlockToGatherMatmulsTest : public TransformationTestsF,
@@ -756,13 +898,18 @@ public:
                      use_broadcast_v3,
                      skip_unsqueeze,
                      matmul_transpose_b,
-                     additional_node_consumers,
+                     additional_consumers_mode,
+                     use_gelu_gate,
+                     norm_before_tile,
+                     reduce_sum_keep_dims,
                      should_be_applied] = obj.param;
         std::ostringstream result;
         result << "MoEType_" << moe_type << "_ScatterV" << (use_scatter_v12 ? "12" : "3") << "_BroadcastV"
                << (use_broadcast_v3 ? "3" : "1") << "_SkipUnsqueeze_" << (skip_unsqueeze ? "true" : "false")
                << "_MatMulTransposeB_" << (matmul_transpose_b ? "true" : "false") << "_AdditionalConsumers_"
-               << (additional_node_consumers ? "true" : "false") << "_shouldBeApplied_"
+               << additional_consumers_mode << "_GeluGate_" << (use_gelu_gate ? "true" : "false") << "_NormBeforeTile_"
+               << (norm_before_tile ? "true" : "false") << "_reduce_sum_keep_dims_"
+               << (reduce_sum_keep_dims ? "true" : "false") << "_shouldBeApplied_"
                << (should_be_applied ? "true" : "false");
         return result.str();
     }
@@ -775,8 +922,19 @@ protected:
                      use_broadcast_v3,
                      skip_unsqueeze,
                      matmul_transpose_b,
-                     additional_node_consumers,
+                     additional_consumers_mode,
+                     use_gelu_gate,
+                     norm_before_tile,
+                     reduce_sum_keep_dims,
                      should_be_applied] = this->GetParam();
+
+        // 3GeMM-only params must be false for MoE2GeMM
+        ASSERT_FALSE(moe_type == MoEType::MoE2GeMM && use_gelu_gate) << "use_gelu_gate must be false for MoE2GeMM";
+        ASSERT_FALSE(moe_type == MoEType::MoE2GeMM && norm_before_tile)
+            << "norm_before_tile must be false for MoE2GeMM";
+
+        const auto gate_act = use_gelu_gate ? GateActivationType::GELU : GateActivationType::SWISH;
+        const bool use_normalized_router = !use_gelu_gate && !norm_before_tile;
 
         switch (moe_type) {
         case MoEType::MoE2GeMM:
@@ -784,14 +942,19 @@ protected:
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         reduce_sum_keep_dims,
+                                         additional_consumers_mode);
             break;
         case MoEType::MoE3GeMM:
             model = initMoE3GeMMSubgraph(use_scatter_v12,
                                          use_broadcast_v3,
                                          skip_unsqueeze,
                                          matmul_transpose_b,
-                                         additional_node_consumers);
+                                         additional_consumers_mode,
+                                         gate_act,
+                                         norm_before_tile,
+                                         use_normalized_router,
+                                         reduce_sum_keep_dims);
             break;
         default:
             OPENVINO_THROW("Unexpected MoEType value");
@@ -802,12 +965,21 @@ protected:
         if (should_be_applied) {
             switch (moe_type) {
             case MoEType::MoE2GeMM:
-                model_ref =
-                    initMoE2GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
+                model_ref = initMoE2GeMMSubgraphRef(use_scatter_v12,
+                                                    use_broadcast_v3,
+                                                    skip_unsqueeze,
+                                                    matmul_transpose_b,
+                                                    reduce_sum_keep_dims);
                 break;
             case MoEType::MoE3GeMM:
-                model_ref =
-                    initMoE3GeMMSubgraphRef(use_scatter_v12, use_broadcast_v3, skip_unsqueeze, matmul_transpose_b);
+                model_ref = initMoE3GeMMSubgraphRef(use_scatter_v12,
+                                                    use_broadcast_v3,
+                                                    skip_unsqueeze,
+                                                    matmul_transpose_b,
+                                                    gate_act,
+                                                    norm_before_tile,
+                                                    use_normalized_router,
+                                                    reduce_sum_keep_dims);
                 break;
             default:
                 OPENVINO_THROW("Unexpected MoEType value");
@@ -822,6 +994,7 @@ const std::vector<MoEType> moe_types = {MoEType::MoE2GeMM, MoEType::MoE3GeMM};
 const std::vector<bool> scatter_versions = {false, true};    // false = v3, true = v12
 const std::vector<bool> broadcast_versions = {false, true};  // false = v1, true = v3
 const std::vector<bool> skip_unsqueeze_versions = {false, true};
+const std::vector<bool> reduce_sum_keep_dims = {false, true};  // if true, reduce_sum is followed by squeeze.
 
 INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
                          ConvertTiledMoeBlockToGatherMatmulsTest,
@@ -830,7 +1003,24 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_positive_cases,
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
                                             ::testing::Values(true),
+                                            ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
+                                            ::testing::Values(true)),
+                         ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_3gemm_specific_positive_cases,
+                         ConvertTiledMoeBlockToGatherMatmulsTest,
+                         ::testing::Combine(::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::ValuesIn(scatter_versions),
+                                            ::testing::ValuesIn(broadcast_versions),
+                                            ::testing::ValuesIn(skip_unsqueeze_versions),
+                                            ::testing::Values(true),
+                                            ::testing::Values(AdditionalConsumersMode::NO),
+                                            ::testing::Values(false, true),
+                                            ::testing::Values(false, true),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
                                             ::testing::Values(true)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -841,7 +1031,10 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::ValuesIn(broadcast_versions),
                                             ::testing::ValuesIn(skip_unsqueeze_versions),
                                             ::testing::Values(false),
+                                            ::testing::Values(AdditionalConsumersMode::NO),
                                             ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(reduce_sum_keep_dims),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 
@@ -852,7 +1045,12 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(true),
-                                            ::testing::Values(true),
+                                            ::testing::Values(AdditionalConsumersMode::MATMULS,
+                                                              AdditionalConsumersMode::AFTER_MATMULS,
+                                                              AdditionalConsumersMode::REDUCE),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
 }  // namespace

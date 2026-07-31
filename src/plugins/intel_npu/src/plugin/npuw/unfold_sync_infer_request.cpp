@@ -4,6 +4,7 @@
 
 #include "unfold_sync_infer_request.hpp"
 
+#include "attn/attn_subgraph.hpp"
 #include "compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -30,7 +31,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             if (proto_comp_model_desc.spatial) {
                 NPUW_ASSERT(false && "Spatial is not supported in unfold");
             }
-            if (proto_comp_model_desc.attention) {
+            if (ov::npuw::attn::get_compiled_dynamic(proto_comp_model_desc.pipeline.context) != nullptr) {
                 NPUW_ASSERT(false && "Dynamic is not supported in unfold");
             }
         }  // if(replaced_by)

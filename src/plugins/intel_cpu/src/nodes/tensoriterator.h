@@ -35,7 +35,7 @@ struct PortMap {
     int stride;    /**< Stride to iterate throught */
     int start;     /**< Start index of iteration range */
     int end;       /**< Last index of iteration range  */
-    int part_size; /**< Part size which will be transfered to body subnetwork */
+    int part_size; /**< Part size which will be transferred to body subnetwork */
 };
 
 /**

@@ -9,6 +9,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "npu_test_env_cfg.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -22,8 +23,6 @@ std::vector<std::string> getAvailableDevices(const ov::Core& core);
 std::string modelPriorityToString(const ov::hint::Priority priority);
 
 std::string removeDeviceNameOnlyID(const std::string& device_name_id);
-
-std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> props);
 
 std::shared_ptr<ov::Model> createModelWithStates(ov::element::Type type, const ov::Shape& shape);
 
@@ -67,10 +66,15 @@ struct GenericTestCaseNameClass {
     template <typename, typename = void>
     static constexpr bool hasGetTestCaseName = false;
 
+    template <typename, typename = void>
+    static constexpr bool has_get_test_case_name = false;
+
     template <typename T>
     static std::string getTestCaseName(const testing::TestParamInfo<typename T::ParamType>& obj) {
         if constexpr (hasGetTestCaseName<T>) {
             return T::getTestCaseName(obj);
+        } else if constexpr (has_get_test_case_name<T>) {
+            return T::get_test_case_name(obj);
         } else {
             std::ostringstream result;
             ::testing::PrintToStringParamName printToStringParamName;
@@ -81,11 +85,14 @@ struct GenericTestCaseNameClass {
 };
 
 template <typename T>
-constexpr bool
-    GenericTestCaseNameClass::hasGetTestCaseName<T,
-                                                 std::void_t<decltype(std::declval<T>().getTestCaseName(
-                                                     std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
-        true;
+constexpr bool GenericTestCaseNameClass::hasGetTestCaseName<
+    T,
+    std::void_t<decltype(T::getTestCaseName(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
+
+template <typename T>
+constexpr bool GenericTestCaseNameClass::has_get_test_case_name<
+    T,
+    std::void_t<decltype(T::get_test_case_name(std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> = true;
 
 namespace ov::test::behavior {
 inline std::shared_ptr<ov::Model> getDefaultNGraphFunctionForTheDeviceNPU(
@@ -229,6 +236,28 @@ public:
 private:
     ov::log::Level _previousLevel;
 };
+
+inline bool isDefaultDriverCompiler(const std::string& target_device) {
+    ov::Core core;
+    auto compiler_type = core.get_property(target_device, ov::intel_npu::compiler_type);
+    if (compiler_type == ov::intel_npu::CompilerType::DRIVER) {
+        return true;
+    }
+    return false;
+}
+
+inline bool isGraphExtVersionLowerThan(uint32_t major, uint32_t minor) {
+    const auto graph_ext_version = ::intel_npu::ZeroInitStructsHolder::getInstance()->getGraphDdiTable().version();
+    const auto required_version = ZE_MAKE_VERSION(major, minor);
+    return graph_ext_version < required_version;
+}
+
+#define NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(major, minor)                                                    \
+    {                                                                                                     \
+        if (ov::test::utils::isGraphExtVersionLowerThan(major, minor)) {                                  \
+            GTEST_SKIP() << "Test skipped because L0 graph ext version is lower than " #major "." #minor; \
+        }                                                                                                 \
+    }
 
 }  // namespace utils
 

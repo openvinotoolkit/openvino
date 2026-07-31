@@ -25,13 +25,14 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
-#include "nodes/common/cpu_convert.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/debug_capabilities.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>

@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include "cache/multi_cache.h"
@@ -49,12 +49,11 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(
     if (input_prc == element::f16) {
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF16KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
-        m_is_f16 = true;
-    } else {
-        OV_CPU_JIT_EMITTER_ASSERT(input_prc == element::f32, "Unexpected precision for GemmCopyB executor");
+    } else if (input_prc == element::f32) {
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
-        m_is_f16 = false;
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unexpected precision for GemmCopyB executor: ", input_prc);
     }
 
     // Initialize memory offsets similar to x64 brgemm_copy_b implementation
@@ -88,17 +87,20 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
 
     init_binary_call_regs(3, mem_ptrs_idxs);
-    if (m_is_f16) {
-        emit_call<GemmCopyBF16KaiKernelExecutor>(mem_ptrs_idxs);
-    } else {
-        emit_call<GemmCopyBF32KaiKernelExecutor>(mem_ptrs_idxs);
-    }
+    std::visit(
+        [&](const auto& kernel_executor) {
+            emit_call(kernel_executor, mem_ptrs_idxs);
+        },
+        m_kernel_executor);
 }
 
 template <typename ExecutorT>
-void jit_gemm_copy_b_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
-    std::unordered_set<size_t> exclude_spill = {};
-    store_context(exclude_spill);
+void jit_gemm_copy_b_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel_executor,
+                                        const std::vector<size_t>& mem_ptrs_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(kernel_executor, "GemmCopyB executor is not initialized");
+
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
@@ -123,12 +125,16 @@ void jit_gemm_copy_b_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs
     utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);
 
     // Set up executor pointer as first argument
-    h->mov(x0, reinterpret_cast<uintptr_t>(static_cast<ExecutorT*>(m_kernel_executor.get())));
+    h->mov(x0, reinterpret_cast<uintptr_t>(kernel_executor.get()));
 
     const auto& call_address_reg = get_call_address_reg();
     h->mov(call_address_reg, reinterpret_cast<uintptr_t>(ExecutorT::execute));
     h->blr(call_address_reg);
 
-    restore_context(exclude_spill);
+    spill.postamble();
+}
+
+bool jit_gemm_copy_b_emitter::is_f16_executor() const {
+    return std::holds_alternative<std::shared_ptr<GemmCopyBF16KaiKernelExecutor>>(m_kernel_executor);
 }
 }  // namespace ov::intel_cpu::aarch64

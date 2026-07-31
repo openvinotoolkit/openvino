@@ -33,8 +33,7 @@ protected:
         jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
-        size_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (data_inputs_num > attn_mask_idx) {
+        if (sdpa_has_runtime_attn_mask_input(params)) {
             jit.make("HAS_ATTN_MASK_INPUT", 1);
         }
         size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
@@ -67,6 +66,9 @@ protected:
         }
 
         for (uint32_t i = 0; i < data_inputs_num; i++) {
+            if (i == ScaledDotProductAttentionInputIdx::ATTN_MASK && !sdpa_has_runtime_attn_mask_input(params)) {
+                continue;
+            }
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
 

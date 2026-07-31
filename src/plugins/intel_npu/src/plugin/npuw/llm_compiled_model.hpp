@@ -10,10 +10,20 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+class LLMBlockKVCacheStrategy;
+class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
@@ -75,6 +85,9 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class LLMBlockKVCacheStrategy;
+    friend class LLMContinuousKVCacheStrategy;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
@@ -100,6 +113,7 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
+    bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
@@ -118,6 +132,7 @@ private:
     bool m_enable_prefix_caching = false;
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
+    uint64_t m_longrope_context_limit = 0;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

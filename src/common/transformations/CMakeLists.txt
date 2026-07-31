@@ -15,6 +15,12 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
+# Debug capabilities sources - only compiled when ENABLE_DEBUG_CAPS is ON
+if(NOT ENABLE_DEBUG_CAPS)
+    list(REMOVE_ITEM LIBRARY_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/utils/extract_subgraph.cpp")
+    list(REMOVE_ITEM PUBLIC_HEADERS "${PUBLIC_HEADERS_DIR}/transformations/utils/extract_subgraph.hpp")
+endif()
+
 # Create library
 add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)

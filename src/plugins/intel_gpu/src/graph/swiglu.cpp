@@ -65,6 +65,7 @@ std::string swiglu_inst::to_string(swiglu_node const& node) {
     swiglu_info.add("gate_idx", desc->gate_idx);
     swiglu_info.add("swish_beta", desc->swish_beta);
     swiglu_info.add("up_add_val", desc->up_add_val);
+    swiglu_info.add("scale_factor", desc->scale_factor);
     if (desc->clamp_max != std::numeric_limits<float>::max()) {
         swiglu_info.add("clamp_max", desc->clamp_max);
     }

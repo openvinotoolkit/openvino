@@ -5,6 +5,8 @@
 #include "reorder_kernel_fast_b1.h"
 #include "kernel_selector_utils.h"
 
+#include <limits>
+
 namespace kernel_selector {
 ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     ParamsKey k;
@@ -66,9 +68,9 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
     reorder_params& newParams = *static_cast<reorder_params*>(kd.params.get());
 
     const auto& input = newParams.inputs[0];
-    jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", input.LogicalSize()));
-
     const auto& output = newParams.outputs[0];
+
+    jit.AddConstant(MakeJitConstant("ELEMENTS_COUNT", input.LogicalSize()));
 
     if (input.GetLayout() == output.GetLayout() && input.SameDimsSizes(output) &&
         !input.PitchesDifferFromLogicalDims() && !output.PitchesDifferFromLogicalDims() &&
@@ -85,9 +87,13 @@ ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const 
 
     const auto& output = params.outputs[0];
 
-    unsigned int gws = (unsigned int)output.LogicalSize();
+    size_t gws = output.LogicalSize();
 
-    dispatchData.gws[0] = Align(gws, 32);
+    OPENVINO_ASSERT(gws <= static_cast<size_t>(std::numeric_limits<unsigned int>::max()),
+                    "[GPU] reorder_data_fast_b1 global work size exceeds 32-bit index range: ",
+                    gws);
+
+    dispatchData.gws[0] = Align(gws, size_t{32});
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
 

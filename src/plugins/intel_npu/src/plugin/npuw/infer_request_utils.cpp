@@ -4,8 +4,11 @@
 
 #include "infer_request_utils.hpp"
 
+#include <limits>
+
 #include "logging.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
+#include "util.hpp"
 #include "util_xarch.hpp"
 
 // FIXME: Use ov::npuw::util::view instead
@@ -207,4 +210,70 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
                     position_shape[diff_dim],
                     padded_data + padded_offset + keep_elements);
     }
+}
+
+void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::ITensor>& src,
+                                                          const ov::SoPtr<ov::ITensor>& dst,
+                                                          uint32_t src_offset_tokens,
+                                                          uint32_t chunk_tokens) {
+    const auto src_seq_len = src->get_shape().at(1);
+    const auto dst_seq_len = dst->get_shape().at(1);
+    OPENVINO_ASSERT(chunk_tokens > 0u, "chunk_tokens must be > 0");
+    OPENVINO_ASSERT(src_offset_tokens <= src_seq_len,
+                    "src_offset_tokens exceeds source seq_len. src_offset_tokens=",
+                    src_offset_tokens,
+                    ", src_seq_len=",
+                    src_seq_len);
+    OPENVINO_ASSERT(chunk_tokens <= src_seq_len - src_offset_tokens,
+                    "chunk range exceeds source seq_len by given offset. src_offset_tokens=",
+                    src_offset_tokens,
+                    ", chunk_tokens=",
+                    chunk_tokens,
+                    ", src_seq_len=",
+                    src_seq_len);
+    OPENVINO_ASSERT(chunk_tokens <= dst_seq_len,
+                    "chunk_tokens exceeds destination seq_len. chunk_tokens=",
+                    chunk_tokens,
+                    ", dst_seq_len=",
+                    dst_seq_len);
+
+    const auto src_seq_len_bytes = src->get_byte_size();
+    const auto dst_seq_len_bytes = dst->get_byte_size();
+    OPENVINO_ASSERT(src_seq_len > 0u, "per_layer_inputs src has zero seq_len");
+    OPENVINO_ASSERT(dst_seq_len > 0u, "per_layer_inputs dst has zero seq_len");
+    OPENVINO_ASSERT(src_seq_len_bytes % src_seq_len == 0u,
+                    "per_layer_inputs src byte size is not divisible by seq_len. byte_size=",
+                    src_seq_len_bytes,
+                    ", seq_len=",
+                    src_seq_len);
+    OPENVINO_ASSERT(dst_seq_len_bytes % dst_seq_len == 0u,
+                    "per_layer_inputs dst byte size is not divisible by seq_len. byte_size=",
+                    dst_seq_len_bytes,
+                    ", seq_len=",
+                    dst_seq_len);
+    const auto src_per_token_bytes = src_seq_len_bytes / src_seq_len;
+    const auto dst_per_token_bytes = dst_seq_len_bytes / dst_seq_len;
+    OPENVINO_ASSERT(src_per_token_bytes == dst_per_token_bytes,
+                    "per-token byte size mismatch between src and dst. src=",
+                    src_per_token_bytes,
+                    ", dst=",
+                    dst_per_token_bytes);
+
+    OPENVINO_ASSERT(static_cast<size_t>(chunk_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
+                    "chunk byte size overflow. chunk_tokens=",
+                    chunk_tokens,
+                    ", per_token_bytes=",
+                    src_per_token_bytes);
+    OPENVINO_ASSERT(static_cast<size_t>(src_offset_tokens) <= std::numeric_limits<size_t>::max() / src_per_token_bytes,
+                    "offset byte size overflow. src_offset_tokens=",
+                    src_offset_tokens,
+                    ", per_token_bytes=",
+                    src_per_token_bytes);
+
+    const size_t chunk_bytes = static_cast<size_t>(chunk_tokens) * src_per_token_bytes;
+    const size_t offset_bytes = static_cast<size_t>(src_offset_tokens) * src_per_token_bytes;
+
+    std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
+                chunk_bytes,
+                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
 }

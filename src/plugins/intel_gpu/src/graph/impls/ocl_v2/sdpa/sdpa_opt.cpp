@@ -113,9 +113,19 @@ public:
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
+
         kernel_dump_info.clear_entries();
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
+        // Check if INT4 KV cache is in use (micro kernel doesn't support INT4 for non-PA SDPA)
+        // Only apply this check when the SDPA node actually uses compressed KV cache (i8/u8/i4/u4 K/V inputs).
+        // Vision Encoder SDPA nodes have f16 K/V inputs and should not be affected by the global config.
+        const auto k_dt = new_params.input_layouts[1].data_type;
+        const bool is_kv_compressed = data_type_traits::is_i8_u8(k_dt) || data_type_traits::is_i4_u4(k_dt);
+        const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
+        const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
+
+        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && !is_int4_kv) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
@@ -129,7 +139,7 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_single_token) && !is_indirect) {
+        if (has_stage(regular_micro_single_token) && !is_indirect && !is_int4_kv) {
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
@@ -171,10 +181,18 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     if (device_info.supports_immad) {
         const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
         if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
+            return false;
+        }
+        // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
+        // accuracy issues (produces inf/nan) after oneDNN main branch integration.
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        if (device_info.arch == gpu_arch::xe3p && k_head_size <= 64) {
             return false;
         }
     } else {
@@ -184,7 +202,6 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     const auto& q_layout = params.get_input_layout(0);
     const auto& k_layout = params.get_input_layout(1);
     const auto& v_layout = params.get_input_layout(2);
-    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     // Will check it later to decide whether support micro kernel
     // if (desc->indirect_axis != -1) {

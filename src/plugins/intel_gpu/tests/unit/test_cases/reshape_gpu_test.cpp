@@ -479,13 +479,13 @@ void test_multiple_users_with_reorder(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("relu1").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("relu2").get_memory();
-    cldnn::mem_lock<T> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -673,7 +673,7 @@ void test_basic_bfwzyx(bool is_caching_test) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, input->get_layout().format);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), expected_out.size());
 
     for (size_t i = 0; i < expected_out.size(); i++) {
@@ -724,7 +724,7 @@ void test_shrink_chain_partial(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
@@ -769,7 +769,7 @@ void test_shrink_chain_full(bool is_caching_test) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
@@ -809,7 +809,7 @@ void test_shrink_chain_out(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("reshape1").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
@@ -858,7 +858,7 @@ void test_shrink_chain_partial_reorder_truncate(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("out_reorder").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out.size(); i++)
         ASSERT_EQ(output_ptr[i], out[i]) << " i=" << i;
@@ -908,7 +908,7 @@ TEST(reshape_gpu_f32, basic_runtime_static_shape) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
 
     for (size_t i = 0; i < input_data.size(); i++) {
@@ -957,7 +957,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
 
     for (size_t i = 0; i < input_data.size(); i++) {
@@ -1013,7 +1013,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
 
     for (size_t i = 0; i < input_data.size(); i++) {
@@ -1070,7 +1070,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
 
     for (size_t i = 0; i < input_data.size(); i++) {
@@ -1116,7 +1116,7 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out) {
     ov::PartialShape expected_shape = {2, 1};
     ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<float> expected_res = {9.f, 9.f};
     ASSERT_EQ(output_ptr.size(), expected_res.size());
 
@@ -1166,7 +1166,7 @@ TEST(reshape_gpu_f32, basic_dynamic_shape_to_static_optimized_out_static_optimiz
     ov::PartialShape expected_shape = {2, 1};
     ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     std::vector<float> expected_res = {9.f, 9.f};
     ASSERT_EQ(output_ptr.size(), expected_res.size());
 
@@ -1216,7 +1216,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_activation_fusion) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output_ptr.size(), input_data.size());
 
     for (size_t i = 0; i < input_data.size(); i++) {
@@ -1278,7 +1278,7 @@ TEST(reshape_gpu_f32, reshape_reorder_trucation_mode)
 
     auto output = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i)
     {
@@ -1701,7 +1701,7 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1749,7 +1749,7 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic) {
 
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);
@@ -1820,7 +1820,7 @@ TEST(reshape_gpu_f32, followed_by_convolution_dynamic_w_pad) {
         // check 'conv'
         auto output_memory = outputs.at("conv").get_memory();
         auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
         int y_size = output_layout.spatial(1);
         int x_size = output_layout.spatial(0);

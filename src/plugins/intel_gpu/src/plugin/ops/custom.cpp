@@ -165,6 +165,13 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
             outputFormats.push_back(param.format);
             break;
         }
+        case CustomLayer::ParamType::Internal: {
+           kernelParameters.resize(kernelParameters.size() > size_t(param.paramIndex + 1) ? kernelParameters.size() : size_t(param.paramIndex + 1));
+           kernelParameters[param.paramIndex].type = cldnn::custom_gpu_primitive::arg_internal;
+           kernelParameters[param.paramIndex].index = static_cast<cldnn::custom_gpu_primitive::arg_index>(param.portIndex);
+           kernelParameters[param.paramIndex].size_expr = param.size_expr;
+           break;
+        }
         default:
             OPENVINO_THROW("Invalid custom layer param type: ", param.type, " in operation: ", op->get_friendly_name());
         }

@@ -23,7 +23,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -80,10 +80,10 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
 
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
-        disable_fp16_compression(convert_to_float);
-        disable_fp16_compression(const_denominator);
-        disable_fp16_compression(div);
-        disable_fp16_compression(new_shape);
+        disable_conversion(convert_to_float, element::f16);
+        disable_conversion(const_denominator, element::f16);
+        disable_conversion(div, element::f16);
+        disable_conversion(new_shape, element::f16);
         model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
 }
@@ -136,13 +136,13 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
 
-        disable_fp16_compression(gather_1);
-        disable_fp16_compression(convert_to_float);
-        disable_fp16_compression(const_denominator);
-        disable_fp16_compression(div);
-        disable_fp16_compression(new_dim_size);
-        disable_fp16_compression(const_ends);
-        disable_fp16_compression(concat_with_ends);
+        disable_conversion(gather_1, element::f16);
+        disable_conversion(convert_to_float, element::f16);
+        disable_conversion(const_denominator, element::f16);
+        disable_conversion(div, element::f16);
+        disable_conversion(new_dim_size, element::f16);
+        disable_conversion(const_ends, element::f16);
+        disable_conversion(concat_with_ends, element::f16);
         model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }
@@ -228,15 +228,15 @@ TEST_F(TransformationTestsF, MarkEntireShapeSubgraphs_whole_shape_subgraph_is_ma
         auto result_1 = std::make_shared<opset10::Result>(add_1);
         auto result_2 = std::make_shared<opset10::Result>(interpolate);
 
-        disable_fp16_compression(gather_1);
-        disable_fp16_compression(convert_1);
-        disable_fp16_compression(convert_2);
-        disable_fp16_compression(const_2);
-        disable_fp16_compression(div_1);
-        disable_fp16_compression(const_3);
-        disable_fp16_compression(concat);
-        disable_fp16_compression(mul_1);
-        disable_fp16_compression(convert_3);
+        disable_conversion(gather_1, element::f16);
+        disable_conversion(convert_1, element::f16);
+        disable_conversion(convert_2, element::f16);
+        disable_conversion(const_2, element::f16);
+        disable_conversion(div_1, element::f16);
+        disable_conversion(const_3, element::f16);
+        disable_conversion(concat, element::f16);
+        disable_conversion(mul_1, element::f16);
+        disable_conversion(convert_3, element::f16);
 
         model_ref = std::make_shared<Model>(OutputVector{result_1, result_2}, ParameterVector{input_1, input_2});
     }
@@ -271,7 +271,7 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_1)
         auto new_shape = std::make_shared<opset10::Convert>(div, element::i64);
         auto reshape = std::make_shared<opset10::Reshape>(input_1, new_shape, false);
 
-        disable_fp16_compression(const_denominator);
+        disable_conversion(const_denominator, element::f16);
 
         model_ref = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input_1, input_2});
     }
@@ -326,8 +326,8 @@ TEST_F(TransformationTestsF, MarkConstantsInShapeSubgraphs_only_consts_marked_2)
         auto slice = std::make_shared<opset10::StridedSlice>(input_1, begin, concat_with_ends, begin_mask, end_mask);
         auto result = std::make_shared<opset10::Result>(slice);
 
-        disable_fp16_compression(const_denominator);
-        disable_fp16_compression(const_ends);
+        disable_conversion(const_denominator, element::f16);
+        disable_conversion(const_ends, element::f16);
         model_ref = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_1});
     }
 }

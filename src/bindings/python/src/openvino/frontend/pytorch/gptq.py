@@ -94,7 +94,7 @@ def patched_forward_sym(self, *args, **kwargs):
 
 
 # All the following AutoGPTQ/GPTQModel quant types are supposed to have the same weights packing schema
-supported_quant_types = ["triton", "exllama", "exllamav2", "cuda-old", "hf_kernel"]
+supported_quant_types = ["triton", "exllama", "exllamav2", "cuda-old", "hf_kernel", "torch_fused"]
 
 
 def patch_model(model):

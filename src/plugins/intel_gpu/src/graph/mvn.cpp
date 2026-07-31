@@ -5,10 +5,36 @@
 #include "mvn_inst.h"
 #include "primitive_type_base.h"
 #include "json_object.h"
+#include <algorithm>
 #include <string>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
+
+bool mvn::is_aligned_layout_supported(const layout& input_layout) const {
+    const auto& input_pshape = input_layout.get_partial_shape();
+    if (!requires_alignment(input_pshape))
+        return true;
+
+    const auto& fmt = input_layout.format;
+    if (format::is_default_format(fmt))
+        return true;
+
+    //defer to dyn_formats
+    if (input_pshape.is_dynamic())
+        return true;
+
+    // Mirror the single feature-blocked case handled by mvn_impl::static_canonicalize_shapes.
+    const auto& block_sizes = format::block_sizes(fmt);
+    auto axes = reduction_axes;
+    const auto rank = static_cast<int64_t>(input_pshape.size());
+    std::for_each(axes.begin(), axes.end(), [rank](int64_t& v) {
+        v = (v < 0) ? v + rank : v;
+    });
+    return block_sizes.size() == 1 && block_sizes[0].first == 1 &&
+           (input_pshape[block_sizes[0].first].get_length() % block_sizes[0].second == 0) &&
+           (std::count(axes.begin(), axes.end(), static_cast<int64_t>(block_sizes[0].first)) == 0);
+}
 
 layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_non_padded_input_layout();

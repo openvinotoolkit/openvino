@@ -4,6 +4,9 @@
 
 #include "common_test_utils/postgres_helpers.hpp"
 
+#include <algorithm>
+#include <cctype>
+
 namespace ov {
 namespace test {
 namespace utils {
@@ -25,18 +28,6 @@ fnPQgetvalue PQgetvalue;
 fnPQgetisnull PQgetisnull;
 fnPQclear PQclear;
 fnPQresultErrorMessage PQresultErrorMessage;
-
-const char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-security"
-#endif
-    ::testing::internal::ColoredPrintf(color, text);
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-    return "";
-}
 
 PGresultHolder PostgreSQLConnection::common_query(const char* query) {
 #ifdef PGQL_DEBUG

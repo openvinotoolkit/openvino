@@ -5,12 +5,35 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "layer_transformation.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
 namespace ov {
 namespace pass {
 namespace low_precision {
+
+namespace fq_decomposition {
+
+/**
+ * @brief Extracts output_low and output_high constant values from a FakeQuantize node.
+ * @return true if both inputs 3 and 4 are constants and values were extracted, false otherwise.
+ */
+LP_TRANSFORMATIONS_API bool getOutputRanges(const std::shared_ptr<ov::op::v0::FakeQuantize>& layer,
+                                            std::vector<float>& outputLowValues,
+                                            std::vector<float>& outputHighValues);
+
+/**
+ * @brief Constructs a DataPrecision from a resolved precision and FQ parameters.
+ * Computes hasZeroPoint by checking whether the FQ output ranges match the target precision.
+ */
+LP_TRANSFORMATIONS_API DataPrecision makeDataPrecision(const ov::element::Type& precision,
+                                                       size_t levels,
+                                                       const std::vector<float>& outputLowValues,
+                                                       const std::vector<float>& outputHighValues);
+
+}  // namespace fq_decomposition
 
 /**
  * @ingroup ov_transformation_common_api

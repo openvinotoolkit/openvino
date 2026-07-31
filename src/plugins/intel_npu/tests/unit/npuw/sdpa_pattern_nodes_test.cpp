@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <limits>
 #include <string>
 #include <vector>
-#include <limits>
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -69,8 +69,7 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
             query = make_param("query." + idx, new_token_shape);
         } else {
             // Reshape previous attention output to query shape and use as input
-            auto reshape_shape = op::v0::Constant::create(element::i64, Shape{4},
-                                                          {1, 4, 1, 64});
+            auto reshape_shape = op::v0::Constant::create(element::i64, Shape{4}, {1, 4, 1, 64});
             query = std::make_shared<op::v1::Reshape>(prev_attn_out, reshape_shape, false);
             query->set_friendly_name("query_from_prev." + idx);
         }
@@ -84,7 +83,9 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
         if (miss_key_concat) {
             key_path = new_key;
         } else {
-            key_concat = std::make_shared<op::v0::Concat>(OutputVector{(miss_past_key_param ? fallback_key : past_key), new_key}, 2);
+            key_concat =
+                std::make_shared<op::v0::Concat>(OutputVector{(miss_past_key_param ? fallback_key : past_key), new_key},
+                                                 2);
             key_concat->set_friendly_name("concat_key." + idx);
             key_path = key_concat;
         }
@@ -114,17 +115,21 @@ ModelBuildResult build_sdpa_model(size_t num_sdpa, bool miss_key_concat = false,
 
         prev_attn_out = matmul2;  // Store output for next iteration
 
-        expected.push_back(ExpectedNodes{qk,
-                         matmul2,
-                         softmax,
-                         add,
-                         key_concat,
-                         value_concat});
+        {
+            ExpectedNodes en;
+            en.matmul1_node = qk;
+            en.matmul2_node = matmul2;
+            en.softmax_node = softmax;
+            en.add_node = add;
+            en.past_key_concat_node = key_concat;
+            en.past_value_concat_node = value_concat;
+            expected.push_back(std::move(en));
+        }
     }
 
     auto model = std::make_shared<Model>(results, params, "sdpa_pattern_nodes_test_model");
     model->validate_nodes_and_infer_types();
-    //ov::save_model(model, "sdpa_pattern_nodes_test_model.xml");
+    // ov::save_model(model, "sdpa_pattern_nodes_test_model.xml");
     return {model, expected};
 }
 
@@ -339,12 +344,16 @@ ModelBuildResult build_noisy_sdpa_model(size_t num_sdpa, size_t broken_idx, size
 
         prev_attn_out = matmul2;
 
-        expected.push_back(ExpectedNodes{qk,
-                         matmul2,
-                         softmax,
-                         add,
-                         key_concat,
-                         value_concat});
+        {
+            ExpectedNodes en;
+            en.matmul1_node = qk;
+            en.matmul2_node = matmul2;
+            en.softmax_node = softmax;
+            en.add_node = add;
+            en.past_key_concat_node = key_concat;
+            en.past_value_concat_node = value_concat;
+            expected.push_back(std::move(en));
+        }
 
         maybe_add_poison();
     }
@@ -394,7 +403,8 @@ ModelBuildResult build_sdpa_model_with_wrapped_concats(size_t num_sdpa) {
         auto value_concat = std::make_shared<op::v0::Concat>(OutputVector{past_value, new_value}, 2);
         value_concat->set_friendly_name("concat_value_wrapped." + idx);
 
-        auto shape_c = op::v0::Constant::create(element::i64, Shape{4},
+        auto shape_c = op::v0::Constant::create(element::i64,
+                                                Shape{4},
                                                 {static_cast<int64_t>(cache_shape[0]),
                                                  static_cast<int64_t>(cache_shape[1]),
                                                  static_cast<int64_t>(cache_shape[2]),
@@ -425,19 +435,22 @@ ModelBuildResult build_sdpa_model_with_wrapped_concats(size_t num_sdpa) {
         make_result(value_reshape->output(0), "present." + idx + ".value");
         make_result(matmul2->output(0), "attn_out_wrapped." + idx);
 
-        expected.push_back(ExpectedNodes{qk,
-                         matmul2,
-                         softmax,
-                         add,
-                         key_concat,
-                         value_concat});
+        {
+            ExpectedNodes en;
+            en.matmul1_node = qk;
+            en.matmul2_node = matmul2;
+            en.softmax_node = softmax;
+            en.add_node = add;
+            en.past_key_concat_node = key_concat;
+            en.past_value_concat_node = value_concat;
+            expected.push_back(std::move(en));
+        }
     }
 
     auto model = std::make_shared<Model>(results, params, "sdpa_pattern_nodes_wrapped_concat_model");
     model->validate_nodes_and_infer_types();
     return {model, expected};
 }
-
 
 ModelBuildResult build_sdpa_model_without_concats(size_t num_sdpa) {
     using namespace ov;
@@ -481,10 +494,108 @@ ModelBuildResult build_sdpa_model_without_concats(size_t num_sdpa) {
         out->output(0).get_tensor().set_names({"attn_out_noconcat." + idx});
         results.push_back(out);
 
-        expected.push_back(ExpectedNodes{qk, matmul2, softmax, add, nullptr, nullptr});
+        {
+            ExpectedNodes en;
+            en.matmul1_node = qk;
+            en.matmul2_node = matmul2;
+            en.softmax_node = softmax;
+            en.add_node = add;
+            // past_key/value_concat_node intentionally nullptr (no-concat model)
+            expected.push_back(std::move(en));
+        }
     }
 
     auto model = std::make_shared<Model>(results, params, "sdpa_pattern_nodes_no_concat_model");
+    model->validate_nodes_and_infer_types();
+    return {model, expected};
+}
+
+// Build a model that simulates post-SplitKVCacheIntoBlocks state: each SDPA layer's
+// past key/value is split into `num_blocks` block parameters
+// (named past_key_values.N.key_block_M / past_key_values.N.value_block_M).
+// All block params for one layer are concatenated together with the new token
+// through a single multi-input Concat.
+ModelBuildResult build_sdpa_model_with_block_kv_cache(size_t num_sdpa, size_t num_blocks) {
+    using namespace ov;
+
+    const size_t block_size = 4;                              // tokens per block
+    const size_t total_kv_len = num_blocks * block_size + 1;  // +1 for the new token
+
+    const Shape block_shape = {1, 4, block_size, 64};
+    const Shape new_token_shape = {1, 4, 1, 64};
+    const Shape mask_shape = {1, 1, 1, total_kv_len};
+
+    ParameterVector params;
+    ResultVector results;
+    std::vector<ExpectedNodes> expected;
+    expected.reserve(num_sdpa);
+
+    for (size_t n = 0; n < num_sdpa; ++n) {
+        const std::string idx = std::to_string(n);
+
+        auto make_param = [&](const std::string& name, const Shape& shape) {
+            auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+            p->set_friendly_name(name);
+            p->output(0).get_tensor().set_names({name});
+            params.push_back(p);
+            return p;
+        };
+
+        // Create one key/value block parameter per block.
+        OutputVector key_inputs, value_inputs;
+        for (size_t b = 0; b < num_blocks; ++b) {
+            const std::string bsuf = "_block_" + std::to_string(b);
+            key_inputs.push_back(make_param("past_key_values." + idx + ".key" + bsuf, block_shape)->output(0));
+            value_inputs.push_back(make_param("past_key_values." + idx + ".value" + bsuf, block_shape)->output(0));
+        }
+
+        auto query = make_param("query." + idx, new_token_shape);
+        auto new_key = make_param("new_key." + idx, new_token_shape);
+        auto new_value = make_param("new_value." + idx, new_token_shape);
+        auto mask = make_param("mask." + idx, mask_shape);
+
+        key_inputs.push_back(new_key->output(0));
+        value_inputs.push_back(new_value->output(0));
+
+        // Single multi-input Concat merges all blocks + new token.
+        auto key_concat = std::make_shared<op::v0::Concat>(key_inputs, 2);
+        key_concat->set_friendly_name("concat_key." + idx);
+        auto value_concat = std::make_shared<op::v0::Concat>(value_inputs, 2);
+        value_concat->set_friendly_name("concat_value." + idx);
+
+        auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+        qk->set_friendly_name("matmul1." + idx);
+        auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+        add->set_friendly_name("add." + idx);
+        auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+        softmax->set_friendly_name("softmax." + idx);
+        auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), value_concat->output(0));
+        matmul2->set_friendly_name("matmul2." + idx);
+
+        auto make_result = [&](const ov::Output<ov::Node>& out, const std::string& name) {
+            auto r = std::make_shared<op::v0::Result>(out);
+            r->set_friendly_name(name);
+            r->output(0).get_tensor().set_names({name});
+            results.push_back(r);
+        };
+
+        make_result(key_concat->output(0), "present." + idx + ".key");
+        make_result(value_concat->output(0), "present." + idx + ".value");
+        make_result(matmul2->output(0), "attn_out." + idx);
+
+        {
+            ExpectedNodes en;
+            en.matmul1_node = qk;
+            en.matmul2_node = matmul2;
+            en.softmax_node = softmax;
+            en.add_node = add;
+            en.past_key_concat_node = key_concat;
+            en.past_value_concat_node = value_concat;
+            expected.push_back(std::move(en));
+        }
+    }
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_block_kv_cache_model");
     model->validate_nodes_and_infer_types();
     return {model, expected};
 }
@@ -541,7 +652,6 @@ TEST(SdpaPatternNodesTest, SingleModeReturnsFirstPatternWhenMultipleSdpasExist) 
     expect_nodes_equal(pattern, built.expected.front());
 }
 
-
 TEST(SdpaPatternNodesTest, FindAllReturnsAllSdpaPatternsWithExactNodes) {
     const auto built = build_sdpa_model(/*num_sdpa=*/2, /*miss_key_concat=*/false, /*miss_past_key_param=*/false);
 
@@ -565,7 +675,8 @@ TEST(SdpaPatternNodesTest, FindAllReturnsAllSdpaPatternsWithExactNodes) {
 }
 
 TEST(SdpaPatternNodesTest, FindAllIgnoresPoisonSubgraphsInLargePrefillLikeModel) {
-    const auto built = build_noisy_sdpa_model(/*num_sdpa=*/10, /*broken_idx=*/std::numeric_limits<size_t>::max(),
+    const auto built = build_noisy_sdpa_model(/*num_sdpa=*/10,
+                                              /*broken_idx=*/std::numeric_limits<size_t>::max(),
                                               /*poison_count=*/7);
 
     auto patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(built.model);
@@ -592,19 +703,22 @@ TEST(SdpaPatternNodesTest, FindAllSkipsBrokenSdpaAndFindsRemainingInLargePrefill
 
     auto patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(built.model);
     auto expected = built.expected;
-    expected.erase(std::remove_if(expected.begin(), expected.end(), [](const auto& nodes) {
-                       return !nodes.is_valid();
-                   }),
+    expected.erase(std::remove_if(expected.begin(),
+                                  expected.end(),
+                                  [](const auto& nodes) {
+                                      return !nodes.is_valid();
+                                  }),
                    expected.end());
 
     ASSERT_EQ(patterns.size(), 10u);
 
     auto valid_patterns = patterns;
-    valid_patterns.erase(std::remove_if(valid_patterns.begin(), valid_patterns.end(), [](const auto& nodes) {
-                    return !nodes.is_valid();
-                }),
-                valid_patterns.end());
-
+    valid_patterns.erase(std::remove_if(valid_patterns.begin(),
+                                        valid_patterns.end(),
+                                        [](const auto& nodes) {
+                                            return !nodes.is_valid();
+                                        }),
+                         valid_patterns.end());
 
     ASSERT_EQ(valid_patterns.size(), 9u);
 
@@ -643,7 +757,6 @@ TEST(SdpaPatternNodesTest, FindAllHandlesConcatWrappedByReshape) {
     }
 }
 
-
 TEST(SdpaPatternNodesTest, FindAllReturnsAllSdpaWhenNoConcatIsPresent) {
     const auto built = build_sdpa_model_without_concats(/*num_sdpa=*/4);
 
@@ -661,8 +774,94 @@ TEST(SdpaPatternNodesTest, FindAllReturnsAllSdpaWhenNoConcatIsPresent) {
     });
 
     for (size_t i = 0; i < patterns.size(); ++i) {
-        ASSERT_FALSE(patterns[i].is_valid()) << "Pattern at index " << i << " is expected to be invalid without concats";
+        ASSERT_FALSE(patterns[i].is_valid())
+            << "Pattern at index " << i << " is expected to be invalid without concats";
         expect_nodes_equal(patterns[i], expected[i]);
+    }
+}
+
+TEST(SdpaPatternNodesTest, FindAllPopulatesBlockKvParamNodesAcrossAllLayers) {
+    // Simulate post-SplitKVCacheIntoBlocks state: each SDPA layer has num_blocks
+    // block parameters (e.g. past_key_values.0.key_block_0, key_block_1, ...).
+    // find_all_sdpa_pattern_nodes must collect ALL block params from ALL layers
+    // into past_key_param_nodes / past_value_param_nodes on every returned pattern.
+    const size_t num_sdpa = 2;
+    const size_t num_blocks = 3;
+    const auto built = build_sdpa_model_with_block_kv_cache(num_sdpa, num_blocks);
+
+    auto patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(built.model);
+    ASSERT_EQ(patterns.size(), num_sdpa);
+
+    const size_t expected_param_count = num_sdpa * num_blocks;
+
+    // Sort both by matmul1 name so the per-index comparison is stable.
+    auto expected_sorted = built.expected;
+    std::sort(patterns.begin(), patterns.end(), [](const auto& lhs, const auto& rhs) {
+        return sort_key(lhs) < sort_key(rhs);
+    });
+    std::sort(expected_sorted.begin(), expected_sorted.end(), [](const auto& lhs, const auto& rhs) {
+        return sort_key(lhs) < sort_key(rhs);
+    });
+
+    for (size_t i = 0; i < patterns.size(); ++i) {
+        ASSERT_TRUE(patterns[i].is_valid()) << "Pattern " << i << " must be valid";
+        expect_nodes_equal(patterns[i], expected_sorted[i]);
+
+        // All patterns share the model-level KV param lists.
+        EXPECT_EQ(patterns[i].past_key_param_nodes.size(), expected_param_count)
+            << "Pattern " << i << " must collect all key block params across all layers (" << expected_param_count
+            << " total)";
+        EXPECT_EQ(patterns[i].past_value_param_nodes.size(), expected_param_count)
+            << "Pattern " << i << " must collect all value block params across all layers (" << expected_param_count
+            << " total)";
+
+        // Each collected param must satisfy isPastKeyParam / isPastValueParam.
+        for (const auto& node : patterns[i].past_key_param_nodes) {
+            EXPECT_TRUE(ov::npuw::util::isPastKeyParam(node->get_friendly_name()))
+                << "Collected key param '" << node->get_friendly_name() << "' must match isPastKeyParam (pattern " << i
+                << ")";
+        }
+        for (const auto& node : patterns[i].past_value_param_nodes) {
+            EXPECT_TRUE(ov::npuw::util::isPastValueParam(node->get_friendly_name()))
+                << "Collected value param '" << node->get_friendly_name() << "' must match isPastValueParam (pattern "
+                << i << ")";
+        }
+    }
+}
+
+TEST(SdpaPatternNodesTest, FindAllBlockKvCachePatternStructureIsValid) {
+    // Verify that the Concat and SDPA nodes found by find_all_sdpa_pattern_nodes
+    // match the expected graph structure in a block-based KV cache model.
+    const size_t num_sdpa = 3;
+    const size_t num_blocks = 4;
+    const auto built = build_sdpa_model_with_block_kv_cache(num_sdpa, num_blocks);
+
+    auto patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(built.model);
+    auto expected = built.expected;
+
+    ASSERT_EQ(patterns.size(), num_sdpa);
+
+    std::sort(patterns.begin(), patterns.end(), [](const auto& lhs, const auto& rhs) {
+        return sort_key(lhs) < sort_key(rhs);
+    });
+    std::sort(expected.begin(), expected.end(), [](const auto& lhs, const auto& rhs) {
+        return sort_key(lhs) < sort_key(rhs);
+    });
+
+    for (size_t i = 0; i < patterns.size(); ++i) {
+        ASSERT_TRUE(patterns[i].is_valid()) << "Pattern " << i << " must be valid";
+        expect_nodes_equal(patterns[i], expected[i]);
+
+        // The key Concat must have num_blocks+1 inputs (blocks + new token).
+        const auto& kc = patterns[i].past_key_concat_node;
+        ASSERT_NE(kc, nullptr);
+        EXPECT_EQ(kc->get_input_size(), num_blocks + 1)
+            << "Key Concat for pattern " << i << " must have " << (num_blocks + 1) << " inputs";
+
+        const auto& vc = patterns[i].past_value_concat_node;
+        ASSERT_NE(vc, nullptr);
+        EXPECT_EQ(vc->get_input_size(), num_blocks + 1)
+            << "Value Concat for pattern " << i << " must have " << (num_blocks + 1) << " inputs";
     }
 }
 

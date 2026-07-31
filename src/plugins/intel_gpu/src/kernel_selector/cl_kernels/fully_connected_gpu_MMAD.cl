@@ -245,7 +245,11 @@ KERNEL(fully_connected_gpu_MMAD)(
             weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
 #else
             weights_data.lo = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx));
+#if MMAD_FILTER_LEFTOVER_HI
             weights_data.hi = AS_TYPE(FILTER_PACKED_TYPE_8, BLOCK_READ_8(weights + filter_idx + SUB_GROUP_SIZE * 32));
+#else
+            weights_data.hi = (FILTER_PACKED_TYPE_8)(0);
+#endif // MMAD_FILTER_LEFTOVER_HI
 #endif // SUB_GROUP_SIZE == 8
 
             dotProd = MMAD(activations, weights_data, dotProd);

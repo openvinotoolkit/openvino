@@ -28,6 +28,15 @@ def _build_dynamic_shapes(inputs, input_specs = None):
         result back into the original structure that torch.export expects.
         
     """
+def _is_pytorch_zip(path):
+    """
+    Check if a file looks like a PyTorch archive (TorchScript or ExportedProgram).
+    
+        Both formats are ZIP archives with specific internal entries.
+        This lightweight check avoids expensive torch.jit.load / torch.export.load
+        calls (and their warnings/side effects) on non-PyTorch files.
+        
+    """
 def extract_input_info_from_example(args, inputs):
     ...
 def extract_module_extensions(args):

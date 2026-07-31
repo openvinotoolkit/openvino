@@ -101,11 +101,7 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
 #else
     const uint sgid_remainder = sub_group_id % 2;
 
-    // read
     const uint input_idx_final = input_idx_tile + sgid_remainder * (DEFAULT_STRIDE * DEFAULT_TILE_SIZE);
-    INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
-    INPUTVTYPE_HALF read_half1 = {read_data[0], read_data[2], read_data[4], read_data[6]};
-    INPUTVTYPE_HALF read_half2 = {read_data[1], read_data[3], read_data[5], read_data[7]};
 
     // write
     const uint output_idx = OUTPUT_GET_TILED_INDEX(OUTPUT_TILED_ORDER);
@@ -120,32 +116,31 @@ KERNEL (reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx)(
             if (X_REMAINDER_CONDITION) {
                 const int nloop = X_REMAINDER_SIZE - (TILE_SIZE * sgid_remainder);
                 for (int i = 0 ; i < min(nloop, TILE_SIZE); i++) {
-                    output[output_idx_final + i] = TO_OUTPUT_TYPE(read_half1[i]);
+                    const uint input_idx_remainder = input_idx_final + (uint)i * (DEFAULT_STRIDE * 2);
+                    output[output_idx_final + i] = TO_OUTPUT_TYPE(
+                        AS_INPUT0_TYPE(_sub_group_block_read((const __global uint*)(input) + input_idx_remainder)));
                     #ifdef F_REMAINDER_SIZE
                     if ((f + DEFAULT_STRIDE) < OUTPUT_FEATURE_NUM)
                     #endif
                     {
-                        output[output_idx_final + i + (OUTPUT_FEATURE_PITCH * DEFAULT_STRIDE)] = TO_OUTPUT_TYPE(read_half2[i]);
+                        output[output_idx_final + i + (OUTPUT_FEATURE_PITCH * DEFAULT_STRIDE)] = TO_OUTPUT_TYPE(
+                            AS_INPUT0_TYPE(_sub_group_block_read((const __global uint*)(input) + input_idx_remainder + DEFAULT_STRIDE)));
                     }
                 }
-            } else {
+            } else
+        #endif
+            {
+                INPUTVTYPE read_data = AS_INPUTVTYPE(_sub_group_block_read8((const __global uint*)(input) + input_idx_final));
+                INPUTVTYPE_HALF read_half1 = {read_data[0], read_data[2], read_data[4], read_data[6]};
+                INPUTVTYPE_HALF read_half2 = {read_data[1], read_data[3], read_data[5], read_data[7]};
                 VSTORE(TO_OUTPUTVTYPE(read_half1), 0, output + output_idx_final);
                 #ifdef F_REMAINDER_SIZE
-                if ((f + DEFAULT_STRIDE) < OUTPUT_FEATURE_NUM)
+                if((f + DEFAULT_STRIDE) < OUTPUT_FEATURE_NUM)
                 #endif
                 {
                     VSTORE(TO_OUTPUTVTYPE(read_half2), 0, output + output_idx_final + (OUTPUT_FEATURE_PITCH * DEFAULT_STRIDE));
                 }
             }
-        #else
-            VSTORE(TO_OUTPUTVTYPE(read_half1), 0, output + output_idx_final);
-            #ifdef F_REMAINDER_SIZE
-            if((f + DEFAULT_STRIDE) < OUTPUT_FEATURE_NUM)
-            #endif
-            {
-                VSTORE(TO_OUTPUTVTYPE(read_half2), 0, output + output_idx_final + (OUTPUT_FEATURE_PITCH * DEFAULT_STRIDE));
-            }
-        #endif
     }
 #endif
 }

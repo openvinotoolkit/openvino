@@ -23,7 +23,7 @@ using LogCallback = std::function<void(std::string_view)>;
 OPENVINO_API
 void log_message(std::string_view message);
 
-#ifdef ENABLE_OPENVINO_DEBUG
+#ifdef ENABLE_DEBUG_CAPS
 
 class OPENVINO_API LevelString {
 private:
@@ -679,7 +679,7 @@ bool is_verbose_logging();
             }                                                                  \
         } while (0);
 
-#else  // ENABLE_OPENVINO_DEBUG
+#else  // ENABLE_DEBUG_CAPS
 
 #    define OPENVINO_LOG_NODE1(...) \
         do {                        \
@@ -827,5 +827,5 @@ bool is_verbose_logging();
         do {                           \
         } while (0)
 
-#endif  // ENABLE_OPENVINO_DEBUG
+#endif  // ENABLE_DEBUG_CAPS
 }  // namespace ov::util

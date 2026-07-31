@@ -13,8 +13,11 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/activation.hpp"
 #include "openvino/reference/group_normalization.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
+
+#include <algorithm>
 
 
 using namespace cldnn;
@@ -440,5 +443,182 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused) {
 
     for (std::size_t i = 0; i < reference_output.size(); i++) {
         ASSERT_NEAR(reference_output[i], output_mem_lock[i], 0.01);
+    }
+}
+
+// Tests fused eltwise_sum with a separate 4D input into the group_normalization fused kernel.
+// This covers the case where FUSED_OP0_LOAD indexes a separate tensor using (b),(f),(y),(x).
+TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum) {
+    auto& engine = get_test_engine();
+
+    const ov::Shape input_shape = {1, 32, 64, 64};
+    const ov::Shape param_shape = {32, 1, 1, 1};
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    auto eltwise_layout = layout{input_shape, data_types::f16, format::bfyx};
+    auto scale_layout = layout{param_shape, data_types::f16, format::bfyx};
+    auto bias_layout = layout{param_shape, data_types::f16, format::bfyx};
+    const float epsilon = 1e-5f;
+    const int64_t num_groups = 8;
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto eltwise_mem = engine.allocate_memory(eltwise_layout);
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+
+    tests::random_generator rg{"GroupNormalizationGPUTest_fused_eltwise"};
+
+    auto in_vals = rg.generate_random_1d<ov::float16>(ov::shape_size(input_shape), -1, 1);
+    auto eltwise_vals = rg.generate_random_1d<ov::float16>(ov::shape_size(input_shape), -1, 1);
+    auto scale_vals = rg.generate_random_1d<ov::float16>(input_shape[1], -1, 1);
+    auto bias_vals = rg.generate_random_1d<ov::float16>(input_shape[1], -1, 1);
+
+    set_values(input_mem, in_vals);
+    set_values(eltwise_mem, eltwise_vals);
+    set_values(scale_mem, scale_vals);
+    set_values(bias_mem, bias_vals);
+
+    // Topology: group_norm -> eltwise_sum(with separate input) -> output
+    // The eltwise_sum should be fused into the group_normalization kernel.
+    topology topology(
+        input_layout("input", in_layout),
+        input_layout("eltwise_input", eltwise_layout),
+        input_layout("scale", scale_layout),
+        input_layout("bias", bias_layout),
+        reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("eltwise_input_fsv16", input_info("eltwise_input"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("scale_fsv16", input_info("scale"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("bias_fsv16", input_info("bias"), format::b_fs_yx_fsv16, data_types::f16),
+        group_normalization("group_norm",
+                            input_info("input_fsv16"),
+                            input_info("scale_fsv16"),
+                            input_info("bias_fsv16"),
+                            num_groups,
+                            epsilon),
+        eltwise("eltwise_sum",
+                {input_info("group_norm"), input_info("eltwise_input_fsv16")},
+                eltwise_mode::sum),
+        reorder("output", input_info("eltwise_sum"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_norm", gn_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("eltwise_input", eltwise_mem);
+    network.set_input_data("scale", scale_mem);
+    network.set_input_data("bias", bias_mem);
+
+    auto outputs = network.execute();
+
+    // Verify eltwise_sum was fused into group_norm (not executed as separate primitive)
+    auto executed_primitives = network.get_executed_primitives();
+    ASSERT_TRUE(executed_primitives.count("eltwise_sum") == 0);
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_mem_lock(output, get_test_stream());
+
+    // Compute reference: group_norm + eltwise_sum
+    std::vector<float> in_f32(in_vals.begin(), in_vals.end());
+    std::vector<float> scale_f32(scale_vals.begin(), scale_vals.end());
+    std::vector<float> bias_f32(bias_vals.begin(), bias_vals.end());
+    std::vector<float> ref_gn(ov::shape_size(input_shape));
+    ov::reference::group_normalization(in_f32.data(), scale_f32.data(), bias_f32.data(),
+                                       ref_gn.data(), input_shape, num_groups, epsilon);
+
+    for (std::size_t i = 0; i < ref_gn.size(); i++) {
+        float expected = ref_gn[i] + static_cast<float>(eltwise_vals[i]);
+        ASSERT_NEAR(static_cast<float>(output_mem_lock[i]), expected, 0.05) << "at index " << i;
+    }
+}
+
+// Tests fused eltwise_sum + ReLU activation into the group_normalization fused kernel.
+// This matches the SegNext model pattern: GroupNorm -> Add -> ReLU.
+TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum_relu) {
+    auto& engine = get_test_engine();
+
+    const ov::Shape input_shape = {1, 32, 33, 17};  // Non-power-of-2 spatial dims to stress y/x derivation and CHUNK_SIZE tail handling
+    const ov::Shape param_shape = {32, 1, 1, 1};
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    auto eltwise_layout = layout{input_shape, data_types::f16, format::bfyx};
+    auto scale_layout = layout{param_shape, data_types::f16, format::bfyx};
+    auto bias_layout = layout{param_shape, data_types::f16, format::bfyx};
+    const float epsilon = 1e-5f;
+    const int64_t num_groups = 8;
+
+    auto input_mem = engine.allocate_memory(in_layout);
+    auto eltwise_mem = engine.allocate_memory(eltwise_layout);
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto bias_mem = engine.allocate_memory(bias_layout);
+
+    tests::random_generator rg{"GroupNormalizationGPUTest_fused_eltwise_relu"};
+
+    auto in_vals = rg.generate_random_1d<ov::float16>(ov::shape_size(input_shape), -1, 1);
+    auto eltwise_vals = rg.generate_random_1d<ov::float16>(ov::shape_size(input_shape), -1, 1);
+    auto scale_vals = rg.generate_random_1d<ov::float16>(input_shape[1], -1, 1);
+    auto bias_vals = rg.generate_random_1d<ov::float16>(input_shape[1], -1, 1);
+
+    set_values(input_mem, in_vals);
+    set_values(eltwise_mem, eltwise_vals);
+    set_values(scale_mem, scale_vals);
+    set_values(bias_mem, bias_vals);
+
+    topology topology(
+        input_layout("input", in_layout),
+        input_layout("eltwise_input", eltwise_layout),
+        input_layout("scale", scale_layout),
+        input_layout("bias", bias_layout),
+        reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("eltwise_input_fsv16", input_info("eltwise_input"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("scale_fsv16", input_info("scale"), format::b_fs_yx_fsv16, data_types::f16),
+        reorder("bias_fsv16", input_info("bias"), format::b_fs_yx_fsv16, data_types::f16),
+        group_normalization("group_norm",
+                            input_info("input_fsv16"),
+                            input_info("scale_fsv16"),
+                            input_info("bias_fsv16"),
+                            num_groups,
+                            epsilon),
+        eltwise("eltwise_sum",
+                {input_info("group_norm"), input_info("eltwise_input_fsv16")},
+                eltwise_mode::sum),
+        activation("relu", input_info("eltwise_sum"), activation_func::relu),
+        reorder("output", input_info("relu"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc gn_impl = {format::b_fs_yx_fsv16, "group_normalization_fsv16", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"group_norm", gn_impl}}));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    network.set_input_data("eltwise_input", eltwise_mem);
+    network.set_input_data("scale", scale_mem);
+    network.set_input_data("bias", bias_mem);
+
+    auto outputs = network.execute();
+
+    // Verify eltwise_sum and relu were fused into group_norm (not executed as separate primitives)
+    auto executed_primitives = network.get_executed_primitives();
+    ASSERT_TRUE(executed_primitives.count("eltwise_sum") == 0);
+    ASSERT_TRUE(executed_primitives.count("relu") == 0);
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_mem_lock(output, get_test_stream());
+
+    // Compute reference: group_norm + eltwise_sum + relu
+    std::vector<float> in_f32(in_vals.begin(), in_vals.end());
+    std::vector<float> scale_f32(scale_vals.begin(), scale_vals.end());
+    std::vector<float> bias_f32(bias_vals.begin(), bias_vals.end());
+    std::vector<float> ref_gn(ov::shape_size(input_shape));
+    ov::reference::group_normalization(in_f32.data(), scale_f32.data(), bias_f32.data(),
+                                       ref_gn.data(), input_shape, num_groups, epsilon);
+
+    for (std::size_t i = 0; i < ref_gn.size(); i++) {
+        float sum_val = ref_gn[i] + static_cast<float>(eltwise_vals[i]);
+        float expected = std::max(0.0f, sum_val);
+        ASSERT_NEAR(static_cast<float>(output_mem_lock[i]), expected, 0.05) << "at index " << i;
     }
 }

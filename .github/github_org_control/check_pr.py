@@ -30,11 +30,7 @@ class PrType(Enum):
 
 def get_pr_labels(pull):
     """Gets PR labels as set"""
-    pr_lables = set()
-    for label in pull.labels:
-        pr_lables.add(label.name)
-    return pr_lables
-
+    return set([label.name for label in pull.labels])
 
 def set_pr_labels(pull, labels):
     """Sets new PR labels (all previously set labels are removed)"""
@@ -56,9 +52,9 @@ def add_pr_labels(pull, labels):
 
 def get_pr_type_by_labels(pull):
     """Gets PR type using labels"""
-    pr_lables = get_pr_labels(pull)
+    pr_labels = get_pr_labels(pull)
     pr_types = set(type.value for type in PrType)
-    pr_types_labels = pr_lables & pr_types
+    pr_types_labels = pr_labels & pr_types
     if not pr_types_labels:
         return None
     if len(pr_types_labels) > 1:
@@ -68,7 +64,7 @@ def get_pr_type_by_labels(pull):
 
 
 def get_label_by_team_name_re(team_name):
-    """Generates label by PR reviwer team name using regular expressions"""
+    """Generates label by PR reviewer team name using regular expressions"""
     if "admins" in team_name:
         return "category: ci"
     re_compile_label = re.compile(rf"{Config().GITHUB_REPO}-(.+)-maintainers")
@@ -79,17 +75,17 @@ def get_label_by_team_name_re(team_name):
 
 
 def get_label_by_team_name_map(team_name):
-    """Generates label by PR reviwer team name using config map"""
+    """Generates label by PR reviewer team name using config map"""
     return Config().TEAM_TO_LABEL.get(team_name)
 
 
 def get_category_labels(pull):
-    """Gets list of category labels by all PR reviwer teams"""
+    """Gets list of category labels by all PR reviewer teams"""
     labels = []
-    pr_lables = get_pr_labels(pull)
+    pr_labels = get_pr_labels(pull)
     for reviewer_team in pull.get_review_requests()[1]:
         reviewer_label = get_label_by_team_name_map(reviewer_team.name)
-        if reviewer_label and reviewer_label not in pr_lables:
+        if reviewer_label and reviewer_label not in pr_labels:
             labels.append(reviewer_label)
     return labels
 
@@ -171,7 +167,7 @@ def get_wrong_commits(pull):
                 commit.raw_data["commit"]["verification"]["reason"],
             )
             if pr_author_email != commit_author_email or pr_author_email != commit_committer_email:
-                print("    WARNING: Commit emails and GitHub PR author public email are differnt")
+                print("    WARNING: Commit emails and GitHub PR author public email are different")
     return wrong_commits
 
 

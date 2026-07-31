@@ -15,8 +15,8 @@ struct proposal_conf {
     size_t feat_stride_ = 0UL;
     size_t base_size_ = 0UL;
     size_t min_size_ = 0UL;
-    int pre_nms_topn_ = 0;
-    int post_nms_topn_ = 0;
+    size_t pre_nms_topn_ = 0UL;
+    size_t post_nms_topn_ = 0UL;
     float nms_thresh_ = 0.0F;
     float box_coordinate_scale_ = 0.0F;
     float box_size_scale_ = 0.0F;

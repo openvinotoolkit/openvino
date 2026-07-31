@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <type_traits>
 
 #include "openvino/core/dimension.hpp"
@@ -31,5 +32,23 @@ size_t get_inner_n_block(const ov::element::Type& precision);
  * @return k padding size
  */
 size_t get_k_pad_size(const ov::element::Type& precision);
+
+/**
+ * @brief Get the offset in bytes to the packed RHS data for the specified N index and K dimension.
+ * @return Packed RHS offset in bytes
+ */
+size_t get_rhs_packed_offset(const ov::element::Type& precision, size_t n_idx, size_t K);
+
+/**
+ * @brief Get the size in bytes of the packed RHS buffer.
+ * @return Packed RHS size in bytes
+ */
+size_t get_rhs_packed_size(const ov::element::Type& precision, size_t N, size_t K);
+
+/**
+ * @brief Get the N step required by the packed RHS layout.
+ * @return N step
+ */
+size_t get_rhs_packed_n_step(const ov::element::Type& precision);
 
 }  // namespace ov::intel_cpu::aarch64::gemm_utils::repacking

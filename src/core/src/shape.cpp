@@ -7,12 +7,10 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 
 std::ostream& ov::operator<<(std::ostream& s, const Shape& shape) {
-    s << "[";
-    s << ov::util::join(shape, ",");
-    s << "]";
-    return s;
+    return s << "[" << ov::util::join<std::ostream>(shape, ",") << "]";
 }
 
 ov::Shape::Shape() : std::vector<size_t>() {}

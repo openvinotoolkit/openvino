@@ -43,6 +43,55 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_Kleidiai,
                        ::testing::Values(true)),
     MatmulWeightsDecompression::getTestCaseName);
 
+const std::vector<MatMulDecompressionShapeParams> group_input_shape_params_kleidiai = {
+    // dynamic batch dim, multiple concrete shapes exercised, IC/group_size=64/32 -> numGroups=2
+    {
+        {{-1, -1, -1}, {{10, 40, 64}, {11, 40, 64}}}, // data_shape
+        {64, 128},  // weights_shape
+        64        // group size
+    },
+    // group size not a multiple of 32 -> fall back to FP32 path
+    {
+        {{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, // data_shape
+        {16, 32},  // weights_shape
+        16        // group size
+    },
+    // small/fast smoke case, numGroups=2
+    {
+        {{}, {{1, 1, 64}}},
+        {64, 16},
+        32
+    },
+    // more than 2 groups
+    {
+        {{}, {{1, 4, 128}}},
+        {128, 64},
+        32        // numGroups=4
+    },
+    // degenerate: group_size == IC -> numGroups=1, falls back to the non-group kernel path
+    {
+        {{}, {{1, 4, 32}}},
+        {32, 40},
+        32
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeightsGrp_Kleidiai,
+    MatmulWeightsDecompression,
+    ::testing::Combine(::testing::ValuesIn(group_input_shape_params_kleidiai),
+                       ::testing::Values(ov::element::i4),
+                       ::testing::ValuesIn(decompression_precisions),
+                       ::testing::Values(ov::element::dynamic),
+                       ::testing::ValuesIn(transpose_weights_kleidiai),
+                       ::testing::Values(DecompressionType::full),
+                       ::testing::Values(DecompressionType::empty),
+                       ::testing::Values(false),
+                       ::testing::Values(enable_dyn_quant_config_kleidiai),
+                       ::testing::ValuesIn(fusing_params),
+                       ::testing::Values(true)),
+    MatmulWeightsDecompression::getTestCaseName);
+
+
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8, ov::element::i8};
 
 const ov::AnyMap basic_config = {ov::hint::inference_precision(ov::element::f16)};

@@ -95,7 +95,7 @@ TEST_F(ConvU8FuseSumI8, smoke_CompareWithRefs) {
     run();
     // 2 input reorders (abcd -> acdb) before 2 convolutions + one output reorderr (acdb -> abcd) before result
     // No reorder (i8 -> u8) is expected on the port for a fused sum
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
+    CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
 }
 
 }  // namespace test

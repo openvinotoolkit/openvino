@@ -8,9 +8,16 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
 endif()
 
+set(EXCLUDED_PATHS "")
+if(NOT ENABLE_DEBUG_CAPS)
+    list(APPEND EXCLUDED_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/utils/extract_subgraph_test")
+endif()
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    EXCLUDED_SOURCE_PATHS
+        ${EXCLUDED_PATHS}
     DEPENDENCIES
     LINK_LIBRARIES
         gmock

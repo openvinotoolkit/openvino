@@ -3,14 +3,14 @@
 //
 #include <cstdlib>
 
-#include "openvino/core/except.hpp"
-#include "openvino/util/env_util.hpp"
-#include "openvino/util/file_util.hpp"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <string>
 
 #    include "debug_caps_config.h"
+#    include "openvino/core/except.hpp"
+#    include "openvino/util/env_util.hpp"
+#    include "openvino/util/file_util.hpp"
 
 namespace ov::intel_cpu {
 

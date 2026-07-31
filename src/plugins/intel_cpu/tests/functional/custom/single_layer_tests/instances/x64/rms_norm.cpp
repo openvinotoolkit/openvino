@@ -4,6 +4,7 @@
 
 #include "custom/single_layer_tests/classes/rms_norm.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -11,6 +12,9 @@ namespace ov {
 namespace test {
 namespace RMSNorm {
 const auto cpuSpec = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+const auto jitAvx512Spec = []() -> std::vector<CPUSpecificParams> {
+    return filterCPUInfoForDevice({CPUSpecificParams{{}, {}, {"jit"}, "jit_avx512"}});
+};
 
 const std::vector<std::vector<InputShape>> shapes{
     // normal
@@ -59,14 +63,59 @@ const std::vector<std::vector<InputShape>> shapes{
     },
 };
 
+const std::vector<std::vector<InputShape>> tinyRowBf16Shapes{
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 15},
+            {ov::Shape{1, 8, 15}, ov::Shape{2, 3, 15}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{15},
+            {ov::Shape{15}, ov::Shape{15}}}
+        },
+    },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 7},
+            {ov::Shape{1, 8, 7}, ov::Shape{2, 3, 7}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{7},
+            {ov::Shape{7}, ov::Shape{7}}}
+        },
+    },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 8},
+            {ov::Shape{1, 8, 8}, ov::Shape{2, 3, 8}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{8},
+            {ov::Shape{8}, ov::Shape{8}}}
+        },
+    },
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 3},
+            {ov::Shape{1, 8, 3}, ov::Shape{2, 3, 3}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{3},
+            {ov::Shape{3}, ov::Shape{3}}}
+        },
+    },
+};
+
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
-                                                 testing::ValuesIn(shapes),
-                                                 testing::Values(ov::test::utils::DEVICE_CPU),
-                                                 testing::Values(cpuSpec));
+                                                  testing::ValuesIn(shapes),
+                                                  testing::Values(ov::test::utils::DEVICE_CPU),
+                                                  testing::Values(cpuSpec));
+
+const auto tinyRowBf16Params = testing::Combine(testing::Values(ElementType::bf16),
+                                                testing::ValuesIn(tinyRowBf16Shapes),
+                                                testing::Values(ov::test::utils::DEVICE_CPU),
+                                                testing::ValuesIn(jitAvx512Spec()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_CPU,
                          RMSNormLayerCPUTest,
                          params,
+                         RMSNormLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_TinyRow_BF16_CPU,
+                         RMSNormLayerCPUTest,
+                         tinyRowBf16Params,
                          RMSNormLayerCPUTest::getTestCaseName);
 
 }  // namespace RMSNorm
