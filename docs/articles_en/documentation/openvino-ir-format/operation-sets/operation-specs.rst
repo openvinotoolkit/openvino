@@ -235,7 +235,7 @@ Operation Specifications
    SquaredDifference-1 <operation-specs/arithmetic/squared-difference-1>
    Squeeze-1 <operation-specs/shape/squeeze-1>
    Squeeze-15 <operation-specs/shape/squeeze-15>
-   SSM <operation-specs/internal/ssm>
+   SelectiveSSM <operation-specs/internal/selective-ssm>
    STFT-15 <operation-specs/signals/stft-15>
    StridedSlice-1 <operation-specs/movement/strided-slice-1>
    StringTensorPack-15 <operation-specs/type/string-tensor-pack-15>

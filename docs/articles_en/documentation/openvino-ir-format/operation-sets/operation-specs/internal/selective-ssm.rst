@@ -1,22 +1,22 @@
-.. {#openvino_docs_ops_internal_SSM}
+.. {#openvino_docs_ops_internal_SelectiveSSM}
 
-SSM
-===
+SelectiveSSM
+============
 
 
 .. meta::
-  :description: Learn about SSM - a selective state-space model (selective scan)
+  :description: Learn about SelectiveSSM - a selective state-space model (selective scan)
                 sequence processing operation implementing the Mamba2 recurrence.
 
-**Versioned name**: *SSM*
+**Versioned name**: *SelectiveSSM*
 
 **Category**: *Sequence processing*
 
-**Short description**: *SSM* (selective scan model) represents the selective
+**Short description**: *SelectiveSSM* (selective state-space model) represents the selective
 state-space recurrence used by Mamba2 mixers in hybrid Mamba2 models such as
 NemotronH.
 
-**Detailed description**: *SSM* implements the Mamba2 selective state-space
+**Detailed description**: *SelectiveSSM* implements the Mamba2 selective state-space
 recurrence (`arXiv:2405.21060 <https://arxiv.org/abs/2405.21060>`__). It updates an
 SSM hidden state with a linear recurrence over the sequence dimension and reads out a
 per-token output by contracting the state with the per-token output projection ``C``.
@@ -44,7 +44,7 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
 
 .. code-block:: py
 
-   def torch_ssm_recurrence(A, dt, B, x, C, recurrent_state):
+   def torch_selective_ssm_recurrence(A, dt, B, x, C, recurrent_state):
        # A:               [num_heads]
        # dt:              [batch_size, seq_len, num_heads]
        # B:               [batch_size, seq_len, num_groups, state_size]
@@ -84,7 +84,7 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
 
 **Attributes**
 
-*SSM* operation has no attributes.
+*SelectiveSSM* operation has no attributes.
 
 
 **Inputs**
@@ -139,7 +139,7 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
 .. code-block:: xml
    :force:
 
-   <layer ... type="SSM" ...>
+   <layer ... type="SelectiveSSM" ...>
        <input>
            <port id="0"> <!-- `A` -->
                <dim>8</dim>
