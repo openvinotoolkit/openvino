@@ -570,6 +570,62 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset15) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset14) {
+    // Batch Normalization in the training mode (training_mode=1)
+    auto model = convert_model("batchnorm_training_mode_opset14.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    // the current batch statistics are used for the normalization
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-1.2247356f, 0.f, 1.2247356f, -0.83710337f, 1.f, 2.8371034f});
+    test_case.add_expected_output<float>(Shape{2}, {0.f, 3.f});                 // running mean
+    test_case.add_expected_output<float>(Shape{2}, {0.96666664f, 1.4166666f});  // running var
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset9) {
+    // Batch Normalization in the training mode (more than one output)
+    auto model = convert_model("batchnorm_training_mode_opset9.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-1.2247356f, 0.f, 1.2247356f, -0.83710337f, 1.f, 2.8371034f});
+    test_case.add_expected_output<float>(Shape{2}, {0.f, 3.f});                 // running mean
+    test_case.add_expected_output<float>(Shape{2}, {0.96666664f, 1.4166666f});  // running var
+    test_case.add_expected_output<float>(Shape{2}, {0.f, 3.f});                 // saved mean
+    test_case.add_expected_output<float>(Shape{2}, {0.6666667f, 0.6666667f});   // saved var
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset1) {
+    // Batch Normalization in the training mode (is_test=0)
+    auto model = convert_model("batchnorm_training_mode_opset1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-1.2247356f, 0.f, 1.2247356f, -0.83710337f, 1.f, 2.8371034f});
+    test_case.add_expected_output<float>(Shape{2}, {0.f, 3.f});                 // running mean
+    test_case.add_expected_output<float>(Shape{2}, {0.96666664f, 1.4166666f});  // running var
+    test_case.add_expected_output<float>(Shape{2}, {0.f, 3.f});                 // saved mean
+    test_case.add_expected_output<float>(Shape{2}, {0.6666667f, 0.6666667f});   // saved var
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_relu) {
     // Simple ReLU test
     auto model = convert_model("relu.onnx");
