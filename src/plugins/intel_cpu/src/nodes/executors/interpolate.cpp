@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "openvino/core/except.hpp"
@@ -590,7 +591,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
                 srcDim5d[2],
                 srcDim5d[3],
                 srcDim5d[4],
-                [&](int n, int cb, int d, int h, int w) {
+                [&](Dim n, Dim cb, Dim d, Dim h, Dim w) {
                     const uint8_t* src = src_data_origin +
                                          (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
                                          (cb * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize +
