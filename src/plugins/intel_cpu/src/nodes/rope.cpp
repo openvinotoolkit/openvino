@@ -267,6 +267,11 @@ struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
         auto seq_len = t_src.size(1);
         auto rotary_dims = m_config.rotary_ndims;
 
+        OPENVINO_ASSERT(
+            (t_cos.size(0) == 1 || t_cos.size(0) == batch_size) && (t_cos.size(1) == 1 || t_cos.size(1) == seq_len) &&
+                (t_sin.size(0) == 1 || t_sin.size(0) == batch_size) && (t_sin.size(1) == 1 || t_sin.size(1) == seq_len),
+            "RoPE LTX: cos/sin batch/seq must be 1 or match the input");
+
         cpu_parallel->parallel_for2d(batch_size, seq_len, [&](size_t b, size_t p) {
             auto* x = t_src.ptr<T>(b, p);
             // cos/sin tables may broadcast over batch/seq
@@ -513,6 +518,7 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_ltx_video) {
+        CPU_NODE_ASSERT(m_config.rotary_ndims % 2 == 0, "rotary_ndims must be even for LTX RoPE");
         // LTX sets both is_interleaved and is_ltx_video, so this must be checked first
         if (rtPrecision == ov::element::f16) {
             m_executor = std::make_shared<RoPEExecutorLtxVideo<ov::float16>>(m_config);
