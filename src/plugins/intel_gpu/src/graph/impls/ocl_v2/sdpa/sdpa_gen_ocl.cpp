@@ -653,6 +653,10 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_KV_2D"))
         kv_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
+    int v_f16_multiblock = 0;
+    if (const char* env = std::getenv("SDPA_OCL_V_F16_MULTIBLOCK"))
+        v_f16_multiblock = std::atoi(env);
+    jit.make("V_F16_MULTIBLOCK_READ", v_f16_multiblock);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
