@@ -19,12 +19,12 @@
 
 namespace ov::test {
 
-TEST(CoreTests, Throw_on_register_plugin_twice) {
+TEST(CoreTests, register_plugin_twice_appends_dispatch_group_candidate) {
+    // register_plugin under an already-registered name appends a candidate (forming a group)
+    // rather than throwing. Registration is lazy; group resolution is covered by functional tests.
     ov::Core core;
     core.register_plugin("test_plugin", "TEST_DEVICE");
-    OV_EXPECT_THROW(core.register_plugin("test_plugin", "TEST_DEVICE"),
-                    ov::Exception,
-                    ::testing::HasSubstr("Device with \"TEST_DEVICE\"  is already registered in the OpenVINO Runtime"));
+    OV_ASSERT_NO_THROW(core.register_plugin("test_plugin_2", "TEST_DEVICE"));
 }
 
 TEST(CoreTests, Throw_on_register_plugins_twice) {

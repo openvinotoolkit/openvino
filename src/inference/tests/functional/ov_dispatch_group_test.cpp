@@ -212,6 +212,33 @@ TEST_F(DispatchGroupTest, repeated_core_lifecycle_is_clean) {
     }
 }
 
+// --- register_plugin runtime API forms a dispatch group ---
+
+// A second register_plugin for the same device name now appends a candidate (no opt-in flag),
+// forming a group that resolves per score exactly like the plugins.xml path.
+TEST_F(DispatchGroupTest, register_plugin_appends_dispatch_group_candidate) {
+    script("0,aa," + std::to_string(SERVABLE), "0,aa," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugin(candidate_lib("a").string(), device);
+    core.register_plugin(candidate_lib("b").string(), device);
+    // Both candidates present under one device name -> resolves by score (B is PREFERRED).
+    EXPECT_EQ(resolved_tag(core), "B");
+    EXPECT_EQ(group_devices(core), std::vector<std::string>{device});  // single physical device
+}
+
+// A group member that can't be scored (library present but no enumeration probe) is a hard
+// error at resolution. mock_engine exports create_plugin_engine but not the probe, so it fits.
+TEST_F(DispatchGroupTest, register_plugin_group_member_without_probe_throws) {
+    script("0,aa," + std::to_string(PREFERRED), "");
+    ov::Core core;
+    core.register_plugin(candidate_lib("a").string(), device);
+    const auto no_probe_lib =
+        ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+                                           std::string("mock_engine") + OV_BUILD_POSTFIX);
+    core.register_plugin(no_probe_lib.string(), device);
+    OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::HasSubstr("enumeration probe"));
+}
+
 }  // namespace
 
 #endif  // OPENVINO_STATIC_LIBRARY

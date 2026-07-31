@@ -58,18 +58,25 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
         if (lib.empty() || !ov::util::file_exists(lib))
             continue;
 
+        // Only called for a dispatch group (>1 candidate), so a present candidate MUST export the
+        // probe; a missing symbol is a hard error (an unscoreable library can't share a name).
         std::vector<ov::EnumeratedDevice> enumerated;
+        auto probe_so = ov::util::load_shared_object(lib);  // load failures propagate as-is
+        ov::EnumerateDevicesFunc* probe = nullptr;
         try {
-            auto probe_so = ov::util::load_shared_object(lib);
-            auto* probe = reinterpret_cast<ov::EnumerateDevicesFunc*>(
+            probe = reinterpret_cast<ov::EnumerateDevicesFunc*>(
                 ov::util::get_symbol(probe_so, ov::enumerate_devices_function));
-            probe(enumerated);
-            // probe_so is released here; the winner is re-opened lazily on construction.
-        } catch (const std::exception&) {
-            // Legacy candidate lacking the probe symbol, or a probe failure: contributes no
-            // devices to the merge (it can still be the sole fallback via candidate 0).
-            continue;
+        } catch (const std::exception& ex) {
+            OPENVINO_THROW("Library \"",
+                           lib.string(),
+                           "\" is registered as one of several candidates for a device but does not "
+                           "export the device-enumeration probe (",
+                           ov::enumerate_devices_function,
+                           "), so it cannot be scored: ",
+                           ex.what());
         }
+        probe(enumerated);
+        // probe_so is released here; the winner is re-opened lazily on construction.
 
         for (auto& dev : enumerated) {
             if (dev.score == ov::PROBE_SCORE_INCOMPATIBLE)
@@ -1586,14 +1593,16 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
                                    const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto it = m_plugin_registry.find(device_name);
-    // Proxy plugins can be configured in the runtime
-    if (it != m_plugin_registry.end() && !is_proxy_device(device_name)) {
-        OPENVINO_THROW("Device with \"", device_name, "\"  is already registered in the OpenVINO Runtime");
-    }
-
     if (device_name.find('.') != std::string::npos) {
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
+    }
+
+    // Another library under an already-registered name appends a dispatch-group candidate; the
+    // enumeration probe picks the winner per device. (Proxy plugins keep their own handling.)
+    auto it = m_plugin_registry.find(device_name);
+    if (it != m_plugin_registry.end() && !is_proxy_device(device_name)) {
+        it->second.m_candidates.push_back({ov::util::get_plugin_path(plugin), properties, nullptr});
+        return;
     }
 
     PluginDescriptor desc{ov::util::get_plugin_path(plugin), properties};
