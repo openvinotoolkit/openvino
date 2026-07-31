@@ -298,7 +298,9 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
  * Type: ov::log::Level
  * Controls the verbosity of the NPU compiler's own logging for a single compile() call, independently of
  * ov::log::level (which controls the plugin-side logging). This lets a user raise plugin logging without also
- * enabling the compiler's much more verbose internal logging, and vice versa.
+ * enabling the compiler's much more verbose internal logging, and vice versa. Like other compile-time properties,
+ * it can also be set persistently via ov::Core::set_property() / plugin set_property(), in which case it affects
+ * every subsequent compile_model() call until changed again.
  * @note If this property is not set, the compile log level inherits the value of ov::log::level.
  */
 static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG_LEVEL"};

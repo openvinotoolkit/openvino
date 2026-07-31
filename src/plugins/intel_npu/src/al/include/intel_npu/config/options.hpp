@@ -235,9 +235,10 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
 
 /**
  * @brief Controls the verbosity of the NPU compiler's own logging for a single compile() call, independently of
- * LOG_LEVEL (which controls the plugin-side logging). This is a plugin-side option: it is never
- * serialized to the compiler under its own key. Instead the resolved value is forwarded to
- * the compiler under the compiler-understood LOG_LEVEL key (see model_serializer.cpp).
+ * LOG_LEVEL (which controls the plugin-side logging). This is a plugin-side option: it is never serialized to
+ * the compiler under its own key. Instead the resolved value is forwarded to the compiler under the
+ * compiler-understood LOG_LEVEL key (see model_serializer.cpp). Like other compile-time options, it can also be
+ * set persistently, in which case it affects every subsequent compile_model() call until changed again.
  * @note The option is intentionally left without a default value: an unset option means it inherits LOG_LEVEL,
  * which cannot be expressed from defaultValue() alone (it has no visibility of other options). resolve()
  * implements that fallback.
