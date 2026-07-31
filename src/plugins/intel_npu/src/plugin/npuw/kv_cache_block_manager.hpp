@@ -18,6 +18,8 @@
 namespace ov {
 namespace npuw {
 
+class LLMBlockKVCacheStrategy;  // forward declaration — for friend in KVCacheBlockManager
+
 /**
  * @brief Block-based KV Cache Manager
  *
@@ -172,6 +174,12 @@ private:
      * @brief Validate block ID
      */
     void validate_block_id(uint32_t block_id) const;
+
+    // Allow LLMBlockKVCacheStrategy to inject externally-owned tensors as pre-allocated blocks.
+    // Used by prefix caching in Block KV mode to restore cached NPU block tensors
+    // without copying: the existing SoPtr is placed directly into the block pool.
+    friend class LLMBlockKVCacheStrategy;
+    uint32_t allocate_block_with_tensor(ov::SoPtr<ov::ITensor> tensor, uint32_t num_tokens);
 };
 
 }  // namespace npuw

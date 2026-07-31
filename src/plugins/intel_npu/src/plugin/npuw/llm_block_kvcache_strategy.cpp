@@ -825,6 +825,85 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 }
 
 // ============================================================================
+// Prefix caching integration (Block KV mode)
+// ============================================================================
+
+std::shared_ptr<KVBlock> LLMBlockKVCacheStrategy::make_prefix_block(size_t block_token_start,
+                                                                    size_t out_token_offset,
+                                                                    size_t block_size_arg,
+                                                                    const std::vector<uint64_t>& token_hashes) {
+    // Block KV strategy captures the NPU block tensor that was bound directly during prefill.
+    // A non-zero out_token_offset means the chunk was padded, so the block tensor contains
+    // padding data mixed with real tokens — such blocks must never be cached.
+    OPENVINO_ASSERT(out_token_offset == 0,
+                    "Block KV make_prefix_block called with out_token_offset=",
+                    out_token_offset,
+                    "; padded/partial chunks must be filtered out by store_blocks before reaching here.");
+    if (m_kv_cache_block_managers.empty()) {
+        return nullptr;
+    }
+
+    const uint32_t block_idx = static_cast<uint32_t>(block_token_start / m_block_size);
+    auto block = std::make_shared<PrefixBlockBlockKV>(block_size_arg);
+    block->set_token_start(block_token_start);
+
+    for (const auto& [layer_idx, managers] : m_kv_cache_block_managers) {
+        if (!managers.key_manager || !managers.value_manager) {
+            continue;
+        }
+        auto key_allocated = managers.key_manager->get_allocated_blocks();
+        auto val_allocated = managers.value_manager->get_allocated_blocks();
+        if (block_idx >= key_allocated.size() || block_idx >= val_allocated.size()) {
+            LOG_WARN("make_prefix_block: block_idx=" << block_idx << " out of range for layer " << layer_idx
+                                                     << ", skipping");
+            continue;
+        }
+        BlockKVRef ref;
+        ref.key_tensor = managers.key_manager->get_block_tensor(key_allocated[block_idx]);
+        ref.value_tensor = managers.value_manager->get_block_tensor(val_allocated[block_idx]);
+        ref.num_tokens = managers.key_manager->get_block_tokens(key_allocated[block_idx]);
+        block->add_layer_ref(layer_idx, std::move(ref));
+    }
+
+    // Store token hashes and mark the block as full (no CPU KVData — NPU refs are in BlockKVRef).
+    block->add_block(token_hashes, {});
+    return block;
+}
+
+void LLMBlockKVCacheStrategy::apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& cached_blocks) {
+    if (m_kv_cache_block_managers.empty() || cached_blocks.empty()) {
+        return;
+    }
+
+    LOG_DEBUG("=== Applying " << cached_blocks.size() << " cached prefix blocks to Block KV managers ===");
+
+    for (const auto& kvblock : cached_blocks) {
+        const auto* prefix_block = dynamic_cast<const PrefixBlockBlockKV*>(kvblock.get());
+        if (!prefix_block) {
+            LOG_WARN("apply_cached_prefix_blocks: unexpected non-PrefixBlockBlockKV block, skipping");
+            continue;
+        }
+        for (const auto& [layer_idx, ref] : prefix_block->get_layer_refs()) {
+            auto it = m_kv_cache_block_managers.find(layer_idx);
+            if (it == m_kv_cache_block_managers.end()) {
+                continue;
+            }
+            // PrefixCacheManager::put_block rejects non-full blocks, so num_tokens must
+            // equal block_size here.  Assert to make the invariant explicit.
+            OPENVINO_ASSERT(ref.num_tokens == m_block_size,
+                            "apply_cached_prefix_blocks: cached block has num_tokens=",
+                            ref.num_tokens,
+                            " != block_size=",
+                            m_block_size,
+                            ". Only full blocks should reach the prefix cache.");
+            it->second.key_manager->allocate_block_with_tensor(ref.key_tensor, ref.num_tokens);
+            it->second.value_manager->allocate_block_with_tensor(ref.value_tensor, ref.num_tokens);
+        }
+        LOG_VERB("apply_cached_prefix_blocks: restored block at token_start=" << kvblock->get_token_start());
+    }
+}
+
+// ============================================================================
 // Private: initialization helpers
 // ============================================================================
 
