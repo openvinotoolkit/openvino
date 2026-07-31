@@ -23,22 +23,11 @@ struct VMExecutionContext {
     ~VMExecutionContext();
 
     // Create the context for vmRuntime if not created yet; returns the handle.
-    // When useV2 is true (API version >= 2.0), npuVMRuntimeCreateExecutionContext2 is called with initflag
-    // so the runtime can configure the context for the chosen execution path
-    // (immediate vs. shared command queue). Pass the same flags used for Execute2.
+    // When useV2 is true (API version >= 2.0), npuVMRuntimeCreateExecutionContext2 is called with initflag.
+    // The interpreter owns context-internal command-list state and receives the latest flags on Execute2.
     npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime,
                                                      bool useV2 = false,
                                                      uint64_t initflag = 0);
-
-    // Destroy the context so it will be lazily recreated on the next ensure() call.
-    // Use this when the command queue configuration changes and the internally cached
-    // immediate command list must be recreated with the new queue's parameters.
-    void reset() {
-        if (_handle != nullptr) {
-            npuVMRuntimeDestroyExecutionContext(_handle);
-            _handle = nullptr;
-        }
-    }
 };
 
 struct DynamicArguments {
@@ -191,9 +180,7 @@ private:
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
-    bool _use_v2_api = false;
-    // Exec flags derived once at init from config (e.g. SHARED_COMMON_QUEUE).
-    // These reflect static configuration choices and do not change at runtime.
+    // Exec flags derived from the current CommandQueueDesc for v2 Execute2.
     uint64_t _exec_flags = 0;
     npu_vm_runtime_wait_id_t _wait_id = 0;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
