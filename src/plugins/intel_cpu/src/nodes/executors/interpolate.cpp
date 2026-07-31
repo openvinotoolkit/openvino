@@ -545,7 +545,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             cpuParallel
-                ->parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
+                ->parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](Dim n, Dim c, Dim d, Dim h) {
                     const uint8_t* src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c +
                                                             inShapeBlock[3] * d + inShapeBlock[4] * h) *
                                                                srcDataSize;
@@ -560,7 +560,7 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
             cpuParallel
-                ->parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
+                ->parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](Dim n, Dim d, Dim h, Dim w) {
                     const uint8_t* src =
                         src_data_origin +
                         (inShapeBlock[1] * n +
