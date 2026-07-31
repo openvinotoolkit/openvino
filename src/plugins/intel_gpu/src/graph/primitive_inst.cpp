@@ -2910,9 +2910,10 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 GPU_DEBUG_TRACE_DETAIL << "    input of prim " << prim->id << "  - idx" << i << "  " << in << std::endl;
                 if (!has_primitive_id(added_prim_ids, in.pid)) {
                     if (fd.has_outer_dep()) {
-                        if (std::find_if(fd.deps.begin(), fd.deps.end(), [&](const std::pair<cldnn::primitive_id, size_t>& dep_info) {
-                                return dep_info.second == i;
-                            }) == fd.deps.end()) {
+                        auto dep_it = std::find_if(fd.deps.begin(), fd.deps.end(), [&](const std::pair<cldnn::primitive_id, size_t>& dep_info) {
+                            return dep_info.second == i;
+                        });
+                        if (dep_it == fd.deps.end()) {
                             in = get_node().id();
                         } else {
                             auto k = std::distance(fd.deps.begin(), dep_it);
