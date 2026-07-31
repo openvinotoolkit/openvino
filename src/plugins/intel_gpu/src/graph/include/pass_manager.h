@@ -11,6 +11,7 @@
 #include "convolution_inst.h"
 #include "read_value_inst.h"
 #include "lora_inst.h"
+#include "concatenation_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -331,6 +332,15 @@ public:
         auto it = std::lower_bound(mem_deps.begin(), mem_deps.end(), static_cast<uint32_t>(dep->get_unique_id()));
         if (it != mem_deps.end() && *it == static_cast<uint32_t>(dep->get_unique_id())) {
             return;
+        }
+
+        // Concat can be optimized out by in-place concat, so in this case, the output buffer
+        // of this concat node must not overlap with its dependencies' input buffers.
+        if (node->is_type<concatenation>() && node->can_be_optimized() && node->is_runtime_skippable()) {
+            for (const auto& subdep : dep->get_dependencies()) {
+                add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
+            }
         }
 
         // LoRA can reuse the memory of the previous node, but not be optimized
