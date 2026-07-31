@@ -5,6 +5,7 @@
 #pragma once
 
 #include "llm_compiled_model.hpp"
+#include "llm_compiled_model_utils.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -24,6 +25,8 @@ public:
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* longrope_input = "npuw_longrope_input";
         static constexpr const char* per_layer_inputs = "per_layer_inputs";
+        static constexpr const char* visual_pos_masks = ov::npuw::util::kVisualPosMasksParamName;
+        static constexpr const char* deepstack_visual_embeds = ov::npuw::util::kDeepstackVisualEmbedsParamName;
     };
 
     struct layer_ids {

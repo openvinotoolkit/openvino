@@ -7,6 +7,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
+#include <string_view>
+#include <variant>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
@@ -953,28 +956,6 @@ TEST(constant, uint2_write_then_cast_custom_type) {
     EXPECT_EQ(v, input);
 }
 
-TEST(constant, uint2_input_value_validation) {
-    const auto shape = Shape{2};
-    const auto exp_sub_str = "out of range for u2";
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, 4), AssertFailure, HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<int>{1, -2}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<int>{0, 4}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<std::string>{"-1", "3"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u2, shape, std::vector<std::string>{"4", "1"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-}
-
 //
 // uint3
 //
@@ -1074,28 +1055,6 @@ TEST(constant, uint3_write_then_cast_custom_type) {
     EXPECT_EQ(v, std::vector<TestDType>({1.0f, 3.0f, 2.0f, 6.0f, 3.0f}));
 }
 
-TEST(constant, uint3_input_value_validation) {
-    const auto shape = Shape{2};
-    const auto exp_sub_str = "out of range for u3";
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, 8), AssertFailure, HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<int>{1, -2}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<int>{0, 8}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<std::string>{"-1", "3"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u3, shape, std::vector<std::string>{"9", "1"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-}
-
 //
 // uint4
 //
@@ -1187,21 +1146,6 @@ TEST(constant, uint4_get_vector_from_scalar) {
 
     ASSERT_EQ(v.size(), 1);
     EXPECT_EQ(v[0], 0x08);
-}
-
-TEST(constant, uint4_input_value_validation) {
-    Shape shape{2};
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, 16), ::ov::AssertFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, -1), ::ov::AssertFailure);
-
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1}), ::ov::AssertFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16}), ::ov::AssertFailure);
-
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{-1, 1}), ::ov::AssertFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<int>{16, 2}), ::ov::AssertFailure);
-
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"-1", "1"}), ::ov::AssertFailure);
-    EXPECT_THROW(ov::op::v0::Constant c(element::u4, shape, std::vector<std::string>{"16", "1"}), ::ov::AssertFailure);
 }
 
 TEST(constant, uint4_write_then_cast_custom_type) {
@@ -1312,28 +1256,6 @@ TEST(constant, uint6_write_then_cast_custom_type) {
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v, std::vector<TestDType>({1.0f, 3.0f, 2.0f, 6.0f, 3.0f}));
-}
-
-TEST(constant, uint6_input_value_validation) {
-    const auto shape = Shape{2};
-    const auto exp_sub_str = "out of range for u6";
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, -1), AssertFailure, HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, 64), AssertFailure, HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<int>{1, -2}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<int>{0, 64}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<std::string>{"-1", "3"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
-    OV_EXPECT_THROW(op::v0::Constant c(element::u6, shape, std::vector<std::string>{"65", "1"}),
-                    AssertFailure,
-                    HasSubstr(exp_sub_str));
 }
 
 //
@@ -2877,6 +2799,1167 @@ TEST(constant, create_with_zero_dim_shape) {
     EXPECT_EQ(c.get_byte_size(), 0);
 }
 
+using ConstantInputValue = std::variant<bool,
+                                        char,
+                                        signed char,
+                                        unsigned char,
+                                        int16_t,
+                                        uint16_t,
+                                        int32_t,
+                                        uint32_t,
+                                        int64_t,
+                                        uint64_t,
+                                        float,
+                                        double,
+                                        ov::float4_e2m1,
+                                        ov::float8_e4m3,
+                                        ov::float8_e5m2,
+                                        ov::float8_e8m0,
+                                        ov::float16,
+                                        ov::bfloat16>;
+
+struct RangeParam {
+    element::Type_t et;
+    ConstantInputValue value;
+    std::optional<std::string_view> expected_error;
+};
+
+class ConstantRangeTest : public testing::TestWithParam<RangeParam> {};
+
+TEST_P(ConstantRangeTest, check_range) {
+    const auto& [et, value, expected_error] = GetParam();
+    const auto make_constant = [et = et](const auto& v) {
+        using T = std::decay_t<decltype(v)>;
+        op::v0::Constant(et, Shape{1}, std::vector<T>{v});
+    };
+    if (expected_error) {
+        OV_EXPECT_THROW(std::visit(make_constant, value), AssertFailure, HasSubstr(*expected_error));
+    } else {
+        OV_ASSERT_NO_THROW(std::visit(make_constant, value));
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(in_t_range_sub_byte,
+                         ConstantRangeTest,
+                         testing::Values(RangeParam{element::u1, int32_t{-1}, {}},
+                                         RangeParam{element::u1, int32_t{100}, {}},
+                                         RangeParam{element::u2, int32_t{0}, {}},
+                                         RangeParam{element::u2, int32_t{3}, {}},
+                                         RangeParam{element::u2, int32_t{-1}, "out of range for u2"},
+                                         RangeParam{element::u2, int32_t{4}, "out of range for u2"},
+                                         RangeParam{element::u3, int32_t{0}, {}},
+                                         RangeParam{element::u3, int32_t{7}, {}},
+                                         RangeParam{element::u3, int32_t{-1}, "out of range for u3"},
+                                         RangeParam{element::u3, int32_t{8}, "out of range for u3"},
+                                         RangeParam{element::u4, int32_t{0}, {}},
+                                         RangeParam{element::u4, int32_t{15}, {}},
+                                         RangeParam{element::u4, int32_t{-1}, "out of range for u4"},
+                                         RangeParam{element::u4, int32_t{16}, "out of range for u4"},
+                                         RangeParam{element::nf4, int32_t{0}, {}},
+                                         RangeParam{element::nf4, int32_t{15}, {}},
+                                         RangeParam{element::nf4, int32_t{-1}, "out of range for nf4"},
+                                         RangeParam{element::nf4, int32_t{16}, "out of range for nf4"},
+                                         RangeParam{element::u6, int32_t{0}, {}},
+                                         RangeParam{element::u6, int32_t{63}, {}},
+                                         RangeParam{element::u6, int32_t{-1}, "out of range for u6"},
+                                         RangeParam{element::u6, int32_t{64}, "out of range for u6"},
+                                         RangeParam{element::i4, int32_t{-8}, {}},
+                                         RangeParam{element::i4, int32_t{7}, {}},
+                                         RangeParam{element::i4, int32_t{-9}, "out of range for i4"},
+                                         RangeParam{element::i4, int32_t{8}, "out of range for i4"},
+                                         RangeParam{element::f4e2m1, int32_t{-100}, {}},
+                                         RangeParam{element::f4e2m1, int32_t{100}, {}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_u8_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::u8, false, {}},
+                    RangeParam{element::u8, true, {}},
+
+                    RangeParam{element::u8, char{0}, {}},
+                    RangeParam{element::u8, char{127}, {}},
+                    RangeParam{element::u8, char{-1}, "out of range for u8"},
+
+                    RangeParam{element::u8, int8_t{0}, {}},
+                    RangeParam{element::u8, std::numeric_limits<int8_t>::max(), {}},
+                    RangeParam{element::u8, int8_t{-1}, "out of range for u8"},
+
+                    RangeParam{element::u8, int16_t{0}, {}},
+                    RangeParam{element::u8, int16_t{255}, {}},
+                    RangeParam{element::u8, int16_t{-1}, "out of range for u8"},
+                    RangeParam{element::u8, int16_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, uint16_t{0}, {}},
+                    RangeParam{element::u8, uint16_t{255}, {}},
+                    RangeParam{element::u8, uint16_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, int32_t{0}, {}},
+                    RangeParam{element::u8, int32_t{255}, {}},
+                    RangeParam{element::u8, int32_t{-1}, "out of range for u8"},
+                    RangeParam{element::u8, int32_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, uint32_t{0}, {}},
+                    RangeParam{element::u8, uint32_t{255}, {}},
+                    RangeParam{element::u8, uint32_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, int64_t{0}, {}},
+                    RangeParam{element::u8, int64_t{255}, {}},
+                    RangeParam{element::u8, int64_t{-1}, "out of range for u8"},
+                    RangeParam{element::u8, int64_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, uint64_t{0}, {}},
+                    RangeParam{element::u8, uint64_t{255}, {}},
+                    RangeParam{element::u8, std::numeric_limits<uint64_t>::max(), "out of range for u8"},
+                    RangeParam{element::u8, uint64_t{256}, "out of range for u8"},
+
+                    RangeParam{element::u8, float{0.0f}, {}},
+                    RangeParam{element::u8, float{255.9f}, {}},
+                    RangeParam{element::u8, float{-1.0f}, "out of range for u8"},
+                    RangeParam{element::u8, float{256.0f}, "out of range for u8"},
+
+                    RangeParam{element::u8, double{0.0}, {}},
+                    RangeParam{element::u8, double{255.9}, {}},
+                    RangeParam{element::u8, double{-1.0}, "out of range for u8"},
+                    RangeParam{element::u8, double{256.0}, "out of range for u8"},
+
+                    RangeParam{element::u8, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::u8, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::u8, ov::float4_e2m1{-1.0f}, "out of range for u8"},
+
+                    RangeParam{element::u8, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::u8, ov::float8_e4m3{128.0f}, {}},
+                    RangeParam{element::u8, ov::float8_e4m3{-1.0f}, "out of range for u8"},
+                    RangeParam{element::u8, std::numeric_limits<ov::float8_e4m3>::max(), "out of range for u8"},
+
+                    RangeParam{element::u8, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::u8, ov::float8_e5m2{128.0f}, {}},
+                    RangeParam{element::u8, ov::float8_e5m2{-1.0f}, "out of range for u8"},
+                    RangeParam{element::u8, std::numeric_limits<ov::float8_e5m2>::max(), "out of range for u8"},
+
+                    RangeParam{element::u8, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::u8, ov::float8_e8m0{128.0f}, {}},
+                    RangeParam{element::u8, std::numeric_limits<ov::float8_e8m0>::max(), "out of range for u8"},
+
+                    RangeParam{element::u8, ov::float16{0.0f}, {}},
+                    RangeParam{element::u8, ov::float16{200.0f}, {}},
+                    RangeParam{element::u8, ov::float16{-1.0f}, "out of range for u8"},
+                    RangeParam{element::u8, ov::float16{256.0f}, "out of range for u8"},
+
+                    RangeParam{element::u8, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::u8, ov::bfloat16{200.0f}, {}},
+                    RangeParam{element::u8, ov::bfloat16{-1.0f}, "out of range for u8"},
+                    RangeParam{element::u8, ov::bfloat16{256.0f}, "out of range for u8"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_i8_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::i8, false, {}},
+                    RangeParam{element::i8, true, {}},
+
+                    RangeParam{element::i8, char{0}, {}},
+                    RangeParam{element::i8, char{-1}, {}},
+                    RangeParam{element::i8, char{-128}, {}},
+                    RangeParam{element::i8, char{127}, {}},
+
+                    RangeParam{element::i8, int8_t{0}, {}},
+                    RangeParam{element::i8, std::numeric_limits<int8_t>::lowest(), {}},
+                    RangeParam{element::i8, std::numeric_limits<int8_t>::max(), {}},
+
+                    RangeParam{element::i8, uint8_t{0}, {}},
+                    RangeParam{element::i8, uint8_t{127}, {}},
+                    RangeParam{element::i8, uint8_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, int16_t{0}, {}},
+                    RangeParam{element::i8, int16_t{-128}, {}},
+                    RangeParam{element::i8, int16_t{127}, {}},
+                    RangeParam{element::i8, int16_t{-129}, "out of range for i8"},
+                    RangeParam{element::i8, int16_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, uint16_t{0}, {}},
+                    RangeParam{element::i8, uint16_t{127}, {}},
+                    RangeParam{element::i8, uint16_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, int32_t{0}, {}},
+                    RangeParam{element::i8, int32_t{-128}, {}},
+                    RangeParam{element::i8, int32_t{127}, {}},
+                    RangeParam{element::i8, int32_t{-129}, "out of range for i8"},
+                    RangeParam{element::i8, int32_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, uint32_t{0}, {}},
+                    RangeParam{element::i8, uint32_t{127}, {}},
+                    RangeParam{element::i8, uint32_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, int64_t{0}, {}},
+                    RangeParam{element::i8, int64_t{-128}, {}},
+                    RangeParam{element::i8, int64_t{127}, {}},
+                    RangeParam{element::i8, int64_t{-129}, "out of range for i8"},
+                    RangeParam{element::i8, int64_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, uint64_t{0}, {}},
+                    RangeParam{element::i8, uint64_t{127}, {}},
+                    RangeParam{element::i8, uint64_t{128}, "out of range for i8"},
+
+                    RangeParam{element::i8, float{0.0f}, {}},
+                    RangeParam{element::i8, float{-128.0f}, {}},
+                    RangeParam{element::i8, float{127.9f}, {}},
+                    RangeParam{element::i8, float{-129.0f}, "out of range for i8"},
+                    RangeParam{element::i8, float{128.0f}, "out of range for i8"},
+
+                    RangeParam{element::i8, double{0.0}, {}},
+                    RangeParam{element::i8, double{-128.0}, {}},
+                    RangeParam{element::i8, double{127.9}, {}},
+                    RangeParam{element::i8, double{-129.0}, "out of range for i8"},
+                    RangeParam{element::i8, double{128.0}, "out of range for i8"},
+
+                    RangeParam{element::i8, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::i8, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::i8, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::i8, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e4m3{96.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e4m3{-128.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e4m3{128.0f}, "out of range for i8"},
+                    RangeParam{element::i8, std::numeric_limits<ov::float8_e4m3>::lowest(), "out of range for i8"},
+
+                    RangeParam{element::i8, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e5m2{96.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e5m2{-128.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e5m2{128.0f}, "out of range for i8"},
+                    RangeParam{element::i8, std::numeric_limits<ov::float8_e5m2>::lowest(), "out of range for i8"},
+
+                    RangeParam{element::i8, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e8m0{64.0f}, {}},
+                    RangeParam{element::i8, ov::float8_e8m0{128.0f}, "out of range for i8"},
+
+                    RangeParam{element::i8, ov::float16{0.0f}, {}},
+                    RangeParam{element::i8, ov::float16{-128.0f}, {}},
+                    RangeParam{element::i8, ov::float16{100.0f}, {}},
+                    RangeParam{element::i8, ov::float16{-129.0f}, "out of range for i8"},
+                    RangeParam{element::i8, ov::float16{128.0f}, "out of range for i8"},
+
+                    RangeParam{element::i8, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::i8, ov::bfloat16{-128.0f}, {}},
+                    RangeParam{element::i8, ov::bfloat16{100.0f}, {}},
+                    RangeParam{element::i8, ov::bfloat16{-129.0f}, "out of range for i8"},
+                    RangeParam{element::i8, ov::bfloat16{128.0f}, "out of range for i8"}));
+
+INSTANTIATE_TEST_SUITE_P(in_t_range_u16_ct,
+                         ConstantRangeTest,
+                         testing::Values(RangeParam{element::u16, false, {}},
+                                         RangeParam{element::u16, true, {}},
+
+                                         RangeParam{element::u16, char{0}, {}},
+                                         RangeParam{element::u16, char{127}, {}},
+                                         RangeParam{element::u16, char{-1}, "out of range for u16"},
+
+                                         RangeParam{element::u16, int8_t{0}, {}},
+                                         RangeParam{element::u16, std::numeric_limits<int8_t>::max(), {}},
+                                         RangeParam{element::u16, int8_t{-1}, "out of range for u16"},
+
+                                         RangeParam{element::u16, uint8_t{0}, {}},
+                                         RangeParam{element::u16, std::numeric_limits<uint8_t>::max(), {}},
+
+                                         RangeParam{element::u16, int16_t{0}, {}},
+                                         RangeParam{element::u16, std::numeric_limits<int16_t>::max(), {}},
+                                         RangeParam{element::u16, int16_t{-1}, "out of range for u16"},
+
+                                         RangeParam{element::u16, uint16_t{0}, {}},
+                                         RangeParam{element::u16, std::numeric_limits<uint16_t>::max(), {}},
+
+                                         RangeParam{element::u16, int32_t{0}, {}},
+                                         RangeParam{element::u16, int32_t{65535}, {}},
+                                         RangeParam{element::u16, int32_t{-1}, "out of range for u16"},
+                                         RangeParam{element::u16, int32_t{65536}, "out of range for u16"},
+
+                                         RangeParam{element::u16, uint32_t{0}, {}},
+                                         RangeParam{element::u16, uint32_t{65535}, {}},
+                                         RangeParam{element::u16, uint32_t{65536}, "out of range for u16"},
+
+                                         RangeParam{element::u16, int64_t{0}, {}},
+                                         RangeParam{element::u16, int64_t{65535}, {}},
+                                         RangeParam{element::u16, int64_t{-1}, "out of range for u16"},
+                                         RangeParam{element::u16, int64_t{65536}, "out of range for u16"},
+
+                                         RangeParam{element::u16, uint64_t{0}, {}},
+                                         RangeParam{element::u16, uint64_t{65535}, {}},
+                                         RangeParam{element::u16, uint64_t{65536}, "out of range for u16"},
+
+                                         RangeParam{element::u16, float{0.0f}, {}},
+                                         RangeParam{element::u16, float{65535.0f}, {}},
+                                         RangeParam{element::u16, float{-1.0f}, "out of range for u16"},
+                                         RangeParam{element::u16, float{65536.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, double{0.0}, {}},
+                                         RangeParam{element::u16, double{65535.0}, {}},
+                                         RangeParam{element::u16, double{-1.0}, "out of range for u16"},
+                                         RangeParam{element::u16, double{65536.0}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::float4_e2m1{0.0f}, {}},
+                                         RangeParam{element::u16, ov::float4_e2m1{1.0f}, {}},
+                                         RangeParam{element::u16, ov::float4_e2m1{-1.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::float8_e4m3{0.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e4m3{128.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e4m3{-1.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::float8_e5m2{0.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e5m2{128.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e5m2{-1.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::float8_e8m0{1.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e8m0{32768.0f}, {}},
+                                         RangeParam{element::u16, ov::float8_e8m0{65536.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::float16{0.0f}, {}},
+                                         RangeParam{element::u16, std::numeric_limits<ov::float16>::max(), {}},
+                                         RangeParam{element::u16, ov::float16{-1.0f}, "out of range for u16"},
+
+                                         RangeParam{element::u16, ov::bfloat16{0.0f}, {}},
+                                         RangeParam{element::u16, ov::bfloat16{32768.0f}, {}},
+                                         RangeParam{element::u16, ov::bfloat16{-1.0f}, "out of range for u16"},
+                                         RangeParam{element::u16, ov::bfloat16{65536.0f}, "out of range for u16"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_u32_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::u32, false, {}},
+                    RangeParam{element::u32, true, {}},
+
+                    RangeParam{element::u32, char{0}, {}},
+                    RangeParam{element::u32, char{127}, {}},
+                    RangeParam{element::u32, char{-1}, "out of range for u32"},
+
+                    RangeParam{element::u32, int8_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<int8_t>::max(), {}},
+                    RangeParam{element::u32, int8_t{-1}, "out of range for u32"},
+
+                    RangeParam{element::u32, uint8_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::u32, int16_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<int16_t>::max(), {}},
+                    RangeParam{element::u32, int16_t{-1}, "out of range for u32"},
+
+                    RangeParam{element::u32, uint16_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::u32, int32_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<int32_t>::max(), {}},
+                    RangeParam{element::u32, int32_t{-1}, "out of range for u32"},
+
+                    RangeParam{element::u32, uint32_t{0}, {}},
+                    RangeParam{element::u32, std::numeric_limits<uint32_t>::max(), {}},
+
+                    RangeParam{element::u32, int64_t{0}, {}},
+                    RangeParam{element::u32, int64_t{2147483647}, {}},
+                    RangeParam{element::u32, int64_t{-1}, "out of range for u32"},
+
+                    RangeParam{element::u32, uint64_t{0}, {}},
+                    RangeParam{element::u32, uint64_t{4294967295}, {}},
+
+                    RangeParam{element::u32, int64_t{4294967295}, {}},
+                    RangeParam{element::u32, int64_t{4294967296}, "out of range for u32"},
+
+                    RangeParam{element::u32, uint64_t{4294967296}, "out of range for u32"},
+
+                    RangeParam{element::u32, float{0.0f}, {}},
+                    RangeParam{element::u32, float{1.0e9f}, {}},
+                    RangeParam{element::u32, float{-1.0f}, "out of range for u32"},
+                    RangeParam{element::u32, float{4294967296.0f}, "out of range for u32"},
+
+                    RangeParam{element::u32, double{0.0}, {}},
+                    RangeParam{element::u32, double{1.0e9}, {}},
+                    RangeParam{element::u32, double{-1.0}, "out of range for u32"},
+                    RangeParam{element::u32, double{4294967296.0}, "out of range for u32"},
+
+                    RangeParam{element::u32, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::u32, ov::float4_e2m1{1.0f}, {}},
+
+                    RangeParam{element::u32, ov::float4_e2m1{-1.0f}, "out of range for u32"},
+                    RangeParam{element::u32, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e4m3{128.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e4m3{-1.0f}, "out of range for u32"},
+
+                    RangeParam{element::u32, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e5m2{128.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e5m2{-1.0f}, "out of range for u32"},
+
+                    RangeParam{element::u32, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e8m0{65536.0f}, {}},
+                    RangeParam{element::u32, ov::float8_e8m0{4294967296.0f}, "out of range for u32"},
+
+                    RangeParam{element::u32, ov::float16{0.0f}, {}},
+                    RangeParam{element::u32, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::u32, ov::float16{-1.0f}, "out of range for u32"},
+                    RangeParam{element::u32, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::u32, ov::bfloat16{65536.0f}, {}},
+                    RangeParam{element::u32, ov::bfloat16{-1.0f}, "out of range for u32"},
+                    RangeParam{element::u32, ov::bfloat16{4294967296.0f}, "out of range for u32"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_u64_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::u64, false, {}},
+                    RangeParam{element::u64, true, {}},
+
+                    RangeParam{element::u64, char{0}, {}},
+                    RangeParam{element::u64, char{127}, {}},
+                    RangeParam{element::u64, char{-1}, "out of range for u64"},
+
+                    RangeParam{element::u64, int8_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<int8_t>::max(), {}},
+                    RangeParam{element::u64, int8_t{-1}, "out of range for u64"},
+
+                    RangeParam{element::u64, uint8_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::u64, int16_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<int16_t>::max(), {}},
+                    RangeParam{element::u64, int16_t{-1}, "out of range for u64"},
+
+                    RangeParam{element::u64, uint16_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::u64, int32_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<int32_t>::max(), {}},
+                    RangeParam{element::u64, int32_t{-1}, "out of range for u64"},
+
+                    RangeParam{element::u64, uint32_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<uint32_t>::max(), {}},
+
+                    RangeParam{element::u64, int64_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<int64_t>::max(), {}},
+                    RangeParam{element::u64, int64_t{-1}, "out of range for u64"},
+
+                    RangeParam{element::u64, uint64_t{0}, {}},
+                    RangeParam{element::u64, std::numeric_limits<uint64_t>::max(), {}},
+
+                    RangeParam{element::u64, float{0.0f}, {}},
+                    RangeParam{element::u64, float{1.0e9f}, {}},
+                    RangeParam{element::u64, float{-1.0f}, "out of range for u64"},
+                    RangeParam{element::u64, float{2.0e19f}, "out of range for u64"},
+
+                    RangeParam{element::u64, double{0.0}, {}},
+                    RangeParam{element::u64, double{1.0e18}, {}},
+                    RangeParam{element::u64, double{-1.0}, "out of range for u64"},
+                    RangeParam{element::u64, double{2.0e19}, "out of range for u64"},
+
+                    RangeParam{element::u64, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::u64, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::u64, ov::float4_e2m1{-1.0f}, "out of range for u64"},
+                    RangeParam{element::u64, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::u64, ov::float8_e4m3{128.0f}, {}},
+                    RangeParam{element::u64, ov::float8_e4m3{-1.0f}, "out of range for u64"},
+
+                    RangeParam{element::u64, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::u64, ov::float8_e5m2{128.0f}, {}},
+                    RangeParam{element::u64, ov::float8_e5m2{-1.0f}, "out of range for u64"},
+
+                    RangeParam{element::u64, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::u64, ov::float8_e8m0{65536.0f}, {}},
+                    RangeParam{element::u64, std::numeric_limits<ov::float8_e8m0>::max(), "out of range for u64"},
+
+                    RangeParam{element::u64, ov::float16{0.0f}, {}},
+                    RangeParam{element::u64, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::u64, ov::float16{-1.0f}, "out of range for u64"},
+
+                    RangeParam{element::u64, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::u64, ov::bfloat16{65536.0f}, {}},
+                    RangeParam{element::u64, ov::bfloat16{-1.0f}, "out of range for u64"},
+                    RangeParam{element::u64, std::numeric_limits<ov::bfloat16>::max(), "out of range for u64"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_i16_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::i16, false, {}},
+                    RangeParam{element::i16, true, {}},
+
+                    RangeParam{element::i16, char{0}, {}},
+                    RangeParam{element::i16, char{-1}, {}},
+                    RangeParam{element::i16, char{127}, {}},
+
+                    RangeParam{element::i16, int8_t{0}, {}},
+                    RangeParam{element::i16, std::numeric_limits<int8_t>::lowest(), {}},
+                    RangeParam{element::i16, std::numeric_limits<int8_t>::max(), {}},
+
+                    RangeParam{element::i16, uint8_t{0}, {}},
+                    RangeParam{element::i16, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::i16, int16_t{0}, {}},
+                    RangeParam{element::i16, std::numeric_limits<int16_t>::lowest(), {}},
+                    RangeParam{element::i16, std::numeric_limits<int16_t>::max(), {}},
+
+                    RangeParam{element::i16, uint16_t{0}, {}},
+                    RangeParam{element::i16, uint16_t{32767}, {}},
+                    RangeParam{element::i16, uint16_t{32768}, "out of range for i16"},
+
+                    RangeParam{element::i16, int32_t{0}, {}},
+                    RangeParam{element::i16, int32_t{-32768}, {}},
+                    RangeParam{element::i16, int32_t{32767}, {}},
+                    RangeParam{element::i16, int32_t{-32769}, "out of range for i16"},
+                    RangeParam{element::i16, int32_t{32768}, "out of range for i16"},
+
+                    RangeParam{element::i16, uint32_t{0}, {}},
+                    RangeParam{element::i16, uint32_t{32767}, {}},
+                    RangeParam{element::i16, uint32_t{32768}, "out of range for i16"},
+
+                    RangeParam{element::i16, int64_t{0}, {}},
+                    RangeParam{element::i16, int64_t{-32768}, {}},
+                    RangeParam{element::i16, int64_t{32767}, {}},
+                    RangeParam{element::i16, int64_t{-32769}, "out of range for i16"},
+                    RangeParam{element::i16, int64_t{32768}, "out of range for i16"},
+
+                    RangeParam{element::i16, uint64_t{0}, {}},
+                    RangeParam{element::i16, uint64_t{32767}, {}},
+                    RangeParam{element::i16, uint64_t{32768}, "out of range for i16"},
+
+                    RangeParam{element::i16, float{0.0f}, {}},
+                    RangeParam{element::i16, float{-32768.0f}, {}},
+                    RangeParam{element::i16, float{32767.0f}, {}},
+                    RangeParam{element::i16, float{-32769.0f}, "out of range for i16"},
+                    RangeParam{element::i16, float{32768.0f}, "out of range for i16"},
+
+                    RangeParam{element::i16, double{0.0}, {}},
+                    RangeParam{element::i16, double{-32768.0}, {}},
+                    RangeParam{element::i16, double{32767.0}, {}},
+                    RangeParam{element::i16, double{-32769.0}, "out of range for i16"},
+                    RangeParam{element::i16, double{32768.0}, "out of range for i16"},
+
+                    RangeParam{element::i16, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::i16, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::i16, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::i16, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::i16, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::i16, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::i16, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::i16, ov::float8_e5m2{-32768.0f}, {}},
+                    RangeParam{element::i16, ov::float8_e5m2{16384.0f}, {}},
+                    RangeParam{element::i16, ov::float8_e5m2{32768.0f}, "out of range for i16"},
+                    RangeParam{element::i16, std::numeric_limits<ov::float8_e5m2>::lowest(), "out of range for i16"},
+
+                    RangeParam{element::i16, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::i16, ov::float8_e8m0{16384.0f}, {}},
+                    RangeParam{element::i16, ov::float8_e8m0{32768.0f}, "out of range for i16"},
+
+                    RangeParam{element::i16, ov::float16{0.0f}, {}},
+                    RangeParam{element::i16, ov::float16{-32768.0f}, {}},
+                    RangeParam{element::i16, ov::float16{16384.0f}, {}},
+                    RangeParam{element::i16, ov::float16{32768.0f}, "out of range for i16"},
+                    RangeParam{element::i16, std::numeric_limits<ov::float16>::lowest(), "out of range for i16"},
+
+                    RangeParam{element::i16, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::i16, ov::bfloat16{-32768.0f}, {}},
+                    RangeParam{element::i16, ov::bfloat16{16384.0f}, {}},
+                    RangeParam{element::i16, ov::bfloat16{32768.0f}, "out of range for i16"},
+                    RangeParam{element::i16, std::numeric_limits<ov::bfloat16>::lowest(), "out of range for i16"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_i32_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::i32, false, {}},
+                    RangeParam{element::i32, true, {}},
+
+                    RangeParam{element::i32, char{0}, {}},
+                    RangeParam{element::i32, char{-1}, {}},
+                    RangeParam{element::i32, char{127}, {}},
+
+                    RangeParam{element::i32, int8_t{0}, {}},
+                    RangeParam{element::i32, std::numeric_limits<int8_t>::lowest(), {}},
+                    RangeParam{element::i32, std::numeric_limits<int8_t>::max(), {}},
+
+                    RangeParam{element::i32, uint8_t{0}, {}},
+                    RangeParam{element::i32, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::i32, int16_t{0}, {}},
+                    RangeParam{element::i32, std::numeric_limits<int16_t>::lowest(), {}},
+                    RangeParam{element::i32, std::numeric_limits<int16_t>::max(), {}},
+
+                    RangeParam{element::i32, uint16_t{0}, {}},
+                    RangeParam{element::i32, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::i32, int32_t{0}, {}},
+                    RangeParam{element::i32, std::numeric_limits<int32_t>::lowest(), {}},
+                    RangeParam{element::i32, std::numeric_limits<int32_t>::max(), {}},
+
+                    RangeParam{element::i32, uint32_t{0}, {}},
+                    RangeParam{element::i32, uint32_t{2147483647}, {}},
+                    RangeParam{element::i32, uint32_t{2147483648}, "out of range for i32"},
+
+                    RangeParam{element::i32, int64_t{0}, {}},
+                    RangeParam{element::i32, int64_t{2147483647}, {}},
+                    RangeParam{element::i32, int64_t{std::numeric_limits<int32_t>::lowest()}, {}},
+
+                    RangeParam{element::i32, uint64_t{0}, {}},
+                    RangeParam{element::i32, uint64_t{2147483647}, {}},
+                    RangeParam{element::i32, uint64_t{2147483648}, "out of range for i32"},
+
+                    RangeParam{element::i32, int64_t{-2147483648LL}, {}},
+                    RangeParam{element::i32, int64_t{2147483648}, "out of range for i32"},
+                    RangeParam{element::i32, int64_t{-2147483649LL}, "out of range for i32"},
+
+                    RangeParam{element::i32, float{0.0f}, {}},
+                    RangeParam{element::i32, float{-2147483648.0f}, {}},
+                    RangeParam{element::i32, float{1.0e9f}, {}},
+                    RangeParam{element::i32, float{2147483648.0f}, "out of range for i32"},
+                    RangeParam{element::i32, std::numeric_limits<float>::lowest(), "out of range for i32"},
+
+                    RangeParam{element::i32, double{0.0}, {}},
+                    RangeParam{element::i32, double{-2147483648.0}, {}},
+                    RangeParam{element::i32, double{2147483647.0}, {}},
+                    RangeParam{element::i32, double{2147483648.0}, "out of range for i32"},
+                    RangeParam{element::i32, double{-2147483649.0}, "out of range for i32"},
+
+                    RangeParam{element::i32, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::i32, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::i32, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::i32, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::i32, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::i32, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::i32, ov::float8_e8m0{65536.0f}, {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float8_e8m0>::max(), "out of range for i32"},
+
+                    RangeParam{element::i32, ov::float16{0.0f}, {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::i32, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                    RangeParam{element::i32, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::i32, ov::bfloat16{-2147483648.0f}, {}},
+                    RangeParam{element::i32, ov::bfloat16{1.0e9f}, {}},
+                    RangeParam{element::i32, ov::bfloat16{2147483648.0f}, "out of range for i32"},
+                    RangeParam{element::i32, std::numeric_limits<ov::bfloat16>::lowest(), "out of range for i32"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_i64_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::i64, false, {}},
+                    RangeParam{element::i64, true, {}},
+
+                    RangeParam{element::i64, char{0}, {}},
+                    RangeParam{element::i64, char{-1}, {}},
+                    RangeParam{element::i64, char{127}, {}},
+
+                    RangeParam{element::i64, int8_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<int8_t>::lowest(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int8_t>::max(), {}},
+
+                    RangeParam{element::i64, uint8_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::i64, int16_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<int16_t>::lowest(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int16_t>::max(), {}},
+
+                    RangeParam{element::i64, uint16_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::i64, int32_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<int32_t>::lowest(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int32_t>::max(), {}},
+
+                    RangeParam{element::i64, uint32_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<uint32_t>::max(), {}},
+
+                    RangeParam{element::i64, int64_t{0}, {}},
+                    RangeParam{element::i64, std::numeric_limits<int64_t>::lowest(), {}},
+                    RangeParam{element::i64, std::numeric_limits<int64_t>::max(), {}},
+
+                    RangeParam{element::i64, uint64_t{0}, {}},
+                    RangeParam{element::i64, uint64_t{std::numeric_limits<int64_t>::max()}, {}},
+                    RangeParam{element::i64, std::numeric_limits<uint64_t>::max(), "out of range for i64"},
+
+                    RangeParam{element::i64, float{0.0f}, {}},
+                    RangeParam{element::i64, float{1.0e9f}, {}},
+                    RangeParam{element::i64, float{-1.0f}, {}},
+                    RangeParam{element::i64, float{1.0e19f}, "out of range for i64"},
+                    RangeParam{element::i64, std::numeric_limits<float>::lowest(), "out of range for i64"},
+
+                    RangeParam{element::i64, double{0.0}, {}},
+                    RangeParam{element::i64, double{1.0e18}, {}},
+                    RangeParam{element::i64, double{-1.0e18}, {}},
+                    RangeParam{element::i64, double{1.0e19}, "out of range for i64"},
+                    RangeParam{element::i64, std::numeric_limits<double>::lowest(), "out of range for i64"},
+
+                    RangeParam{element::i64, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::i64, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::i64, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::i64, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::i64, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::i64, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::i64, ov::float8_e8m0{65536.0f}, {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float8_e8m0>::max(), "out of range for i64"},
+
+                    RangeParam{element::i64, ov::float16{0.0f}, {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                    RangeParam{element::i64, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::i64, ov::bfloat16{1.0e9f}, {}},
+                    RangeParam{element::i64, ov::bfloat16{-1.0e9f}, {}},
+                    RangeParam{element::i64, std::numeric_limits<ov::bfloat16>::max(), "out of range for i64"},
+                    RangeParam{element::i64, std::numeric_limits<ov::bfloat16>::lowest(), "out of range for i64"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_f8e4m3_ct,
+    ConstantRangeTest,
+    testing::Values(
+        RangeParam{element::f8e4m3, false, {}},
+        RangeParam{element::f8e4m3, true, {}},
+
+        RangeParam{element::f8e4m3, char{0}, {}},
+        RangeParam{element::f8e4m3, char{-1}, {}},
+        RangeParam{element::f8e4m3, char{127}, {}},
+
+        RangeParam{element::f8e4m3, int8_t{0}, {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<int8_t>::lowest(), {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<int8_t>::max(), {}},
+
+        RangeParam{element::f8e4m3, uint8_t{0}, {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<uint8_t>::max(), {}},
+
+        RangeParam{element::f8e4m3, int16_t{0}, {}},
+        RangeParam{element::f8e4m3, int16_t{448}, {}},
+        RangeParam{element::f8e4m3, int16_t{-448}, {}},
+        RangeParam{element::f8e4m3, int16_t{449}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, int16_t{-449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, uint16_t{0}, {}},
+        RangeParam{element::f8e4m3, uint16_t{448}, {}},
+        RangeParam{element::f8e4m3, uint16_t{449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, int32_t{0}, {}},
+        RangeParam{element::f8e4m3, int32_t{448}, {}},
+        RangeParam{element::f8e4m3, int32_t{-448}, {}},
+        RangeParam{element::f8e4m3, int32_t{449}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, int32_t{-449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, uint32_t{0}, {}},
+        RangeParam{element::f8e4m3, uint32_t{448}, {}},
+        RangeParam{element::f8e4m3, uint32_t{449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, int64_t{0}, {}},
+        RangeParam{element::f8e4m3, int64_t{448}, {}},
+        RangeParam{element::f8e4m3, int64_t{-448}, {}},
+        RangeParam{element::f8e4m3, int64_t{449}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, int64_t{-449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, uint64_t{0}, {}},
+        RangeParam{element::f8e4m3, uint64_t{448}, {}},
+        RangeParam{element::f8e4m3, uint64_t{449}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, float{0.0f}, {}},
+        RangeParam{element::f8e4m3, float{448.0f}, {}},
+        RangeParam{element::f8e4m3, float{-448.0f}, {}},
+        RangeParam{element::f8e4m3, float{449.0f}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, float{-449.0f}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, double{0.0}, {}},
+        RangeParam{element::f8e4m3, double{448.0}, {}},
+        RangeParam{element::f8e4m3, double{-448.0}, {}},
+        RangeParam{element::f8e4m3, double{449.0}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, double{-449.0}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, ov::float4_e2m1{0.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float4_e2m1{1.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float4_e2m1{-1.0f}, {}},
+
+        RangeParam{element::f8e4m3, ov::float8_e4m3{0.0f}, {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+        RangeParam{element::f8e4m3, ov::float8_e5m2{0.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float8_e5m2{448.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float8_e5m2{-448.0f}, {}},
+        RangeParam{element::f8e4m3, std::numeric_limits<ov::float8_e5m2>::max(), "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, std::numeric_limits<ov::float8_e5m2>::lowest(), "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, ov::float16{0.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float16{200.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float16{-200.0f}, {}},
+        RangeParam{element::f8e4m3, ov::float16{449.0f}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, ov::float16{-449.0f}, "out of range for f8e4m3"},
+
+        RangeParam{element::f8e4m3, ov::bfloat16{0.0f}, {}},
+        RangeParam{element::f8e4m3, ov::bfloat16{200.0f}, {}},
+        RangeParam{element::f8e4m3, ov::bfloat16{-200.0f}, {}},
+        RangeParam{element::f8e4m3, ov::bfloat16{512.0f}, "out of range for f8e4m3"},
+        RangeParam{element::f8e4m3, ov::bfloat16{-512.0f}, "out of range for f8e4m3"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_f8e5m2_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::f8e5m2, false, {}},
+                    RangeParam{element::f8e5m2, true, {}},
+
+                    RangeParam{element::f8e5m2, char{0}, {}},
+                    RangeParam{element::f8e5m2, char{-1}, {}},
+
+                    RangeParam{element::f8e5m2, int8_t{0}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<int8_t>::lowest(), {}},
+
+                    RangeParam{element::f8e5m2, uint8_t{0}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::f8e5m2, int16_t{0}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<int16_t>::lowest(), {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<int16_t>::max(), {}},
+
+                    RangeParam{element::f8e5m2, uint16_t{0}, {}},
+                    RangeParam{element::f8e5m2, uint16_t{57344}, {}},
+                    RangeParam{element::f8e5m2, uint16_t{57345}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, int32_t{0}, {}},
+                    RangeParam{element::f8e5m2, int32_t{57344}, {}},
+                    RangeParam{element::f8e5m2, int32_t{-57344}, {}},
+                    RangeParam{element::f8e5m2, int32_t{57345}, "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, int32_t{-57345}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, uint32_t{0}, {}},
+                    RangeParam{element::f8e5m2, uint32_t{57344}, {}},
+                    RangeParam{element::f8e5m2, uint32_t{57345}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, int64_t{0}, {}},
+                    RangeParam{element::f8e5m2, int64_t{57344}, {}},
+                    RangeParam{element::f8e5m2, int64_t{-57344}, {}},
+                    RangeParam{element::f8e5m2, int64_t{57345}, "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, int64_t{-57345}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, uint64_t{0}, {}},
+                    RangeParam{element::f8e5m2, uint64_t{57344}, {}},
+                    RangeParam{element::f8e5m2, uint64_t{57345}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, float{0.0f}, {}},
+                    RangeParam{element::f8e5m2, float{57344.0f}, {}},
+                    RangeParam{element::f8e5m2, float{-57344.0f}, {}},
+                    RangeParam{element::f8e5m2, float{57345.0f}, "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, float{-57345.0f}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, double{0.0}, {}},
+                    RangeParam{element::f8e5m2, double{57344.0}, {}},
+                    RangeParam{element::f8e5m2, double{-57344.0}, {}},
+                    RangeParam{element::f8e5m2, double{57345.0}, "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, double{-57345.0}, "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::f8e5m2, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::f8e5m2, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::f8e5m2, ov::float16{0.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::float16{57344.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::float16{-57344.0f}, {}},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float16>::max(), "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, std::numeric_limits<ov::float16>::lowest(), "out of range for f8e5m2"},
+
+                    RangeParam{element::f8e5m2, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::bfloat16{57344.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::bfloat16{-57344.0f}, {}},
+                    RangeParam{element::f8e5m2, ov::bfloat16{65536.0f}, "out of range for f8e5m2"},
+                    RangeParam{element::f8e5m2, ov::bfloat16{-65536.0f}, "out of range for f8e5m2"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_f16_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::f16, false, {}},
+                    RangeParam{element::f16, true, {}},
+
+                    RangeParam{element::f16, char{0}, {}},
+                    RangeParam{element::f16, char{-1}, {}},
+
+                    RangeParam{element::f16, int8_t{0}, {}},
+                    RangeParam{element::f16, std::numeric_limits<int8_t>::lowest(), {}},
+
+                    RangeParam{element::f16, uint8_t{0}, {}},
+                    RangeParam{element::f16, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::f16, int16_t{0}, {}},
+                    RangeParam{element::f16, std::numeric_limits<int16_t>::lowest(), {}},
+                    RangeParam{element::f16, std::numeric_limits<int16_t>::max(), {}},
+
+                    RangeParam{element::f16, uint16_t{0}, {}},
+                    RangeParam{element::f16, uint16_t{65504}, {}},
+                    RangeParam{element::f16, std::numeric_limits<uint16_t>::max(), "out of range for f16"},
+
+                    RangeParam{element::f16, int32_t{0}, {}},
+                    RangeParam{element::f16, int32_t{65504}, {}},
+                    RangeParam{element::f16, int32_t{-65504}, {}},
+                    RangeParam{element::f16, int32_t{65505}, "out of range for f16"},
+                    RangeParam{element::f16, int32_t{-65505}, "out of range for f16"},
+
+                    RangeParam{element::f16, uint32_t{0}, {}},
+                    RangeParam{element::f16, uint32_t{65504}, {}},
+                    RangeParam{element::f16, uint32_t{65505}, "out of range for f16"},
+
+                    RangeParam{element::f16, int64_t{0}, {}},
+                    RangeParam{element::f16, int64_t{65504}, {}},
+                    RangeParam{element::f16, int64_t{-65504}, {}},
+                    RangeParam{element::f16, int64_t{65505}, "out of range for f16"},
+                    RangeParam{element::f16, int64_t{-65505}, "out of range for f16"},
+
+                    RangeParam{element::f16, uint64_t{0}, {}},
+                    RangeParam{element::f16, uint64_t{65504}, {}},
+                    RangeParam{element::f16, uint64_t{65505}, "out of range for f16"},
+
+                    RangeParam{element::f16, float{0.0f}, {}},
+                    RangeParam{element::f16, float{65504.0f}, {}},
+                    RangeParam{element::f16, float{-65504.0f}, {}},
+                    RangeParam{element::f16, float{65505.0f}, "out of range for f16"},
+                    RangeParam{element::f16, float{-65505.0f}, "out of range for f16"},
+
+                    RangeParam{element::f16, double{0.0}, {}},
+                    RangeParam{element::f16, double{65504.0}, {}},
+                    RangeParam{element::f16, double{-65504.0}, {}},
+                    RangeParam{element::f16, double{65505.0}, "out of range for f16"},
+                    RangeParam{element::f16, double{-65505.0}, "out of range for f16"},
+
+                    RangeParam{element::f16, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::f16, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::f16, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::f16, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::f16, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::f16, ov::float16{0.0f}, {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                    RangeParam{element::f16, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::f16, ov::float8_e8m0{32768.0f}, {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::float8_e8m0>::max(), "out of range for f16"},
+
+                    RangeParam{element::f16, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::f16, ov::bfloat16{256.0f}, {}},
+                    RangeParam{element::f16, ov::bfloat16{-256.0f}, {}},
+                    RangeParam{element::f16, std::numeric_limits<ov::bfloat16>::max(), "out of range for f16"},
+                    RangeParam{element::f16, std::numeric_limits<ov::bfloat16>::lowest(), "out of range for f16"}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_bf16_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::bf16, false, {}},
+                    RangeParam{element::bf16, true, {}},
+
+                    RangeParam{element::bf16, char{0}, {}},
+                    RangeParam{element::bf16, char{-1}, {}},
+
+                    RangeParam{element::bf16, int8_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<int8_t>::lowest(), {}},
+
+                    RangeParam{element::bf16, uint8_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::bf16, int16_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<int16_t>::lowest(), {}},
+
+                    RangeParam{element::bf16, uint16_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::bf16, int32_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<int32_t>::lowest(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<int32_t>::max(), {}},
+
+                    RangeParam{element::bf16, uint32_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<uint32_t>::max(), {}},
+
+                    RangeParam{element::bf16, int64_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<int64_t>::lowest(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<int64_t>::max(), {}},
+
+                    RangeParam{element::bf16, uint64_t{0}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<uint64_t>::max(), {}},
+
+                    RangeParam{element::bf16, float{0.0f}, {}},
+                    RangeParam{element::bf16, float{std::numeric_limits<ov::bfloat16>::max()}, {}},
+                    RangeParam{element::bf16, float{std::numeric_limits<ov::bfloat16>::lowest()}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<float>::max(), "out of range for bf16"},
+                    RangeParam{element::bf16, std::numeric_limits<float>::lowest(), "out of range for bf16"},
+
+                    RangeParam{element::bf16, double{0.0}, {}},
+                    RangeParam{element::bf16, double{1.0e38}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<double>::max(), "out of range for bf16"},
+                    RangeParam{element::bf16, std::numeric_limits<double>::lowest(), "out of range for bf16"},
+
+                    RangeParam{element::bf16, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::bf16, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::bf16, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::bf16, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::bf16, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::bf16, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float8_e8m0>::max(), {}},
+
+                    RangeParam{element::bf16, ov::float16{0.0f}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                    RangeParam{element::bf16, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::bfloat16>::max(), {}},
+                    RangeParam{element::bf16, std::numeric_limits<ov::bfloat16>::lowest(), {}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    in_t_range_f32_ct,
+    ConstantRangeTest,
+    testing::Values(RangeParam{element::f32, false, {}},
+                    RangeParam{element::f32, true, {}},
+
+                    RangeParam{element::f32, char{0}, {}},
+                    RangeParam{element::f32, char{-1}, {}},
+
+                    RangeParam{element::f32, int8_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<int8_t>::lowest(), {}},
+
+                    RangeParam{element::f32, uint8_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<uint8_t>::max(), {}},
+
+                    RangeParam{element::f32, int16_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<int16_t>::lowest(), {}},
+
+                    RangeParam{element::f32, uint16_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<uint16_t>::max(), {}},
+
+                    RangeParam{element::f32, int32_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<int32_t>::lowest(), {}},
+                    RangeParam{element::f32, std::numeric_limits<int32_t>::max(), {}},
+
+                    RangeParam{element::f32, uint32_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<uint32_t>::max(), {}},
+
+                    RangeParam{element::f32, int64_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<int64_t>::lowest(), {}},
+                    RangeParam{element::f32, std::numeric_limits<int64_t>::max(), {}},
+
+                    RangeParam{element::f32, uint64_t{0}, {}},
+                    RangeParam{element::f32, std::numeric_limits<uint64_t>::max(), {}},
+
+                    RangeParam{element::f32, double{0.0}, {}},
+                    RangeParam{element::f32, double{std::numeric_limits<float>::max()}, {}},
+                    RangeParam{element::f32, double{std::numeric_limits<float>::lowest()}, {}},
+                    RangeParam{element::f32, std::numeric_limits<double>::max(), "out of range for f32"},
+                    RangeParam{element::f32, std::numeric_limits<double>::lowest(), "out of range for f32"},
+
+                    RangeParam{element::f32, ov::float4_e2m1{0.0f}, {}},
+                    RangeParam{element::f32, ov::float4_e2m1{1.0f}, {}},
+                    RangeParam{element::f32, ov::float4_e2m1{-1.0f}, {}},
+
+                    RangeParam{element::f32, ov::float8_e4m3{0.0f}, {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                    RangeParam{element::f32, ov::float8_e5m2{0.0f}, {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                    RangeParam{element::f32, ov::float8_e8m0{1.0f}, {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float8_e8m0>::max(), {}},
+
+                    RangeParam{element::f32, ov::float16{0.0f}, {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float16>::max(), {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                    RangeParam{element::f32, ov::bfloat16{0.0f}, {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::bfloat16>::max(), {}},
+                    RangeParam{element::f32, std::numeric_limits<ov::bfloat16>::lowest(), {}},
+
+                    RangeParam{element::f32, std::numeric_limits<float>::max(), {}},
+                    RangeParam{element::f32, std::numeric_limits<float>::lowest(), {}}));
+
+INSTANTIATE_TEST_SUITE_P(in_t_range_f64_ct,
+                         ConstantRangeTest,
+                         testing::Values(RangeParam{element::f64, false, {}},
+                                         RangeParam{element::f64, true, {}},
+
+                                         RangeParam{element::f64, char{0}, {}},
+                                         RangeParam{element::f64, char{-1}, {}},
+
+                                         RangeParam{element::f64, int8_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<int8_t>::lowest(), {}},
+
+                                         RangeParam{element::f64, uint8_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<uint8_t>::max(), {}},
+
+                                         RangeParam{element::f64, int16_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<int16_t>::lowest(), {}},
+
+                                         RangeParam{element::f64, uint16_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<uint16_t>::max(), {}},
+
+                                         RangeParam{element::f64, int32_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<int32_t>::lowest(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<int32_t>::max(), {}},
+
+                                         RangeParam{element::f64, uint32_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<uint32_t>::max(), {}},
+
+                                         RangeParam{element::f64, int64_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<int64_t>::lowest(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<int64_t>::max(), {}},
+
+                                         RangeParam{element::f64, uint64_t{0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<uint64_t>::max(), {}},
+
+                                         RangeParam{element::f64, float{0.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<float>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<float>::lowest(), {}},
+
+                                         RangeParam{element::f64, double{0.0}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<double>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<double>::lowest(), {}},
+
+                                         RangeParam{element::f64, ov::float4_e2m1{0.0f}, {}},
+                                         RangeParam{element::f64, ov::float4_e2m1{1.0f}, {}},
+                                         RangeParam{element::f64, ov::float4_e2m1{-1.0f}, {}},
+
+                                         RangeParam{element::f64, ov::float8_e4m3{0.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float8_e4m3>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float8_e4m3>::lowest(), {}},
+
+                                         RangeParam{element::f64, ov::float8_e5m2{0.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float8_e5m2>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float8_e5m2>::lowest(), {}},
+
+                                         RangeParam{element::f64, ov::float8_e8m0{1.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float8_e8m0>::max(), {}},
+
+                                         RangeParam{element::f64, ov::float16{0.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float16>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::float16>::lowest(), {}},
+
+                                         RangeParam{element::f64, ov::bfloat16{0.0f}, {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::bfloat16>::max(), {}},
+                                         RangeParam{element::f64, std::numeric_limits<ov::bfloat16>::lowest(), {}}));
 }  // namespace test
 }  // namespace ov
 

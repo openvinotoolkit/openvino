@@ -128,7 +128,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
 } // namespace
 
-ExecutionConfig::ExecutionConfig() : ov::PluginConfig() { }
+ExecutionConfig::ExecutionConfig() { }
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
@@ -175,11 +175,11 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.
+    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
     if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
         set_property({ov::enable_weightless(*enable_weightless)});
     }
-    if (get_enable_weightless()) {
+    if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }

@@ -1520,8 +1520,7 @@ inline constexpr Property<std::string, PropertyMutability::RO> runtime_requireme
  * auto compiled_model = core.compile_model(model, "NPU");
  * auto requirements = compiled_model.get_property(ov::runtime_requirements);
  * auto compat = core.get_property("NPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}});
- * if (compat == ov::CompatibilityCheck::OPTIMAL ||
- *     compat == ov::CompatibilityCheck::PREFER_RECOMPILATION) {
+ * if (compat == ov::CompatibilityCheck::SUPPORTED) {
  *     auto imported = core.import_model(blob_stream, "NPU");
  * }
  * @endcode
