@@ -767,7 +767,6 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_lora_operation.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::enable_large_allocations.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::intel_gpu::enable_zero_copy_cache_load.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
@@ -929,7 +928,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             }
         }
 
-        if (!batched_inputs.size()) {
+        if (batched_inputs.empty()) {
             GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] MAX_BATCH_SIZE supports only networks with inputs/outputs featuring batched dim." << std::endl;
             return static_cast<uint32_t>(max_batch_size);
         }

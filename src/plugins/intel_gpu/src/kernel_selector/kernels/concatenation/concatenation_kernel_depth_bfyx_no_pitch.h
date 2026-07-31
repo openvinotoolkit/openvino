@@ -11,7 +11,7 @@ namespace kernel_selector {
 class ConcatenationKernel_depth_bfyx_no_pitch : public ConcatenationKernelBase {
 public:
     ConcatenationKernel_depth_bfyx_no_pitch() : ConcatenationKernelBase("concatenation_gpu_depth_bfyx_no_pitch") {}
-    virtual ~ConcatenationKernel_depth_bfyx_no_pitch() {}
+    ~ConcatenationKernel_depth_bfyx_no_pitch() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

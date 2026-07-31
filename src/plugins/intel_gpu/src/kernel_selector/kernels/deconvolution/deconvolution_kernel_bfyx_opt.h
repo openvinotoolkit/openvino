@@ -12,7 +12,7 @@ class DeconvolutionKernel_bfyx_opt : public DeconvolutionKernelBase {
 public:
     using Parent = DeconvolutionKernelBase;
     DeconvolutionKernel_bfyx_opt() : DeconvolutionKernelBase("deconvolution_gpu_bfyx_opt") {}
-    virtual ~DeconvolutionKernel_bfyx_opt() {}
+    ~DeconvolutionKernel_bfyx_opt() override {}
 
     ParamsKey GetSupportedKey() const override;
 

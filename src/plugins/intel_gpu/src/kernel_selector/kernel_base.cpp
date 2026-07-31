@@ -154,7 +154,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             std::string fused_ops_preload;
             std::string fused_ops_calc;
             std::string in_name = c.input_var_name;
-            std::string out_name = "";
+            std::string out_name;
             Datatype in_type = c.input_dt;
             bool can_all_use_preload = true;
 
@@ -207,8 +207,8 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
     if (conf.empty())
         return jit;
 
-    std::string input_decls = "";
-    std::string input_args = "";
+    std::string input_decls;
+    std::string input_args;
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);

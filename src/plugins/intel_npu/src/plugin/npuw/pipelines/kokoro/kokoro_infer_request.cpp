@@ -135,8 +135,8 @@ ov::npuw::KokoroInferRequest::KokoroInferRequest(const std::shared_ptr<ov::npuw:
             continue;
         }
 
-        // input_lengths is generated internally — not exposed to the user
-        if (names.count("input_lengths")) {
+        // input_lengths_param is generated internally — not exposed to the user
+        if (names.count("input_lengths_param")) {
             m_a_input_lengths = a_in;
             continue;
         }
@@ -266,7 +266,8 @@ void ov::npuw::KokoroInferRequest::infer() {
     } else {
         ov::npuw::kokoro::zero_padding_durations(pred_dur_tensor->data<int32_t>(), full_len, l_max);
     }
-    auto orig_pred_dur = ov::npuw::util::find_port_by_name(original_outputs, "pred_dur");
+    auto orig_pred_dur = ov::npuw::util::find_port_by_names(original_outputs, {"pred_dur", "phonemes"});
+    OPENVINO_ASSERT(orig_pred_dur.has_value(), "Kokoro: original 'pred_dur' ('phonemes') output not found");
     set_tensor(orig_pred_dur.value(), pred_dur_tensor);
 
     std::size_t total_frames = 0;
@@ -479,7 +480,7 @@ void ov::npuw::KokoroInferRequest::fill_text_mask() {
 
     ov::npuw::kokoro::fill_text_mask_from_lengths(mask_tensor->data<bool>(), seq_len, real_len);
 
-    // Also set input_lengths to the real sequence length so that LSTMSequence ops
+    // Also set input_lengths_param to the real sequence length so that LSTMSequence ops
     // (from pack_padded_sequence) only process valid tokens, not padding.
     if (m_a_input_lengths.get_node()) {
         auto lengths_tensor = m_model_a_request->get_tensor(m_a_input_lengths);

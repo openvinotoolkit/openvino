@@ -83,7 +83,7 @@ private:
                                      std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr) {
         const auto& ops = model->get_ops();
 
-        if (cache_attr_map != nullptr && cache_attr_map->size() > 0) {
+        if (cache_attr_map != nullptr && !cache_attr_map->empty()) {
             for (const auto& node : ops) {
                 if (ov::op::util::is_constant(node)) {
                     auto it = cache_attr_map->find(node->get_instance_id());
@@ -113,7 +113,7 @@ private:
     }
 
     weights_memory_ptr weights_memory;
-    offset_const_map_t offset_to_constant_map{};
+    offset_const_map_t offset_to_constant_map;
 };
 
 struct reorder_replication {
@@ -229,7 +229,7 @@ private:
     size_t original_size = SIZE_MAX;
     ov::element::Type original_dtype = ov::element::Type_t::dynamic;
     ov::element::Type curr_dtype = ov::element::Type_t::dynamic;
-    ov::Shape shape{};
+    ov::Shape shape;
 
     bool should_run_reorder() const {
         return reorder_rep.reorder != nullptr;

@@ -29,7 +29,7 @@ struct softmax_params : public base_params {
 class SoftmaxKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~SoftmaxKernelBase() {}
+    ~SoftmaxKernelBase() override {}
 
     struct DispatchData : public CommonDispatchData {
         size_t itemsNum;
@@ -58,7 +58,7 @@ class SoftmaxKernelBaseBF : public SoftmaxKernelBase {
 public:
     using Parent = SoftmaxKernelBase;
     using Parent::Parent;
-    virtual ~SoftmaxKernelBaseBF() {}
+    ~SoftmaxKernelBaseBF() override {}
 
 protected:
     bool Validate(const Params&) const override;

@@ -131,7 +131,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     if (weights_pshape.size() != 2) {
         // Detect 3D weights being passed to oneDNN
-        if (supports_immad && weights_pshape.size() == 4 && weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+        if (supports_immad && desc->weights_rank == 3 && weights_pshape.size() == 4 &&
+            weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
             return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
         } else {
             weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
@@ -386,7 +387,7 @@ bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl
     }
 
     // Don't support swiglu fused
-    if (impl_param.fused_desc.size() > 0) {
+    if (!impl_param.fused_desc.empty()) {
         for (const auto& f : impl_param.fused_desc) {
             if (f.is_type<swiglu>())
                 return false;
