@@ -433,21 +433,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 
-#if 0
-        // V prefetch: disabled. Ablation showed it costs ~11us net (it prefetches the
-        // same V tiles consumed by the transform-load in this same iteration, with no
-        // intervening compute to hide latency, so it is pure overhead here).
-        #pragma unroll
-        for (int cp = 0; cp < sv_key_blocks; ++cp) {
-            #pragma unroll
-            for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                intel_sub_group_2d_block_prefetch_16b_16r16x1c(
-                    (const global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
-            }
-        }
-#endif
-
         half2 mask_tile;
         float2 k_mask;
         #pragma unroll
@@ -581,7 +566,21 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             __builtin_IB_atomic_max_local_f32(&S_max_slm[query], lmax);
         }
 
+    #if MAX_BARRIER_V_PREFETCH && USE_2D_BLOCK_IO_KV
+        intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
+        #pragma unroll
+        for (int cp = 0; cp < sv_key_blocks; ++cp) {
+            #pragma unroll
+            for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                intel_sub_group_2d_block_prefetch_16b_16r16x1c(
+                    (const global void *)V, VD_w, VD_h, VD_p,
+                    (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
+            }
+        }
+        intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+    #else
         barrier(CLK_LOCAL_MEM_FENCE);
+    #endif
 
         #pragma unroll
         for (int qb = 0; qb < kq_query_blocks; ++qb) {
