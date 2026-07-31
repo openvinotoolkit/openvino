@@ -264,45 +264,40 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 /// @brief Version 2.0
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime execution context with flags (v2.0)
+/// @brief Runtime configuration descriptor type.
+typedef uint64_t npu_vm_runtime_config_type_t;
+
+/// @brief Runtime configuration descriptor value.
+typedef uint64_t npu_vm_runtime_config_value_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Runtime configuration descriptor.
+/// @details Each descriptor carries one typed uint64 value. pNext links additional
+///          descriptors and is only valid for the duration of the API call.
+typedef struct _npu_vm_runtime_config_desc_t {
+    npu_vm_runtime_config_type_t type;
+    npu_vm_runtime_config_value_t value;
+    const struct _npu_vm_runtime_config_desc_t* pNext;
+} npu_vm_runtime_config_desc_t;
+
+#define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID 0ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE 1ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY 2ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE 3ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS 4ULL
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Init VM runtime execution context with config descriptors (v2.0)
 /// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
-///          API version is 2.0 or later. The initflag bitmask controls how the
-///          interpreter configures its internal command list for this context.
-///          Pass the same flags that will be supplied to npuVMRuntimeExecute2 so
-///          the interpreter can prepare the context accordingly.
+///          API version is 2.0 or later. pConfig points to a linked list of
+///          npu_vm_runtime_config_desc_t entries used by the interpreter to configure
+///          its internal command list for this context.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
-    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    uint64_t initflag,                 ///< [in] bitmask of npu_vm_runtime_execute_flags_t values
+    npu_vm_runtime_handle_t hRuntime,                   ///< [in] handle of VM runtime object
+    const npu_vm_runtime_config_desc_t* pConfig,         ///< [in][optional] runtime configuration descriptors
     npu_vm_runtime_execution_context_handle_t*
         phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
 );
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Execution flags for npuVMRuntimeExecute2
-/// @details Bitmask passed in npu_vm_runtime_execute_params2_t::flags.
-///          Controls how the interpreter creates and manages its internal
-///          command list for the given executionContext.
-typedef uint64_t npu_vm_runtime_execute_flags_t;
-
-/// @brief If set, interpreter will NOT use an immediate command list.
-///        Interpreter creates a normal command list internally and submits
-///        it via the provided commandQueue on each Execute2 call.
-///        If NOT set (0 / default), interpreter creates an internal immediate
-///        command list on the first Execute2 call (lazy, stored in
-///        executionContext) and reuses it for all subsequent calls.
-#define NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE 0x1ULL
-
-/// @brief Queue priority hints supplied by the plugin command queue descriptor.
-#define NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_LOW 0x2ULL
-#define NPU_VM_RUNTIME_EXEC_FLAG_PRIORITY_HIGH 0x4ULL
-
-/// @brief Queue workload hints supplied by the plugin command queue descriptor.
-#define NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_DEFAULT 0x8ULL
-#define NPU_VM_RUNTIME_EXEC_FLAG_WORKLOAD_BACKGROUND 0x10ULL
-
-/// @brief Queue option hints supplied by the plugin command queue descriptor.
-#define NPU_VM_RUNTIME_EXEC_FLAG_TURBO 0x20ULL
-#define NPU_VM_RUNTIME_EXEC_FLAG_DEVICE_SYNC 0x40ULL
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Opaque wait identifier returned by npuVMRuntimeExecute2
@@ -315,7 +310,7 @@ typedef uint64_t npu_vm_runtime_wait_id_t;
 /// @brief Execute parameters for npuVMRuntimeExecute2
 /// @details Plugin provides Level Zero context handles and a commandQueue.
 ///          The interpreter creates and owns all internal command lists
-///          (immediate or normal) based on flags, lazily on the first call
+///          based on pConfig descriptors, lazily on the first call
 ///          per executionContext, storing them inside executionContext.
 ///          Plugin never creates or manages command lists directly in this path.
 typedef struct _npu_vm_runtime_execute_params2_t {
@@ -328,16 +323,11 @@ typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Graph DDI table extension pointer.
     ze_graph_dditable_ext_t* graphDdiTableExt;
 
-    /// @brief Command queue for submitting normal command lists.
-    ///        When flags & NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE:
-    ///          interpreter submits its internal normal CL via this queue.
-    ///        When flags == 0 (immediate CL path):
-    ///          interpreter uses this queue's desc to configure the
-    ///          internal immediate CL (priority, ordinal, etc.) on first call.
+    /// @brief Command queue for submitting command lists or configuring internal command lists.
     ze_command_queue_handle_t commandQueue;
 
-    /// @brief Bitmask of npu_vm_runtime_execute_flags_t values.
-    uint64_t flags;
+    /// @brief Runtime configuration descriptor chain.
+    const npu_vm_runtime_config_desc_t* pConfig;
 
     /// @brief Input tensor MemRef handles.
     npu_vm_runtime_mem_ref_handle_t* pInputs;
@@ -356,21 +346,8 @@ typedef struct _npu_vm_runtime_execute_params2_t {
 /// @brief Execute VM runtime (v2.0)
 /// @details Replaces npuVMRuntimeExecute + npuVMRuntimeUpdateMutableCommandList.
 ///          On the first call per executionContext, interpreter lazily creates
-///          its internal command list based on flags and stores it in
+///          its internal command list based on pConfig descriptors and stores it in
 ///          executionContext. Returns an opaque waitId for host synchronization.
-///
-///          flags == 0 (immediate CL path, default):
-///            Interpreter creates an internal immediate command list once,
-///            using the commandQueue desc for configuration. On every call,
-///            interpreter updates graph arguments and appends graph execute
-///            to the immediate CL (device executes immediately). Returns
-///            waitId backed by an internal event.
-///
-///          flags & NPU_VM_RUNTIME_EXEC_FLAG_SHARED_COMMAND_QUEUE (normal CL path):
-///            Interpreter creates an internal normal command list once.
-///            On every call, interpreter resets the CL, updates graph arguments,
-///            appends graph execute, closes the CL, and submits via commandQueue.
-///            Returns waitId backed by an internal fence or event.
 ///
 ///          In both paths, call npuVMRuntimeHostSync(hRuntime, waitId) to block
 ///          until the inference completes.
