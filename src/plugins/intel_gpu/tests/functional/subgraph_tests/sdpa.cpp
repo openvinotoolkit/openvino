@@ -30,6 +30,12 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/variadic_split.hpp"
 
+enum class GQAMode {
+    Default = 0,
+    KVCacheBroadcast = 1,
+    KeyValueBroadcast = 2,
+};
+
 namespace {
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
@@ -107,8 +113,7 @@ class SDPAFusion : virtual public ov::test::SubgraphBaseStaticTest,
                                                                  float,             // 7: scale value
                                                                  float,             // 8: abs_threshold
                                                                  float,             // 9: rel_threshold
-                                                                 int,               // 10: complex_gqa_mode
-                                                                 float>>            // 11: kv_num_head_factor
+                                                                 GQAMode>>          // 10: gqa_mode
 {
 protected:
     void create_model() {
@@ -124,8 +129,7 @@ protected:
         const ov::PartialShape value_shape = std::get<4>(params);
         const ov::Shape value_reshape_shape = std::get<5>(params);
         const ov::PartialShape attention_mask_shape = std::get<6>(params);
-        int complex_gqa_mode = std::get<10>(params);
-        float kv_num_head_factor = std::get<11>(params);
+        GQAMode gqa_mode = std::get<10>(params);
 
         const auto query = std::make_shared<ov::op::v0::Parameter>(inType, query_shape);
         std::shared_ptr<ov::op::v1::Reshape> query_reshaped;
@@ -161,7 +165,7 @@ protected:
 
         ov::ParameterVector model_params = {query, key, value};
 
-        if (complex_gqa_mode == 1) {
+        if (gqa_mode == GQAMode::KVCacheBroadcast) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [10, 842]
@@ -202,7 +206,7 @@ protected:
             auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_shape.size()}, reshape2_shape);
             key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
             value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
-        } else if (complex_gqa_mode == 2) {
+        } else if (gqa_mode == GQAMode::KeyValueBroadcast) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [1, 1]
@@ -248,7 +252,7 @@ protected:
             auto reshape1_k = std::make_shared<ov::op::v1::Reshape>(split_k->output(0), reshape1_k_const, false);
             auto reshape1_v = std::make_shared<ov::op::v1::Reshape>(split_v->output(0), reshape1_v_const, false);
 
-            // Concat kv_num_head_factor copies to match query head expansion.
+            size_t kv_num_head_factor = q_shape[1] / k_shape[1];
             ov::OutputVector concat_k_inputs(kv_num_head_factor, reshape1_k);
             ov::OutputVector concat_v_inputs(kv_num_head_factor, reshape1_v);
             auto concat_k = std::make_shared<ov::op::v0::Concat>(concat_k_inputs, 2);
@@ -357,8 +361,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           2,
-                                                           4),
+                                                           GQAMode::KeyValueBroadcast),
                                            std::make_tuple(ov::PartialShape{10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{10, 77, 64},
@@ -369,8 +372,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           0,
-                                                           1),
+                                                           GQAMode::Default),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{1, 10, 77, 64},
@@ -381,8 +383,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           0,
-                                                           1),
+                                                           GQAMode::Default),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{1, 10, 1024, 64},
@@ -393,8 +394,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           0,
-                                                           1),
+                                                           GQAMode::Default),
                                            std::make_tuple(ov::PartialShape{1, 10, 77, 64},
                                                            ov::Shape{10, 77, 64},
                                                            ov::PartialShape{1, 10, 77, 64},
@@ -405,8 +405,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           0,
-                                                           1),
+                                                           GQAMode::Default),
                                            std::make_tuple(ov::PartialShape{1, 10, 1024, 64},
                                                            ov::Shape{1, 10, 1024, 64},
                                                            ov::PartialShape{1, 10, 1024, 64},
@@ -417,8 +416,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            -0.025f,
-                                                           0,
-                                                           1),
+                                                           GQAMode::Default),
                                            std::make_tuple(ov::PartialShape{1, 8, 10, 256},
                                                            ov::Shape{1, 8, 10, 256},
                                                            ov::PartialShape{1, 1, 10, 256},
@@ -429,7 +427,6 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           1,
-                                                           8)));
+                                                           GQAMode::KVCacheBroadcast)));
 
 }  // namespace
