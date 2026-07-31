@@ -668,6 +668,10 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_BLOCK_SKIP"))
         block_skip_causal = std::atoi(env);
     jit.make("BLOCK_SKIP_CAUSAL", block_skip_causal);
+    int max_barrier_v_prefetch = 0;
+    if (const char* env = std::getenv("SDPA_OCL_MAX_BARRIER_V_PREFETCH"))
+        max_barrier_v_prefetch = std::atoi(env);
+    jit.make("MAX_BARRIER_V_PREFETCH", max_barrier_v_prefetch);
     // int8 compressed V uses an 8-bit VNNI-transform 2D block read
     // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
     // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
