@@ -35,16 +35,6 @@ constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
-    return tensor;
-}
-
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
  */
@@ -407,6 +397,16 @@ private:
 }  // namespace
 
 namespace intel_npu {
+
+ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+
+    return tensor;
+}
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                                          const FilteredConfig& config,

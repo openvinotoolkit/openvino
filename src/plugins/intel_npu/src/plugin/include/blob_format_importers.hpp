@@ -115,6 +115,12 @@ private:
     std::shared_ptr<IGraph> m_graph;
 };
 
+/**
+ * @brief Allocates a page-aligned tensor of the given size, rejecting sizes that cannot be represented on a
+ * std::streamsize before any allocation is attempted.
+ */
+ov::Tensor allocate_aligned_tensor(size_t blobSize);
+
 namespace blob_format_importer_factory {
 
 /**

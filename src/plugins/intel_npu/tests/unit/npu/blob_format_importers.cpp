@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <sstream>
 #include <string_view>
 
@@ -122,4 +123,20 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
 
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(input_tensor, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
+}
+
+/**
+ * @brief Oversized blob sizes must be rejected before any allocation is attempted
+ */
+TEST_F(BlobFormatImportersTest, AllocateAlignedTensorRejectsOversizedSize) {
+    const size_t oversized = static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) + 1;
+
+    OV_EXPECT_THROW(allocate_aligned_tensor(oversized), ov::Exception, _);
+}
+
+/**
+ * @brief Valid blob sizes must be allocated without throwing
+ */
+TEST_F(BlobFormatImportersTest, AllocateAlignedTensorAcceptsValidSize) {
+    OV_ASSERT_NO_THROW(allocate_aligned_tensor(1024));
 }
