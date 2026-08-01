@@ -273,7 +273,9 @@ typedef uint64_t npu_vm_runtime_config_value_t;
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Runtime configuration descriptor.
 /// @details Each descriptor carries one typed uint64 value. pNext links additional
-///          descriptors and is only valid for the duration of the API call.
+///          descriptors and is only valid for the duration of the API call. Unknown
+///          and invalid descriptor types must be ignored. If the same type appears
+///          more than once, the first descriptor reached by pNext traversal takes precedence.
 typedef struct _npu_vm_runtime_config_desc_t {
     npu_vm_runtime_config_type_t type;
     npu_vm_runtime_config_value_t value;
@@ -287,32 +289,25 @@ typedef struct _npu_vm_runtime_config_desc_t {
 #define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS 4ULL
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime execution context with config descriptors (v2.0)
+/// @brief Init VM runtime execution context (v2.0)
 /// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
-///          API version is 2.0 or later. pConfig points to a linked list of
-///          npu_vm_runtime_config_desc_t entries used by the interpreter to configure
-///          its internal command list for this context.
+///          API version is 2.0 or later. Runtime configuration descriptors are provided
+///          to npuVMRuntimeExecute2 so updated queue configuration can be applied per call.
+///          pConfig is reserved for ABI compatibility and must be nullptr.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
-    npu_vm_runtime_handle_t hRuntime,                   ///< [in] handle of VM runtime object
-    const npu_vm_runtime_config_desc_t* pConfig,         ///< [in][optional] runtime configuration descriptors
+    npu_vm_runtime_handle_t hRuntime,            ///< [in] handle of VM runtime object
+    const npu_vm_runtime_config_desc_t* pConfig,  ///< [in][optional] reserved, must be nullptr
     npu_vm_runtime_execution_context_handle_t*
         phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Opaque wait identifier returned by npuVMRuntimeExecute2
-/// @details Passed to npuVMRuntimeHostSync to block until the corresponding
-///          inference completes. The interpreter manages the underlying
-///          synchronization primitive (event or fence) transparently.
-typedef uint64_t npu_vm_runtime_wait_id_t;
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute parameters for npuVMRuntimeExecute2
 /// @details Plugin provides Level Zero context handles and a commandQueue.
 ///          The interpreter creates and owns all internal command lists
-///          based on pConfig descriptors, lazily on the first call
-///          per executionContext, storing them inside executionContext.
-///          Plugin never creates or manages command lists directly in this path.
+///          based on current pConfig descriptors, storing them inside executionContext.
+///          pConfig is valid only for this call. Plugin never creates or manages
+///          command lists directly in this path.
 typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Level Zero context. Used by interpreter to create internal CLs.
     ze_context_handle_t ctx;
@@ -347,25 +342,25 @@ typedef struct _npu_vm_runtime_execute_params2_t {
 /// @details Replaces npuVMRuntimeExecute + npuVMRuntimeUpdateMutableCommandList.
 ///          On the first call per executionContext, interpreter lazily creates
 ///          its internal command list based on pConfig descriptors and stores it in
-///          executionContext. Returns an opaque waitId for host synchronization.
+///          executionContext.
 ///
-///          In both paths, call npuVMRuntimeHostSync(hRuntime, waitId) to block
-///          until the inference completes.
+///          In both paths, call npuVMRuntimeHostSync(hRuntime, pParams) to block
+///          until the inference completes. The interpreter uses pParams->executionContext
+///          to access the underlying synchronization primitive.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeExecute2(
-    npu_vm_runtime_handle_t hRuntime,           ///< [in]  handle of VM runtime object
-    npu_vm_runtime_execute_params2_t* pParams,  ///< [in]  pointer to v2 execution parameters
-    npu_vm_runtime_wait_id_t* pWaitId           ///< [out] opaque wait identifier for host sync
+    npu_vm_runtime_handle_t hRuntime,          ///< [in] handle of VM runtime object
+    npu_vm_runtime_execute_params2_t* pParams  ///< [in] pointer to v2 execution parameters
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Block host until the inference identified by waitId completes (v2.0)
+/// @brief Block host until the inference associated with pParams completes (v2.0)
 /// @details The interpreter internally calls zeEventHostSynchronize or
-///          zeFenceHostSynchronize depending on which primitive backs the waitId.
-///          After this call returns SUCCESS, the waitId is consumed and must not
-///          be reused. Output buffers are safe to read after this returns.
+///          zeFenceHostSynchronize depending on which primitive is stored in
+///          pParams->executionContext. Other pParams fields are ignored by this call.
+///          Output buffers are safe to read after this returns.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeHostSync(
-    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    npu_vm_runtime_wait_id_t waitId    ///< [in] wait identifier returned by npuVMRuntimeExecute2
+    npu_vm_runtime_handle_t hRuntime,          ///< [in] handle of VM runtime object
+    npu_vm_runtime_execute_params2_t* pParams  ///< [in] pointer to v2 execution parameters
 );
 
 #if defined(__cplusplus)

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/mem_ref_type.hpp"
 #include "zero_pipeline.hpp"
@@ -22,17 +24,15 @@ struct VMExecutionContext {
     VMExecutionContext& operator=(VMExecutionContext&&) = delete;
     ~VMExecutionContext();
 
-    // Create the context for vmRuntime if not created yet; returns the handle.
-    // When useV2 is true (API version >= 2.0), npuVMRuntimeCreateExecutionContext2 is called with pConfig.
-    // The interpreter owns context-internal command-list state and receives the latest config on Execute2.
-    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime,
-                                                     bool useV2 = false,
-                                                     const npu_vm_runtime_config_desc_t* pConfig = nullptr);
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime, bool useV2 = false);
 };
 
 struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
+    std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
+    npu_vm_runtime_execute_params2_t _executeParams2 = {};
 
     // True once the command lists have been recorded by a first npuVMRuntimeExecute call. Subsequent
     // executions can be replayed without re-recording when no tensor changed (see execute_vm_runtime).
@@ -74,14 +74,6 @@ class DynamicPipeline final : public IPipeline {
             }
 
             _arguments = std::make_shared<DynamicArguments>();
-        }
-
-        size_t size() const {
-            return _commandListHandles.size();
-        }
-
-        ze_command_list_handle_t* data() {
-            return _commandListHandles.data();
         }
 
         // Use metadata to initialize, which will later be updated again by setArgumentProperties
@@ -176,11 +168,15 @@ private:
                                DynamicArguments& args,
                                ze_command_queue_handle_t commandQueue,
                                const npu_vm_runtime_config_desc_t* pConfig);
+    const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& commandQueueDesc);
 
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
-    npu_vm_runtime_wait_id_t _wait_id = 0;
+    std::array<npu_vm_runtime_config_desc_t, 4> _runtime_config_descs = {};
+    uint64_t _runtime_config_key = 0;
+    bool _runtime_config_valid = false;
+    const npu_vm_runtime_config_desc_t* _runtime_config_head = nullptr;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
