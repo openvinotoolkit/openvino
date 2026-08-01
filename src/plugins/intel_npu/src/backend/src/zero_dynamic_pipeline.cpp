@@ -219,12 +219,14 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
-    const size_t pipeline_batch_size = use_v2_api(_apiVersion) ? 1 : _batch_size;
+    const size_t numCommandListGroups = use_v2_api(_apiVersion) ? 1 : _batch_size;
 
-    _command_lists.reserve(pipeline_batch_size);
+    _command_lists.reserve(numCommandListGroups);
     if (batch_size >= 1) {
-        _logger.debug("Initializing %zu command list group(s) (batch size %zu)", pipeline_batch_size, batch_size);
-        for (size_t i = 0; i < pipeline_batch_size; i++) {
+        _logger.debug("Initializing %zu plugin command list group(s); model batch size is %zu",
+                      numCommandListGroups,
+                      batch_size);
+        for (size_t i = 0; i < numCommandListGroups; i++) {
             _command_lists.emplace_back(
                 std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, use_v2_api(_apiVersion)));
         }
@@ -239,7 +241,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         }
     }
 
-    for (size_t i = 0; i < pipeline_batch_size; i++) {
+    for (size_t i = 0; i < numCommandListGroups; i++) {
         _logger.debug("Set args for command list number: %zu", i);
 
         _command_lists.at(i)->initArguments(_graph->get_metadata());
