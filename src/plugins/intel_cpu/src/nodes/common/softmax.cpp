@@ -22,6 +22,7 @@
 
 #    include "common/c_types_map.hpp"
 #    include "common/utils.hpp"
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"

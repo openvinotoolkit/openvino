@@ -26,6 +26,7 @@
 #include "shape_inference/custom/rms_norm.hpp"
 #include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu_parallel.hpp"
 #    include "kernels/x64/rms_kernel.hpp"
 #    include "nodes/kernels/x64/jit_kernel_base.hpp"

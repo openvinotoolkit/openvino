@@ -63,6 +63,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"

@@ -38,6 +38,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #    include "utils/cpu_utils.hpp"

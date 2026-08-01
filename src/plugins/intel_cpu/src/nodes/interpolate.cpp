@@ -58,6 +58,7 @@
 #    include <common/c_types_map.hpp>
 #    include <unordered_map>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"

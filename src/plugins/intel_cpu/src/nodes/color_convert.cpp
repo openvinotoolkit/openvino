@@ -37,6 +37,7 @@
 
 #    include <array>
 #    include <common/c_types_map.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
 
 #    include "kernels/x64/jit_kernel.hpp"

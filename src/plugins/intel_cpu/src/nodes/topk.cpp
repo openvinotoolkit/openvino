@@ -45,6 +45,7 @@
 
 #    include <common/utils.hpp>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"

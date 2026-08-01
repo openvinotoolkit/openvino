@@ -11,11 +11,8 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -43,6 +40,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
