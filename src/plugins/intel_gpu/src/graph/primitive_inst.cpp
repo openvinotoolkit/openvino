@@ -135,7 +135,11 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
+        // registered as CPU but do not actually access their inputs from the host
+        // (e.g. assign, which only enqueues USM memcpy).
+        // Those impls opt out of forcing their producer into lockable memory.
+        return impl->requires_lockable_input() && !user->is_type<shape_of>();
     return false;
 }
 
@@ -574,7 +578,7 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(program_n
     if ((dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) || dev_info.gfx_ver.major >= 20) {
         // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
         // i.e. predecessor node was supposed be increased already
-        if (get_node().is_type<fully_connected>() && dependencies().size() > 0 && dep_memory(0).get_layout().is_static()
+        if (get_node().is_type<fully_connected>() && !dependencies().empty() && dep_memory(0).get_layout().is_static()
             && dep_memory(0).count() < updated_params.input_layouts[0].count()) {
             GPU_DEBUG_TRACE_DETAIL << "Roll back fake_aligned params for " << id()
                 << "  allocated: " << dep_memory(0).count()
@@ -616,13 +620,15 @@ bool primitive_inst::need_reset_output_memory() const {
             continue;
         }
 
-        if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(get_node())))
+        const auto dependency_idx = user_inst->get_node().get_dependency_index(get_node());
+
+        if (user_inst->need_reset_input_memory(dependency_idx))
             return true;
 
         // OneDNN requires zero-filled input for padded area
         const bool is_user_onednn_impl = user_inst->get_node().get_preferred_impl_type() == impl_types::onednn;
         const bool is_user_conv = user_inst->get_node().is_type<convolution>();
-        if (is_user_conv && is_user_onednn_impl) {
+        if (dependency_idx == 0 && is_user_conv && is_user_onednn_impl) {
             auto& conv_node = user_inst->get_node().as<convolution>();
             auto& output_layout = _impl_params->get_output_layout(0);
             auto in_channel_count = get_convolution_channel_count(conv_node, output_layout, true);
@@ -674,7 +680,7 @@ void primitive_inst::realloc_intermediates() {
     if (buffer_descs.empty())
         return;
 
-    GPU_DEBUG_CODE(std::string memalloc_info = "");
+    GPU_DEBUG_CODE(std::string memalloc_info);
     for (size_t i = 0; i < buffer_descs.size(); ++i) {
         auto need_lockable = buffer_descs[i].m_lockable;
         auto alloc_type = i < _intermediates_memory.size() ? _intermediates_memory[i]->get_allocation_type()
@@ -977,7 +983,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             }
         };
         if (can_be_optimized()) {
-            _max_output_layout_count = _deps[0].first->_max_output_layout_count;
+            const auto dep_idx = _deps[0].second;
+            _max_output_layout_count[0] = _deps[0].first->_max_output_layout_count[static_cast<size_t>(dep_idx)];
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             // If the inst is optimized out but it executed at the previous iteration,
             // reset all output memory of users which was optimized out at the previous iteration.
@@ -1041,7 +1048,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        bool reclaim = 0;
+        bool reclaim = false;
         size_t required_buffer_size = 0;
         if (get_node().is_type<kv_cache>() && i != 1) {
             // Relax reclaiming condition for kv cache
@@ -1155,7 +1162,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                                           true);
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             set_flag(ExecutionFlags::MEMORY_CHANGED);
-            GPU_DEBUG_CODE(std::string memalloc_info = "");
+            GPU_DEBUG_CODE(std::string memalloc_info);
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
@@ -1476,7 +1483,7 @@ void primitive_inst::do_runtime_skip_reorder() {
     if (can_be_optimized())
         return;
 
-    if (_impl_params->fused_desc.size() > 0)
+    if (!_impl_params->fused_desc.empty())
         return;
 
     // set successive reorder can_be_optimized if layouts are same
@@ -1919,16 +1926,17 @@ void primitive_inst::do_runtime_in_place_crop() {
 
                 const auto& crop_users = u->get_user_insts();
                 std::pair<const program_node*, layout> user_info;
-                if (crop_users.front()->get_node().is_type<reshape>()) {
+                primitive_inst* reshape_inst = nullptr;
+                if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>()) {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
-                    auto reshape_inst = crop_users.front();
+                    reshape_inst = crop_users.front();
                     if (!reshape_inst->_update_shape_done_by_other) {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
                         reshape_inst->_update_shape_done_by_other = true;
-                        user_info.first = &reshape_inst->get_node();
-                        user_info.second = reshape_inst->_impl_params->get_output_layout();
                     }
+                    user_info.first = &reshape_inst->get_node();
+                    user_info.second = reshape_inst->_impl_params->get_output_layout();
                 }
 
                 layout crop_layout = u->_impl_params->get_output_layout();
@@ -1942,14 +1950,49 @@ void primitive_inst::do_runtime_in_place_crop() {
                 auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
                 auto offsets = u->_impl_params->input_offsets[0];
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
-                    // TODO: If crop is optimized out w/ data padding along feature and crop's user is reshape
-                    // manual dynamic padding update to reshape output layout is not currently supported
+                    // If there is a reshape user, we can still optimize when the reshape is able to
+                    // propagate runtime padding (is_runtime_propagatable_padding() == true).
+                    //
+                    // This covers the TransposeSplitMatcher case: Transpose+Split(axis=0) over a
+                    // packed QKV tensor [-1,3,H,S] is replaced by Split(axis=1), so each crop has
+                    // shape [-1,1,H,S] with crop axis=1 (feature axis).  The following reshape
+                    // squeezes that size-1 dim to [-1,H,S].
+                    //
+                    // For out0/out1 (→ Reshape → RoPE): is_runtime_propagatable_padding() is true
+                    // because the downstream RoPE can handle the propagated padding via the standard
+                    // dynamic-layout mechanism.
+                    //
+                    // For out2 (→ Reshape → vl_sdpa): is_runtime_propagatable_padding() is also true
+                    // for the axis=1/size-1 pattern (see reshape_inst.h).  The CM kernel reads the
+                    // dynamic padding offset via dedicated token_offset_q/token_offset_k/token_offset_v scalars
+                    // (see vl_sdpa_opt.cpp), so it does NOT need shape_info — the offset is applied
+                    // directly to the SVM pointer before dispatch.
+                    //
+                    // In both cases we update the reshape output layout so downstream nodes see the
+                    // correct padded view — same as the simple_data_format path does below.
                     if (user_info.first) {
-                        u->set_can_be_optimized(false);
-                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
-                        continue;
+                        auto reshape_inst_node = static_cast<const reshape_node*>(user_info.first);
+                        if (!reshape_inst_node->is_runtime_propagatable_padding()) {
+                            u->set_can_be_optimized(false);
+                            GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                            continue;
+                        }
                     }
-                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
+                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    // Install the padded crop layout and propagate the reshape
+                    // output padding computed by the helper. Assigning the
+                    // reshape output layout directly (mirroring the
+                    // simple_data_format branch below) avoids a second
+                    // reshape_inst->update_shape() call, which would run
+                    // reshape_inst::calc_output_layouts and reset the padding
+                    // to empty for reshape_mode::base.
+                    u->_impl_params->output_layouts[0] = crop_layout;
+                    if (user_info.first) {
+                        auto reshape_inst = crop_users.front();
+                        reshape_inst->_impl_params->output_layouts[0] = user_info.second;
+                        reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+                    }
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " update_in_place_crop_padding_along_feature " << offsets << ", " << crop_axis << std::endl;
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     if (!crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
                         u->set_can_be_optimized(false);
@@ -1961,6 +2004,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                         reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
                     }
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " update_in_place_crop_padding_simple_data_format " << offsets << ", " << crop_axis << std::endl;
                 } else {
                     u->set_can_be_optimized(false);
                     GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
@@ -2012,7 +2056,7 @@ void primitive_inst::do_runtime_skip_resample() {
 }
 
 bool primitive_inst::has_inner_networks() const {
-    return (_impl_params->inner_nets.size() > 0);
+    return (!_impl_params->inner_nets.empty());
 }
 
 void primitive_inst::add_dep_events(const std::vector<event::ptr>& events) {
@@ -2220,7 +2264,9 @@ void primitive_inst::prepare_primitive() {
 
     // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
     // is a convolution that requires zeroed-out data paddings)
-    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+    const bool may_reuse_output_memory = is_dynamic() ||
+                                         (can_share_buffer() && get_node().get_program().get_config().get_enable_memory_pool());
+    if (may_reuse_output_memory && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
         const auto& users = get_user_insts();
         const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
                                  users.front()->_allocation_done_by_other;
@@ -2647,7 +2693,6 @@ void primitive_inst::update_weights() {
 
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
 
-    return;
 }
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
@@ -3090,8 +3135,7 @@ std::string primitive_inst::get_implementation_name() const {
 ImplementationsFactory::ImplementationsFactory(const program_node* node)
     : m_node(node)
     , m_available_impls(node->type()->get_supported_implementations(*node))
-    , m_static_impls_cache(node->get_program().get_implementations_cache())
-    , m_dynamic_impls_cache() {
+    , m_static_impls_cache(node->get_program().get_implementations_cache()) {
     if (node->get_selected_impl() && node->get_selected_impl()->is_dynamic()) {
         m_dynamic_impls_cache.emplace_back(node->get_selected_impl()->clone());
     }
@@ -3161,7 +3205,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
             std::unique_ptr<primitive_impl> impl = find_impl(&inst.get_node(), updated_params, shape_types::static_shape);
 
-            if (impl && impl->get_kernels_source().size() > 0) {
+            if (impl && !impl->get_kernels_source().empty()) {
                 auto kernels = _program.get_kernels_cache().compile(updated_params, impl->get_kernels_source());
                 impl->set_kernels(kernels);
             }

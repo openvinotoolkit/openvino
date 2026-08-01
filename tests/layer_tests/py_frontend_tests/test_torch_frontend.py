@@ -841,8 +841,9 @@ def test_module_extension_dynamo_custom_callbacks():
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
-    """__make_16bit_traceable keeps ModuleExtension (Linear/Embedding) weights
-    in 16-bit while up-casting params/buffers of non-extension modules to fp32.
+    """__make_16bit_traceable exposes FP32 placeholders for ModuleExtension
+    (Linear/Embedding) weights while keeping the real 16-bit tensor stashed,
+    and up-casts params/buffers of non-extension modules to fp32.
     """
     from openvino.frontend.pytorch import patch_model
 
@@ -862,16 +863,89 @@ def test_make_16bit_traceable_preserves_extension_dtypes(dtype):
     try:
         patch_model.__make_16bit_traceable(model)
 
-        # Linear/Embedding weights are consumed by ModuleExtension and must
-        # stay in 16-bit
-        assert model.linear.weight.dtype == dtype
-        assert model.embedding.weight.dtype == dtype
+        # Linear/Embedding weights are consumed by ModuleExtension. Their
+        # public .weight is replaced with an FP32 placeholder so that model
+        # code reading weight.dtype during tracing sees FP32, while the real
+        # 16-bit tensor is stashed for the convert callback to emit as the
+        # graph constant. The placeholder must not allocate a full-size buffer.
+        assert model.linear.weight.dtype == torch.float32
+        assert model.embedding.weight.dtype == torch.float32
+        assert model.linear.weight.shape == (4, 4)
+        assert model.linear.weight.untyped_storage().nbytes() <= 4
+        assert model.linear._openvino_orig_weight.dtype == dtype
+        assert model.embedding._openvino_orig_weight.dtype == dtype
 
         # Param and non-extension module weights are up-cast to fp32.
         assert model.scale_shift_table.dtype == torch.float32
         assert model.norm.weight.dtype == torch.float32
     finally:
         patch_model.unpatch_model(model, orig_forward_name)
+
+    # After unpatching, the real 16-bit weights are restored and the stash
+    # attributes are removed, so the original model is usable again.
+    assert model.linear.weight.dtype == dtype
+    assert model.embedding.weight.dtype == dtype
+    assert not hasattr(model.linear, "_openvino_orig_weight")
+    assert not hasattr(model.embedding, "_openvino_orig_weight")
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
+    """A submodule that casts activations to its Linear weight's dtype must not
+    bake a 16-bit ``aten::to`` into the traced graph after __make_16bit_traceable.
+
+    Before the FP32-placeholder fix, tracing read the 16-bit ``weight.dtype``
+    and produced a Convert to fp16/bf16, forcing 16-bit activations at
+    inference. With the fix, ``weight.dtype`` is FP32 during tracing, so no
+    16-bit Convert appears and the weight constant keeps its 16-bit precision.
+    """
+    from openvino.frontend.pytorch import patch_model
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino import convert_model, Type
+
+    class DtypeSniffer(torch.nn.Module):
+        def __init__(self, lin):
+            super().__init__()
+            self.lin = lin
+
+        def forward(self, x):
+            # Common pattern (e.g. RMSNorm): cast activation to weight dtype.
+            x = x.to(self.lin.weight.dtype)
+            return self.lin(x)
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.lin = torch.nn.Linear(4, 3, bias=True)
+            self.sniff = DtypeSniffer(self.lin)
+
+        def forward(self, x):
+            return self.sniff(x)
+
+    model = Model().to(dtype).eval()
+    example = torch.randn(2, 4, dtype=torch.float32)
+
+    ov_dtype = Type.f16 if dtype == torch.float16 else Type.bf16
+    patch_model.__make_16bit_traceable(model)
+    try:
+        with torch.no_grad():
+            decoder = TorchScriptPythonDecoder(
+                model, example_input=(example,),
+                module_extensions=patch_model._get_16bit_extensions()[0])
+            converted_model = convert_model(decoder, example_input=(example,))
+    finally:
+        patch_model._unpatch_torch_functions()
+
+    convert_dtypes = [op.get_element_type() for op in converted_model.get_ordered_ops()
+                      if op.get_type_name() == "Convert"]
+    # No activation should be downcast to the 16-bit type.
+    assert ov_dtype not in convert_dtypes, \
+        f"Unexpected Convert to {ov_dtype}: {convert_dtypes}"
+    # The weight constant must still be stored in the original 16-bit precision.
+    const_dtypes = [op.get_element_type() for op in converted_model.get_ordered_ops()
+                    if op.get_type_name() == "Constant"]
+    assert ov_dtype in const_dtypes, \
+        f"Expected a {ov_dtype} weight constant, got {const_dtypes}"
 
 
 def verify_model(model, example_input, expected_ops):
@@ -2753,12 +2827,14 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetri
 
     class FakeWeightArgs:
         num_bits = 4
+        type = "int"
         symmetric = _symmetric
         strategy = "group"
         group_size = _group_size
 
     class FakeScheme:
         weights = FakeWeightArgs()
+        format = "pack-quantized"
 
     class FakeQuantConfig:
         quant_method = "compressed-tensors"
@@ -2814,6 +2890,67 @@ def _make_fake_ct_model(in_features=32, out_features=64, group_size=32, symmetri
     model = CTModel()
     x = torch.randn(2, in_features, generator=rng)
     return model, x, FakeCompressedLinear
+
+
+def _make_fake_ct_embedding_model(num_embeddings=64, embedding_dim=32, group_size=32,
+                                  symmetric=True, ct_format="pack-quantized"):
+    """Return ``(model, idx)`` with a pack-quantized ``nn.Embedding``.
+
+    Mirrors the modern (>= 0.17) layout: a plain ``nn.Embedding`` carrying
+    ``weight_packed`` / ``weight_scale`` (+ ``weight_zero_point`` when asymmetric)
+    and a ``quantization_scheme`` with ``format`` set. ``ct_format`` can be
+    overridden to exercise the unsupported-config error path.
+    """
+    rng = torch.Generator().manual_seed(0)
+    n_groups = embedding_dim // group_size
+    _group_size, _symmetric, _fmt = group_size, symmetric, ct_format
+
+    class FakeWeightArgs:
+        num_bits = 4
+        type = "int"
+        symmetric = _symmetric
+        strategy = "group"
+        group_size = _group_size
+
+    class FakeScheme:
+        weights = FakeWeightArgs()
+        format = _fmt
+
+    class FakeQuantConfig:
+        quant_method = "compressed-tensors"
+
+    class FakeConfig:
+        quantization_config = FakeQuantConfig()
+
+    def _make_embedding():
+        # Modern CT layer is a *plain* nn.Embedding (matched by exact class), with
+        # the dense weight replaced by packed buffers + a quantization_scheme.
+        emb = torch.nn.Embedding(num_embeddings, embedding_dim)
+        del emb.weight
+        emb.register_buffer("weight_packed", torch.randint(
+            -(2 ** 31), 2 ** 31, (num_embeddings, embedding_dim // 8),
+            dtype=torch.int32, generator=rng))
+        emb.register_buffer("weight_scale", torch.randn(
+            num_embeddings, n_groups, dtype=torch.float32, generator=rng))
+        if not _symmetric:
+            emb.register_buffer("weight_zero_point", torch.randint(
+                -(2 ** 31), 2 ** 31, (num_embeddings // 8, n_groups),
+                dtype=torch.int32, generator=rng))
+        emb.quantization_scheme = FakeScheme()
+        # Placeholder forward so tracing produces a valid result before patching.
+        emb.forward = lambda idx: torch.zeros(*idx.shape, embedding_dim, dtype=torch.float32)
+        return emb
+
+    class CTModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.config = FakeConfig()
+            self.emb = _make_embedding()
+
+        def forward(self, idx):
+            return self.emb(idx)
+
+    return CTModel(), torch.randint(0, num_embeddings, (2, 4))
 
 
 def _inject_fake_ct_module(fake_linear_class):
@@ -2973,5 +3110,70 @@ def test_compressed_tensors_convert_asym_keeps_u4():
         ]
         assert u4_consts, \
             "Expected u4 weight constants in the OV model for asymmetric CT gemm"
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_embedding_keeps_i4():
+    """A pack-quantized ``nn.Embedding`` must convert to a Gather over an i4
+    weight constant — the embedding table must NOT be decompressed to float."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model()
+    prior = _inject_fake_ct_module(torch.nn.Linear)  # embedding path needs only the CT pkg present
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        op_types = [op.get_type_name() for op in ov_model.get_ops()]
+        assert "Gather" in op_types, "Expected a Gather for the embedding lookup"
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, "Expected a packed 4-bit weight constant for CT embedding"
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_unsupported_format_raises():
+    """An unsupported compressed-tensors format must raise (never silently export
+    the module as dense float)."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model(ct_format="nvfp4-pack-quantized")
+    prior = _inject_fake_ct_module(torch.nn.Linear)
+    try:
+        with pytest.raises(Exception, match="nvfp4-pack-quantized"):
+            decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+            fe = FrontEndManager().load_by_framework("pytorch")
+            fe.convert(fe.load(decoder))
+    finally:
+        _restore_ct_modules(prior)
+
+
+def test_compressed_tensors_missing_format_still_converts():
+    """A valid pack-quantized module whose ``quantization_scheme.format`` is None
+    (the plain model-load path, older CT, and the legacy CompressedLinear path all
+    leave it unset) must still convert — the format check is lenient when unset."""
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    model, idx = _make_fake_ct_embedding_model(ct_format=None)
+    prior = _inject_fake_ct_module(torch.nn.Linear)
+    try:
+        decoder = TorchScriptPythonDecoder(model, example_input=(idx,))
+        fe = FrontEndManager().load_by_framework("pytorch")
+        ov_model = fe.convert(fe.load(decoder))
+        assert ov_model is not None
+
+        four_bit_consts = [
+            op for op in ov_model.get_ops()
+            if op.get_type_name() == "Constant"
+            and op.get_output_element_type(0) in (Type.i4, Type.u4)
+        ]
+        assert four_bit_consts, "Expected a packed 4-bit weight constant when format is None"
     finally:
         _restore_ct_modules(prior)

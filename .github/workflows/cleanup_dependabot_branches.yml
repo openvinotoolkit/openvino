@@ -1,0 +1,51 @@
+name: Cleanup stale dependabot branches
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only log branches that would be deleted, do not delete them'
+        type: boolean
+        required: false
+        default: true
+  schedule:
+    # at 06:00 every Monday
+    - cron: '0 6 * * 1'
+
+permissions: read-all
+
+jobs:
+  Cleanup_Dependabot_Branches:
+    name: Cleanup stale dependabot branches
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    permissions:
+      contents: write       # delete stale branches via the git refs API
+      pull-requests: read    # list open PRs to know which branches are still in use
+    steps:
+      - name: Checkout cleanup script
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: '.github/scripts/dependabot_cleanup'
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Install deps
+        working-directory: ${{ github.workspace }}/.github/scripts/dependabot_cleanup
+        run: pip3 install -r requirements.txt
+
+      - name: Cleanup stale dependabot branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Real deletions happen only on the weekly schedule, or on a manual run
+          # where the dry_run checkbox was explicitly unchecked. Every other case
+          # (manual run with the box checked, or any other trigger) stays a dry run.
+          # The "<cond> && 'false' || 'true'" shape is safe because both sides are
+          # non-empty strings, so it never falls through to the wrong value.
+          DRY_RUN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)) && 'false' || 'true' }}
+        run: |
+          python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
+            --repository-name ${GITHUB_REPOSITORY}

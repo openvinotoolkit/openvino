@@ -142,20 +142,70 @@ std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
     return allocated;
 }
 
-void KVCacheBlockManager::clear_all() {
-    LOG_DEBUG("KVCacheBlockManager: Clearing all blocks");
+void KVCacheBlockManager::release(uint32_t keep_warm_count) {
+    LOG_DEBUG("KVCacheBlockManager: Resetting blocks (keep_warm_count=" << keep_warm_count << ")");
 
+    // Iterate allocated blocks in ascending block-ID order.
+    // The first keep_warm_count retain their device tensors (warm reuse next round).
+    // The remainder have tensors dropped to reduce RSS.
+    uint32_t warm_seen = 0;
     for (auto& block : blocks_) {
-        block.num_tokens = 0;
+        if (!block.is_allocated) {
+            continue;
+        }
         block.is_allocated = false;
+        block.num_tokens = 0;
+        if (warm_seen >= keep_warm_count) {
+            block.tensor = {};  // Drop SoPtr — returns device memory to allocator
+        }
+        ++warm_seen;
     }
 
-    // Rebuild free stack (push in reverse order so block 0 is on top)
+    if (warm_seen > keep_warm_count) {
+        LOG_DEBUG("KVCacheBlockManager: Released " << (warm_seen - keep_warm_count) << " block tensor(s), kept "
+                                                   << keep_warm_count << " warm");
+    }
+
+    rebuild_free_block_ids();
+}
+
+void KVCacheBlockManager::clear_all() {
+    release(0);
+}
+
+void KVCacheBlockManager::rebuild_free_block_ids() {
+    // Push in descending ID order so the smallest free ID ends up on top of the stack
+    // and is handed out first. Allocation order then follows block ID order, which is
+    // what keeps a truncated prefix contiguous when the freed suffix is reacquired.
     std::stack<uint32_t> empty;
     free_block_ids_.swap(empty);
     for (uint32_t i = max_blocks_; i > 0; --i) {
-        free_block_ids_.push(i - 1);
+        if (!blocks_[i - 1].is_allocated) {
+            free_block_ids_.push(i - 1);
+        }
     }
+}
+
+void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
+    const auto allocated = get_allocated_blocks();
+    OPENVINO_ASSERT(keep_count <= allocated.size(),
+                    "KVCacheBlockManager: cannot truncate to ",
+                    keep_count,
+                    " blocks, only ",
+                    allocated.size(),
+                    " are allocated");
+
+    // Deallocate the suffix, keeping device tensors warm for quick reuse.
+    for (size_t i = keep_count; i < allocated.size(); ++i) {
+        auto& block = blocks_[allocated[i]];
+        block.is_allocated = false;
+        block.num_tokens = 0;
+    }
+
+    rebuild_free_block_ids();
+
+    LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
+                                                   << " suffix block(s) freed");
 }
 
 void KVCacheBlockManager::validate_block_id(uint32_t block_id) const {

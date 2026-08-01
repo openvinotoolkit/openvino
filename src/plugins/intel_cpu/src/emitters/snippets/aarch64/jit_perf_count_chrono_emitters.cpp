@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "emitters/snippets/aarch64/utils.hpp"
 #include "jit_binary_call_emitter.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
@@ -48,12 +49,12 @@ void jit_perf_count_chrono_start_emitter::emit_impl([[maybe_unused]] const std::
     const auto& fn_ptr =
         reinterpret_cast<uint64_t>(static_cast<void (*)(ov::snippets::op::PerfCountBegin*)>(set_start_time));
 
-    // Conservatively preserve full JIT context across external call
-    store_context({});
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
     h->mov(func_reg, fn_ptr);
     h->mov(XReg(0), reinterpret_cast<uint64_t>(m_start_node.get()));
     h->blr(func_reg);
-    restore_context({});
+    spill.postamble();
 }
 
 jit_perf_count_chrono_end_emitter::jit_perf_count_chrono_end_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
@@ -75,11 +76,12 @@ void jit_perf_count_chrono_end_emitter::emit_impl([[maybe_unused]] const std::ve
     const auto& fn_ptr =
         reinterpret_cast<uint64_t>(static_cast<void (*)(ov::snippets::op::PerfCountEnd*)>(set_accumulated_time));
 
-    store_context({});
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
     h->mov(func_reg, fn_ptr);
     h->mov(XReg(0), reinterpret_cast<uint64_t>(m_end_node.get()));
     h->blr(func_reg);
-    restore_context({});
+    spill.postamble();
 }
 
 }  // namespace ov::intel_cpu::aarch64

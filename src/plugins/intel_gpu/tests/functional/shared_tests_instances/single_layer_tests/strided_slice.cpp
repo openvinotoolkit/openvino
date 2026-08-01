@@ -146,7 +146,7 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                                 { 0, 0, 0, 0 }, { 0, 1, 0, 1 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                 { 2, 2, 4, 1 }})),
-                                { 0, 0, 0, 0 }, { 2, 2, 4, 1 }, {  1, 1, 1, 1 },
+                                { 0, 0, 0, 0 }, { 1, 2, 2, 4}, {  1, 1, 1, 1 },
                                 { 0 }, { 0 }, { 1 }, { 0 }, {0 } },
         StridedSliceSpecificParams{ ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                 { 128, 1, 1024 }})),
