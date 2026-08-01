@@ -154,6 +154,8 @@ def execute_cached(compiled_model, *args):
 
 
 _fastinfer_port_cache = {}
+_fastinfer_bound_ids = {}  # id(req) -> list[int] of last-bound id(tensor) per port
+_fastinfer_out_cache = {}  # id(req) -> {out_port: numpy_view} built once
 
 def openvino_execute(
     gm: GraphModule,
@@ -259,18 +261,43 @@ def openvino_execute(
             if _ports is None:
                 _ports = list(compiled.inputs)
                 _fastinfer_port_cache[_pc_key] = _ports
-            for _port in _ports:
+            # Per-request cache: for each port, keep the last-bound value id
+            # AND a reference to the ov.Tensor wrapper so it stays alive
+            # while OV holds it. Skip set_tensor when the same tensor is
+            # already bound (avoids ~200 us/step of pybind11 dispatch).
+            _req_key = id(req)
+            _bound = _fastinfer_bound_ids.get(_req_key)
+            if _bound is None or len(_bound) != len(_ports):
+                # each entry: [val_id, ov_tensor_ref]
+                _bound = [[0, None] for _ in range(len(_ports))]
+                _fastinfer_bound_ids[_req_key] = _bound
+            for _pi_idx, _port in enumerate(_ports):
                 _val = _call_kwargs.get(_port)
                 if _val is None:
                     raise RuntimeError("_call_kwargs missing port")
+                _val_id = id(_val)
+                _slot = _bound[_pi_idx]
+                if _val_id == _slot[0] and _slot[1] is not None:
+                    continue  # already bound; ov.Tensor wrapper kept alive
                 if isinstance(_val, _ov_fi.Tensor):
-                    req.set_tensor(_port, _val)
+                    _t = _val
                 else:
-                    req.set_tensor(_port, _ov_fi.Tensor(_val, shared_memory=True))
+                    _t = _ov_fi.Tensor(_val, shared_memory=True)
+                req.set_tensor(_port, _t)
+                _slot[0] = _val_id
+                _slot[1] = _t  # keep alive
             req.infer()
-            res = {out: req.get_tensor(out).data for out in compiled.outputs}
+            # Cache the output-view dict per req. share_outputs=True means OV
+            # reuses the underlying buffers; the numpy views on .data point at
+            # the same memory across calls. Build once, reuse.
+            _out_dict = _fastinfer_out_cache.get(_req_key)
+            if _out_dict is None:
+                _out_dict = {out: req.get_tensor(out).data for out in compiled.outputs}
+                _fastinfer_out_cache[_req_key] = _out_dict
+            res = _out_dict
         except Exception:
-            # Any error -> slow path (safe fallback, retains full correctness)
+            _fastinfer_bound_ids.pop(id(req), None)
+            _fastinfer_out_cache.pop(id(req), None)
             res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
     elif _call_kwargs is not None:
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
