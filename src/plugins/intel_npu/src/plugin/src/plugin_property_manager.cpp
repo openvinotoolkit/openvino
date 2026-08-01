@@ -368,6 +368,8 @@ void PluginPropertyManager::registerProperties() const {
     try_register_property_based_on_config_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const Config&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
+    try_register_property_based_on_config_with_custom_function(_config, _properties, ov::intel_npu::compile_log_level.name(),
+        [](const Config& config) -> ov::Any { return COMPILE_LOG_LEVEL::resolve(config); });
     // clang-format on
 
     // Special case: this property is always registered because it's supported by the implementation,
