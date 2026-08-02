@@ -17,15 +17,11 @@ namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
 
-// Define get_log_tag() to enable LOG_DEBUG_TAG macro for all functions in this namespace
 inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-// Calls into IPF's ClientApi DLL exclusively through its plain-C ABI (ClientApiC.h).
-// The C ABI uses only plain types (char*, size_t, enums) across the DLL boundary, so it
-// stays safe to call regardless of this plugin's own MSVC runtime library (/MD or /MDd),
-// even though ClientApi.dll itself is always built with /MD (see thirdparty/CMakeLists.txt).
+// Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
     Impl() {
@@ -50,11 +46,12 @@ public:
             LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
             return std::nullopt;
         }
-        const std::string metric_key = device_to_metric_key(device_name, device_type);
-        if (metric_key.empty()) {
+        const auto metric_key_view = device_to_metric_key(device_name, device_type);
+        if (metric_key_view.empty()) {
             LOG_WARNING_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
             return std::nullopt;
         }
+        const std::string metric_key{metric_key_view};
         LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
         const std::string json_str = get_node("Platform.Features.AISelector");
         if (json_str.empty()) {
@@ -87,17 +84,11 @@ public:
         } catch (const nlohmann::json::exception& e) {
             LOG_DEBUG_TAG("TelemetryClient: JSON parsing exception: %s", e.what());
             return std::nullopt;
-        } catch (const std::exception& e) {
-            LOG_DEBUG_TAG("TelemetryClient: exception during query for device=%s: %s", device_name.c_str(), e.what());
-            return std::nullopt;
         }
     }
 
 private:
-    // Queries a node from IPF using the buf/len two-call protocol exposed by the C ABI:
-    // the first call with an empty buffer reports the required size via IPF_ERR_BUFFERTOOSMALL,
-    // then a second call with a sized buffer retrieves the null-terminated JSON payload.
-    // Returns an empty string when the query fails.
+    // Query IPF node data with the two-call buffer-size protocol.
     std::string get_node(const char* path) {
         size_t len = 0;
         ipf_err_t status = IpfGetNode(m_handle, path, nullptr, &len);
@@ -141,9 +132,7 @@ TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
-std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
-    static_cast<void>(device_name);
-    static_cast<void>(device_type);
+std::optional<float> TelemetryClient::utilization(const std::string&, const std::string&) {
     return std::nullopt;
 }
 

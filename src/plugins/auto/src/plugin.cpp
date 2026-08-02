@@ -610,7 +610,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceIn
         std::vector<std::string> capability;
         try {
             capability = get_core()->get_property(device_name, ov::device::capabilities);
-        } catch (std::exception&) {
+        } catch (const ov::Exception&) {
             LOG_DEBUG_TAG("cannot get device capabity from device: %s", device_name.c_str());
         }
         auto support_model = std::find(capability.begin(), capability.end(), (model_precision));
@@ -762,7 +762,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                         device_type = get_core()
                                           ->get_property(device->device_name, ov::device::type.name(), {})
                                           .as<std::string>();
-                    } catch (const std::exception&) {
+                    } catch (const ov::Exception&) {
                         device_type = "";
                     }
                 }

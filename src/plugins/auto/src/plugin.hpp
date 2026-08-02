@@ -31,7 +31,7 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
 
-    MOCKTESTMACRO ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;

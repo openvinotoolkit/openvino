@@ -7,13 +7,9 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
-#ifdef  MULTIUNITTEST
-#define MOCKTESTMACRO virtual
-#define auto_plugin mock_auto_plugin
-#else
-#define MOCKTESTMACRO
-#endif
+#include "../common.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -31,38 +27,31 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-/**
- * @brief Map an OpenVINO device to the platform telemetry metric key.
- *
- * "CPU"                     -> "CPUUtilization"
- * "GPU" + "integrated" type -> "IGPUUtilization"
- * "GPU" + "discrete" type   -> "DGPUUtilization"
- * "NPU"                     -> "NPUUtilization"
- *
- * For a GPU device an empty or unrecognized device_type yields an empty key so the
- * caller treats utilization as unavailable and keeps the device as a candidate.
- *
- * @param device_name OpenVINO device identifier (e.g. "CPU", "GPU", "GPU.0", "NPU").
- * @param device_type ov::device::type value ("integrated" or "discrete"); only used for GPU.
- * @return Telemetry metric key, or an empty string for an unknown device type.
- */
-inline std::string device_to_metric_key(const std::string& device_name, const std::string& device_type = "") {
-    if (device_name.rfind("CPU", 0) == 0) {
-        return "CPUUtilization";
-    }
-    if (device_name.rfind("GPU", 0) == 0) {
+inline constexpr std::string_view k_cpu_utilization_metric = "CPUUtilization";
+inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
+inline constexpr std::string_view k_dgpu_utilization_metric = "DGPUUtilization";
+inline constexpr std::string_view k_npu_utilization_metric = "NPUUtilization";
+
+inline constexpr bool has_prefix(std::string_view value, std::string_view prefix) {
+    return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+}
+
+// CPU -> CPUUtilization; GPU(integrated/discrete) -> IGPU/DGPU; NPU -> NPUUtilization.
+inline constexpr std::string_view device_to_metric_key(std::string_view device_name,
+                                                       std::string_view device_type = {}) {
+    std::string_view metric_key;
+    if (has_prefix(device_name, "CPU")) {
+        metric_key = k_cpu_utilization_metric;
+    } else if (has_prefix(device_name, "GPU")) {
         if (device_type == "integrated") {
-            return "IGPUUtilization";
+            metric_key = k_igpu_utilization_metric;
+        } else if (device_type == "discrete") {
+            metric_key = k_dgpu_utilization_metric;
         }
-        if (device_type == "discrete") {
-            return "DGPUUtilization";
-        }
-        return "";
+    } else if (has_prefix(device_name, "NPU")) {
+        metric_key = k_npu_utilization_metric;
     }
-    if (device_name.rfind("NPU", 0) == 0) {
-        return "NPUUtilization";
-    }
-    return "";
+    return metric_key;
 }
 
 }  // namespace device_monitor

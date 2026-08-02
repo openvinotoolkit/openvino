@@ -341,10 +341,6 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         context.m_err_message += device + ":" + e.what();
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
-    } catch (const std::exception& e) {
-        context.m_err_message += device + ":" + e.what();
-        LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
-        context.m_is_load_success = false;
     }
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
@@ -370,7 +366,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
                                                         context.m_model_precision,
                                                         m_context->m_model_priority,
                                                         m_context->m_utilization_thresholds);
-    } catch (const std::exception&) {
+    } catch (const ov::Exception&) {
         return;
     }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]

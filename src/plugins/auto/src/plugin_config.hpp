@@ -49,7 +49,9 @@ public:
                 return true;
             else
                 throw std::logic_error("wrong val");
-        } catch (std::exception&) {
+        } catch (const ov::Exception&) {
+            return false;
+        } catch (const std::exception&) {
             return false;
         }
     }
@@ -67,7 +69,7 @@ public:
                 }
             }
             return true;
-        } catch (std::exception&) {
+        } catch (const ov::Exception&) {
             return false;
         }
     }
