@@ -19,17 +19,24 @@ if(NOT MSVC)
     return()
 endif()
 
-set(_ov_auto_msvc_static_runtime "")
-if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY AND CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "^MultiThreaded(Debug)?$")
-    set(_ov_auto_msvc_static_runtime "${CMAKE_MSVC_RUNTIME_LIBRARY}")
-elseif(CMAKE_C_FLAGS MATCHES "(^|[ /])MTd?($|[ ])")
-    set(_ov_auto_msvc_static_runtime "/MT")
-elseif(CMAKE_CXX_FLAGS MATCHES "(^|[ /])MTd?($|[ ])")
-    set(_ov_auto_msvc_static_runtime "/MT")
+# IPF's ClientApi is always built against the dynamic CRT (/MD). Mixing it into an
+# OpenVINO build that uses the static CRT (/MT) yields incompatible runtimes, so
+# force-disable IPF whenever a static MSVC runtime is detected.
+set(_ov_auto_static_crt OFF)
+if(CMAKE_MSVC_RUNTIME_LIBRARY)
+    if(CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "BOOL:(OFF|FALSE|0|NO|N|IGNORE)>:DLL")
+        set(_ov_auto_static_crt ON)
+    elseif(NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
+        set(_ov_auto_static_crt ON)
+    endif()
+elseif(CMAKE_CXX_FLAGS MATCHES "(^| )/MTd?( |$)" OR CMAKE_CXX_FLAGS_RELEASE MATCHES "(^| )/MT( |$)"
+       OR CMAKE_CXX_FLAGS_DEBUG MATCHES "(^| )/MTd( |$)" OR CMAKE_C_FLAGS MATCHES "(^| )/MTd?( |$)")
+    set(_ov_auto_static_crt ON)
 endif()
 
-if(_ov_auto_msvc_static_runtime)
-    message(STATUS "[AUTO] IPF: static MSVC runtime (${_ov_auto_msvc_static_runtime}), device utilization monitoring disabled")
+if(_ov_auto_static_crt)
+    message(STATUS "[AUTO] IPF: OpenVINO uses static MSVC runtime (/MT), but IPF ClientApi requires /MD; "
+                   "device utilization monitoring disabled")
     return()
 endif()
 
