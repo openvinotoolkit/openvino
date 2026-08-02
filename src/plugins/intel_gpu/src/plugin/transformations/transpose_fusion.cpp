@@ -333,12 +333,12 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                                      order_q, input_q_output_idx);
 
         // Transpose fusion is only applied to the plain-float KV path (the quantized cache keeps identity order).
-        if (!k_quantized && pattern_map.count(transpose_k_m) > 0)
+        if (pattern_map.count(transpose_k_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_k_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_k_order_m).get_node_shared_ptr(),
                                                      order_k, input_k_output_idx);
 
-        if (!v_quantized && pattern_map.count(transpose_v_m) > 0)
+        if (pattern_map.count(transpose_v_m) > 0)
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v, input_v_output_idx);
@@ -364,8 +364,12 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             return sdpa->input_value(sdpa_input_idx);
         };
 
-        auto input_k = select_kv_input(kv_compressed, k_quant_m, input_k_m, input_k_output_idx, 1);
-        auto input_v = select_kv_input(kv_compressed, v_quant_m, input_v_m, input_v_output_idx, 2);
+        static const auto fusecompressedkv = []() {
+            const auto txt = std::getenv("fusecompressedkv");
+            return txt && txt == std::string_view("true");
+        }();
+        auto input_k = select_kv_input(kv_compressed && fusecompressedkv, k_quant_m, input_k_m, input_k_output_idx, 1);
+        auto input_v = select_kv_input(kv_compressed && fusecompressedkv, v_quant_m, input_v_m, input_v_output_idx, 2);
 
         OutputVector inputs = {input_q, input_k, input_v};
 
@@ -377,7 +381,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         }
 
         std::shared_ptr<ov::Node> sdpa_new;
-        if (kv_compressed) {
+        if (kv_compressed &&  fusecompressedkv) {
             const auto k_scale = pattern_map.at(k_scale_m);
             const auto v_scale = pattern_map.at(v_scale_m);
             const bool asymmetric = pattern_map.count(k_sub_m) > 0 && pattern_map.count(v_sub_m) > 0;
