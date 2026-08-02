@@ -57,7 +57,9 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
 JitConstants GridSampleKernelOpt_BilinearZeros::GetJitConstants(const grid_sample_params& kernel_params) const {
     auto jit_constants = TBase::GetJitConstants(kernel_params);
 
-    jit_constants.AddConstants({MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK)});
+    jit_constants.AddConstants({
+        MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK)
+    });
 
     return jit_constants;
 }
