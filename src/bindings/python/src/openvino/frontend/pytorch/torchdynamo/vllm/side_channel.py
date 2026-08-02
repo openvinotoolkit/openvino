@@ -130,6 +130,8 @@ _PA_FIELDS = (
 )
 
 
+
+
 def _bind_paged_attention_side_channel(compiled):
     """For every compiled-model input named "__pa__<layer>__<field>", look up
     the tensor from vllm.forward_context.get_forward_context() and return a
@@ -232,6 +234,7 @@ def _bind_paged_attention_side_channel(compiled):
         "qsl_np": _zeros_2_i32(),
     }
     _shared_built = False
+    _bi_cache = {}  # per-call block_indices dedup
     for layer_name, fields in layer_to_fields.items():
         attn_meta = None
         kv_cache = None
@@ -424,6 +427,12 @@ def _bind_paged_attention_side_channel(compiled):
         # Per-layer block_indices / block_indices_begins. Models with multiple
         # KV-cache groups (e.g. Gemma-4 hybrid) have a distinct block_table per
         # group. Compute from this layer's own attn_meta + kv_cache block_size.
+        #
+        # Intra-call cache: for uniform-attention models all 16+ layers share
+        # the same block_table object; recomputing block_indices per layer is
+        # wasteful (~4ms/step on Llama-1B). Dedup within this bind() call by
+        # (id(block_table), block_size). Gemma-4's two KV groups have distinct
+        # block_table objects, so both still compute — one per group.
         block_indices_np = _zeros_1_i32()
         block_indices_begins_np = _zeros_2_i32()
         if attn_meta is not None and kv_cache is not None:
@@ -431,26 +440,32 @@ def _bind_paged_attention_side_channel(compiled):
                 seq_lens = getattr(attn_meta, "seq_lens", None)
                 block_table = getattr(attn_meta, "block_table", None)
                 if block_table is not None and seq_lens is not None:
-                    bt = block_table.to(torch.int32).contiguous()
                     block_size = int(kv_cache.shape[3]) if kv_cache.ndim >= 5 else 16
-                    blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
-                    rows = bt.shape[0] if bt.ndim > 0 else 1
-                    bps_np = blocks_per_seq.numpy()
-                    bt_np = bt.numpy()
-                    _ov_ratio = block_size // 32 if block_size > 32 and block_size % 32 == 0 else 1
-                    if rows > 0 and bps_np.sum() > 0:
-                        max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
-                        col_idx = np.arange(max_blocks, dtype=np.int32)
-                        mask = col_idx[None, :] < bps_np[:, None]
-                        flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
-                        bi = flat_bt[mask].astype(np.int32, copy=False)
-                        if _ov_ratio > 1:
-                            bi = (bi[:, None] * _ov_ratio + np.arange(_ov_ratio, dtype=np.int32)[None, :]).reshape(-1)
-                        block_indices_np = bi
-                    begins = np.empty(rows + 1, dtype=np.int32)
-                    begins[0] = 0
-                    np.cumsum(bps_np * _ov_ratio, out=begins[1:])
-                    block_indices_begins_np = begins
+                    _bi_key = (id(block_table), block_size)
+                    _bi_cached = _bi_cache.get(_bi_key)
+                    if _bi_cached is not None:
+                        block_indices_np, block_indices_begins_np = _bi_cached
+                    else:
+                        bt = block_table.to(torch.int32).contiguous()
+                        blocks_per_seq = ((seq_lens + block_size - 1) // block_size).to(torch.int32)
+                        rows = bt.shape[0] if bt.ndim > 0 else 1
+                        bps_np = blocks_per_seq.numpy()
+                        bt_np = bt.numpy()
+                        _ov_ratio = block_size // 32 if block_size > 32 and block_size % 32 == 0 else 1
+                        if rows > 0 and bps_np.sum() > 0:
+                            max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
+                            col_idx = np.arange(max_blocks, dtype=np.int32)
+                            mask = col_idx[None, :] < bps_np[:, None]
+                            flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
+                            bi = flat_bt[mask].astype(np.int32, copy=False)
+                            if _ov_ratio > 1:
+                                bi = (bi[:, None] * _ov_ratio + np.arange(_ov_ratio, dtype=np.int32)[None, :]).reshape(-1)
+                            block_indices_np = bi
+                        begins = np.empty(rows + 1, dtype=np.int32)
+                        begins[0] = 0
+                        np.cumsum(bps_np * _ov_ratio, out=begins[1:])
+                        block_indices_begins_np = begins
+                        _bi_cache[_bi_key] = (block_indices_np, block_indices_begins_np)
             except Exception:
                 pass
 
