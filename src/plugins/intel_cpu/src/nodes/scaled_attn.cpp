@@ -30,7 +30,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -42,9 +41,13 @@
 #include "utils/plain_tensor.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_X86)
+#    include "kernels/scaled_attn/softmax.hpp"
+#    include "openvino/core/parallel.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 #elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include "kernels/scaled_attn/softmax.hpp"
+#    include "openvino/core/parallel.hpp"
 #    include "openvino/core/type/float16.hpp"
 #endif
 
@@ -73,7 +76,6 @@
 #include "kernels/scaled_attn/codecs/turboq_rotation.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
-#include "kernels/scaled_attn/softmax.hpp"
 #include "utils/precision_support.h"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/brgemm_kernel.hpp"
