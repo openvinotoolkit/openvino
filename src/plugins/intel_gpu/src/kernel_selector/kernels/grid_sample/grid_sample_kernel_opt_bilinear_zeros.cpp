@@ -47,8 +47,8 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
     if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
-    if (kernel_params.inputs[0].GetDims().size() != 4 || kernel_params.outputs[0].GetDims().size() != 4 ||
-        PaddedSpatial(kernel_params.inputs) || PaddedSpatial(kernel_params.outputs))
+    if (kernel_params.inputs[0].GetDims().size() != 4 || kernel_params.outputs[0].GetDims().size() != 4 || PaddedSpatial(kernel_params.inputs) ||
+        PaddedSpatial(kernel_params.outputs))
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
@@ -57,9 +57,7 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
 JitConstants GridSampleKernelOpt_BilinearZeros::GetJitConstants(const grid_sample_params& kernel_params) const {
     auto jit_constants = TBase::GetJitConstants(kernel_params);
 
-    jit_constants.AddConstants({
-        MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK)
-    });
+    jit_constants.AddConstants({MakeJitConstant("GRID_ITEMS_PER_BLOCK", GRID_ITEMS_PER_BLOCK)});
 
     return jit_constants;
 }
@@ -71,6 +69,16 @@ ParamsKey GridSampleKernelOpt_BilinearZeros::GetSupportedKey() const {
     key.EnableDifferentTypes();
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
+    // b_fs_yx_fsv16: the data/output addressing below now goes through the
+    // kernel_selector's standard INPUT0_GET_INDEX/OUTPUT_GET_INDEX macros (see the
+    // .cl kernel), which are layout-aware, so this kernel is no longer restricted to
+    // planar bfyx. Added specifically because the GPU plugin's layout optimizer
+    // prefers b_fs_yx_fsv16 for channel counts that block evenly into 16 (a decision
+    // made for the benefit of neighboring convolutions, independent of GridSample) --
+    // without this, every such tensor silently fell back to the much slower
+    // reference kernel even though bilinear+zeros+4D+unpadded otherwise qualified.
+    key.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    key.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();

@@ -687,6 +687,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16,
                                           testing::Values(RUN_CACHING_TEST)),
                          grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
 
+// Layout coverage for fp16, mirroring smoke_grid_sample_gpu_test_float_float above -- previously
+// only float/float exercised non-bfyx layouts (including b_fs_yx_fsv16) here, leaving fp16 (the
+// precision GPU-plugin inference actually runs by default) with no blocked-layout coverage at all.
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_layouts,
+                         grid_sample_gpu_test_FLOAT16_FLOAT16,
+                         testing::Combine(testing::ValuesIn(getParamsToCheckLayouts<ov::float16, ov::float16>()),
+                                          testing::ValuesIn(layout_formats),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_gpu_test_FLOAT16_FLOAT16::PrintToStringParamName);
+
 #ifndef RUN_ALL_MODEL_CACHING_TESTS
 INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_gpu_test_FLOAT16_FLOAT16_cached,
                          grid_sample_gpu_test_FLOAT16_FLOAT16,
