@@ -6,7 +6,9 @@
 
 #include "../../logging.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -86,7 +88,14 @@ static ov::NodeVector calculate_freq(const std::shared_ptr<ov::Node> short_facto
     return {inv_freq, inv_freq_long};
 }
 
-void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, const pre_compute::RopePatternDesc* rpe) {
+struct GatheredCosSin {
+    std::shared_ptr<ov::Node> cos;  // [1, query_len, rotary_ndims], f32 - gathered via matched_position_ids
+    std::shared_ptr<ov::Node> sin;
+};
+
+GatheredCosSin replaceSinCosByCache(int max_prompt_len,
+                                    const ov::OutputVector& cache,
+                                    const pre_compute::RopePatternDesc* rpe) {
     auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
     LOG_VERB("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
@@ -124,6 +133,321 @@ void replaceSinCosByCache(int max_prompt_len, const ov::OutputVector& cache, con
     // disconnecting gather from rest or subgraph started from concat_1
     auto gather_input_to_concat = rpe->matched_concat->input(0);
     gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
+
+    return {squeeze_cos, squeeze_sin};
+}
+
+// Builds the host-side LongRoPE full-range LUT (see LongRopeHostLut in
+// pre_compute.hpp): for both the short-factor and long-factor regime, a
+// [max_len, head_dim] table where row i holds cos/sin for absolute position i,
+// columns [0, rotary_ndims) are the actual rotate_half-style values (mirrored
+// the same way makeCosSinCache does: duplicate=true, second half repeats the
+// first), and columns [rotary_ndims, head_dim) are identity padding
+// (cos=1, sin=0) for the passthrough part of the head.
+void buildLongRopeHostLut(size_t max_len,
+                          size_t rotary_ndims,
+                          size_t passthrough_width,
+                          const std::vector<float>& inv_freq_short,
+                          const std::vector<float>& inv_freq_long,
+                          pre_compute::LongRopeHostLut& out) {
+    const size_t head_dim = rotary_ndims + passthrough_width;
+    const size_t half = rotary_ndims / 2;
+
+    out.max_len = max_len;
+    out.rotary_ndims = rotary_ndims;
+    out.head_dim = head_dim;
+    out.inv_freq_short = inv_freq_short;
+    out.inv_freq_long = inv_freq_long;
+
+    auto fill = [&](const std::vector<float>& inv_freq, std::vector<float>& cos_out, std::vector<float>& sin_out) {
+        // Identity-initialize (covers the passthrough columns for every row);
+        // the rotary columns below are then overwritten with the real values.
+        cos_out.assign(max_len * head_dim, 1.0f);
+        sin_out.assign(max_len * head_dim, 0.0f);
+        for (size_t m = 0; m < max_len; ++m) {
+            float* pcos = cos_out.data() + m * head_dim;
+            float* psin = sin_out.data() + m * head_dim;
+            for (size_t k = 0; k < half; ++k) {
+                const float angle = inv_freq[k] * static_cast<float>(m);
+                const float c = std::cos(angle);
+                const float s = std::sin(angle);
+                pcos[k] = c;
+                pcos[k + half] = c;
+                psin[k] = s;
+                psin[k + half] = s;
+            }
+        }
+    };
+
+    fill(inv_freq_short, out.cos_short, out.sin_short);
+    fill(inv_freq_long, out.cos_long, out.sin_long);
+}
+
+// Matches the Phi-style partial-rotary K-embedding subgraph:
+//   raw_k --Slice(rotary)--> rotary_part --Slice(2nd half)--neg-----> Concat(rotate_half)
+//                                         --Slice(1st half)--------->
+//   rotary_part * cos = mul_cos ; rotate_half(rotary_part) * sin = mul_sin
+//   mul_cos + mul_sin = add
+//   raw_k --Slice(passthrough)--> passthrough_part
+//   Concat(add, passthrough_part) = k_embed  (rotated K for the current token(s))
+//
+// k_embed normally either (a) feeds a Convert -> Result "present.*.key" directly
+// (whole/STATIC prefill - no past-key concat inside a single call), or (b) ALSO
+// feeds a Concat(past_key_values.*.key Parameter, k_embed) used internally for
+// attention (generate/chunked-prefill - the past+current KV used for QK^T).
+//
+// This pass rewrites both so the persisted KV cache stores the RAW (pre-RoPE) key:
+//  - case (a): redirect the Convert's input from k_embed to raw_k (present.*.key
+//    becomes raw). No further change - prefill's own attention still uses the
+//    (unchanged) rotated k_embed, which is internally self-consistent (one call =
+//    one global short/long-factor decision for the whole span).
+//  - case (b): redirect the past-key Concat's 2nd input from k_embed to raw_k (so
+//    it now concatenates raw past + raw current = fully raw KV), then re-apply RoPE
+//    to the WHOLE raw concat output right before attention.
+//
+//    Rather than re-deriving the rotary/passthrough split (which would need a
+//    second Slice consumer of the raw concat, and a reassembly Concat at the
+//    end - both awkward for downstream passes that expect a KV-cache Concat to
+//    have exactly one consumer, e.g. the attention-isolation pattern matchers
+//    in sdpa.cpp), this extends cos/sin to cover the FULL head_dim (not just
+//    the rotary_ndims) with identity values (cos=1, sin=0) on the passthrough
+//    dims, and applies the ordinary rotate_half formula to the whole tensor:
+//        out = raw_full * cos_param + rotate_half_full(raw_full) * sin_param
+//    For the passthrough dims this reduces to raw_full*1 + (anything)*0 =
+//    raw_full, i.e. exactly the original passthrough behaviour - the identity
+//    padding makes the two formulations equivalent. The terminal node is now a
+//    plain Add (no reassembly Concat), and raw_full's own consumer count stays
+//    at the same "one direct split, one direct multiply" shape as the Q-side
+//    rope-apply already has (see sdpa.cpp's matching `Or` alternative, and
+//    util.cpp's find_concat_from_matmul - both taught to see past this chain
+//    without needing to distinguish "real" vs. "incidental" Concats, since
+//    there's no longer an incidental Concat directly touching the raw KV).
+//
+// cos_param/sin_param are genuine model Parameters (shape [1,1,max_len,head_dim],
+// already identity-padded for the passthrough dims), NOT Constants - this is
+// deliberate: NPUW's repeated-function/closure-extraction (partitioning.cpp)
+// silently discards a Constant's friendly_name when promoting it to a shared
+// closure Parameter (there's no set_friendly_name() call on the newly-created
+// Parameter there), which broke an earlier attempt at this feature that tried
+// to find-and-truncate these LUTs by name for Pyramid attention's per-bucket
+// variants. Genuine, from-the-start Parameters take a different code path in
+// partitioning.cpp (matched against body_sg._parameters by identity, not
+// promoted) and keep their name - the same mechanism npuw_longrope_input
+// already relies on. Values are supplied by the host at runtime (see
+// process_longrope() in llm_infer_request.cpp) - since the host already knows
+// position_ids and the LongRoPE regime decision each call, no in-graph
+// Select/Slice/Concat/Gather is needed for this LUT at all anymore (unlike
+// the Q-side gather, which is a separate, pre-existing, unrelated mechanism).
+// See LongRopeHostLut (pre_compute.hpp) for the host-side table this doubles.
+//
+// This is intentionally scoped to whole/STATIC prefill, chunked prefill and
+// generate (see docs/CONTINUOUS_PREFILL... discussion): cos_param/sin_param
+// must be indexed directly by cache slot (slot i == absolute position i),
+// which holds for the historical prefix in all three (KV stored contiguously
+// from slot 0); the current call's own token(s) are (re-)computed fresh by the
+// host each call from the real position_ids, since their absolute position
+// isn't known at compile time.
+class CacheRawKeyPattern : public ov::pass::MatcherPass {
+    // Cached after the first match (same for every decoder layer) so the two
+    // new Parameters (and the host LUT they're populated from) are only built
+    // once per model, not once per layer.
+    bool m_have_ext = false;
+    const std::vector<float>& m_inv_freq_short;
+    const std::vector<float>& m_inv_freq_long;
+    size_t m_max_len = 0;
+    pre_compute::LongRopeHostLut* m_out_lut = nullptr;
+
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::precompute::CacheRawKey");
+
+    // Parameters created on first match; nullptr until then. Retrieved by
+    // applyCacheRawKeyAtAttention() after the GraphRewrite finishes, to be added
+    // to the model (a MatcherPass has no direct model-level access of its own).
+    std::shared_ptr<ov::op::v0::Parameter> cos_param;
+    std::shared_ptr<ov::op::v0::Parameter> sin_param;
+
+    CacheRawKeyPattern(const std::vector<float>& inv_freq_short,
+                       const std::vector<float>& inv_freq_long,
+                       size_t max_len,
+                       pre_compute::LongRopeHostLut* out_lut)
+        : m_inv_freq_short(inv_freq_short),
+          m_inv_freq_long(inv_freq_long),
+          m_max_len(max_len),
+          m_out_lut(out_lut) {
+        auto raw_k = opp::any_input();
+        auto slice_inputs = [](const ov::Output<ov::Node>& data) {
+            return ov::OutputVector{data, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()};
+        };
+        auto rotary_part = opp::wrap_type<ov::op::v8::Slice>(slice_inputs(raw_k));
+        auto passthrough_part = opp::wrap_type<ov::op::v8::Slice>(slice_inputs(raw_k));
+        auto first_half = opp::wrap_type<ov::op::v8::Slice>(slice_inputs(rotary_part));
+        auto second_half = opp::wrap_type<ov::op::v8::Slice>(slice_inputs(rotary_part));
+        auto neg = opp::wrap_type<ov::op::v1::Multiply>({second_half, opp::any_input()});
+        auto rotate_half = opp::wrap_type<ov::op::v0::Concat>({neg, first_half});
+        auto mul_cos = opp::wrap_type<ov::op::v1::Multiply>({rotary_part, opp::any_input()});
+        auto mul_sin = opp::wrap_type<ov::op::v1::Multiply>({rotate_half, opp::any_input()});
+        auto add = opp::wrap_type<ov::op::v1::Add>({mul_cos, mul_sin});
+        auto k_embed = opp::wrap_type<ov::op::v0::Concat>({add, passthrough_part});
+
+        ov::matcher_pass_callback callback = [=](opp::Matcher& m) {
+            auto& pm = m.get_pattern_value_map();
+            auto raw_k_out = pm.at(raw_k);
+            auto neg_node = pm.at(neg).get_node_shared_ptr();
+            auto first_half_node = pm.at(first_half).get_node_shared_ptr();
+            auto second_half_node = pm.at(second_half).get_node_shared_ptr();
+            auto passthrough_part_node = pm.at(passthrough_part).get_node_shared_ptr();
+            auto k_embed_node = pm.at(k_embed).get_node_shared_ptr();
+
+            auto raw_k_matching_dtype = [&]() -> ov::Output<ov::Node> {
+                if (raw_k_out.get_element_type() == k_embed_node->get_output_element_type(0)) {
+                    return raw_k_out;
+                }
+                return std::make_shared<ov::op::v0::Convert>(raw_k_out, k_embed_node->get_output_element_type(0))
+                    ->output(0);
+            }();
+
+            // Peels a chain of zero-or-more Converts to see if `out` ultimately
+            // comes from a Parameter (e.g. past_key_values.*.key -> Convert(f16->f32)
+            // -> Concat) - the past-key Parameter is not always Concat's DIRECT input.
+            auto originates_from_parameter = [](ov::Output<ov::Node> out) {
+                while (ov::is_type<ov::op::v0::Convert>(out.get_node())) {
+                    out = out.get_node()->input_value(0);
+                }
+                return ov::is_type<ov::op::v0::Parameter>(out.get_node());
+            };
+
+            bool changed = false;
+            // Copy: we mutate consumers below, so iterate over a snapshot.
+            auto k_embed_targets = k_embed_node->output(0).get_target_inputs();
+            for (auto target_input : k_embed_targets) {
+                auto consumer = target_input.get_node()->shared_from_this();
+
+                // Case (a): Convert feeding a Result (present.*.key) - cache raw K.
+                if (ov::is_type<ov::op::v0::Convert>(consumer)) {
+                    bool feeds_result = false;
+                    for (auto& ct : consumer->output(0).get_target_inputs()) {
+                        if (ov::is_type<ov::op::v0::Result>(ct.get_node())) {
+                            feeds_result = true;
+                            break;
+                        }
+                    }
+                    if (feeds_result) {
+                        target_input.replace_source_output(raw_k_matching_dtype);
+                        changed = true;
+                        continue;
+                    }
+                }
+
+                // Case (b): Concat with a sibling input that ultimately originates from a
+                // Parameter (possibly through a dtype Convert) - this is the internal
+                // past_key_values.*.key + current-token concat used for attention.
+                if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(consumer)) {
+                    bool has_param_sibling = false;
+                    for (auto& in : concat->inputs()) {
+                        if (in.get_source_output().get_node() != k_embed_node.get() &&
+                            originates_from_parameter(in.get_source_output())) {
+                            has_param_sibling = true;
+                            break;
+                        }
+                    }
+                    if (!has_param_sibling) {
+                        continue;
+                    }
+
+                    target_input.replace_source_output(raw_k_matching_dtype);
+                    changed = true;
+
+                    // Capture attention consumers BEFORE we add new consumers below.
+                    auto attn_targets = concat->output(0).get_target_inputs();
+                    auto raw_full = concat->output(0);
+
+                    if (!m_have_ext) {
+                        const auto passthrough_width = passthrough_part_node->get_output_shape(0).back();
+                        const auto first_half_width0 = first_half_node->get_output_shape(0).back();
+                        const auto second_half_width0 = second_half_node->get_output_shape(0).back();
+                        const auto rotary_ndims = first_half_width0 + second_half_width0;
+                        const auto head_dim = rotary_ndims + passthrough_width;
+
+                        cos_param = std::make_shared<ov::op::v0::Parameter>(
+                            ov::element::f32,
+                            ov::Shape{1, 1, m_max_len, head_dim});
+                        sin_param = std::make_shared<ov::op::v0::Parameter>(
+                            ov::element::f32,
+                            ov::Shape{1, 1, m_max_len, head_dim});
+                        // Named so the runtime (process_longrope, llm_infer_request.cpp) and
+                        // Pyramid attention's per-variant construction (pyramid_attention.cpp)
+                        // can find them. Unlike the earlier Constant-based attempt, these
+                        // names survive closure-promotion since they're genuine Parameters
+                        // from the start (see the class comment above).
+                        cos_param->set_friendly_name("npuw_lr_full_cos");
+                        sin_param->set_friendly_name("npuw_lr_full_sin");
+
+                        if (m_out_lut) {
+                            buildLongRopeHostLut(m_max_len,
+                                                 rotary_ndims,
+                                                 passthrough_width,
+                                                 m_inv_freq_short,
+                                                 m_inv_freq_long,
+                                                 *m_out_lut);
+                        }
+
+                        m_have_ext = true;
+                    }
+
+                    const auto first_half_width = first_half_node->get_output_shape(0).back();
+                    const auto second_half_width = second_half_node->get_output_shape(0).back();
+                    const auto passthrough_width = passthrough_part_node->get_output_shape(0).back();
+                    auto split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+                    auto split_lengths = ov::op::v0::Constant::create(
+                        ov::element::i64,
+                        ov::Shape{3},
+                        std::vector<int64_t>{static_cast<int64_t>(first_half_width),
+                                             static_cast<int64_t>(second_half_width),
+                                             static_cast<int64_t>(passthrough_width)});
+                    auto split_full =
+                        std::make_shared<ov::op::v1::VariadicSplit>(raw_full, split_axis, split_lengths);
+
+                    auto neg_full =
+                        neg_node->clone_with_new_inputs({split_full->output(1), neg_node->input_value(1)});
+                    auto rotate_half_full = std::make_shared<ov::op::v0::Concat>(
+                        ov::OutputVector{neg_full->output(0), split_full->output(0), split_full->output(2)},
+                        -1);
+                    auto mul_cos_full = std::make_shared<ov::op::v1::Multiply>(raw_full, cos_param);
+                    auto mul_sin_full = std::make_shared<ov::op::v1::Multiply>(rotate_half_full->output(0), sin_param);
+                    auto k_for_attention = std::make_shared<ov::op::v1::Add>(mul_cos_full, mul_sin_full);
+
+                    for (auto attn_input : attn_targets) {
+                        attn_input.replace_source_output(k_for_attention->output(0));
+                    }
+                }
+            }
+
+            return changed;
+        };
+
+        register_matcher(std::make_shared<opp::Matcher>(k_embed, "CacheRawKeyPattern"), callback);
+    }
+};
+
+void applyCacheRawKeyAtAttention(const std::shared_ptr<ov::Model>& model,
+                                 const std::vector<float>& inv_freq_short,
+                                 const std::vector<float>& inv_freq_long,
+                                 size_t max_len,
+                                 pre_compute::LongRopeHostLut* out_lut) {
+    ov::pass::GraphRewrite grw;
+    auto matcher = grw.add_matcher<CacheRawKeyPattern>(inv_freq_short, inv_freq_long, max_len, out_lut);
+    grw.run_on_model(model);
+
+    if (matcher->cos_param && matcher->sin_param) {
+        model->add_parameters({matcher->cos_param, matcher->sin_param});
+        for (auto&& input : model->inputs()) {
+            if (input.get_node() == matcher->cos_param.get()) {
+                input.set_names({matcher->cos_param->get_friendly_name()});
+            } else if (input.get_node() == matcher->sin_param.get()) {
+                input.set_names({matcher->sin_param->get_friendly_name()});
+            }
+        }
+    }
 }
 
 }  // namespace
@@ -351,7 +675,9 @@ std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_phi_v5_longrope
 
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
                                                                     const std::shared_ptr<ov::Model>& model,
-                                                                    const std::string& longrope_input_name) {
+                                                                    const std::string& longrope_input_name,
+                                                                    bool cache_raw_key_at_attention,
+                                                                    LongRopeHostLut* out_lut) {
     auto rpe = std::make_shared<RopePatternLLama2>();
 
     rpe->transform_cb = [&]() {
@@ -381,6 +707,15 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
 
     auto long_rpe_v5 = std::make_shared<LongRopePatternPhi_v5>();
 
+    // Raw (rotary_ndims/2-sized) short/long-factor inverse-frequency arrays,
+    // captured only if the v5 pattern matches AND cache_raw_key_at_attention is
+    // set - fed to applyCacheRawKeyAtAttention below to build the host-side
+    // LongRopeHostLut (see pre_compute.hpp) plus the two npuw_lr_full_cos/
+    // npuw_lr_full_sin model Parameters it adds.
+    std::vector<float> pending_inv_freq_short;
+    std::vector<float> pending_inv_freq_long;
+    bool have_pending_inv_freq = false;
+
     long_rpe_v5->transform_cb = [&]() {
         auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor,
                                        long_rpe_v5->matched_long_factor,
@@ -399,12 +734,23 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         long_rpe_v5->matched_inv_freq = inv_freq[0];
         replaceSinCosByCache(max_prompt_len, {select_cos, select_sin}, long_rpe_v5.get());
 
+        if (cache_raw_key_at_attention) {
+            pending_inv_freq_short = ov::as_type_ptr<ov::op::v0::Constant>(inv_freq[0])->cast_vector<float>();
+            pending_inv_freq_long = ov::as_type_ptr<ov::op::v0::Constant>(inv_freq[1])->cast_vector<float>();
+            have_pending_inv_freq = true;
+        }
+
         auto max_pos_id_out = long_rpe_v5->max_pos_id->output(0);
         max_pos_id_param.reset(new ov::op::v0::Parameter(max_pos_id_out.get_element_type(), {1}));
         max_pos_id_param->set_friendly_name(longrope_input_name);
         max_pos_id_out.replace(max_pos_id_param->output(0));
     };
     long_rpe_v5->run_on_model(model);
+
+    if (have_pending_inv_freq) {
+        LOG_DEBUG("Caching raw (pre-RoPE) K, rotating at attention time");
+        applyCacheRawKeyAtAttention(model, pending_inv_freq_short, pending_inv_freq_long, max_prompt_len, out_lut);
+    }
 
     if (max_pos_id_param) {
         model->add_parameters({max_pos_id_param});
@@ -434,6 +780,10 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
 }
 
 bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len, model, m_longrope_input_name);
+    ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len,
+                                                                model,
+                                                                m_longrope_input_name,
+                                                                m_cache_raw_key_at_attention,
+                                                                &m_host_lut);
     return true;
 }

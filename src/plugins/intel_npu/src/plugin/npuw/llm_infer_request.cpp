@@ -224,6 +224,165 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
         longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
     }
 }
+
+// Populates the npuw_lr_full_cos/npuw_lr_full_sin Parameters (see CacheRawKeyPattern,
+// pre_compute.cpp, NPUW_LONGROPE_UNROTATED_KV) from the host-side precomputed LUT
+// (LongRopeHostLut). Row i of the table always equals cos/sin for absolute position i
+// (see makeCosSinCache/buildLongRopeHostLut), so the "history" portion (positions
+// already stored in the KV cache) is always correct via a straight table copy,
+// regardless of chunking - no-op if the model doesn't have these ports (feature
+// disabled or pattern didn't match) or the LUT is empty.
+//
+// The model's own K-cache Concat, however, reserves its LAST `query_len` rows for
+// THIS call's own new tokens (see docs/CONTINUOUS_PREFILL... / attn_subgraph.cpp) -
+// those rows' absolute position is NOT their row index (row F-1 does not mean
+// position F-1) unless this call happens to fill the cache to exactly capacity, so
+// they need refreshing with the real position_ids values. `refresh_tail` controls
+// this: true for a single one-shot call whose full real position_ids are known
+// upfront and match the graph's own query reservation exactly (whole/STATIC
+// prefill, generate) - false for chunked prefill, where the "this call's own new
+// tokens" concept is PER CHUNK (see refresh_longrope_lut_tail(), called separately
+// once per chunk inside the chunk loop) rather than per whole-prompt call.
+void process_longrope_lut(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+                          const LLMInferRequest::PortsMap& ports,
+                          const ov::SoPtr<ov::ITensor>& position_ids,
+                          const ov::npuw::patterns::pre_compute::LongRopeHostLut& lut,
+                          uint64_t context_limit,
+                          bool refresh_tail = true) {
+    if (!lut.is_valid()) {
+        return;
+    }
+    auto cos_it = ports.find("npuw_lr_full_cos");
+    auto sin_it = ports.find("npuw_lr_full_sin");
+    if (cos_it == ports.end() || sin_it == ports.end()) {
+        return;
+    }
+
+    const auto max_position_id = get_max_position_id(position_ids);
+    const bool is_long = max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+    const auto& cos_table = is_long ? lut.cos_long : lut.cos_short;
+    const auto& sin_table = is_long ? lut.sin_long : lut.sin_short;
+    const auto& inv_freq = is_long ? lut.inv_freq_long : lut.inv_freq_short;
+
+    auto cos_tensor = infer_req->get_tensor(cos_it->second);
+    auto sin_tensor = infer_req->get_tensor(sin_it->second);
+
+    const size_t head_dim = lut.head_dim;
+    const size_t rotary_ndims = lut.rotary_ndims;
+    const size_t half = rotary_ndims / 2;
+    const size_t f = lut.max_len;
+    OPENVINO_ASSERT(cos_tensor->get_size() == f * head_dim && sin_tensor->get_size() == f * head_dim,
+                    "LongRoPE LUT: npuw_lr_full_cos/sin tensor size does not match the precomputed table");
+
+    auto* cos_dst = cos_tensor->data<float>();
+    auto* sin_dst = sin_tensor->data<float>();
+
+    // Row i == absolute position i, unconditionally - a straight copy of the whole
+    // precomputed table is always correct for the "history" portion, regardless of
+    // where this call's own new tokens end up.
+    std::copy_n(cos_table.data(), f * head_dim, cos_dst);
+    std::copy_n(sin_table.data(), f * head_dim, sin_dst);
+
+    if (!refresh_tail) {
+        return;
+    }
+
+    const size_t query_len = position_ids->get_size();
+    OPENVINO_ASSERT(query_len <= f, "LongRoPE LUT: query length exceeds the table size");
+    auto* pos_ids_data = position_ids->data<int64_t>();
+
+    // Tail rows: the current call's own query tokens. Their absolute position isn't
+    // known at compile time, so compute cos/sin fresh from the real position_ids
+    // values (matching makeCosSinCache's duplicate=true convention: second half
+    // mirrors the first). Passthrough columns are identity (1/0), same as every
+    // other row.
+    const size_t history_len = f - query_len;
+    for (size_t q = 0; q < query_len; ++q) {
+        float* pcos = cos_dst + (history_len + q) * head_dim;
+        float* psin = sin_dst + (history_len + q) * head_dim;
+        const float pos = static_cast<float>(pos_ids_data[q]);
+        for (size_t k = 0; k < half; ++k) {
+            const float angle = inv_freq[k] * pos;
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            pcos[k] = c;
+            pcos[k + half] = c;
+            psin[k] = s;
+            psin[k + half] = s;
+        }
+        for (size_t k = rotary_ndims; k < head_dim; ++k) {
+            pcos[k] = 1.0f;
+            psin[k] = 0.0f;
+        }
+    }
+}
+
+// Per-chunk counterpart to process_longrope_lut() for chunked prefill: refreshes
+// ONLY the tail rows (this chunk's own new tokens) using the chunk's own real
+// position values. Chunked prefill's model-level query reservation (chunk_prompt_len)
+// is a fixed, compile-time constant reused across every chunk call - unlike
+// process_longrope_lut()'s single-shot callers (whole/STATIC prefill, generate), the
+// whole-prompt-level position_ids passed to process_longrope_lut() there don't
+// describe THIS chunk's own reservation, so that call is made with refresh_tail=false
+// (history-only) and this function handles the per-chunk tail instead.
+//
+// `chunk_position_ids` is the real (unpadded) position slice for this chunk only
+// (size == current_prompts_len, no zero-padding) - see the chunk loop in
+// infer_prefill(). The regime decision is recomputed per chunk (matching the
+// model's own native ReduceMax(position_ids)+1 > context_limit, computed fresh from
+// each chunk's own position_ids in the graph).
+void refresh_longrope_lut_tail(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+                               const LLMInferRequest::PortsMap& ports,
+                               const ov::SoPtr<ov::ITensor>& chunk_position_ids,
+                               const ov::npuw::patterns::pre_compute::LongRopeHostLut& lut,
+                               uint64_t context_limit) {
+    if (!lut.is_valid()) {
+        return;
+    }
+    auto cos_it = ports.find("npuw_lr_full_cos");
+    auto sin_it = ports.find("npuw_lr_full_sin");
+    if (cos_it == ports.end() || sin_it == ports.end()) {
+        return;
+    }
+
+    const auto max_position_id = get_max_position_id(chunk_position_ids);
+    const bool is_long = max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+    const auto& inv_freq = is_long ? lut.inv_freq_long : lut.inv_freq_short;
+
+    auto cos_tensor = infer_req->get_tensor(cos_it->second);
+    auto sin_tensor = infer_req->get_tensor(sin_it->second);
+
+    const size_t head_dim = lut.head_dim;
+    const size_t rotary_ndims = lut.rotary_ndims;
+    const size_t half = rotary_ndims / 2;
+    const size_t f = lut.max_len;
+    const size_t chunk_len = chunk_position_ids->get_size();
+    OPENVINO_ASSERT(chunk_len <= f, "LongRoPE LUT: chunk length exceeds the table size");
+
+    auto* pos_ids_data = chunk_position_ids->data<int64_t>();
+    auto* cos_dst = cos_tensor->data<float>();
+    auto* sin_dst = sin_tensor->data<float>();
+    const size_t history_len = f - chunk_len;
+
+    for (size_t q = 0; q < chunk_len; ++q) {
+        float* pcos = cos_dst + (history_len + q) * head_dim;
+        float* psin = sin_dst + (history_len + q) * head_dim;
+        const float pos = static_cast<float>(pos_ids_data[q]);
+        for (size_t k = 0; k < half; ++k) {
+            const float angle = inv_freq[k] * pos;
+            const float c = std::cos(angle);
+            const float s = std::sin(angle);
+            pcos[k] = c;
+            pcos[k + half] = c;
+            psin[k] = s;
+            psin[k + half] = s;
+        }
+        for (size_t k = rotary_ndims; k < head_dim; ++k) {
+            pcos[k] = 1.0f;
+            psin[k] = 0.0f;
+        }
+    }
+}
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -973,6 +1132,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // Copy with proper stride handling
             actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
+            // Per-chunk LongRoPE LUT tail refresh (see process_longrope_lut()'s
+            // refresh_tail=false above) - this chunk's own new tokens' real
+            // positions aren't known until now.
+            refresh_longrope_lut_tail(m_prefill_request,
+                                      m_prefill_in_ports,
+                                      actual_position_ids_slice,
+                                      m_npuw_llm_compiled_model->m_longrope_prefill_lut,
+                                      m_npuw_llm_compiled_model->m_longrope_context_limit);
+
             // DeepStack (Qwen3-VL): scatter only the visual tokens that fall into the current
             // chunk. The chunk's visual_pos_masks slice gives their chunk-local positions, and
             // the deepstack rows for those tokens follow the visual tokens of earlier chunks.
@@ -1158,6 +1326,12 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     });
 
     process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
+    process_longrope_lut(m_prefill_request,
+                         m_prefill_in_ports,
+                         position_ids,
+                         m_npuw_llm_compiled_model->m_longrope_prefill_lut,
+                         m_npuw_llm_compiled_model->m_longrope_context_limit,
+                         /*refresh_tail=*/!m_npuw_llm_compiled_model->m_use_chunk_prefill);
 
     m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
@@ -1280,6 +1454,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
         process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
+        if (m_kvcache_variant_idx < m_npuw_llm_compiled_model->m_longrope_generate_luts.size()) {
+            process_longrope_lut(m_kvcache_request,
+                                 m_kvcache_in_ports,
+                                 position_ids,
+                                 m_npuw_llm_compiled_model->m_longrope_generate_luts[m_kvcache_variant_idx],
+                                 m_npuw_llm_compiled_model->m_longrope_context_limit);
+        }
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));

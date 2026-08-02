@@ -1096,23 +1096,49 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
         const bool force_rope_cache = m_longrope_context_limit > 0u;
 
+        // EXPERIMENTAL: store the KV-cache key unrotated and apply RoPE right before
+        // it's consumed by attention, instead of caching an already-rotated key. This
+        // avoids the LongRoPE short/long-factor mismatch between keys cached under
+        // different regimes (see pre_compute.cpp's CacheRawKeyPattern). Correct for
+        // generate, whole/STATIC prefill, and chunked (continuous-strategy) prefill -
+        // all three keep the "history is stored contiguously from slot 0" invariant
+        // the full-range RoPE construction relies on. NOT verified for block-based KV
+        // cache (NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE) - that strategy manages KV in a
+        // block pool with a different layout, so it's excluded here until checked.
+        const bool cache_raw_key_env = std::getenv("NPUW_LONGROPE_UNROTATED_KV") != nullptr;
+        const bool block_based_kv_cache = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>();
+        const bool cache_raw_key_at_attention = force_rope_cache && cache_raw_key_env && !block_based_kv_cache;
+        if (cache_raw_key_env && force_rope_cache && block_based_kv_cache) {
+            LOG_WARN("NPUW_LONGROPE_UNROTATED_KV is set but NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES - "
+                     << "this mitigation is not verified with block-based KV cache and is disabled.");
+        }
+
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
                 max_prompt_len,
-                ov::npuw::LLMInferRequest::layer_names::longrope_input);
+                ov::npuw::LLMInferRequest::layer_names::longrope_input,
+                cache_raw_key_at_attention);
             rope_prefill_cacher.run_on_model(prefill_model);
+            if (cache_raw_key_at_attention) {
+                m_longrope_prefill_lut = rope_prefill_cacher.host_lut();
+            }
         }
 
         // Apply RoPE Cache to all generate variant models
+        m_longrope_generate_luts.resize(generate_model_variants.size());
         for (size_t i = 0; i < generate_model_variants.size(); ++i) {
             const uint32_t kv_size = m_kvcache_sizes[i];
             if (!is_best || (kv_size >= CACHE_ROPE_START || force_rope_cache)) {
                 LOG_DEBUG("Enable RoPE Cache for generate variant with size: " << kv_size);
                 ov::npuw::patterns::pre_compute::RopeCache rope_cacher(
                     kv_size,
-                    ov::npuw::LLMInferRequest::layer_names::longrope_input);
+                    ov::npuw::LLMInferRequest::layer_names::longrope_input,
+                    cache_raw_key_at_attention);
                 rope_cacher.run_on_model(generate_model_variants[i]);
+                if (cache_raw_key_at_attention) {
+                    m_longrope_generate_luts[i] = rope_cacher.host_lut();
+                }
             }
         }
     }

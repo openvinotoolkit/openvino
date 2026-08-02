@@ -141,6 +141,10 @@ struct PyramidAttentionContiguousInfo {
 
     // Per-step KV slice descriptors used to bind past KV windows to pyramid variants.
     std::vector<Param> params;
+
+    // LongRoPE unrotated-K-cache full-range LUT Parameters (npuw_lr_full_cos /
+    // npuw_lr_full_sin), if present - see longrope_lut_dim() in PyramidAttention.
+    std::vector<Param> longrope_lut_params;
 };
 
 // Per-variant compiled metadata for block-split KV cache mode
@@ -215,6 +219,14 @@ struct PyramidAttention {
     // Block subclass always returns nullopt.
     virtual std::optional<std::size_t> kv_param_dim(size_t pyramid_id, size_t input_idx) const = 0;
 
+    // Contiguous-mode LongRoPE full-range LUT param lookup (npuw_lr_full_cos/sin).
+    // Returns the sequence dimension (always axis 2) for input_idx in pyramid
+    // variant pyramid_id, or nullopt when input_idx isn't one of these params.
+    // Unlike kv_param_dim, the runtime binding for this uses the FULL bucket
+    // context length, not past_len (see attn_subgraph.cpp bind_function_input()).
+    // Block subclass always returns nullopt.
+    virtual std::optional<std::size_t> longrope_lut_dim(size_t pyramid_id, size_t input_idx) const = 0;
+
     // Strides setup helper
     // Appends enable_strides_for input names for pyramid model 0 to 'out'.
     // No-op in block mode (block ports are bound directly, not via strided views).
@@ -263,6 +275,7 @@ struct PyramidAttentionContiguous final : PyramidAttention {
         return 0u;
     }
     std::optional<std::size_t> kv_param_dim(size_t pyramid_id, size_t input_idx) const override;
+    std::optional<std::size_t> longrope_lut_dim(size_t pyramid_id, size_t input_idx) const override;
     void collect_strided_input_names(const ov::Model& model, std::string& out) const override;
 };
 
@@ -304,6 +317,9 @@ struct PyramidAttentionBlock final : PyramidAttention {
         return past_value_block_global_param_indices[i];
     }
     std::optional<std::size_t> kv_param_dim(size_t, size_t) const override {
+        return std::nullopt;
+    }
+    std::optional<std::size_t> longrope_lut_dim(size_t, size_t) const override {
         return std::nullopt;
     }
     void collect_strided_input_names(const ov::Model&, std::string&) const override {}  // no-op
