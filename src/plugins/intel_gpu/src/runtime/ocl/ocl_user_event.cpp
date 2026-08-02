@@ -11,8 +11,7 @@ using namespace cldnn::ocl;
 ocl_user_event::ocl_user_event(const cl::Context& ctx,
                                bool is_set,
                                const cl::Device& device)
-    : ocl_base_event()
-    , _ctx(ctx)
+    : _ctx(ctx)
     , _event(_ctx) {
 #if defined(CL_VERSION_2_1)
     if (device.get() != nullptr) {

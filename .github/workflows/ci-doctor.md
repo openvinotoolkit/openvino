@@ -26,6 +26,7 @@ network: defaults
 
 imports:
   - shared/agentic-workflows/download-failure-logs.md
+  - shared/agentic-workflows/collect-pr-info.md
 
 safe-outputs:
   add-comment:
@@ -64,6 +65,7 @@ Logs for the pull request's failed pipelines have been pre-downloaded before thi
 - **Failed jobs per run**: `/tmp/gh-aw/agent/ci-doctor/logs/run-<run-id>-failed-jobs.json`
 - **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log`
 - **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/job-<job-id>-hints.txt` — pre-located error lines.
+- **PR info**: `/tmp/gh-aw/agent/ci-doctor/pr-info.json` (structured) and `/tmp/gh-aw/agent/ci-doctor/pr-info.txt` (human-readable) — the pull request under investigation, resolved before the session. Includes `pr_number`, `pr_url`, `author`, `title`, `base_branch`, `head_sha`, `labels`, and the list of `changed_files`. Prefer the `changed_files` list when scoping PR-diff source inspection (Phase 4) instead of re-fetching the diff, and use `author` / `title` for context. If the file is empty (`{}`), fall back to the workflow context (`#${{ github.event.issue.number }}`).
 
 Read the hint files first and jump to ~50 lines around each hinted line number in the full log before loading the whole log.
 

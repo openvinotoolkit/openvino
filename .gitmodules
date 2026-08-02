@@ -97,3 +97,4 @@
 [submodule "thirdparty/liburing/liburing"]
 	path = thirdparty/liburing/liburing
 	url = https://github.com/axboe/liburing.git
+	ignore = dirty
