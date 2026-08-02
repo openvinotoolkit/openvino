@@ -11,8 +11,11 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
