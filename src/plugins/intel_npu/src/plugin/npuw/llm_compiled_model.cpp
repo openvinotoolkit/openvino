@@ -1105,11 +1105,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // the full-range RoPE construction relies on. NOT verified for block-based KV
         // cache (NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE) - that strategy manages KV in a
         // block pool with a different layout, so it's excluded here until checked.
-        const bool cache_raw_key_env = std::getenv("NPUW_LONGROPE_UNROTATED_KV") != nullptr;
+        const bool cache_raw_key_requested = m_cfg.get<::intel_npu::NPUW_LLM_LONGROPE_UNROTATED_KV>();
         const bool block_based_kv_cache = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>();
-        const bool cache_raw_key_at_attention = force_rope_cache && cache_raw_key_env && !block_based_kv_cache;
-        if (cache_raw_key_env && force_rope_cache && block_based_kv_cache) {
-            LOG_WARN("NPUW_LONGROPE_UNROTATED_KV is set but NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES - "
+        const bool cache_raw_key_at_attention = force_rope_cache && cache_raw_key_requested && !block_based_kv_cache;
+        if (cache_raw_key_requested && force_rope_cache && block_based_kv_cache) {
+            LOG_WARN("NPUW_LLM_LONGROPE_UNROTATED_KV is set but NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES - "
                      << "this mitigation is not verified with block-based KV cache and is disabled.");
         }
 
@@ -1691,6 +1691,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
+                          BIND(npuw::llm::longrope_unrotated_kv, NPUW_LLM_LONGROPE_UNROTATED_KV, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
