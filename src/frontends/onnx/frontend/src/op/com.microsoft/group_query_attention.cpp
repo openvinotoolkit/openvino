@@ -79,9 +79,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        FRONT_END_OP_CONVERSION_CHECK(kv_cache_bit_width == 0,
-                                      "GroupQueryAttention: sliding_window_cache=1 with a quantized KV cache is not "
-                                      "supported.");
     }
     FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
 
