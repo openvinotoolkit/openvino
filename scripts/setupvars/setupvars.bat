@@ -134,6 +134,7 @@ exit /B 0
 set "available_python_versions="
 set "ov_python_dir=%INTEL_OPENVINO_DIR%\python\openvino"
 if not exist "%ov_python_dir%" exit /B 0
+if not exist "%ov_python_dir%\_pyopenvino.cp*.pyd" exit /B 0
 for %%F in ("%ov_python_dir%\_pyopenvino.cp*.pyd") do call :parse_pyd_version "%%~nxF"
 exit /B 0
 
