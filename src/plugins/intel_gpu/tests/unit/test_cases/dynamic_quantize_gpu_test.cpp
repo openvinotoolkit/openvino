@@ -293,69 +293,6 @@ TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_small_size_precompute_g
                                     TestForSmallInputs::Yes);
 }
 
-TEST_F(dynamic_quantization_gpu_tests, compare_opt_and_opt_ref_execution_time_no_throw) {
-    tests::random_generator rg(GET_SUITE_NAME);
-    auto& engine = get_test_engine();
-
-    const ov::Shape data_shape = {2048, 1, 4096 + 128};
-    const ov::PartialShape input_shape = {11, 1, 4096 + 128};
-    auto input_mem = engine.allocate_memory({data_shape, data_types::f32, format::bfyx});
-
-    auto input_data = rg.generate_random_1d<float>(ov::shape_size(data_shape), -16.0f, 20.0f);
-    set_values(input_mem, input_data);
-
-    auto run_impl_and_measure = [&](const std::string& impl_name) -> long long {
-        std::cout << "[RUN] " << impl_name << std::endl;
-        auto in_layout_f32 = layout{data_shape, data_types::f32, format::bfyx};
-        auto scales_ps = ov::PartialShape::dynamic(input_shape.size());
-
-        dynamic_quantize::Attributes dq_config;
-        dq_config.quantization_type = QuantizationType::Symmetric;
-        dq_config.quantization_dt = data_types::i8;
-        dq_config.scale_dt = data_types::f16;
-        dq_config.zp_dt = data_types::dynamic;
-        dq_config.group_sizes = std::vector<uint64_t>(input_shape.size(), 1);
-        dq_config.group_sizes.back() = 128;
-        dq_config.scales_zp_output_order = {0, 1, 2};
-        dq_config.output_storage_type = OutputStorageType::Planar;
-
-        topology topology(
-            input_layout("input", in_layout_f32),
-            reorder("reorder_1", input_info("input"), layout{data_shape, data_types::f16, format::bfyx}),
-            dynamic_quantize("dyn_quan_prim", input_info("reorder_1"), dq_config),
-            reorder("reorder_data", input_info("dyn_quan_prim", 0), layout{data_shape, data_types::f16, format::bfyx}),
-            reorder("reorder_scale", input_info("dyn_quan_prim", 1), layout{scales_ps, data_types::f16, format::bfyx})
-        );
-
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-
-        ov::intel_gpu::ImplementationDesc dyn_quan_impl_desc = {format::bfyx, impl_name, impl_types::ocl};
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"dyn_quan_prim", dyn_quan_impl_desc}}));
-
-        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
-        network->set_input_data("input", input_mem);
-
-        // Warm-up run to avoid one-time overhead in timed measurement.
-        network->execute();
-
-        const auto exec_start = std::chrono::high_resolution_clock::now();
-        network->execute();
-        const auto exec_end = std::chrono::high_resolution_clock::now();
-
-        return std::chrono::duration_cast<std::chrono::microseconds>(exec_end - exec_start).count();
-    };
-
-    long long opt_time_us = 0;
-    long long opt_ref_time_us = 0;
-    EXPECT_NO_THROW(opt_time_us = run_impl_and_measure("dynamic_quantize_gpu_opt"));
-    EXPECT_NO_THROW(opt_ref_time_us = run_impl_and_measure("dynamic_quantize_gpu_opt_org_ref_to_be_reverted"));
-
-    std::cout << "[dynamic_quantize][compare] dynamic_quantize_gpu_opt execute() time: " << opt_time_us << " us" << std::endl;
-    std::cout << "[dynamic_quantize][compare] dynamic_quantize_gpu_opt_ref execute() time: " << opt_ref_time_us << " us" << std::endl;
-}
-
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_asym_act) {
     this->test_dynamic_quantization(false, {-1, 1, 1, 4096}, {1, 1, 1, 4096}, QuantizationType::Asymmetric, UINT64_MAX,
                                     data_types::u8, data_types::u8, OutputStorageType::Planar);
