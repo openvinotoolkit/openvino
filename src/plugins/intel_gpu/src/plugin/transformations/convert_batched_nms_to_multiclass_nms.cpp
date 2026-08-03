@@ -290,7 +290,9 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto nms_m = wrap_type<ov::op::v9::NonMaxSuppression, ov::op::internal::NonMaxSuppressionIEInternal>(
         {boxes_reshape_m, scores_unsqueeze_m, any_input(), any_input(), any_input()});
     auto nms_output_m = optional<ov::op::v0::Convert>(nms_m);
-    auto gather_m = wrap_type<ov::op::util::GatherBase>({nms_output_m, any_input(), any_input()});
+    auto gather_indices_m = wrap_type<ov::op::v0::Constant>(value_matches("2"));
+    auto gather_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
+    auto gather_m = wrap_type<ov::op::util::GatherBase>({nms_output_m, gather_indices_m, gather_axis_m});
     auto squeeze_m = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({gather_m, any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -307,10 +309,6 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
             return false;
         }
 
-        if (!is_scalar_constant_value(gather->input_value(1), 2) ||
-            !is_scalar_constant_value(gather->input_value(2), 1)) {
-            return false;
-        }
         // Reshape's 2nd input is a target shape, not a scalar axis, so only check Squeeze.
         if (ov::is_type<ov::op::v0::Squeeze>(squeeze) && !is_scalar_constant_value(squeeze->input_value(1), 1)) {
             return false;
