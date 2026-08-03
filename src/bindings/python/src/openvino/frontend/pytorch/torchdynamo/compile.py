@@ -26,6 +26,18 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import (
 logger = logging.getLogger(__name__)
 
 
+_TORCH_TO_OV_DTYPE = {
+    torch.float32: Type.f32,
+    torch.float64: Type.f64,
+    torch.float16: Type.f16,
+    torch.int64: Type.i64,
+    torch.int32: Type.i32,
+    torch.uint8: Type.u8,
+    torch.int8: Type.i8,
+    torch.bool: Type.boolean,
+}
+
+
 def cached_model_name(model_hash_str, device, args, cache_root, reversed=False):  # noqa: VNE003
     if model_hash_str is None:
         return None
@@ -56,19 +68,8 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
 
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
-
     for idx, input_data in enumerate(example_inputs):
-        om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+        om.inputs[idx].get_node().set_element_type(_TORCH_TO_OV_DTYPE[input_data.dtype])
         om.inputs[idx].get_node().set_partial_shape(PartialShape(list(input_data.shape)))
     om.validate_nodes_and_infer_types()
 
@@ -154,17 +155,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
 
-    dtype_mapping = {
-        torch.float32: Type.f32,
-        torch.float64: Type.f64,
-        torch.float16: Type.f16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32,
-        torch.uint8: Type.u8,
-        torch.int8: Type.i8,
-        torch.bool: Type.boolean
-    }
-
     # Symint FX inputs are Python ints that torch.compile has already
     # specialized for this trace. Bake them as Constants so OV's shape
     # inference propagates concrete bounds through Broadcast/Reshape rather
@@ -187,7 +177,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             continue  # Already baked as Constant above
-        om.inputs[_tensor_idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+        om.inputs[_tensor_idx].get_node().set_element_type(_TORCH_TO_OV_DTYPE[input_data.dtype])
         if _dyn:
             # Dynamic shapes so the compiled OV model is reused across
             # different batch sizes / seq lengths / past_lens rather than
@@ -227,33 +217,11 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if device == "CPU" and _num_threads and "INFERENCE_NUM_THREADS" not in config:
         config["INFERENCE_NUM_THREADS"] = int(_num_threads)
 
-    # Dump pre-plugin IR for RoPE pattern analysis
-    _dump_dir = os.environ.get("OV_DUMP_PRE_PLUGIN_IR")
-    if _dump_dir:
-        os.makedirs(_dump_dir, exist_ok=True)
-        import hashlib as _hl
-        _tag = _hl.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
-        _path = os.path.join(_dump_dir, f"pre_plugin_{_tag}")
-        if not os.path.isfile(_path + ".xml"):
-            serialize(om, _path + ".xml", _path + ".bin")
-            print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
-
     compiled = core.compile_model(om, device, config)
     # Keep the widened affinity mask — TBB threads were created during
     # compile_model and inherit the mask at creation time. Restoring the
     # narrow mask would not shrink the thread pool but would prevent newly
     # spawned worker threads from running on most cores. Leave it wide.
     logger.debug(f"OpenVINO graph compile successful on device {device}")
-
-    _post_dir = os.environ.get("OV_DUMP_POST_PLUGIN_IR")
-    if _post_dir:
-        os.makedirs(_post_dir, exist_ok=True)
-        import hashlib as _hl2
-        _tag2 = _hl2.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
-        _path2 = os.path.join(_post_dir, f"post_plugin_{_tag2}")
-        if not os.path.isfile(_path2 + ".xml"):
-            rm_dump = compiled.get_runtime_model()
-            serialize(rm_dump, _path2 + ".xml", _path2 + ".bin")
-            print(f"[OV_DUMP] Dumped post-plugin runtime IR to {_path2}.xml", flush=True)
 
     return compiled

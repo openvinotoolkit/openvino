@@ -18,15 +18,12 @@ from openvino.frontend.pytorch.torchdynamo.op_support import OperatorSupport
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 import typing as t
-import os as _os
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class PatternNode:
-    op_types = {}
-
     def __init__(self):
         self.op_types = {}
 
@@ -86,27 +83,27 @@ class Partitioner:
         return False
 
     def capture_gptq_patterns(self, graph_module: GraphModule):
-        const_0_node = PatternNode
+        const_0_node = PatternNode()
         const_0_node.op_types["get_attr"] = None
-        unsqueeze_0_node = PatternNode
+        unsqueeze_0_node = PatternNode()
         unsqueeze_0_node.op_types["call_function:aten.unsqueeze.default"] = [const_0_node]
-        expand_node = PatternNode
+        expand_node = PatternNode()
         expand_node.op_types["call_function:aten.expand.default"] = [unsqueeze_0_node]
-        const_1_node = PatternNode
+        const_1_node = PatternNode()
         const_1_node.op_types["get_attr"] = None
-        unsqueeze_1_node = PatternNode
+        unsqueeze_1_node = PatternNode()
         unsqueeze_1_node.op_types["call_function:aten.unsqueeze.default"] = [const_1_node]
-        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node = PatternNode()
         bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor"] = [
             expand_node,
             unsqueeze_1_node,
         ]
-        to_copy_node = PatternNode
+        to_copy_node = PatternNode()
         to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
-        add_or_to_copy_node = PatternNode
+        add_or_to_copy_node = PatternNode()
         add_or_to_copy_node.op_types["call_function:aten._to_copy.default"] = [bitwise_right_shift_node]
         add_or_to_copy_node.op_types["call_function:aten.add.Tensor"] = [to_copy_node]
-        bitwise_and_node = PatternNode
+        bitwise_and_node = PatternNode()
         bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [add_or_to_copy_node]
 
         for node in graph_module.graph.nodes:
@@ -118,13 +115,13 @@ class Partitioner:
                         self.supported_ops.enable_by_name(pattern_op)
 
     def capture_nncf_patterns(self, graph_module: GraphModule):
-        const_node = PatternNode
+        const_node = PatternNode()
         const_node.op_types["get_attr"] = None
-        bitwise_right_shift_node = PatternNode
+        bitwise_right_shift_node = PatternNode()
         bitwise_right_shift_node.op_types["call_function:aten.bitwise_right_shift.Tensor_Scalar"] = [const_node]
-        bitwise_and_node = PatternNode
+        bitwise_and_node = PatternNode()
         bitwise_and_node.op_types["call_function:aten.bitwise_and.Scalar"] = [const_node]
-        stack_node = PatternNode
+        stack_node = PatternNode()
         stack_node.op_types["call_function:aten.stack.default"] = [bitwise_and_node, bitwise_right_shift_node]
 
         for node in graph_module.graph.nodes:
@@ -147,26 +144,13 @@ class Partitioner:
         # graphs.
         try:
             from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
-            n_rewrites = _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
-            if n_rewrites and _os.environ.get("OV_DUMP_UNSUPPORTED"):
-                print(f"[OV_VLLM_PA_REWRITES] {n_rewrites}", flush=True)
+            _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
         except Exception as _e:
             logger.debug("vllm.maybe_rewrite_paged_attention skipped: %s", _e)
-
-        if _os.environ.get("OV_DUMP_UNSUPPORTED"):
-            unsupp = {}
-            for n in graph_module.graph.nodes:
-                if n.op in ("call_function", "call_method"):
-                    if not self.supported_ops.is_node_supported({}, n):
-                        key = str(n.target)
-                        unsupp[key] = unsupp.get(key, 0) + 1
-            print(f"[OV_UNSUPPORTED] {sorted(unsupp.items(), key=lambda x:-x[1])}", flush=True)
 
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()
-        if _os.environ.get("OV_DUMP_UNSUPPORTED"):
-            print(f"[OV_PARTITIONS] count={len(partitions)}", flush=True)
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
         logger.debug(f"Graph module after partitioning {fused_graph_module}")
