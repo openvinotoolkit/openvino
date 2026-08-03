@@ -396,7 +396,26 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(tensor));
 }
 
-// test metadata ended
+TEST_F(MetadataUnitTests, incompleteBlobRead) {
+    std::stringstream stream;
+    std::vector<uint64_t> initSizes{16, 32};
+
+    auto meta = Metadata<METADATA_VERSION_2_1>(0, std::nullopt, initSizes);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const uint64_t badNumberOfInits = initSizes.size() - 1;
+    const size_t numberOfInitsOffset =
+        blob.size() - FOOTER_SIZE - initSizes.size() * SIZE_OF_INIT_SCHEDULE_SIZE - sizeof(badNumberOfInits);
+    std::memcpy(&blob[numberOfInitsOffset], &badNumberOfInits, sizeof(badNumberOfInits));
+
+    std::stringstream malformedStream(blob);
+    EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
+}
 
 TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
     std::stringstream stream;
@@ -419,25 +438,52 @@ TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
     EXPECT_ANY_THROW(read_metadata_from(tensor));
 }
 
-// TEST_F(MetadataUnitTests, numberOfLayoutsExceedsBlobLimit) {
-//     std::stringstream stream;
-//     std::vector<ov::Layout> inputLayouts{"1"};
-//     std::vector<ov::Layout> outputLayouts{"2"};
+// test layout string length
 
-//     auto meta =
-//         Metadata<METADATA_VERSION_2_3>(0, std::nullopt, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
-//     meta.write(stream);
-//     std::string blob = stream.str();
+TEST_F(MetadataUnitTests, numberOfInputLayoutsExceedsBlobLimit) {
+    std::stringstream stream;
+    std::vector<ov::Layout> inputLayouts{"1"};
+    std::vector<ov::Layout> outputLayouts{"2"};
 
-//     const uint64_t badNumberOfLayouts = inputLayouts.size() + outputLayouts.size() + 1;
-//     const size_t numberOfLayoutsOffset =
-//         blob.size() - FOOTER_SIZE - initSizes.size() * SIZE_OF_INIT_SCHEDULE_SIZE - sizeof(badNumberOfLayouts);
-//     std::memcpy(&blob[numberOfInitsOffset], &badNumberOfInits, sizeof(badNumberOfInits));
+    auto meta =
+        Metadata<METADATA_VERSION_2_3>(0, std::nullopt, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
+    meta.write(stream);
+    std::string blob = stream.str();
 
-//     std::stringstream malformedStream(blob);
-//     EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+    const uint64_t badNumberOfLayouts = inputLayouts.size() + 0xFF;
+    const size_t numberOfLayoutsOffset =
+        blob.size() - FOOTER_SIZE - (inputLayouts.size() + outputLayouts.size()) * SIZE_OF_LAYOUT_SIZE -
+        inputLayouts.at(0).to_string().size() - outputLayouts.at(0).to_string().size() - 2 * sizeof(badNumberOfLayouts);
+    std::memcpy(&blob[numberOfLayoutsOffset], &badNumberOfLayouts, sizeof(badNumberOfLayouts));
 
-//     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
-//     std::memcpy(tensor.data<char>(), blob.data(), blob.size());
-//     EXPECT_ANY_THROW(read_metadata_from(tensor));
-// }
+    std::stringstream malformedStream(blob);
+    EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
+}
+
+TEST_F(MetadataUnitTests, numberOfOutputLayoutsExceedsBlobLimit) {
+    std::stringstream stream;
+    std::vector<ov::Layout> inputLayouts{"1"};
+    std::vector<ov::Layout> outputLayouts{"2"};
+
+    auto meta =
+        Metadata<METADATA_VERSION_2_3>(0, std::nullopt, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const uint64_t badNumberOfLayouts = outputLayouts.size() + 0xFF;
+    const size_t numberOfLayoutsOffset =
+        blob.size() - FOOTER_SIZE - (inputLayouts.size() + outputLayouts.size()) * SIZE_OF_LAYOUT_SIZE -
+        inputLayouts.at(0).to_string().size() - outputLayouts.at(0).to_string().size() - sizeof(badNumberOfLayouts);
+    std::memcpy(&blob[numberOfLayoutsOffset], &badNumberOfLayouts, sizeof(badNumberOfLayouts));
+
+    std::stringstream malformedStream(blob);
+    EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
+}

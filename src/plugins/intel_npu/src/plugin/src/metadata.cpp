@@ -228,7 +228,7 @@ void MetadataBase::read(std::istream& stream) {
     read();
 
     OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
-    OPENVINO_ASSERT(stream.tellg() + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
+    OPENVINO_ASSERT(static_cast<size_t>(stream.tellg()) + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
