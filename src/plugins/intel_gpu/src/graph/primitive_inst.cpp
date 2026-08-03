@@ -1862,7 +1862,7 @@ void primitive_inst::do_runtime_in_place_concat() {
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
         
         // If the in-place concat optimization is not possible on this iteration, but it is applied
-        // previously, we need to reset the paddings of its deps' output layouts to the natrual
+        // previously, we need to reset the paddings of its deps' output layouts to the natural
         // values.
 
         bool padding_reverted = false;
