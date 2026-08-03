@@ -23,7 +23,8 @@ const std::vector<ov::AnyMap> configs = {
     },
 };
 
-// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape in tests.
+// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape
+// in tests.
 const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -33,12 +34,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(modelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileTests>);
 
-const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
-    {
-        {"NPU_COMPILER_TYPE", "PLUGIN"},
-        {"NPU_CREATE_EXECUTOR", "0"},
-    }
-};
+const std::vector<std::string> dynamicBatchModelNames = {"MaxPool_NCHW_DynBatch"};
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferWithHostCompileDynamicBatchTests,
+                         ::testing::Combine(::testing::ValuesIn(devices),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(dynamicBatchModelNames)),
+                         ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileDynamicBatchTests>);
+
+const std::vector<ov::AnyMap> defaultHostCompileconfigs = {{
+    {"NPU_COMPILER_TYPE", "PLUGIN"},
+    {"NPU_CREATE_EXECUTOR", "0"},
+}};
 
 const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

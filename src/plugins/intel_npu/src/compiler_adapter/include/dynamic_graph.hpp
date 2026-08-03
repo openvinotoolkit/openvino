@@ -56,7 +56,6 @@ private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
-    std::optional<size_t> determine_batch_size();
 
     void initialize_engine();
     void create_execution_engine();
@@ -83,12 +82,6 @@ private:
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
-
-    /**
-     * @brief The batch size used by the corresponding model.
-     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
-     */
-    std::optional<std::size_t> _batchSize = std::nullopt;
 
     Logger _logger;
 

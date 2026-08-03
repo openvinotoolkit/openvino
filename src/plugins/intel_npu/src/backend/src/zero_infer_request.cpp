@@ -438,9 +438,12 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
-        auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        std::optional<size_t> batchSizeCandidate;
+        if (!_graph->is_dynamic()) {
+            const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+            batchSizeCandidate =
+                determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        }
         if (_graph->is_dynamic()) {
             _logger.debug("PLUGIN_BATCH_DIAG set_tensor input=%zu candidate batch=%zu configured=%s current batch=%zu "
                           "current configured=%s",
@@ -500,9 +503,12 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             return;
         }
 
-        const auto& ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
-        auto batchSizeCandidate =
-            determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        std::optional<size_t> batchSizeCandidate;
+        if (!_graph->is_dynamic()) {
+            const auto& ioShape = _compiledModel->outputs()[foundPort.idx].get_partial_shape();
+            batchSizeCandidate =
+                determine_dynamic_batch_size(_metadata.outputs.at(foundPort.idx), ioShape, tensor._ptr, std::nullopt);
+        }
         if (_graph->is_dynamic()) {
             _logger.debug("PLUGIN_BATCH_DIAG set_tensor output=%zu candidate batch=%zu configured=%s current batch=%zu "
                           "current configured=%s",
@@ -636,9 +642,12 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("set_tensors - tensor count: %zu", tensors.size());
 
-    const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
-    auto batchSizeCandidate =
-        determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
+    std::optional<size_t> batchSizeCandidate;
+    if (!_graph->is_dynamic()) {
+        const auto& ioShape = _compiledModel->inputs()[foundPort.idx].get_partial_shape();
+        batchSizeCandidate =
+            determine_dynamic_batch_size(_metadata.inputs.at(foundPort.idx), ioShape, nullptr, tensors.size());
+    }
     if (_graph->is_dynamic()) {
         _logger.debug("PLUGIN_BATCH_DIAG set_tensors input=%zu tensor count=%zu candidate batch=%zu configured=%s "
                       "current batch=%zu current configured=%s",
@@ -667,7 +676,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
         } else if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
             OPENVINO_THROW("Batching size is not matching all the tensors.");
         }
-    } else {
+    } else if (!_graph->is_dynamic()) {
         batchSizeCandidate = _graph->get_batch_size();
     }
     if (_graph->is_dynamic()) {
@@ -1108,7 +1117,7 @@ void ZeroInferRequest::prepare_inputs() {
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     auto viewTensor = ov::make_tensor(
                         levelZeroTensor->get_element_type(),
-                        levelZeroTensor->get_shape(),
+                        userTensor.at(i)->get_shape(),
                         static_cast<unsigned char*>(levelZeroTensor->data()) + (i * userTensor.at(i)->get_byte_size()));
 
                     userTensor.at(i)->copy_to(viewTensor);
