@@ -101,15 +101,15 @@ inline tensor calc_sliding_window_output_range<swor_mode::all>(const tensor& inp
     auto off_factor = sym_pad ? -2 : -1;
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_x = !stride.empty() ? stride[stride.size() - 1] : 1;
 
     tensor::value_type dilation_z = dilation.size() >= 3 ? static_cast<int32_t>(dilation[dilation.size() - 3]) : 1;
     tensor::value_type dilation_y = dilation.size() >= 2 ? static_cast<int32_t>(dilation[dilation.size() - 2]) : 1;
-    tensor::value_type dilation_x = dilation.size() >= 1 ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
+    tensor::value_type dilation_x = !dilation.empty() ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
 
     auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
     auto pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
-    auto pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+    auto pad_x = !pad.empty() ? pad[pad.size() - 1] : 0;
 
     tensor wnd_ext_size{0,
                         0,
@@ -158,15 +158,15 @@ inline tensor calc_sliding_window_output_range<swor_mode::exceed_once>(const ten
     int64_t off_factor = sym_pad ? -2 : -1;
     int64_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     int64_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    int64_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    int64_t stride_x = !stride.empty() ? stride[stride.size() - 1] : 1;
 
     tensor::value_type dilation_z = dilation.size() >= 3 ? static_cast<int32_t>(dilation[dilation.size() - 3]) : 1;
     tensor::value_type dilation_y = dilation.size() >= 2 ? static_cast<int32_t>(dilation[dilation.size() - 2]) : 1;
-    tensor::value_type dilation_x = dilation.size() >= 1 ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
+    tensor::value_type dilation_x = !dilation.empty() ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
 
     int64_t pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
     int64_t pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
-    int64_t pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+    int64_t pad_x = !pad.empty() ? pad[pad.size() - 1] : 0;
 
     tensor extend{0,
                   0,
@@ -223,11 +223,11 @@ inline tensor calc_sliding_window_output_range<swor_mode::any>(const tensor& inp
 
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_x = !stride.empty() ? stride[stride.size() - 1] : 1;
 
     auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
     auto pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
-    auto pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+    auto pad_x = !pad.empty() ? pad[pad.size() - 1] : 0;
 
     auto off_factor = sym_pad ? -2 : -1;
 
@@ -344,15 +344,15 @@ inline tensor calc_sliding_window_needed_input_range(const tensor& output_size,
     auto off_factor = sym_pad ? -2 : -1;
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_x = !stride.empty() ? stride[stride.size() - 1] : 1;
 
     tensor::value_type dilation_z = dilation.size() >= 3 ? static_cast<int32_t>(dilation[dilation.size() - 3]) : 1;
     tensor::value_type dilation_y = dilation.size() >= 2 ? static_cast<int32_t>(dilation[dilation.size() - 2]) : 1;
-    tensor::value_type dilation_x = dilation.size() >= 1 ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
+    tensor::value_type dilation_x = !dilation.empty() ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
 
     auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
     auto pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
-    auto pad_x = pad.size() >= 1 ? pad[pad.size() - 1] : 0;
+    auto pad_x = !pad.empty() ? pad[pad.size() - 1] : 0;
 
     tensor wnd_ext_size{0,
                         0,

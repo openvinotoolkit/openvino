@@ -11,7 +11,7 @@ class SoftmaxKerneItemsClassOptimized : public SoftmaxItemsClassKernelBase {
 public:
     using Parent = SoftmaxItemsClassKernelBase;
     SoftmaxKerneItemsClassOptimized() : Parent("softmax_gpu_items_class_optimized") {}
-    virtual ~SoftmaxKerneItemsClassOptimized() {}
+    ~SoftmaxKerneItemsClassOptimized() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
