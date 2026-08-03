@@ -28,6 +28,7 @@
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
@@ -83,6 +84,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto do_rotary = node->get_do_rotary();
     const auto rotary_interleaved = node->get_rotary_interleaved();
     const auto local_window_size = node->get_local_window_size();
+    const auto smooth_softmax = node->get_smooth_softmax();
     // TODO: add softcap support
 
     auto Q = node->input_value(0);
@@ -274,8 +276,41 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           local_window_size,
                                           external_bias);
 
+    // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
+    // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
+    // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
+    ov::Output<ov::Node> sink;
+    const bool has_head_sink = node->get_input_size() > 11 && !is_null(node->input_value(11));
+    if (has_head_sink || smooth_softmax) {
+        const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
+        if (has_head_sink) {
+            auto head_sink = node->input_value(11);
+            if (head_sink.get_element_type() != T) {
+                head_sink = register_new_node<v0::Convert>(head_sink, T);
+            }
+            sink = register_new_node<v1::Reshape>(head_sink, sink_shape, false);
+        } else {
+            const auto num_heads_1d =
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads}));
+            sink = register_new_node<v3::Broadcast>(
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {0})),
+                register_new_node<v0::Concat>(ov::NodeVector{one, num_heads_1d, one, one}, 0));
+        }
+    }
+
     std::shared_ptr<ov::Node> qga_output;
-    if (scale != 0.0f) {
+    if (sink.get_node_shared_ptr()) {
+        // SDPA's 6-input form requires an explicit scale; use the op scale or the default 1/sqrt(head_size).
+        ov::Output<ov::Node> scale_node;
+        if (scale != 0.0f) {
+            scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
+        } else {
+            const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
+            const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
+            scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+        }
+        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, sink, false);
+    } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
     } else {

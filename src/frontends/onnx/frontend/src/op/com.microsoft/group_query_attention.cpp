@@ -58,8 +58,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
 
     // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
-    FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 11),
-                                  "GroupQueryAttention: head_sink input is not supported.");
     FRONT_END_OP_CONVERSION_CHECK(
         !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
         "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
@@ -86,7 +84,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                       "supported.");
     }
     FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
-    FRONT_END_OP_CONVERSION_CHECK(smooth_softmax == 0, "GroupQueryAttention: smooth_softmax is not supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -176,7 +173,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            k_quant_type,
                                                            v_quant_type,
                                                            local_window_size,
-                                                           sliding_window_cache != 0)
+                                                           sliding_window_cache != 0,
+                                                           smooth_softmax != 0)
         ->outputs();
 }
 

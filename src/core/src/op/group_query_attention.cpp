@@ -18,7 +18,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          const std::string& k_quant_type,
                                          const std::string& v_quant_type,
                                          int64_t local_window_size,
-                                         bool sliding_window_cache)
+                                         bool sliding_window_cache,
+                                         bool smooth_softmax)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -29,7 +30,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_k_quant_type(k_quant_type),
       m_v_quant_type(v_quant_type),
       m_local_window_size(local_window_size),
-      m_sliding_window_cache(sliding_window_cache) {
+      m_sliding_window_cache(sliding_window_cache),
+      m_smooth_softmax(smooth_softmax) {
     constructor_validate_and_infer_types();
 }
 
@@ -120,6 +122,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
+    visitor.on_attribute("smooth_softmax", m_smooth_softmax);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
     return true;
 }
@@ -137,7 +140,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_k_quant_type,
                                                  m_v_quant_type,
                                                  m_local_window_size,
-                                                 m_sliding_window_cache);
+                                                 m_sliding_window_cache,
+                                                 m_smooth_softmax);
 }
 
 }  // namespace ov::op::internal
