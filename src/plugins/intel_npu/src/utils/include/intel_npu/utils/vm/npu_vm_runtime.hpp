@@ -282,11 +282,11 @@ typedef struct _npu_vm_runtime_config_desc_t {
     const struct _npu_vm_runtime_config_desc_t* pNext;
 } npu_vm_runtime_config_desc_t;
 
-#define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID 0ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID             0ULL
 #define NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE 1ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY 2ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE 3ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS 4ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY      2ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE       3ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS       4ULL
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime execution context (v2.0)
@@ -295,7 +295,7 @@ typedef struct _npu_vm_runtime_config_desc_t {
 ///          to npuVMRuntimeExecute2 so updated queue configuration can be applied per call.
 ///          pConfig is reserved for ABI compatibility and must be nullptr.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
-    npu_vm_runtime_handle_t hRuntime,            ///< [in] handle of VM runtime object
+    npu_vm_runtime_handle_t hRuntime,             ///< [in] handle of VM runtime object
     const npu_vm_runtime_config_desc_t* pConfig,  ///< [in][optional] reserved, must be nullptr
     npu_vm_runtime_execution_context_handle_t*
         phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
