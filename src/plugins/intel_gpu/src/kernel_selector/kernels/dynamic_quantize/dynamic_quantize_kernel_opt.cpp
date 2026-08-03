@@ -17,20 +17,31 @@ enum class DynQuanMode {
     PER_TOKEN = 3
 };
 
-static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
+// Length of the dimension the quantization groups are formed along. Returns 0 when the layout keeps that
+// dimension dynamic and it could not be resolved from the consuming fully connected either, in which case
+// the group count is unknown and this kernel is not applicable.
+static size_t get_input_f_size(const dynamic_quantize_params& params) {
     size_t input_f = params.inputs[0].Feature().v;
-    size_t input_batch = params.inputs[0].Batch().v;
     // 3D input
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
-        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
-    }
 
     // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
-    if (params.inputs[0].is_dynamic() && input_f == 0) {
-        OPENVINO_ASSERT(params.fc_ifm_size != 0, "[GPU] Invalid fc_ifm_size value");
-        input_f = params.fc_ifm_size;
-    }
+    if (params.inputs[0].is_dynamic() && input_f == 0)
+        return params.fc_ifm_size;
+
+    return input_f;
+}
+
+static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
+    size_t input_batch = params.inputs[0].Batch().v;
+    // 3D input
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx)
+        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+
+    // Validate() rejects this kernel when the size cannot be resolved, so it is known to be set here
+    const auto input_f = get_input_f_size(params);
+    OPENVINO_ASSERT(input_f != 0, "[GPU] Invalid fc_ifm_size value");
 
     return {input_batch, input_f};
 }
@@ -207,6 +218,11 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
+
+    // The group count is baked into the kernel at compile time, so it cannot be built without knowing
+    // the length of the dimension the groups are formed along
+    if (get_input_f_size(dq_params) == 0)
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
         DO_NOT_USE_THIS_KERNEL(params.layerID);

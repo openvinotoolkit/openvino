@@ -41,7 +41,7 @@ static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& o
             }
         }
     }
-    OPENVINO_ASSERT(out_layouts.size() > 0, "Not found any matched output");
+    OPENVINO_ASSERT(!out_layouts.empty(), "Not found any matched output");
     return out_layouts;
 }
 
