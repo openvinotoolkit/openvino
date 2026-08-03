@@ -239,6 +239,24 @@ TEST_F(DispatchGroupTest, register_plugin_group_member_without_probe_throws) {
     OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::HasSubstr("enumeration probe"));
 }
 
+// Appending a candidate after the group has already been resolved must invalidate the cached
+// merged device list, so the next resolve re-probes the new candidate set. Here a probe-less
+// library is appended after a successful resolve; the re-probe must now hard-fail on it.
+TEST_F(DispatchGroupTest, register_plugin_append_invalidates_cached_dispatch_map) {
+    script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(SERVABLE));
+    ov::Core core;
+    core.register_plugin(candidate_lib("a").string(), device);
+    core.register_plugin(candidate_lib("b").string(), device);
+    EXPECT_EQ(resolved_tag(core), "A");  // resolves and caches the {a,b} merge
+
+    const auto no_probe_lib =
+        ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+                                           std::string("mock_engine") + OV_BUILD_POSTFIX);
+    core.register_plugin(no_probe_lib.string(), device);
+    // Stale cache would still return "A"; a correctly-invalidated map re-probes and fails.
+    OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::HasSubstr("enumeration probe"));
+}
+
 }  // namespace
 
 #endif  // OPENVINO_STATIC_LIBRARY

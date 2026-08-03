@@ -81,6 +81,13 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
         for (auto& dev : enumerated) {
             if (dev.score == ov::PROBE_SCORE_INCOMPATIBLE)
                 continue;
+            // An empty fingerprint has no identity: it would merge unrelated devices into one
+            // entry (wrong winner / lost devices). Reject it - dispatch members must fingerprint.
+            OPENVINO_ASSERT(!dev.fingerprint.empty(),
+                            "Library \"",
+                            lib.string(),
+                            "\" enumerated a dispatch-group device with an empty fingerprint; a "
+                            "scoreable candidate must return a non-empty identity per device.");
             // Merge by fingerprint equality: a device several candidates see is listed once.
             auto it = std::find_if(entries.begin(), entries.end(), [&](const ov::DispatchEntry& e) {
                 return e.fingerprint == dev.fingerprint;
@@ -1602,6 +1609,17 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
     auto it = m_plugin_registry.find(device_name);
     if (it != m_plugin_registry.end() && !is_proxy_device(device_name)) {
         it->second.m_candidates.push_back({ov::util::get_plugin_path(plugin), properties, nullptr});
+        // Adding a candidate changes resolution: drop the cached merged device list and any
+        // instance already created for this name (the bare single-candidate instance, or a
+        // stale "<device>#N" winner) so the next request re-probes and re-selects.
+        m_dispatch_map.erase(device_name);
+        const std::string group_prefix = device_name + '#';
+        for (auto p = m_plugins.begin(); p != m_plugins.end();) {
+            if (p->first == device_name || p->first.rfind(group_prefix, 0) == 0)
+                p = m_plugins.erase(p);
+            else
+                ++p;
+        }
         return;
     }
 

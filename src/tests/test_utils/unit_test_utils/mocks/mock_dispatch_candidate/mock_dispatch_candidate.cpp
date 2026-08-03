@@ -84,27 +84,32 @@ public:
 };
 
 // Parse the scripted enumeration for this candidate from its env var.
-void mock_enumerate(std::vector<ov::EnumeratedDevice>& out) {
+void mock_enumerate(std::vector<ov::EnumeratedDevice>& out) noexcept {
+    out.clear();
     const char* script = std::getenv("MOCK_DISPATCH_" MOCK_CANDIDATE_TAG "_ENUM");
     if (!script)
         return;
-    std::stringstream devices(script);
-    std::string triple;
-    while (std::getline(devices, triple, ';')) {
-        if (triple.empty())
-            continue;
-        std::stringstream fields(triple);
-        std::string id, fingerprint_hex, score;
-        std::getline(fields, id, ',');
-        std::getline(fields, fingerprint_hex, ',');
-        std::getline(fields, score, ',');
+    try {
+        std::stringstream devices(script);
+        std::string triple;
+        while (std::getline(devices, triple, ';')) {
+            if (triple.empty())
+                continue;
+            std::stringstream fields(triple);
+            std::string id, fingerprint_hex, score;
+            std::getline(fields, id, ',');
+            std::getline(fields, fingerprint_hex, ',');
+            std::getline(fields, score, ',');
 
-        ov::EnumeratedDevice e;
-        e.internal_id = id;
-        for (size_t i = 0; i + 1 < fingerprint_hex.size(); i += 2)
-            e.fingerprint.push_back(static_cast<uint8_t>(std::stoi(fingerprint_hex.substr(i, 2), nullptr, 16)));
-        e.score = static_cast<ov::DeviceCompatibilityScore>(std::stoi(score));
-        out.push_back(std::move(e));
+            ov::EnumeratedDevice e;
+            e.internal_id = id;
+            for (size_t i = 0; i + 1 < fingerprint_hex.size(); i += 2)
+                e.fingerprint.push_back(static_cast<uint8_t>(std::stoi(fingerprint_hex.substr(i, 2), nullptr, 16)));
+            e.score = static_cast<ov::DeviceCompatibilityScore>(std::stoi(score));
+            out.push_back(std::move(e));
+        }
+    } catch (...) {
+        out.clear();  // malformed script: serve nothing rather than terminate the process
     }
 }
 
