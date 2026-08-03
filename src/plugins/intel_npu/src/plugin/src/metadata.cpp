@@ -15,8 +15,12 @@
 
 namespace {
 
+// Compiler payload size + magic bytes
+constexpr size_t FOOTER_SIZE = sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
 // Metadata version + compiler payload size + magic bytes
-constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + FOOTER_SIZE;
+constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
+constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
 
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
@@ -24,6 +28,8 @@ constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
 constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "The size of the compiler payload parsed from the blob is greater "
     "than the size of the blob. Compiler payload size: ";
+constexpr std::string_view MISSING_BLOB_MESSAGE = "No blob has been provided to NPU plugin's metadata reader.";
+constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
 
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
@@ -232,39 +238,40 @@ void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> 
     read_as_text();
 }
 
-void MetadataBase::read_data_from_source(char* destination, const size_t size) {
+size_t MetadataBase::get_remaining_source_size() const {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
-        OPENVINO_ASSERT(stream, "Attempted to read from stream but the stream is in bad status");
+        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
         const auto offset = static_cast<size_t>(stream->get().tellg());
-        const size_t remaining = (offset <= _sourceSize) ? _sourceSize - offset : 0;
-        OPENVINO_ASSERT(size <= remaining,
-                        "NPU metadata: attempted to read ",
-                        size,
-                        " bytes at offset ",
-                        offset,
-                        " but only ",
-                        remaining,
-                        " bytes remain in the metadata buffer.");
+        return (offset <= _sourceSize) ? _sourceSize - offset : 0;
+    } else if (std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
+        return (_cursorOffset <= _sourceSize) ? _sourceSize - _cursorOffset : 0;
+    } else {
+        OPENVINO_THROW(MISSING_BLOB_MESSAGE);
+    }
+}
+
+void MetadataBase::read_data_from_source(char* destination, const size_t size) {
+    const size_t remaining = get_remaining_source_size();
+    OPENVINO_ASSERT(size <= remaining,
+                    "NPU metadata: attempted to read ",
+                    size,
+                    " bytes but only ",
+                    remaining,
+                    " bytes remain in the metadata buffer.");
+
+    if (const std::reference_wrapper<std::istream>* stream =
+            std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
         stream->get().read(destination, size);
     } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
-        const size_t remaining = (_cursorOffset <= _sourceSize) ? _sourceSize - _cursorOffset : 0;
-        OPENVINO_ASSERT(size <= remaining,
-                        "NPU metadata: attempted to read ",
-                        size,
-                        " bytes at offset ",
-                        _cursorOffset,
-                        " but only ",
-                        remaining,
-                        " bytes remain in the metadata buffer.");
-
         std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
         _cursorOffset += size;
     } else {
-        OPENVINO_THROW("No blob has been provided to NPU plugin's metadata reader.");
+        OPENVINO_THROW(MISSING_BLOB_MESSAGE);
     }
 }
 
@@ -295,6 +302,10 @@ void Metadata<METADATA_VERSION_2_1>::read() {
     read_data_from_source(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
 
     if (numberOfInits) {
+        OPENVINO_ASSERT(
+            numberOfInits <= (get_remaining_source_size() - FOOTER_SIZE) / SIZE_OF_INIT_SCHEDULE_SIZE,
+            "The number of init schedules read from the blob is too great relative to the size of the blob");
+
         _initSizes = std::vector<uint64_t>(numberOfInits);
         for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
             read_data_from_source(reinterpret_cast<char*>(&_initSizes->at(initIndex)),
@@ -318,6 +329,10 @@ void Metadata<METADATA_VERSION_2_3>::read() {
     uint64_t numberOfInputLayouts, numberOfOutputLayouts;
     read_data_from_source(reinterpret_cast<char*>(&numberOfInputLayouts), sizeof(numberOfInputLayouts));
     read_data_from_source(reinterpret_cast<char*>(&numberOfOutputLayouts), sizeof(numberOfOutputLayouts));
+
+    OPENVINO_ASSERT(numberOfInputLayouts + numberOfOutputLayouts <=
+                        (get_remaining_source_size() - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE,
+                    "The number of I/O layouts read from the blob is too great relative to the size of the blob");
 
     const auto readNLayouts = [&](const uint64_t numberOfLayouts, const char* loggerAddition) {
         std::optional<std::vector<ov::Layout>> layouts = std::nullopt;
@@ -375,6 +390,9 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     uint64_t reqs_len;
     read_data_from_source(reinterpret_cast<char*>(&reqs_len), sizeof(reqs_len));
     if (reqs_len > 0) {
+        OPENVINO_ASSERT(reqs_len <= (get_remaining_source_size() - FOOTER_SIZE),
+                        "The size of the runtime requirements surpasses the limit of the blob");
+
         std::string reqs(reqs_len, '\0');
         read_data_from_source(reqs.data(), reqs_len);
         _compatibilityDescriptor = std::move(reqs);

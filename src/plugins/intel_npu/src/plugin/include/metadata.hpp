@@ -24,9 +24,8 @@ class MetadataBase {
 public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
-    using uninitialized_source = void*;
-    using Source = std::
-        variant<uninitialized_source, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
+    using Source =
+        std::variant<std::monostate, std::reference_wrapper<std::istream>, std::reference_wrapper<const ov::Tensor>>;
 
     /**
      * @brief Reads metadata from a stream.
@@ -128,6 +127,11 @@ protected:
      * source.
      */
     void read_data_from_source(char* destination, const size_t size);
+
+    /**
+     * @return The number of bytes until the cursor reaches the end of the source
+     */
+    size_t get_remaining_source_size() const;
 
     uint32_t _version;
     uint64_t _blobDataSize;
