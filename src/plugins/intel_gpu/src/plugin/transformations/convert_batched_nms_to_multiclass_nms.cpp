@@ -13,6 +13,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/util/pp.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -292,13 +293,7 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto gather_m = wrap_type<ov::op::util::GatherBase>({nms_output_m, any_input(), any_input()});
     auto squeeze_m = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({gather_m, any_input()});
 
-    ov::matcher_pass_callback callback = [this,
-                                          boxes_offset_add_m,
-                                          boxes_reshape_m,
-                                          scores_unsqueeze_m,
-                                          nms_m,
-                                          gather_m,
-                                          squeeze_m](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto squeeze = pattern_map.at(squeeze_m).get_node_shared_ptr();
