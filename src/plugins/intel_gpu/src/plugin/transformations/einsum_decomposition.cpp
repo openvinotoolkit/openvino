@@ -120,7 +120,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
     }
 
     auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
-    std::string required_subscript = "";
+    std::string required_subscript;
     for (auto index : labels_inds) {
         required_subscript += labels[index];
     }
@@ -370,7 +370,7 @@ void reduce_input(EinsumDecomposition *einsum_decompose_ptr,
     std::set<int64_t> reduced_axes;
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
     auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
-    std::string new_input_subscript = "";
+    std::string new_input_subscript;
 
     for (const auto& label : labels) {
         // check if the current label is met in the other input subscripts
@@ -687,9 +687,9 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
     auto labels1 = ov::op::v7::Einsum::extract_labels(input_subscript1);
     auto& input_subscript2 = input_subscripts[input_ind2];
     auto labels2 = ov::op::v7::Einsum::extract_labels(input_subscript2);
-    std::string common_part = "";
-    std::string separate_part1 = "";
-    std::string separate_part2 = "";
+    std::string common_part;
+    std::string separate_part1;
+    std::string separate_part2;
     std::vector<int64_t> common_labels_inds1, common_labels_inds2;
     std::vector<int64_t> separate_labels_inds1, separate_labels_inds2;
     std::vector<int64_t> reduced_labels_inds1, reduced_labels_inds2;
