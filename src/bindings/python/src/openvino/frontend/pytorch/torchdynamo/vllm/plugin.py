@@ -138,11 +138,56 @@ def _disable_layername():
         logger.debug("[OV plugin] VLLM_USE_LAYERNAME=0 set")
 
 
+def _apply_default_env():
+    """Set env-var defaults that make the OV backend perform well out of the
+    box. Any user-set value takes priority; we only fill in unset vars."""
+    defaults = {
+        # vLLM's KV-cache pool size on CPU (GiB). Zero means "size to fill node
+        # memory", which OOM-kills on shared NUMA nodes. 4 GiB is enough for
+        # 1-2B models at 2k ctx; users can raise for larger models.
+        "VLLM_CPU_KVCACHE_SPACE": "4",
+        # Fast-path in torchdynamo/execute.py that caches set_tensor bindings
+        # and output views across steps. +5-15% greedy on the models we test;
+        # no correctness regression on Gemma-4 hybrid attention.
+        "OV_FAST_INFER": "1",
+    }
+    for k, v in defaults.items():
+        if os.environ.get(k) is None:
+            os.environ[k] = v
+            logger.debug("[OV plugin] %s=%s (default)", k, v)
+
+
+def _warn_if_unpinned():
+    """Warn if the process is not pinned to a subset of CPUs. Full-machine
+    affinity often means threads land on multiple NUMA nodes, which halves
+    memory bandwidth on decode. Users should launch with `taskset -c 0-N` or
+    `numactl --cpunodebind=0` to pin to one socket.
+
+    Best-effort only: skipped on platforms without sched_getaffinity (macOS,
+    Windows) or when the affinity mask cannot be read.
+    """
+    try:
+        allowed = os.sched_getaffinity(0)
+    except (AttributeError, OSError):
+        return
+    ncpus = os.cpu_count() or 0
+    if ncpus and len(allowed) >= ncpus:
+        logger.warning(
+            "[OV plugin] process is not CPU-pinned (%d cores visible). "
+            "For best decode throughput on multi-socket systems, launch with "
+            "`taskset -c 0-N` or `numactl --cpunodebind=0 --membind=0` to pin "
+            "to a single NUMA node.",
+            len(allowed),
+        )
+
+
 def register():
     """Entry point for `vllm.general_plugins`.
 
     OV-active detection deferred to patched_load_model so we can read the
     real compilation_config.backend instead of guessing from env vars.
     """
+    _apply_default_env()
     _disable_layername()
+    _warn_if_unpinned()
     _patch_cpu_model_runner()

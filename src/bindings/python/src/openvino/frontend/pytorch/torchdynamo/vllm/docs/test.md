@@ -7,10 +7,17 @@ for install instructions.
 ## Smoke test
 
 ```bash
-python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
+taskset -c 0-39 python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
     --model meta-llama/Llama-3.2-1B-Instruct \
-    --max-new-tokens 64
+    --max-new-tokens 128
 ```
+
+The plugin's `register()` sets `VLLM_CPU_KVCACHE_SPACE=4` and
+`OV_FAST_INFER=1` automatically when they are unset, so a bare
+`python -m ...` command is enough on a single-socket box. `taskset`
+(or `numactl`) is still required on multi-socket systems to keep
+threads and memory on one NUMA node; the plugin emits a warning at
+startup when the process is not CPU-pinned.
 
 What it does:
 
@@ -42,12 +49,13 @@ Exit code is non-zero if the texts differ.
 ```bash
 # Pin to a single NUMA socket on a multi-socket box.
 numactl --cpunodebind=0 --membind=0 -- \
-  taskset -c 0-23 \
+  taskset -c 0-39 \
   python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
-    --model meta-llama/Llama-3.2-1B-Instruct
+    --model meta-llama/Llama-3.2-1B-Instruct \
+    --max-new-tokens 128 --mode openvino
 ```
 
-`taskset` keeps everything on one socket; `numactl --membind` keeps
+`taskset` keeps threads on one socket; `numactl --membind` keeps
 memory local. The OV plugin widens process affinity once at compile
 time (TBB samples affinity on first parallel use), so the wide mask
 only takes effect after `Core()` is instantiated; pre-pinning to a
@@ -63,7 +71,7 @@ vLLM script.
 
 | Variable | Default | Effect |
 |---|---|---|
-| `OV_FAST_INFER` | `0` | When `1`, bypass `_data_dispatch` dict walk in `req.infer()`. Uses `set_tensor(port, ...)` directly per input; ports cached per `id(compiled)`. Measured **+3-15% greedy** across 6 models, no correctness regression. Falls back to slow path on any error. Recommend enabling for production. |
+| `OV_FAST_INFER` | `1` (set by plugin) | Bypass `_data_dispatch` dict walk in `req.infer()`; use `set_tensor(port, ...)` directly, cache the ov.Tensor wrappers and output views per `id(InferRequest)`. Measured **+5-15% greedy** across 6 models, no correctness regression on Gemma-4 hybrid attention. Falls back to slow path on any error. Set `OV_FAST_INFER=0` to disable. |
 | `OV_NATIVE_SAMPLER` | `0` | When `1`, use a native OV opset13 graph for sampling (topk + softmax + Gumbel-max), bypassing the `torch.compile(backend="openvino")` layer. Measured **+11-30% sampling** across models. Trade-off: skips top_p rejection (uses pure Gumbel-max over top-k values). No effect on greedy (bypassed via eligibility gate). |
 | `OV_FUSED_SAMPLER_MIN_VOCAB` | `100000` | Vocab-size gate for the fused / native samplers. Below this threshold, torch's `apply_top_k_top_p` on CPU is faster than round-tripping through a compiled OV graph. Set to `0` to enable the fused sampler for all vocab sizes. |
 | `OV_FAST_SAMPLER_HINT` | `f32` | `INFERENCE_PRECISION_HINT` for the native OV sampler compiled model. Options: `f32`, `f16`, `bf16`. |
@@ -78,8 +86,6 @@ vLLM script.
 | `OV_DISABLE_FUSED_SAMPLER` | (unset) | If set to any non-empty value, skip the `install()` sampler monkey-patch entirely; vLLM uses its own sampler in all cases. Useful for A/B comparing sampler contribution to perf. |
 | `OV_PERF_COUNT_OUT` | (unset) | Path to write per-node OV profiling info (one file, one line per node per infer call). Format: `node_type<TAB>node_name<TAB>real_time_us<TAB>cpu_time_us<TAB>exec_type`. Setting this enables `PERF_COUNT=YES` on the OV compile config. |
 | `OV_PA_FUSE_UPSTREAM_RESHAPE` | (enabled) | Set to `0` to disable the PA translator's Q-input upstream Reshape fusion. Debug switch — normally leave alone. |
-| `OV_PA_TORCH_FALLBACK` | (unset) | If set, fall back to vLLM's own paged_attention torch op instead of using `PagedAttentionExtension`. Testing / bisecting switch. |
-| `OV_NO_AOT` | (unset) | If set, disable `aot_autograd` in the torch.compile options. Testing switch. |
 | `VLLM_USE_LAYERNAME` | `0` (plugin forces this) | If `1`, PA translator embeds full vLLM layer names in Parameter names. Kept `0` so translator uses short numeric layer suffixes. |
 
 ### vLLM environment (relevant subset)
@@ -88,7 +94,7 @@ Not owned by this plugin but relevant to how vLLM+OV runs:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `VLLM_CPU_KVCACHE_SPACE` | (varies) | GB of RAM reserved for KV cache. Typical: `4`. If too low the engine fails to allocate; if too high on a shared machine the first `generate()` may fail with `Available memory on node 0 ... is less than requested memory for kv`. |
+| `VLLM_CPU_KVCACHE_SPACE` | `4` (set by plugin) | GiB of RAM reserved for KV cache. The plugin sets `4` when unset — enough for 1-2B models at 2k context on a shared node. Set explicitly to a larger value for bigger models or longer context. Setting `0` on a shared machine can trigger `Available memory on node 0 ... is less than requested memory for kv`. |
 | `VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS` | `300` | Timeout for the worker's `execute_model` RPC. If a first-infer compile is slow, raise this. |
 | `VLLM_USE_AOT_COMPILE` | `0` | Keep `0` for OV backend. |
 | `OMP_NUM_THREADS` | (varies) | vLLM's internal thread count for its own numpy / torch ops. Typical: `2`. Independent of `OV_INFERENCE_NUM_THREADS`. |
@@ -101,7 +107,8 @@ use the same LLM setup:
 
 ```python
 import os
-os.environ["OV_FAST_INFER"] = "1"          # boundary bypass
+# OV_FAST_INFER=1 and VLLM_CPU_KVCACHE_SPACE=4 are auto-set by the plugin;
+# only override them here if you want non-default behavior.
 os.environ["OV_NATIVE_SAMPLER"] = "1"      # native OV sampler (sampling only)
 os.environ["OV_INFERENCE_PRECISION_HINT"] = "bf16"
 os.environ["OV_KV_CACHE_PRECISION"] = "bf16"
