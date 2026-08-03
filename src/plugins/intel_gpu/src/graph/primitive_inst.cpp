@@ -1900,6 +1900,12 @@ void primitive_inst::do_runtime_in_place_concat() {
             GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
                                    << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         }
+        if (i < concat_inst->_impl_params->input_layouts.size() &&
+            concat_inst->_impl_params->input_layouts[i].data_padding != preds_layouts[i].data_padding) {
+            concat_inst->_impl_params->input_layouts[i].data_padding = preds_layouts[i].data_padding;
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of input " << i << " : "
+                                   << concat_inst->_impl_params->input_layouts[i].to_string() << std::endl;
+        }
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
