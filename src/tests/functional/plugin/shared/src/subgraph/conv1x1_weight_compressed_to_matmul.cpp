@@ -50,6 +50,8 @@ void Conv1x1WeightCompressedToMatmulTest::SetUp() {
         GetParam();
     targetDevice = device;
     expected_op_counts_ = expected_op_counts;
+    abs_threshold = 0.05f;
+    rel_threshold = 0.01f;
     validate_decoration(in_decoration);
     validate_decoration(out_decoration);
 
@@ -72,17 +74,17 @@ void Conv1x1WeightCompressedToMatmulTest::SetUp() {
         conv_input = std::make_shared<ov::op::v1::Reshape>(param, pattern, true);
     }
 
-    // Compressed weights: Constant -> Convert -> Multiply(scale). The plugin's MarkDequantization pass
-    // keeps the subgraph from being constant-folded, as for a real compressed model.
+    const int seed = 1;
+    const int up_to = weights_prec == ov::element::u2 ? 3 : (weights_prec == ov::element::i4 ? 7 : 15);
+    const int start_from = weights_prec == ov::element::u2 ? 0 : 1;
     auto weights_tensor = ov::test::utils::create_and_fill_tensor(
         weights_prec,
         ov::Shape{shape_params.channels_out, static_cast<size_t>(Cin), 1, 1},
-        ov::test::utils::InputGenerateData(-3, 6));
+        ov::test::utils::InputGenerateData(start_from, up_to, 1, seed));
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, act_prec);
-    auto scale_tensor = ov::test::utils::create_and_fill_tensor(act_prec,
-                                                                ov::Shape{shape_params.channels_out, 1, 1, 1},
-                                                                ov::test::utils::InputGenerateData(1, 4, 100));
+    auto scale_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(
+        act_prec, ov::Shape{shape_params.channels_out, 1, 1, 1}, 0.001f, 0.01f, seed);
     auto scale = std::make_shared<ov::op::v0::Constant>(scale_tensor);
     auto weights_dequant = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
 
@@ -107,18 +109,6 @@ void Conv1x1WeightCompressedToMatmulTest::SetUp() {
     function = std::make_shared<ov::Model>(ov::ResultVector{result},
                                            ov::ParameterVector{param},
                                            "Conv1x1WeightCompressedToMatmul");
-
-    if (targetDevice == ov::test::utils::DEVICE_CPU) {
-        // Disable dynamic activation quantization so the FullyConnected matches the f32 reference closely.
-        configuration.insert(ov::hint::dynamic_quantization_group_size(0));
-        abs_threshold = 0.05f;
-        rel_threshold = 0.01f;
-    } else {
-        // f16 accumulation of a Cin-wide reduction needs a relaxed tolerance; it still catches the
-        // channel/spatial scrambling regression, which produces grossly wrong values.
-        abs_threshold = 0.5f;
-        rel_threshold = 0.1f;
-    }
 }
 
 void Conv1x1WeightCompressedToMatmulTest::validate() {
