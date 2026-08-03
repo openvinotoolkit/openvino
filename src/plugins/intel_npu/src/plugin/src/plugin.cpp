@@ -608,7 +608,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
     LogLevelScope logScope(properties, _logger);
 
-    _logger.debug("Importing a compiled model from the given tensor");  
+    _logger.debug("Importing a compiled model from the given tensor");
 
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};

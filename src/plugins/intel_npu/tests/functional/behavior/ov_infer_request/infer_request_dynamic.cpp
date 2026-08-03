@@ -22,7 +22,8 @@ INSTANTIATE_TEST_SUITE_P(
                            {{1, 10, 18}, {6, 12, 15}},
                            {{1, 2, 14}, {5, 11, 18}}}),
                        ::testing::Values(ov::test::utils::DEVICE_NPU),
-                       ::testing::ValuesIn(config)),
+                       ::testing::ValuesIn(ov::test::utils::mergeConfigs(config,
+                                                                        ov::test::utils::quietCompilerLogsConfig))),
     ov::test::utils::appendPlatformTypeTestName<OVInferRequestDynamicTests>);
 
 }  // namespace
