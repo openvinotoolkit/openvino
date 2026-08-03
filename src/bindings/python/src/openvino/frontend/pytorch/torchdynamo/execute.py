@@ -172,11 +172,20 @@ def openvino_execute(
         req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
+    # Int args are either baked into the compiled OV model as Constants
+    # (vLLM path via vllm.compile_hooks.bake_symint_constants) or left as
+    # int64[1] Parameters (upstream default). Detect which case applies by
+    # comparing compiled.inputs count to the flat_args count; skip the int
+    # entries only when the Parameters have been removed.
+    _n_compiled_inputs = len(compiled.inputs)
+    _n_flat = len(flat_args)
+    _skip_ints = _n_compiled_inputs < _n_flat and any(isinstance(a, int) for a in flat_args)
     ov_inputs = []
     for arg in flat_args:
         if isinstance(arg, int):
-            # Int args are baked into the compiled OV model as Constants
-            # (see compile.py). Don't pass them at infer time.
+            if _skip_ints:
+                continue
+            ov_inputs.append(arg)
             continue
         t = arg.detach()
         if not t.is_contiguous():

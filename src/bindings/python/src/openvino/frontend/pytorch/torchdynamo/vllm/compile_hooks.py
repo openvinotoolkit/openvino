@@ -173,15 +173,24 @@ def apply_kv_cache_config_defaults(config, device, options=None):
     CPU config dict.
 
     Only applies when device == "CPU". Caller-supplied entries in `config`
-    take priority. Reads env-var fallbacks for backward compat with the
-    legacy environment-driven setup; new callers should pass the values
-    via options["config"] instead.
+    take priority. Merges the vLLM preset config dict when the caller
+    opted in with options[\"vllm\"]=True. Also reads env-var fallbacks
+    for backward compat with the legacy environment-driven setup.
 
     No-op on non-CPU devices.
     """
     if device != "CPU":
         return
     import os
+    # Merge the vLLM preset dict (KV_CACHE_PRECISION=bf16 etc.) when the
+    # caller opted into options["vllm"]=True. Caller-supplied keys win.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
+        if _preset.is_vllm_preset(options):
+            for k, v in _preset._PRESET_CONFIG.items():
+                config.setdefault(k, v)
+    except Exception:
+        pass
     if "KV_CACHE_PRECISION" not in config:
         # f32 is the verified-correct default for the OV CPU PA op; the
         # vLLM preset overrides this to bf16 when options["vllm"]=True.

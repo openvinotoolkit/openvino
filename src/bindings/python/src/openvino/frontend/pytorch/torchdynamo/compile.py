@@ -170,11 +170,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
     om.validate_nodes_and_infer_types()
 
-    try:
-        from openvino.frontend.pytorch.torchdynamo.vllm.preset import config_with_vllm_defaults as _cwvd
-        config = _cwvd(options)
-    except Exception:
-        config = dict(_get_config(options) or {})
+    config = _get_config(options)
 
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):
@@ -196,29 +192,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if device == "CPU" and _num_threads and "INFERENCE_NUM_THREADS" not in config:
         config["INFERENCE_NUM_THREADS"] = int(_num_threads)
 
-    # Dump pre-plugin IR for RoPE pattern analysis
-    _dump_dir = os.environ.get("OV_DUMP_PRE_PLUGIN_IR")
-    if _dump_dir:
-        os.makedirs(_dump_dir, exist_ok=True)
-        import hashlib as _hl
-        _tag = _hl.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
-        _path = os.path.join(_dump_dir, f"pre_plugin_{_tag}")
-        if not os.path.isfile(_path + ".xml"):
-            serialize(om, _path + ".xml", _path + ".bin")
-            print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
-
     compiled = core.compile_model(om, device, config)
     logger.debug(f"OpenVINO graph compile successful on device {device}")
-
-    _post_dir = os.environ.get("OV_DUMP_POST_PLUGIN_IR")
-    if _post_dir:
-        os.makedirs(_post_dir, exist_ok=True)
-        import hashlib as _hl2
-        _tag2 = _hl2.sha256(str([list(i.get_partial_shape()) for i in om.inputs]).encode()).hexdigest()[:12]
-        _path2 = os.path.join(_post_dir, f"post_plugin_{_tag2}")
-        if not os.path.isfile(_path2 + ".xml"):
-            rm_dump = compiled.get_runtime_model()
-            serialize(rm_dump, _path2 + ".xml", _path2 + ".bin")
-            print(f"[OV_DUMP] Dumped post-plugin runtime IR to {_path2}.xml", flush=True)
 
     return compiled
