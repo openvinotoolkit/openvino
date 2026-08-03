@@ -8,6 +8,7 @@
 Checks: >
   -*,
   modernize-use-override,
+  google-readability-namespace-comments,
   readability-redundant-member-init,
   readability-redundant-string-init,
   readability-redundant-control-flow,
@@ -27,4 +28,8 @@ HeaderFilterRegex: "src/plugins/intel_gpu/(include|src)/.*\\.(h|hpp)$"
 CheckOptions:
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  - key: google-readability-namespace-comments.ShortNamespaceLines
+    value: 10
+  - key: google-readability-namespace-comments.SpacesBeforeComments
+    value: 2
 ---
