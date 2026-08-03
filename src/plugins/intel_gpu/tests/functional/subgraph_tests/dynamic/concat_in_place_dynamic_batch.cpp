@@ -6,6 +6,7 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convolution.hpp"
@@ -80,15 +81,25 @@ protected:
         for (auto&& shape : inputDynamicShapes)
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
 
-        auto makeConv = [](const ov::element::Type &model_type, const ov::Output<ov::Node> &in) {
-            return ov::test::utils::make_convolution(in, model_type, {1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
-                                                     ov::op::PadType::EXPLICIT, 2);
+        const auto inChannels = inputShapes[0].first[1].get_length();
+        const ov::Shape weightShape = {2, static_cast<size_t>(inChannels), 1, 1};
+
+        auto makeConv = [&](const ov::element::Type &model_type, const ov::Output<ov::Node> &in, int32_t seed) {
+            ov::test::utils::InputGenerateData in_data;
+            in_data.start_from = -1;
+            in_data.range = 2;
+            in_data.resolution = 32;
+            in_data.seed = seed;
+            auto tensor = ov::test::utils::create_and_fill_tensor(model_type, weightShape, in_data);
+            auto constantWeightOp = std::make_shared<ov::op::v0::Constant>(tensor);
+            return ov::test::utils::make_convolution(in, constantWeightOp, model_type, {1, 1}, {1, 1}, {0, 0}, {0, 0},
+                                                     {1, 1}, ov::op::PadType::EXPLICIT, 2);
         };
 
-        auto convolutionOp1 = makeConv(model_type, inputParams[0]);
+        auto convolutionOp1 = makeConv(model_type, inputParams[0], 1);
         convolutionOp1->set_friendly_name("convolution1");
 
-        auto convolutionOp2 = makeConv(model_type, inputParams[0]);
+        auto convolutionOp2 = makeConv(model_type, inputParams[0], 2);
         convolutionOp2->set_friendly_name("convolution2");
 
         const auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector({convolutionOp1, convolutionOp2}), 1);
