@@ -25,7 +25,8 @@ public:
                      std::shared_ptr<const ov::Model>,
                      std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
+        const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
+        const std::optional<BlobType>& blobType = std::nullopt) const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
