@@ -161,29 +161,12 @@ bool matches_batched_nms_chain(const std::shared_ptr<ov::Node>& boxes_offset_add
 
 template <typename T>
 bool get_scalar_from_const_source(const ov::Output<ov::Node>& output, T& value) {
-    auto node = output.get_node_shared_ptr();
-    if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-        return get_scalar_from_const_source(convert->input_value(0), value);
-    }
-
-    // NonMaxSuppressionIEInternal reshapes its scalar attributes to Shape{1},
-    // e.g. when ConvertNMS9ToNMSIEInternal recreates the max_output_boxes_per_class/
-    // iou_threshold/score_threshold inputs.
-    if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
-        return get_scalar_from_const_source(reshape->input_value(0), value);
-    }
-
-    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-    if (!constant) {
+    const auto constant = ov::util::get_constant_from_source(output);
+    if (!constant || ov::shape_size(constant->get_shape()) != 1) {
         return false;
     }
 
-    const auto values = constant->cast_vector<T>();
-    if (values.size() != 1) {
-        return false;
-    }
-
-    value = values[0];
+    value = constant->cast_vector<T>(1)[0];
     return true;
 }
 
