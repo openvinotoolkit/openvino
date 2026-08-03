@@ -12,6 +12,15 @@ using namespace intel_npu;
 
 using MetadataUnitTests = ::testing::Test;
 
+namespace {
+
+// Compiler payload size + magic bytes
+constexpr size_t FOOTER_SIZE = sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
+constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
+
+}  // namespace
+
 TEST_F(MetadataUnitTests, readUnversionedBlob) {
     std::stringstream blob("this_is an_unversioned bl0b");
 
@@ -19,7 +28,7 @@ TEST_F(MetadataUnitTests, readUnversionedBlob) {
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(blob));
 
     blob.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(blob);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(blob);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     blob.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(tensor));
@@ -36,7 +45,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -56,7 +65,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
     ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -74,7 +83,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWeightsSeparation) 
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -116,7 +125,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentAllAttri
     }
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -165,7 +174,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithCompatibilityDe
     ASSERT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -194,7 +203,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithEmptyCompatibil
     ASSERT_FALSE(storedMeta->get_compatibility_descriptor().has_value());
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
@@ -216,18 +225,17 @@ TEST_F(MetadataUnitTests, compatibilityDescriptorLenExceedsBounds) {
     meta.write(stream);
     std::string blob = stream.str();
 
-    // End - magic - blob size - compatibility string - compatibility string size
+    const uint64_t badCompatibilityDescriptorSize = compatDesc.size() + 0xFF;
     const size_t compatDescLenOffset =
-        blob.size() - MAGIC_BYTES.size() - sizeof(uint64_t) - compatDesc.size() - sizeof(uint64_t);
-    const uint64_t badLen = compatDesc.size() + 0xFF;
-    std::memcpy(&blob[compatDescLenOffset], &badLen, sizeof(badLen));
+        blob.size() - FOOTER_SIZE - sizeof(badCompatibilityDescriptorSize) - compatDesc.size();
+    std::memcpy(&blob[compatDescLenOffset], &badCompatibilityDescriptorSize, sizeof(badCompatibilityDescriptorSize));
 
     std::stringstream malformedStream(blob);
     EXPECT_ANY_THROW(read_metadata_from(malformedStream));
 
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
     std::memcpy(tensor.data<char>(), blob.data(), blob.size());
-    ASSERT_ANY_THROW(read_metadata_from(tensor));
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
 }
 
 TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
@@ -242,7 +250,7 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(tensor));
@@ -262,7 +270,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(tensor));
@@ -282,7 +290,7 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
     EXPECT_ANY_THROW(read_metadata_from(blob));
 
     blob.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(blob);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(blob);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     blob.read(tensor.data<char>(), tensor.get_byte_size());
     EXPECT_ANY_THROW(read_metadata_from(tensor));
@@ -324,7 +332,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     ASSERT_ANY_THROW(storedMeta = read_metadata_from(tensor));
@@ -353,7 +361,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(tensor));
@@ -382,8 +390,54 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
-    size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     EXPECT_ANY_THROW(storedMeta = read_metadata_from(tensor));
 }
+
+// test metadata ended
+
+TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
+    std::stringstream stream;
+    std::vector<uint64_t> initSizes{16, 32};
+
+    auto meta = Metadata<METADATA_VERSION_2_1>(0, std::nullopt, initSizes);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const uint64_t badNumberOfInits = initSizes.size() + 1;
+    const size_t numberOfInitsOffset =
+        blob.size() - FOOTER_SIZE - initSizes.size() * SIZE_OF_INIT_SCHEDULE_SIZE - sizeof(badNumberOfInits);
+    std::memcpy(&blob[numberOfInitsOffset], &badNumberOfInits, sizeof(badNumberOfInits));
+
+    std::stringstream malformedStream(blob);
+    EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    EXPECT_ANY_THROW(read_metadata_from(tensor));
+}
+
+// TEST_F(MetadataUnitTests, numberOfLayoutsExceedsBlobLimit) {
+//     std::stringstream stream;
+//     std::vector<ov::Layout> inputLayouts{"1"};
+//     std::vector<ov::Layout> outputLayouts{"2"};
+
+//     auto meta =
+//         Metadata<METADATA_VERSION_2_3>(0, std::nullopt, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
+//     meta.write(stream);
+//     std::string blob = stream.str();
+
+//     const uint64_t badNumberOfLayouts = inputLayouts.size() + outputLayouts.size() + 1;
+//     const size_t numberOfLayoutsOffset =
+//         blob.size() - FOOTER_SIZE - initSizes.size() * SIZE_OF_INIT_SCHEDULE_SIZE - sizeof(badNumberOfLayouts);
+//     std::memcpy(&blob[numberOfInitsOffset], &badNumberOfInits, sizeof(badNumberOfInits));
+
+//     std::stringstream malformedStream(blob);
+//     EXPECT_ANY_THROW(read_metadata_from(malformedStream));
+
+//     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+//     std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+//     EXPECT_ANY_THROW(read_metadata_from(tensor));
+// }

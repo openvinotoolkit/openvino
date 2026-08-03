@@ -68,7 +68,7 @@ std::vector<uint16_t> parse_version(std::string_view sv) {
     return parts;
 }
 
-size_t getStreamTotalSize(std::istream& stream) {
+size_t get_stream_total_size(std::istream& stream) {
     OPENVINO_ASSERT(stream, "Stream is in bad status! Please check the passed stream status!");
 
     if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
@@ -223,7 +223,7 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
 
 void MetadataBase::read(std::istream& stream) {
     _source = Source(stream);
-    _sourceSize = getStreamTotalSize(stream);
+    _sourceSize = get_stream_total_size(stream);
     read();
 }
 
@@ -597,8 +597,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     }
 }
 
-size_t MetadataBase::getStreamRemainingSize(std::istream& stream) {
-    auto log = Logger::global().clone("getStreamRemainingSize");
+size_t MetadataBase::get_stream_remaining_size(std::istream& stream) {
+    auto log = Logger::global().clone("get_stream_remaining_size");
     OPENVINO_ASSERT(stream, "Stream is in bad status! Please check the passed stream status!");
 
     if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
@@ -623,7 +623,7 @@ size_t MetadataBase::getStreamRemainingSize(std::istream& stream) {
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::streampos currentStreamPos = stream.tellg();
-    const size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
+    const size_t streamSize = MetadataBase::get_stream_remaining_size(stream);
 
     OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
 
