@@ -1229,18 +1229,6 @@ void Transformations::PostLpt() {
 void Transformations::MainSnippets() {
     using namespace snippets::pass;
 
-    // Run identity-Convert + round-trip elimination once more right before
-    // snippets tokenization. Earlier ConvertPrecision / common-optimization
-    // passes can introduce new identity Converts (T -> T) around precision
-    // alignment boundaries; if those reach snippets they get tokenized into
-    // per-step jit Subgraphs that scan the activation tensor for nothing.
-    // Catch them here, after all the precision-rebalancing work is done.
-    {
-        ov::pass::Manager pre_snippets_cleanup("CPU:PreSnippetsConvertCleanup");
-        pre_snippets_cleanup.set_per_pass_validation(false);
-        pre_snippets_cleanup.run_passes(model);
-    }
-
     auto is_supported_isa = []() {
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
