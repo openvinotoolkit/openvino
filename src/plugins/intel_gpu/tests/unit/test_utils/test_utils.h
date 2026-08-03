@@ -369,6 +369,18 @@ inline bool floating_point_equal(ov::float16 x, ov::float16 y, int max_ulps_diff
     }
 }
 
+inline bool floating_point_equal(ov::bfloat16 x, ov::bfloat16 y, int max_ulps_diff = 4) {
+    const uint16_t sign_bit_mask = 0x8000u;
+    uint16_t a = x.to_bits();
+    uint16_t b = y.to_bits();
+    if ((a & sign_bit_mask) != (b & sign_bit_mask)) {
+        a &= static_cast<uint16_t>(~sign_bit_mask);
+        b &= static_cast<uint16_t>(~sign_bit_mask);
+        return a == 0 && b == 0;
+    }
+    return std::abs(static_cast<int32_t>(a) - static_cast<int32_t>(b)) < (1 << max_ulps_diff);
+}
+
 inline bool floating_point_equal(float x, float y, int max_ulps_diff = 4) {
     int32_t sign_bit_mask = 1;
     sign_bit_mask <<= 31;
@@ -603,6 +615,8 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
     switch(output.get_layout().data_type){
         case cldnn::data_types::f16:
             return get_output_values_to_float<ov::float16>(net, output, max_cnt);
+        case cldnn::data_types::bf16:
+            return get_output_values_to_float<ov::bfloat16>(net, output, max_cnt);
         case cldnn::data_types::f32:
             return get_output_values_to_float<float>(net, output, max_cnt);
         case cldnn::data_types::i8:
