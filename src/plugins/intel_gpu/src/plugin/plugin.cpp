@@ -1068,7 +1068,7 @@ void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
         // stays runtime agnostic); an unrecognized value is ignored. See the per-device block.
         static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
         const bool has_override = forced == "OCL" || forced == "ZE" || forced == "SYCL";
-        const bool is_this_runtime = forced == cldnn::get_runtime_cache_tag();
+        const bool is_this_runtime = std::string_view(forced) == cldnn::get_runtime_cache_tag();
 
         for (const auto& d : cldnn::lightweight_enumerate()) {
             const auto& info = d.info;

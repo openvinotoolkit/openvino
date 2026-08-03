@@ -161,7 +161,7 @@ private:
     mutable std::unordered_map<std::string, std::mutex> m_dev_mutexes;
 
     std::mutex& get_mutex(const std::string& dev_name = "") const;
-    void add_mutex(const std::string& dev_name);
+    void add_mutex(const std::string& dev_name) const;
 
     bool is_proxy_device(const ov::Plugin& plugin) const;
     bool is_proxy_device(const std::string& dev_name) const;

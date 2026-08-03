@@ -927,6 +927,9 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
                             device_name,
                             "\". Please check the plugins registry and device drivers.");
             instance_key = device_name + '#' + std::to_string(*winner);
+            // The instance is cached under this internal key; register a mutex for it so code that
+            // iterates m_plugins and locks per key (e.g. set_property_for_device) never throws.
+            add_mutex(instance_key);
             if (config)
                 translate_dispatch_device_id_unsafe(device_name, device_id, *winner, *config);
             if (*winner != 0)
@@ -2069,7 +2072,7 @@ std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
     }
 }
 
-void ov::CoreImpl::add_mutex(const std::string& dev_name) {
+void ov::CoreImpl::add_mutex(const std::string& dev_name) const {
     std::lock_guard<std::mutex> lock(m_global_mutex);
     m_dev_mutexes[dev_name];
 }

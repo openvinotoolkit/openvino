@@ -212,6 +212,17 @@ TEST_F(DispatchGroupTest, repeated_core_lifecycle_is_clean) {
     }
 }
 
+// Global set_property (no device name) iterates every created plugin and locks a per-key mutex.
+// A dispatch winner is cached under an internal key ("FAKE#0"), so that key must have a mutex
+// registered or the lock lookup throws. This exercised the pre-fix crash path.
+TEST_F(DispatchGroupTest, global_set_property_after_group_resolved) {
+    script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(CAPABLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core), "A");  // constructs the winner under the internal key "FAKE#0"
+    OV_ASSERT_NO_THROW(core.set_property({{"SOME_PROPERTY", "SOME_VALUE"}}));
+}
+
 // --- register_plugin runtime API forms a dispatch group ---
 
 // A second register_plugin for the same device name now appends a candidate (no opt-in flag),
