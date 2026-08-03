@@ -167,9 +167,9 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
 
 TEST_F(TransformationTestsF, GLUFusionTestFluxDynamicSplitLengths) {
     {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 18432});
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-        auto half = v0::Constant::create(ov::element::i32, ov::Shape{1}, {9216});
+        auto half = v0::Constant::create(ov::element::i32, ov::Shape{1}, {3});
         auto split_lengths = std::make_shared<v0::Concat>(ov::OutputVector{half, half}, 0);
         auto variadic_split = std::make_shared<v1::VariadicSplit>(input, axis_const, split_lengths);
         auto swish = std::make_shared<v4::Swish>(variadic_split->output(0));
@@ -180,8 +180,8 @@ TEST_F(TransformationTestsF, GLUFusionTestFluxDynamicSplitLengths) {
     }
     {
         int64_t axis = -1;
-        int64_t split_lenghts = 9216;
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 18432});
+        int64_t split_lenghts = 3;
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, 6});
         auto swiglu = std::make_shared<ov::op::internal::GLU>(input,
                                                               axis,
                                                               split_lenghts,
