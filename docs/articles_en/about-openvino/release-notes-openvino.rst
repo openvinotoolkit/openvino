@@ -21,10 +21,10 @@ OpenVINO Release Notes
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
 
+We are considering transitioning to C++20 as the default standard starting with the 27.0 release. We welcome feedback from our customers and community members on this proposed change. Please share your thoughts and comments on the `OpenVINO community forum <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__.
+
 What's New
 ++++++++++
-
-We are considering transitioning to C++20 as the default standard starting with the 27.0 release. We welcome feedback from our customers and community members on this proposed change. Please share your thoughts and comments on the `OpenVINO community forum <https://community.intel.com/t5/Intel-Distribution-of-OpenVINO/bd-p/distribution-openvino-toolkit>`__.
 
 More Gen AI coverage and frameworks integrations to minimize code changes
 -------------------------------------------------------------------------
