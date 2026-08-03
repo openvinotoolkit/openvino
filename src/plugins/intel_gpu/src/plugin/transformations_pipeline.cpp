@@ -1661,6 +1661,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
 
+        // Sink unit-dimension Unsqueeze/Reshape below eltwise ops when the
+        // producer can absorb the eltwise as a post-op (FullyConnected, MatMul,
+        // Transpose). This enables post-op fusion that would otherwise be
+        // blocked by the rank-changing reshape.
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovFusableProducer>(
+            std::vector<ov::DiscreteTypeInfo>{
+                ov::intel_gpu::op::FullyConnected::get_type_info_static(),
+                ov::op::v0::MatMul::get_type_info_static(),
+                ov::op::v1::Transpose::get_type_info_static(),
+            },
+            true);  // check_bias_add
+
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
