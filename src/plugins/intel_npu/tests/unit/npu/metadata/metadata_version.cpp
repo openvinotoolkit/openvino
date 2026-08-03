@@ -397,6 +397,9 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     OV_EXPECT_THROW(storedMeta = read_metadata_from(tensor), ov::Exception, _);
 }
 
+/**
+ * @brief The read cursor should reach the end of the metadata (minus footer) when parsing is complete.
+ */
 TEST_F(MetadataUnitTests, incompleteBlobRead) {
     std::stringstream stream;
     std::vector<uint64_t> initSizes{16, 32};
@@ -418,6 +421,9 @@ TEST_F(MetadataUnitTests, incompleteBlobRead) {
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
 }
 
+/**
+ * @brief Throw if the number of init schedules is too big relative to the size of the blob
+ */
 TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
     std::stringstream stream;
     std::vector<uint64_t> initSizes{16, 32};
@@ -439,6 +445,9 @@ TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
 }
 
+/**
+ * @brief Throw if the number of input layouts is too big relative to the size of the blob
+ */
 TEST_F(MetadataUnitTests, numberOfInputLayoutsExceedsBlobLimit) {
     std::stringstream stream;
     std::vector<ov::Layout> inputLayouts{"1"};
@@ -463,6 +472,9 @@ TEST_F(MetadataUnitTests, numberOfInputLayoutsExceedsBlobLimit) {
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
 }
 
+/**
+ * @brief Throw if the number of output layouts is too big relative to the size of the blob
+ */
 TEST_F(MetadataUnitTests, numberOfOutputLayoutsExceedsBlobLimit) {
     std::stringstream stream;
     std::vector<ov::Layout> inputLayouts{"1"};
@@ -487,6 +499,9 @@ TEST_F(MetadataUnitTests, numberOfOutputLayoutsExceedsBlobLimit) {
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
 }
 
+/**
+ * @brief Throw if the size of at least one layout is too big relative to the size of the blob
+ */
 TEST_F(MetadataUnitTests, layoutLengthExceedsBlobLimit) {
     std::stringstream stream;
     std::vector<ov::Layout> inputLayouts{"1"};
