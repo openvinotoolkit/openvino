@@ -1102,16 +1102,37 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // different regimes (see pre_compute.cpp's CacheRawKeyPattern). Correct for
         // generate, whole/STATIC prefill, and chunked (continuous-strategy) prefill -
         // all three keep the "history is stored contiguously from slot 0" invariant
-        // the full-range RoPE construction relies on. NOT verified for block-based KV
-        // cache (NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE) - that strategy manages KV in a
-        // block pool with a different layout, so it's excluded here until checked.
+        // the full-range RoPE construction relies on.
+        //
+        // Unsupported combinations are rejected here rather than silently producing a
+        // wrong result, because the rewrite is unconditional once applied:
+        //  - block-based KV cache manages KV in a block pool with a different layout,
+        //    so "cache slot i == absolute position i" does not hold;
+        //  - HFA reads the raw past/present K blocks directly and feeds their tiles to
+        //    its own Q@K models (see build_sdpa_param_mapping(),
+        //    host_flash_attention.cpp), bypassing the inserted rotation entirely - it
+        //    would multiply an already-rotated Q by a RAW K;
+        //  - Dynamic attention shortens past K/V and the mask to the live context but
+        //    keeps every other input at its static shape, so the fixed [1,1,F,head_dim]
+        //    LUT could not be reduced along with the live K.
+        // In all three cases the model still runs correctly on the pre-existing
+        // rotated-KV RoPE-cache path, just without this mitigation.
         const bool cache_raw_key_requested = m_cfg.get<::intel_npu::NPUW_LLM_LONGROPE_UNROTATED_KV>();
         const bool block_based_kv_cache = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>();
-        const bool cache_raw_key_at_attention = force_rope_cache && cache_raw_key_requested && !block_based_kv_cache;
-        if (cache_raw_key_requested && force_rope_cache && block_based_kv_cache) {
-            LOG_WARN("NPUW_LLM_LONGROPE_UNROTATED_KV is set but NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES - "
-                     << "this mitigation is not verified with block-based KV cache and is disabled.");
+        const char* cache_raw_key_blocker = nullptr;
+        if (block_based_kv_cache) {
+            cache_raw_key_blocker = "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES";
+        } else if (prefill_attn_hfa || generate_attn_hfa) {
+            cache_raw_key_blocker = "an HFA attention hint";
+        } else if (prefill_attn_dyn || generate_attn_dyn) {
+            cache_raw_key_blocker = "a DYNAMIC attention hint";
         }
+        if (cache_raw_key_requested && force_rope_cache && cache_raw_key_blocker) {
+            LOG_WARN("NPUW_LLM_LONGROPE_UNROTATED_KV is set but is not supported together with "
+                     << cache_raw_key_blocker << " - the mitigation is disabled for this model.");
+        }
+        const bool cache_raw_key_at_attention =
+            force_rope_cache && cache_raw_key_requested && cache_raw_key_blocker == nullptr;
 
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
@@ -1349,6 +1370,14 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
             m_is_embedding & m_is_block_kv_cache;
 
+        // LongRoPE unrotated-KV (NPUW_LLM_LONGROPE_UNROTATED_KV): the transformed child
+        // graphs have npuw_lr_full_cos/sin inputs the host must fill every call, but
+        // deserialization imports already-compiled children and never re-runs RopeCache -
+        // so these tables have to travel with the blob. Only the dimensions and the two
+        // inverse-frequency arrays are written; LongRopeHostLut::serialize() rebuilds the
+        // tables on read (see pre_compute.cpp).
+        stream & m_longrope_prefill_lut & m_longrope_generate_luts;
+
         // Write config
         stream & m_cfg;
 
@@ -1569,6 +1598,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
             compiled->m_is_block_kv_cache;
+
+        // LongRoPE unrotated-KV tables - see the matching comment in serialize()
+        stream & compiled->m_longrope_prefill_lut & compiled->m_longrope_generate_luts;
 
         // Deserialize config
         stream & compiled->m_cfg;

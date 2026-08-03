@@ -203,7 +203,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     // Optional alternative: the K-cache Concat may be immediately followed by a
     // "rotate raw K at attention time" chain instead of feeding the GQA-expansion
     // directly - this is what CacheRawKeyPattern (pre_compute.cpp) inserts when the
-    // KV-cache stores the pre-RoPE key (NPUW_LONGROPE_UNROTATED_KV). It splits the
+    // KV-cache stores the pre-RoPE key (NPUW_LLM_LONGROPE_UNROTATED_KV). It splits the
     // raw concat into rotary-first-half/rotary-second-half/passthrough via a single
     // VariadicSplit, applies rotate_half+cos/sin (cos/sin extended with identity
     // values on the passthrough dims, so no separate passthrough handling or
@@ -306,36 +306,45 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         isolate_matched(k_mul_cos_full);
         auto k_for_attention_iter = node_to_output.find(k_for_attention);
         if (k_for_attention_iter != node_to_output.end()) {
+            auto isolate_node = [&](const std::shared_ptr<ov::Node>& node) {
+                if (node && node_to_gptr->count(node)) {
+                    node_to_gptr->at(node)->isolate(isol_tag);
+                }
+            };
+            // The f16 npuw_lr_full_cos/sin Parameters are converted to K's element type
+            // by a per-layer Convert. That Convert must land in THIS attention group,
+            // otherwise the group's input would be the Convert's output instead of the
+            // named Parameter and Pyramid's per-bucket LUT reshape could not find it.
+            auto isolate_lut_convert = [&](const std::shared_ptr<ov::Node>& mul_node) {
+                if (mul_node && mul_node->get_input_size() > 1) {
+                    auto lut_in = mul_node->input_value(1).get_node_shared_ptr();
+                    if (ov::is_type<ov::op::v0::Convert>(lut_in)) {
+                        isolate_node(lut_in);
+                    }
+                }
+            };
+
             auto add_node = k_for_attention_iter->second.get_node_shared_ptr();
-            if (node_to_gptr->count(add_node)) {
-                node_to_gptr->at(add_node)->isolate(isol_tag);
-            }
+            isolate_node(add_node);
             // add_node = Add(mul_cos_full, mul_sin_full) - walk the mul_sin_full side.
+            isolate_lut_convert(add_node->input_value(0).get_node_shared_ptr());
             auto mul_sin_node = add_node->input_value(1).get_node_shared_ptr();
-            if (node_to_gptr->count(mul_sin_node)) {
-                node_to_gptr->at(mul_sin_node)->isolate(isol_tag);
-            }
+            isolate_node(mul_sin_node);
+            isolate_lut_convert(mul_sin_node);
             if (mul_sin_node->get_input_size() > 0) {
                 // mul_sin_node = Multiply(rotate_half_full, sin) - rotate_half_full is a
                 // Concat(neg, split_out0, split_out2); isolate it and everything feeding it
                 // (the neg Multiply and the VariadicSplit, reached via any of its inputs).
                 auto rotate_half_node = mul_sin_node->input_value(0).get_node_shared_ptr();
-                if (node_to_gptr->count(rotate_half_node)) {
-                    node_to_gptr->at(rotate_half_node)->isolate(isol_tag);
-                }
+                isolate_node(rotate_half_node);
                 for (size_t i = 0; i < rotate_half_node->get_input_size(); ++i) {
                     auto in_node = rotate_half_node->input_value(i).get_node_shared_ptr();
-                    if (node_to_gptr->count(in_node)) {
-                        node_to_gptr->at(in_node)->isolate(isol_tag);
-                    }
+                    isolate_node(in_node);
                     // in_node is either the neg Multiply (whose own input(0) is the
                     // VariadicSplit) or the VariadicSplit directly (for the other two
                     // Concat inputs) - isolate one hop further either way.
                     if (in_node->get_input_size() > 0) {
-                        auto further = in_node->input_value(0).get_node_shared_ptr();
-                        if (node_to_gptr->count(further)) {
-                            node_to_gptr->at(further)->isolate(isol_tag);
-                        }
+                        isolate_node(in_node->input_value(0).get_node_shared_ptr());
                     }
                 }
             }

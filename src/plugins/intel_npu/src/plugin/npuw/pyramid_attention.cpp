@@ -478,17 +478,17 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             }
         } else if (param_name == "npuw_lr_full_cos" || param_name == "npuw_lr_full_sin") {
             // LongRoPE unrotated-K-cache full-range LUT Parameter (see CacheRawKeyPattern
-            // in partitioning/patterns/pre_compute.cpp, NPUW_LONGROPE_UNROTATED_KV). Shape
-            // is [1, 1, F, head_dim] (sequence dim is axis 2, not the last axis). Row i of
-            // this Parameter is indexed by absolute position i - unlike the mask, there's no
-            // gap/padding concept, so this bucket just needs the first current_context_length
-            // rows, exactly like the mask's own seq-dim resize (see bind_function_input() in
-            // attn_subgraph.cpp for the matching runtime prefix-copy).
+            // in partitioning/patterns/pre_compute.cpp, NPUW_LLM_LONGROPE_UNROTATED_KV).
+            // Shape is [1, 1, F, head_dim] (sequence dim is axis 2, not the last axis), so
+            // this bucket needs exactly current_context_length rows. NB: the runtime does
+            // NOT fill them from a contiguous prefix of the outer tensor - history comes
+            // from the outer prefix but the present rows come from the outer tensor's own
+            // TAIL (see bind_function_input() in attn_subgraph.cpp).
             if (new_shape.size() > 2) {
                 new_shape[2] = current_context_length;
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  LongRoPE LUT param '" << param_name << "' shape: " << original_shape << " -> "
-                                                    << new_shape);
+                                                   << new_shape);
             }
         }
     }

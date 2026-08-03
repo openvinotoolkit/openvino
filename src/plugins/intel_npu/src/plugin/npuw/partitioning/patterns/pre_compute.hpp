@@ -10,6 +10,12 @@
 #include <vector>
 
 #include "openvino/pass/pattern/multi_matcher.hpp"
+#include "openvino/runtime/tensor.hpp"
+
+// Forward declaration - LongRopeHostLut::serialize() below only needs the type name.
+namespace ov ::npuw ::orc {
+class Stream;
+}  // namespace ov::npuw::orc
 
 namespace ov ::npuw ::patterns ::pre_compute {
 
@@ -91,36 +97,53 @@ public:
 // Returns std::nullopt if the pattern doesn't match.
 std::optional<uint64_t> extract_phi_v5_longrope_context_limit(const std::shared_ptr<ov::Model>& model);
 
-// Host-side (non-graph) copy of the LongRoPE short/long-factor cos/sin LUT used
-// to rotate the cached-raw K at attention time (see CacheRawKeyPattern in
-// pre_compute.cpp). Rows are indexed by absolute position (row i == position i).
-// Columns [0, rotary_ndims) hold the actual rotate_half-style cos/sin values
-// (duplicated/mirrored the same way makeCosSinCache does); columns
-// [rotary_ndims, head_dim) are identity padding (cos=1, sin=0) for the
-// passthrough (non-rotary) part of the head, so the two tables can be
-// multiplied directly against the FULL (unsplit) raw K tensor.
+// The LongRoPE short/long-factor cos/sin tables used by the unrotated-KV mitigation
+// (see CacheRawKeyPattern in pre_compute.cpp). Rows are indexed by absolute position
+// (row i == position i); columns [0, rotary_ndims) are the rotate_half-style values
+// (second half mirrors the first), columns [rotary_ndims, head_dim) are identity
+// (cos=1, sin=0) for the passthrough part of the head. The layout therefore matches
+// the npuw_lr_full_cos/npuw_lr_full_sin model Parameters 1:1, so filling them at
+// runtime is a plain copy.
 //
-// This is computed once per compiled model variant (prefill / each generate
-// kvcache size) and stored on LLMCompiledModel; at runtime it's copied (as a
-// prefix - see the "row i == position i" invariant) into the model's own
-// npuw_lr_full_cos/npuw_lr_full_sin input tensors (see llm_infer_request.cpp).
-// The two inv_freq arrays are kept around so the runtime can also compute the
-// LUT-uncovered tail rows (the current call's own query tokens - their
-// absolute position isn't known at compile time) with a few cos/sin evals.
+// SINGLE SOURCE OF TRUTH. For a variant where the rewrite applies, these host-owned
+// buffers are the ONLY place the RoPE coefficients exist: the rewrite also rewires the
+// Q-side cos/sin to a tail slice of the very same Parameters, so no cos/sin Constant
+// (and no short/long Select) is emitted into the graph at all. Nothing here aliases
+// compiled-blob memory - a driver is free to repack or otherwise transform the
+// constants it is given, so host data must never be assumed to still match them.
+//
+// Coefficients are computed in f32 (std::cos/std::sin) and stored as f16, which is
+// also the element type of the two model Parameters.
+//
+// One instance is kept per compiled model variant (prefill / each generate kvcache
+// size) on LLMCompiledModel. Only max_len/rotary_ndims/head_dim and the two
+// inverse-frequency arrays are written to the blob; rebuild_tables() regenerates the
+// tables byte-for-byte on import (see serialize()).
 struct LongRopeHostLut {
-    size_t max_len = 0;
-    size_t rotary_ndims = 0;
-    size_t head_dim = 0;
-    std::vector<float> cos_short;  // max_len * head_dim, row-major
-    std::vector<float> sin_short;
-    std::vector<float> cos_long;
-    std::vector<float> sin_long;
+    size_t max_len = 0;       // rows; == the variant's full K context length
+    size_t rotary_ndims = 0;  // rotary columns; the rest, up to head_dim, are identity
+    size_t head_dim = 0;      // row width; == the npuw_lr_full_cos/sin last dim
+
+    // f16, shape [1, max_len, head_dim].
+    ov::Tensor cos_short;
+    ov::Tensor sin_short;
+    ov::Tensor cos_long;
+    ov::Tensor sin_long;
+
     std::vector<float> inv_freq_short;  // rotary_ndims/2 entries
     std::vector<float> inv_freq_long;   // rotary_ndims/2 entries
 
     bool is_valid() const {
-        return max_len > 0 && head_dim > 0 && !cos_short.empty();
+        return max_len > 0 && rotary_ndims > 0 && head_dim >= rotary_ndims && static_cast<bool>(cos_short) &&
+               static_cast<bool>(sin_short) && static_cast<bool>(cos_long) && static_cast<bool>(sin_long);
     }
+
+    // (Re)builds the four tables from max_len/rotary_ndims/head_dim and the two
+    // inverse-frequency arrays. Used both at compile time and on blob import.
+    void rebuild_tables();
+
+    // Blob export/import - see the note above about what actually goes to the blob.
+    void serialize(ov::npuw::orc::Stream& stream);
 };
 
 class RopeCacheMatcher {
@@ -128,12 +151,12 @@ public:
     // When cache_raw_key_at_attention is true and a LongRopePatternPhi_v5 match is
     // found, the K-cache (past_key_values.*.key / present.*.key) is rewritten to
     // store the RAW (pre-RoPE) key instead of the rotated one, and RoPE is applied
-    // to the key right before it's consumed by attention (see cache_raw_key.cpp/hpp
-    // - applyCacheRawKeyAtAttention). This avoids the LongRoPE short/long-factor
-    // mismatch between keys cached under different regimes. When this happens,
-    // out_lut (if non-null) receives the host-side LUT data (see LongRopeHostLut)
-    // needed to populate the two new npuw_lr_full_cos/npuw_lr_full_sin Parameters
-    // this rewrite adds to the model, at runtime.
+    // to the key right before it's consumed by attention (see CacheRawKeyPattern /
+    // applyCacheRawKeyAtAttention in pre_compute.cpp). This avoids the LongRoPE
+    // short/long-factor mismatch between keys cached under different regimes. When
+    // this happens, out_lut (if non-null) receives the LongRopeHostLut handle - the
+    // layout plus the (shared, not duplicated) cos/sin tables - the runtime needs to
+    // fill the two new npuw_lr_full_cos/npuw_lr_full_sin Parameters this rewrite adds.
     RopeCacheMatcher(const uint32_t max_prompt_len,
                      const std::shared_ptr<ov::Model>& m,
                      const std::string& longrope_input_name,

@@ -32,7 +32,7 @@ struct Attention {
 
     // LongRoPE unrotated-K-cache full-range LUT Parameters (npuw_lr_full_cos /
     // npuw_lr_full_sin - see CacheRawKeyPattern in
-    // partitioning/patterns/pre_compute.cpp, NPUW_LONGROPE_UNROTATED_KV), if
+    // partitioning/patterns/pre_compute.cpp, NPUW_LLM_LONGROPE_UNROTATED_KV), if
     // present in the model. Kept separate from _inputs/kv_param_dim because
     // their runtime binding is different: kv_param_dim slices to past_len,
     // while these need the FULL current bucket context length (no gap, unlike
