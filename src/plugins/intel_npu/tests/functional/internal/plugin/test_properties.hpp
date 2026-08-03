@@ -44,21 +44,6 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
-
-template <typename OptionType>
-void register_option(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
-    options.add<OptionType>();
-    const auto option_mode = OptionType::mode();
-    const bool is_enabled_by_default =
-        option_mode == ::intel_npu::OptionMode::RunTime || option_mode == ::intel_npu::OptionMode::Both;
-    config.enable(OptionType::key(), is_enabled_by_default);
-}
-
-template <typename... OptionTypes>
-void register_options(::intel_npu::OptionsDesc& options, ::intel_npu::FilteredConfig& config) {
-    (register_option<OptionTypes>(options, config), ...);
-}
-
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
@@ -97,61 +82,69 @@ public:
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
 
         options->reset();
-        register_options<LOG_LEVEL,
-                         CACHE_DIR,
-                         CACHE_MODE,
-                         COMPILED_BLOB,
-                         DEVICE_ID,
-                         NUM_STREAMS,
-                         PERF_COUNT,
-                         LOADED_FROM_CACHE,
-                         COMPILATION_NUM_THREADS,
-                         PERFORMANCE_HINT,
-                         EXECUTION_MODE_HINT,
-                         PERFORMANCE_HINT_NUM_REQUESTS,
-                         INFERENCE_PRECISION_HINT,
-                         MODEL_PRIORITY,
-                         COMPILATION_MODE_PARAMS,
-                         DMA_ENGINES,
-                         TILES,
-                         COMPILATION_MODE,
-                         COMPILER_TYPE,
-                         COMPILER_VERSION,
-                         PLATFORM,
-                         CREATE_EXECUTOR,
-                         DYNAMIC_SHAPE_TO_STATIC,
-                         PROFILING_TYPE,
-                         BACKEND_COMPILATION_PARAMS,
-                         BATCH_MODE,
-                         BYPASS_UMD_CACHING,
-                         DEFER_WEIGHTS_LOAD,
-                         WEIGHTS_PATH,
-                         RUN_INFERENCES_SEQUENTIALLY,
-                         COMPILER_DYNAMIC_QUANTIZATION,
-                         QDQ_OPTIMIZATION,
-                         QDQ_OPTIMIZATION_AGGRESSIVE,
-                         STEPPING,
-                         DISABLE_VERSION_CHECK,
-                         EXPORT_RAW_BLOB,
-                         IMPORT_RAW_BLOB,
-                         BATCH_COMPILER_MODE_SETTINGS,
-                         TURBO,
-                         ENABLE_WEIGHTLESS,
-                         SEPARATE_WEIGHTS_VERSION,
-                         WS_COMPILE_CALL_NUMBER,
-                         MODEL_SERIALIZER_VERSION,
-                         ENABLE_STRIDES_FOR,
-                         SHARED_COMMON_QUEUE,
-                         CACHE_ENCRYPTION_CALLBACKS,
-                         RUNTIME_REQUIREMENTS,
-                         COMPATIBILITY_CHECK,
-                         MAX_TILES,
-                         WORKLOAD_TYPE,
-                         DISABLE_IDLE_MEMORY_PRUNING,
-                         COMPILE_LOG_LEVEL>(*options, npu_config);
+
+#define REGISTER_OPTION(OPT_TYPE)                                                                              \
+    do {                                                                                                       \
+        options->add<OPT_TYPE>();                                                                              \
+        const bool _enabled = OPT_TYPE::mode() == OptionMode::RunTime || OPT_TYPE::mode() == OptionMode::Both; \
+        npu_config.enable(OPT_TYPE::key(), _enabled);                                                          \
+    } while (0)
+
+        REGISTER_OPTION(LOG_LEVEL);
+        REGISTER_OPTION(COMPILE_LOG_LEVEL);
+        REGISTER_OPTION(CACHE_DIR);
+        REGISTER_OPTION(CACHE_MODE);
+        REGISTER_OPTION(COMPILED_BLOB);
+        REGISTER_OPTION(DEVICE_ID);
+        REGISTER_OPTION(NUM_STREAMS);
+        REGISTER_OPTION(PERF_COUNT);
+        REGISTER_OPTION(LOADED_FROM_CACHE);
+        REGISTER_OPTION(COMPILATION_NUM_THREADS);
+        REGISTER_OPTION(PERFORMANCE_HINT);
+        REGISTER_OPTION(EXECUTION_MODE_HINT);
+        REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
+        REGISTER_OPTION(INFERENCE_PRECISION_HINT);
+        REGISTER_OPTION(MODEL_PRIORITY);
+        REGISTER_OPTION(COMPILATION_MODE_PARAMS);
+        REGISTER_OPTION(DMA_ENGINES);
+        REGISTER_OPTION(TILES);
+        REGISTER_OPTION(COMPILATION_MODE);
+        REGISTER_OPTION(COMPILER_TYPE);
+        REGISTER_OPTION(COMPILER_VERSION);
+        REGISTER_OPTION(PLATFORM);
+        REGISTER_OPTION(CREATE_EXECUTOR);
+        REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
+        REGISTER_OPTION(PROFILING_TYPE);
+        REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
+        REGISTER_OPTION(BATCH_MODE);
+        REGISTER_OPTION(BYPASS_UMD_CACHING);
+        REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
+        REGISTER_OPTION(WEIGHTS_PATH);
+        REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
+        REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
+        REGISTER_OPTION(QDQ_OPTIMIZATION);
+        REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
+        REGISTER_OPTION(STEPPING);
+        REGISTER_OPTION(DISABLE_VERSION_CHECK);
+        REGISTER_OPTION(EXPORT_RAW_BLOB);
+        REGISTER_OPTION(IMPORT_RAW_BLOB);
+        REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+        REGISTER_OPTION(TURBO);
+        REGISTER_OPTION(ENABLE_WEIGHTLESS);
+        REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
+        REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
+        REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
+        REGISTER_OPTION(ENABLE_STRIDES_FOR);
+        REGISTER_OPTION(SHARED_COMMON_QUEUE);
+        REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
+        REGISTER_OPTION(RUNTIME_REQUIREMENTS);
+        REGISTER_OPTION(COMPATIBILITY_CHECK);
+        REGISTER_OPTION(MAX_TILES);
+        REGISTER_OPTION(WORKLOAD_TYPE);
+        REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
         OPENVINO_SUPPRESS_DEPRECATED_START
-        register_option<ENABLE_CPU_PINNING>(*options, npu_config);
+        REGISTER_OPTION(ENABLE_CPU_PINNING);
         OPENVINO_SUPPRESS_DEPRECATED_END
 
         // parse again env_variables to update registered configs which have env vars set
@@ -159,7 +152,7 @@ public:
 
         for_each_exposed_npuw_option([&](auto tag) {
             using Opt = typename decltype(tag)::type;
-            register_option<Opt>(*options, npu_config);
+            REGISTER_OPTION(Opt);
         });
 
         // Special cases
