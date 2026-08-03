@@ -31,7 +31,7 @@ public:
     /**
      * @brief Reads metadata from a stream.
      */
-    void read(std::istream& tensor);
+    void read(std::istream& stream);
 
     /**
      * @brief Reads metadata from a ov::Tensor.
@@ -92,7 +92,7 @@ public:
 
     virtual ~MetadataBase() = default;
 
-    static size_t getFileSize(std::istream& stream);
+    static size_t getStreamRemainingSize(std::istream& stream);
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
@@ -144,6 +144,7 @@ protected:
      * "uninitialized_source" (void*) is the default type assigned upon creation.
      */
     Source _source;
+    size_t _sourceSize;
 
     /**
      * @brief Used only when the source buffer is an OV tensor for managing the read coursor.

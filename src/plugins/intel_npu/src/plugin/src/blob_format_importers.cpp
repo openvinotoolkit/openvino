@@ -181,7 +181,7 @@ public:
         : IBlobFormatImporter(original_model,
                               config,
                               Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
-        const size_t blob_size = MetadataBase::getFileSize(compiler_main_schedule);
+        const size_t blob_size = MetadataBase::getStreamRemainingSize(compiler_main_schedule);
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
         m_main_schedule = allocate_aligned_tensor(blob_size);
@@ -493,7 +493,7 @@ std::unique_ptr<IBlobFormatImporter> create(std::istream& npu_formatted_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
                                             const FilteredConfig& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create(std::istream)");
-    const size_t input_size = MetadataBase::getFileSize(npu_formatted_blob);
+    const size_t input_size = MetadataBase::getStreamRemainingSize(npu_formatted_blob);
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
     const Logger logger(HANDLER_FACTOR_LOGGER_NAME.data(), config.get<LOG_LEVEL>());

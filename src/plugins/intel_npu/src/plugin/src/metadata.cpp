@@ -62,6 +62,21 @@ std::vector<uint16_t> parse_version(std::string_view sv) {
     return parts;
 }
 
+size_t getStreamTotalSize(std::istream& stream) {
+    OPENVINO_ASSERT(stream, "Stream is in bad status! Please check the passed stream status!");
+
+    if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
+        return stream.rdbuf()->in_avail();
+    }
+
+    const std::streampos backupCursor = stream.tellg();
+    stream.seekg(0, std::ios_base::end);
+    const std::streampos streamEnd = stream.tellg();
+    stream.seekg(backupCursor, std::ios_base::beg);
+
+    return streamEnd;
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -200,13 +215,15 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_6;
 }
 
-void MetadataBase::read(std::istream& tensor) {
-    _source = Source(tensor);
+void MetadataBase::read(std::istream& stream) {
+    _source = Source(stream);
+    _sourceSize = getStreamTotalSize(stream);
     read();
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
     _source = Source(tensor);
+    _sourceSize = tensor.get_byte_size();
     read();
 }
 
@@ -218,20 +235,32 @@ void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
+        OPENVINO_ASSERT(stream, "Attempted to read from stream but the stream is in bad status");
+
+        const auto offset = static_cast<size_t>(stream->get().tellg());
+        const size_t remaining = (offset <= _sourceSize) ? _sourceSize - offset : 0;
+        OPENVINO_ASSERT(size <= remaining,
+                        "NPU metadata: attempted to read ",
+                        size,
+                        " bytes at offset ",
+                        offset,
+                        " but only ",
+                        remaining,
+                        " bytes remain in the metadata buffer.");
+
         stream->get().read(destination, size);
     } else if (const std::reference_wrapper<const ov::Tensor>* tensor =
                    std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
-        const size_t available = tensor->get().get_byte_size();
-        const size_t remaining = (_cursorOffset <= available) ? available - _cursorOffset : 0;
-        if (size > remaining) {
-            OPENVINO_THROW("NPU metadata: attempted to read ",
-                           size,
-                           " bytes at offset ",
-                           _cursorOffset,
-                           " but only ",
-                           remaining,
-                           " bytes remain in the metadata buffer.");
-        }
+        const size_t remaining = (_cursorOffset <= _sourceSize) ? _sourceSize - _cursorOffset : 0;
+        OPENVINO_ASSERT(size <= remaining,
+                        "NPU metadata: attempted to read ",
+                        size,
+                        " bytes at offset ",
+                        _cursorOffset,
+                        " but only ",
+                        remaining,
+                        " bytes remain in the metadata buffer.");
+
         std::memcpy(destination, tensor->get().data<const char>() + _cursorOffset, size);
         _cursorOffset += size;
     } else {
@@ -550,11 +579,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     }
 }
 
-size_t MetadataBase::getFileSize(std::istream& stream) {
-    auto log = Logger::global().clone("getFileSize");
-    if (!stream) {
-        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
-    }
+size_t MetadataBase::getStreamRemainingSize(std::istream& stream) {
+    auto log = Logger::global().clone("getStreamRemainingSize");
+    OPENVINO_ASSERT(stream, "Stream is in bad status! Please check the passed stream status!");
 
     if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
         return stream.rdbuf()->in_avail();
@@ -566,20 +593,19 @@ size_t MetadataBase::getFileSize(std::istream& stream) {
 
     log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
 
-    if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd (",
-                       streamEnd,
-                       ") is not larger than streamStart (",
-                       streamStart,
-                       ")!");
-    }
+    OPENVINO_ASSERT(streamEnd >= streamStart,
+                    "Invalid stream size: streamEnd (",
+                    streamEnd,
+                    ") is not larger than streamStart (",
+                    streamStart,
+                    ")!");
 
     return streamEnd - streamStart;
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     std::streampos currentStreamPos = stream.tellg();
-    const size_t streamSize = MetadataBase::getFileSize(stream);
+    const size_t streamSize = MetadataBase::getStreamRemainingSize(stream);
 
     OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
 
