@@ -343,31 +343,21 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             // final_out is NHWC (channel last), but Reshape does not reorder elements, so
             // consumer_reshape (built for the Convolution's NCHW output) needs NCHW input too.
             const auto& conv_out_pshape = conv1x1->get_output_partial_shape(0);
-            if (conv_out_pshape.rank() != 4 || conv_out_pshape[1].is_dynamic() ||
-                conv_out_pshape[2].is_dynamic() || conv_out_pshape[3].is_dynamic()) {
+            if (conv_out_pshape.rank() != 4) {
                 return false;
             }
             std::shared_ptr<Node> reshape_input = final_out;
-            // Only restore NCHW order when the spatial size H*W > 1. When H*W == 1 the NHWC
-            // [N, 1, 1, Cout] and NCHW [N, Cout, 1, 1] layouts have identical element order, so
-            // inserting a Reshape/Transpose pair would add redundant no-op nodes. When H*W > 1,
-            // feeding the channel-last MatMul output straight into the NCHW-built Reshape would
-            // scramble data, so group as [N, H, W, Cout] (N inferred, element order already matches
-            // final_out) then permute to NCHW.
-            if (conv_out_pshape[2].get_length() * conv_out_pshape[3].get_length() > 1) {
-                auto nhwc_shape_const = std::make_shared<ov::op::v0::Constant>(
-                    ov::element::i32,
-                    ov::Shape{4},
-                    std::vector<int64_t>{-1,
-                                          conv_out_pshape[2].get_length(),
-                                          conv_out_pshape[3].get_length(),
-                                          conv_out_pshape[1].get_length()});
-                auto final_out_nhwc = std::make_shared<ov::op::v1::Reshape>(final_out, nhwc_shape_const, false);
-                ov::copy_runtime_info(conv1x1, final_out_nhwc);
+            // Skip the NCHW-restoring Transpose only when the spatial size H*W is statically 1: then
+            // the NHWC [N, 1, 1, Cout] and NCHW [N, Cout, 1, 1] layouts have identical element order.
+            // Otherwise (H*W > 1) final_out is NHWC [N, H, W, Cout] (the
+            // MatMul preserves the activation's spatial dims), so a single Transpose [0, 3, 1, 2]
+            // restores the NCHW order the matched Reshape was built for.
+            const auto spatial_size = conv_out_pshape[2] * conv_out_pshape[3];
+            if (!(spatial_size.is_static() && spatial_size.get_length() == 1)) {
                 auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                                  ov::Shape{4},
                                                                                  std::vector<int64_t>{0, 3, 1, 2});
-                auto final_out_nchw = std::make_shared<ov::op::v1::Transpose>(final_out_nhwc, nhwc_to_nchw_order);
+                auto final_out_nchw = std::make_shared<ov::op::v1::Transpose>(final_out, nhwc_to_nchw_order);
                 ov::copy_runtime_info(conv1x1, final_out_nchw);
                 reshape_input = final_out_nchw;
             }

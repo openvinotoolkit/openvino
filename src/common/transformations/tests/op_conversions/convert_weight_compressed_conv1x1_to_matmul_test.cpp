@@ -340,11 +340,7 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
 //
 // MatMul(transpose_b=true) produces channel-last output [N, H, W, Cout], while the Convolution it
 // replaces produces channel-second NCHW [N, Cout, H, W]. Reshape never reorders elements, so the
-// matched Reshape (built for the Convolution's NCHW output) must receive NCHW data. The pass must
-// therefore restore NCHW order (Reshape to [N, H, W, Cout] + Transpose [0, 3, 1, 2]) before the
-// matched Reshape. Without that restoration (the pre-fix behaviour) the channel/spatial ordering is
-// silently scrambled whenever H*W > 1, and the produced graph differs from the reference below, so
-// this test fails.
+// matched Reshape (built for the Convolution's NCHW output) must receive NCHW data.
 class ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial : public TransformationTestsF {
 public:
     ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial() {
@@ -394,11 +390,9 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x
         // activation is used directly (input transpose is absorbed); MatMul(transpose_b=true)
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);  // -> [1, 1, W, Cout] NHWC
 
-        // Restore NCHW: Reshape to [N, H, W, Cout] then Transpose [0, 3, 1, 2]
-        auto nhwc_shape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {-1, 1, W, Cout});
-        auto nhwc = std::make_shared<ov::opset1::Reshape>(matmul, nhwc_shape_const, false);
+        // MatMul output is already NHWC [N, H, W, Cout], so a single Transpose [0, 3, 1, 2] restores NCHW
         auto nhwc_to_nchw_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
-        auto nchw = std::make_shared<ov::opset1::Transpose>(nhwc, nhwc_to_nchw_const);  // -> [1, Cout, 1, W]
+        auto nchw = std::make_shared<ov::opset1::Transpose>(matmul, nhwc_to_nchw_const);  // -> [1, Cout, 1, W]
 
         // matched Reshape to [Cout, W]
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
