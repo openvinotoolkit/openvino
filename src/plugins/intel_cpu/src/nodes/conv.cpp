@@ -577,9 +577,14 @@ bool Convolution::canFuse(const NodePtr& node) const {
         return false;
     };
 
+    auto isSwish = [](const NodePtr& n) -> bool {
+        return n->getType() == Type::Eltwise && n->getAlgorithm() == Algorithm::EltwiseSwish;
+    };
+
     if (!fusedWith.empty()) {
         if (node->getType() == Type::Eltwise) {
-            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isScaleShiftMul(node);
+            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isScaleShiftMul(node) ||
+                   isSwish(node);
         }
         // Allow FakeQuantize to fuse after a single Eltwise activation
         // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
@@ -615,9 +620,8 @@ bool Convolution::canFuse(const NodePtr& node) const {
         return true;
     }
 
-    if (node->getType() == Type::Eltwise && node->getAlgorithm() == Algorithm::EltwiseSwish &&
-        any_of(getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
-        return false;
+    if (isSwish(node)) {
+        return none_of(getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8);
     }
 
 #endif
