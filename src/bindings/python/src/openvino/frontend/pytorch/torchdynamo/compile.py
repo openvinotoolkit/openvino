@@ -20,7 +20,6 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import (
     _get_device,
     _get_config,
     _is_cache_dir_in_config,
-    _bool_opt,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,7 +170,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     except Exception as _ee:
         logger.debug("vllm.apply_post_config skipped: %s", _ee)
 
-    if _bool_opt(options, "perf_count", False):
+    if options and options.get("perf_count"):
         config["PERF_COUNT"] = "YES"
 
     _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")

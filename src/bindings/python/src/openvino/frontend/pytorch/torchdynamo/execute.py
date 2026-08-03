@@ -228,9 +228,16 @@ class OpenVINOGraphModule(torch.nn.Module):
         self.options = options
 
     def __call__(self, *args):
-        import os as _os_nof
-        from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf1
-        if self.perm_fallback and not _bo_nf1(getattr(self, "options", None), "no_fallback", False):
+        # Resolve the no_fallback option through the vLLM preset (so vllm
+        # users get no_fallback=True implicitly). Falls back to plain
+        # options[key] lookup when the vllm subpackage is absent.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt as _bo_nf
+        except Exception:
+            def _bo_nf(opts, key, default):
+                return bool(opts and opts.get(key, default))
+        _no_fallback = _bo_nf(getattr(self, "options", None), "no_fallback", False)
+        if self.perm_fallback and not _no_fallback:
             return self.gm(*args)
 
         try:
@@ -244,8 +251,7 @@ class OpenVINOGraphModule(torch.nn.Module):
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
             logger.exception("OV partition %d execution failed; falling back to PyTorch", self.partition_id)
-            from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt as _bo_nf2
-            if _bo_nf2(getattr(self, "options", None), "no_fallback", False):
+            if _no_fallback:
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."

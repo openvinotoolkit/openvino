@@ -34,8 +34,8 @@ def apply_post_convert(om, options):
     """
     register_pa_parameters(om)
     normalize_concat_ranks(om)
-    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-    if _bool_opt(options, "fc_decompress", True):
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if bool_opt(options, "fc_decompress", True):
         rewrite_fc_decompression(om)
 
 
@@ -47,11 +47,11 @@ def apply_input_shapes(om, args, options):
     fall through to the caller's upstream loop. Falls through when there are
     no int args AND the caller did not opt into the vLLM preset.
     """
-    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-    if not (_bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args)):
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if not (bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args)):
         return False
     bake_symint_constants(
-        om, args, dyn_shapes=_bool_opt(options, "dynamic_shapes", True))
+        om, args, dyn_shapes=bool_opt(options, "dynamic_shapes", True))
     return True
 
 

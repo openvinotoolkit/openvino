@@ -3,13 +3,34 @@
 
 """vLLM preset: expand options={"vllm": True} into per-flag defaults.
 
-Used by torchdynamo.backend_utils._bool_opt and torchdynamo.compile to apply
+Used by torchdynamo.compile and torchdynamo.vllm.compile_hooks to apply
 vLLM-specific defaults when the caller opts into the preset. Lives in the
 vllm/ subpackage so that the generic torchdynamo backend stays free of
 vLLM-specific knowledge.
 """
 
 from typing import Optional, Any
+
+
+def bool_opt(options, key: str, default: bool) -> bool:
+    """Resolve a boolean plugin option with vLLM-preset fallback.
+
+    Priority: options[key] > vLLM preset (if active) > default.
+    Strings \"false\"/\"0\" are treated as False.
+
+    Used by vllm/ code that needs preset-aware resolution. Generic
+    torchdynamo callers should inline a plain
+    ``bool(options and options.get(key, default))`` instead — they do not
+    need the preset lookup.
+    """
+    if options is not None and key in options:
+        v = options[key]
+    else:
+        if is_vllm_preset(options) and has_preset_flag(key):
+            v = preset_flag(key)
+        else:
+            return default
+    return bool(v) and str(v).lower() not in ("false", "0")
 
 # Per-flag defaults expanded from options["vllm"]=True. Caller-supplied flags
 # take priority over these (see _bool_opt).

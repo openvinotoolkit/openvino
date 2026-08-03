@@ -17,8 +17,8 @@ def maybe_register_pa_op(support_dict, options):
     """If options["pa_translate"] is set, register the OV paged_attention
     custom op as supported in the OperatorSupport dict so the OV partitioner
     keeps it inside its partition."""
-    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-    if _bool_opt(options, "pa_translate", False):
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if bool_opt(options, "pa_translate", False):
         support_dict["torch.ops.openvino.paged_attention.default"] = None
 
 
@@ -30,8 +30,8 @@ def maybe_rewrite_paged_attention(graph_module, options):
 
     Returns the number of rewrites performed, or 0 on no-op / failure.
     """
-    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
-    if not _bool_opt(options, "paged_attention", True):
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if not bool_opt(options, "paged_attention", True):
         return 0
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm.paged_attention import (
