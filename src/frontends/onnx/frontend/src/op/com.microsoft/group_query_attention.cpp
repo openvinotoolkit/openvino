@@ -154,7 +154,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     OutputVector ov_op_inputs;
 
     const auto make_empty_optional_input = []() {
-        return v0::Constant::create(ov::element::f32, ov::Shape{0}, {})->output(0);
+        return v0::Constant::create<float>(ov::element::f32, ov::Shape{0}, {})->output(0);
     };
 
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
