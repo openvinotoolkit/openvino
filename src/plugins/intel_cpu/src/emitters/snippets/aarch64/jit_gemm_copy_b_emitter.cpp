@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -100,8 +99,8 @@ void jit_gemm_copy_b_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel
                                         const std::vector<size_t>& mem_ptrs_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(kernel_executor, "GemmCopyB executor is not initialized");
 
-    std::unordered_set<size_t> exclude_spill = {};
-    store_context(exclude_spill);
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
@@ -132,7 +131,7 @@ void jit_gemm_copy_b_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel
     h->mov(call_address_reg, reinterpret_cast<uintptr_t>(ExecutorT::execute));
     h->blr(call_address_reg);
 
-    restore_context(exclude_spill);
+    spill.postamble();
 }
 
 bool jit_gemm_copy_b_emitter::is_f16_executor() const {
