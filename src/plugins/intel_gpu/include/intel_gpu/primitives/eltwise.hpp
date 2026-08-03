@@ -191,6 +191,10 @@ struct eltwise : public primitive_base<eltwise> {
     ov::op::AutoBroadcastSpec broadcast_spec;
     /// @brief Define m_pythondiv.
     bool m_pythondiv = true;
+    /// @brief Set by the plugin when both inputs are provably same-shape (including for dynamic shapes
+    /// with matching ov::Symbol on every dimension). Consumed by fusing logic to allow onednn `sum`
+    /// post-op fusion for dynamic shapes.
+    bool inputs_equal_shape = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -200,6 +204,7 @@ struct eltwise : public primitive_base<eltwise> {
             seed = cldnn::hash_combine(seed, s.hash());
         }
         seed = cldnn::hash_combine(seed, m_pythondiv);
+        seed = cldnn::hash_combine(seed, inputs_equal_shape);
         return seed;
     }
 
@@ -213,7 +218,8 @@ struct eltwise : public primitive_base<eltwise> {
                coefficients == rhs_casted.coefficients &&
                broadcast_spec == rhs_casted.broadcast_spec &&
                stride == rhs_casted.stride &&
-               m_pythondiv == rhs_casted.m_pythondiv;
+               m_pythondiv == rhs_casted.m_pythondiv &&
+               inputs_equal_shape == rhs_casted.inputs_equal_shape;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -223,6 +229,7 @@ struct eltwise : public primitive_base<eltwise> {
         ob << stride;
         ob << make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));
         ob << m_pythondiv;
+        ob << inputs_equal_shape;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -232,6 +239,7 @@ struct eltwise : public primitive_base<eltwise> {
         ib >> stride;
         ib >> make_data(&broadcast_spec, sizeof(ov::op::AutoBroadcastSpec));
         ib >> m_pythondiv;
+        ib >> inputs_equal_shape;
     }
 };
 }  // namespace cldnn

@@ -181,7 +181,8 @@ void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ov::Node>& node,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients = {},
-                         bool pythondiv = true);
+                         bool pythondiv = true,
+                         bool inputs_equal_shape = false);
 
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> possible_inputs_count);
 
