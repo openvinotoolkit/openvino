@@ -556,11 +556,8 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
     // do nothing
 }
 
-// The mbind() syscall is used for NUMA-aware memory binding. It is a Linux-only feature, but on
-// Android arm64 (aarch64) the seccomp filter forbids the mbind syscall (arm64 #237), so calling it
-// aborts the process with SIGSYS during inference. Android devices are single-NUMA-node anyway, so
-// the binding is unnecessary there: exclude Android arm64 and fall back to the no-op mbind_move
-// below. Other __linux__ targets (incl. non-arm64 Android, if ever built) keep the syscall.
+// Android arm64 (aarch64) the seccomp filter forbids the mbind syscall. Android devices
+// are single-NUMA-node anyway, so the binding is unnecessary there.
 #if defined(__linux__) && !(defined(__ANDROID__) && defined(__aarch64__))
 #    define MPOL_DEFAULT   0
 #    define MPOL_BIND      2
