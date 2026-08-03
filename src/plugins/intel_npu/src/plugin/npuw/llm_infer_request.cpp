@@ -637,6 +637,30 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
+
+        // Detect per-tensor seq axis to handle heterogeneous models whose layers use
+        // different value-tensor layouts (e.g. sliding-window vs full-attention with MHA).
+        // The KV-sequence axis is the only dimension where the prefill output and the
+        // generate KV-cache input shapes differ; fall back to flag-derived dims when ambiguous.
+        const auto& pre_out_shape = prefill_out_tensor->get_shape();
+        const auto& gen_in_shape = kvcache_in_tensor->get_shape();
+        uint32_t seq_dim_pre = pre_kv_dim;
+        uint32_t seq_dim_gen = gen_kv_dim;
+        if (pre_out_shape.size() == gen_in_shape.size()) {
+            uint32_t diff_count = 0;
+            uint32_t diff_dim = 0;
+            for (uint32_t d = 0; d < pre_out_shape.size(); ++d) {
+                if (pre_out_shape[d] != gen_in_shape[d]) {
+                    ++diff_count;
+                    diff_dim = d;
+                }
+            }
+            if (diff_count == 1) {
+                seq_dim_pre = diff_dim;
+                seq_dim_gen = diff_dim;
+            }
+        }
+
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -659,48 +683,46 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                    m_npuw_llm_compiled_model->get_plugin());
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
                     prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
+                                                               seq_dim_pre,
                                                                0u,
                                                                static_cast<uint32_t>(tokens_in_past_chunks));
                 } else {
                     prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
+                                                               seq_dim_pre,
                                                                0u,
                                                                static_cast<uint32_t>(tokens_in_past_chunks));
                 }
 
                 auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
-                                                                    gen_kv_dim,
+                                                                    seq_dim_gen,
                                                                     0u,
                                                                     static_cast<uint32_t>(tokens_in_past_chunks));
 
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, seq_dim_pre, seq_dim_gen);
             }
 
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
+                                      seq_dim_pre,
                                       static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
                                       static_cast<uint32_t>(prefill_chunk_size));
 
             auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                               gen_kv_dim,
+                                                               seq_dim_gen,
                                                                static_cast<uint32_t>(tokens_in_past_chunks),
                                                                kvcache_desc.num_stored_tokens);
 
-            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
+            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, seq_dim_pre, seq_dim_gen);
         } else {
+            const auto pre_seq = static_cast<uint32_t>(pre_out_shape[seq_dim_pre]);
+            const auto copy_len = std::min(kvcache_desc.num_stored_tokens, pre_seq);
             auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor,
-                                      pre_kv_dim,
-                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                      kvcache_desc.max_prompt_size);
+                uu::make_tensor_slice(prefill_out_tensor, seq_dim_pre, pre_seq - copy_len, pre_seq);
 
-            auto kvcache_in_slice =
-                uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice = uu::make_tensor_slice(kvcache_in_tensor, seq_dim_gen, 0u, copy_len);
 
-            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
+            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, seq_dim_pre, seq_dim_gen);
         }
     });
     LOG_DEBUG("Done.");
@@ -728,12 +750,32 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                         " in output ports map, while it is expected!");
 
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        auto src_tensor = request->get_tensor(out_ports.at(output_name));
+
+        // Detect per-tensor seq axis: the unique dim where present output and kvcache input
+        // shapes differ.  Fall back to the global transpose flag when ambiguous.
+        uint32_t kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        {
+            const auto& s = src_tensor->get_shape();
+            const auto& d = dst_tensor->get_shape();
+            if (s.size() == d.size()) {
+                uint32_t cnt = 0, detected = 0;
+                for (uint32_t i = 0; i < s.size(); ++i) {
+                    if (s[i] != d[i]) {
+                        ++cnt;
+                        detected = i;
+                    }
+                }
+                if (cnt == 1) {
+                    kv_dim = detected;
+                }
+            }
+        }
+
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,
                                                kvcache_desc.num_stored_tokens);
-        auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
         //       than was sent to be processed
