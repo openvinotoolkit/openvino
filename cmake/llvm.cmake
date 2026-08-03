@@ -3,7 +3,7 @@ include_guard()
 set(SUPPORTED_LLVM_VERSION "23" CACHE STRING "")
 
 find_package(LLVM CONFIG QUIET)
-if (NOT LLVM_FOUND OR NOT LLVM_VERSION_MAJOR EQUAL ${SUPPORTED_LLVM_VERSION})
+if (NOT LLVM_FOUND)
     set(LLVM_DIR "/usr/lib/llvm-${SUPPORTED_LLVM_VERSION}/lib/cmake/llvm" CACHE PATH "" FORCE)
     find_package(LLVM REQUIRED CONFIG)
 endif()

@@ -226,6 +226,7 @@ void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>&
 
     if (!is_created) {
         OPENVINO_THROW("Operation: ", op->get_friendly_name(),
+                       " of type ", op->get_type_name(),
                        "(", op->get_type_info().version_id, ") is not supported");
     }
 }
