@@ -58,11 +58,11 @@ public:
 
     /// @brief Check if the stream supports recording.
     /// @return True if recording is supported, false otherwise.
-    virtual bool supports_recording() = 0;
+    virtual bool supports_recording() const = 0;
 
     /// @brief Create command list for recording executed commands.
     /// @return Command list object.
-    virtual command_list::ptr create_command_list() = 0;
+    virtual command_list::ptr create_command_list() const = 0;
 
     /// @brief Start recording operations executed on the stream.
     /// Executed commands are not submitted to the device during recording.
@@ -72,7 +72,7 @@ public:
 
     /// @brief Check if the stream is currently recording commands to the command list.
     /// @return True if the stream is recording, false otherwise.
-    virtual bool is_recording() = 0;
+    virtual bool is_recording() const = 0;
 
     /// @brief Stop recording and submit all recorded commands to the device.
     /// @return Command list with recorded commands or nullptr if stream was not recording.

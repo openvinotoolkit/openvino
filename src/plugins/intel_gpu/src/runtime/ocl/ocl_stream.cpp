@@ -468,10 +468,10 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
     }
 }
 
-bool ocl_stream::supports_recording() {
+bool ocl_stream::supports_recording() const {
     return false;
 }
-std::shared_ptr<command_list> ocl_stream::create_command_list() {
+command_list::ptr ocl_stream::create_command_list() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -479,7 +479,7 @@ void ocl_stream::start_recording(command_list::ptr cmd_list) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-bool ocl_stream::is_recording() {
+bool ocl_stream::is_recording() const {
     return false;
 }
 

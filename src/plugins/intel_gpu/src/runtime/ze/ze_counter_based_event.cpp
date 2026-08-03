@@ -14,6 +14,7 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_counter_based_event::wait_impl() {
+    OPENVINO_ASSERT(!m_factory.get_stream().is_recording(), "[GPU] Can't wait on event while stream is recording");
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 

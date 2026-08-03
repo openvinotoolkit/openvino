@@ -3,6 +3,7 @@
 //
 
 #include "ze_command_list.hpp"
+#include "ze_stream.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <oneapi/dnnl/dnnl_ze.hpp>
@@ -27,6 +28,7 @@ ze_command_list::ze_command_list(const ze_stream& ze_stream, QueueTypes queue_ty
 
     _cmd_list = ze_command_list_resource(cmd_list_handle);
 }
+
 ze_command_list::~ze_command_list() {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Destroy OneDNN stream before dropping command list

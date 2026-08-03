@@ -58,10 +58,10 @@ public:
     dnnl::stream& get_onednn_stream() override;
 #endif
 
-    bool supports_recording() override;
-    std::shared_ptr<command_list> create_command_list() override;
+    bool supports_recording() const override;
+    command_list::ptr create_command_list() const override;
     void start_recording(command_list::ptr cmd_list) override;
-    bool is_recording() override;
+    bool is_recording() const override;
     command_list::ptr stop_recording() override;
     void enqueue_command_list(command_list::ptr cmd_list) override;
 

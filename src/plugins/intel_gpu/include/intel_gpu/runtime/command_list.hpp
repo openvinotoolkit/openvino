@@ -7,6 +7,7 @@
 #include <memory>
 
 namespace cldnn {
+/// @brief Commands that can be recorded and executed
 class command_list {
 public:
     using ptr = std::shared_ptr<command_list>;

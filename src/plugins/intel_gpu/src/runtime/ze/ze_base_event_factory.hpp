@@ -15,6 +15,7 @@ struct ze_base_event_factory {
 public:
     ze_base_event_factory(const ze_stream &ze_stream)
     : _ze_stream(ze_stream) {}
+    const ze_stream& get_stream() const { return _ze_stream; }
     const ze_engine& get_engine() const { return _ze_stream.get_engine(); }
     bool is_profiling_enabled() const { return _ze_stream.is_profiling_enabled(); }
 
