@@ -950,7 +950,9 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
         scale,
         dcomp_zp,
         mul_data,
-        dynamic_quantize("dyn_quan", input_info("input"), dq_config, 3),
+        // The input layout keeps every dimension dynamic, so the innermost length has to be passed
+        // explicitly, otherwise the opt kernel cannot tell how many elements a group spans
+        dynamic_quantize("dyn_quan", input_info("input"), dq_config, 3, feature_len),
         fc_prim_dyn_quan,
         eltwise("mul", { input_info("fc_prim"), input_info("mul_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
@@ -964,9 +966,9 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_prod_unfused_dynamic_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 3, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 3, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_3, 3, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 2, 3 },   // dyn_quan is skipeed at runtime
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 2, 3 },   // dyn_quan is skipped at runtime
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_3, 3, 3 },   // dyn_quan is not skipped
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {

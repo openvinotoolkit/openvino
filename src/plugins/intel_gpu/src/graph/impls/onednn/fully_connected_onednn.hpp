@@ -71,9 +71,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             if (fc_prim->decompression_zero_point.is_valid()) {
                 const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
                 const auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
-                if ((wei_dt != ov::element::Type_t::i4 && wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
-                    (decompression_zp_dt != ov::element::Type_t::i4 && decompression_zp_dt != ov::element::Type_t::u8 &&
-                     decompression_zp_dt != ov::element::Type_t::i8)) {
+                const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u8});
+                const bool is_zp_compressed = one_of(decompression_zp_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4,
+                                                    ov::element::Type_t::u8, ov::element::Type_t::i8});
+                if (!is_wei_compressed || !is_zp_compressed) {
                     LOG_AND_RETURN_FALSE(node);
                 }
             }

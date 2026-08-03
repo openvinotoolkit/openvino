@@ -15,7 +15,7 @@ public:
     using Parent = PermuteKernelBase;
     using Parent::Parent;
     PermuteKernel_tile_8x8_4x4_fsv() : PermuteKernelBase("permute_tile_8x8_4x4_fsv") {}
-    virtual ~PermuteKernel_tile_8x8_4x4_fsv() {}
+    ~PermuteKernel_tile_8x8_4x4_fsv() override {}
 
     bool Validate(const Params& p) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

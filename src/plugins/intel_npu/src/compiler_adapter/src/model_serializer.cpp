@@ -698,10 +698,24 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const FilteredConfig& config,
+std::string serializeConfig(const FilteredConfig& originalConfig,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
+
+    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
+    // NPU_COMPILE_LOG_LEVEL, copy the config and overwrite LOG_LEVEL on the copy with that (resolved) value, then
+    // use the copy for the remainder of this function so every subsequent read observes the compiler-specific
+    // level instead of the plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy
+    // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
+    std::optional<FilteredConfig> configWithCompileLogLevel;
+    if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
+        std::ostringstream levelStr;
+        levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
+        configWithCompileLogLevel = originalConfig;
+        configWithCompileLogLevel->update({{ov::log::level.name(), levelStr.str()}});
+    }
+    const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 
     std::string content = {};
 

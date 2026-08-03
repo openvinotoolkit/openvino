@@ -9,7 +9,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/unicode_utils.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/codec_xor.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 

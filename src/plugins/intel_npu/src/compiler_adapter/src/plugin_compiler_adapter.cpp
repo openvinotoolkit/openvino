@@ -107,7 +107,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), true, config);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), config);
     }
 
     GraphDescriptor graphDesc;
@@ -266,11 +266,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     _logger.debug("compile end");
 
-    auto constants = get_all_constants_in_topological_order(model);
-    // Note: Delete model prematurely, constants are still valid due to
-    // shared_ptr semantics.
-    model = nullptr;
-
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
@@ -280,7 +275,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
-        std::move(constants),
+        std::move(model),
         localConfig,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }

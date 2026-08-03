@@ -2,6 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// OV_CONFIG_RELEASE_OPTION:
+//      Options exposed via the public API in all build types.
+//      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
+// OV_CONFIG_RELEASE_INTERNAL_OPTION:
+//      Available in all build types, but not settable via the public API.
+//      Not intended as production options for customers, as API stability is not guaranteed.
+//      If a customer requires one of these options in a production scenario,
+//      it should be promoted to RELEASE_OPTION. May be used for development or troubleshooting purposes.
+// OV_CONFIG_DEBUG_OPTION:
+//      Options available only in builds with `ENABLE_DEBUG_CAPS` enabled.
+//      Intended for OpenVINO development and troubleshooting features.
+// OV_CONFIG_DEBUG_GLOBAL_OPTION:
+//      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
@@ -31,7 +45,7 @@ OV_CONFIG_RELEASE_OPTION(ov, cache_encryption_callbacks, ov::EncryptionCallbacks
 OV_CONFIG_RELEASE_OPTION(ov::hint, dynamic_quantization_group_size, 0, "Dynamic quantization group size")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, dynamic_quantization_group_size_max, UINT64_MAX, "Maximum dynamic quantization group size. When group_size is set as a higher value than this number, dynamic quantization will be turned off")
 OV_CONFIG_RELEASE_OPTION(ov::hint, kv_cache_precision, ov::element::dynamic, "")
-OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu::hint, enable_kernels_reuse, false, "Enables kernel reuse across implementations to reduce memory footprint.")
 OV_CONFIG_RELEASE_OPTION(ov, weights_path, "", "Path to the model weights file used for weightless caching")
 OV_CONFIG_RELEASE_OPTION(ov::hint, activations_scale_factor, -1.0f, "Scalar floating point value that is used for runtime activation tensor scaling with fp16 inference precision")
 OV_CONFIG_RELEASE_OPTION(ov::internal, enable_lp_transformations, false, "Enable/Disable Low precision transformations set")
@@ -43,6 +57,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, mem_pool_util_threshold, 0.5, "Minimum u
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offload_ratio, 0, "Percentage (0-100) of model weights to offload to disk. Currently supported for MoE experts only.", [](size_t v) { return v <= 100; })
 OV_CONFIG_RELEASE_OPTION(ov, enable_weightless, false, "Enable/Disable weightless blob")
 
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_zero_copy_cache_load, false, "Enable/Disable zero-copy mode for model cache blob load")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, shape_predictor_settings, {10, 16 * 1024, 2, 1.1f}, "Preallocation settings")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, queue_type, QueueTypes::out_of_order, "Type of the queue that must be used for model execution. May be in-order or out-of-order")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, optimize_data, false, "Enable/Disable data flow optimizations for cldnn::program")
@@ -58,7 +73,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Cont
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Skip runtime DynamicQuantize for batch sizes <= this value only when integrated-GPU FC can execute an equivalent internal dynamic-quantized path. 0 disables threshold-based skipping")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_precomputed_reduction, true, "Precompute reduction of activation for faster dynamic quantization in case of asymmetric weight")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, allow_bypass_xattn, true, "Allow bypass xattn execution if threshold >= 1.0.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, weightless_attr, nullptr, "Used to configure ov::WeightlessCacheAttribute for constants that are not loaded from a .bin file. This typically applies to non-IR inputs (e.g., ORT)")
