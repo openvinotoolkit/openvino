@@ -16,7 +16,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          bool rotary_interleaved,
                                          int64_t kv_cache_bit_width,
                                          const std::string& k_quant_type,
-                                         const std::string& v_quant_type)
+                                         const std::string& v_quant_type,
+                                         int64_t local_window_size)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -25,7 +26,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_rotary_interleaved(rotary_interleaved),
       m_kv_cache_bit_width(kv_cache_bit_width),
       m_k_quant_type(k_quant_type),
-      m_v_quant_type(v_quant_type) {
+      m_v_quant_type(v_quant_type),
+      m_local_window_size(local_window_size) {
     constructor_validate_and_infer_types();
 }
 
@@ -110,6 +112,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("k_quant_type", m_k_quant_type);
     visitor.on_attribute("kv_cache_bit_width", m_kv_cache_bit_width);
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
+    visitor.on_attribute("local_window_size", m_local_window_size);
     visitor.on_attribute("num_heads", m_num_heads);
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
@@ -128,7 +131,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_rotary_interleaved,
                                                  m_kv_cache_bit_width,
                                                  m_k_quant_type,
-                                                 m_v_quant_type);
+                                                 m_v_quant_type,
+                                                 m_local_window_size);
 }
 
 }  // namespace ov::op::internal

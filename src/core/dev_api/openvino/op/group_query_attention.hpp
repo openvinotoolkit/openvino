@@ -23,7 +23,8 @@ public:
                         bool rotary_interleaved,
                         int64_t kv_cache_bit_width = 0,
                         const std::string& k_quant_type = "NONE",
-                        const std::string& v_quant_type = "NONE");
+                        const std::string& v_quant_type = "NONE",
+                        int64_t local_window_size = -1);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -52,6 +53,11 @@ public:
     const std::string& get_v_quant_type() const {
         return m_v_quant_type;
     }
+    // Mistral-style local (sliding-window) attention. -1 disables the window (pure causal); a value
+    // >= 1 limits each query at absolute position q to keys k in [q - local_window_size + 1, q].
+    int64_t get_local_window_size() const {
+        return m_local_window_size;
+    }
     // KV cache is quantized when a bit width is set and a K quantization scheme is selected.
     bool is_kv_quantized() const {
         return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
@@ -66,6 +72,7 @@ private:
     int64_t m_kv_cache_bit_width = 0;
     std::string m_k_quant_type = "NONE";
     std::string m_v_quant_type = "NONE";
+    int64_t m_local_window_size = -1;
 };
 
 }  // namespace ov::op::internal

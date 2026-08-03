@@ -50,6 +50,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
     const auto k_quant_type = node.get_attribute_value<std::string>("k_quant_type", "NONE");
     const auto v_quant_type = node.get_attribute_value<std::string>("v_quant_type", "NONE");
+    // Sliding-window / softcap / smooth-softmax attributes (com.microsoft spec). Default to no-op values,
+    // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
+    const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
+    const auto sliding_window_cache = node.get_attribute_value<int64_t>("sliding_window_cache", 0);
+    const auto softcap = node.get_attribute_value<float>("softcap", 0.0f);
+    const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
 
     // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
     FRONT_END_OP_CONVERSION_CHECK(!common::is_input_valid(onnx_op_inputs, 11),
@@ -58,6 +64,21 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         !common::is_input_valid(onnx_op_inputs, 14) && !common::is_input_valid(onnx_op_inputs, 15),
         "GroupQueryAttention: q_norm_weight/k_norm_weight (QK-Norm) inputs are not "
         "supported.");
+
+    // Reject spec attributes whose semantics are not implemented by the OpenVINO decomposition.
+    // local_window_size == -1 disables the window; a value >= 1 selects a sliding window. A window of
+    // size 0 is an empty attention (every query masks all keys) and is not a valid ONNX Runtime config.
+    FRONT_END_OP_CONVERSION_CHECK(local_window_size == -1 || local_window_size >= 1,
+                                  "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
+                                  local_window_size,
+                                  ".");
+    // sliding_window_cache selects a window-sized rolling KV buffer. The numerically equivalent
+    // full-length cache with local_window_size is supported instead.
+    FRONT_END_OP_CONVERSION_CHECK(sliding_window_cache == 0,
+                                  "GroupQueryAttention: sliding_window_cache=1 is not supported yet; use a "
+                                  "full-length KV cache with local_window_size (numerically equivalent).");
+    FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
+    FRONT_END_OP_CONVERSION_CHECK(smooth_softmax == 0, "GroupQueryAttention: smooth_softmax is not supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
@@ -145,7 +166,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            rotary_interleaved,
                                                            kv_cache_bit_width,
                                                            k_quant_type,
-                                                           v_quant_type)
+                                                           v_quant_type,
+                                                           local_window_size)
         ->outputs();
 }
 
