@@ -53,7 +53,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
 CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
-                             const ExecutionConfig& config)
+                             const ExecutionConfig& config,
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
@@ -62,6 +63,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_model_name(model->get_friendly_name()),
       m_inputs(ov::ICompiledModel::inputs()),
       m_outputs(ov::ICompiledModel::outputs()),
+      m_weight_sharing_context(std::move(weightSharingContext)),
       m_loaded_from_cache(false) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
@@ -75,7 +77,8 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
-                             const bool loaded_from_cache)
+                             const bool loaded_from_cache,
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
     : ov::ICompiledModel(nullptr,
                          plugin,
                          context,
@@ -85,6 +88,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
     , m_model_name("")
+    , m_weight_sharing_context(std::move(weightSharingContext))
     , m_loaded_from_cache(loaded_from_cache) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;
@@ -312,6 +316,11 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    if (name == ov::internal::model_sharing_context.name()) {
+        GPU_DEBUG_INFO << "[GPU] WeightSharingCtxPtr handoff succeeded for compiled model '" << m_model_name << "'" << std::endl;
+        return ov::Any(m_weight_sharing_context);
+    }
+
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type{
             // Metrics

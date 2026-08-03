@@ -27,6 +27,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -43,6 +44,18 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
+
+ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& properties) {
+    const auto property_name = ov::internal::model_sharing_context.name();
+    const auto property_it = properties.find(property_name);
+    if (property_it == properties.end()) {
+        return nullptr;
+    }
+
+    auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
+    properties.erase(property_it);
+    return ctx;
+}
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -399,6 +412,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
+    auto weightSharingContext = extract_weight_sharing_context(localProperties);
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -599,7 +613,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, batch);
+        compiledModel = std::make_shared<CompiledModel>(model,
+                                   shared_from_this(),
+                                   device,
+                                   graph,
+                                   localConfig,
+                                   batch,
+                                   weightSharingContext);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -641,6 +661,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     auto npuPluginProperties = properties;
+    auto weightSharingContext = extract_weight_sharing_context(npuPluginProperties);
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this());
     if (compiledModel) {
@@ -678,7 +699,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        return parse(tensor, std::move(metadata), npuPluginProperties);
+        return parse(tensor, std::move(metadata), npuPluginProperties, weightSharingContext);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -707,6 +728,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     std::istream stream{&buffer};
 
     auto npuPluginProperties = properties;
+    auto weightSharingContext = extract_weight_sharing_context(npuPluginProperties);
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this());
     if (compiledModel) {
@@ -739,7 +761,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         const ov::Tensor roiTensor(compiledBlob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        return parse(roiTensor, std::move(metadata), npuPluginProperties);
+        return parse(roiTensor, std::move(metadata), npuPluginProperties, weightSharingContext);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -801,7 +823,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   std::unique_ptr<MetadataBase> metadata,
-                                                  const ov::AnyMap& properties) const {
+                                                  const ov::AnyMap& properties,
+                                                  ov::internal::WeightSharingCtxPtr weightSharingContext) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
 
     auto localProperties = properties;
@@ -974,7 +997,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
-    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig, batchSize);
+    return std::make_shared<CompiledModel>(modelDummy,
+                                           shared_from_this(),
+                                           device,
+                                           graph,
+                                           localConfig,
+                                           batchSize,
+                                           std::move(weightSharingContext));
 }
 
 void Plugin::update_log_level(const ov::AnyMap& properties) const {

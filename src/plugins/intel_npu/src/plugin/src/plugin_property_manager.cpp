@@ -14,6 +14,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace {
 
@@ -156,6 +157,10 @@ void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     if (properties.count(ov::hint::model.name())) {
         properties.erase(ov::hint::model.name());
     }
+}
+
+void erase_model_sharing_context(ov::AnyMap& properties) {
+    properties.erase(ov::internal::model_sharing_context.name());
 }
 
 bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
@@ -832,6 +837,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
 
     auto pluginProperties = properties;
     exclude_model_ptr_from_map(pluginProperties);
+    erase_model_sharing_context(pluginProperties);
 
     if (compilerConfigsFilteredByCompiler) {
         disableCompilerProperties(updatedConfig, _backend);

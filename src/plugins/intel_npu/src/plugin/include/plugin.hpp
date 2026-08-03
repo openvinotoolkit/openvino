@@ -12,6 +12,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "metadata.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
@@ -78,7 +79,8 @@ private:
      */
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
                                               std::unique_ptr<MetadataBase> metadata,
-                                              const ov::AnyMap& properties) const;
+                                              const ov::AnyMap& properties,
+                                              ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
