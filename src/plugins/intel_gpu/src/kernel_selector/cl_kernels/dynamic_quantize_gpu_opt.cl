@@ -44,8 +44,6 @@
     #define FOR_PRECOMPUTED_REDUCTION(x)
 #endif
 
-#define BLOCKS_PER_GROUP (QUANTIZE_GROUP_SIZE / SIMD / VEC_SIZE)
-
 // ***********************************************
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
 // ***********************************************

@@ -4,7 +4,6 @@
 
 #include "dynamic_quantize_kernel_opt.h"
 #include "kernel_selector_utils.h"
-#include <algorithm>
 #include <string>
 
 
@@ -94,6 +93,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+    jit.AddConstant(MakeJitConstant("BLOCKS_PER_GROUP", params.group_sizes.back() / simd / vec_size));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZAION_IMPL_MODE", static_cast<int>(mode)));

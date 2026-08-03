@@ -520,7 +520,7 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs128_K2560_sym_prec
                                 PrecomputeSum::Enabled);
 }
 
-// LARGE_GS mode for small group sizes (GS=64, 32, 16)
+// GS=64: LARGE_GS mode, GS=32/16: SMALL_GS mode
 TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs64) {
     this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 64,
                                 data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
