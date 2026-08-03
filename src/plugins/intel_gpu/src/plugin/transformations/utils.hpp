@@ -45,9 +45,11 @@ inline bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& no
                 ov::replace_node(in_convert, convert);
             } else {
                 // Multiple users: branch a separate Convert from the source of in_convert,
-                // avoiding double conversion (e.g. i32→f16→f32) which causes mantissa loss
+                // avoiding double conversion (e.g. i32→f16→f32) which causes mantissa loss.
+                // The original Convert is kept for the remaining users, so the new one is named after
+                // the consumer to stay unique across the multiple matches sharing this Convert.
                 auto convert = std::make_shared<ov::op::v0::Convert>(in_convert->input_value(0), desired_et);
-                convert->set_friendly_name(in_convert->get_friendly_name() + "_increase_precision_" + std::to_string(input_idx));
+                convert->set_friendly_name(node->get_friendly_name() + "_increase_precision_" + std::to_string(input_idx));
                 ov::copy_runtime_info(in_convert, convert);
                 input.replace_source_output(convert);
             }
