@@ -31,6 +31,13 @@ private:
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,
                                               bool interleaved);
+    // Resident row count of a windowed KV cache for a given absolute sequence length, as an i64 scalar node:
+    // end(x) = x <= capacity ? x : x - gap * ceil((x - capacity) / gap), with gap = capacity - window + 1.
+    // Mirrors ONNX Runtime's WindowedCacheEnd; blocks of `gap` rows are reclaimed at once on front eviction.
+    std::shared_ptr<ov::Node> windowed_cache_end(const ov::Output<ov::Node>& seqlen_scalar,
+                                                 const ov::Output<ov::Node>& capacity_scalar,
+                                                 int64_t local_window_size);
+
     // Additive float attention mask for SDPA: causal mask, plus an optional sliding-window band
     // (local_window_size >= 0) masking keys older than the window, optionally fused with an external bias.
     // Masked positions use the compute type's finite lowest() so a fully-masked row cannot softmax to NaN.

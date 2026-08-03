@@ -72,11 +72,19 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                   "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // sliding_window_cache selects a window-sized rolling KV buffer. The numerically equivalent
-    // full-length cache with local_window_size is supported instead.
-    FRONT_END_OP_CONVERSION_CHECK(sliding_window_cache == 0,
-                                  "GroupQueryAttention: sliding_window_cache=1 is not supported yet; use a "
-                                  "full-length KV cache with local_window_size (numerically equivalent).");
+    // A windowed KV cache requires a real sliding window (local_window_size > 0), matching the ONNX
+    // Runtime precondition. The staging regime (prompt longer than the buffer) and batch > 1 are not
+    // handled by this decomposition; the decode / fitting-prefill path is.
+    if (sliding_window_cache != 0) {
+        FRONT_END_OP_CONVERSION_CHECK(local_window_size >= 1,
+                                      "GroupQueryAttention: sliding_window_cache=1 requires local_window_size >= 1.");
+        FRONT_END_OP_CONVERSION_CHECK(
+            common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+            "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
+        FRONT_END_OP_CONVERSION_CHECK(kv_cache_bit_width == 0,
+                                      "GroupQueryAttention: sliding_window_cache=1 with a quantized KV cache is not "
+                                      "supported.");
+    }
     FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
     FRONT_END_OP_CONVERSION_CHECK(smooth_softmax == 0, "GroupQueryAttention: smooth_softmax is not supported.");
 
@@ -167,7 +175,8 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                                            kv_cache_bit_width,
                                                            k_quant_type,
                                                            v_quant_type,
-                                                           local_window_size)
+                                                           local_window_size,
+                                                           sliding_window_cache != 0)
         ->outputs();
 }
 

@@ -27,6 +27,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
@@ -160,24 +161,57 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
 
-    if (is_static_input) {
-        // static design for GQA (KV cache is static max length, valid KVs are left align)
-        // inputs are:
-        //   1. past_key/past_value: [1, num_heads, max_seq_len, head_size], data is in the front along axis 2, [P0, P1,
-        //   ..., Pn, 0, 0, ...]
-        //   2. current K/V: [1, num_heads, current_kv_len, head_size], data is in the front along axis 2, [C0, C1, ...,
-        //   Ck, 0, 0, ...]
-        // Output present_key/present_value has the same shape with past_key/past_value, but with data in order [P0, P1,
-        // ..., Pn, C0, C1, ..., Ck, 0, 0, ...]
-        //
-        // Use ScatterUpdate to scatter insert Current into Past
-        // Insert current K/V at the correct position [past_seqlen, past_seqlen+curr_seqlen].
+    // past_seqlen expressed in the coordinate system the attention mask uses. Equals the absolute past
+    // length for a full-length cache; a windowed cache overrides it with the resident row count.
+    ov::Output<ov::Node> mask_past_seqlen = past_seqlen;
+    ov::Output<ov::Node> present_k, present_v;
+
+    if (node->get_sliding_window_cache()) {
+        // Windowed KV cache: the past/present buffers are capacity-sized (C) and rolled with front
+        // eviction. seqlens_k stays absolute, so the resident row counts are derived from it.
+        const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
+        const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
+        const auto abs_past = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);  // P
+        const auto abs_past_scalar = register_new_node<v0::Squeeze>(abs_past);
+        const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
+        const auto end_before = windowed_cache_end(abs_past_scalar, capacity_scalar, local_window_size);
+        const auto end_after = windowed_cache_end(abs_total_scalar, capacity_scalar, local_window_size);
+        const auto end_before_1d = register_new_node<v0::Unsqueeze>(end_before, zero);
+        const auto end_after_1d = register_new_node<v0::Unsqueeze>(end_after, zero);
+        const auto kept_1d = register_new_node<v1::Subtract>(end_after_1d, current_seqlen);  // end_after - S
+
+        // Attention runs over all resident rows plus the new tokens, in cache-relative coordinates.
+        const auto resident_k = register_new_node<v8::Slice>(past_key, zero, end_before_1d, one, two);
+        const auto resident_v = register_new_node<v8::Slice>(past_value, zero, end_before_1d, one, two);
+        const auto seed_k = register_new_node<v0::Concat>(ov::OutputVector{resident_k, K}, 2);
+        const auto seed_v = register_new_node<v0::Concat>(ov::OutputVector{resident_v, V}, 2);
+        mask_past_seqlen = end_before_1d;
+
+        // present keeps the most recent end_after rows (last `kept` survivors + new), left-aligned in a
+        // C-capacity buffer with the tail zeroed, matching ONNX Runtime's front eviction.
+        const auto survivor_start = register_new_node<v1::Subtract>(end_before_1d, kept_1d);
+        const auto survivor_stop = register_new_node<v1::Add>(survivor_start, end_after_1d);
+        const auto present_k_rows = register_new_node<v8::Slice>(seed_k, survivor_start, survivor_stop, one, two);
+        const auto present_v_rows = register_new_node<v8::Slice>(seed_v, survivor_start, survivor_stop, one, two);
+        const auto pad_end = register_new_node<v1::Subtract>(capacity, end_after_1d);
+        const auto pad_lo = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0}));
+        const auto pad_hi = register_new_node<v0::Concat>(ov::NodeVector{zero, zero, pad_end, zero}, 0);
+        present_k = register_new_node<v1::Pad>(present_k_rows, pad_lo, pad_hi, ov::op::PadMode::CONSTANT);
+        present_v = register_new_node<v1::Pad>(present_v_rows, pad_lo, pad_hi, ov::op::PadMode::CONSTANT);
+
+        K = seed_k;
+        V = seed_v;
+    } else if (is_static_input) {
+        // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
+        // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
         V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
+        present_k = K;
+        present_v = V;
     } else {
         auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
@@ -186,11 +220,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
         K = construct_kv_cache(past_key, K);
         V = construct_kv_cache(past_value, V);
+        present_k = K;
+        present_v = V;
     }
-
-    // present_key/present_value are the assembled cache (quantized when kv_quantized), matching the op outputs.
-    ov::Output<ov::Node> present_k = K;
-    ov::Output<ov::Node> present_v = V;
 
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
@@ -227,7 +259,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto mask = make_attention_mask(curr_seqlen_scalar,
                                           concat_kv_len_scalar,
                                           concat_kv_len,
-                                          past_seqlen,
+                                          mask_past_seqlen,
                                           T,
                                           local_window_size,
                                           external_bias);
@@ -248,6 +280,24 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
     return {output, present_k, present_v};
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(
+    const ov::Output<ov::Node>& seqlen_scalar,
+    const ov::Output<ov::Node>& capacity_scalar,
+    int64_t local_window_size) {
+    const auto window = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+    const auto one_s = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    // gap = capacity - window + 1 (>= 1, the frontend enforces capacity >= window).
+    const auto gap = register_new_node<v1::Add>(register_new_node<v1::Subtract>(capacity_scalar, window), one_s);
+    // reclaimed = gap * ceil((x - capacity) / gap), applied only once the cache has overflowed (x > capacity).
+    const auto overflow = register_new_node<v1::Subtract>(seqlen_scalar, capacity_scalar);
+    const auto ceil_num = register_new_node<v1::Subtract>(register_new_node<v1::Add>(overflow, gap), one_s);
+    const auto blocks = register_new_node<v1::Divide>(ceil_num, gap);  // integer (truncating) division
+    const auto reclaimed = register_new_node<v1::Multiply>(blocks, gap);
+    const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
+    const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
+    return register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(

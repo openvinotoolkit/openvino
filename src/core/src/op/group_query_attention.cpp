@@ -17,7 +17,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t kv_cache_bit_width,
                                          const std::string& k_quant_type,
                                          const std::string& v_quant_type,
-                                         int64_t local_window_size)
+                                         int64_t local_window_size,
+                                         bool sliding_window_cache)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -27,7 +28,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_kv_cache_bit_width(kv_cache_bit_width),
       m_k_quant_type(k_quant_type),
       m_v_quant_type(v_quant_type),
-      m_local_window_size(local_window_size) {
+      m_local_window_size(local_window_size),
+      m_sliding_window_cache(sliding_window_cache) {
     constructor_validate_and_infer_types();
 }
 
@@ -53,8 +55,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     auto kv_shape = PartialShape{batch_size, m_kv_num_heads, past_kv_shape[2], past_kv_shape[3]};
     auto& output_kv_len = kv_shape[2];
 
-    if (output_kv_len.is_dynamic() || sequence_len.is_dynamic()) {
-        // For dynamic shapes, concatenate the past and current sequence lengths.
+    // A windowed KV cache keeps the past buffer's own (capacity) sequence dimension: it rolls in place
+    // with front eviction instead of growing. Otherwise present = past + current.
+    if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic())) {
         output_kv_len += sequence_len;
     }
 
@@ -116,6 +119,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("num_heads", m_num_heads);
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
+    visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
     return true;
 }
@@ -132,7 +136,8 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_kv_cache_bit_width,
                                                  m_k_quant_type,
                                                  m_v_quant_type,
-                                                 m_local_window_size);
+                                                 m_local_window_size,
+                                                 m_sliding_window_cache);
 }
 
 }  // namespace ov::op::internal
