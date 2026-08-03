@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "tensorflow 2 layer tests tf fe failure|Flaky Test",
+  "signature_hash": "cd1ffc31aa16d470",
+  "title": "TensorFlow 2 Layer Tests TF FE fail unrelated to GPU plugin PR",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-03T09:35:52Z",
+  "last_seen": "2026-08-03T09:35:52Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30794405387"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/34808"
+  ],
+  "recent_timestamps": [
+    "2026-08-03T09:35:52Z"
+  ],
+  "rerun_search_string": "TensorFlow 2 Layer Tests - TF FE"
+}

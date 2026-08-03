@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-03-09-35-52-000-30794405387",
+  "timestamp": "2026-08-03T09:35:52Z",
+  "run_id": "30794405387",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30794405387",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "34808",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/34808",
+  "author": "ZackyLake",
+  "category": "Flaky Test",
+  "title": "TensorFlow 2 Layer Tests TF FE fail unrelated to GPU plugin PR",
+  "signature": "tensorflow 2 layer tests tf fe failure|Flaky Test",
+  "signature_hash": "cd1ffc31aa16d470",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Step 'TensorFlow 2 Layer Tests - TF FE' failed; TF1 tests passed; PR only changes GPU plugin files"
+    }
+  ],
+  "key_errors": [
+    "Step: TensorFlow 2 Layer Tests - TF FE - FAILED (job 91631446642)",
+    "TF1 Layer Tests passed; TF2 Layer Tests failed after ~9.5 minutes",
+    "PR changes: src/plugins/intel_gpu/src/graph/fully_connected.cpp, src/plugins/intel_gpu/tests/unit/fusions/fully_connected_fusion_test.cpp (no TF FE changes)"
+  ],
+  "root_cause": "The TF2 Layer Tests - TF FE step failed in a merge-queue run for PR #34808 which only modifies GPU plugin files (fully_connected.cpp and a fusion test). The PR has no changes to TensorFlow frontend code, making it highly likely this is an unrelated flaky test failure. The run is already on attempt 2 (in_progress), meaning the failed jobs were already re-queued. Similar TF layer test flakiness (CPU FP16 tests failing) was observed previously on 2026-07-23. Logs were not directly accessible; categorization based on PR scope mismatch and historical pattern.",
+  "reproduction_steps": "N/A - Flaky test, not reliably reproducible.",
+  "recommended_actions": [
+    "Monitor attempt 2 of the run (currently in_progress) to see if TF2 tests pass on re-run.",
+    "If it fails again with the same TF2 tests, investigate specific test failures in the log.",
+    "No code changes needed in the PR - it only modifies GPU plugin code unrelated to TF FE."
+  ],
+  "prevention_strategies": "TF layer tests are known to have intermittent failures on CPU FP16 precision. Consider marking known flaky TF2 tests as xfail or retrying them automatically.",
+  "historical_context": "Similar TF layer test flakiness recorded on 2026-07-23 (run 30043161228): CPU FP16 tests failed for Rank, MatrixBandPart, Pooling 5D, RaggedTensorToTensor. Pattern hash bf24228068ce5310."
+}
