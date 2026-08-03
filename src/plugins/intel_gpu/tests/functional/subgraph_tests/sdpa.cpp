@@ -32,8 +32,8 @@
 
 enum class GQAMode {
     Default = 0,
-    KVCacheBroadcast = 1,
-    KeyValueBroadcast = 2,
+    ConcatBasedBroadcast = 1,
+    DirectBroadcast = 2,
 };
 
 namespace {
@@ -165,7 +165,7 @@ protected:
 
         ov::ParameterVector model_params = {query, key, value};
 
-        if (gqa_mode == GQAMode::KVCacheBroadcast) {
+        if (gqa_mode == GQAMode::DirectBroadcast) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [10, 842]
@@ -206,7 +206,7 @@ protected:
             auto reshape2_v_const = ov::op::v0::Constant::create(ov::element::i64, {reshape2_shape.size()}, reshape2_shape);
             key_input = std::make_shared<ov::op::v1::Reshape>(broadcast_k, reshape2_k_const, true);
             value_input = std::make_shared<ov::op::v1::Reshape>(broadcast_v, reshape2_v_const, true);
-        } else if (gqa_mode == GQAMode::KeyValueBroadcast) {
+        } else if (gqa_mode == GQAMode::ConcatBasedBroadcast) {
             auto q_shape = query_shape.to_shape();              // [1, 8, 10, 256]
             auto k_shape = key_shape.to_shape();                // [1, 1, 10, 256]
             auto mask_shape = attention_mask_shape.to_shape();  // [1, 1]
@@ -361,7 +361,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           GQAMode::KeyValueBroadcast),
+                                                           GQAMode::ConcatBasedBroadcast),
                                            std::make_tuple(ov::PartialShape{10, 1024, 64},
                                                            ov::Shape{10, 1024, 64},
                                                            ov::PartialShape{10, 77, 64},
@@ -427,6 +427,6 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                            1.0f,
                                                            0.025f,
                                                            0.025f,
-                                                           GQAMode::KVCacheBroadcast)));
+                                                           GQAMode::DirectBroadcast)));
 
 }  // namespace
