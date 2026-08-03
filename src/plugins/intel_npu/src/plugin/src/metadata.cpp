@@ -71,8 +71,11 @@ std::vector<uint16_t> parse_version(std::string_view sv) {
     return parts;
 }
 
+/**
+ * @return The size of the underlying buffer, from the beginning of the stream to its end.
+ */
 size_t get_stream_total_size(std::istream& stream) {
-    OPENVINO_ASSERT(stream, "Stream is in bad status! Please check the passed stream status!");
+    OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
     if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
         return stream.rdbuf()->in_avail();
