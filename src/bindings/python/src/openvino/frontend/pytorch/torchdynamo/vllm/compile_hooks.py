@@ -10,8 +10,35 @@ no-op when the input graph does not have the corresponding vLLM marker
 """
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+
+def widen_affinity_if_needed(options):
+    """Widen process CPU affinity to all cores when the current mask is
+    narrower than the requested OV thread count.
+
+    vLLM's ``init_cpu_threads_env`` pins the worker process to a single CPU
+    before ``torch.compile`` runs. TBB/OV sample process affinity on their
+    first parallel use, so a 1-CPU mask would lock ``INFERENCE_NUM_THREADS=1``
+    regardless of the config we pass. Widen the mask before ``core.compile``
+    so the OV thread pool inherits a useful mask at creation time.
+
+    No-op on non-Linux systems (``sched_getaffinity`` unavailable) and on
+    graphs whose affinity is already at least as wide as the requested
+    thread count.
+    """
+    try:
+        cur = os.sched_getaffinity(0)
+        from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_config
+        cfg = _get_config(options) or {}
+        req = int(cfg.get("INFERENCE_NUM_THREADS",
+                          os.environ.get("OV_INFERENCE_NUM_THREADS", "0")) or 0)
+        if req == 0 or len(cur) < req:
+            os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
+    except Exception as _e:
+        logger.debug("widen_affinity skipped: %s", _e)
 
 
 def register_pa_parameters(om):

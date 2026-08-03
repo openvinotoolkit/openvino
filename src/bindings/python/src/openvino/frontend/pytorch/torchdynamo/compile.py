@@ -85,26 +85,6 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
 
 
 def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options=None):
-    # Some callers (e.g. vLLM's init_cpu_threads_env) pin the worker process
-    # to a single CPU via sched_setaffinity before reaching here. TBB/OV sample
-    # affinity on first parallel use, so a 1-CPU mask locks
-    # INFERENCE_NUM_THREADS=1 regardless of what we request.
-    #
-    # Default OFF to avoid silently overriding a standalone caller's explicit
-    # taskset/numactl pinning. Callers that need the widening (vLLM plugin)
-    # pass options={"unbind_affinity": True} or options={"vllm": True}.
-    # Even when enabled, only widen if the current affinity has fewer cores
-    # than the requested thread count.
-    if _bool_opt(options, "unbind_affinity", False):
-        try:
-            cur = os.sched_getaffinity(0)
-            cfg = _get_config(options) or {}
-            req = int(cfg.get("INFERENCE_NUM_THREADS",
-                              os.environ.get("OV_INFERENCE_NUM_THREADS", "0")) or 0)
-            if req == 0 or len(cur) < req:
-                os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
-        except Exception:
-            pass
     core = Core()
 
     device = _get_device(options)
@@ -239,10 +219,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             print(f"[OV_DUMP] Dumped pre-plugin IR to {_path}.xml", flush=True)
 
     compiled = core.compile_model(om, device, config)
-    # Keep the widened affinity mask — TBB threads were created during
-    # compile_model and inherit the mask at creation time. Restoring the
-    # narrow mask would not shrink the thread pool but would prevent newly
-    # spawned worker threads from running on most cores. Leave it wide.
     logger.debug(f"OpenVINO graph compile successful on device {device}")
 
     _post_dir = os.environ.get("OV_DUMP_POST_PLUGIN_IR")

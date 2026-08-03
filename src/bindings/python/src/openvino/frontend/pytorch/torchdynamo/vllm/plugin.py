@@ -86,6 +86,15 @@ def _patch_cpu_model_runner():
             logger.warning("OV plugin: failed to import openvino.torch: %s", e)
             return
 
+        # Widen the process CPU affinity if vLLM's init_cpu_threads_env
+        # narrowed it to a single core. Must run before torch.compile so that
+        # TBB/OV thread pools inherit the wide mask at creation.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_aff
+            _vh_aff.widen_affinity_if_needed(None)
+        except Exception as _e:
+            logger.debug("[OV plugin] affinity widen skipped: %s", _e)
+
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
         # The "vllm": True mega-preset turns on every vLLM-required flag
         # (paged_attention, pa_translate, unbind_affinity, no_fallback,

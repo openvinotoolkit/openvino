@@ -46,24 +46,8 @@ partitioned_modules = {}
 # This lets us reuse a compiled OV model across dynamo retraces where the
 # graph is structurally identical (typical during decode loops).
 structural_cache = {}
-# vLLM PagedAttention side-channel state lives in the vllm/ subpackage.
-try:
-    from openvino.frontend.pytorch.torchdynamo.vllm.side_channel import (
-        _pa_kv_ovt_cache,
-        _pa_layout_cache,
-        _pa_auto_detect_kv_geom,
-        _PA_FIELDS,
-        _bind_paged_attention_side_channel,
-    )
-except Exception:
-    # Standalone torch.compile path without the vllm subpackage.
-    _pa_kv_ovt_cache = {}
-    _pa_layout_cache = {}
-    _PA_FIELDS = ()
-    def _pa_auto_detect_kv_geom(ctx, meta_layer_name):
-        return (1, 1)
-    def _bind_paged_attention_side_channel(compiled):
-        return {}
+
+
 def _structural_key(gm, args):
     """Structural hash of the FX graph that's stable across re-traces.
 
@@ -132,22 +116,8 @@ import numpy as np
 
 
 def execute_cached(compiled_model, *args):
-    import os as _os_ec
     ov_inputs = [a.detach().cpu().numpy() for a in args]
     ov_inputs.reverse()
-    if _os_ec.environ.get("OV_PERF_COUNT_OUT"):
-        _req = compiled_model.create_infer_request()
-        _res = _req.infer(ov_inputs)
-        _pc_path = _os_ec.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
-        try:
-            with open(_pc_path, "a") as _fpc:
-                _fpc.write(f"# START execute_cached\n")
-                for _p in _req.profiling_info:
-                    _fpc.write(f"{_p.node_type}\t{_p.node_name}\t{_p.real_time.total_seconds()*1e6:.2f}\t{_p.cpu_time.total_seconds()*1e6:.2f}\t{_p.exec_type}\n")
-        except Exception:
-            pass
-        result = [torch.from_numpy(_res[out]) for out in compiled_model.outputs]
-        return result
     res = compiled_model(ov_inputs)
     result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
     return result
@@ -303,18 +273,6 @@ def openvino_execute(
         res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
     else:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
-    import os as _os_pc
-    if _os_pc.environ.get("OV_PERF_COUNT_OUT"):
-        _pc_path = _os_pc.environ.get("OV_PERF_COUNT_OUT", "/tmp/ov_perf_count.log")
-        try:
-            _pi = req.profiling_info
-            with open(_pc_path, "a") as _fpc:
-                _fpc.write(f"# START openvino_execute infer items={len(_pi)}\n")
-                for _p in _pi:
-                    _fpc.write(f"{_p.node_type}\t{_p.node_name}\t{_p.real_time.total_seconds()*1e6:.2f}\t{_p.cpu_time.total_seconds()*1e6:.2f}\t{_p.exec_type}\n")
-        except Exception as _ee:
-            with open(_pc_path, "a") as _fpc:
-                _fpc.write(f"# ERROR: {_ee}\n")
 
     results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
     if len(results1) == 1:
@@ -429,4 +387,9 @@ def clear_caches():
 
     compiled_cache.clear()
     partitioned_modules.clear()
-    _pa_kv_ovt_cache.clear()
+    # Also clear vLLM side-channel caches when the subpackage is present.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.side_channel import _pa_kv_ovt_cache
+        _pa_kv_ovt_cache.clear()
+    except Exception:
+        pass
