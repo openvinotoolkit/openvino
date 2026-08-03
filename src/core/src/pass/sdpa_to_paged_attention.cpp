@@ -132,7 +132,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             OPENVINO_THROW("Unexpected shape for position_ids input: expected rank 2 or 3, observed ",
                            position_ids_shape.rank().is_static() ? position_ids_shape.rank().get_length() : -1);
         }
-        position_ids->validate_and_infer_types();
     }
     const auto position_ids_target_inputs = position_ids->output(0).get_target_inputs();
     auto unsqueezed_position_ids =
@@ -140,6 +139,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     for (const auto& target : position_ids_target_inputs) {
         target.replace_source_output(unsqueezed_position_ids);
     }
+
+    // Refresh shapes after the input_ids/position_ids changes above; per-pass validation is disabled below.
+    model->validate_nodes_and_infer_types();
 
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
