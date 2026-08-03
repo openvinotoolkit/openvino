@@ -439,8 +439,6 @@ TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
 }
 
-// test layout string length
-
 TEST_F(MetadataUnitTests, numberOfInputLayoutsExceedsBlobLimit) {
     std::stringstream stream;
     std::vector<ov::Layout> inputLayouts{"1"};
@@ -479,6 +477,30 @@ TEST_F(MetadataUnitTests, numberOfOutputLayoutsExceedsBlobLimit) {
     const size_t numberOfLayoutsOffset =
         blob.size() - FOOTER_SIZE - (inputLayouts.size() + outputLayouts.size()) * SIZE_OF_LAYOUT_SIZE -
         inputLayouts.at(0).to_string().size() - outputLayouts.at(0).to_string().size() - sizeof(badNumberOfLayouts);
+    std::memcpy(&blob[numberOfLayoutsOffset], &badNumberOfLayouts, sizeof(badNumberOfLayouts));
+
+    std::stringstream malformedStream(blob);
+    OV_EXPECT_THROW(read_metadata_from(malformedStream), ov::Exception, _);
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
+}
+
+TEST_F(MetadataUnitTests, layoutLengthExceedsBlobLimit) {
+    std::stringstream stream;
+    std::vector<ov::Layout> inputLayouts{"1"};
+    std::vector<ov::Layout> outputLayouts{};
+
+    auto meta =
+        Metadata<METADATA_VERSION_2_3>(0, std::nullopt, std::nullopt, std::nullopt, inputLayouts, outputLayouts);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const uint64_t badNumberOfLayouts = inputLayouts.at(0).to_string().size() + 0xFF;
+    const size_t numberOfLayoutsOffset = blob.size() - FOOTER_SIZE -
+                                         (inputLayouts.size() + outputLayouts.size()) * SIZE_OF_LAYOUT_SIZE -
+                                         inputLayouts.at(0).to_string().size();
     std::memcpy(&blob[numberOfLayoutsOffset], &badNumberOfLayouts, sizeof(badNumberOfLayouts));
 
     std::stringstream malformedStream(blob);
