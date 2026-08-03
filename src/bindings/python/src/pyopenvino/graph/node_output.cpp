@@ -20,11 +20,44 @@ void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::
 
 template <>
 void def_type_dependent_functions<const ov::Node>(
-    py::class_<ov::Output<const ov::Node>, std::shared_ptr<ov::Output<const ov::Node>>>& output) {}
+    py::class_<ov::Output<const ov::Node>, std::shared_ptr<ov::Output<const ov::Node>>>& output) {
+    // def_property_readonly does not support keep_alive, so
+    // self_obj is passed to _ConstOutputRTMap and is stored as the owner,
+    // keeping the node alive for as long as the proxy object exists.
+    auto getter = [](py::object self_obj) -> py::object {
+        auto& self = self_obj.cast<ov::Output<const ov::Node>&>();
+        ov::RTMap& rt = const_cast<ov::RTMap&>(self.get_rt_info());
+        py::object py_rtmap = py::cast(rt, py::return_value_policy::reference);
+        return py::module_::import("openvino._ov_api").attr("_ConstOutputRTMap")(py_rtmap, self_obj);
+    };
+    output.def("get_rt_info",
+               getter,
+               R"(
+            Returns a view of the RTMap for this output.
+            Writes to this RTMap object emit a DeprecationWarning;
+            use a non-const output (e.g. node.output(i)) to modify runtime info.
+
+            :return: View of runtime info dictionary.
+            :rtype: openvino._ov_api._ConstOutputRTMap
+        )");
+    output.def_property_readonly("rt_info", getter);
+}
 
 template <>
 void def_type_dependent_functions<ov::Node>(
     py::class_<ov::Output<ov::Node>, std::shared_ptr<ov::Output<ov::Node>>>& output) {
+    output.def("get_rt_info",
+               (ov::RTMap & (ov::Output<ov::Node>::*)()) & ov::Output<ov::Node>::get_rt_info,
+               py::return_value_policy::reference_internal,
+               R"(
+            Returns RTMap which is a dictionary of user defined runtime info.
+
+            :return: A dictionary of user defined data.
+            :rtype: openvino.RTMap
+        )");
+    output.def_property_readonly("rt_info",
+                                 (ov::RTMap & (ov::Output<ov::Node>::*)()) & ov::Output<ov::Node>::get_rt_info,
+                                 py::return_value_policy::reference_internal);
     output.def("set_names",
                &ov::Output<ov::Node>::set_names,
                py::arg("names"),

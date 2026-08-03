@@ -142,15 +142,6 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 :return: Tensor of the output.
                 :rtype: openvino._pyopenvino.DescriptorTensor
                )");
-    output.def("get_rt_info",
-             (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,
-             py::return_value_policy::reference_internal,
-             R"(
-                Returns RTMap which is a dictionary of user defined runtime info.
-
-                :return: A dictionary of user defined data.
-                :rtype: openvino.RTMap
-             )");
     output.def("__repr__", [](const ov::Output<VT>& self) {
         std::stringstream shape_type_ss;
 
@@ -169,14 +160,6 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def_property_readonly("partial_shape", &ov::Output<VT>::get_partial_shape, py::return_value_policy::copy);
     output.def_property_readonly("target_inputs", &ov::Output<VT>::get_target_inputs);
     output.def_property_readonly("tensor", &ov::Output<VT>::get_tensor);
-    output.def_property_readonly("rt_info",
-                                (ov::RTMap&(ov::Output<VT>::*)()) &
-                                ov::Output<VT>::get_rt_info,
-                                py::return_value_policy::reference_internal);
-    output.def_property_readonly("rt_info",
-                                (const ov::RTMap&(ov::Output<VT>::*)() const) &
-                                ov::Output<VT>::get_rt_info,
-                                py::return_value_policy::reference_internal);
 
     // define functions available only for specific type
     def_type_dependent_functions<VT>(output);

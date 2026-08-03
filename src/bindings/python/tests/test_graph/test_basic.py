@@ -523,6 +523,38 @@ def test_runtime_info():
     assert relu_node.rt_info["new_key"] == "new_value"
 
 
+def test_rt_info_const_output():
+    import warnings
+
+    param = ov.opset13.parameter(PartialShape([1, 3]), Type.f32, name="in")
+    relu = ov.opset13.relu(param)
+    model = Model([relu], [param], "test_rt_info_const_output")
+    core = ov.Core()
+    compiled = core.compile_model(model, "CPU")
+    co = compiled.outputs[0]
+
+    # Reading should not emit any warning
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        _ = co.get_rt_info()
+        _ = co.rt_info
+        rt = co.get_rt_info()
+        _ = "nonexistent" in rt
+        _ = list(rt)
+
+    with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
+        co.get_rt_info()["dep_key"] = "dep_val"
+    assert "dep_key" in co.get_rt_info()
+
+    with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
+        co.rt_info["dep_key2"] = "dep_val2"
+    assert "dep_key2" in co.rt_info
+
+    with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
+        del co.rt_info["dep_key"]
+    assert "dep_key" not in co.rt_info
+
+
 def test_multiple_outputs():
     input_shape = [4, 4]
     input_data = np.arange(-8, 8).reshape(input_shape).astype(np.float32)
