@@ -83,7 +83,7 @@ public:
         return res;
     }
 
-    bool is_shape_infer_dep(void) const {
+    bool is_shape_infer_dep() const {
         if (!myprog.is_new_shape_infer())
             return false;
         for (auto u : users) {
@@ -210,7 +210,7 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    const std::unordered_set<uint32_t>& get_memory_dependencies() const;
+    const std::vector<uint32_t>& get_memory_dependencies() const;
 
     void add_memory_dependency(std::vector<size_t>);
     void add_memory_dependency(const program_node& node);
@@ -506,7 +506,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::unordered_set<uint32_t> memory_dependencies;
+    std::vector<uint32_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     impl_types forced_impl_type = impl_types::any;

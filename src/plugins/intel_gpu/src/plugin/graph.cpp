@@ -24,7 +24,11 @@
 #include "intel_gpu/plugin/simple_math.hpp"
 
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "intel_gpu/primitives/grouped_matmul.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include "dynamic_quantize_inst.h"
+#include "grouped_matmul_inst.h"
+#include "fully_connected_inst.h"
 
 #include <list>
 #include <set>
@@ -35,8 +39,43 @@
 #include <algorithm>
 #include <fstream>
 #include <utility>
+#include <optional>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+namespace {
+
+std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
+    const std::vector<cldnn::instrumentation::profiling_interval>& intervals) {
+    std::optional<std::chrono::microseconds> earliest_timestamp;
+    std::optional<std::chrono::microseconds> executing_timestamp;
+
+    for (const auto& interval : intervals) {
+        if (!interval.is_valid_start) {
+            continue;
+        }
+
+        auto interval_start = std::chrono::duration_cast<std::chrono::microseconds>(interval.start);
+        if (!earliest_timestamp.has_value() || interval_start < earliest_timestamp.value()) {
+            earliest_timestamp = interval_start;
+        }
+
+        if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
+            if (!executing_timestamp.has_value() || interval_start < executing_timestamp.value()) {
+                executing_timestamp = interval_start;
+            }
+        }
+    }
+
+    auto start_time = executing_timestamp.value_or(earliest_timestamp.value_or(std::chrono::microseconds::zero()));
+    if (start_time == std::chrono::microseconds::zero()) {
+        return std::nullopt;
+    }
+
+    return start_time;
+}
+
+}  // namespace
 
 namespace ov::intel_gpu {
 
@@ -151,7 +190,7 @@ Graph::~Graph() {
             }
         };
 
-        if (host_exec_times.size() >= 1) {
+        if (!host_exec_times.empty()) {
             print_entry("First", host_exec_times[0], 1);
         }
 
@@ -425,12 +464,39 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         }
         info[ov::exec_model_info::PERF_COUNTER] = exec_time;
 
-        if (prim_info.type_id == "dynamic_quantize") {
+        // Expose per-primitive extra attributes in rt_info for debugging / testing.
+        if (prim_info.type_id != "input_layout" && prim_info.type_id != "data") {
             auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
-            auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
-            info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
-            if (dyn_quan->attrs.precomputed_reduction) {
-                info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
+
+            if (node.is_type<cldnn::dynamic_quantize>()) {
+                auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
+                info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+                if (dyn_quan->attrs.precomputed_reduction) {
+                    info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
+                }
+            } else if (node.is_type<cldnn::grouped_matmul>()) {
+                auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
+                if (gm_prim->compressed_weights) {
+                    auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
+                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                    if (gm_prim->decompression_zero_point.is_valid()) {
+                        auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
+                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                    }
+                }
+            } else if (node.is_type<cldnn::fully_connected>()) {
+                auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
+                if (fc_prim->decompression_scale.is_valid()) {
+                    auto wei_layout = node.get_input_layout(1);
+                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                    if (fc_prim->decompression_zero_point.is_valid()) {
+                        size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
+                                        + (fc_prim->bias.is_valid() ? 1 : 0)
+                                        + 1 /*scale*/;
+                        auto zp_layout = node.get_input_layout(zp_idx);
+                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                    }
+                }
             }
         }
 
@@ -667,6 +733,13 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         auto layerName = getClearName(perfIter->second.first);
 
         const auto& perfCounter = perfIter->second.second;
+        std::optional<std::chrono::microseconds> start_time;
+
+        auto execIter = executedPrimitives.find(primId);
+        if (execIter != executedPrimitives.end() && execIter->second) {
+            cldnn::instrumentation::profiling_info cldnnInfo{primId, execIter->second->get_profiling_info()};
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
+        }
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
             return false;
@@ -692,10 +765,11 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         extPerfEntry.status = perfCounter.status;
         extPerfEntry.cpu_time = std::chrono::microseconds(perfCounter.cpu_avg());
         extPerfEntry.real_time = std::chrono::microseconds(perfCounter.realTime_avg());
+        extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
         extPerfEntry.node_name = layerName;
 
         if (combinePrimByIRLayers) {
-            std::string kernelId = "";
+            std::string kernelId;
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
             for (auto &id : profilingIDs) {
                 auto iter = perfMap.find(id);
@@ -732,7 +806,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if (perfIter == perfMap.end())  continue;
 
         bool existInProfiling = std::find(profilingIDs.begin(), profilingIDs.end(), primId) != profilingIDs.end();
-        if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
+        if ((!existInProfiling || (existInProfiling && perfIter->second.first.empty())) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
             if (!event)
@@ -743,6 +817,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             // Collect timings
             long long cpuTime = 0;
             long long deviceTime = 0;
+            std::optional<std::chrono::microseconds> start_time;
 
             for (auto &interval : cldnnInfo.intervals) {
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
@@ -756,6 +831,8 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     cpuTime += count;
                 }
             }
+
+            start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
 
             std::string layerName = getClearName(primId);
 
@@ -780,6 +857,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
                     extPerfEntry.status = ov::ProfilingInfo::Status::EXECUTED;
                     extPerfEntry.cpu_time = std::chrono::microseconds(cpuTime);
                     extPerfEntry.real_time = std::chrono::microseconds(deviceTime);
+                    extPerfEntry.start_time = start_time.value_or(std::chrono::microseconds::zero());
 
                     if (pi.type_id == "input_layout") {
                         extPerfEntry.node_type = "Input";
@@ -806,9 +884,10 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
 
         if (first_res != result.end() && second_res != result.end() && first_res != second_res) {
             std::swap(first_res->second.cpu_time,        second_res->second.cpu_time);
-            std::swap(first_res->second.real_time,   second_res->second.real_time);
+            std::swap(first_res->second.real_time,       second_res->second.real_time);
             std::swap(first_res->second.status,          second_res->second.status);
             std::swap(first_res->second.exec_type,       second_res->second.exec_type);
+            std::swap(first_res->second.start_time,      second_res->second.start_time);
         }
     }
 

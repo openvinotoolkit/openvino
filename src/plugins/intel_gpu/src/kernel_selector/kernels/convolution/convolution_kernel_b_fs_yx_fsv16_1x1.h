@@ -15,7 +15,7 @@ public:
     using Parent = ConvolutionKernelBase;
 
     ConvolutionKernel_b_fs_yx_fsv16_1x1();
-    virtual ~ConvolutionKernel_b_fs_yx_fsv16_1x1() {}
+    ~ConvolutionKernel_b_fs_yx_fsv16_1x1() override {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

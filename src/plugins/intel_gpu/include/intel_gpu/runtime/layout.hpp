@@ -270,9 +270,7 @@ struct layout {
 
     layout()
         : data_type(cldnn::data_types::dynamic),
-          format(cldnn::format::any),
-          data_padding(padding()),
-          size(ov::PartialShape()) {}
+          format(cldnn::format::any) {}
 
     layout& operator=(const layout& other) {
         if (this == &other)

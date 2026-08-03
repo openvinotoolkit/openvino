@@ -54,7 +54,7 @@ InfoForRFFT9 get_info_for_rfft9_eval(const ov::TensorVector& inputs) {
     result.fft_output_shape = fft_output_shape;
     result.output_shape = output_shape;
 
-    result.axes_data = canonicalized_axes;
+    result.axes_data = std::move(canonicalized_axes);
 
     return result;
 }
