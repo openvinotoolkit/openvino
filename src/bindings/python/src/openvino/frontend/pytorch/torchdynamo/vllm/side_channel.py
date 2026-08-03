@@ -4,7 +4,7 @@
 """vLLM PagedAttention side-channel binding.
 
 The C++ paged_attention frontend op emits extra OV Parameters with names
-like \"__pa__<layer>__<field>\" (key_cache, value_cache, past_lens, ...).
+like "__pa__<layer>__<field>" (key_cache, value_cache, past_lens, ...).
 At infer time we look those up in vllm.forward_context and bind them as
 side-channel inputs. Lives in the vllm/ subpackage so torchdynamo.execute
 does not need to import from vllm at all on standalone torch.compile.
@@ -17,8 +17,8 @@ import torch
 logger = logging.getLogger(__name__)
 
 # Per-layer KV-cache ov.Tensor wrappers. The underlying torch tensors live for
-# the whole generate call, so we wrap them once and reuse. Keyed by (layer_name,
-# id(kv_cache_tensor)) so it invalidates if vLLM rebuilds the KV allocator.
+# the whole generate call, so we wrap them once and reuse. Keyed by meta layer
+# name so the wrapper persists across torch-compile invocations.
 _pa_kv_ovt_cache = {}
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
 # Per-layer static state cache: (id(compiled), layer_name) -> dict with
@@ -128,8 +128,6 @@ _PA_FIELDS = (
     # full-attention layers). Bound from layer_obj.impl.sliding_window.
     "sliding_window",
 )
-
-
 
 
 def _bind_paged_attention_side_channel(compiled):
@@ -311,18 +309,13 @@ def _bind_paged_attention_side_channel(compiled):
                 pass
 
         # Prepare numpy arrays for each field
-        def _nz(dtype, shape=(1,)):
-            return np.zeros(shape, dtype=dtype)
-
         key_cache_np = value_cache_np = None
         key_cache_ovt = value_cache_ovt = None
         if kv_cache is not None:
             try:
-                # Key by (layer_name, id(kv_cache)): per-compile placeholder is
-                # fine within a single compile; cross-compile sharing is handled
-                # below by keying on meta_layer_name too.
-                # Key by meta_layer_name (vLLM's real layer name) so f32 buffer
-                # persists across torch-compile invocations (prefill + decode).
+                # Key by meta_layer_name (vLLM's real layer name) so the OV
+                # tensor persists across torch-compile invocations (prefill +
+                # decode share the same underlying buffer).
                 cache_key = meta_layer_name
                 cached = _pa_kv_ovt_cache.get(cache_key)
                 if cached is not None:
@@ -388,14 +381,6 @@ def _bind_paged_attention_side_channel(compiled):
             _fb_dt_ov = _ov_fb.Type.f32
             _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=layer_name)
             _fb_block = 32  # CPU PA hard requirement
-            # Env overrides (for debugging / unusual models)
-            import os as _os_fb
-            if _os_fb.environ.get("OV_PA_NUM_KV_HEADS"):
-                _fb_Hk = int(_os_fb.environ["OV_PA_NUM_KV_HEADS"])
-            if _os_fb.environ.get("OV_PA_HEAD_SIZE"):
-                _fb_S = int(_os_fb.environ["OV_PA_HEAD_SIZE"])
-            if _os_fb.environ.get("OV_PA_BLOCK_SIZE"):
-                _fb_block = int(_os_fb.environ["OV_PA_BLOCK_SIZE"])
             _target_fb = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
             for _pi in compiled.inputs:
                 if _target_fb in _pi.get_names():
@@ -428,11 +413,11 @@ def _bind_paged_attention_side_channel(compiled):
         # KV-cache groups (e.g. Gemma-4 hybrid) have a distinct block_table per
         # group. Compute from this layer's own attn_meta + kv_cache block_size.
         #
-        # Intra-call cache: for uniform-attention models all 16+ layers share
-        # the same block_table object; recomputing block_indices per layer is
-        # wasteful (~4ms/step on Llama-1B). Dedup within this bind() call by
-        # (id(block_table), block_size). Gemma-4's two KV groups have distinct
-        # block_table objects, so both still compute — one per group.
+        # Intra-call cache keyed on (id(block_table), block_size): uniform-
+        # attention models have all layers pointing at the same block_table
+        # object, so the computation only runs once per bind() call. Gemma-4's
+        # two KV groups have distinct block_table objects, so both compute
+        # exactly once per bind().
         block_indices_np = _zeros_1_i32()
         block_indices_begins_np = _zeros_2_i32()
         if attn_meta is not None and kv_cache is not None:

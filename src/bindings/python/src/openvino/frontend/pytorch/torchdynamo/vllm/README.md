@@ -7,14 +7,14 @@ inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
 > ⚠️ **Setup:** requires a source patch and a pinned pip lockfile.
-> See [setup.md](setup.md) before running.
+> See [setup.md](docs/setup.md) before running.
 
 
 ## Documentation
 
-- **[setup.md](setup.md)** — install (venv, PyTorch, vLLM, OpenVINO), verify entry point, select the OV backend, troubleshooting.
-- **[test.md](test.md)** — run the smoke test, environment variables, interpret perf numbers, diagnose regressions.
-- **[requirements-known-good.txt](requirements-known-good.txt)** — pinned pip lockfile for the reproducible working stack.
+- **[setup.md](docs/setup.md)** — install (venv, PyTorch, vLLM, OpenVINO), verify entry point, select the OV backend, troubleshooting.
+- **[test.md](docs/test.md)** — run the smoke test, environment variables, interpret perf numbers, diagnose regressions.
+- **[requirements-known-good.txt](docs/requirements-known-good.txt)** — pinned pip lockfile for the reproducible working stack.
 
 ## Layout
 

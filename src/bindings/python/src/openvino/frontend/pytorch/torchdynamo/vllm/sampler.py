@@ -147,10 +147,9 @@ def install():
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
         # Gate on vocab size: below ~100k, torch's topk_topp_sampler on CPU
-        # is faster than round-tripping through a compiled OV graph. Empirically
-        # measured on Llama-1B (128k, +41% w/ fused), TinyLlama (32k, -17%),
-        # Qwen (152k, +27%), Qwen-1.5B (152k, -15% - forward dominates).
-        # Also skip when logits shape[0] > 1 (batching not proven yet here).
+        # is faster than round-tripping through a compiled OV graph. The
+        # threshold is tunable via OV_FUSED_SAMPLER_MIN_VOCAB. Also skip when
+        # logits shape[0] > 1 (batching path is untested).
         _min_vocab = int(os.environ.get("OV_FUSED_SAMPLER_MIN_VOCAB", "100000"))
         if logits.shape[-1] < _min_vocab or logits.shape[0] > 1:
             return _orig_sample(self, logits, sampling_metadata,
@@ -161,18 +160,9 @@ def install():
 
         if _use_native:
             # Native OV graph path — no torch.compile overhead. Skips top_p
-            # (uses pure Gumbel-max over topk values), no per-request seed.
-            # Bail out to torch path if top_p is not 1.0 for all rows
-            # (top_p rejection isn't implemented in the native graph).
-            top_p_meta = getattr(sampling_metadata, "top_p", None)
-            if top_p_meta is not None:
-                try:
-                    if float(top_p_meta.max().item()) < 1.0 - 1e-6:
-                        # top_p active - skip native, but a user opted in;
-                        # accept the small distribution difference.
-                        pass
-                except Exception:
-                    pass
+            # (uses pure Gumbel-max over top_k values) and has no per-request
+            # seed. Users opt in via OV_NATIVE_SAMPLER=1 and accept the small
+            # distribution difference when top_p < 1.0.
             top_k_meta = getattr(sampling_metadata, "top_k", None)
             try:
                 k_val = int(top_k_meta.max().item()) if top_k_meta is not None else 0

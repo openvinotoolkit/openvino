@@ -9,17 +9,16 @@ this at engine init and at worker startup. We use it to:
 1. Patch `vllm.v1.worker.cpu_model_runner.CPUModelRunner.load_model` so it
    wires `torch.compile(backend="openvino")` when the user passes
    `compilation_config={"mode": "STOCK_TORCH_COMPILE", "backend": "openvino"}`.
-   Replaces the user-visible Patch C from spr_perf_results.md.
 
 2. Force vLLM's `_supports_onednn` to False when the openvino backend is in
    use, since onednn_mm graph-breaks the OV trace and rejects f32 activations
-   from AOT decomposition. Replaces Patch D.
+   from AOT decomposition.
 
 3. Disable vLLM's LayerName opaque wrapper (env var equivalent of
    VLLM_USE_LAYERNAME=0) so OV's paged_attention C++ translator can cast
    the layer_name arg as `str`.
 
-This module is no-op on non-CPU vLLM installs and on any environment where
+This module is a no-op on non-CPU vLLM installs and on any environment where
 the OV backend is not requested by the user.
 """
 
@@ -27,13 +26,6 @@ import logging
 import os
 
 logger = logging.getLogger(__name__)
-
-
-def _is_openvino_requested():
-    """True when user wants the OV backend, before vLLM has constructed config."""
-    # Cheap heuristic: rely on env vars users typically set together with
-    # the openvino backend. Refined at patch-time below.
-    return True  # always patch — checks happen inside patched load_model
 
 
 def _patch_cpu_model_runner():
@@ -101,8 +93,7 @@ def _patch_cpu_model_runner():
         # (KV_CACHE_PRECISION=bf16, INFERENCE_PRECISION_HINT=bf16,
         # DYNAMIC_QUANTIZATION_GROUP_SIZE=32). Individual flags can be
         # overridden by adding them explicitly to `options`.
-        options = {"aot_autograd": False, "vllm": True} if os.environ.get("OV_NO_AOT") else {"aot_autograd": True, "vllm": True}
-        if os.environ.get("OV_PA_TORCH_FALLBACK"): options["pa_translate"] = False
+        options = {"aot_autograd": True, "vllm": True}
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
