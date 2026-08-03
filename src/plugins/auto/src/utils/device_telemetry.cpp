@@ -102,7 +102,11 @@ private:
             LOG_WARNING_TAG("TelemetryClient: IpfGetNode(%s) failed: %s", path, ipf_ef_error_str(status));
             return {};
         }
-        return std::string(buf.data());
+        std::string result(buf.data(), len);
+        if (!result.empty() && result.back() == '\0') {
+            result.pop_back();
+        }
+        return result;
     }
 
     void* m_handle = nullptr;
