@@ -471,10 +471,11 @@ TEST_P(OVClassNetworkTestPNPU, smoke_LogLevelPerCallPropertyDoesNotContaminateSu
 
     std::string secondCompileLogs;
     {
-        utils::LogCallbackGuard captureGuard([&](std::string_view m) {
+        std::function<void(std::string_view)> capture_cb = [&](std::string_view m) {
             secondCompileLogs.append(m);
             secondCompileLogs.push_back('\n');
-        });
+        };
+        utils::LogCallbackGuard captureGuard(capture_cb);
         OV_ASSERT_NO_THROW(ie.compile_model(model, target_device));
     }
     EXPECT_EQ(secondCompileLogs.find("[WARNING]"), std::string::npos)
