@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 96,
+  "total": 97,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -942,6 +942,15 @@
       "category": "Flaky Test",
       "signature_hash": "cd1ffc31aa16d470",
       "pr_number": "34808"
+    },
+    {
+      "investigation_id": "2026-08-03-19-55-22-000-30837137504",
+      "run_id": "30837137504",
+      "timestamp": "2026-08-03T19:55:22Z",
+      "title": "JS API E2E Electron cleanup fails with Permission Denied on Windows runner",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "37035"
     }
   ]
 }

@@ -4,10 +4,11 @@
   "signature_hash": "85df26485ff568d8",
   "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
   "category": "Flaky Test",
-  "count": 13,
+  "count": 14,
   "first_seen": "2026-07-09T11:34:24Z",
-  "last_seen": "2026-07-28T12:39:00Z",
+  "last_seen": "2026-08-03T19:55:22Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30837137504",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30353712127",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29592019267",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29573015584",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/29502462489",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29498230226",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29488629158",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29461222151",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29450212856"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29461222151"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37035",
     "https://github.com/openvinotoolkit/openvino/pull/36937",
     "https://github.com/openvinotoolkit/openvino/pull/36905",
     "https://github.com/openvinotoolkit/openvino/pull/36811",
@@ -28,15 +29,10 @@
     "https://github.com/openvinotoolkit/openvino/pull/36917",
     "https://github.com/openvinotoolkit/openvino/pull/36807",
     "https://github.com/openvinotoolkit/openvino/pull/36806",
-    "https://github.com/openvinotoolkit/openvino/pull/36888",
-    "https://github.com/openvinotoolkit/openvino/pull/36887"
+    "https://github.com/openvinotoolkit/openvino/pull/36888"
   ],
   "recent_timestamps": [
-    "2026-07-28T12:39:00Z",
-    "2026-07-17T16:57:09Z",
-    "2026-07-17T11:36:44Z",
-    "2026-07-17T10:30:03Z",
-    "2026-07-17T09:27:04Z"
+    "2026-08-03T19:55:22Z"
   ],
   "rerun_search_string": "electron.exe': Permission denied"
 }

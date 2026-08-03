@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-03-19-55-22-000-30837137504",
+  "timestamp": "2026-08-03T19:55:22Z",
+  "run_id": "30837137504",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30837137504",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37035",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37035",
+  "author": "alvoron",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails with Permission Denied on Windows runner",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "E2E Electron test teardown fails: rm cannot remove electron.exe/d3dcompiler_47.dll: Permission denied"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/electron.exe': Permission denied\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/libGLESv2.dll': Permission denied"
+  ],
+  "root_cause": "The E2E Electron test's 'after all' cleanup hook attempts to delete the demo-electron-app-project directory via 'rm -rf'. On Windows runners, the Electron binary and DLLs (electron.exe, d3dcompiler_47.dll, libGLESv2.dll) remain locked by the OS after the Electron process completes, causing Permission Denied errors. This is a Windows-specific infrastructure/runner issue unrelated to the PR changes (which only touch GPU plugin deconvolution shape inference). The actual tests passed (2 passing); only the cleanup hook failed.",
+  "reproduction_steps": "Run E2E Electron tests on a Windows CI runner where Electron binaries may remain locked after the test process exits.",
+  "recommended_actions": [
+    "Re-run the failed job \u2014 the lock is transient and typically releases between runs",
+    "Consider using 'rimraf' or PowerShell 'Remove-Item -Recurse -Force' instead of 'rm -rf' in the Electron E2E cleanup hook for Windows compatibility",
+    "Add retry logic or a delay before cleanup in the 'after all' hook"
+  ],
+  "prevention_strategies": "Use Windows-compatible cleanup commands in test teardown. Consider using rimraf npm package or PowerShell for directory removal on Windows runners.",
+  "historical_context": "No prior occurrence of this exact signature found in the investigation database."
+}
