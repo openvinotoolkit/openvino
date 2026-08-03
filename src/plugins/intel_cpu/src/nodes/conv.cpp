@@ -562,7 +562,46 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
+    // check for multiply node
+    auto isScaleShiftMul = [&](const NodePtr& n) -> bool {
+        if (n->getAlgorithm() != Algorithm::EltwiseMultiply) {
+            return false;
+        }
+        for (size_t i = 0; i < n->getParentEdges().size(); i++) {
+            auto parent = n->getParentEdgeAt(i)->getParent();
+            if (parent.get() != this && parent->isConstant()) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto isSwish = [](const NodePtr& n) -> bool {
+        return n->getType() == Type::Eltwise && n->getAlgorithm() == Algorithm::EltwiseSwish;
+    };
+
     if (!fusedWith.empty()) {
+        if (node->getType() == Type::Eltwise) {
+            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isScaleShiftMul(node) ||
+                   isSwish(node);
+        }
+        // Allow FakeQuantize to fuse after a single Eltwise activation
+        // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
+        if (fusedWith.back()->getType() == Type::Eltwise && node->getType() == Type::FakeQuantize) {
+            const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+            const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
+                fusedWith.back()->getAlgorithm() == Algorithm::EltwiseSwish) {
+                return false;
+            }
+
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
+                any_of(fqOutPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+                return false;
+            }
+            return canFuseSimpleOperation(node);
+        }
+
         return false;
     }
 
@@ -575,6 +614,15 @@ bool Convolution::canFuse(const NodePtr& node) const {
             return false;
         }
     }
+
+    if (node->getType() == Type::Eltwise && isScaleShiftMul(node)) {
+        return true;
+    }
+
+    if (isSwish(node)) {
+        return none_of(getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8);
+    }
+
 #endif
     return canFuseSimpleOperation(node);
 }
