@@ -362,28 +362,25 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
 
     // Key positions [1, kv_len] and absolute query positions [curr, 1]. Coordinates are cache-relative
     // (past_seqlen is the resident past length), which matches the distance-only ONNX Runtime rule.
-    std::shared_ptr<ov::Node> triu, too_old;
-    if (has_window || !has_bias) {
-        const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-        const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
-        std::shared_ptr<ov::Node> hori_range =
-            register_new_node<v4::Range>(zero_scalar, kv_len_scalar, one_scalar, ov::element::i64);
-        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
-        std::shared_ptr<ov::Node> vert_range =
-            register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
-        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+    const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    std::shared_ptr<ov::Node> hori_range =
+        register_new_node<v4::Range>(zero_scalar, kv_len_scalar, one_scalar, ov::element::i64);
+    hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
+    std::shared_ptr<ov::Node> vert_range =
+        register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
+    vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+    vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
 
-        if (!has_bias) {
-            triu = register_new_node<v1::Greater>(hori_range, vert_range);  // future keys: k > q
-        }
-        if (has_window) {
-            // keys older than the window: (q - k) >= local_window_size
-            const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
-            const auto window =
-                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
-            too_old = register_new_node<v1::GreaterEqual>(distance, window);
-        }
+    // Causal mask (future keys: k > q), OR-ed with the optional sliding-window band (keys older than the
+    // window: (q - k) >= local_window_size). This is applied unconditionally; an external attention_bias
+    // is added on top of it, matching ONNX Runtime (the bias does not replace the causal/window mask).
+    std::shared_ptr<ov::Node> masked = register_new_node<v1::Greater>(hori_range, vert_range);
+    if (has_window) {
+        const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
+        const auto window = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+        const auto too_old = register_new_node<v1::GreaterEqual>(distance, window);
+        masked = register_new_node<v1::LogicalOr>(masked, too_old);
     }
 
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
@@ -396,20 +393,18 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
         minus_inf =
             register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
 
+    std::shared_ptr<ov::Node> mask = register_new_node<v1::Select>(masked, minus_inf, typed_zero);
+
     if (has_bias) {
-        // External attention_bias [1, num_heads, curr, max_kv] -> [num_heads, curr, kv_len].
+        // Add the external attention_bias [1, num_heads, curr, max_kv] -> [num_heads, curr, kv_len] on top
+        // of the causal/window mask (broadcasts over the head axis against the [curr, kv_len] mask).
         const auto squeeze_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        std::shared_ptr<ov::Node> mask = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
-        mask = register_new_node<v8::Slice>(mask, zero, kv_len_1d, one, two);
-        if (too_old) {
-            const auto band = register_new_node<v1::Select>(too_old, minus_inf, typed_zero);
-            mask = register_new_node<v1::Add>(mask, band);
-        }
-        return mask;
+        std::shared_ptr<ov::Node> bias = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
+        bias = register_new_node<v8::Slice>(bias, zero, kv_len_1d, one, two);
+        mask = register_new_node<v1::Add>(mask, bias);
     }
 
-    const std::shared_ptr<ov::Node> masked = too_old ? register_new_node<v1::LogicalOr>(triu, too_old) : triu;
-    return register_new_node<v1::Select>(masked, minus_inf, typed_zero);
+    return mask;
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
