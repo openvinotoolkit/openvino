@@ -9,13 +9,16 @@
 #include "ov_ops/rms.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
+
 namespace {
 
 using RMSParams = std::tuple<ov::Shape,           // input shape
                              ov::element::Type,   // precision
                              bool>;               // with gamma
 
-class RMSTest : public testing::WithParamInterface<RMSParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class RMSTest : public testing::WithParamInterface<RMSParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RMSParams>& obj) {
         const auto& [shape, precision, with_gamma] = obj.param;
