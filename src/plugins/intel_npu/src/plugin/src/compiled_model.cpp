@@ -32,6 +32,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
+      _weightSharingContext(std::move(weightSharingContext)),
       _graph(graph),
       _batchSize(batchSize),
       _propertiesManager(
@@ -208,6 +209,11 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
+    if (name == ov::internal::model_sharing_context.name()) {
+        _logger.debug("WeightSharingCtxPtr handoff succeeded for compiled model '%s'.", _graph->get_metadata().name.c_str());
+        return ov::Any(_weightSharingContext);
+    }
+
     return _propertiesManager->getProperty(name);
 }
 
