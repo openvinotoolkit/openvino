@@ -109,7 +109,7 @@ struct FusedOpsConfiguration {
         shuffle_var_name = std::move(val);
         return *this;
     }
-    [[nodiscard]] bool is_post_reorder_fused(void) const {
+    [[nodiscard]] bool is_post_reorder_fused() const {
         return orig_output_layout != cldnn::format::any;
     }
 

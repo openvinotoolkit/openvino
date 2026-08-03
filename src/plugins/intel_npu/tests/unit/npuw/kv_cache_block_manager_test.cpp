@@ -248,6 +248,82 @@ TEST_F(KVCacheBlockManagerTest, InvalidBlockID) {
         << "Updating invalid block ID should throw";
 }
 
+// Truncation for continuous prefill keeps the leading blocks and frees the suffix.
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedKeepsPrefix) {
+    std::vector<uint32_t> ids;
+    for (int i = 0; i < 5; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        manager->update_block_tokens(id.value(), block_size);
+        ids.push_back(id.value());
+    }
+
+    manager->truncate_allocated(2);
+
+    auto allocated = manager->get_allocated_blocks();
+    ASSERT_EQ(allocated.size(), 2u);
+    EXPECT_EQ(allocated[0], ids[0]);
+    EXPECT_EQ(allocated[1], ids[1]);
+    // Retained blocks keep their token counts and tensors.
+    EXPECT_EQ(manager->get_block_tokens(ids[0]), block_size);
+    EXPECT_EQ(manager->get_block_tokens(ids[1]), block_size);
+    EXPECT_NE(manager->get_block_tensor(ids[0]), nullptr);
+    EXPECT_EQ(manager->num_free_blocks(), max_blocks - 2);
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedPreservesAppendOrder) {
+    std::vector<uint32_t> ids;
+    for (int i = 0; i < 4; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        ids.push_back(id.value());
+    }
+
+    manager->truncate_allocated(1);
+
+    // Freed suffix IDs come back in ascending order so logical append order holds.
+    auto first = manager->allocate_block();
+    auto second = manager->allocate_block();
+    ASSERT_TRUE(first.has_value() && second.has_value());
+    EXPECT_EQ(first.value(), ids[1]);
+    EXPECT_EQ(second.value(), ids[2]);
+    // Reacquired blocks start empty.
+    EXPECT_EQ(manager->get_block_tokens(first.value()), 0u);
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedKeepsSuffixTensorsWarm) {
+    std::vector<uint32_t> ids;
+    std::vector<void*> data_before;
+    for (int i = 0; i < 3; ++i) {
+        auto id = manager->allocate_block();
+        ASSERT_TRUE(id.has_value());
+        ids.push_back(id.value());
+        data_before.push_back(manager->get_block_tensor(id.value())->data());
+    }
+
+    manager->truncate_allocated(1);
+
+    // Retained prefix keeps its tensor untouched.
+    EXPECT_EQ(manager->get_block_tensor(ids[0])->data(), data_before[0]);
+
+    // Suffix tensors are kept warm, so reacquiring those IDs must not re-allocate.
+    // Without this the first prefill chunk of a continuation pays allocation latency.
+    for (size_t i = 1; i < ids.size(); ++i) {
+        auto reacquired = manager->allocate_block();
+        ASSERT_TRUE(reacquired.has_value());
+        EXPECT_EQ(reacquired.value(), ids[i]);
+        EXPECT_EQ(manager->get_block_tensor(reacquired.value())->data(), data_before[i]);
+    }
+}
+
+TEST_F(KVCacheBlockManagerTest, TruncateAllocatedRejectsOverKeep) {
+    ASSERT_TRUE(manager->allocate_block().has_value());
+    EXPECT_THROW(manager->truncate_allocated(2), ov::Exception);
+    // Truncating to the full allocated count is a no-op.
+    manager->truncate_allocated(1);
+    EXPECT_EQ(manager->get_allocated_blocks().size(), 1u);
+}
+
 // Test 11: Get Tensor After Clear (memory kept, state reset)
 TEST_F(KVCacheBlockManagerTest, GetTensorAfterClear) {
     auto block_id = manager->allocate_block();
