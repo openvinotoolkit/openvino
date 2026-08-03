@@ -30,7 +30,6 @@ protected:
         config = std::make_unique<FilteredConfig>(options);
 
         config->enable(ov::log::level.name(), true);
-        config->enableRuntimeOptions();
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
