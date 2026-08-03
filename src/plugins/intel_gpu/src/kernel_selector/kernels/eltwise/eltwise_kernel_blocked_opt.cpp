@@ -21,10 +21,12 @@ static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params);
 ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -221,8 +223,8 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                     if (params.inputs[input.index].LogicalSize() == 1) {
                         // Sample : half8 tmp_a0_1 = (half8)(input1[0]);
                         const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
-                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " +
-                                                        "(" + temp_vec_type + ")(" + input_i + "[0])";
+                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " + "(" + temp_vec_type + ")DECODE_INPUT" +
+                                                        toCodeString(input_idx) + "_COMPUTE_TYPE(" + input_i + "[0])";
 
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
                         jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
@@ -230,8 +232,8 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                         // Load as scalar and broadcast to vector variable
                         // Sample : half8 tmp_broadcast0 = (half8)(input0[get_b_fs_yx_fsv_index_safe( b, (f_block * 8), y, x, ..., 32)]);;
                         const std::string broadcast_name = "DO_FEATURE_BROADCAST" + toCodeString(op_num) + "_" + toCodeString(input_idx);
-                        std::string broadcast_value = "\\\n\t " + temp_vec_type + " tmp_broadcast" + toCodeString(op_num) + " = " +
-                                                        "(" + temp_vec_type + ")(" + input_i +
+                        std::string broadcast_value = "\\\n\t " + temp_vec_type + " tmp_broadcast" + toCodeString(op_num) + " = " + "(" + temp_vec_type +
+                                                      ")DECODE_INPUT" + toCodeString(input_idx) + "_COMPUTE_TYPE(" + input_i +
                                                         "[GET_INDEX(INPUT, " + toCodeString(input.index) + ", " + idx_order + ")]);";
 
                         jit.AddConstant(MakeJitConstant(broadcast_name, broadcast_value));
@@ -240,8 +242,9 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                         // Load as vector. No need to use GET_INDEX: use f_block for raw indexing
                         // Sample : half8 tmp_a0_1 = convert_half8(vload8(f_block, input1));;
                         const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
-                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " +
-                                                        "TO_TYPE(" + temp_vec_type + ", " + vload_n + "(f_block, " + input_i + "));";
+                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " + "TO_TYPE(" + temp_vec_type + ", DECODE_INPUT" +
+                                                        toCodeString(input.index) + "_COMPUTE_VECTOR_TYPE(" + vload_n + "(f_block, " + input_i + "), " +
+                                                        toCodeString(vec_size) + "));";
 
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
                         jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
@@ -249,8 +252,9 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                         // Load as vector. Use raw global id to reduce overhead of formatted indexing
                         // Sample : half8 tmp_a0_0 = convert_half8(vload8(global_id, input0));;
                         const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
-                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " +
-                                                        "TO_TYPE(" + temp_vec_type + ", " + vload_n + "(global_id, " + input_i + "));";
+                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " + "TO_TYPE(" + temp_vec_type + ", DECODE_INPUT" +
+                                                        toCodeString(input.index) + "_COMPUTE_VECTOR_TYPE(" + vload_n + "(global_id, " + input_i + "), " +
+                                                        toCodeString(vec_size) + "));";
 
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
                         jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
@@ -258,9 +262,10 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                         // A default vector load using formatted GET_INDEX
                         // Sample : half8 tmp_a0_0 = convert_half8(vload8(0, &input0[get_b_fs_yx_fsv_index( b, (f_block * 8), y, x, ..., 32)]));;
                         const std::string vload_name = "DO_VLOAD" + toCodeString(op_num) + "_" + toCodeString(input_idx);
-                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " +
-                                                        "TO_TYPE(" + temp_vec_type + ", " + vload_n + "(0, &input" + toCodeString(input.index) +
-                                                        "[GET_INDEX(INPUT," + toCodeString(input.index) + ", " + idx_order + ")]));";
+                        const std::string vload_value = "\\\n\t " + temp_vec_type + temp_vec_var + " = " + "TO_TYPE(" + temp_vec_type + ", DECODE_INPUT" +
+                                                        toCodeString(input.index) + "_COMPUTE_VECTOR_TYPE(" + vload_n + "(0, &input" +
+                                                        toCodeString(input.index) + "[GET_INDEX(INPUT," + toCodeString(input.index) + ", " + idx_order +
+                                                        ")]), " + toCodeString(vec_size) + "));";
 
                         jit.AddConstant(MakeJitConstant(vload_name, vload_value));
                         jit.AddConstant(MakeJitConstant(name, "tmp_a" + toCodeString(op_num) + "_" + toCodeString(input_idx)));
@@ -268,12 +273,12 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
                 }  // EltwiseInputMode::INPUT_BUFFER
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
-                    jit.AddConstant(MakeJitConstant(name, "output[off]"));
+                    jit.AddConstant(MakeJitConstant(name, "DECODE_OUTPUT_COMPUTE_TYPE(output[off])"));
                     break;
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(
                             name,
-                            "input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "]"));
+                        "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) + "])"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
                     jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
@@ -340,7 +345,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
 
     if (params.outputs[0].Feature().v % vec_size != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));

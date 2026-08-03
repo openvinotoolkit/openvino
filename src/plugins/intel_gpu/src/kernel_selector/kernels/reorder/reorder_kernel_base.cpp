@@ -115,8 +115,9 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     // Type JITs:
 
     // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16 support
-    bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16 &&
-                      params.mode == MeanSubtractMode::NONE && params.activations.empty());
+    bool useUshort = (((params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F16) || 
+        (params.inputs[0].GetDType() == Datatype::BF16 && params.outputs[0].GetDType() == Datatype::BF16)) &&
+                      params.mode == MeanSubtractMode::NONE && params.activations.empty() && params.fused_ops.empty());
 
     Datatype calc_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
     if (params.inputs[0].GetDType() == Datatype::BF16 || params.inputs[0].GetDType() == Datatype::F8E8M0) {
@@ -135,7 +136,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     jit.AddConstant(MakeJitConstant("MEAN_OP(val, mean_val)", getMeanOpString(params.mean_op)));
 
     // Type parametrized activation:
-    jit.Merge(MakeActivationJitConstants(params.activations, GetUnitType(params), "_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(GetUnitType(params)), "_TYPED", true));
 
     // TODO: Move to lower classes
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.outputs[0].GetLayout())));
