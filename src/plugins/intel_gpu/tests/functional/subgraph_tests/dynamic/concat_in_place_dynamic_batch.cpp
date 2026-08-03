@@ -127,6 +127,12 @@ const std::vector<std::vector<InputShape>> dynInputShapes = {
     {
         {{-1, 4, 4, 4}, {{8, 4, 4, 4}, {1, 4, 4, 4}, {8, 4, 4, 4}}},
     },
+    {
+        {{-1, 4, 4, 4}, {{1, 4, 4, 4}, {1, 4, 4, 4}, {1, 4, 4, 4}}},
+    },
+    {
+        {{-1, 4, 4, 4}, {{1, 4, 4, 4}, {8, 4, 4, 4}, {3, 4, 4, 4}, {1, 4, 4, 4}}},
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_concat_in_place_dynamic_batch, ConcatInPlaceDynamicBatchGPUTest,
