@@ -239,7 +239,9 @@ void MetadataBase::read_data_from_source(char* destination, const size_t size) {
     }
 }
 
-void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
+void MetadataBase::write(std::ostream& stream) {
+    write_without_footer(stream);
+
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
@@ -404,13 +406,13 @@ void Metadata<METADATA_VERSION_2_6>::read_as_text() {
     }
 }
 
-void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
+void Metadata<METADATA_VERSION_2_0>::write_without_footer(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
 }
 
-void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_0>::write(stream);
+void Metadata<METADATA_VERSION_2_1>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write_without_footer(stream);
 
     _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
     stream.write(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
@@ -422,15 +424,15 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     }
 }
 
-void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_1>::write(stream);
+void Metadata<METADATA_VERSION_2_2>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_1>::write_without_footer(stream);
 
     int64_t batchValue = _batchSize.value_or(0);
     stream.write(reinterpret_cast<const char*>(&batchValue), sizeof(batchValue));
 }
 
-void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_2>::write(stream);
+void Metadata<METADATA_VERSION_2_3>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_2>::write_without_footer(stream);
 
     const uint64_t numberOfInputLayouts = _inputLayouts.has_value() ? _inputLayouts->size() : 0;
     const uint64_t numberOfOutputLayouts = _outputLayouts.has_value() ? _outputLayouts->size() : 0;
@@ -452,22 +454,22 @@ void Metadata<METADATA_VERSION_2_3>::write(std::ostream& stream) {
     writeLayouts(_outputLayouts);
 }
 
-void Metadata<METADATA_VERSION_2_4>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_3>::write(stream);
+void Metadata<METADATA_VERSION_2_4>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_3>::write_without_footer(stream);
 
     uint32_t compilerVersion = _compilerVersion.value_or(0);
     stream.write(reinterpret_cast<const char*>(&compilerVersion), sizeof(compilerVersion));
 }
 
-void Metadata<METADATA_VERSION_2_5>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_4>::write(stream);
+void Metadata<METADATA_VERSION_2_5>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_4>::write_without_footer(stream);
 
     const uint8_t isEncryptedBlob = _isEncryptedBlob.value_or(false);
     stream.write(reinterpret_cast<const char*>(&isEncryptedBlob), sizeof(isEncryptedBlob));
 }
 
-void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
-    Metadata<METADATA_VERSION_2_5>::write(stream);
+void Metadata<METADATA_VERSION_2_6>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_5>::write_without_footer(stream);
 
     const std::string& compatDesc = _compatibilityDescriptor.value_or("");
     const uint64_t compatDesc_len = compatDesc.size();
@@ -475,8 +477,6 @@ void Metadata<METADATA_VERSION_2_6>::write(std::ostream& stream) {
     if (compatDesc_len > 0) {
         stream.write(compatDesc.data(), static_cast<std::streamsize>(compatDesc_len));
     }
-
-    append_blob_size_and_magic(stream);
 }
 
 void Metadata<METADATA_VERSION_2_0>::write_as_text(std::ostream& stream) {

@@ -55,9 +55,14 @@ public:
     virtual void read_as_text() = 0;
 
     /**
-     * @brief Writes metadata to a stream.
+     * @brief Writes metadata to a stream. The footer (blob size & magic) is included.
      */
-    virtual void write(std::ostream& stream) = 0;
+    void write(std::ostream& stream);
+
+    /**
+     * @brief Writes metadata to a stream. The footer (blob size & magic) is omitted.
+     */
+    virtual void write_without_footer(std::ostream& stream) = 0;
 
     virtual void write_as_text(std::ostream& stream) = 0;
 
@@ -123,15 +128,6 @@ protected:
      * source.
      */
     void read_data_from_source(char* destination, const size_t size);
-
-    /**
-     * @brief Adds the size of the binary object and the magic string to the end of the stream.
-     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
-     * stream.
-     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
-     * method writes at the end. This change allows better extension of class hierarchy.
-     */
-    void append_blob_size_and_magic(std::ostream& stream);
 
     uint32_t _version;
     uint64_t _blobDataSize;
@@ -280,7 +276,7 @@ public:
      * This is the quickest way to handle many incompatible blob cases without needing to traverse the whole NPU
      * metadata section.
      */
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
 
@@ -312,7 +308,7 @@ public:
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.
      */
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
 
@@ -338,7 +334,7 @@ public:
 
     void read_as_text() override;
 
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
 
@@ -364,7 +360,7 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     std::optional<std::vector<ov::Layout>> get_input_layouts() const override;
 
@@ -391,7 +387,7 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     std::optional<uint32_t> get_compiler_version() const override;
 
@@ -417,7 +413,7 @@ public:
 
     void read() override;
 
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     std::optional<bool> is_encrypted_blob() const override;
 
@@ -445,7 +441,7 @@ public:
 
     void read_as_text() override;
 
-    void write(std::ostream& stream) override;
+    void write_without_footer(std::ostream& stream) override;
 
     void write_as_text(std::ostream& stream) override;
 
