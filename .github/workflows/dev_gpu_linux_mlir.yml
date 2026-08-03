@@ -78,7 +78,7 @@ permissions: read-all
 
 env:
   GRAPH_COMPILER_URL: 'https://github.com/dchigarev/graph-compiler.git'
-  GRAPH_COMPILER_REF: ${{ inputs.graph-compiler-ref || 'dchigarev/mlir-exp' }}
+  GRAPH_COMPILER_REF: ${{ inputs.graph-compiler-ref || 'ov_pin/0.1.0' }}
 
 jobs:
   Smart_CI:
