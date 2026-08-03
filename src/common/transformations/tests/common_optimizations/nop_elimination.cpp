@@ -2276,4 +2276,3 @@ TEST_F(TransformationTestsF, EliminateIdentityConvert_identity_multiple_consumer
 
     model_ref = model->clone();
 }
-
