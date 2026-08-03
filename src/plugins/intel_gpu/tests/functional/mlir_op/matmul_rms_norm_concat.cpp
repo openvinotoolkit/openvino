@@ -17,13 +17,10 @@
 #include "openvino/op/transpose.hpp"
 #include "shared_test_classes/base/benchmark.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/util/env_util.hpp"
+
+#include "mlir_test_env.hpp"
 
 namespace {
-
-static bool is_mlir_enabled() {
-    return ov::util::getenv_bool("OV_GPU_ENABLE_MLIR");
-}
 
 //    A(1xSEQx1536xf16)
 //    ▼
@@ -90,7 +87,7 @@ static std::shared_ptr<ov::Node> build_matmul_rmsnorm(ov::element::Type prec,
 using MatMulRmsnormParams = std::tuple<ov::Shape,   // A shape
                                        ov::Shape>;  // B shape
 
-class MatMulRmsnormTest : public testing::WithParamInterface<MatMulRmsnormParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class MatMulRmsnormTest : public testing::WithParamInterface<MatMulRmsnormParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsnormParams>& obj) {
         const auto& [a_shape, b_shape] = obj.param;
@@ -120,7 +117,7 @@ TEST_P(MatMulRmsnormTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormBenchmark, Inference) {
-    if (is_mlir_enabled())
+    if (ov::test::is_mlir_enabled())
         run_benchmark("MLIROp");
     else
         run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS"});
@@ -143,7 +140,7 @@ using MatMulRmsnormConcatParams = std::tuple<ov::Shape,   // A0 shape
                                              ov::Shape,   // A1 shape
                                              ov::Shape>;  // B shape
 
-class MatMulRmsnormConcatTest : public testing::WithParamInterface<MatMulRmsnormConcatParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class MatMulRmsnormConcatTest : public testing::WithParamInterface<MatMulRmsnormConcatParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulRmsnormConcatParams>& obj) {
         const auto& [a0_shape, a1_shape, b_shape] = obj.param;
@@ -179,7 +176,7 @@ TEST_P(MatMulRmsnormConcatTest, Inference) {
     run();
 }
 TEST_P(MatMulRmsnormConcatBenchmark, Inference) {
-    if (is_mlir_enabled())
+    if (ov::test::is_mlir_enabled())
         run_benchmark("MLIROp");
     else
         run_benchmark({"FullyConnected", "Add", "Reshape", "Transpose", "RMS", "Concat"});

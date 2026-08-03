@@ -34,6 +34,7 @@
 #include <openvino/op/squeeze.hpp>
 #include <openvino/op/transpose.hpp>
 #include <openvino/op/unsqueeze.hpp>
+#include <ov_ops/rms.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "../common/converters/relu.hpp"
@@ -44,6 +45,7 @@
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
 #include "../common/converters/reshape.hpp"
+#include "../common/converters/rms.hpp"
 #include "../common/converters/sdpa.hpp"
 #include "../common/converters/shape_of.hpp"
 #include "../common/converters/slice.hpp"
@@ -88,6 +90,28 @@ template class ReducePattern<ov::op::v1::ReduceMean>;
 template class ReducePattern<ov::op::v1::ReduceMin>;
 template class ReducePattern<ov::op::v1::ReduceProd>;
 template class ReducePattern<ov::op::v1::ReduceSum>;
+
+RMSPattern::RMSPattern()
+    : MarkPattern(
+        wrap_type<ov::op::internal::RMS>([](const Output<Node>& output) {
+            auto node = ov::as_type_ptr<ov::op::internal::RMS>(output.get_node_shared_ptr());
+            if (!node || has_dynamic_rank(node) || !output.get_element_type().is_real()) {
+                return false;
+            }
+            // The converter computes the mean over the last dimension, so it must be static.
+            const auto shape = output.get_partial_shape();
+            if (shape[shape.rank().get_length() - 1].is_dynamic()) {
+                return false;
+            }
+            // Mixed input/output precision (RMS output_type attribute) is not supported
+            if (node->get_input_element_type(0) != output.get_element_type()) {
+                return false;
+            }
+            return !node->get_elementwise_affine() ||
+                   (node->get_input_element_type(1) == output.get_element_type() &&
+                    statically_broadcastable(node->get_input_partial_shape(1), shape));
+        }),
+        ConvertRMS()) {}
 
 ReshapePattern::ReshapePattern()
     : MarkPattern(wrap_type<v1::Reshape>({any_input(), any_input()}), ConvertReshape()) {}

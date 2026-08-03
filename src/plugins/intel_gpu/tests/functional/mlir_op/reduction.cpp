@@ -14,6 +14,8 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
 namespace {
 using ReduceParams = std::tuple<ov::Shape,             // Input shape
                                 ov::element::Type,     // Input precision
@@ -21,7 +23,7 @@ using ReduceParams = std::tuple<ov::Shape,             // Input shape
                                 bool>;                 // Keep dims
 
 template <typename ReduceOp>
-class ReduceTest : public testing::WithParamInterface<ReduceParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class ReduceTest : public testing::WithParamInterface<ReduceParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReduceParams>& obj) {
         const auto& [input_shape, precision, axes, keep_dims] = obj.param;

@@ -781,12 +781,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-        if (config.get_enable_mlir()) {
-            pass_config->disable<ov::pass::ConvertSubtract>();
-            pass_config->disable<ov::pass::ConvertDivide>();
-            pass_config->disable<ov::pass::RMSFusion>();
-        }
-
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",

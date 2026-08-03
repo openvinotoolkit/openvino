@@ -5,6 +5,7 @@
 #include "interface/convert.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
 #include <openvino/op/add.hpp>
 #include <openvino/op/constant.hpp>
@@ -28,7 +29,6 @@
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <openvino/util/env_util.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -329,15 +329,25 @@ namespace ov::intel_gpu::mlir {
 // Partitioner groups them into a dedicated MLIR function.
 // The patterns are specified with the env var:
 //   OV_MLIR_PATTERNS="name1=Type1,Type2;name2=Type3,Type4,...".
+// Behavior depending on OV_MLIR_PATTERNS:
+//   unset        -> fall back to the default patterns (PatternMatcher::default_patterns);
+//   empty string -> match every op already marked by the pattern passes;
+//   "spec"       -> match only the specified chains.
 class PatternMatcher : public ov::pass::ModelPass {
     struct NamedPattern {
         std::string name;
         std::vector<std::string> types;
     };
 
+    // Out-of-the-box patterns used when OV_MLIR_PATTERNS is not set
+    static constexpr const char* default_patterns = "sdpa=ScaledDotProductAttention";
+
     const std::vector<NamedPattern> patterns = []() {
         std::vector<NamedPattern> patterns;
-        const auto& spec = ov::util::getenv_string("OV_MLIR_PATTERNS");
+        // Use the raw value to distinguish "unset" from "set to empty":
+        // unset falls back to the default pattern, empty string means "match all".
+        const char* raw = std::getenv("OV_MLIR_PATTERNS");
+        const std::string spec = raw ? std::string(raw) : default_patterns;
         size_t pos = 0;
         while (pos < spec.size()) {
             auto sep = spec.find(';', pos);
@@ -514,6 +524,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model,
     manager.register_pass<ReducePattern<v1::ReduceMin>>();
     manager.register_pass<ReducePattern<v1::ReduceProd>>();
     manager.register_pass<ReducePattern<v1::ReduceSum>>();
+    manager.register_pass<RMSPattern>();
     manager.register_pass<ReshapePattern>();
     manager.register_pass<ConcatPattern>();
     manager.register_pass<ReluPattern>();

@@ -49,6 +49,12 @@ public:
     ReducePattern();
 };
 
+class RMSPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RMSPattern");
+    RMSPattern();
+};
+
 class ReshapePattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ReshapePattern");

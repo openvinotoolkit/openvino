@@ -10,12 +10,14 @@
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
 namespace {
 
 // Params: precision
 using ConcatParams = ov::element::Type;
 
-class ConcatTest : public testing::WithParamInterface<ConcatParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class ConcatTest : public testing::WithParamInterface<ConcatParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatParams>& obj) {
         std::ostringstream result;
@@ -46,7 +48,7 @@ INSTANTIATE_TEST_SUITE_P(mlir_Concat, ConcatTest, ::testing::Values(ov::element:
 // Params: precision
 using TransposeConcatParams = ov::element::Type;
 
-class TransposeConcatTest : public testing::WithParamInterface<TransposeConcatParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class TransposeConcatTest : public testing::WithParamInterface<TransposeConcatParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TransposeConcatParams>& obj) {
         std::ostringstream result;

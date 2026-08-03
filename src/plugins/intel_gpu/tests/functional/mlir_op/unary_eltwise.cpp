@@ -16,12 +16,14 @@
 #include "openvino/op/tanh.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+#include "mlir_test_env.hpp"
+
 namespace {
 
 using UnaryElementwiseParams = std::tuple<ov::Shape, ov::element::Type>;
 
 template <typename Op>
-class UnaryElementwiseTest : public testing::WithParamInterface<UnaryElementwiseParams>, virtual public ov::test::SubgraphBaseStaticTest {
+class UnaryElementwiseTest : public testing::WithParamInterface<UnaryElementwiseParams>, virtual public ov::test::MlirSubgraphStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<UnaryElementwiseParams>& obj) {
         const auto& [shape, precision] = obj.param;

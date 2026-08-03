@@ -6,6 +6,8 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
+
+#include "mlir_test_env.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -33,7 +35,7 @@ typedef std::tuple<ov::element::Type,                 // netPrecision
                    > ScaledAttnGPUTestParams;
 
 class ScaledAttnLayerGPUMlirTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>,
-                               virtual public ov::test::SubgraphBaseTest {
+                               virtual public ov::test::MlirSubgraphTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj);
 
@@ -41,7 +43,7 @@ protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void transpose_prepare(std::vector<InputShape>& shapes, const std::vector<std::vector<int64_t>>& input_transpose);
-    void check_mlir_execution();
+    void check_mlir_execution() override;
     bool is_causal;
     bool has_attn;
     bool is_attn_const;
@@ -323,6 +325,9 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
 }
 
 void ScaledAttnLayerGPUMlirTest::check_mlir_execution() {
+    if (!ov::test::is_mlir_enabled())
+        return;
+
     auto exec_model = compiledModel.get_runtime_model();
     ASSERT_NE(exec_model, nullptr);
 
@@ -351,7 +356,6 @@ void ScaledAttnLayerGPUMlirTest::check_mlir_execution() {
 
 TEST_P(ScaledAttnLayerGPUMlirTest, CompareWithRefs) {
     run();
-    check_mlir_execution();
 }
 
 const std::vector<std::vector<int64_t>> disable_transpose{};
