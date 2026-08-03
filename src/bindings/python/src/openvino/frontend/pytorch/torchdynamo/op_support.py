@@ -16,6 +16,7 @@ from torch.fx.passes.tools_common import CALLABLE_NODE_OPS
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_disabled_ops
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 class OperatorSupport(OpSupport):
