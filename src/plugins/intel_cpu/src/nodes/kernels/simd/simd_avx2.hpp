@@ -140,6 +140,17 @@ inline vec<int32_t, isa::avx2> srlv(vec<int32_t, isa::avx2> val, vec<int32_t, is
     return {_mm256_srlv_epi32(val.v, shift.v)};
 }
 
+inline vec<float, isa::avx2> to_f32(vec<int32_t, isa::avx2> v) {
+    return {_mm256_cvtepi32_ps(v.v)};
+}
+
+inline vec<float, isa::avx2> min(vec<float, isa::avx2> a, vec<float, isa::avx2> b) {
+    return {_mm256_min_ps(a.v, b.v)};
+}
+inline vec<float, isa::avx2> max(vec<float, isa::avx2> a, vec<float, isa::avx2> b) {
+    return {_mm256_max_ps(a.v, b.v)};
+}
+
 inline vec<float, isa::avx2> permute(vec<float, isa::avx2> table, vec<int32_t, isa::avx2> idx) {
     return {_mm256_permutevar8x32_ps(table.v, idx.v)};
 }

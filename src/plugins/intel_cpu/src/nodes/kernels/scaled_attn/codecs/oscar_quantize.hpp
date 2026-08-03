@@ -26,6 +26,8 @@
 #include <cstring>
 #include <limits>
 
+#include "nodes/kernels/simd/simd.hpp"
+#include "nodes/kernels/simd/simd_loop.hpp"
 #include "openvino/core/type/float16.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -77,30 +79,58 @@ inline void oscar_encode_block(const float* unit_vectors,
 
     const int row_bytes = head_dim / 4;
 
+    // Scratch: per-channel min/max over G tokens, and per-channel (delta, zp) in f32.
+    // OSCAR_G=32 tokens per subgroup, head_dim assumed <= 256.
+    alignas(64) float vmin_buf[256];
+    alignas(64) float vmax_buf[256];
+    alignas(64) float delta_f32[256];
+    alignas(64) float zp_f32[256];
+    assert(head_dim <= 256);
+
     for (int g = 0; g < OSCAR_SUBGROUPS; ++g) {
-        for (int j = 0; j < head_dim; ++j) {
-            float vmin = std::numeric_limits<float>::infinity();
-            float vmax = -std::numeric_limits<float>::infinity();
-            for (int t = 0; t < OSCAR_G; ++t) {
-                const float v = unit_vectors[(g * OSCAR_G + t) * head_dim + j];
-                vmin = std::min(vmin, v);
-                vmax = std::max(vmax, v);
-            }
-            const float range = vmax - vmin;
-            const float delta = (range > 0.0F) ? (range / static_cast<float>(OSCAR_LEVELS - 1)) : 1.0F;
-            deltas[g * head_dim + j] = ov::float16(delta);
-            zps[g * head_dim + j] = ov::float16(vmin);
+        const float* base = unit_vectors + g * OSCAR_G * head_dim;
+
+        // Init with token 0, then reduce t=1..G-1. simd_loop over head_dim.
+        simd::simd_loop(head_dim, [&](int j, auto a) {
+            constexpr auto Ia = std::decay_t<decltype(a)>::isa_tag::value;
+            using V = simd::f32_t<Ia>;
+            auto x0 = simd::load<V>(base + j, a);
+            simd::store(x0, vmin_buf + j, a);
+            simd::store(x0, vmax_buf + j, a);
+        });
+        for (int t = 1; t < OSCAR_G; ++t) {
+            const float* row_f = base + t * head_dim;
+            simd::simd_loop(head_dim, [&](int j, auto a) {
+                constexpr auto Ia = std::decay_t<decltype(a)>::isa_tag::value;
+                using V = simd::f32_t<Ia>;
+                auto x = simd::load<V>(row_f + j, a);
+                simd::store(simd::min(simd::load<V>(vmin_buf + j, a), x), vmin_buf + j, a);
+                simd::store(simd::max(simd::load<V>(vmax_buf + j, a), x), vmax_buf + j, a);
+            });
         }
+
+        // delta = (vmax - vmin) / (L-1) with 1.0 fallback when range == 0.
+        for (int j = 0; j < head_dim; ++j) {
+            const float range = vmax_buf[j] - vmin_buf[j];
+            const float delta = (range > 0.0F) ? (range / static_cast<float>(OSCAR_LEVELS - 1)) : 1.0F;
+            delta_f32[j] = delta;
+            zp_f32[j] = vmin_buf[j];
+            deltas[g * head_dim + j] = ov::float16(delta);
+            zps[g * head_dim + j] = ov::float16(vmin_buf[j]);
+        }
+
+        // Quantize + pack per token. inv_delta once per (g,j) to avoid per-token div.
+        alignas(64) float inv_delta[256];
+        for (int j = 0; j < head_dim; ++j) inv_delta[j] = 1.0F / delta_f32[j];
 
         for (int t = 0; t < OSCAR_G; ++t) {
             const int token_idx = g * OSCAR_G + t;
             uint8_t* row = payload_slot0 + static_cast<size_t>(token_idx) * slot_stride_bytes;
+            const float* src = unit_vectors + token_idx * head_dim;
             std::memset(row, 0, row_bytes);
+            // Quantize scalar for now — pack requires bit-level shuffling not in SIMD.
             for (int j = 0; j < head_dim; ++j) {
-                const float v = unit_vectors[token_idx * head_dim + j];
-                const float delta = static_cast<float>(deltas[g * head_dim + j]);
-                const float zp = static_cast<float>(zps[g * head_dim + j]);
-                const float q_f = (v - zp) / delta;
+                const float q_f = (src[j] - zp_f32[j]) * inv_delta[j];
                 int q = static_cast<int>(q_f + 0.5F);
                 q = std::max(0, std::min(OSCAR_LEVELS - 1, q));
                 row[j >> 2] |= static_cast<uint8_t>((q & 0x3) << ((j & 0x3) * 2));

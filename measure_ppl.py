@@ -39,7 +39,6 @@ import time
 
 import numpy as np
 import openvino as ov
-import openvino_genai as ov_genai
 from datasets import load_dataset
 
 
@@ -48,8 +47,8 @@ def tokenize_wikitext(tokenizer, max_tokens=0):
     dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
     text = "\n\n".join(dataset["text"])
 
-    encoded = tokenizer.encode(text)
-    tokens = encoded.input_ids.data.flatten().astype(np.int64)
+    ids = tokenizer(text, return_tensors="np").input_ids
+    tokens = np.asarray(ids).flatten().astype(np.int64)
 
     if max_tokens > 0:
         tokens = tokens[:max_tokens]
@@ -285,13 +284,19 @@ def main():
         with open(args.ov_config) as f:
             raw = json.load(f)
         genai_only = {"ATTENTION_BACKEND", "SCHEDULER_CONFIG"}
-        ov_properties = {k: str(v) for k, v in raw.items() if k not in genai_only}
+        # Stringify scalars only; keep lists/dicts intact for properties like
+        # KV_CACHE_PER_LAYER_CONFIG (std::vector<ov::AnyMap>).
+        ov_properties = {
+            k: v if isinstance(v, (list, dict)) else str(v)
+            for k, v in raw.items() if k not in genai_only
+        }
 
     if args.inference_precision:
         ov_properties["INFERENCE_PRECISION_HINT"] = args.inference_precision
 
     print(f"Loading tokenizer from {args.model}...")
-    tokenizer = ov_genai.Tokenizer(args.model)
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.model)
 
     print("Tokenizing WikiText-2 test set...")
     tokens = tokenize_wikitext(tokenizer, args.max_tokens)

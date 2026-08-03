@@ -73,6 +73,7 @@
 #include "kernels/scaled_attn/cache_spec.hpp"
 #include "kernels/scaled_attn/codecs/codec_kernels.hpp"
 #include "kernels/scaled_attn/codecs/oscar_quantize.hpp"
+#include "kernels/scaled_attn/codecs/oscar_simd.hpp"
 #include "kernels/scaled_attn/codecs/turboq_quantize.hpp"
 #include "kernels/scaled_attn/codecs/turboq_rotation.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
@@ -2955,24 +2956,22 @@ void ScaledDotProductAttention::oscar_stage_cache(const PlainTensor& cur,
             cast_to_f32(cur.ptr_v(b, h, l), tws);
             // Step 2: H · k in place. Then divide by sqrt(S).
             ov::Extensions::Cpu::XARCH::turboq_wht_inplace(tws, static_cast<int>(S));
-            for (size_t j = 0; j < S; ++j) tws[j] *= inv_sqrt_dim;
+            ov::Extensions::Cpu::XARCH::oscar_scale(tws, inv_sqrt_dim, static_cast<int>(S));
             // Step 3: norm + normalize.
-            float sumsq = 0.0F;
-            for (size_t j = 0; j < S; ++j) sumsq += tws[j] * tws[j];
+            const float sumsq = ov::Extensions::Cpu::XARCH::oscar_sumsq(tws, static_cast<int>(S));
             const float norm = std::sqrt(sumsq);
             const float inv_norm = (norm < 1e-30F) ? 0.0F : 1.0F / norm;
-            for (size_t j = 0; j < S; ++j) tws[j] *= inv_norm;
+            ov::Extensions::Cpu::XARCH::oscar_scale(tws, inv_norm, static_cast<int>(S));
             // Step 4: append to residual (fp16).
             ov::float16* dst_unit = res_unit + cnt * S;
-            for (size_t j = 0; j < S; ++j) dst_unit[j] = ov::float16(tws[j]);
+            ov::Extensions::Cpu::XARCH::oscar_store_f16(tws, dst_unit, static_cast<int>(S));
             if (with_norms) res_norms[cnt] = ov::float16(norm);
             ++cnt;
             // Step 5: flush when residual fills.
             if (cnt == R) {
                 for (size_t t = 0; t < R; ++t) {
-                    const ov::float16* sp = res_unit + t * S;
-                    float* dp = tws + t * S;
-                    for (size_t j = 0; j < S; ++j) dp[j] = static_cast<float>(sp[j]);
+                    ov::Extensions::Cpu::XARCH::oscar_load_f16(
+                        res_unit + t * S, tws + t * S, static_cast<int>(S));
                 }
                 float norms_f32[ov::Extensions::Cpu::XARCH::OSCAR_R];
                 if (with_norms) {

@@ -10,6 +10,7 @@
 #include "codecs/codec_kernels.hpp"
 #include "codecs/codecs.hpp"
 #include "codecs/oscar_quantize.hpp"
+#include "codecs/oscar_simd.hpp"
 #include "codecs/turboq_codec.hpp"
 #include "codecs/turboq_rotation.hpp"
 #include "common.hpp"
@@ -675,52 +676,57 @@ void mha_kv_cache(PlainTensor& q_input,
     // ---------------------------------------------------------------------------
     // Phase 1: Q·K scores for all query positions.
     // ---------------------------------------------------------------------------
-    for (size_t m = 0; m < q_len; m++) {
-        if (k_oscar) {
-            const size_t k_committed = oscar_committed(oscar_k_residual_count);
-            const size_t S_sz = S;
-            const size_t row_bytes_k = S_sz / 4;
-            cpu_parallel->parallel_for3d(B, num_kv_heads, kv_len,
-                [&, m](size_t b, size_t h_group, size_t t) {
-                    const size_t h_start = h_group * heads_per_kv_group;
-                    const float* q_rot_base = prepared_q.ptr<float>(b, h_start, m);
-                    const size_t q_stride = prepared_q.stride(1);
-                    if (t < k_committed) {
-                        const size_t block_idx = t / OSCAR_R_sz;
-                        const size_t in_block = t % OSCAR_R_sz;
-                        const size_t sub_g = in_block / OSCAR_G;
-                        const auto* slot = static_cast<const uint8_t*>(key_cache.ptr_v(b, h_group, t));
-                        const auto* deltas = oscar_k_params.ptr<ov::float16>(b, h_group, block_idx, 0);
-                        const auto* zps = deltas + OSCAR_SUBGROUPS * S_sz;
-                        const uint8_t* row = slot;
-                        const float norm = static_cast<float>(
-                            *reinterpret_cast<const ov::float16*>(slot + row_bytes_k));
+    if (k_oscar) {
+        // Fuse q_len into inner loop: load per-token (b,h,t) constants once, sweep
+        // over all (m, hh) queries. Avoids q_len separate parallel_for3d launches.
+        const size_t k_committed = oscar_committed(oscar_k_residual_count);
+        const size_t S_sz = S;
+        const size_t row_bytes_k = S_sz / 4;
+        cpu_parallel->parallel_for3d(B, num_kv_heads, kv_len,
+            [&](size_t b, size_t h_group, size_t t) {
+                const size_t h_start = h_group * heads_per_kv_group;
+                const size_t q_stride = prepared_q.stride(1);
+                if (t < k_committed) {
+                    const size_t block_idx = t / OSCAR_R_sz;
+                    const size_t in_block = t % OSCAR_R_sz;
+                    const size_t sub_g = in_block / OSCAR_G;
+                    const auto* slot = static_cast<const uint8_t*>(key_cache.ptr_v(b, h_group, t));
+                    const auto* deltas = oscar_k_params.ptr<ov::float16>(b, h_group, block_idx, 0);
+                    const auto* zps = deltas + OSCAR_SUBGROUPS * S_sz;
+                    const uint8_t* row = slot;
+                    const float norm = static_cast<float>(
+                        *reinterpret_cast<const ov::float16*>(slot + row_bytes_k));
+                    const ov::float16* delta_sg = deltas + sub_g * S;
+                    const ov::float16* zp_sg = zps + sub_g * S;
+                    // Dequant once per token; reuse across all (m, hh) queries.
+                    alignas(64) float k_tile[256];
+                    oscar_dequant_row(row, delta_sg, zp_sg, static_cast<int>(S), k_tile);
+                    for (size_t m = 0; m < q_len; ++m) {
+                        const float* q_rot_base = prepared_q.ptr<float>(b, h_start, m);
                         for (int hh = 0; hh < static_cast<int>(heads_per_kv_group); ++hh) {
                             const float* q = q_rot_base + hh * q_stride;
-                            float acc = 0.0F;
-                            for (size_t j = 0; j < S; ++j) {
-                                const int code = (row[j >> 2] >> ((j & 0x3) * 2)) & 0x3;
-                                const float delta = static_cast<float>(deltas[sub_g * S + j]);
-                                const float zp = static_cast<float>(zps[sub_g * S + j]);
-                                acc += q[j] * (static_cast<float>(code) * delta + zp);
-                            }
-                            buf_attn_w.at<float>({b, h_start + hh, m, t}) = acc * norm;
-                        }
-                    } else {
-                        const size_t r_idx = t - k_committed;
-                        const auto* unit = oscar_k_residual.ptr<ov::float16>(b, h_group, r_idx);
-                        const float norm =
-                            static_cast<float>(*oscar_k_residual_norms.ptr<ov::float16>(b, h_group, r_idx));
-                        for (int hh = 0; hh < static_cast<int>(heads_per_kv_group); ++hh) {
-                            const float* q = q_rot_base + hh * q_stride;
-                            float acc = 0.0F;
-                            for (size_t j = 0; j < S; ++j) {
-                                acc += q[j] * static_cast<float>(unit[j]);
-                            }
-                            buf_attn_w.at<float>({b, h_start + hh, m, t}) = acc * norm;
+                            const float acc = oscar_f32_dot(q, k_tile, static_cast<int>(S));
+                            *(buf_attn_w.ptr<float>(b, h_start + hh, m) + t) = acc * norm;
                         }
                     }
-                });
+                } else {
+                    const size_t r_idx = t - k_committed;
+                    const auto* unit = oscar_k_residual.ptr<ov::float16>(b, h_group, r_idx);
+                    const float norm =
+                        static_cast<float>(*oscar_k_residual_norms.ptr<ov::float16>(b, h_group, r_idx));
+                    for (size_t m = 0; m < q_len; ++m) {
+                        const float* q_rot_base = prepared_q.ptr<float>(b, h_start, m);
+                        for (int hh = 0; hh < static_cast<int>(heads_per_kv_group); ++hh) {
+                            const float* q = q_rot_base + hh * q_stride;
+                            const float acc = oscar_residual_dot(q, unit, static_cast<int>(S));
+                            *(buf_attn_w.ptr<float>(b, h_start + hh, m) + t) = acc * norm;
+                        }
+                    }
+                }
+            });
+    }
+    for (size_t m = 0; m < q_len; m++) {
+        if (k_oscar) {
             continue;
         }
         mha_foreach_kv(
@@ -803,59 +809,56 @@ void mha_kv_cache(PlainTensor& q_input,
     // Phases 3+4: V accumulation + reduce, per query position.
     // ---------------------------------------------------------------------------
     const bool do_inv_rotate = v_spec.alg == ov::internal::CacheQuantAlgorithm::TURBO;
-    for (size_t m = 0; m < q_len; m++) {
-        if (v_oscar) {
-            const size_t v_committed = oscar_committed(oscar_v_residual_count);
-            const size_t SV_sz = SV;
-            const size_t row_bytes_v = SV_sz / 4;
-            // Zero ithr=0 slot; mha_reduce reads it. Zero other ithrs too so reduce sums correctly.
-            for (int t = 0; t < nthr; ++t) {
-                for (size_t b = 0; b < B; ++b) {
-                    std::memset(buf_attn_score.ptr<float>(t, b, m, 0, 0), 0,
+    if (v_oscar) {
+        const size_t v_committed = oscar_committed(oscar_v_residual_count);
+        const size_t SV_sz = SV;
+        const size_t row_bytes_v = SV_sz / 4;
+        // Zero ithr=0 slot for all m at once (mha_reduce reads it).
+        for (int th = 0; th < nthr; ++th) {
+            for (size_t b = 0; b < B; ++b) {
+                for (size_t m = 0; m < q_len; ++m) {
+                    std::memset(buf_attn_score.ptr<float>(th, b, m, 0, 0), 0,
                                 buf_attn_score.stride(2) * sizeof(float));
                 }
             }
-            cpu_parallel->parallel_for2d(B, num_q_heads, [&, m](size_t b, size_t h) {
-                const size_t h_group = h / heads_per_kv_group;
-                const float* w = buf_attn_w.ptr<float>(b, h, m);
-                float* acc_f32 = buf_attn_score.ptr<float>(0, b, m, h);
-                for (size_t t = 0; t < kv_len; ++t) {
-                    const float wt = w[t];
-                    if (t < v_committed) {
-                        const size_t block_idx = t / OSCAR_R_sz;
-                        const size_t in_block = t % OSCAR_R_sz;
-                        const size_t sub_g = in_block / OSCAR_G;
-                        const auto* slot =
-                            static_cast<const uint8_t*>(packed_value.ptr_v(b, h_group, t));
-                        const auto* deltas = oscar_v_params.ptr<ov::float16>(b, h_group, block_idx, 0);
-                        const auto* zps = deltas + OSCAR_SUBGROUPS * SV_sz;
-                        const uint8_t* row = slot;
-                        const float norm = static_cast<float>(
-                            *reinterpret_cast<const ov::float16*>(slot + row_bytes_v));
-                        const float scale = wt * norm;
-                        for (size_t j = 0; j < SV_sz; ++j) {
-                            const int code = (row[j >> 2] >> ((j & 0x3) * 2)) & 0x3;
-                            const float delta = static_cast<float>(deltas[sub_g * SV_sz + j]);
-                            const float zp = static_cast<float>(zps[sub_g * SV_sz + j]);
-                            acc_f32[j] += scale * (static_cast<float>(code) * delta + zp);
-                        }
-                    } else {
-                        const size_t r_idx = t - v_committed;
-                        const auto* unit = oscar_v_residual.ptr<ov::float16>(b, h_group, r_idx);
-                        const float norm = static_cast<float>(
-                            *oscar_v_residual_norms.ptr<ov::float16>(b, h_group, r_idx));
-                        const float scale = wt * norm;
-                        for (size_t j = 0; j < SV_sz; ++j) {
-                            acc_f32[j] += scale * static_cast<float>(unit[j]);
-                        }
-                    }
+        }
+        // Parallel over (b, h, m). Restore q_len parallelism; dequant per t inside each task.
+        cpu_parallel->parallel_for3d(B, num_q_heads, q_len, [&](size_t b, size_t h, size_t m) {
+            const size_t h_group = h / heads_per_kv_group;
+            float* acc_f32 = buf_attn_score.ptr<float>(0, b, m, h);
+            const float* weights_row = buf_attn_w.ptr<float>(b, h, m);
+            for (size_t t = 0; t < kv_len; ++t) {
+                if (t < v_committed) {
+                    const size_t block_idx = t / OSCAR_R_sz;
+                    const size_t in_block = t % OSCAR_R_sz;
+                    const size_t sub_g = in_block / OSCAR_G;
+                    const auto* slot =
+                        static_cast<const uint8_t*>(packed_value.ptr_v(b, h_group, t));
+                    const auto* deltas = oscar_v_params.ptr<ov::float16>(b, h_group, block_idx, 0);
+                    const auto* zps = deltas + OSCAR_SUBGROUPS * SV_sz;
+                    const float norm = static_cast<float>(
+                        *reinterpret_cast<const ov::float16*>(slot + row_bytes_v));
+                    const float scale = weights_row[t] * norm;
+                    oscar_vaccum(acc_f32, slot, deltas + sub_g * SV_sz, zps + sub_g * SV_sz,
+                                 scale, static_cast<int>(SV_sz));
+                } else {
+                    const size_t r_idx = t - v_committed;
+                    const auto* unit = oscar_v_residual.ptr<ov::float16>(b, h_group, r_idx);
+                    const float norm = static_cast<float>(
+                        *oscar_v_residual_norms.ptr<ov::float16>(b, h_group, r_idx));
+                    const float scale = weights_row[t] * norm;
+                    oscar_residual_vaccum(acc_f32, unit, scale, static_cast<int>(SV_sz));
                 }
-            });
-            // OSCAR uses deterministic +1 signs, so do_inv_rotate with all-+1 signs is correct
-            // (reduces to pure WHT * 1/sqrt(SV) on the accumulator).
+            }
+        });
+        for (size_t m = 0; m < q_len; ++m) {
             mha_reduce(buf_attn_score, output_emb, has_out_transpose, /*apply_inv_rotation=*/true,
                        B, num_q_heads, 1, SV, nthr, cpu_parallel,
                        wht_signs.ptr<float>(), m);
+        }
+    }
+    for (size_t m = 0; m < q_len; m++) {
+        if (v_oscar) {
             continue;
         }
         // Phase 3: V accumulation for query position m.
