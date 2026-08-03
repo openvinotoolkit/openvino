@@ -114,22 +114,13 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         om = fe.convert(im)
 
         # vLLM-specific compile hooks (register __pa__ Parameters, normalize
-        # symint-heavy Concat ranks). Both are no-ops on standalone graphs.
+        # symint-heavy Concat ranks, MatMul weight decompression). No-op on
+        # graphs that don't have the matching patterns.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
-            _vh.register_pa_parameters(om)
-            _vh.normalize_concat_ranks(om)
+            _vh.apply_post_convert(om, options)
         except Exception as _ee:
-            logger.debug("vllm.compile_hooks unavailable: %s", _ee)
-
-        # Optional MatMul(X, Const_f16/bf16) rewrite to the oneDNN BRGEMM
-        # decompression form. Lifts FP16/bf16 weight FCs onto the brgemm path.
-        if _bool_opt(options, "fc_decompress", True):
-            try:
-                from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_fc
-                _vh_fc.rewrite_fc_decompression(om)
-            except Exception as _ee:
-                logger.debug("vllm.rewrite_fc_decompression skipped: %s", _ee)
+            logger.debug("vllm.apply_post_convert skipped: %s", _ee)
 
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
@@ -145,21 +136,17 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    # vLLM path: bake int (symint) FX inputs as Constants and set
-    # dynamic partial shapes on the remaining tensor inputs. No-op on
-    # non-vLLM callers (options["vllm"] absent), in which case the loop
-    # below handles input types/shapes exactly as upstream.
-    _vllm_shaped = False
-    if _bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args):
-        try:
-            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_bake
-            _vh_bake.bake_symint_constants(
-                om, args, dyn_shapes=_bool_opt(options, "dynamic_shapes", True))
-            _vllm_shaped = True
-        except Exception as _ee:
-            logger.debug("vllm.bake_symint_constants skipped: %s", _ee)
+    # vLLM path handles int/symint inputs by baking them as Constants; the
+    # hook returns False for non-vLLM graphs, in which case we fall through
+    # to the upstream loop below.
+    _shaped = False
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        _shaped = _vh.apply_input_shapes(om, args, options)
+    except Exception as _ee:
+        logger.debug("vllm.apply_input_shapes skipped: %s", _ee)
 
-    if not _vllm_shaped:
+    if not _shaped:
         for idx, input_data in enumerate(args):
             if isinstance(input_data, int):
                 om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
@@ -177,13 +164,12 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             config["CACHE_DIR"] = cache_root
 
     # vLLM-specific OV-config defaults (KV cache precision, FC dynamic-
-    # quantization group, narrow-float GEMM hint). No-op on non-CPU devices
-    # and on standalone paths where the values are passed explicitly.
+    # quantization group, narrow-float GEMM hint). No-op on non-CPU devices.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
-        _vh.apply_kv_cache_config_defaults(config, device, options)
+        _vh.apply_post_config(config, device, options)
     except Exception as _ee:
-        logger.debug("vllm.apply_kv_cache_config_defaults skipped: %s", _ee)
+        logger.debug("vllm.apply_post_config skipped: %s", _ee)
 
     if _bool_opt(options, "perf_count", False):
         config["PERF_COUNT"] = "YES"

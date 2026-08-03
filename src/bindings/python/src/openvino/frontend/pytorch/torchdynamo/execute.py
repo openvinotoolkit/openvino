@@ -192,41 +192,23 @@ def openvino_execute(
             t = t.contiguous()
         ov_inputs.append(t.numpy())
 
-    # vLLM PagedAttention side-channel: build a kwargs dict that maps each
-    # __pa__ Parameter to its bound side-channel tensor and each remaining
-    # input position to the next entry in ov_inputs. Returns None on
-    # standalone graphs (no PA Parameters), in which case ov_inputs is
-    # passed positionally.
-    _call_kwargs = None
-    _pa_skip = False
+    # vLLM PagedAttention side-channel: delegate to the vllm runtime hook.
+    # Returns None on non-PA graphs (fall through to positional infer),
+    # PA_SKIP during vLLM profile_run / dummy_run (fall back to eager gm),
+    # or the raw output-dict on the normal PA path.
+    res = None
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
-        # In vLLMs profile_run / dummy_run, ForwardContext exists but
-        # attn_metadata is None. The OV CPU PA kernel would then read
-        # uninitialized _slot_mapping entries -> segfault. Since these
-        # dry-runs discard the model output semantically (only measure
-        # peak activation memory / compile the graph), fall back to eager
-        # gm(*args) execution which produces correctly-shaped output
-        # without invoking the PA kernel.
-        if _rh.has_pa_inputs(compiled) and _rh.should_skip_pa_infer():
-            _pa_skip = True
-        else:
-            _call_kwargs = _rh.build_call_kwargs(compiled, ov_inputs)
+        _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
+        if _pa_out is _rh.PA_SKIP:
+            _eager_out = gm(*args)
+            if isinstance(_eager_out, (list, tuple)):
+                return list(_eager_out)
+            return _eager_out
+        res = _pa_out
     except Exception:
         pass
-    if _pa_skip:
-        # Fall back to eager gm execution. Returns torch tensors of the
-        # correct shape; suffices for vLLM's memory-profiling / warmup use.
-        _eager_out = gm(*args)
-        if isinstance(_eager_out, (list, tuple)):
-            return list(_eager_out)
-        return _eager_out
-    if _call_kwargs is not None:
-        # vLLM PA path: delegate to the vllm runtime hook so any fast-path
-        # (per-request set_tensor / output-view caching) stays in vllm/.
-        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh_infer
-        res = _rh_infer.infer_with_pa(req, compiled, _call_kwargs)
-    else:
+    if res is None:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
     results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]

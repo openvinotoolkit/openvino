@@ -15,6 +15,55 @@ import os
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Consolidated entry points called from torchdynamo.compile.openvino_compile.
+# Keeps compile.py free of vLLM-hook boilerplate: one try/except at each of
+# two call sites, in place of the previous three.
+# ---------------------------------------------------------------------------
+
+def apply_post_convert(om, options):
+    """Run all vLLM hooks that operate on the freshly-converted OV Model.
+
+    Called right after ``fe.convert(im)`` and before the model is serialized
+    or its input shapes are set. Currently: register unregistered ``__pa__``
+    Parameters, normalize symint-heavy Concat ranks, and (when
+    options["fc_decompress"] is True) rewrite MatMul(X, Const_f16/bf16) into
+    the oneDNN BRGEMM decompression form.
+
+    Each sub-hook is a no-op on graphs without the matching pattern.
+    """
+    register_pa_parameters(om)
+    normalize_concat_ranks(om)
+    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
+    if _bool_opt(options, "fc_decompress", True):
+        rewrite_fc_decompression(om)
+
+
+def apply_input_shapes(om, args, options):
+    """vLLM-shaped input handling: bake Python-int FX inputs as Constants
+    and set dynamic partial shapes on the remaining tensor Parameters.
+
+    Returns True if this hook handled the input shaping; False if it should
+    fall through to the caller's upstream loop. Falls through when there are
+    no int args AND the caller did not opt into the vLLM preset.
+    """
+    from openvino.frontend.pytorch.torchdynamo.backend_utils import _bool_opt
+    if not (_bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args)):
+        return False
+    bake_symint_constants(
+        om, args, dyn_shapes=_bool_opt(options, "dynamic_shapes", True))
+    return True
+
+
+def apply_post_config(config, device, options):
+    """Run all vLLM hooks that fill in the OV core.compile_model config.
+
+    Called after the caller has built ``config`` from ``_get_config(options)``
+    and set CACHE_DIR. No-op on non-CPU devices.
+    """
+    apply_kv_cache_config_defaults(config, device, options)
+
+
 def widen_affinity_if_needed(options):
     """Widen process CPU affinity to all cores when the current mask is
     narrower than the requested OV thread count.

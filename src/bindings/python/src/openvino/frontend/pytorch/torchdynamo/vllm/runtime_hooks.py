@@ -19,6 +19,36 @@ _fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
 _fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
 
 
+# Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
+class _PA_Skip:
+    __slots__ = ()
+PA_SKIP = _PA_Skip()
+
+
+def run_pa_infer(compiled, req, ov_inputs):
+    """Consolidated PA-side-channel infer entry point called from
+    torchdynamo.execute.openvino_execute.
+
+    Returns one of:
+      * ``PA_SKIP``       — vLLM warmup/profile_run state; caller should
+                            run eager gm(*args) and skip real inference.
+      * ``dict``          — the raw result of the infer call (mapping
+                            OV output port -> numpy view). Caller should
+                            wrap with torch.from_numpy(...).
+      * ``None``          — this compiled model has no ``__pa__`` inputs;
+                            caller should run its normal positional
+                            ``req.infer(ov_inputs, ...)`` path.
+    """
+    if not has_pa_inputs(compiled):
+        return None
+    if should_skip_pa_infer():
+        return PA_SKIP
+    call_kwargs = build_call_kwargs(compiled, ov_inputs)
+    if not call_kwargs:
+        return None
+    return infer_with_pa(req, compiled, call_kwargs)
+
+
 def has_pa_inputs(compiled) -> bool:
     """Return True if any compiled.inputs[] has a ``__pa__`` Parameter name."""
     for inp in compiled.inputs:
