@@ -318,14 +318,14 @@ void PluginPropertyManager::registerProperties() {
     register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
         return std::vector<std::string>{"NPU"};
     });
-    register_property_with_custom_function( _properties, ov::device::capabilities.name(), true, [this](const ov::AnyMap&) {
-        return _optimizationCapabilities;
+    register_property_with_custom_function(_properties, ov::device::capabilities.name(), true, [](const ov::AnyMap&) {
+        return optimizationCapabilities;
     });
-    register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [this](const ov::AnyMap&) {
-        return _rangeForAsyncInferRequests;
+    register_property_with_custom_function(_properties, ov::range_for_async_infer_requests.name(), true, [](const ov::AnyMap&) {
+        return rangeForAsyncInferRequests;
     });
-    register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [this](const ov::AnyMap&) {
-        return _rangeForStreams;
+    register_property_with_custom_function(_properties, ov::range_for_streams.name(), true, [](const ov::AnyMap&) {
+        return rangeForStreams;
     });
     register_property_with_custom_function(_properties, ov::available_devices.name(), true, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();

@@ -114,18 +114,6 @@ private:
         ov::internal::caching_with_mmap.name(),
         ov::internal::cache_header_alignment.name()};
 
-    static constexpr uint32_t _maxNumOfOptimalInferRequests = 8u;
-    inline static const std::vector<std::string> _optimizationCapabilities = {
-        ov::device::capability::FP16,
-        ov::device::capability::INT8,
-        ov::device::capability::EXPORT_IMPORT,
-    };
-    inline static const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{
-        1u,
-        _maxNumOfOptimalInferRequests,
-        1u};
-    inline static const std::tuple<uint32_t, uint32_t> _rangeForStreams{0u, _maxNumOfOptimalInferRequests};
-
     mutable std::mutex _mutex;
 };
 
