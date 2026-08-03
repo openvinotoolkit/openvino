@@ -37,7 +37,7 @@ safe-outputs:
           with:
             python-version: '3.13'
         - name: Install PyGithub
-          run: python -m pip install --quiet PyGithub
+          run: python -m pip install --quiet PyGithub==2.9.1
         - name: Re-run failed jobs
           env:
             GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
