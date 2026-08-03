@@ -43,9 +43,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
-// H*W > 1: a 1x1 Convolution producing [N, 128, 1, 55] consumed by a Reshape. Transpose after MatMul is needed
+// H*W > 1: a 1x1 Convolution producing [N, 128, 1, 55] consumed by a Reshape. Transpose after MatMul is needed (Permute type is used in GPU)
 const InputShape transpose_in_1x55{{-1, 1, 55, 128}, {{1, 1, 55, 128}, {3, 1, 55, 128}}};
-const Conv1x1ExpectedOpCounts op_counts_1xW{{"Convolution", 0}, {"FullyConnected", 1}, {"Transpose", 1}, {"Reshape", 2}};
+const Conv1x1ExpectedOpCounts op_counts_1xW{{"Convolution", 0}, {"FullyConnected", 1}, {"Permute", 1}, {"Reshape", 1}};
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Conv1x1WeightCompressedToMatmul_SpatialGt1,
