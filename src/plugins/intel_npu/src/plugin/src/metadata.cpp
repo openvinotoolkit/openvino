@@ -345,6 +345,8 @@ void Metadata<METADATA_VERSION_2_3>::read() {
         layouts->reserve(numberOfLayouts);
         for (uint64_t layoutIndex = 0; layoutIndex < numberOfLayouts; ++layoutIndex) {
             read_data_from_source(reinterpret_cast<char*>(&stringLength), sizeof(stringLength));
+            OPENVINO_ASSERT(stringLength <= get_remaining_source_size() - FOOTER_SIZE,
+                            "The size of at least one layout exceeds the limit of the blob");
 
             std::string layoutString(stringLength, 0);
             read_data_from_source(const_cast<char*>(layoutString.c_str()), stringLength);
