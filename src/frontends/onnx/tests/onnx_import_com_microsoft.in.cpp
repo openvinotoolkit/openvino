@@ -5102,6 +5102,171 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_insufficient_inputs_throws) {
     }
 }
 
+// Packed-QKV prompt (num_heads=2, kv_num_heads=1, head_size=16, S=4, past=0) shared by the
+// sliding-window tests below. Reference outputs are from ONNX Runtime (MLAS CPU).
+static std::vector<float> gqa_sliding_window_query() {
+    return {1.690526f,  -0.465937f, 0.032820f,  0.407516f,  -0.788923f, 0.002066f,  -0.000890f, -1.754724f, 1.017658f,
+            0.600498f,  -0.625429f, -0.171548f, 0.505299f,  -0.261356f, -0.242749f, -1.453241f, 0.554580f,  0.123881f,
+            0.274460f,  -1.526525f, 1.650700f,  0.154336f,  -0.387140f, 2.029072f,  -0.045386f, -1.450679f, -0.405228f,
+            -2.288315f, 1.049397f,  -0.416474f, -0.742554f, 1.072470f,  -1.651076f, 0.535429f,  -2.064415f, -0.662159f,
+            -1.204220f, 1.461976f,  1.766161f,  -0.329414f, 0.840733f,  -0.179986f, 0.568062f,  -0.752837f, -1.708339f,
+            -1.803099f, 0.383122f,  2.247595f,  0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,
+            -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f,
+            1.699537f,  -0.383423f, -0.889857f, -1.193592f, -1.050017f, -0.300194f, -1.179982f, 1.497639f,  -0.282635f,
+            0.108648f,  1.438240f,  1.503319f,  -0.212733f, 0.331974f,  0.735027f,  -0.192855f, -1.778013f, 0.654706f,
+            0.894352f,  0.415503f,  -0.923545f, -0.196027f, -0.590770f, -0.299711f, 1.296885f,  1.529580f,  0.669418f,
+            0.548745f,  0.676629f,  -0.012242f, -0.075663f, -0.673645f, -0.055867f, 2.259947f,  0.869039f,  -0.342117f,
+            -0.471927f, -0.864490f, 0.374370f,  0.391546f,  -1.443122f, 0.486335f,  -0.569472f, 1.426721f,  0.156844f,
+            1.717730f,  -0.458127f, -0.287984f, 0.299808f,  1.055948f,  0.565883f,  -1.233524f, 0.182901f,  0.022245f,
+            -0.429069f, -0.648105f, 1.747577f,  -0.390386f, -0.845923f, 0.637113f,  0.130623f,  -0.075814f, 0.781302f,
+            0.488625f,  0.362190f,  0.964200f,  0.283636f,  -0.616922f, -0.362282f, -0.520972f, 0.209722f,  -1.077985f,
+            -1.832426f, 0.088155f,  -1.336521f, -1.951978f, 0.373331f,  -0.711053f, 0.496125f,  -0.530854f, -1.121962f,
+            -1.243518f, -0.514927f, -0.273383f, -0.823460f, -0.281108f, -1.536102f, 0.014489f,  -1.793649f, -0.193856f,
+            0.697294f,  1.091939f,  1.714380f,  -1.556288f, 0.758725f,  1.206282f,  0.980557f,  -0.929324f, 0.411797f,
+            1.860056f,  -1.497274f, 0.476338f,  1.112291f,  -0.696591f, 0.582970f,  -1.070892f, -0.812209f, -0.817080f,
+            0.192308f,  -0.090981f, 0.954115f,  -0.940279f, -0.131276f, 0.961076f,  0.560777f,  -1.324641f, 0.665204f,
+            -0.478418f, 0.385387f,  0.300680f,  1.219319f,  0.116560f,  -1.853806f, -1.369860f, 0.731154f,  -0.258316f,
+            1.137979f,  0.273439f,  -0.749066f, 1.082407f,  -0.807398f, -2.052635f, 2.063796f,  -1.910749f, 0.636413f,
+            0.938852f,  0.147066f,  -1.683397f, 1.015015f,  -1.441544f, -1.343629f, -0.361668f, 0.788505f,  0.300114f,
+            0.810768f,  -0.443644f, -0.172183f, -1.137137f, -0.316865f, 0.593128f,  -0.299828f, 0.475460f,  -0.573274f,
+            -0.592392f, 0.039169f,  -0.194881f, 0.592385f,  0.178290f,  1.740346f,  -0.219495f, -0.227253f, -1.040131f,
+            0.022778f,  0.682829f,  -0.740296f, -0.049672f, 0.718557f,  -0.126909f, -0.519137f, 0.973093f,  0.097020f,
+            0.396565f,  1.171393f,  1.145316f,  -0.347204f, -0.525430f, 0.284309f,  -0.132788f, -1.899861f, 1.275362f,
+            0.019361f,  0.736378f,  -1.172917f, 1.288204f,  -0.588263f, -0.107667f, -1.401425f, -0.166950f, -0.229804f,
+            -0.185361f, 0.438505f,  0.060346f,  0.975783f};
+}
+
+// Sliding-window attention (local_window_size=2): query t attends only to keys [t-1, t]. The window
+// excludes older keys, so this differs from pure causal attention for queries with more than two tokens
+// of history. Output matches the ONNX Runtime (MLAS CPU) reference.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window) {
+    const auto model = convert_model("com.microsoft/gqa_sliding_window.onnx");
+
+    std::vector<float> expected_output = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
+        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
+        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+        0.181946f,  -0.008489f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// A window >= the total KV length masks nothing extra, so the result must equal pure causal attention.
+// Guards against a window band that over-masks.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_equals_causal_when_large) {
+    const auto model = convert_model("com.microsoft/gqa_non_rotary_7_inputs.onnx");  // local_window_size = -1
+
+    std::vector<float> expected_output_causal = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  0.930948f,  0.450073f,  -0.947602f, 0.407900f,  -0.197201f, 0.012262f,  -0.162952f, 1.293261f,
+        -0.268552f, -1.164039f, -0.351769f, 0.514299f,  -0.189304f, 0.663800f,  0.329546f,  -0.003998f, 0.460770f,
+        -0.243575f, 1.088217f,  0.283231f,  0.018717f,  0.177801f,  -0.147593f, 0.156150f,  -1.102112f, 0.028220f,
+        -0.155325f, 0.993343f,  -0.315834f, -1.167807f, 0.025565f,  1.215912f,  0.413673f,  -0.342667f, 1.253691f,
+        0.238900f,  0.083796f,  0.106136f,  -0.160001f, 0.078662f,  -1.166456f, 0.136124f,  -0.026596f, 0.961300f,
+        -0.311427f, -1.282412f, 0.015627f,  1.365237f,  0.573372f,  -0.273704f, -0.057114f, 0.317745f,  0.048871f,
+        -0.221080f, 0.281314f,  0.590687f,  -0.321818f, -1.107932f, -0.402041f, 0.431164f,  -0.219438f, 0.346153f,
+        0.198345f,  0.369227f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 4, 64}, gqa_sliding_window_query());
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<float>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<float>(Shape{1, 4, 32}, expected_output_causal);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// f16 sliding window: exercises the f16 finite-lowest() masked path (no NaN on masked positions).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_fp16) {
+    ov::frontend::FrontEnd::Ptr front_end;
+    auto input_model = load_model("com.microsoft/gqa_sliding_window.onnx", &front_end);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("query"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_key"), ov::element::f16);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("past_value"), ov::element::f16);
+    const auto model = front_end->convert(input_model);
+
+    using f16 = ov::float16;
+    std::vector<f16> query;
+    for (float x : gqa_sliding_window_query())
+        query.emplace_back(x);
+
+    std::vector<float> expected_output_f32 = {
+        0.269412f,  -0.524605f, 1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f,
+        0.501624f,  -0.094775f, 1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.269412f,  -0.524605f,
+        1.912019f,  0.237302f,  0.101434f,  0.252578f,  -0.132377f, -0.309476f, -1.434963f, 0.501624f,  -0.094775f,
+        1.193086f,  -0.368818f, -1.906370f, -0.099611f, 1.699537f,  0.740432f,  0.128438f,  0.028298f,  0.204723f,
+        0.054011f,  -0.155629f, -0.441223f, 0.922398f,  -0.809414f, -0.305360f, 0.343519f,  0.556826f,  -0.193352f,
+        -0.296847f, 0.252657f,  0.898662f,  0.830354f,  0.253109f,  -0.331320f, 0.198504f,  0.044958f,  -0.233559f,
+        -0.500184f, 1.157573f,  -0.689992f, -0.459420f, 0.427193f,  0.435358f,  -0.159853f, 0.010424f,  0.319908f,
+        0.745768f,  1.007791f,  0.563291f,  -1.279775f, 0.427717f,  -0.231890f, -0.015653f, -0.166504f, 1.479434f,
+        -0.133062f, -1.357522f, -0.381622f, 0.435451f,  -0.168452f, 0.962350f,  0.379397f,  -0.201881f, 1.010270f,
+        0.563424f,  -1.277395f, 0.415119f,  -0.218813f, -0.036927f, -0.191286f, 1.493233f,  -0.146303f, -1.331196f,
+        -0.329199f, 0.419765f,  -0.163685f, 0.953034f,  0.385018f,  -0.172855f, 0.501894f,  -0.472149f, -0.233213f,
+        0.394092f,  0.031529f,  -0.268758f, 0.715223f,  0.460533f,  0.022434f,  -1.663906f, -0.864902f, 0.327764f,
+        -0.227691f, 0.844354f,  0.183987f,  -0.025009f, 0.491418f,  -0.495716f, -0.208311f, 0.387906f,  0.043164f,
+        -0.283682f, 0.724681f,  0.443220f,  0.020286f,  -1.659573f, -0.853381f, 0.318560f,  -0.226992f, 0.837655f,
+        0.181946f,  -0.008489f};
+    std::vector<f16> expected_output;
+    for (float x : expected_output_f32)
+        expected_output.emplace_back(x);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<f16>(Shape{1, 4, 64}, query);
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<f16>(Shape{1, 1, 0, 16}, {});
+    test_case.add_input<int>(Shape{1, 1}, {3});
+    test_case.add_input<int>(Shape{}, {4});
+    test_case.add_expected_output<f16>(Shape{1, 4, 32}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.02f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_softcap.onnx");
+        FAIL() << "ONNX Importer did not reject unsupported softcap for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("softcap"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_sliding_window_cache.onnx");
+        FAIL() << "ONNX Importer did not reject unsupported sliding_window_cache for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("sliding_window_cache"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
     const auto model = convert_model("com.microsoft/qlinear_reducemean_i8.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

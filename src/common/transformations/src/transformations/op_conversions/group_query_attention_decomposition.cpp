@@ -25,6 +25,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
@@ -80,6 +81,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto scale = node->get_scale();
     const auto do_rotary = node->get_do_rotary();
     const auto rotary_interleaved = node->get_rotary_interleaved();
+    const auto local_window_size = node->get_local_window_size();
     // TODO: add softcap support
 
     auto Q = node->input_value(0);
@@ -218,36 +220,17 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
     }
 
-    // Make attention mask
-    std::shared_ptr<ov::Node> mask;
+    ov::Output<ov::Node> external_bias;
     if (node->get_input_size() > 10 && !is_null(node->input_value(10))) {
-        auto original_mask = node->input_value(10).get_node_shared_ptr();
-        // Extract mask [num_heads, curr_seqlen, concat_kv_len] from 4D mask [1, num_heads, curr_seqlen, max_kv_len]
-        auto axes_to_squeeze = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        auto mask_squeezed = register_new_node<v0::Squeeze>(original_mask, axes_to_squeeze);
-        mask = register_new_node<v8::Slice>(mask_squeezed, zero, concat_kv_len, one, two);
-    } else {
-        std::shared_ptr<ov::Node> hori_range =
-            register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
-        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
-
-        std::shared_ptr<ov::Node> vert_range =
-            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
-        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
-
-        const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
-        const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
-        // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
-        // Mask with the type's finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
-        std::shared_ptr<ov::Node> minus_inf = nullptr;
-        if (T == ov::element::f32)
-            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
-        else if (T == ov::element::f16)
-            minus_inf =
-                register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
-        mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
+        external_bias = node->input_value(10);
     }
+    const auto mask = make_attention_mask(curr_seqlen_scalar,
+                                          concat_kv_len_scalar,
+                                          concat_kv_len,
+                                          past_seqlen,
+                                          T,
+                                          local_window_size,
+                                          external_bias);
 
     std::shared_ptr<ov::Node> qga_output;
     if (scale != 0.0f) {
@@ -265,6 +248,73 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
     return {output, present_k, present_v};
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(
+    const ov::Output<ov::Node>& curr_seqlen_scalar,
+    const ov::Output<ov::Node>& kv_len_scalar,
+    const ov::Output<ov::Node>& kv_len_1d,
+    const ov::Output<ov::Node>& past_seqlen,
+    const ov::element::Type& compute_type,
+    int64_t local_window_size,
+    const ov::Output<ov::Node>& external_bias) {
+    const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
+    const bool has_window = local_window_size >= 0;
+
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+
+    // Key positions [1, kv_len] and absolute query positions [curr, 1]. Coordinates are cache-relative
+    // (past_seqlen is the resident past length), which matches the distance-only ONNX Runtime rule.
+    std::shared_ptr<ov::Node> triu, too_old;
+    if (has_window || !has_bias) {
+        const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        const auto one_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        std::shared_ptr<ov::Node> hori_range =
+            register_new_node<v4::Range>(zero_scalar, kv_len_scalar, one_scalar, ov::element::i64);
+        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_scalar, curr_seqlen_scalar, one_scalar, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        vert_range = register_new_node<v1::Add>(vert_range, past_seqlen);
+
+        if (!has_bias) {
+            triu = register_new_node<v1::Greater>(hori_range, vert_range);  // future keys: k > q
+        }
+        if (has_window) {
+            // keys older than the window: (q - k) >= local_window_size
+            const auto distance = register_new_node<v1::Subtract>(vert_range, hori_range);
+            const auto window =
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
+            too_old = register_new_node<v1::GreaterEqual>(distance, window);
+        }
+    }
+
+    const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
+    // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
+    std::shared_ptr<ov::Node> minus_inf;
+    if (compute_type == ov::element::f16)
+        minus_inf = register_new_node(
+            v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+    else
+        minus_inf =
+            register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
+
+    if (has_bias) {
+        // External attention_bias [1, num_heads, curr, max_kv] -> [num_heads, curr, kv_len].
+        const auto squeeze_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        std::shared_ptr<ov::Node> mask = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
+        mask = register_new_node<v8::Slice>(mask, zero, kv_len_1d, one, two);
+        if (too_old) {
+            const auto band = register_new_node<v1::Select>(too_old, minus_inf, typed_zero);
+            mask = register_new_node<v1::Add>(mask, band);
+        }
+        return mask;
+    }
+
+    const std::shared_ptr<ov::Node> masked = too_old ? register_new_node<v1::LogicalOr>(triu, too_old) : triu;
+    return register_new_node<v1::Select>(masked, minus_inf, typed_zero);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(

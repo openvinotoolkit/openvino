@@ -31,6 +31,16 @@ private:
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,
                                               bool interleaved);
+    // Additive float attention mask for SDPA: causal mask, plus an optional sliding-window band
+    // (local_window_size >= 0) masking keys older than the window, optionally fused with an external bias.
+    // Masked positions use the compute type's finite lowest() so a fully-masked row cannot softmax to NaN.
+    std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
+                                                  const ov::Output<ov::Node>& kv_len_scalar,
+                                                  const ov::Output<ov::Node>& kv_len_1d,
+                                                  const ov::Output<ov::Node>& past_seqlen,
+                                                  const ov::element::Type& compute_type,
+                                                  int64_t local_window_size,
+                                                  const ov::Output<ov::Node>& external_bias);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,
