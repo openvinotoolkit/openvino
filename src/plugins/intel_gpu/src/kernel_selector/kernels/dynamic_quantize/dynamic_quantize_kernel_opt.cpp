@@ -47,21 +47,25 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 }
 
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
-    if (params.group_sizes.back() <= 64)
-        return DynQuanMode::SMALL_GS;
-    else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
+    auto gs = params.group_sizes.back();
+    if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    else
+    } else if (gs > simd * 2) {
         return DynQuanMode::LARGE_GS;
+    } else {
+        return DynQuanMode::SMALL_GS;
+    }
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
+    auto gs = params.group_sizes.back();
+    size_t max_vec_size = (gs != std::numeric_limits<uint64_t>::max()) ? gs / simd : 8;
 
     for (auto block_size : block_sizes) {
-        if ((f / simd) % block_size == 0) {
+        if (static_cast<size_t>(block_size) <= max_vec_size && (f / simd) % block_size == 0) {
             return block_size;
         }
     }
@@ -100,6 +104,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+    jit.AddConstant(MakeJitConstant("BLOCKS_PER_GROUP", params.group_sizes.back() / simd / vec_size));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZAION_IMPL_MODE", static_cast<int>(mode)));
