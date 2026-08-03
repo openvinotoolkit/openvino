@@ -99,8 +99,6 @@ if command -v lsb_release >/dev/null 2>&1; then
     OS_NAME=$(lsb_release -i -s)
 fi
 
-PYTHON_VERSION_MAJOR="3"
-
 get_available_python_versions () {
     available_python_versions=""
     ov_python_dir="$INTEL_OPENVINO_DIR/python/openvino"
@@ -109,7 +107,7 @@ get_available_python_versions () {
             [ -e "$lib" ] || continue
             ver_tag=$(basename "$lib" | sed -n 's/^_pyopenvino\.cpython-\([0-9][0-9]*\)[a-z]*-.*/\1/p')
             [ -z "$ver_tag" ] && continue
-            available_python_versions="${available_python_versions:+$available_python_versions }${ver_tag%${ver_tag#?}}.${ver_tag#?}"
+            available_python_versions="${available_python_versions:+$available_python_versions }${ver_tag%"${ver_tag#?}"}.${ver_tag#?}"
         done
     fi
 }
@@ -145,6 +143,9 @@ check_python_version () {
             unset python_version
             return 0
         fi
+    else
+        echo "[setupvars.sh] WARNING: Could not detect which Python versions the OpenVINO Python API" \
+        "in this package was built for. The installed Python version will not be verified."
     fi
 
     if command -v python"$python_version" > /dev/null 2>&1; then
@@ -193,7 +194,6 @@ fi
 
 unset python_version
 unset python_version_to_check
-unset PYTHON_VERSION_MAJOR
 unset available_python_versions
 unset OS_NAME
 

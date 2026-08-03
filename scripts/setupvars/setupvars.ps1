@@ -123,7 +123,11 @@ else
 $current_python_version = "$installed_python_version_major.$installed_python_version_minor"
 $available_python_versions = @(Get-AvailablePythonVersions)
 
-if ($available_python_versions.Count -gt 0 -and ($available_python_versions -notcontains $current_python_version))
+if ($available_python_versions.Count -eq 0)
+{
+    Write-Host "Warning: Could not detect which Python versions the OpenVINO Python API in this package was built for. The installed Python version will not be verified."
+}
+elseif ($available_python_versions -notcontains $current_python_version)
 {
     Write-Host "Warning: Unsupported Python version $current_python_version. The OpenVINO Python API in this package is built for Python: $($available_python_versions -join ', '). Please activate a Python environment with a matching version."
     # Python is not mandatory so we can safely exit with 0

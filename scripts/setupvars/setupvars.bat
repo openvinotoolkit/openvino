@@ -101,7 +101,10 @@ call :strip_suffix pyversion_minor
 set "current_python_version=%pyversion_major%.%pyversion_minor%"
 
 call :get_available_python_versions
-if "%available_python_versions%"=="" goto :python_version_ok
+if "%available_python_versions%"=="" (
+   echo Warning^: Could not detect which Python versions the OpenVINO Python API in this package was built for. The installed Python version will not be verified.
+   goto :python_version_ok
+)
 
 set "check_pyversion="
 for %%v in (%available_python_versions%) do call :match_python_version "%%v"
