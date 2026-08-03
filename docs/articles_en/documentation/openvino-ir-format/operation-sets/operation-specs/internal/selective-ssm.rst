@@ -23,14 +23,22 @@ per-token output by contracting the state with the per-token output projection `
 
 The operation takes the raw (un-discretized) parameters ``A`` (log-decay rates), ``dt``
 (time steps), ``B`` (input projection), ``x`` (input hidden states) and ``C`` (output
-projection). Discretization is performed inside the operation, per time step, following
-the standard Mamba2 discretization:
+projection). The time discretization of ``A`` and ``B`` is performed vectorized over the
+whole sequence before the recurrence (cheaper than recomputing it per time step):
 
 .. math::
 
-   dA_t = \exp(A \cdot dt_t)
+   dA = \exp(A \cdot dt)
 
-   dBx_t = (dt_t \cdot B_t) \otimes x_t
+   dtB = dt \cdot B
+
+The per-timestep recurrence then only forms the outer product ``dtB_t \otimes x_t``
+(its full ``[batch_size, seq_len, num_heads, head_dim, state_size]`` form is too large to
+materialize up front):
+
+.. math::
+
+   dBx_t = dtB_t \otimes x_t
 
    state_t = state_{t-1} \cdot dA_t + dBx_t
 
@@ -60,18 +68,21 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
        B = B.repeat_interleave(heads_per_group, dim=2)  # [batch_size, seq_len, num_heads, state_size]
        C = C.repeat_interleave(heads_per_group, dim=2)  # [batch_size, seq_len, num_heads, state_size]
 
+       # Vectorized time discretization of A and B over the whole sequence.
+       dA = torch.exp(A * dt)          # [batch_size, seq_len, num_heads]
+       dtB = dt.unsqueeze(-1) * B      # [batch_size, seq_len, num_heads, state_size]
+
        output = torch.zeros(batch_size, seq_len, num_heads, head_dim).to(x)
        output_recurrent_state = recurrent_state
 
        for t in range(seq_len):
-           dt_t = dt[:, t]     # [batch_size, num_heads]
-           B_t = B[:, t]       # [batch_size, num_heads, state_size]
+           dA_t = dA[:, t]     # [batch_size, num_heads]
+           dtB_t = dtB[:, t]   # [batch_size, num_heads, state_size]
            x_t = x[:, t]       # [batch_size, num_heads, head_dim]
            C_t = C[:, t]       # [batch_size, num_heads, state_size]
 
-           # Discretization
-           dA_t = torch.exp(A * dt_t)                                            # [batch_size, num_heads]
-           dBx_t = (dt_t.unsqueeze(-1) * B_t).unsqueeze(-2) * x_t.unsqueeze(-1)  # [batch_size, num_heads, head_dim, state_size]
+           # dBx_t = dtB_t outer x_t
+           dBx_t = dtB_t.unsqueeze(-2) * x_t.unsqueeze(-1)  # [batch_size, num_heads, head_dim, state_size]
 
            # state_t = state_{t-1} * dA_t + dBx_t
            output_recurrent_state = output_recurrent_state * dA_t.unsqueeze(-1).unsqueeze(-1) + dBx_t
