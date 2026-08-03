@@ -181,11 +181,13 @@ KERNEL(pa_sdpa_opt)(
 
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
-#if SLIDING_WINDOW_SIZE != 0 && !MULTI_TOKENS_PROCESSING && !PAGED_ATTENTION_SCORES_OUTPUT
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
     const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+    const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
     const uint effective_blocks_num = total_blocks_num - swa_start_block;
 #else
     const uint swa_start_block = 0;
+    const uint swa_start_token = 0;
     const uint effective_blocks_num = total_blocks_num;
 #endif
 
@@ -429,7 +431,7 @@ KERNEL(pa_sdpa_opt)(
             }
 #endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
 
-            const uint token_idx = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE + partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
+            const uint token_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
 #ifdef HAS_ALIBI
             const int alibi_val = (1 - seq_len) + token_idx;
@@ -513,7 +515,7 @@ KERNEL(pa_sdpa_opt)(
         for (uint qk_idx = 0; qk_idx < qk_iters_num; qk_idx++) {
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
             // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
-            const uint global_data_idx = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
+            const uint global_data_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
 #if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
@@ -561,7 +563,7 @@ KERNEL(pa_sdpa_opt)(
 
         for (uint qk_idx = 0; qk_idx < qk_iters_num; qk_idx++) {
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
-            const uint global_data_idx = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
+            const uint global_data_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
 #if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
@@ -656,7 +658,7 @@ KERNEL(pa_sdpa_opt)(
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) acc = OUTPUT_VAL_ZERO;
 #endif
 
-#if SLIDING_WINDOW_SIZE != 0 && !MULTI_TOKENS_PROCESSING
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
         const uint effective_seq_len = min(effective_blocks_num * PAGED_ATTENTION_BLOCK_SIZE, seq_len);
 #else
         const uint effective_seq_len = seq_len;
