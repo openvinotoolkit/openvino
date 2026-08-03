@@ -37,9 +37,6 @@ GLUFusion::GLUFusion() {
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto axis_const_m = pattern::wrap_type<v0::Constant>();
-    // Accept any split_lengths source, not only a Constant: a half-split via chunk() lowers
-    // split_lengths to a runtime Concat under dynamic shapes (FLUX.2-klein). The exact half-split
-    // is verified below from the VariadicSplit's static output shapes instead.
     auto split_lengths_m = pattern::any_input();
     auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_m});
     variadic_split_m->set_output_size(2);
@@ -101,9 +98,7 @@ GLUFusion::GLUFusion() {
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        // Verify the exact half-split along the last dim from the VariadicSplit's static output
-        // shapes. This recognizes both a Constant split_lengths and a runtime-computed one
-        // (e.g. a Concat produced by chunk() under dynamic shapes, as in FLUX.2-klein).
+        // Check for exact half-split along last dim, supporting both static and dynamic split_lengths.
         const auto& out0_ps = variadic_split->get_output_partial_shape(0);
         const auto& out1_ps = variadic_split->get_output_partial_shape(1);
         if (!out0_ps.rank().is_static() || !out1_ps.rank().is_static())
