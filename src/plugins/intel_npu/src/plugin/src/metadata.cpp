@@ -30,6 +30,7 @@ constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "than the size of the blob. Compiler payload size: ";
 constexpr std::string_view MISSING_BLOB_MESSAGE = "No blob has been provided to NPU plugin's metadata reader.";
 constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
+constexpr std::string_view INCOMPLETE_READ_MESSAGE = "The metadata were not parsed until the end of the blob";
 
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
@@ -225,12 +226,17 @@ void MetadataBase::read(std::istream& stream) {
     _source = Source(stream);
     _sourceSize = get_stream_total_size(stream);
     read();
+
+    OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+    OPENVINO_ASSERT(stream.tellg() + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
     _source = Source(tensor);
     _sourceSize = tensor.get_byte_size();
     read();
+
+    OPENVINO_ASSERT(_cursorOffset + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
 }
 
 void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> attrs) {
