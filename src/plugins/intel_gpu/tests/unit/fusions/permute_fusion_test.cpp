@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 #include <utility>
 #include <vector>
@@ -876,6 +877,51 @@ double fused_peer_fold_mse(const std::vector<float>& a, const std::vector<float>
     return se / static_cast<double>(a.size());
 }
 
+// GPU_ALLOW_NEW_SHAPE_INFER is a RELEASE_INTERNAL option (options.inl), so ov::Core rejects it when
+// passed through the public compile_model() config -- it can only be set via its OV_GPU_ env var.
+// Sets the variable for the lifetime of the guard and restores the previous state on destruction.
+class scoped_env_var {
+public:
+    scoped_env_var(std::string name, const std::string& value) : m_name(std::move(name)) {
+        if (const char* prev = std::getenv(m_name.c_str())) {
+            m_had_prev = true;
+            m_prev = prev;
+        }
+        set(value);
+    }
+
+    ~scoped_env_var() {
+        if (m_had_prev)
+            set(m_prev);
+        else
+            unset();
+    }
+
+    scoped_env_var(const scoped_env_var&) = delete;
+    scoped_env_var& operator=(const scoped_env_var&) = delete;
+
+private:
+    void set(const std::string& value) {
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), value.c_str());
+#else
+        ::setenv(m_name.c_str(), value.c_str(), 1);
+#endif
+    }
+
+    void unset() {
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), "");
+#else
+        ::unsetenv(m_name.c_str());
+#endif
+    }
+
+    std::string m_name;
+    std::string m_prev;
+    bool m_had_prev = false;
+};
+
 bool discover_gpu_and_cpu(ov::Core& core) {
     std::vector<std::string> devices;
     try {
@@ -1044,8 +1090,18 @@ TEST(permute_fused_eltwise_rank_mismatch, nsi_5d_peer_and_5d_host) {
     fill_collapse_mask_inputs(c, in1, in2);
 
     auto [cpu_vals, cpu_compiled] = run_collapse_mask(core, "CPU", {}, c, in1, in2);
-    auto [gpu_vals, gpu_compiled] =
-        run_collapse_mask(core, "GPU", {ov::intel_gpu::allow_new_shape_infer(true)}, c, in1, in2);
+
+    std::vector<float> gpu_vals;
+    ov::CompiledModel gpu_compiled;
+    {
+        // NSI is RELEASE_INTERNAL: it must be requested via the env var, not the public config. The
+        // ov::Core is constructed inside the guard's scope so the GPU plugin config picks the value up.
+        scoped_env_var nsi("OV_GPU_ALLOW_NEW_SHAPE_INFER", "1");
+        ov::Core nsi_core;
+        auto res = run_collapse_mask(nsi_core, "GPU", {}, c, in1, in2);
+        gpu_vals = res.first;
+        gpu_compiled = res.second;
+    }
 
     // Under NSI the fused target permute output stays 5D (rank-consistent with the peer).
     auto rt = gpu_compiled.get_runtime_model();
