@@ -10,10 +10,10 @@
 #include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
-#include "ze_base_event_factory.hpp"
 
 namespace cldnn {
 namespace ze {
+struct ze_base_event_factory;
 
 class ze_stream : public stream {
 public:
@@ -53,6 +53,7 @@ public:
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
     ze_context_resource get_context() const;
+    bool is_profiling_enabled() const { return m_profiling_enabled; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
@@ -75,10 +76,10 @@ private:
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
     std::shared_ptr<ze_base_event_factory> m_ev_factory;
     std::shared_ptr<ze_base_event_factory> m_user_ev_factory;
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
+    bool m_profiling_enabled;
 };
 
 }  // namespace ze

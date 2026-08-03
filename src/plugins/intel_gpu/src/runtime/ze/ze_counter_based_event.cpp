@@ -4,6 +4,7 @@
 
 #include "ze_counter_based_event.hpp"
 #include "ze/ze_common.hpp"
+#include "ze_base_event_factory.hpp"
 
 #include <cassert>
 #include <chrono>

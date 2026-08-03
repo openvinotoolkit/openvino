@@ -210,7 +210,8 @@ QueueTypes detect_queue_type(ze_command_list_resource cmd_list) {
 
 ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
-    , _engine(engine) {
+    , _engine(engine)
+    , m_profiling_enabled(config.get_enable_profiling()) {
     const auto &info = engine.get_device_info();
     static std::atomic<uint16_t> stream_id{0};
     uint32_t index = stream_id++ % info.num_ccs;
@@ -247,9 +248,10 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
         use_counter_based_events = false;
     }
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
+    // Here passing reference to not fully formed object is safe because event factories do not call virtual methods for stream
+    m_user_ev_factory = std::make_shared<ze_event_factory>(*this);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(*this);
     } else {
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
@@ -264,13 +266,15 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list)
     : stream(detect_queue_type(cmd_list), stream::get_expected_sync_method(config))
     , _engine(engine)
-    , m_cmd_list(std::move(cmd_list)) {
+    , m_cmd_list(std::move(cmd_list))
+    , m_profiling_enabled(config.get_enable_profiling()) {
     const auto &info = engine.get_device_info();
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, config.get_enable_profiling());
+    // Here passing reference to not fully formed object is safe because event factories do not call virtual methods for stream
+    m_user_ev_factory = std::make_shared<ze_event_factory>(*this);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, config.get_enable_profiling());
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(*this);
     } else {
         m_ev_factory = m_user_ev_factory;
     }
@@ -460,7 +464,7 @@ dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_cmd_list.handle(), m_ev_factory->is_profiling_enabled()));
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_cmd_list.handle(), is_profiling_enabled()));
     }
 
     return *_onednn_stream;
