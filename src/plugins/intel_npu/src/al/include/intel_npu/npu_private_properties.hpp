@@ -295,6 +295,18 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: ov::log::Level
+ * Controls the verbosity of the NPU compiler's own logging for a single compile() call, independently of
+ * ov::log::level (which controls the plugin-side logging). This lets a user raise plugin logging without also
+ * enabling the compiler's much more verbose internal logging, and vice versa. Like other compile-time properties,
+ * it can also be set persistently via ov::Core::set_property() / plugin set_property(), in which case it affects
+ * every subsequent compile_model() call until changed again.
+ * @note If this property is not set, the compile log level inherits the value of ov::log::level.
+ */
+static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG_LEVEL"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.
  */
@@ -442,7 +454,7 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: boolean, default is true.
+ * Type: boolean, default is false.
  * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
  * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
  * models from each other, which can be required for some use cases.

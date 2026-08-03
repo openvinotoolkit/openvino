@@ -43,12 +43,14 @@ struct MoEGemmImplementationManager : public ImplementationManager {
 
         static const std::vector<ov::element::Type_t> supported_activation_types = {
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
             ov::element::u8,
         };
 
         static const std::vector<ov::element::Type_t> supported_weight_types = {
             ov::element::f16,
+            ov::element::bf16,
             ov::element::u4,
             ov::element::i4,
             ov::element::i8,
@@ -82,6 +84,14 @@ struct MoEGemmImplementationManager : public ImplementationManager {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
+        // oneDNN does not support mixed fp16 x bf16 configurations
+        auto act_dt = node.get_input_layout(moe_gemm::MoEGemmInputIdx::INPUT).data_type;
+        auto wei_dt = node.get_input_layout(moe_gemm::MoEGemmInputIdx::WEIGHT).data_type;
+        if ((act_dt == data_types::f16 && wei_dt == data_types::bf16) ||
+            (act_dt == data_types::bf16 && wei_dt == data_types::f16)) {
+            DO_NOT_USE_THIS_KERNEL(layer_id);
+        }
+
         std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
         bool has_quant_weight = false;
         if (std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
@@ -99,10 +109,12 @@ struct MoEGemmImplementationManager : public ImplementationManager {
         }
 
         if (has_quant_weight) {
+            // prepare_quantization may emit byfx; onednn reads flat regardless.
+            static const std::vector<format> supported_quant_fmts = {format::bfyx, format::byfx};
             size_t quant_params_idx_start =
                 desc.has_bias ? static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE) : static_cast<size_t>(moe_gemm::MoEGemmInputIdx::WEIGHT_SCALE - 1);
             for (size_t i = quant_params_idx_start; i < node.get_input_layouts().size(); i++) {
-                if (!one_of(node.get_input_layout(i).format, supported_fmts) || !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
+                if (!one_of(node.get_input_layout(i).format, supported_quant_fmts) || !one_of(node.get_input_layout(i).data_type, supported_quant_param_types)) {
                     DO_NOT_USE_THIS_KERNEL(layer_id);
                 }
             }
@@ -155,11 +167,11 @@ struct MoEGemmImplementationManager : public ImplementationManager {
                 moe_cfg.weight_zp_idx = moe_gemm::MoEGemmInputIdx::WEIGHT_ZP - 1;
             }
             const auto& weight_shape = params.input_layouts[moe_gemm::MoEGemmInputIdx::WEIGHT].get_shape();
-            // experts weight : [#experts, ofm, num_groups, group_size]
+            // Rank-4 [E, ofm, G, GS] vs rank-3 [E, ofm, K] (collapsed by ConvertGatherMatmulToGatherMatmulCompressed).
             auto k = (weight_shape.size() == 4) ? weight_shape[2] * weight_shape[3] : weight_shape[2];
-            // weight scales : [#experts, num_groups, ofm, 1]
-            auto scale_group_dim = 1;
-            auto num_scale_groups = (weight_shape.size() == 4) ? params.input_layouts[moe_cfg.weight_scale_idx].get_shape()[scale_group_dim] : 1;
+            // Scales: [E, ofm, G] or [E, ofm, G, 1]; groups at index 2.
+            const auto& scale_shape = params.input_layouts[moe_cfg.weight_scale_idx].get_shape();
+            auto num_scale_groups = (scale_shape.size() >= 3) ? scale_shape[2] : 1;
             moe_cfg.weight_group_size = (num_scale_groups == 1) ? -1 : static_cast<int32_t>(k / num_scale_groups);
             if (static_cast<int32_t>(params.input_layouts.size()) > moe_cfg.weight_zp_idx) {
                 moe_cfg.is_weight_symmetric_quantized = false;

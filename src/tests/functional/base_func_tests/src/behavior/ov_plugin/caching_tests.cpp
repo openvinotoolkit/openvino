@@ -28,6 +28,8 @@
 #include "common_test_utils/subgraph_builders/matmul_bias.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -994,6 +996,15 @@ void CompileModelWithCacheEncryptionTest::run() {
 TEST_P(CompileModelWithCacheEncryptionTest, CanImportModelWithoutException) {
     run();
 }
+
+// These parameterized test suites are defined in this shared library but not
+// every plugin instantiates all of them.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompiledKernelsCacheTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelCacheRuntimePropertiesTestBase);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromFileTestBase);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromCacheTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelLoadFromMemoryTestBase);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CompileModelWithCacheEncryptionTest);
 } // namespace behavior
 } // namespace test
 } // namespace ov

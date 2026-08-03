@@ -25,7 +25,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -45,6 +45,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
         params.clamp_max = primitive->clamp_max;
         params.swish_beta = primitive->swish_beta;
         params.up_add_val = primitive->up_add_val;
+        params.scale_factor = primitive->scale_factor;
         return params;
     }
 

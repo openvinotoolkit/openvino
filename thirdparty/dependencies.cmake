@@ -405,8 +405,8 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
             foreach(proto_target protoc libprotobuf libprotobuf-lite)
                 if(TARGET ${proto_target})
-                    target_compile_options(${proto_target} PUBLIC -fno-sanitize=thread)
-                    target_link_options(${proto_target} PUBLIC -fno-sanitize=thread)
+                    target_compile_options(${proto_target} PRIVATE -fno-sanitize=thread)
+                    target_link_options(${proto_target} PRIVATE -fno-sanitize=thread)
                 endif()
             endforeach()
         endif()
@@ -477,6 +477,13 @@ if(ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU)
                 add_executable(flatc ALIAS flatbuffers::flatc)
             endif()
         endif()
+        # disable TSan for flatc binary, only used as a build time tool, not in runtime.
+        if(ENABLE_THREAD_SANITIZER AND TARGET flatc)
+            target_compile_options(flatc PRIVATE -fno-sanitize=thread)
+            target_link_options(flatc PRIVATE -fno-sanitize=thread)
+            string(REPLACE "-shared-libsan" "" _flatc_exe_flags "${CMAKE_EXE_LINKER_FLAGS}")
+            set_target_properties(flatc PROPERTIES LINK_FLAGS "${_flatc_exe_flags}")
+        endif()
     endif()
 
     # set additional variables, used in other places of our cmake scripts
@@ -545,6 +552,18 @@ if(ENABLE_SNAPPY_COMPRESSION)
         ov_build_snappy()
         ov_install_static_lib(snappy ${OV_CPACK_COMP_CORE})
     endif()
+endif()
+
+#
+# liburing (io_uring)
+#
+
+if(ENABLE_IO_URING AND LINUX)
+    add_subdirectory(thirdparty/liburing EXCLUDE_FROM_ALL)
+    set_property(TARGET openvino_liburing PROPERTY EXPORT_NAME liburing)
+    ov_developer_package_export_targets(TARGET openvino::liburing
+        INSTALL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::liburing,INTERFACE_INCLUDE_DIRECTORIES>/)
+    ov_install_static_lib(openvino_liburing ${OV_CPACK_COMP_CORE})
 endif()
 
 #

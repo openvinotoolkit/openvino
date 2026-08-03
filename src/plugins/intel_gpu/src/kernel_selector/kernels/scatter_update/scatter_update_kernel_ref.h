@@ -19,7 +19,7 @@ struct scatter_update_params : public base_params {
 class ScatterUpdateKernelRef : public KernelBaseOpenCL {
 public:
     ScatterUpdateKernelRef() : KernelBaseOpenCL("scatter_update_ref") {}
-    virtual ~ScatterUpdateKernelRef() {}
+    ~ScatterUpdateKernelRef() override {}
     virtual JitConstants GetJitConstants(const scatter_update_params& params) const;
     virtual CommonDispatchData SetDefault(const scatter_update_params& params, bool is_second) const;
     KernelsData GetKernelsData(const Params& params) const override;

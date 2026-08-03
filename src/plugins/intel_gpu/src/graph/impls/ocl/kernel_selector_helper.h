@@ -213,6 +213,8 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::BITWISE_OR;
         case eltwise_mode::bitwise_xor:
             return kernel_selector::eltwise_mode::BITWISE_XOR;
+        case eltwise_mode::atan2:
+            return kernel_selector::eltwise_mode::ATAN2;
         default:
             OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;

@@ -93,7 +93,6 @@ public:
 
     /**
      * @brief Initializes the context store with the provided weight sharing context
-     * .
      * @param weight_sharing_context The weight sharing context to initialize the store with.
      */
     virtual void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context) = 0;

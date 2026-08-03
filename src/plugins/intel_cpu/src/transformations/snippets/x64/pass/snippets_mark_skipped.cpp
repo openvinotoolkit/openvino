@@ -32,6 +32,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/if.hpp"
@@ -57,6 +58,7 @@
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
@@ -504,7 +506,7 @@ bool isSuitableGatherChild(const std::shared_ptr<const Node>& node) {
            node->get_output_element_type(0) == ov::element::f32;
 }
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::op::v0::MatMul>(node) &&
+    return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
@@ -623,7 +625,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                 }
             } else {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
-                channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
+                channelAxis = out_rank.is_static() ? static_cast<int>(out_rank.get_length() - 1) : DEFAULT_AXIS;
             }
         } else if (isSuitableSubtractAsZeroPointsParent(node) || (enableBF16 && isSuitableConvert(node))) {
             // CVS-105447

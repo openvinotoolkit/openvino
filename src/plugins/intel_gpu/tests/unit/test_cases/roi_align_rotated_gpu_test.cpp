@@ -132,7 +132,7 @@ public:
         auto outputs = network->execute();
 
         auto output = outputs.at("out").get_memory();
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<float> wanted_output_ptr(params.expectedOutput, get_test_stream());
 
         ASSERT_EQ(output->get_layout(), params.expectedOutput->get_layout());

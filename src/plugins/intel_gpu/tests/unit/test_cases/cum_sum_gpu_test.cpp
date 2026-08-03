@@ -203,7 +203,7 @@ public:
         ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
         auto output = outputs.at("cum_sum").get_memory();
-        cldnn::mem_lock<output_type> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<output_type, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         auto answers = cumsum<output_type>(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
         ASSERT_EQ(output_ptr.size(), answers.size());
@@ -308,7 +308,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     auto answers = cumsum(inputVals, format::bfyx, { 5, 1, 1, 1, 1, 1 });
 
@@ -349,7 +349,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     auto answers = cumsum(input_data, format::bfyx, { 5, 1, 1, 1, 1, 1 });
 
@@ -391,7 +391,7 @@ TEST(cum_sum_partial, big_shapes) {
         ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
         const auto output = outputs.at("cum_sum").get_memory();
-        const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        const cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         const auto expected = cumsum(input_data, format::bfyx, {shape_num_items, 1, 1, 1, 1, 1 });
 

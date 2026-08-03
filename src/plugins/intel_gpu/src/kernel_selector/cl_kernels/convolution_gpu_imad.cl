@@ -180,8 +180,12 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             #if INPUT0_LAYOUT_B_FS_YX_FSV16
                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % PACK != 0))
                     INPUT0_TYPE* input_zp_int8_arr = (INPUT0_TYPE*) &data_zp_val;
-                    for (uint v = 0; v < PACK; v++) {
+                    uint valid_ifm_in_pack = (kd + 1) * PACK <= FILTER_IFM_NUM ? PACK : (FILTER_IFM_NUM % PACK);
+                    for (uint v = 0; v < valid_ifm_in_pack; v++) {
                         input_zp_int8_arr[v] = activations_zp[feature_location + v];
+                    }
+                    for (uint v = valid_ifm_in_pack; v < PACK; v++) {
+                        input_zp_int8_arr[v] = 0;
                     }
                 #else
                     data_zp_val = *(__global PACKED_TYPE*)(activations_zp + (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * PACK);
@@ -215,10 +219,14 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     #endif
                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &in[reg];
                     in_addr = in_start_addr + reg * INPUT0_Y_PITCH * FSV;
-                    for (uint v = 0; v < PACK; v++) {
+                    uint valid_ifm_in_pack_input = (kd + 1) * PACK <= FILTER_IFM_NUM ? PACK : (FILTER_IFM_NUM % PACK);
+                    for (uint v = 0; v < valid_ifm_in_pack_input; v++) {
                         int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * \
                                       INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
                         input_int8_arr[v] = conv_input[in_addr + f_addr];
+                    }
+                    for (uint v = valid_ifm_in_pack_input; v < PACK; v++) {
+                        input_int8_arr[v] = 0;
                     }
                     #ifdef SHOULD_USE_DATA_ZP
                         }
@@ -259,6 +267,17 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             for(int pf = 0; pf < NUM_FILTERS; pf++) {
                 w[pf] = weights[weight_addr];
                 weight_addr += SIMD_SIZE;
+            }
+        #endif
+
+        #if FILTER_IFM_NUM % PACK != 0
+            if ((kd + 1) * PACK >= ALIGN(FILTER_IFM_NUM, PACK)) {
+                for (int pf = 0; pf < NUM_FILTERS; pf++) {
+                    FILTER_TYPE* w_p = (FILTER_TYPE*)&w[pf];
+                    unroll_for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
+                        w_p[in_f] = 0;
+                    }
+                }
             }
         #endif
 

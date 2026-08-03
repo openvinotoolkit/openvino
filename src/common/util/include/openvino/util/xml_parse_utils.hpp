@@ -225,19 +225,23 @@ inline ParseResult parse_xml(const std::filesystem::path& file_path) {
             const auto file =
                 std::string(std::istreambuf_iterator<char>{file_stream}, std::istreambuf_iterator<char>{});
 
-            const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
-            const auto line_begin = std::find(error_offset, file.rend(), '\n');
-            const auto line = 1 + std::count(line_begin, file.rend(), '\n');
-            const auto pos = std::distance(error_offset, line_begin);
-
             std::stringstream ss;
-            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": "
-               << load_result.description();
+            ss << "Error loading XML file: " << file_path;
+            if (static_cast<std::size_t>(load_result.offset) > file.size()) {
+                ss << ": " << load_result.description();
+            } else {
+                const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
+                const auto line_begin = std::find(error_offset, file.rend(), '\n');
+                const auto line = 1 + std::count(line_begin, file.rend(), '\n');
+                const auto pos = std::distance(error_offset, line_begin);
+
+                ss << ":" << line << ":" << pos << ": " << load_result.description();
+            }
             return ss.str();
         }();
 
         return {std::move(xml), std::move(error_msg)};
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
     }
 }

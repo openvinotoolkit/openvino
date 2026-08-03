@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
-#include <map>
 #include <memory>
 #include <ostream>
 #include <utility>
@@ -101,8 +100,12 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/debug_caps_config.hpp"
-#include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <map>
+
+#    include "snippets/utils/linear_ir_pass_dumper.hpp"
+#endif  // SNIPPETS_DEBUG_CAPS
 #include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace ov::snippets::op {
@@ -237,22 +240,13 @@ std::shared_ptr<Node> Subgraph::clone_with_new_inputs(const OutputVector& inputs
 void Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
-    ov::ParameterVector old_parameters;
-    for (const auto& op : body_ptr()->get_parameters()) {
-        old_parameters.push_back(op);
-    }
-
+    const auto& parameters = body_ptr()->get_parameters();
     for (size_t i = 0; i < get_input_size(); ++i) {
-        body_ptr()->replace_parameter(
-            i,
-            std::make_shared<ov::op::v0::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
+        parameters[i]->set_partial_shape(get_input_partial_shape(i));
+        parameters[i]->set_element_type(get_input_element_type(i));
     }
 
     body_ptr()->validate_nodes_and_infer_types();
-
-    for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
-        body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
-    }
 
     set_output_size(body_ptr()->get_output_size());
     for (size_t i = 0; i < get_output_size(); ++i) {

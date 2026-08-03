@@ -127,11 +127,9 @@ extern fnPQclear PQclear;
 extern fnPQresultErrorMessage PQresultErrorMessage;
 #endif
 
-extern const char* PGPrefix(const char* text, ::testing::internal::GTestColor color);
-
-#define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
-#define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
-#define PG_INF PGPrefix("[ PG INFO  ] ", ::testing::internal::COLOR_GREEN)
+#define PG_ERR "[ PG ERROR ] "
+#define PG_WRN "[ PG WARN  ] "
+#define PG_INF "[ PG INFO  ] "
 
 /// \brief Count of tries when serialization error is detected after query
 const uint8_t serializationTriesCount = 30;  // Pause between each attempt is not less than 50ms

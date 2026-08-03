@@ -4,6 +4,8 @@
 
 #include "behavior/ov_plugin/core_threading.hpp"
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CoreThreadingTestsWithCacheEnabled);
+
 namespace {
 const Params params[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_HETERO,

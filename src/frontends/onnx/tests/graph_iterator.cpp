@@ -6,6 +6,8 @@
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
+#include <cctype>
+#include <cstring>
 #include <filesystem>
 #include <map>
 #include <openvino/frontend/exception.hpp>
@@ -18,9 +20,11 @@
 #include "../frontend/src/core/decoder_proto.hpp"
 #include "../frontend/src/core/graph_iterator_proto.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "load_from.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/op/constant.hpp"
 #include "utils.hpp"
 
 class SimpleIterator : public ov::frontend::onnx::GraphIterator {
@@ -508,3 +512,235 @@ TEST(FrontEndGraphIteratorTest, override_all_outputs_empty_throws) {
 
     EXPECT_THROW(input_model->override_all_outputs({}), ov::frontend::GeneralFailure);
 }
+
+//
+//   graph {
+//     node { input: "inputA" input: "shape" output: "expandOutput_0" op_type: "Expand" }
+//     initializer { dims: 0  data_type: INT64  name: "shape" }   // no data
+//     input  { name: "inputA"        type { tensor_type { elem_type: FLOAT shape {} } } }
+//     output { name: "expandOutput_0" type { tensor_type { elem_type: FLOAT shape {} } } }
+//   }
+TEST(FrontEndGraphIteratorTest, loads_programmatic_empty_shape_initializer_graph) {
+    auto model_proto = std::make_shared<ModelProto>();
+    model_proto->set_ir_version(13);
+    model_proto->set_producer_name("OpenVINO ONNX Frontend");
+
+    auto* opset = model_proto->add_opset_import();
+    opset->set_version(25);
+
+    auto* graph = model_proto->mutable_graph();
+    graph->set_name("");
+
+    // Expand node: Expand("inputA", "shape") -> "expandOutput_0"
+    auto* node = graph->add_node();
+    node->set_name("_0");
+    node->set_op_type("Expand");
+    node->add_input("inputA");
+    node->add_input("shape");
+    node->add_output("expandOutput_0");
+
+    // Initializer: "shape" — 1-D INT64 tensor with 0 elements and NO data payload.
+    // When decoded: m_data=nullptr, m_data_location=nullptr, partial_shape={0}.
+    // This triggers the `else if (get_partial_shape() == PartialShape{0})` branch in
+    // translate_session.cpp (line 87), creating an empty Constant rather than reading data.
+    auto* init = graph->add_initializer();
+    init->set_name("shape");
+    init->set_data_type(7);  // INT64
+    init->add_dims(0);       // shape [0]: 1-D tensor with zero elements
+
+    // Input: "inputA" — float32 scalar (empty shape)
+    auto* input = graph->add_input();
+    input->set_name("inputA");
+    auto* input_type = input->mutable_type()->mutable_tensor_type();
+    input_type->set_elem_type(1);  // FLOAT
+    input_type->mutable_shape();   // empty shape → scalar
+
+    // Output: "expandOutput_0" — float32 scalar (empty shape)
+    auto* output = graph->add_output();
+    output->set_name("expandOutput_0");
+    auto* output_type = output->mutable_type()->mutable_tensor_type();
+    output_type->set_elem_type(1);  // FLOAT
+    output_type->mutable_shape();   // empty shape → scalar
+
+    auto iter = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iter->initialize(model_proto);
+    iter->reset();
+
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    ASSERT_TRUE(frontend->supported(graph_iter));
+
+    auto input_model = frontend->load(graph_iter);
+    ASSERT_NE(input_model, nullptr);
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_NO_THROW(model = frontend->convert(input_model));
+    ASSERT_NE(model, nullptr);
+
+    ASSERT_EQ(iter->get_mmap_cache(), nullptr);
+    ASSERT_NE(iter->get_stream_cache(), nullptr);
+    ASSERT_EQ(iter->get_stream_cache()->size(), 0);  // no external files opened
+    ASSERT_EQ(model->get_ordered_ops().size(), 4);   // Parameter, Constant(shape), Expand, Result
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(op)) {
+            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            EXPECT_EQ(const_node->get_element_type(), ov::element::i64);
+            EXPECT_EQ(const_node->get_shape(), ov::Shape{1});
+            EXPECT_EQ(const_node->get_vector<int64_t>(), std::vector<int64_t>{1});
+        }
+    }
+}
+
+// =====================================================================================================
+// Accuracy / structural equivalence of the deferred-InputModel single-pass converter (translate
+// straight from the GraphIterator decoders, skipping load_model()) against the InputModel-backed
+// two-pass (Place-graph) converter, for the same .onnx model.
+//
+// REFERENCE: load an InputModel, force its Place graph to build (get_inputs() triggers load_model()),
+//            then convert it via the two-pass translate_graph path.
+// NEW:       load the same file (the iterator-backed InputModel is created deferred, i.e. not loaded)
+//            and convert it WITHOUT touching any Place accessor, so convert() takes the single-pass
+//            translate_graph_from_iterator branch.
+//
+// The two ov::Models must be structurally identical (ops, precisions, attributes, tensor names) and
+// carry bitwise-identical Constant data.
+// =====================================================================================================
+namespace {
+// Build the reference model through the InputModel-backed two-pass converter. Touching get_inputs()
+// forces load_model() so unify::InputModel::is_loaded() is true and convert() takes the Place-graph
+// path rather than the single-pass branch.
+std::shared_ptr<ov::Model> convert_reference_two_pass(const std::filesystem::path& path,
+                                                      ov::frontend::FrontEnd::Ptr& fe) {
+    auto input_model = fe->load(path);
+    EXPECT_NE(input_model, nullptr);
+    (void)input_model->get_inputs();  // force Place-graph build -> two-pass converter
+    return fe->convert(input_model);
+}
+
+// Build the model under test through the deferred-InputModel single-pass converter: load() returns a
+// not-yet-loaded iterator-backed InputModel, and convert() (with no prior Place accessor) translates
+// straight from the iterator's decoders. enable_mmap is forwarded as the load mmap hint.
+std::shared_ptr<ov::Model> convert_new_from_iterator(const std::filesystem::path& path,
+                                                     ov::frontend::FrontEnd::Ptr& fe,
+                                                     bool enable_mmap) {
+    auto input_model = fe->load(path, enable_mmap);
+    EXPECT_NE(input_model, nullptr);
+    return fe->convert(input_model);
+}
+
+// Collect all Constant nodes of a model.
+std::vector<std::shared_ptr<ov::op::v0::Constant>> collect_constants(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> out;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+            out.push_back(c);
+        }
+    }
+    return out;
+}
+
+// Two Constants are equivalent when their element type, shape and raw bytes are identical.
+bool constants_bitwise_equal(const std::shared_ptr<ov::op::v0::Constant>& a,
+                             const std::shared_ptr<ov::op::v0::Constant>& b) {
+    if (a->get_element_type() != b->get_element_type() || a->get_shape() != b->get_shape() ||
+        a->get_byte_size() != b->get_byte_size()) {
+        return false;
+    }
+    return a->get_byte_size() == 0 || std::memcmp(a->get_data_ptr(), b->get_data_ptr(), a->get_byte_size()) == 0;
+}
+
+// Verify the two models carry the same multiset of Constant data, matched by value rather than by name.
+//
+// Friendly names cannot be used as the key here: translators synthesize anonymous internal Constants
+// (e.g. Gemm's alpha/beta, Split's axis, Gather's axis), which OV names "Constant_<instance_id>" from a
+// global counter that keeps advancing. The two reference/test conversions run sequentially, so the same
+// logical Constant gets a different id in each model. Matching by element type + shape + raw bytes is the
+// stable, name-independent expression of "bitwise-identical constant data".
+void check_constants_bitwise_identical(const std::shared_ptr<ov::Model>& ref, const std::shared_ptr<ov::Model>& test) {
+    auto ref_consts = collect_constants(ref);
+    auto test_consts = collect_constants(test);
+    ASSERT_EQ(ref_consts.size(), test_consts.size()) << "Different number of Constant nodes";
+
+    std::vector<bool> matched(test_consts.size(), false);
+    for (const auto& ref_c : ref_consts) {
+        bool found = false;
+        for (size_t i = 0; i < test_consts.size(); ++i) {
+            if (!matched[i] && constants_bitwise_equal(ref_c, test_consts[i])) {
+                matched[i] = true;
+                found = true;
+                break;
+            }
+        }
+        EXPECT_TRUE(found) << "No bitwise-identical counterpart in the iterator-converted model for Constant '"
+                           << ref_c->get_friendly_name() << "' (" << ref_c->get_element_type() << " "
+                           << ref_c->get_shape() << ")";
+    }
+}
+
+// Compare structure (ops/precisions/attributes/tensor names) and bitwise constant data.
+void expect_equivalent(const std::shared_ptr<ov::Model>& ref, const std::shared_ptr<ov::Model>& test) {
+    ASSERT_NE(ref, nullptr);
+    ASSERT_NE(test, nullptr);
+    auto fc = FunctionsComparator::no_default()
+                  .enable(FunctionsComparator::NODES)
+                  .enable(FunctionsComparator::PRECISIONS)
+                  .enable(FunctionsComparator::CONST_VALUES)
+                  .enable(FunctionsComparator::ATTRIBUTES)
+                  .enable(FunctionsComparator::TENSOR_NAMES);
+    const auto res = fc.compare(test, ref);
+    EXPECT_TRUE(res.valid) << res.message;
+    check_constants_bitwise_identical(ref, test);
+}
+}  // namespace
+
+class FrontEndConvertIteratorEquivalence : public ::testing::TestWithParam<std::string> {
+protected:
+    ov::frontend::FrontEnd::Ptr m_fe;
+    void SetUp() override {
+        m_fe = ov::frontend::FrontEndManager().load_by_framework("onnx");
+        ASSERT_NE(m_fe, nullptr);
+    }
+};
+
+TEST_P(FrontEndConvertIteratorEquivalence, matches_two_pass_place_graph) {
+    if (!ov::frontend::onnx::tests::is_graph_iterator_enabled()) {
+        GTEST_SKIP() << "This test requires GraphIterator (ONNX_ITERATOR=1)";
+    }
+    const auto path =
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, GetParam()});
+
+    auto ref = convert_reference_two_pass(path, m_fe);
+    auto test = convert_new_from_iterator(path, m_fe, /*enable_mmap=*/true);
+    expect_equivalent(ref, test);
+}
+
+// A curated set covering: plain ops, initializers, broadcast, multi-output, control-flow-free
+// transformer/CV-style graphs, raw + typed initializers, and external data.
+INSTANTIATE_TEST_SUITE_P(OnnxConvertEquivalence,
+                         FrontEndConvertIteratorEquivalence,
+                         ::testing::Values("add_abc.onnx",
+                                           "add_abc_initializers.onnx",
+                                           "addmul_abc.onnx",
+                                           "matmul.onnx",
+                                           "gemm_abc.onnx",
+                                           "conv2d_dilation_assym_pads_strides.onnx",
+                                           "batchnorm_default.onnx",
+                                           "relu.onnx",
+                                           "softmax_axis_1.onnx",
+                                           "split_equal_parts_default.onnx",
+                                           "reshape_negative_dim.onnx",
+                                           "conv_transpose_1x3x8x8.onnx",
+                                           "gather_float_1D.onnx",
+                                           "uint16_raw_initializer.onnx",
+                                           "bfloat16_raw_initializer.onnx",
+                                           "external_data/external_data.onnx"),
+                         [](const ::testing::TestParamInfo<std::string>& info) {
+                             std::string n = info.param;
+                             for (auto& ch : n) {
+                                 if (!std::isalnum(static_cast<unsigned char>(ch)))
+                                     ch = '_';
+                             }
+                             return n;
+                         });

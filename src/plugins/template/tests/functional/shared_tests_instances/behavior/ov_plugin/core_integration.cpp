@@ -1,5 +1,5 @@
 // Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifcorer: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
@@ -55,3 +55,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::DEVICE_TEMPLATE));
 
 }  // namespace
+
+namespace ov::test::behavior {
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestCompileModel);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassSeveralDevicesTestQueryModel);
+}  // namespace ov::test::behavior

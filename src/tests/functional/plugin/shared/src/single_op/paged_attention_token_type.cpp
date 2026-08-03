@@ -4,53 +4,26 @@
 
 #include "shared_test_classes/single_op/paged_attention_token_type.hpp"
 
-#include <cstdlib>
+#include <algorithm>
+#include <random>
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/ranges.hpp"
+#include "openvino/reference/utils/paged_cache_manager_helper.hpp"
 
 using namespace ov::op;
+
+#define UNUSED(expr) (void)(expr);
 
 namespace ov {
 namespace test {
 namespace helpers {
-namespace os {
-void set_env(const char* name, const char* value) {
-#ifdef _WIN32
-    _putenv_s(name, value);
-#else
-    ::setenv(name, value, 1);
-#endif
-}
 
-void unset_env(const char* name) {
-#ifdef _WIN32
-    _putenv_s(name, "");
-#else
-    ::unsetenv(name);
-#endif
-}
-}  // namespace os
-
-static std::vector<float> GetOutputAsFloatVec(const ov::Tensor& tensor) {
-    std::vector<float> result(tensor.get_size());
-    if (tensor.get_element_type() == ov::element::f32) {
-        auto* p = tensor.data<float>();
-        std::copy(p, p + tensor.get_size(), result.begin());
-    } else if (tensor.get_element_type() == ov::element::f16) {
-        auto* p = tensor.data<ov::float16>();
-        for (size_t i = 0; i < tensor.get_size(); i++) {
-            result[i] = static_cast<float>(p[i]);
-        }
-    }
-    return result;
-}
+static constexpr size_t MAX_CONTEXT_LEN = 1024;
+static constexpr size_t BLOCK_SIZE = 16;  //< Default for standard PA on GPU.
 
 static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& pshape,
                                                         element::Type element_type,
@@ -61,6 +34,55 @@ static std::shared_ptr<ov::op::v0::Parameter> MakeParam(const PartialShape& psha
     return param;
 }
 
+static ov::Tensor GenerateTokenTypeTensor(size_t seq_len) {
+    ov::Tensor tensor(ov::element::i32, {seq_len});
+    auto* token_types = tensor.data<int32_t>();
+    std::fill(token_types, token_types + seq_len, 0);
+
+    if (seq_len == 0) {
+        return tensor;
+    }
+
+    std::mt19937 generator(static_cast<std::mt19937::result_type>(5489U + seq_len));
+    const size_t max_group_count = 4;
+    const size_t image_group_count = std::uniform_int_distribution<size_t>(1, max_group_count)(generator);
+
+    std::vector<size_t> group_sizes(image_group_count, 1);
+    std::vector<size_t> gaps(image_group_count + 1, 0);
+    for (size_t i = 1; i < image_group_count; ++i) {
+        gaps[i] = 1;
+    }
+
+    const size_t min_sequence_len = 2 * image_group_count - 1;
+    OPENVINO_ASSERT(seq_len >= min_sequence_len,
+                    "Sequence length must fit at least one token per image group and separator gap between groups. ",
+                    "seq_len=",
+                    seq_len,
+                    ", image_group_count=",
+                    image_group_count,
+                    ", min_sequence_len=",
+                    min_sequence_len);
+
+    size_t remaining_tokens = seq_len - min_sequence_len;
+    std::uniform_int_distribution<size_t> bucket_distribution(0, group_sizes.size() + gaps.size() - 1);
+    while (remaining_tokens-- > 0) {
+        const size_t bucket = bucket_distribution(generator);
+        if (bucket < group_sizes.size()) {
+            ++group_sizes[bucket];
+        } else {
+            ++gaps[bucket - group_sizes.size()];
+        }
+    }
+
+    size_t token_position = gaps.front();
+    for (size_t group_index = 0; group_index < image_group_count; ++group_index) {
+        std::fill(token_types + token_position, token_types + token_position + group_sizes[group_index], 1);
+        token_position += group_sizes[group_index] + gaps[group_index + 1];
+    }
+
+    return tensor;
+}
+
 static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
                                                ov::Dimension::value_type head_size,
                                                ov::Dimension::value_type head_num,
@@ -68,10 +90,11 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto q = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "q");
     auto k = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "k");
     auto v = MakeParam(PartialShape{ov::Dimension::dynamic(), head_num * head_size}, data_type, "v");
+
     // GPU plugin expects 4-dim cache with concrete element type
     // key_cache: [num_blocks, num_kv_heads, head_size, block_size]
     // value_cache: [num_blocks, num_kv_heads, block_size, head_size]
-    const int64_t block_size = 16;
+    const int64_t block_size = helpers::BLOCK_SIZE;
     auto key_cache =
         MakeParam(PartialShape{ov::Dimension::dynamic(), head_num, head_size, block_size}, data_type, "key_cache.0");
     auto value_cache =
@@ -87,14 +110,15 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto sliding_window =
         std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{sliding_window_size});
     auto alibi_slopes = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{});
-    auto max_context_len = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{1024});
+    auto max_context_len =
+        std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{MAX_CONTEXT_LEN});
     auto score_aggregation_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto rotated_block_indices = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
     auto rotation_deltas = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
     auto rotation_trig_lut = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
     auto xattention_threshold = std::make_shared<v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
-    auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{64});
-    auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{8});
+    auto xattention_block_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+    auto xattention_stride = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto sinks = std::static_pointer_cast<v0::Constant>(ov::test::utils::make_constant(data_type, Shape{0}));
     auto adaptive_rkv_start_size = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
     auto adaptive_rkv_evictable_sizes =
@@ -156,139 +180,143 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     paged_attn->get_rt_info()["num_v_heads"] = head_num;
     paged_attn->get_rt_info()["v_head_size"] = head_size;
 
+    // WARNING! Cache manger is needed only for template plugin and is attached
+    // via transformations. BUT func tests disable all transformations for template plugin,
+    // so it is needed to attach cache manager manually here...
+    auto shared_handle = std::make_shared<ov::reference::paged_attention_cache::CacheManagerHandle>();
+    *shared_handle = ov::reference::paged_attention_cache::make_cache_handle(data_type);
+
+    OPENVINO_ASSERT(paged_attn->get_input_element_type(3) == data_type,
+                    "AttachCacheManagerToPagedAttention: incompatible cache data types");
+
+    ov::reference::paged_attention_cache::set_cache_manager(paged_attn.get(), *shared_handle);
+    // ---
     return std::make_shared<ov::Model>(OutputVector{paged_attn}, params);
 }
 
 }  // namespace helpers
 
 std::string PagedAttentionTokenTypeTest::getTestCaseName(const testing::TestParamInfo<PagedAttnTokenTypeParams>& obj) {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = obj.param;
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = obj.param;
     std::ostringstream result;
     result << "Prc=" << inType << "_";
     result << "HS=" << head_size << "_";
     result << "HN=" << head_num << "_";
     result << "SW=" << sliding_window_size << "_";
-    result << "SQ=" << pattern.tokenTypes.size() << "_";
-    result << "Device=" << device << "_";
-    result << "FlashAttnV2=" << (use_flash_attn_v2 ? "ON" : "OFF") << "_";
-    result << "Name=" << pattern.name;
+    result << "BS=" << batch_size << "_";
+    result << "SQ=" << seq_len << "_";
+    result << "Device=" << device;
 
     return result.str();
 }
 
 void PagedAttentionTokenTypeTest::SetUp() {
-    const auto& [inType, head_size, head_num, sliding_window_size, pattern, device, use_flash_attn_v2] = GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_len, device] = GetParam();
+    // CPU plugin can be supported - it uses different key and value cache layout
+    // plus uses different block size, which was not yet implemented in this
+    // test class.
+    ASSERT_EQ(device, ov::test::utils::DEVICE_GPU);
+    ASSERT_LE(seq_len, helpers::MAX_CONTEXT_LEN);
     configuration[ov::hint::inference_precision.name()] = ov::element::f32;
     configuration[ov::hint::kv_cache_precision.name()] = ov::element::f32;
-    helpers::os::set_env("OV_GPU_COULD_USE_FLASHATTN_V2", use_flash_attn_v2 ? "1" : "0");
     targetDevice = device;
+
+    init_input_shapes({InputShape{PartialShape::dynamic(1), {{batch_size * seq_len}}}});
+
     function = helpers::PrepareModel(inType, head_size, head_num, sliding_window_size);
-    compile_model();
 }
 
-void PagedAttentionTokenTypeTest::TearDown() {
-    helpers::os::unset_env("OV_GPU_COULD_USE_FLASHATTN_V2");
-    SubgraphBaseTest::TearDown();
-}
+void PagedAttentionTokenTypeTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
 
-void PagedAttentionTokenTypeTest::run() {
-    // This is a workaround to provide test data to the tests, since there is no reference implementation for the paged
-    // attention at the time of writing the test. The test data is generated by a Python script using PyTorch and is
-    // stored in a separate file. Once there is a reference implementation available, the test should be updated to use
-    // it instead of the hardcoded test data.
-    RunAndValidate();
-}
-void PagedAttentionTokenTypeTest::RunAndValidate() {
-    const auto& [inType, head_size, head_num, sliding_window_size, data, device, use_flash_attn_v2] = this->GetParam();
+    const auto& [inType, head_size, head_num, sliding_window_size, batch_size, seq_length, device] = this->GetParam();
 
-    const size_t seq_len = data.tokenTypes.size();
-    const size_t hidden_dim = head_size * head_num;
+    UNUSED(sliding_window_size);
+    UNUSED(device);
 
-    ASSERT_EQ(data.qData.size(), seq_len * hidden_dim);
-    ASSERT_EQ(data.kData.size(), seq_len * hidden_dim);
-    ASSERT_EQ(data.vData.size(), seq_len * hidden_dim);
+    OPENVINO_ASSERT(!targetInputStaticShapes.empty() && targetInputStaticShapes[0].size() == 1,
+                    "Expected a single 1-D shape representing total token count");
+    OPENVINO_ASSERT(targetInputStaticShapes[0][0] == batch_size * seq_length,
+                    "Unexpected total token count for the configured batch and sequence length");
+    const size_t seq_len = seq_length;
+    const size_t total_tokens = targetInputStaticShapes[0][0];
+    const size_t hidden_dim = static_cast<size_t>(head_size) * static_cast<size_t>(head_num);
 
-    ov::Tensor token_type_tensor(ov::element::i32, {seq_len});
-    std::memcpy(token_type_tensor.data<int32_t>(), data.tokenTypes.data(), seq_len * sizeof(int32_t));
+    using ov::test::utils::InputGenerateData;
 
-    ASSERT_TRUE(inType == ov::element::f32);
-    ov::Tensor q_tensor(inType, {seq_len, hidden_dim});
-    std::memcpy(q_tensor.data<float>(), data.qData.data(), seq_len * hidden_dim * sizeof(float));
-    ov::Tensor k_tensor(inType, {seq_len, hidden_dim});
-    std::memcpy(k_tensor.data<float>(), data.kData.data(), seq_len * hidden_dim * sizeof(float));
-    ov::Tensor v_tensor(inType, {seq_len, hidden_dim});
-    std::memcpy(v_tensor.data<float>(), data.vData.data(), seq_len * hidden_dim * sizeof(float));
+    ov::Tensor q_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 1));
+    ov::Tensor k_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 2));
+    ov::Tensor v_tensor =
+        ov::test::utils::create_and_fill_tensor(inType, {total_tokens, hidden_dim}, InputGenerateData(-1, 2, 32, 3));
 
-    auto infer_request = compiledModel.create_infer_request();
+    ov::Tensor token_type_tensor(ov::element::i32, {total_tokens});
+    auto* token_types = token_type_tensor.data<int32_t>();
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        ov::Tensor sequence_token_types = helpers::GenerateTokenTypeTensor(seq_len);
+        std::copy(sequence_token_types.data<int32_t>(),
+                  sequence_token_types.data<int32_t>() + seq_len,
+                  token_types + batch * seq_len);
+    }
 
-    // Create cache tensors with known shapes
-    const size_t block_size = 16;
-    const size_t block_nums = 1024 / block_size;
-    ov::Tensor key_cache_tensor(inType, {block_nums, head_num, head_size, block_size});
-    ov::Tensor value_cache_tensor(inType, {block_nums, head_num, block_size, head_size});
+    // Cache tensors with known shapes (matching PrepareModel layout).
+    const size_t block_size = helpers::BLOCK_SIZE;
+    const size_t max_blocks_per_sequence = (helpers::MAX_CONTEXT_LEN + block_size - 1) / block_size;
+    const size_t block_nums = batch_size * max_blocks_per_sequence;
+    ov::Tensor key_cache_tensor = ov::test::utils::create_and_fill_tensor(
+        inType,
+        {block_nums, static_cast<size_t>(head_num), static_cast<size_t>(head_size), block_size},
+        InputGenerateData(-1, 2, 32, 5));
+    ov::Tensor value_cache_tensor = ov::test::utils::create_and_fill_tensor(
+        inType,
+        {block_nums, static_cast<size_t>(head_num), block_size, static_cast<size_t>(head_size)},
+        InputGenerateData(-1, 2, 32, 6));
 
-    auto params = function->get_parameters();
-
-    // Prefill: past_lens=0, single sequence
-    size_t batch_size = 1;
-    int32_t total_blocks = static_cast<int32_t>((seq_len + block_size - 1) / block_size);
+    const int32_t blocks_per_sequence = static_cast<int32_t>((seq_len + block_size - 1) / block_size);
+    const int32_t total_blocks = static_cast<int32_t>(batch_size) * blocks_per_sequence;
 
     ov::Tensor past_lens(ov::element::i32, {batch_size});
     ov::Tensor subsequence_begins(ov::element::i32, {batch_size + 1});
     ov::Tensor block_indices(ov::element::i32, {static_cast<size_t>(total_blocks)});
     ov::Tensor block_indices_begins(ov::element::i32, {batch_size + 1});
 
-    past_lens.data<int32_t>()[0] = 0;
     subsequence_begins.data<int32_t>()[0] = 0;
-    subsequence_begins.data<int32_t>()[1] = static_cast<int32_t>(seq_len);
     block_indices_begins.data<int32_t>()[0] = 0;
-    block_indices_begins.data<int32_t>()[1] = total_blocks;
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        past_lens.data<int32_t>()[batch] = 0;
+        subsequence_begins.data<int32_t>()[batch + 1] = static_cast<int32_t>((batch + 1) * seq_len);
+        block_indices_begins.data<int32_t>()[batch + 1] = static_cast<int32_t>(batch + 1) * blocks_per_sequence;
+    }
     for (int32_t i = 0; i < total_blocks; i++) {
         block_indices.data<int32_t>()[i] = i;
     }
 
-    for (auto& param : params) {
-        auto name = param->get_friendly_name();
+    for (const auto& param : function->get_parameters()) {
+        const auto& name = param->get_friendly_name();
         if (name == "q")
-            infer_request.set_tensor(param, q_tensor);
+            inputs.insert({param, q_tensor});
         else if (name == "k")
-            infer_request.set_tensor(param, k_tensor);
+            inputs.insert({param, k_tensor});
         else if (name == "v")
-            infer_request.set_tensor(param, v_tensor);
+            inputs.insert({param, v_tensor});
         else if (name == "key_cache.0")
-            infer_request.set_tensor(param, key_cache_tensor);
+            inputs.insert({param, key_cache_tensor});
         else if (name == "value_cache.0")
-            infer_request.set_tensor(param, value_cache_tensor);
+            inputs.insert({param, value_cache_tensor});
         else if (name == "past_lens")
-            infer_request.set_tensor(param, past_lens);
+            inputs.insert({param, past_lens});
         else if (name == "subsequence_begins")
-            infer_request.set_tensor(param, subsequence_begins);
+            inputs.insert({param, subsequence_begins});
         else if (name == "block_indices")
-            infer_request.set_tensor(param, block_indices);
+            inputs.insert({param, block_indices});
         else if (name == "block_indices_begins")
-            infer_request.set_tensor(param, block_indices_begins);
+            inputs.insert({param, block_indices_begins});
         else if (name == "token_type_ids")
-            infer_request.set_tensor(param, token_type_tensor);
-    }
-
-    infer_request.infer();
-
-    auto output = infer_request.get_output_tensor(0);
-    ov::Tensor output_copy{output.get_element_type(), output.get_shape()};
-    output.copy_to(output_copy);
-
-    const std::vector<float> outputVec = helpers::GetOutputAsFloatVec(output_copy);
-
-    const float tolerance = (inType == ElementType::f16) ? 1e-2f : 1e-5f;
-
-    ASSERT_EQ(outputVec.size(), data.expectedOutput.size());
-
-    for (size_t i = 0; i < outputVec.size(); i++) {
-        float diff = std::abs(outputVec[i] - data.expectedOutput[i]);
-        EXPECT_LE(diff, tolerance) << "Output differs from expected at index " << i << ": got " << outputVec[i]
-                                   << ", expected " << data.expectedOutput[i];
+            inputs.insert({param, token_type_tensor});
     }
 }
-
 }  // namespace test
 }  // namespace ov
+
+#undef UNUSED

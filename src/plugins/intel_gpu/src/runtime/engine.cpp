@@ -11,6 +11,9 @@
 
 #include "ocl/ocl_engine_factory.hpp"
 #include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL_RT
 
 #include <string>
 #include <vector>
@@ -100,6 +103,11 @@ bool engine::supports_allocation(allocation_type type) const {
     if (allocation_type::usm_shared == type)
         return false;
     return _device->get_mem_caps().support_allocation_type(type);
+}
+
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
@@ -258,12 +266,17 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        ret = sycl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
-#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;

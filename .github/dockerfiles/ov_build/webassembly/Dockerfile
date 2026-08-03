@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/emscripten/emsdk:3.1.61
 
@@ -20,6 +23,9 @@ RUN apt-get update && \
         git \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# Emscripten base image has CMake 3.22.x; OpenVINO now requires >=3.26.
+RUN python3 -m pip install --no-cache-dir cmake==3.26.4
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"

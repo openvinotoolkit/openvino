@@ -43,7 +43,7 @@ std::shared_ptr<ov::Symbol> merge_symbols(std::shared_ptr<ov::Symbol> lhs,
 
 bool check_all_digits(std::string_view value) {
     return std::all_of(value.begin(), value.end(), [](unsigned char c) {
-        return std::isdigit(c);
+        return std::isdigit(c) || (c == '-');
     });
 }
 Dimension::value_type dimension_length(Interval::value_type vt) {

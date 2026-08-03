@@ -1,6 +1,11 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
+#include <openvino/util/memory.hpp>
 
 #ifdef WIN32
 #include <openvino/runtime/intel_gpu/ocl/dx.hpp>
@@ -14,6 +19,7 @@ cl_context get_cl_context();
 cl_command_queue get_cl_queue();
 cl::Buffer allocate_buffer(size_t size);
 cl::Image2D allocate_image(size_t size);
+ov::intel_gpu::SharedBufferHandle get_shared_handle();
 
 
 #ifdef WIN32
@@ -42,6 +48,28 @@ int main() {
 }
 
 {
+    //! [wrap_cpu_pointer]
+    // Allocation part - must be done with alignment(for OCL backend) - align the address to cache line size
+    // and the allocation size must be a multiple of cache line size.
+    // In case of size of tensor lower than cache line size, allocate at least one cache line size 
+    // and use ov::intel_gpu::VirtualAddressMemory(cpu_pointer, allocated_size)
+    size_t size = input_size * in_element_type.size();
+    const std::string target_device = "GPU";
+    const uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    size = ov::util::align_size_up(size, cacheline_size); // ensure OCL runtime compatibility
+    void* cpu_pointer = ov::util::aligned_alloc(size, cacheline_size);
+    // end of Allocation part
+    {
+        // real wrapping cpu pointer to remote tensor
+        auto remote_tensor = gpu_context.create_tensor(in_element_type,
+                                                       in_shape,
+                                                       ov::intel_gpu::VirtualAddressMemory(cpu_pointer, size));
+    }
+    ov::util::aligned_free(cpu_pointer); 
+    //! [wrap_cpu_pointer]
+}
+
+{
     //! [wrap_cl_mem]
     cl_mem shared_buffer = allocate_cl_mem(input_size);
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
@@ -60,6 +88,15 @@ int main() {
     cl::Image2D shared_buffer = allocate_image(input_size);
     auto remote_tensor = gpu_context.create_tensor(in_element_type, in_shape, shared_buffer);
     //! [wrap_cl_image]
+}
+
+{
+    //! [wrap_shared_handle]
+    auto shared_handle = get_shared_handle();
+    auto remote_tensor = gpu_context.create_tensor(in_element_type,
+                                                   in_shape,
+                                                   shared_handle);
+    //! [wrap_shared_handle]
 }
 
 {

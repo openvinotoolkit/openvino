@@ -11,7 +11,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op::util;

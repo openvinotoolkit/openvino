@@ -1797,7 +1797,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
 
     auto outputs_ref = network_ref.execute();
     auto output_ref_prim = outputs_ref.at("plane_output").get_memory();
-    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ref_ptr(output_ref_prim, get_test_stream());
 
     std::vector<ov::float16> output_vec_ref;
     for (unsigned int i = 0; i < output_ref_prim->get_layout().count(); i++) {
@@ -1821,7 +1821,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     ASSERT_EQ(outputs_act.size(), size_t(1));
     ASSERT_EQ(outputs_act.begin()->first, "out");
     auto output_act_prim = outputs_act.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16> output_act_ptr(output_act_prim, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_act_ptr(output_act_prim, get_test_stream());
 
     std::vector<float> output_vec;
     for (unsigned int i = 0; i < output_act_prim->get_layout().count(); i++) {
@@ -3138,15 +3138,15 @@ TEST(deconvolution_gpu_onednn, spatial_1d) {
 
     auto output_memory_test_blocked = outputs_test_blocked.at("reorder").get_memory();
     auto output_layout_test_blocked = output_memory_test_blocked->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_blocked(output_memory_test_blocked, get_test_stream());
 
     auto output_memory_test_planar = outputs_test_planar.at("reorder").get_memory();
     auto output_layout_test_planar = output_memory_test_planar->get_layout();
-    cldnn::mem_lock<float> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
 
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 8};
     ASSERT_EQ(output_layout_test_blocked.get_partial_shape(), expected_shape);
@@ -3219,8 +3219,8 @@ TEST(deconvolution_gpu_onednn, input_b_fs_zyx_fsv16_output_bfzyx_stride2_nopad) 
     auto output_memory_test = outputs_test.begin()->second.get_memory();
     auto output_memory_ref = outputs_ref.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
-    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
 
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_FLOAT_EQ(output_ptr_test[i], output_ptr_ref[i]);

@@ -21,11 +21,12 @@ public:
         CustomLayerMap& customLayers,
         bool can_be_missed = false);
 
-    typedef enum {
+    enum ParamType {
         Input,
         Output,
         Data,
-    } ParamType;
+        Internal,
+    };
     struct KerenlParam {
         KerenlParam() :type(Input), paramIndex(-1), portIndex(-1),
                        format(cldnn::format::any) {}
@@ -33,6 +34,7 @@ public:
         int paramIndex;
         int portIndex;
         std::string blobName;
+        std::string size_expr;
         cldnn::format format;
     };
 
@@ -58,7 +60,7 @@ protected:
     CustomLayer() : m_wgDimInputIdx(0) {}
     explicit CustomLayer(const std::string dirname) : m_configDir(dirname), m_wgDimInputIdx(0) {}
 
-    bool Error() const { return m_ErrorMessage.length() > 0; }
+    bool Error() const { return !m_ErrorMessage.empty(); }
     void LoadSingleLayer(const pugi::xml_node& node);
     void ProcessKernelNode(const pugi::xml_node& node);
     void ProcessBuffersNode(const pugi::xml_node& node);

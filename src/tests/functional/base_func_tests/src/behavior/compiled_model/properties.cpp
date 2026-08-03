@@ -11,6 +11,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace test {
@@ -531,6 +532,20 @@ TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
 
     setlocale(LC_ALL, prev.c_str());
 }
+
+// Shared library definitions - not every plugin instantiates all of them.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_DEVICE_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelSetCorrectConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompileModelWithCorrectPropertiesTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompileModelGetExecutionDeviceTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelPropertiesDefaultSupportedTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelEmptyPropertiesTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetPropertyTest_EXEC_DEVICES);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelGetConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelSetIncorrectConfigTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelPropertiesDefaultTests);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelIncorrectDevice);
 
 }  // namespace behavior
 }  // namespace test

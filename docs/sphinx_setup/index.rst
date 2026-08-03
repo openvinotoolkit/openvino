@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2026.0
+OpenVINO 2026.2
 ============================
 
 .. container::
@@ -39,23 +39,28 @@ OpenVINO 2026.0
 
 |
 
-**OpenVINO is an open-source toolkit** for deploying performant AI solutions in the cloud,
-on-prem, and on the edge alike. Develop your applications with both generative and conventional
-AI models, coming from the most popular model frameworks.
+**OpenVINO is an open-source toolkit** for deploying high-performance AI solutions across 
+cloud, AI PCs, edge devices, and Physical AI alike. Develop your applications 
+with both generative and conventional AI models, coming from the most popular model frameworks. 
 Convert, optimize, and run inference utilizing the full potential of Intel® hardware.
-There are three main tools in OpenVINO to meet all your deployment needs:
+There are four main tools in OpenVINO to meet all your deployment needs:
 
-.. grid:: 1 1 3 3
+.. grid:: 1 2 2 4
+
+   .. grid-item-card:: OpenVINO Base Package
+      :link: ./openvino-workflow.html
+
+      Run and deploy conventional AI models
 
    .. grid-item-card:: OpenVINO GenAI
       :link: ./openvino-workflow-generative.html
 
       Run and deploy generative AI models
 
-   .. grid-item-card:: OpenVINO Base Package
-      :link: ./openvino-workflow.html
+   .. grid-item-card:: OpenVINO Physical AI
+      :link: ./physical-ai.html
 
-      Run and deploy conventional AI models
+      Deploy VLA models on robots
 
    .. grid-item-card:: OpenVINO Model Server
       :link: ./model-server/ovms_what_is_openvino_model_server.html
@@ -213,5 +218,6 @@ Key Features
    HOW TO USE - GENERATIVE AI WORKFLOW <openvino-workflow-generative>
    HOW TO USE - CONVENTIONAL AI WORKFLOW <openvino-workflow>
    HOW TO USE - MODEL SERVING <model-server/ovms_what_is_openvino_model_server>
+   HOW TO USE - PHYSICAL AI <physical-ai>
    REFERENCE DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

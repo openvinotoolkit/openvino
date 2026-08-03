@@ -65,8 +65,20 @@ KERNEL(swiglu_gpu_opt)(
         ACCUMULATOR_TYPE value = input[y + GLU_STRIDE];
     #endif
 #else
-    ACCUMULATOR_TYPE gate = input[y + GLU_STRIDE];
+    #if GLU_STRIDE == 2
+        // alternating mode: pair is at positions y, y+1 — gate is the odd neighbor
+        ACCUMULATOR_TYPE gate = input[y + 1];
+    #else
+        ACCUMULATOR_TYPE gate = input[y + GLU_STRIDE];
+    #endif
     ACCUMULATOR_TYPE value = input[y];
+#endif
+#ifdef SCALE_FACTOR
+    // Restore original scale before clamp / swish / up_add_val so that
+    // clamp bounds and UP_ADD_VAL stay in the original (unscaled) range.
+    const ACCUMULATOR_TYPE scale_factor = SCALE_FACTOR;
+    gate *= scale_factor;
+    value *= scale_factor;
 #endif
     #if GLU_TYPE == 0   // Swish
     #if defined(CLAMP_MAX) && defined(CLAMP_MIN)
@@ -80,6 +92,9 @@ KERNEL(swiglu_gpu_opt)(
         gate = (GEGLU_HALF * gate * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * gate * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * gate * gate)))));
     #endif
     value = (value + UP_ADD_VAL) * gate;
+#ifdef SCALE_FACTOR
+    value /= scale_factor;
+#endif
 
     output[x] = TO_OUTPUT_TYPE(value);
 }

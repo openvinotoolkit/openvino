@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -17,6 +16,7 @@
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
+#include "edge.h"
 #include "eltwise.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -34,6 +34,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/matmul.hpp"
 #include "utils/debug_capabilities.h"
@@ -103,7 +104,7 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
 bool MatMul::canFuse(const NodePtr& node) const {
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
             if (eltwiseNode->getBroadcastingPolicy() == EltwiseBroadcastingPolicy::PerChannel) {
                 auto rank = getInputShapeAtPort(0).getRank();

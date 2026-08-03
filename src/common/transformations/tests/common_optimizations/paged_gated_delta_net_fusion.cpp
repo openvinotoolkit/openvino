@@ -269,7 +269,7 @@ std::shared_ptr<ov::Model> build_reference_fused_non_fusable_model() {
     auto past_lens = make_pa_param("la.past_lens", element::i32, PartialShape{-1});
     auto cache_interval = make_pa_param("la.cache_interval", element::i32, PartialShape{-1});
     auto state_table =
-        make_pa_param("gated_delta_state_table.0", element::f32, PartialShape{Dimension::dynamic(), 4, 6, 8});
+        make_pa_param("gated_delta_state_table.0", element::dynamic, PartialShape{Dimension::dynamic(), 4, 6, 8});
 
     const auto paged_gdn_out = build_paged_gdn_block(query,
                                                      key,
@@ -331,7 +331,7 @@ std::shared_ptr<ov::Model> build_reference_fused_model_with_gathered_state() {
     auto cache_interval = make_pa_param("la.cache_interval", element::i32, PartialShape{-1});
     // The pattern matches on read_value (not gathered_state), so state shape comes from ReadValue output: [2,4,8,6].
     auto state_table =
-        make_pa_param("gated_delta_state_table.0", element::f32, PartialShape{Dimension::dynamic(), 4, 6, 8});
+        make_pa_param("gated_delta_state_table.0", element::dynamic, PartialShape{Dimension::dynamic(), 4, 6, 8});
 
     const auto paged_gdn_out = build_paged_gdn_block(query,
                                                      key,

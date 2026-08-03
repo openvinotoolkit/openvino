@@ -194,6 +194,7 @@ OP_CONVERTER(translate_truncate_mod_op);
 OP_CONVERTER(translate_unique_with_counts_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_unravel_index_op);
+OP_CONVERTER(translate_unsorted_segment_max_op);
 OP_CONVERTER(translate_unsorted_segment_sum_op);
 OP_CONVERTER(translate_where_op);
 OP_CONVERTER(translate_x_div_y_op);

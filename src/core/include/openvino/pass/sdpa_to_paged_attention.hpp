@@ -40,6 +40,10 @@ public:
         return find(name);
     }
 
+    bool exists(const std::string& name) const {
+        return find(name) != nullptr;
+    }
+
     std::shared_ptr<NodeT> operator[](const std::string& name) const {
         auto node = find(name);
         OPENVINO_ASSERT(node, "Missing model node: ", name);

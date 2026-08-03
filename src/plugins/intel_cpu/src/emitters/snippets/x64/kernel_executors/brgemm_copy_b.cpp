@@ -21,9 +21,11 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <set>
-#include <sstream>
-#include <string>
 #include <utility>
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include <sstream>
+#    include <string>
+#endif
 
 #include "cache/multi_cache.h"
 #include "dnnl_extension_utils.h"
