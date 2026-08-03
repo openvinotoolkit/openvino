@@ -254,10 +254,7 @@ If any is missing, the default function will be used for its call, as defined in
 Third step is to register the new option in the plugin:  
 **src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)**
 ```cpp
-    register_options<
-        /* existing options... */
-        EXAMPLE_PROPERTY
-    >(options, config);
+    REGISTER_OPTION(EXAMPLE_PROPERTY);
 ``` 
 Notes:  
 at this point, the npu plugin will take care of registering and managing the option in the internal configuration.  
