@@ -200,8 +200,9 @@ public:
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
                                   unsigned int priority,
-                                  const std::unordered_map<std::string, unsigned>& utilization_thresholds) {
-                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds);
+                                  const std::unordered_map<std::string, unsigned>& utilization_thresholds,
+                                  const std::map<std::string, std::map<unsigned, float>>& perf_curve_table) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds, perf_curve_table);
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -213,7 +214,7 @@ public:
 TEST_P(SelectDeviceTest, SelectDevice) {
     const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = this->GetParam();
 
-    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
@@ -221,9 +222,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}), ov::Exception);
+        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}, {}), ov::Exception);
     } else {
-        auto result = plugin->select_device(devices, netPrecision, 0, {});
+        auto result = plugin->select_device(devices, netPrecision, 0, {}, {});
         compare(result, expect);
     }
 }
@@ -325,7 +326,7 @@ protected:
 TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
     // get Parameter
     std::string netPrecision = "FP32";
-    auto result = plugin->select_device(devices, netPrecision, 0, threshold);
+    auto result = plugin->select_device(devices, netPrecision, 0, threshold, {});
     compare(result, selectedDeviceInfo);
 }
 
