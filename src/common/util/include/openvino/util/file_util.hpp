@@ -10,6 +10,7 @@
 #include <functional>
 #include <initializer_list>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "openvino/util/file_path.hpp"
