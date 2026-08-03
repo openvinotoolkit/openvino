@@ -31,6 +31,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
@@ -293,7 +294,10 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto gather_indices_m = wrap_type<ov::op::v0::Constant>(value_matches("2"));
     auto gather_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
     auto gather_m = wrap_type<ov::op::util::GatherBase>({nms_output_m, gather_indices_m, gather_axis_m});
-    auto squeeze_m = wrap_type<ov::op::v0::Squeeze, ov::op::v1::Reshape>({gather_m, any_input()});
+    auto squeeze_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
+    auto squeeze_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
+        wrap_type<ov::op::v0::Squeeze>({gather_m, squeeze_axis_m}),
+        wrap_type<ov::op::v1::Reshape>({gather_m, any_input()})});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -306,11 +310,6 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto scores_unsqueeze = pattern_map.at(scores_unsqueeze_m).get_node_shared_ptr();
 
         if (!squeeze || !gather || !nms || !boxes_reshape || !scores_unsqueeze || transformation_callback(squeeze)) {
-            return false;
-        }
-
-        // Reshape's 2nd input is a target shape, not a scalar axis, so only check Squeeze.
-        if (ov::is_type<ov::op::v0::Squeeze>(squeeze) && !is_scalar_constant_value(squeeze->input_value(1), 1)) {
             return false;
         }
 
