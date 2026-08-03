@@ -226,4 +226,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/whisper_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/prepare_qwen3_asr_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/qwen3asr/qwen3_asr_infer_request.hpp
 )

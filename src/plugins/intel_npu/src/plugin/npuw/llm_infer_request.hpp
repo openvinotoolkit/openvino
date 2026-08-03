@@ -103,6 +103,10 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
+    // Returns [kv_start, kv_end) for copy_kvcache(): override in subclasses with different alignment.
+    // Default: right-aligned — tokens at [max_prompt - N, max_prompt).
+    virtual std::pair<uint32_t, uint32_t> get_prefill_kv_range() const;
+
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
 

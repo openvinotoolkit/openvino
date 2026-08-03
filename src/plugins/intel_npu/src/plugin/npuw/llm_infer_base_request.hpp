@@ -16,6 +16,7 @@ class LLMInferBaseRequest : public ov::ISyncInferRequest {
 public:
     struct layer_names {
         static constexpr const char* input_ids = "input_ids";
+        static constexpr const char* decoder_input_ids = "decoder_input_ids";
         static constexpr const char* inputs_embeds = "inputs_embeds";
         static constexpr const char* attention_mask = "attention_mask";
         static constexpr const char* position_ids = "position_ids";
@@ -27,6 +28,7 @@ public:
         static constexpr const char* per_layer_inputs = "per_layer_inputs";
         static constexpr const char* visual_pos_masks = ov::npuw::util::kVisualPosMasksParamName;
         static constexpr const char* deepstack_visual_embeds = ov::npuw::util::kDeepstackVisualEmbedsParamName;
+        static constexpr const char* encoder_hidden_states = "encoder_hidden_states";
     };
 
     struct layer_ids {

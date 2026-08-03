@@ -28,6 +28,8 @@
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
+#include "qwen3asr/prepare_qwen3_asr_model.hpp"
+#include "qwen3asr/qwen3_asr_infer_request.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/ops.hpp"
@@ -420,7 +422,8 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
 
 void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properties, ov::AnyMap& other_properties) {
     for (auto it = properties.begin(); it != properties.end(); ++it) {
-        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos) {
+        if (it->first.find("NPUW_LLM") != it->first.npos || it->first.find("NPUW_WHISPER") != it->first.npos ||
+            it->first.find("NPUW_QWEN3_ASR") != it->first.npos) {
             llm_properties.insert(*it);
         } else {
             other_properties.insert(*it);
@@ -633,11 +636,20 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                              << "): reshaping to static");
 
         // Reshape to target size
-        ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
+        ov::npuw::ReshapeToStatic(max_generation_token_len,
+                                  kv_size,
+                                  axes,
+                                  m_max_lora_rank,
+                                  whisper_lhs_seq_size,
+                                  /*is_prefill=*/false,
+                                  /*is_whisper=*/m_is_whisper)
             .run_on_model(generate_variant);
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
+        // LOG_DEBUG("Variant " << (i + 1) << " reshaped. Saving to "
+        //                      << (m_name + "_kvcache_kv" + std::to_string(kv_size) + "_static.xml"));
+        // ov::save_model(generate_variant, m_name + "_kvcache_kv" + std::to_string(kv_size) + "_static.xml");
         generate_model_variants.push_back(generate_variant);
     }
     LOG_INFO("Created all generate model variants");
@@ -742,6 +754,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
+    }
+
+    // NB: Qwen3-ASR uses encoder_hidden_states for audio embedding injection.
+    // Chunked prefill is disabled to avoid audio token counter issues across chunks.
+    // SHARED_HEAD is intentionally kept enabled (split_llm separates the LM head);
+    // SliceOutEmbeds extracts the last real token (right-aligned → always at max_prompt-1).
+    m_is_qwen3_asr = m_cfg.get<::intel_npu::NPUW_QWEN3_ASR>();
+    if (m_is_qwen3_asr) {
+        m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
+        m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
+        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -877,6 +900,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+
+        if (m_is_qwen3_asr) {
+            // StatefulToStateless only handles beam_idx-gated KV-cache states.
+            // encoder_hidden_states state is not handled. PrepareQwen3ASRModel converts
+            // remaining ReadValue nodes to Parameters and removes Assign sinks.
+            LOG_DEBUG("[Qwen3-ASR] Removing residual state tensors (e.g. encoder_hidden_states).");
+            ov::npuw::PrepareQwen3ASRModel().run_on_model(kvcache_model);
+        }
     }
 
     // Reported after the embedding branch, since an encoder embedding model turns chunking off and
@@ -912,10 +943,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
+    if (m_is_qwen3_asr) {
+        // Must run AFTER the prefill clone (so models diverge) and BEFORE ReshapeToStatic
+        // (so Range/Gather nodes are still dynamic when matched).
+        LOG_INFO("[Qwen3-ASR] Injecting attention_mask and position_ids into kvcache model.");
+        ov::npuw::PrepareQwen3ASRKVCacheModel().run_on_model(kvcache_model);
+        LOG_INFO("[Qwen3-ASR] Injecting attention_mask and position_ids into prefill model.");
+        ov::npuw::PrepareQwen3ASRPrefillModel().run_on_model(prefill_model);
+    }
+
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
     uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
+    if (m_is_qwen3_asr) {
+        whisper_lhs_seq_size = static_cast<uint32_t>(m_cfg.get<::intel_npu::NPUW_QWEN3_ASR_MAX_ENCODER_LEN>());
+        LOG_INFO("[Qwen3-ASR] encoder_hidden_states static seq_len = " << whisper_lhs_seq_size);
+    }
     if (m_is_whisper) {
         axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
         m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim, 1u};
@@ -988,8 +1032,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
-        // so only apply slice to the Prefill model:
+        // Slice prefill output to the last max_generation_token_len positions.
+        // For Qwen3-ASR, tokens are right-aligned (left-padded), so the last real token
+        // is always at max_prompt-1 — SliceOutEmbeds works identically.
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
@@ -1301,6 +1346,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    std::cout << "Compile kv model" << std::endl;
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1798,6 +1844,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
     if (m_is_whisper) {
         return non_const_this->create_whisper_infer_request();
+    } else if (m_is_qwen3_asr) {
+        return non_const_this->create_qwen3_asr_infer_request();
     } else if (m_is_embedding) {
         return m_is_encoder_embedding ? non_const_this->create_encoder_embedding_infer_request()
                                       : non_const_this->create_embedding_infer_request();
@@ -1814,6 +1862,11 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_in
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_qwen3_asr_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::Qwen3ASRInferRequest>(this_sptr);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {

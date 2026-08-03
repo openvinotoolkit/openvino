@@ -16,6 +16,7 @@ class ReshapeToStatic : public ov::pass::ModelPass {
     uint32_t m_lora_rank;
     uint32_t m_lhs_seq_size;
     bool m_is_prefill;
+    bool m_is_whisper;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeToStatic");
@@ -24,7 +25,8 @@ public:
                              const KVAxesPosition& kv_axes_position,
                              const uint32_t lora_rank,
                              const uint32_t lhs_seq_size = 0,
-                             const bool is_prefill = false);
+                             const bool is_prefill = false,
+                             const bool is_whisper = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
