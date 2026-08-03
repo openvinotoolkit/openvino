@@ -27,10 +27,10 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGeneratePro
 
     const auto output_type = op->get_input_element_type(0);
 
-    const auto im_info_shape = inputs[0].get_shape();
-    const auto anchors_shape = inputs[1].get_shape();
-    const auto deltas_shape = inputs[2].get_shape();
-    const auto scores_shape = inputs[3].get_shape();
+    const auto& im_info_shape = inputs[0].get_shape();
+    const auto& anchors_shape = inputs[1].get_shape();
+    const auto& deltas_shape = inputs[2].get_shape();
+    const auto& scores_shape = inputs[3].get_shape();
 
     const auto im_info_data = get_floats(inputs[0], im_info_shape);
     const auto anchors_data = get_floats(inputs[1], anchors_shape);

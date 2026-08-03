@@ -176,6 +176,7 @@ void CompiledModelPropertyManager::registerProperties() {
     try_register_property_based_on_config_if_set_as_read_only<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
     try_register_property_based_on_config_if_set_as_read_only<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode.name());
     try_register_property_based_on_config_if_set_as_read_only<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
+    try_register_property_based_on_config_if_set_as_read_only<COMPILE_LOG_LEVEL>(_config, _properties, ov::intel_npu::compile_log_level.name());
 
     try_register_property_based_on_config_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const Config&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};
