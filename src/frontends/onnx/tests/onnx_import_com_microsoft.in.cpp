@@ -4531,6 +4531,60 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_per_tensor) {
     test_case.run(tolerance_bits);
 }
 
+// Sliding-window attention composes with a quantized (i8) KV cache: the window mask is applied after
+// dequantization, so an i8 cache with local_window_size=2 excludes tokens older than the window. Decode
+// step with 3 past tokens; the oldest is masked out. Output and present match ONNX Runtime (MLAS CPU).
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i8kv_sliding_window) {
+    const auto model = convert_model("com.microsoft/gqa_i8kv_sliding_window.onnx");
+
+    std::vector<float> query = {0.053442f,  1.102908f,  0.478281f,  0.034206f,  0.534257f,  0.498591f,  -0.465774f,
+                                0.365215f,  -0.085607f, -0.644346f, 0.530718f,  -0.020251f, -0.451861f, -0.777067f,
+                                -0.475566f, 0.100263f,  -0.373664f, 0.534040f,  -0.138512f, 0.043279f,  -0.126610f,
+                                -0.606021f, 0.138636f,  0.276110f,  -0.233871f, -0.713746f, 0.442902f,  1.180317f,
+                                -0.761003f, -0.107973f, 0.095163f,  0.361128f};
+    std::vector<int8_t> past_key = {26, 19, -7,  26,  -8,  -21, -25, 12,  -16, -16, -20, -16,
+                                    -6, 27, -15, -28, -18, -13, -14, -30, -13, -3,  28,  -8};
+    std::vector<int8_t> past_value = {20,  5,  -12, -26, 19, 14, 14, -13, -23, 10,  -30, 7,
+                                      -26, 12, 16,  5,   -6, 29, -1, -8,  14,  -12, 17,  -2};
+    std::vector<int> seqlens_k = {3};
+    std::vector<int> total_sequence_length = {4};
+
+    std::vector<float> expected_output = {-0.252619f,
+                                          -0.081278f,
+                                          0.303397f,
+                                          0.779405f,
+                                          -0.367325f,
+                                          -0.292622f,
+                                          0.317099f,
+                                          0.234717f,
+                                          -0.303546f,
+                                          0.580774f,
+                                          0.184567f,
+                                          0.355013f,
+                                          0.057067f,
+                                          -0.462379f,
+                                          0.588710f,
+                                          0.115887f};
+    std::vector<int8_t> expected_present_key = {26,  19, -7, 26,  -8,  -21, -25, 12,  -16, -16, -20,
+                                                -16, -6, 27, -15, -28, -18, -13, -14, -30, -13, -3,
+                                                28,  -8, -5, 8,   -2,  1,   -2,  -9,  2,   4};
+    std::vector<int8_t> expected_present_value = {20, 5,   -12, -26, 19, 14, 14,  -13, -23, 10, -30,
+                                                  7,  -26, 12,  16,  5,  -6, 29,  -1,  -8,  14, -12,
+                                                  17, -2,  -3,  -10, 6,  17, -11, -2,  1,   5};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 32}, query);
+    test_case.add_input<int8_t>(Shape{1, 1, 3, 8}, past_key);
+    test_case.add_input<int8_t>(Shape{1, 1, 3, 8}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_expected_output<float>(Shape{1, 1, 16}, expected_output);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_key);
+    test_case.add_expected_output<int8_t>(Shape{1, 1, 4, 8}, expected_present_value);
+    const size_t tolerance_bits = 11;
+    test_case.run(tolerance_bits);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_per_channel) {
     const auto model = convert_model("com.microsoft/gqa_i4kv_per_channel.onnx");
 
