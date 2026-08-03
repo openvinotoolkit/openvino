@@ -237,17 +237,32 @@ std::string layout::to_short_string() const {
             }
         }
     };
+    auto dump_padding_sizes = [](std::stringstream& stream,
+                                 const std::array<ov::Dimension::value_type, SHAPE_RANK_MAX>& values,
+                                 size_t rank) {
+        stream << "[";
+        for (size_t i = 0; i < rank; ++i) {
+            if (i)
+                stream << ",";
+            stream << values[i];
+        }
+        stream << "]";
+    };
 
     s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
 
     if (data_padding.is_dynamic()) {
-        s << ":dyn_pad_dims";
-    } else {
-        if (data_padding)
-            s << ":pad";
-        else
-            s << ":nopad";
+        s << ":dyn_pad_dims[" << data_padding._dynamic_dims_mask.to_string() << "]";
+    }
+
+    if (data_padding) {
+        s << ":pad_l";
+        dump_padding_sizes(s, data_padding._lower_size, format.dimension());
+        s << ":pad_u";
+        dump_padding_sizes(s, data_padding._upper_size, format.dimension());
+    } else if (!data_padding.is_dynamic()) {
+        s << ":nopad";
     }
 
     return s.str();

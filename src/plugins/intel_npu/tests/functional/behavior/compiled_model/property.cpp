@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "common/npu_test_env_cfg.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;
 
@@ -51,7 +52,8 @@ std::vector<std::pair<std::string, ov::Any>> compat_plugin_internal_mutable_prop
 };
 
 std::vector<std::pair<std::string, ov::Any>> plugin_internal_mutable_properties = {
-    {ov::intel_npu::stepping.name(), ov::Any(4)}};
+    {ov::intel_npu::stepping.name(), ov::Any(4)},
+    {ov::intel_npu::compile_log_level.name(), ov::Any(ov::log::Level::ERR)}};
 
 std::vector<std::pair<std::string, ov::Any>> plugin_public_immutable_properties = {
     {ov::device::uuid.name(), ov::Any("deadbeef")},
