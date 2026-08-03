@@ -5520,6 +5520,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_softcap_unsupported_throws) {
     }
 }
 
+// The windowed cache supports only single-token decode (sequence_length == 1). A multi-token step is
+// the staging regime, which is not supported and must be rejected with a clear error (when the static
+// sequence_length is known) rather than silently diverging or building an ill-formed graph. Here seq=4.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_swc_staging.onnx");
+        FAIL() << "ONNX Importer did not reject the sliding_window_cache staging regime for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("staging"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 // Packed-QKV prompt (num_heads=2, kv_num_heads=1, head_size=16, S=4, past=0) shared by the
 // smooth-softmax / head-sink tests. Reference outputs are from ONNX Runtime (MLAS CPU).
 static std::vector<float> gqa_sink_query() {

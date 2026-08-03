@@ -79,6 +79,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
+        // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
+        // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
+        // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
+        // and would otherwise either crash or silently diverge. Reject a static sequence_length > 1.
+        const auto& q_ps = onnx_op_inputs[0].get_partial_shape();
+        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 3 && q_ps[1].is_static()) {
+            FRONT_END_OP_CONVERSION_CHECK(q_ps[1].get_length() == 1,
+                                          "GroupQueryAttention: sliding_window_cache=1 is only supported for "
+                                          "single-token decode (sequence_length == 1), got sequence_length = ",
+                                          q_ps[1].get_length(),
+                                          " (multi-token staging regime is not supported).");
+        }
     }
     FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
 
