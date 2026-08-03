@@ -422,6 +422,28 @@ TEST_F(MetadataUnitTests, incompleteBlobRead) {
 }
 
 /**
+ * @brief Throw if the size of the compiler payload is too big relative to the size of the blob
+ */
+TEST_F(MetadataUnitTests, compilerPayloadSizeExceedsBlobLimit) {
+    std::stringstream stream;
+
+    auto meta = Metadata<METADATA_VERSION_2_0>(0, std::nullopt);
+    meta.write(stream);
+    std::string blob = stream.str();
+
+    const uint64_t badCompilerPayloadSize = 0xFF;
+    const size_t compilerPayloadSizeOffset = blob.size() - FOOTER_SIZE;
+    std::memcpy(&blob[compilerPayloadSizeOffset], &badCompilerPayloadSize, sizeof(badCompilerPayloadSize));
+
+    std::stringstream malformedStream(blob);
+    OV_EXPECT_THROW(read_metadata_from(malformedStream), ov::Exception, _);
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
+    OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
+}
+
+/**
  * @brief Throw if the number of init schedules is too big relative to the size of the blob
  */
 TEST_F(MetadataUnitTests, numberOfInitSchedulesExceedsBlobLimit) {
