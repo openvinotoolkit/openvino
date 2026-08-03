@@ -222,6 +222,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // Special cases
     // Disable turbo in case driver is not present or it does not support the extension.
     config.enable(ov::intel_npu::turbo.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+    // Align config enabled/disabled state with the properties manager support.
     // Disable workload type in case driver is not present or it does not support the extension.
     config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
     // Disable max tiles in case we don't have a device.
