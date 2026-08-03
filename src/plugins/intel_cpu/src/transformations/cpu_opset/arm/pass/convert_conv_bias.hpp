@@ -10,11 +10,8 @@
 
 /*
  * Description:
- *     ConvertConvolutionBias detects specific quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FQ
- *     and inserts a Convert to i32 between the constant bias and the Add node.
- *     Convert to i32 is neccessary because ACL supports i32 bias only.
- *     Also, the order of Add and Multiply is swapped to satisfy ACL requirements.
+ *     ConvertConvolutionBias is the Convolution specialization of ConvertGemmBias
+ *     It matches the int8 Convolution requantization chain via ConvMulAddFQBlock
  *
  * Supported patterns:
  *     1. u8 source, u8 or i8 weights

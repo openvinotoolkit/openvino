@@ -27,8 +27,9 @@
 
 /*
  * Description:
- *     Shared implementation for the ARM int8 bias-reorder passes ConvertConvolutionBias and
- *     ConvertFullyConnectedBias. Both passes match a GEMM-like op (Convolution / MatMul) followed by
+ *     Shared implementation for the ARM int8 bias-reorder passes
+ *     Each pass (ConvertConvolutionBias, ConvertFullyConnectedBias) is a thin ConvertGemmBias<Block> subclass
+ *     They match a GEMM-like op (Convolution / MatMul) followed by
  *         GEMM -> Multiply -> Add(bias) -> FakeQuantize
  *     and rewrite the tail into
  *         GEMM -> Add(Round(bias) -> Convert i32) -> Multiply -> FakeQuantize

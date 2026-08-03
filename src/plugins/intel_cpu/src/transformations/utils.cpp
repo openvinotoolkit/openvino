@@ -91,12 +91,10 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
 }
 
 bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node) {
-    if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) ||
-        none_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+    if (!ov::is_type<const ov::op::v0::FakeQuantize>(node)) {
         return false;
     }
 
-    // returns true if MatMul-Add-Mul-FQ chain will be fused into int8 matmul and handled by ACL executor
     const auto is_per_tensor_scale = [](const std::shared_ptr<const ov::Node>& fq) {
         const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
             const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
