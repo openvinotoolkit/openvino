@@ -7,7 +7,16 @@ Helpers called from torchdynamo.execute to keep the generic infer code
 free of vLLM-specific PA-binding knowledge.
 """
 
+import os
+
 from .side_channel import _bind_paged_attention_side_channel
+
+
+# Per-InferRequest caches for the OV_FAST_INFER fast path. Kept here so
+# execute.py stays free of vLLM-specific state.
+_fastinfer_port_cache = {}
+_fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
+_fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
 
 
 def has_pa_inputs(compiled) -> bool:
@@ -85,3 +94,55 @@ def build_call_kwargs(compiled, ov_inputs):
             call_kwargs[inp] = ov_inputs[tensor_pos]
             tensor_pos += 1
     return call_kwargs
+
+
+def infer_with_pa(req, compiled, call_kwargs):
+    """Run req.infer with the vLLM PA-side-channel call_kwargs.
+
+    When OV_FAST_INFER=1 is set, this uses a per-request cache that skips
+    ``set_tensor`` for ports whose value id has not changed since the last
+    call, and reuses the output-view numpy dict across calls (both are safe
+    under ``share_inputs=True`` / ``share_outputs=True``). Falls back to the
+    dict-based ``req.infer(call_kwargs, ...)`` path on any error.
+
+    When OV_FAST_INFER is unset (default), this is a thin wrapper around
+    ``req.infer(call_kwargs, share_inputs=True, share_outputs=True)`` so the
+    call site in execute.py stays identical for both paths.
+    """
+    if os.environ.get("OV_FAST_INFER", "0") == "0":
+        return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
+
+    import openvino as _ov
+    try:
+        _pc_key = id(compiled)
+        _ports = _fastinfer_port_cache.get(_pc_key)
+        if _ports is None:
+            _ports = list(compiled.inputs)
+            _fastinfer_port_cache[_pc_key] = _ports
+        _req_key = id(req)
+        _bound = _fastinfer_bound_ids.get(_req_key)
+        if _bound is None or len(_bound) != len(_ports):
+            _bound = [[0, None] for _ in range(len(_ports))]
+            _fastinfer_bound_ids[_req_key] = _bound
+        for _pi_idx, _port in enumerate(_ports):
+            _val = call_kwargs.get(_port)
+            if _val is None:
+                raise RuntimeError("call_kwargs missing port")
+            _val_id = id(_val)
+            _slot = _bound[_pi_idx]
+            if _val_id == _slot[0] and _slot[1] is not None:
+                continue  # already bound; ov.Tensor wrapper kept alive
+            _t = _val if isinstance(_val, _ov.Tensor) else _ov.Tensor(_val, shared_memory=True)
+            req.set_tensor(_port, _t)
+            _slot[0] = _val_id
+            _slot[1] = _t  # keep alive
+        req.infer()
+        _out = _fastinfer_out_cache.get(_req_key)
+        if _out is None:
+            _out = {out: req.get_tensor(out).data for out in compiled.outputs}
+            _fastinfer_out_cache[_req_key] = _out
+        return _out
+    except Exception:
+        _fastinfer_bound_ids.pop(id(req), None)
+        _fastinfer_out_cache.pop(id(req), None)
+        return req.infer(call_kwargs, share_inputs=True, share_outputs=True)

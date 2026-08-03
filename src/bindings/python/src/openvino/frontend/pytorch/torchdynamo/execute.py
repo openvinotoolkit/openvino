@@ -123,10 +123,6 @@ def execute_cached(compiled_model, *args):
     return result
 
 
-_fastinfer_port_cache = {}
-_fastinfer_bound_ids = {}  # id(req) -> list[int] of last-bound id(tensor) per port
-_fastinfer_out_cache = {}  # id(req) -> {out_port: numpy_view} built once
-
 def openvino_execute(
     gm: GraphModule,
     *args,
@@ -216,61 +212,11 @@ def openvino_execute(
         if isinstance(_eager_out, (list, tuple)):
             return list(_eager_out)
         return _eager_out
-    # Fast infer path: bypass _data_dispatch by calling set_tensor(port, ...)
-    # directly for each input, then infer with no args. Skips ~1 ms/step of
-    # Python-side dict conversion. Gated by OV_FAST_INFER (default off for
-    # correctness; measured +3-15% greedy across 6 models, no correctness
-    # regression on Gemma-4 hybrid attention).
-    import os as _os_fi
-    _fast_infer = _os_fi.environ.get("OV_FAST_INFER", "0") != "0"
-    if _fast_infer and _call_kwargs is not None:
-        import openvino as _ov_fi
-        try:
-            _pc_key = id(compiled)
-            _ports = _fastinfer_port_cache.get(_pc_key)
-            if _ports is None:
-                _ports = list(compiled.inputs)
-                _fastinfer_port_cache[_pc_key] = _ports
-            # Per-request cache: for each port, keep the last-bound value id
-            # AND a reference to the ov.Tensor wrapper so it stays alive
-            # while OV holds it. Skip set_tensor when the same tensor is
-            # already bound (avoids ~200 us/step of pybind11 dispatch).
-            _req_key = id(req)
-            _bound = _fastinfer_bound_ids.get(_req_key)
-            if _bound is None or len(_bound) != len(_ports):
-                # each entry: [val_id, ov_tensor_ref]
-                _bound = [[0, None] for _ in range(len(_ports))]
-                _fastinfer_bound_ids[_req_key] = _bound
-            for _pi_idx, _port in enumerate(_ports):
-                _val = _call_kwargs.get(_port)
-                if _val is None:
-                    raise RuntimeError("_call_kwargs missing port")
-                _val_id = id(_val)
-                _slot = _bound[_pi_idx]
-                if _val_id == _slot[0] and _slot[1] is not None:
-                    continue  # already bound; ov.Tensor wrapper kept alive
-                if isinstance(_val, _ov_fi.Tensor):
-                    _t = _val
-                else:
-                    _t = _ov_fi.Tensor(_val, shared_memory=True)
-                req.set_tensor(_port, _t)
-                _slot[0] = _val_id
-                _slot[1] = _t  # keep alive
-            req.infer()
-            # Cache the output-view dict per req. share_outputs=True means OV
-            # reuses the underlying buffers; the numpy views on .data point at
-            # the same memory across calls. Build once, reuse.
-            _out_dict = _fastinfer_out_cache.get(_req_key)
-            if _out_dict is None:
-                _out_dict = {out: req.get_tensor(out).data for out in compiled.outputs}
-                _fastinfer_out_cache[_req_key] = _out_dict
-            res = _out_dict
-        except Exception:
-            _fastinfer_bound_ids.pop(id(req), None)
-            _fastinfer_out_cache.pop(id(req), None)
-            res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
-    elif _call_kwargs is not None:
-        res = req.infer(_call_kwargs, share_inputs=True, share_outputs=True)
+    if _call_kwargs is not None:
+        # vLLM PA path: delegate to the vllm runtime hook so any fast-path
+        # (per-request set_tensor / output-view caching) stays in vllm/.
+        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh_infer
+        res = _rh_infer.infer_with_pa(req, compiled, _call_kwargs)
     else:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 

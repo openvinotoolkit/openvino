@@ -41,6 +41,61 @@ def widen_affinity_if_needed(options):
         logger.debug("widen_affinity skipped: %s", _e)
 
 
+def bake_symint_constants(om, args, dyn_shapes: bool = True):
+    """Bake integer FX inputs as OV Constants and drop their Parameters.
+
+    vLLM's decode FX graphs are symint-heavy: seq_lens, past_lens, and
+    block-table sizes appear as Python-int placeholders that torch.compile
+    has already specialized for this trace. If we leave them as OV
+    Parameters, ov shape inference uses the unset Parameter upper bound of
+    0 and collapses downstream Broadcast/Reshape outputs to size 0.
+    Baking them as Constants lets shape inference propagate the concrete
+    trace-time values through the graph.
+
+    Also sets the element-type and partial-shape of the remaining tensor
+    Parameters. When ``dyn_shapes`` is True (default), tensor inputs get
+    all-dynamic shapes so the same compiled model is reused across varying
+    batch / seq / past_lens values instead of recompiling every step.
+
+    Non-vLLM callers can skip this entirely; the caller is responsible for
+    setting element_type and partial_shape on the remaining Parameters.
+    """
+    import torch
+    import numpy as np
+    from openvino import Type, PartialShape, opset1 as _opset1
+
+    _dtype_mapping = {
+        torch.float32: Type.f32, torch.float64: Type.f64,
+        torch.float16: Type.f16, torch.int64: Type.i64,
+        torch.int32: Type.i32, torch.uint8: Type.u8,
+        torch.int8: Type.i8, torch.bool: Type.boolean,
+    }
+
+    params_to_remove = []
+    for idx, input_data in enumerate(args):
+        if isinstance(input_data, int):
+            param_node = om.inputs[idx].get_node()
+            const = _opset1.constant(np.array([int(input_data)], dtype=np.int64))
+            for consumer in list(param_node.output(0).get_target_inputs()):
+                consumer.replace_source_output(const.output(0))
+            params_to_remove.append(param_node)
+    for p in params_to_remove:
+        om.remove_parameter(p)
+
+    tensor_idx = 0
+    for input_data in args:
+        if isinstance(input_data, int):
+            continue
+        om.inputs[tensor_idx].get_node().set_element_type(_dtype_mapping[input_data.dtype])
+        if dyn_shapes:
+            om.inputs[tensor_idx].get_node().set_partial_shape(
+                PartialShape([-1] * input_data.ndim))
+        else:
+            om.inputs[tensor_idx].get_node().set_partial_shape(
+                PartialShape(list(input_data.size())))
+        tensor_idx += 1
+
+
 def register_pa_parameters(om):
     """Register dangling ``__pa__``-prefixed Parameters as model inputs.
 

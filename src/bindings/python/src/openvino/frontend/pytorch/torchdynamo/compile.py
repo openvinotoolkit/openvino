@@ -145,39 +145,28 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    # Symint FX inputs are Python ints that torch.compile has already
-    # specialized for this trace. Bake them as Constants so OV's shape
-    # inference propagates concrete bounds through Broadcast/Reshape rather
-    # than using the unset Parameter upper-bound of 0.
-    from openvino import opset1 as _opset1
-    import numpy as _np_compile
-    _params_to_remove = []
-    for idx, input_data in enumerate(args):
-        if isinstance(input_data, int):
-            _param_node = om.inputs[idx].get_node()
-            _const = _opset1.constant(_np_compile.array([int(input_data)], dtype=_np_compile.int64))
-            for _consumer in list(_param_node.output(0).get_target_inputs()):
-                _consumer.replace_source_output(_const.output(0))
-            _params_to_remove.append(_param_node)
-    for _p in _params_to_remove:
-        om.remove_parameter(_p)
+    # vLLM path: bake int (symint) FX inputs as Constants and set
+    # dynamic partial shapes on the remaining tensor inputs. No-op on
+    # non-vLLM callers (options["vllm"] absent), in which case the loop
+    # below handles input types/shapes exactly as upstream.
+    _vllm_shaped = False
+    if _bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args):
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_bake
+            _vh_bake.bake_symint_constants(
+                om, args, dyn_shapes=_bool_opt(options, "dynamic_shapes", True))
+            _vllm_shaped = True
+        except Exception as _ee:
+            logger.debug("vllm.bake_symint_constants skipped: %s", _ee)
 
-    _tensor_idx = 0
-    _dyn = _bool_opt(options, "dynamic_shapes", True)
-    for idx, input_data in enumerate(args):
-        if isinstance(input_data, int):
-            continue  # Already baked as Constant above
-        om.inputs[_tensor_idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-        if _dyn:
-            # Dynamic shapes so the compiled OV model is reused across
-            # different batch sizes / seq lengths / past_lens rather than
-            # recompiling per shape. Disable with options["dynamic_shapes"]=False.
-            om.inputs[_tensor_idx].get_node().set_partial_shape(
-                PartialShape([-1] * input_data.ndim))
-        else:
-            om.inputs[_tensor_idx].get_node().set_partial_shape(
-                PartialShape(list(input_data.size())))
-        _tensor_idx += 1
+    if not _vllm_shaped:
+        for idx, input_data in enumerate(args):
+            if isinstance(input_data, int):
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+            else:
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
 
     om.validate_nodes_and_infer_types()
 
