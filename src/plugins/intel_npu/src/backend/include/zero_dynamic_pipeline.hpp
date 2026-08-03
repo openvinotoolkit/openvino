@@ -60,8 +60,8 @@ class DynamicPipeline final : public IPipeline {
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
         PipelinedCommandLists(size_t numCommandLists,
-                             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                             bool useV2 = false) {
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              bool useV2 = false) {
             if (!useV2) {
                 _commandLists.reserve(numCommandLists);
                 for (size_t i = 0; i < numCommandLists; i++) {
