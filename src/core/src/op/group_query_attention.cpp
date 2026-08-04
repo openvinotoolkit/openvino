@@ -98,6 +98,20 @@ void GroupQueryAttention::validate_and_infer_types() {
                               " (the multi-token staging regime is not yet modelled).");
     }
 
+    // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
+    // batch entry ("Only consider batch is 1"); with batch_size > 1 the per-batch past lengths differ and the
+    // attention mask / cache indexing would be silently wrong. The batch dimension is dynamic in the usual
+    // dynamic-shape deployments (CPU/GPU), which cannot be checked here, so reject only a statically known
+    // batch_size > 1 rather than the whole dynamic path.
+    if (batch_size.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              batch_size.get_length() == 1,
+                              "GroupQueryAttention is only supported for batch_size == 1 when the batch dimension is "
+                              "statically known, got batch_size = ",
+                              batch_size.get_length(),
+                              ".");
+    }
+
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
     const auto& kv_cache_type = get_input_element_type(3);
