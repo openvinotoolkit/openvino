@@ -489,6 +489,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     if (!perf_curve_table.empty()) {
         auto_s_context->m_perf_curve_table = perf_curve_table;
     }
+    auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
+    if (!low_power_device.empty()) {
+        auto_s_context->m_low_power_device = low_power_device;
+    }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -597,6 +601,13 @@ std::optional<float> Plugin::get_device_utilization(const std::string& device_na
     return result;
 }
 
+std::optional<bool> Plugin::get_low_power_mode() {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    return m_telemetry_client->is_low_power_mode();
+}
+
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                       const std::string& model_precision) const {
     if (meta_devices.empty()) {
@@ -689,7 +700,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const std::string& model_precision,
                                         unsigned int priority,
                                         const std::unordered_map<std::string, unsigned>& utilization_thresholds,
-                                        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table) {
+                                        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table,
+                                        const std::string& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
@@ -724,10 +736,23 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 
     DeviceInformation* ptr_select_device = nullptr;
     std::list<DeviceInformation> perf_curve_sorted_devices;
+    // low_power_device (driven by IPF/DTT OnGearChanged) takes precedence over perf_curve_table
+    // and devices_utilization_threshold whenever the platform is in low power mode.
+    auto find_low_power_device = [&]() -> DeviceInformation* {
+        if (low_power_device.empty() || !get_low_power_mode().value_or(false)) {
+            return nullptr;
+        }
+        auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
+            return device.device_name == low_power_device;
+        });
+        return it != valid_devices.end() ? &(*it) : nullptr;
+    };
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
+    } else if (auto* low_power_selected = find_low_power_device()) {
+        ptr_select_device = low_power_selected;
     } else if (!perf_curve_table.empty()) {
         // perf_curve_table takes precedence over devices_utilization_threshold when set.
         perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table);

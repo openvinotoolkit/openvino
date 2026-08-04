@@ -6,6 +6,7 @@
 
 #ifdef OV_AUTO_ENABLE_IPF
 
+#    include <atomic>
 #    include <cmath>
 #    include <vector>
 
@@ -48,6 +49,7 @@ public:
                             k_dtt_gear_changed_path,
                             ipf_ef_error_str(reg_status));
         } else {
+            m_gear_event_registered = true;
             LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
         }
     }
@@ -106,6 +108,15 @@ public:
         }
     }
 
+    std::optional<bool> is_low_power_mode() const {
+        if (m_handle == nullptr || !m_gear_event_registered) {
+            return std::nullopt;
+        }
+        // TODO: derive the real low-power state once the DTT event_data schema is confirmed;
+        // gear_changed_callback only logs for now, so this never becomes true yet.
+        return m_is_low_power_mode.load();
+    }
+
 private:
     // Query IPF node data with the two-call buffer-size protocol.
     std::string get_node(const char* path) {
@@ -129,6 +140,8 @@ private:
     }
 
     void* m_handle = nullptr;
+    bool m_gear_event_registered = false;
+    std::atomic<bool> m_is_low_power_mode{false};
 };
 
 TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
@@ -137,6 +150,10 @@ TelemetryClient::~TelemetryClient() = default;
 
 std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
     return m_impl->utilization(device_name, device_type);
+}
+
+std::optional<bool> TelemetryClient::is_low_power_mode() {
+    return m_impl->is_low_power_mode();
 }
 
 }  // namespace device_monitor
@@ -156,6 +173,10 @@ TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 TelemetryClient::~TelemetryClient() = default;
 
 std::optional<float> TelemetryClient::utilization(const std::string&, const std::string&) {
+    return std::nullopt;
+}
+
+std::optional<bool> TelemetryClient::is_low_power_mode() {
     return std::nullopt;
 }
 

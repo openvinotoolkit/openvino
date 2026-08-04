@@ -22,6 +22,10 @@ public:
 
     std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
 
+    // Whether the platform is currently in low power mode, based on IPF/DTT OnGearChanged
+    // notifications. std::nullopt means unknown/unavailable (IPF absent or event not registered).
+    std::optional<bool> is_low_power_mode();
+
 private:
     class Impl;
     std::unique_ptr<Impl> m_impl;

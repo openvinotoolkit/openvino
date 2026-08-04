@@ -224,6 +224,7 @@ public:
     std::string                                    m_model_precision;
     std::unordered_map<std::string, unsigned>      m_utilization_thresholds;
     std::map<std::string, std::map<unsigned, float>>  m_perf_curve_table;
+    std::string                                    m_low_power_device;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
