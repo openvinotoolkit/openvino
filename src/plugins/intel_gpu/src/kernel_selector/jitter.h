@@ -151,7 +151,7 @@ protected:
 public:
     std::string GetJitName() { return _name; }
     virtual JitDefinitions GetDefinitions() const = 0;
-    virtual ~JitConstant() {}
+    virtual ~JitConstant() = default;
 };
 
 class simple_jit_constant : public JitConstant {
