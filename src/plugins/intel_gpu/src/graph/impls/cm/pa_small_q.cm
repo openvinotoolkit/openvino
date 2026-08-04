@@ -305,15 +305,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             uint block_start_in_partition = block_idx * KV_BLOCK_SIZE;
             uint kv_pos_begin_in_block = (tile_kv_start > (int)block_start_in_partition)
                                          ? (tile_kv_start - (int)block_start_in_partition) : 0;
-            uint kv_pos_end_in_block = KV_BLOCK_SIZE;
-            if (block_idx == block_num - 1 && leftover_size > 0) {
-                kv_pos_end_in_block = leftover_size % KV_BLOCK_SIZE;
-                if (kv_pos_end_in_block == 0) kv_pos_end_in_block = KV_BLOCK_SIZE;
+            const uint partition_valid = (leftover_size > 0) ? leftover_size : (uint)KV_PARTITION_SIZE;
+            uint kv_pos_end_in_block = 0;
+            if (partition_valid > block_start_in_partition) {
+                kv_pos_end_in_block = partition_valid - block_start_in_partition;
+                if (kv_pos_end_in_block > KV_BLOCK_SIZE)
+                    kv_pos_end_in_block = KV_BLOCK_SIZE;
             }
             uint tile_end_in_partition = tile_kv_start + ONLINE_TILE_SIZE;
             if (block_start_in_partition + kv_pos_end_in_block > tile_end_in_partition)
                 kv_pos_end_in_block = tile_end_in_partition - block_start_in_partition;
             uint effective_kv_pos_end = kv_pos_end_in_block;
+            if (effective_kv_pos_end == 0)
+                continue;
 
 #if KV_CACHE_COMPRESSION == 1
             vector<half, KV_BLOCK_SIZE> scale_vec;
@@ -675,15 +679,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             uint block_start_in_partition_v = block_idx * KV_BLOCK_SIZE;
             uint kv_pos_begin_in_block_v = (tile_kv_start > (int)block_start_in_partition_v)
                                            ? (tile_kv_start - (int)block_start_in_partition_v) : 0;
-            uint kv_pos_end_in_block_v = KV_BLOCK_SIZE;
-            if (block_idx == block_num - 1 && leftover_size > 0) {
-                kv_pos_end_in_block_v = leftover_size % KV_BLOCK_SIZE;
-                if (kv_pos_end_in_block_v == 0) kv_pos_end_in_block_v = KV_BLOCK_SIZE;
+            const uint partition_valid_v = (leftover_size > 0) ? leftover_size : (uint)KV_PARTITION_SIZE;
+            uint kv_pos_end_in_block_v = 0;
+            if (partition_valid_v > block_start_in_partition_v) {
+                kv_pos_end_in_block_v = partition_valid_v - block_start_in_partition_v;
+                if (kv_pos_end_in_block_v > KV_BLOCK_SIZE)
+                    kv_pos_end_in_block_v = KV_BLOCK_SIZE;
             }
             uint tile_end_in_partition_v = tile_kv_start + ONLINE_TILE_SIZE;
             if (block_start_in_partition_v + kv_pos_end_in_block_v > tile_end_in_partition_v)
                 kv_pos_end_in_block_v = tile_end_in_partition_v - block_start_in_partition_v;
             uint effective_kv_pos_end = kv_pos_end_in_block_v;
+            if (effective_kv_pos_end == 0)
+                continue;
 
 #if KV_CACHE_COMPRESSION
             vector<half, KV_BLOCK_SIZE> scale_vec;
