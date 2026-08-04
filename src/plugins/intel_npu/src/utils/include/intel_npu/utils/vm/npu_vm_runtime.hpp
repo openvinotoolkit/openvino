@@ -305,6 +305,17 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 );
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Init VM runtime execution context with Level Zero handles (v2.0)
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
+    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
+    ze_context_handle_t ctx,           ///< [in] Level Zero context
+    ze_device_handle_t device,         ///< [in] Level Zero device
+    ze_graph_dditable_ext_t* graphDdiTableExt,  ///< [in] Graph DDI table extension pointer
+    npu_vm_runtime_execution_context_handle_t*
+        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
+);
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute parameters for npuVMRuntimeExecute2
 /// @details Plugin provides Level Zero context handles and a commandQueue.
 ///          The interpreter creates and owns all internal command lists

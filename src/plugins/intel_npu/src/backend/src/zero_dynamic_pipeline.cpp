@@ -142,6 +142,21 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runt
     return _handle;
 }
 
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
+    npu_vm_runtime_handle_t vmRuntime,
+    ze_context_handle_t ctx,
+    ze_device_handle_t device,
+    ze_graph_dditable_ext_t* graphDdiTableExt) {
+    if (_handle == nullptr) {
+        const npu_vm_runtime_result_t result =
+            npuVMRuntimeCreateExecutionContext2(vmRuntime, ctx, device, graphDdiTableExt, &_handle);
+        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context (v2)");
+        }
+    }
+    return _handle;
+}
+
 // Init _inputsMemRef and _outputsMemRef vectors
 void DynamicArguments::setArgumentProperties(uint32_t argi,
                                              const void* argv,
@@ -463,7 +478,8 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     params.numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
     params.pOutputs = args._outputMemRefHandles.data();
     params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
-    params.executionContext = _executionContext.ensure(vmRuntime);
+    params.executionContext =
+        _executionContext.ensureV2(vmRuntime, params.ctx, params.device, params.graphDdiTableExt);
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     if (npuVMRuntimeExecute2(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
@@ -552,7 +568,12 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        params.executionContext = _executionContext.ensure(vmRuntime);
+        params.executionContext = use_v2_api(_apiVersion)
+                                      ? _executionContext.ensureV2(vmRuntime,
+                                                                   _init_structs->getContext(),
+                                                                   _init_structs->getDevice(),
+                                                                   _init_structs->getGraphDdiTable().getImpl())
+                                      : _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
