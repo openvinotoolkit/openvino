@@ -5,6 +5,7 @@
 #include "lstm_kernel_base.h"
 #include "kernel_selector_utils.h"
 #include "common_tools.h"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include <string>
 #include <algorithm>
 #include <cmath>
@@ -69,9 +70,9 @@ JitConstants LSTMKernelBase::GetJitConstants(const lstm_params& params) const {
         jit.Merge(MakeActivationJitConstants(aparams, params.inputs[0].GetDType(), asuffixes[i]));
     }
 
-    // clip == 0 and clip == inf both mean "no clipping" (see ov::op::util::is_no_clip). The plugin layer already
-    // normalizes inf to 0, but guard here as well so a raw inf never turns into a degenerate clamp in the kernel.
-    if (params.clip <= 0 || std::isinf(params.clip)) {
+    // Only a finite positive clip requests clamping (see ov::op::util::requires_clip). The plugin layer already
+    // normalizes 0/inf/NaN away, but guard here too so such a value never turns into a degenerate kernel clamp.
+    if (!ov::op::util::requires_clip(params.clip)) {
         jit.AddConstants({
                 MakeJitConstant("ACTIVATION_PARAMS_CLIP", ""),
                 MakeJitConstant("ACTIVATION_CLIP(x, p)", "(x)"),
