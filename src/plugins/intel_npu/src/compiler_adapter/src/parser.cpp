@@ -104,6 +104,7 @@ std::shared_ptr<IGraph> Parser::parse(
                                              initBlobs,
                                              std::move(weightsSource),
                                              config,
+                                             compatibilityDescriptor,
                                              blobIsPersistent);
 }
 

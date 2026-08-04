@@ -58,9 +58,9 @@ public:
      * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                  const FilteredConfig& config,
-                                  size_t callNumber) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                                                          const FilteredConfig& config,
+                                                                          size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
