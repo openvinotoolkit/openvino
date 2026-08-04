@@ -10,47 +10,13 @@ file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
   )
 
-file(GLOB LIBRARY_SOURCES_OCL
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
+file(GLOB LIBRARY_SOURCES_VULKAN
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.cpp"
 )
 
-file(GLOB LIBRARY_SOURCES_ZE
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/ze/compute_runtime/*.h"
-)
-
-file(GLOB LIBRARY_SOURCES_SYCL
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
-)
-
-file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
-
-if(NOT OV_GPU_WITH_SYCL)
-    list(REMOVE_ITEM LIBRARY_SOURCES_OCL ${OCL_SYCL_SOURCES})
-endif()
-
-set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN})
-
-if(GPU_RT_TYPE STREQUAL "OCL")
-    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
-    set(SYCL_SOURCES ${OCL_SYCL_SOURCES})
-endif()
-
-if(GPU_RT_TYPE STREQUAL "ZE")
-    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
-    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_ZE})
-endif()
-
-if(GPU_RT_TYPE STREQUAL "SYCL")
-    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
-    set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
-endif()
+set(LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_MAIN} ${LIBRARY_SOURCES_VULKAN})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
@@ -73,9 +39,40 @@ target_compile_options(${TARGET_NAME} PRIVATE
     >
   >)
 
-if(OV_GPU_WITH_SYCL)
-    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
-    target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+if(GPU_RT_TYPE STREQUAL "VULKAN")
+    find_package(Vulkan REQUIRED)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_VULKAN_RT)
+
+    # Optional: embed clspv (OpenCL C -> SPIR-V compiler) into the plugin so that
+    # KernelFormat::SOURCE kernels can be compiled at runtime by the Vulkan backend.
+    # OV_GPU_VULKAN_CLSPV_PATH must point to a clspv build tree, OV_GPU_VULKAN_LLVM_PATH
+    # to the LLVM build tree clspv was built against.
+    set(OV_GPU_VULKAN_CLSPV_PATH "" CACHE PATH "Path to a clspv build tree (optional, enables OpenCL C -> SPIR-V compilation in the Vulkan runtime)")
+    set(OV_GPU_VULKAN_LLVM_PATH "" CACHE PATH "Path to the LLVM build tree used to build clspv (optional)")
+    if(OV_GPU_VULKAN_CLSPV_PATH)
+        target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_CLSPV)
+        set(CLSPV_STATIC_LIBS
+            "${OV_GPU_VULKAN_CLSPV_PATH}/lib/libclspv_core.a"
+            "${OV_GPU_VULKAN_CLSPV_PATH}/third_party/SPIRV-Tools/source/libSPIRV-Tools.a")
+        if(OV_GPU_VULKAN_LLVM_PATH)
+            file(GLOB LLVM_STATIC_LIBS "${OV_GPU_VULKAN_LLVM_PATH}/lib/lib*.a")
+            list(APPEND CLSPV_STATIC_LIBS ${LLVM_STATIC_LIBS})
+        endif()
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            # LLVM static libs have cyclic dependencies, resolve them with --start-group
+            target_link_options(${TARGET_NAME} PRIVATE "-Wl,--start-group")
+            foreach(clspv_lib IN LISTS CLSPV_STATIC_LIBS)
+                target_link_libraries(${TARGET_NAME} PRIVATE ${clspv_lib})
+            endforeach()
+            target_link_options(${TARGET_NAME} PRIVATE "-Wl,--end-group")
+        else()
+            target_link_libraries(${TARGET_NAME} PRIVATE ${CLSPV_STATIC_LIBS})
+        endif()
+        if(WIN32)
+            # System libraries required by LLVM Support on Windows
+            target_link_libraries(${TARGET_NAME} PRIVATE ole32 uuid ntdll advapi32 shell32 psapi imagehlp version ws2_32 userenv bcrypt)
+        endif()
+    endif()
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)
@@ -85,12 +82,14 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
-# Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
   )
+
+if(GPU_RT_TYPE STREQUAL "VULKAN")
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

@@ -364,23 +364,11 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_runtime_fallback;
 ```
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_context_type;
 
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_context;
-
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_context_device_id;
-
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_tile_id;
-
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_ocl_queue;
-
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_device;
 
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_shared_mem_type;
 
 OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_mem_handle;
-
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_dev_object_handle;
-
-OPENVINO_C_VAR(const char*) ov_property_key_intel_gpu_va_plane;
 ```
 
 

@@ -81,19 +81,16 @@ private:
     std::shared_ptr<RemoteContextImpl> get_this_shared_ptr();
 
     std::string get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const cldnn::device::ptr current_device) const;
-    std::shared_ptr<ov::IRemoteTensor> reuse_surface(const ov::element::Type type, const ov::Shape& shape, const ov::AnyMap& params);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_cpu_va(const ov::element::Type type, const ov::Shape& shape, VirtualAddressMemory cpu_va, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_handle(const ov::element::Type type, const ov::Shape& shape, SharedBufferHandle handle, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
     std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
-    void check_if_shared() const;
 
     void init_properties();
 
     std::shared_ptr<cldnn::device> m_device;
     std::shared_ptr<cldnn::engine> m_engine;
-    ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
 

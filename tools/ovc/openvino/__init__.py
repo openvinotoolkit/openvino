@@ -92,10 +92,6 @@ from openvino import opset15
 from openvino import opset16
 from openvino import opset17
 
-# libva related:
-from openvino._pyopenvino import VAContext
-from openvino._pyopenvino import VASurfaceTensor
-
 # Set version for openvino package
 from openvino._pyopenvino import get_version
 __version__ = get_version()

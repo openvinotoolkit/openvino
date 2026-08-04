@@ -29,12 +29,3 @@ public:
 };
 
 void regclass_RemoteContext(py::module m);
-
-class VAContextWrapper : public RemoteContextWrapper {
-public:
-    VAContextWrapper(ov::RemoteContext& _context): RemoteContextWrapper{_context} {}
-
-    VAContextWrapper(ov::RemoteContext&& _context): RemoteContextWrapper{std::move(_context)} {}
-};
-
-void regclass_VAContext(py::module m);

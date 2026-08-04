@@ -28,20 +28,14 @@ using os_handle_param = void*;
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class ContextType {
-    OCL = 0,        //!< Pure OpenCL context
-    VA_SHARED = 1,  //!< Context shared with a video decoding device
-    ZE = 2,         //!< Pure Level Zero context
+    VULKAN = 0,  //!< Pure Vulkan context
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ContextType& context_type) {
     switch (context_type) {
-    case ContextType::OCL:
-        return os << "OCL";
-    case ContextType::VA_SHARED:
-        return os << "VA_SHARED";
-    case ContextType::ZE:
-        return os << "ZE";
+    case ContextType::VULKAN:
+        return os << "VULKAN";
     default:
         OPENVINO_THROW("Unsupported context type");
     }
@@ -50,12 +44,8 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
 inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     std::string str;
     is >> str;
-    if (str == "OCL") {
-        context_type = ContextType::OCL;
-    } else if (str == "VA_SHARED") {
-        context_type = ContextType::VA_SHARED;
-    } else if (str == "ZE") {
-        context_type = ContextType::ZE;
+    if (str == "VULKAN") {
+        context_type = ContextType::VULKAN;
     } else {
         OPENVINO_THROW("Unsupported context type: ", str);
     }
@@ -71,20 +61,6 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
 static constexpr Property<ContextType> context_type{"CONTEXT_TYPE"};
 
 /**
- * @brief This key identifies OpenCL context handle
- * in a shared context or shared memory blob parameter map
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<gpu_handle_param> ocl_context{"OCL_CONTEXT"};
-
-/**
- * @brief This key identifies ID of device in OpenCL context
- * if multiple devices are present in the context
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<int> ocl_context_device_id{"OCL_CONTEXT_DEVICE_ID"};
-
-/**
  * @brief In case of multi-tile system,
  * this key identifies tile within given context
  * @ingroup ov_runtime_ocl_gpu_cpp_api
@@ -92,51 +68,21 @@ static constexpr Property<int> ocl_context_device_id{"OCL_CONTEXT_DEVICE_ID"};
 static constexpr Property<int> tile_id{"TILE_ID"};
 
 /**
- * @brief This key identifies OpenCL queue handle in a shared context
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<gpu_handle_param> ocl_queue{"OCL_QUEUE"};
-
-/**
- * @brief This key identifies video acceleration device/display handle
- * in a shared context or shared memory blob parameter map
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<gpu_handle_param> va_device{"VA_DEVICE"};
-
-/**
  * @brief Enum to define the type of the shared memory buffer
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 enum class SharedMemType {
-    OCL_BUFFER = 0,          //!< Shared OpenCL buffer blob
-    OCL_IMAGE2D = 1,         //!< Shared OpenCL 2D image blob
     USM_USER_BUFFER = 2,     //!< Shared USM pointer allocated by user
     USM_HOST_BUFFER = 3,     //!< Shared USM pointer type with host allocation type allocated by plugin
     USM_DEVICE_BUFFER = 4,   //!< Shared USM pointer type with device allocation type allocated by plugin
-    VA_SURFACE = 5,          //!< Shared video decoder surface or D3D 2D texture blob
-    DX_BUFFER = 6,           //!< Shared D3D buffer blob
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
     CPU_VA = 8,              //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin
 };
 
-/**
- * @brief Enum to define memory type for pointer-based tensor sharing API.
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-enum class MemType {
-    SHARED_BUF = 0,  //!< Shared OpenCL buffer handle passed as void* or int
-    CPU_VA = 1,      //!< CPU Virtual Address buffer
-};
-
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem_type) {
     switch (share_mem_type) {
-    case SharedMemType::OCL_BUFFER:
-        return os << "OCL_BUFFER";
-    case SharedMemType::OCL_IMAGE2D:
-        return os << "OCL_IMAGE2D";
     case SharedMemType::USM_USER_BUFFER:
         return os << "USM_USER_BUFFER";
     case SharedMemType::USM_HOST_BUFFER:
@@ -145,10 +91,6 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "USM_DEVICE_BUFFER";
     case SharedMemType::CPU_VA:
         return os << "CPU_VA";
-    case SharedMemType::VA_SURFACE:
-        return os << "VA_SURFACE";
-    case SharedMemType::DX_BUFFER:
-        return os << "DX_BUFFER";
     case SharedMemType::BUFFER_FROM_HANDLE:
         return os << "BUFFER_FROM_HANDLE";
     default:
@@ -159,11 +101,7 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
 inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type) {
     std::string str;
     is >> str;
-    if (str == "OCL_BUFFER") {
-        share_mem_type = SharedMemType::OCL_BUFFER;
-    } else if (str == "OCL_IMAGE2D") {
-        share_mem_type = SharedMemType::OCL_IMAGE2D;
-    } else if (str == "USM_USER_BUFFER") {
+    if (str == "USM_USER_BUFFER") {
         share_mem_type = SharedMemType::USM_USER_BUFFER;
     } else if (str == "USM_HOST_BUFFER") {
         share_mem_type = SharedMemType::USM_HOST_BUFFER;
@@ -171,10 +109,6 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::USM_DEVICE_BUFFER;
     } else if (str == "CPU_VA") {
         share_mem_type = SharedMemType::CPU_VA;
-    } else if (str == "VA_SURFACE") {
-        share_mem_type = SharedMemType::VA_SURFACE;
-    } else if (str == "DX_BUFFER") {
-        share_mem_type = SharedMemType::DX_BUFFER;
     } else if (str == "BUFFER_FROM_HANDLE") {
         share_mem_type = SharedMemType::BUFFER_FROM_HANDLE;
     } else {
@@ -215,24 +149,6 @@ static constexpr Property<void*> cpu_va{"CPU_VA"};
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<int64_t> cpu_va_size{"CPU_VA_SIZE"};
-
-/**
- * @brief This key identifies video decoder surface handle
- * in a shared memory blob parameter map
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-#ifdef _WIN32
-static constexpr Property<gpu_handle_param> dev_object_handle{"DEV_OBJECT_HANDLE"};
-#else
-static constexpr Property<uint32_t> dev_object_handle{"DEV_OBJECT_HANDLE"};
-#endif
-
-/**
- * @brief This key identifies video decoder surface plane
- * in a shared memory blob parameter map
- * @ingroup ov_runtime_ocl_gpu_cpp_api
- */
-static constexpr Property<uint32_t> va_plane{"VA_PLANE"};
 
 /**
  * @brief Platform OS memory handle for importing externally allocated memory into GPU plugin tensors.

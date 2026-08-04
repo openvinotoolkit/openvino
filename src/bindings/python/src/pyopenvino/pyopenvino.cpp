@@ -297,8 +297,6 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_RemoteContext(m);
     regclass_Core(m);
     regclass_AsyncInferQueue(m);
-    regclass_VAContext(m);
-    regclass_VASurfaceTensor(m);
 
     // Properties and hints
     regmodule_properties(m);

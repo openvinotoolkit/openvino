@@ -11,11 +11,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
-if(OV_GPU_WITH_SYCL AND UNIX)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
-  string(REPLACE "-pie" "" CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-endif()
-
 set(TARGET_NAME "ov_gpu_unit_tests")
 
 file(GLOB_RECURSE SOURCES_MAIN
@@ -51,26 +46,6 @@ if (NOT GPU_RT_TYPE STREQUAL "OCL")
     foreach (SOURCE_FILE IN LISTS SOURCES_WITH_OCL_RT)
         list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
     endforeach()
-endif()
-
-file(GLOB_RECURSE SOURCES_WITH_ZE_RT
-    "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/ze/*.cpp"
-  )
-
-if (NOT GPU_RT_TYPE STREQUAL "ZE")
-    foreach (SOURCE_FILE IN LISTS SOURCES_WITH_ZE_RT)
-        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
-    endforeach()
-endif()
-
-file(GLOB_RECURSE SOURCES_WITH_SYCL_RT
-  "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/sycl/*.cpp"
-  )
-
-if (NOT GPU_RT_TYPE STREQUAL "SYCL")
-  foreach (SOURCE_FILE IN LISTS SOURCES_WITH_SYCL_RT)
-    list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
-  endforeach()
 endif()
 
 if (NOT ENABLE_ONEDNN_FOR_GPU)

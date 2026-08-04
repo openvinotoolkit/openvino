@@ -360,10 +360,6 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::usm_device, reset);
         break;
     }
-    case TensorType::BT_BUF_SHARED: {
-        m_memory_object = engine.share_buffer(m_layout, m_mem);
-        break;
-    }
     case TensorType::BT_BUF_SHARED_FROM_HANDLE: {
         m_memory_object = engine.import_buffer(m_layout, m_shared_buffer_handle.value);
         break;
@@ -377,25 +373,6 @@ void RemoteTensorImpl::allocate() {
                                         m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
                                         cldnn::allocation_type::cl_mem,
                                         m_layout);
-        break;
-    }
-#ifdef _WIN32
-    case TensorType::BT_SURF_SHARED: {
-        m_memory_object = engine.share_surface(m_layout, m_mem, m_plane);
-        break;
-    }
-    case TensorType::BT_DX_BUF_SHARED: {
-        m_memory_object = engine.share_dx_buffer(m_layout, m_mem);
-        break;
-    }
-#else
-    case TensorType::BT_SURF_SHARED: {
-        m_memory_object = engine.share_surface(m_layout, m_surf, m_plane);
-        break;
-    }
-#endif
-    case TensorType::BT_IMG_SHARED: {
-        m_memory_object = engine.share_image(m_layout, m_mem);
         break;
     }
     default:
@@ -414,13 +391,9 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 }
 
 bool RemoteTensorImpl::is_shared() const noexcept {
-    return m_mem_type == TensorType::BT_BUF_SHARED ||
-           m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
+    return m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
            m_mem_type == TensorType::BT_CPU_VA ||
-           m_mem_type == TensorType::BT_USM_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_DX_BUF_SHARED;
+           m_mem_type == TensorType::BT_USM_SHARED;
 }
 
 bool RemoteTensorImpl::supports_caching() const {
@@ -443,8 +416,7 @@ void RemoteTensorImpl::update_hash() {
 }
 
 bool RemoteTensorImpl::is_surface() const noexcept {
-    return m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED;
+    return false;
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
@@ -485,41 +457,34 @@ void RemoteTensorImpl::update_properties() {
     const auto ctx_type = it->second.as<ContextType>();
 
     cldnn::shared_mem_params params;
-    if (ctx_type == ContextType::OCL || ctx_type == ContextType::VA_SHARED) {
-        params = m_memory_object->get_internal_params(cldnn::runtime_types::ocl);
-    } else if (ctx_type == ContextType::ZE) {
-        params = m_memory_object->get_internal_params(cldnn::runtime_types::ze);
+    if (ctx_type == ContextType::VULKAN) {
+        params = m_memory_object->get_internal_params(cldnn::runtime_types::vulkan);
     } else {
         OPENVINO_THROW("[GPU] Can't update RemoteTensorImpl properties for unsupported context type (", ctx_type, ")");
     }
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL:
-    case TensorType::BT_BUF_SHARED:
         m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
+            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER),
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
     case TensorType::BT_BUF_SHARED_FROM_HANDLE:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE),
-            ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
     case TensorType::BT_USM_SHARED:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_USER_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
     case TensorType::BT_CPU_VA:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
-            ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
             ov::intel_gpu::cpu_va(m_va_mem.ptr),
         };
@@ -527,44 +492,13 @@ void RemoteTensorImpl::update_properties() {
     case TensorType::BT_USM_HOST_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_HOST_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
         };
         break;
     case TensorType::BT_USM_DEVICE_INTERNAL:
         m_properties = {
             ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
             ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-
-#ifdef _WIN32
-    case TensorType::BT_DX_BUF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::DX_BUFFER),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-        };
-        break;
-#endif
-    case TensorType::BT_IMG_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::OCL_IMAGE2D),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::mem_handle(params.mem),
-        };
-        break;
-    case TensorType::BT_SURF_SHARED:
-        m_properties = {
-            ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::VA_SURFACE),
-            ov::intel_gpu::ocl_context(params.context),
-            ov::intel_gpu::va_device(params.user_device),
-            ov::intel_gpu::mem_handle(params.mem),
-            ov::intel_gpu::dev_object_handle(params.surface),
-            ov::intel_gpu::va_plane(params.plane),
         };
         break;
     default:

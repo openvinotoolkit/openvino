@@ -120,17 +120,6 @@ def test_compile_with_context():
     "GPU" not in os.environ.get("TEST_DEVICE", ""),
     reason="Test can be only performed on GPU device!",
 )
-def test_va_context():
-    core = ov.Core()
-    with pytest.raises(RuntimeError) as context_error:
-        _ = ov.VAContext(core, None)
-    assert "user handle is nullptr!" in str(context_error.value)
-
-
-@pytest.mark.skipif(
-    "GPU" not in os.environ.get("TEST_DEVICE", ""),
-    reason="Test can be only performed on GPU device!",
-)
 def test_copy_host_to_device_gpu():
     core = ov.Core()
     context = core.get_default_context("GPU")

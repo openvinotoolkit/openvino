@@ -24,20 +24,3 @@ public:
 };
 
 void regclass_RemoteTensor(py::module m);
-
-class VASurfaceTensorWrapper : public RemoteTensorWrapper {
-public:
-    VASurfaceTensorWrapper(ov::RemoteTensor& _tensor): RemoteTensorWrapper{_tensor} {}
-
-    VASurfaceTensorWrapper(ov::RemoteTensor&& _tensor): RemoteTensorWrapper{std::move(_tensor)} {}
-
-    uint32_t surface_id() {
-        return tensor.get_params().at(ov::intel_gpu::dev_object_handle.name()).as<uint32_t>();
-    }
-
-    uint32_t plane_id() {
-        return tensor.get_params().at(ov::intel_gpu::va_plane.name()).as<uint32_t>();
-    }
-};
-
-void regclass_VASurfaceTensor(py::module m);

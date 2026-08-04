@@ -31,8 +31,6 @@ ov_add_test_target(
         LINK_LIBRARIES
             funcSharedTests
             openvino::reference
-            OpenCL::NewHeaders # should come before OpenCL::OpenCL
-            OpenCL::OpenCL
         LABELS
             OV GPU
 )
@@ -41,38 +39,6 @@ ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
-endif()
-
-# try to find VA libraries
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_search_module(libva QUIET IMPORTED_TARGET libva)
-endif()
-
-if(libva_FOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
-    target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
-endif()
-
-if(WIN32)
-    include(CheckIncludeFileCXX)
-    # DX11 and DX12 SDK headers may be available independently; enable each
-    # interop test set only when its corresponding header is present to avoid
-    # build breaks on environments that ship only one of the SDKs.
-    check_include_file_cxx(d3d11.h OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
-    check_include_file_cxx(d3d12.h OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
-
-    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H)
-        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX11)
-        target_link_libraries(${TARGET_NAME} PRIVATE d3d11)
-    endif()
-    if(OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
-        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_DX12)
-        target_link_libraries(${TARGET_NAME} PRIVATE d3d12)
-    endif()
-    if(OV_GPU_FUNC_TESTS_HAVE_D3D11_H OR OV_GPU_FUNC_TESTS_HAVE_D3D12_H)
-        target_link_libraries(${TARGET_NAME} PRIVATE dxgi dxguid)
-    endif()
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)

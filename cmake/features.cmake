@@ -42,10 +42,15 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+if(ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "VULKAN")
+    # oneDNN GPU runtime doesn't support Vulkan (only OCL/ZE/SYCL are supported)
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+endif()
+
 # Set default GPU runtime to OCL
 set(OV_GPU_DEFAULT_RT "OCL")
 if (ENABLE_INTEL_GPU)
-    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, SYCL and ZE (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, SYCL, ZE and VULKAN (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL VULKAN)
     if(GPU_RT_TYPE STREQUAL "L0")
         set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
     endif()

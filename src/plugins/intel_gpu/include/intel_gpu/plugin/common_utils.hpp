@@ -22,15 +22,11 @@ namespace intel_gpu {
 enum class TensorType {
     BT_EMPTY,
     BT_BUF_INTERNAL,
-    BT_BUF_SHARED,
     BT_BUF_SHARED_FROM_HANDLE,
     BT_CPU_VA,
     BT_USM_SHARED,
     BT_USM_HOST_INTERNAL,
     BT_USM_DEVICE_INTERNAL,
-    BT_IMG_SHARED,
-    BT_SURF_SHARED,
-    BT_DX_BUF_SHARED,
 };
 
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)

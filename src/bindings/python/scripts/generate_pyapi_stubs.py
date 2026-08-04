@@ -21,9 +21,7 @@ INVALID_IDENTIFIERS = ["<locals>"]            # In openvino.properties.* : Inval
 UNRESOLVED_NAMES = [
     "InferRequestWrapper",                    # In openvino._pyopenvino.CompiledModel.create_infer_request : Can't find/import 'InferRequestWrapper'
     "RemoteTensorWrapper",                    # In openvino._pyopenvino.Tensor.copy_* : Can't find/import 'RemoteTensorWrapper'
-    "capsule",                                # In openvino._pyopenvino.VAContext.__init__ : Can't find/import 'capsule'
-    "VASurfaceTensorWrapper",                 # In openvino._pyopenvino.VAContext.create_tensor : Can't find/import 'VASurfaceTensorWrapper'
-    "typing_extensions.CapsuleType",          # In openvino._pyopenvino.VAContext.__init__ : Can't find/import 'typing_extensions.CapsuleType'
+    "capsule",                                # In openvino._pyopenvino: Can't find/import 'capsule'
     "_abc._abc_data",                         # In openvino.utils.data_helpers.wrappers.OVDict : Can't find/import '_abc._abc_data'
     "InputCutInfo",                           # In openvino.tools.ovc.cli_parser : Can't find/import 'InputCutInfo'
     "ParamData"                               # In openvino.tools.ovc.cli_parser : Can't find/import 'ParamData'

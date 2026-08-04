@@ -9,11 +9,9 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "ocl/ocl_engine_factory.hpp"
-#include "ze/ze_engine_factory.hpp"
-#ifdef OV_GPU_WITH_SYCL_RT
-#include "sycl/sycl_engine_factory.hpp"
-#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_VULKAN_RT
+#include "vulkan/vk_engine_factory.hpp"
+#endif  // OV_GPU_WITH_VULKAN_RT
 
 #include <string>
 #include <vector>
@@ -266,24 +264,9 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
-#ifdef OV_GPU_WITH_SYCL_RT
-    case engine_types::sycl:
-        ret = sycl::create_sycl_engine(device, runtime_type);
-        break;
-#endif  // OV_GPU_WITH_SYCL_RT
-#ifdef OV_GPU_WITH_OCL_RT
-#ifdef OV_GPU_WITH_SYCL
-    case engine_types::sycl:
-        ret = ocl::create_sycl_engine(device, runtime_type);
-        break;
-#endif  // OV_GPU_WITH_SYCL
-    case engine_types::ocl:
-        ret = ocl::create_ocl_engine(device, runtime_type);
-        break;
-#endif
-#ifdef OV_GPU_WITH_ZE_RT
-    case engine_types::ze:
-        ret = ze::create_ze_engine(device, runtime_type);
+#ifdef OV_GPU_WITH_VULKAN_RT
+    case engine_types::vulkan:
+        ret = vk::create_vk_engine(device, runtime_type);
         break;
 #endif
     default:

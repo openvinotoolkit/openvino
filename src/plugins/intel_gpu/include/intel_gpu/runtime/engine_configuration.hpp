@@ -10,16 +10,12 @@ namespace cldnn {
 
 /// @brief Defines available engine types
 enum class engine_types : int32_t {
-    ocl,
-    sycl,
-    ze
+    vulkan
 };
 
 inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     switch (type) {
-    case engine_types::ocl: os << "ocl"; break;
-    case engine_types::sycl: os << "sycl"; break;
-    case engine_types::ze: os << "ze"; break;
+    case engine_types::vulkan: os << "vulkan"; break;
     default: os << "unknown"; break;
     }
 
@@ -28,16 +24,12 @@ inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
 
 /// @brief Defines available runtime types
 enum class runtime_types : int32_t {
-    ocl,
-    sycl,
-    ze,
+    vulkan,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     switch (type) {
-    case runtime_types::ocl: os << "ocl"; break;
-    case runtime_types::sycl: os << "sycl"; break;
-    case runtime_types::ze: os << "ze"; break;
+    case runtime_types::vulkan: os << "vulkan"; break;
     default: os << "unknown"; break;
     }
 
@@ -48,16 +40,14 @@ inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
 enum class backend_types : int32_t {
     cuda,
     hip,
-    ocl,
-    ze,
+    vulkan,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
     switch (type) {
     case backend_types::cuda: os << "cuda"; break;
     case backend_types::hip: os << "hip"; break;
-    case backend_types::ocl: os << "ocl"; break;
-    case backend_types::ze: os << "ze"; break;
+    case backend_types::vulkan: os << "vulkan"; break;
     default: os << "unknown"; break;
     }
 

@@ -9,25 +9,12 @@
 #include "openvino/c/ov_core.h"
 
 const char* ov_property_key_intel_gpu_context_type = "CONTEXT_TYPE";
-const char* ov_property_key_intel_gpu_ocl_context = "OCL_CONTEXT";
-const char* ov_property_key_intel_gpu_ocl_context_device_id = "OCL_CONTEXT_DEVICE_ID";
 const char* ov_property_key_intel_gpu_tile_id = "TILE_ID";
-const char* ov_property_key_intel_gpu_ocl_queue = "OCL_QUEUE";
-const char* ov_property_key_intel_gpu_va_device = "VA_DEVICE";
 const char* ov_property_key_intel_gpu_shared_mem_type = "SHARED_MEM_TYPE";
 const char* ov_property_key_intel_gpu_mem_handle = "MEM_HANDLE";
-const char* ov_property_key_intel_gpu_dev_object_handle = "DEV_OBJECT_HANDLE";
-const char* ov_property_key_intel_gpu_va_plane = "VA_PLANE";
 
 inline bool check_intel_gpu_property_value_is_ptr(std::string& key) {
-#ifdef _WIN32
-    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
-           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle) ||
-           (key == ov_property_key_intel_gpu_dev_object_handle);
-#else
-    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
-           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle);
-#endif
+    return key == ov_property_key_intel_gpu_mem_handle;
 }
 
 //!< Properties of intel gpu cannot be compeletly handled by (char*) type, because it contains non-char pointer which

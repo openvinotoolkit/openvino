@@ -10,11 +10,11 @@ GPU Device
 
 .. meta::
    :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit
-                 is an OpenCL based plugin for inference of deep neural
+                 is a Vulkan based plugin for inference of deep neural
                  networks on Intel® GPus.
 
 
-The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
+The GPU plugin is a Vulkan based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
 
 - `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
@@ -22,6 +22,18 @@ For an in-depth description of the GPU plugin, see:
 - `Start AI Development with Intel <https://www.intel.com/content/www/us/en/developer/topic-technology/artificial-intelligence/overview.html>`__
 
 The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/install-openvino/configurations/configurations-intel-gpu>`.
+
+.. note::
+
+   This build of the GPU plugin uses a single unified **Vulkan** runtime instead of the legacy OpenCL (OCL),
+   Level Zero (ZE), and SYCL runtimes. The plugin compiles OpenCL C kernels to SPIR-V (via clspv) at load time,
+   which removes the dependency on an OpenCL driver and unifies code generation on all supported platforms.
+
+   As a consequence, the plugin-level interoperability with native OpenCL, VAAPI, and DirectX objects
+   (``ov::intel_gpu::ocl::ClContext``, ``ov::intel_gpu::ocl::VAContext``, ``ov::intel_gpu::ocl::D3DContext``,
+   the ``intel_gpu/ocl/*`` headers, and the corresponding C API property keys) is no longer provided.
+   Remote memory sharing is limited to USM-like device memory handles; see the
+   :doc:`Remote Tensor API of GPU Plugin <gpu-device/remote-tensor-api-gpu-plugin>` for details.
 
 Device Naming Convention
 #######################################
@@ -344,26 +356,7 @@ The GPU plugin has the following additional preprocessing options:
 
 - The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.py
-         :language: Python
-         :fragment: init_preproc
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/preprocessing_nv12_two_planes.cpp
-         :language: cpp
-         :fragment: init_preproc
-
-
-With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DTensor`` (or derived) to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
-
-For usage examples, refer to the :doc:`RemoteTensor API <gpu-device/remote-tensor-api-gpu-plugin>`.
+With such preprocessing, GPU plugin will expect a remote tensor to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
 
 For more details, see the :doc:`preprocessing API <../optimize-inference/optimize-preprocessing>`.
 
