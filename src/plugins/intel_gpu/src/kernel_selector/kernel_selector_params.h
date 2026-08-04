@@ -30,7 +30,7 @@ class JitConstants;
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct fuse_params {
-    virtual ~fuse_params() {}
+    virtual ~fuse_params() = default;
 
     KernelType GetType() const { return kType; }
 protected:
@@ -206,6 +206,8 @@ public:
                         uint32_t axisY : 1;
                         uint32_t axisZ : 1;
                         uint32_t axisW : 1;
+                        uint32_t axisU : 1;
+                        uint32_t axisV : 1;
                         uint32_t axisFeature : 1;
                         uint32_t axisBatch : 1;
                         uint32_t kernelPerInput : 1;
@@ -242,7 +244,7 @@ public:
 
         static_assert(sizeof(restrict_t) == sizeof(uint64_t), "problem with union");
 
-        typedef union DataTypesKey_t {
+        union DataTypesKey {
             struct val_t {
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
@@ -262,7 +264,7 @@ public:
                 uint32_t F8E8M0 : 1;
             } val;
             uint32_t raw;
-        } DataTypesKey;
+        };
 
         DataTypesKey inputType;
         DataTypesKey outputType;
@@ -408,9 +410,9 @@ struct EngineInfo {
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
-    std::string deviceId = "";
-    std::string driverVersion = "";
-    std::vector<size_t> supportedSimdSizes = {};
+    std::string deviceId;
+    std::string driverVersion;
+    std::vector<size_t> supportedSimdSizes;
 
     DeviceFeaturesKey get_supported_device_features_key() const;
 };
@@ -419,16 +421,14 @@ struct EngineInfo {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct Params {
-    virtual ~Params() {}
+    virtual ~Params() = default;
 
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
 
     virtual void set_dynamic_shape_offsets() {
-        return;
     }
     virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
-        return;
     }
 
 protected:
@@ -550,7 +550,7 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
-    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
+    bool IsPostReorderFused() const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
         int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
@@ -635,7 +635,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<dep_info> dep_data = {};
+    std::vector<dep_info> dep_data;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }
@@ -656,7 +656,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    ~base_params() override {}
+    ~base_params() override = default;
 
     enum class ArgType {
         Input,
@@ -664,7 +664,7 @@ struct base_params : public Params {
     };
 
     std::vector<base_activation_params> activations;
-    std::vector<fused_operation_desc> fused_ops = {};
+    std::vector<fused_operation_desc> fused_ops;
     MultiDataTensor inputs;
     MultiDataTensor outputs;
 

@@ -543,3 +543,22 @@ TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs128_K2560_sym_prec
                                 "dynamic_quantize_gpu_opt", SetInnerMostDimValuesZero::No,
                                 PrecomputeSum::Enabled);
 }
+
+// GS=64: LARGE_GS mode, GS=32/16: SMALL_GS mode
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs64) {
+    this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 64,
+                                data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt");
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs32) {
+    this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 32,
+                                data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt");
+}
+
+TEST_F(dynamic_quantization_gpu_tests, dynamic_quantize_opt_gs16) {
+    this->test_dynamic_quantization(false, {-1, 1, 4096}, {1, 1, 4096}, QuantizationType::Symmetric, 16,
+                                data_types::i8, data_types::f16, data_types::dynamic, OutputStorageType::Planar,
+                                "dynamic_quantize_gpu_opt");
+}

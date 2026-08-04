@@ -382,6 +382,8 @@ enum class ConcatAxis {
     Y,
     Z,
     W,
+    U,
+    V,
     FEATURE,
     BATCH
 };

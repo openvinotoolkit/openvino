@@ -414,6 +414,8 @@ std::string toString(ConcatAxis a) {
         case ConcatAxis::Y:       return "Y";
         case ConcatAxis::Z:       return "Z";
         case ConcatAxis::W:       return "W";
+        case ConcatAxis::U:       return "U";
+        case ConcatAxis::V:       return "V";
         case ConcatAxis::FEATURE: return "FEATURE";
         case ConcatAxis::BATCH:   return "BATCH";
         default: return "";
