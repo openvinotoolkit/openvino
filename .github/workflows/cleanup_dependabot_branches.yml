@@ -10,6 +10,11 @@ on:
   schedule:
     # at 06:00 every Monday
     - cron: '0 6 * * 1'
+  # TEMPORARY (testing): remove before merge
+  pull_request:
+    paths:
+      - '.github/workflows/cleanup_dependabot_branches.yml'
+      - '.github/scripts/dependabot_cleanup/**'
 
 permissions: read-all
 
@@ -21,6 +26,7 @@ jobs:
     permissions:
       # The fine-grained PAT below carries the branch and pull request privileges.
       contents: read
+      pull-requests: read    # TEMPORARY (testing): needed by the fallback token below
     steps:
       - name: Checkout cleanup script
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -44,6 +50,7 @@ jobs:
           # This is a fine-grained PAT of sys-openvino-ci, scoped to this
           # repository with contents:write and pull-requests:read. That account is
           # a repository admin, a role the ruleset bypass list already covers.
+          # TEMPORARY (testing)
           GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN }}
           # Real deletions happen only on the weekly schedule, or on a manual run
           # where the dry_run checkbox was explicitly unchecked. Every other case
