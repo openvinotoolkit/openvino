@@ -74,10 +74,6 @@ std::vector<uint16_t> parse_version(std::string_view sv) {
 size_t get_stream_total_size(std::istream& stream) {
     OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
-    if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
-        return stream.rdbuf()->in_avail();
-    }
-
     const std::streampos backupCursor = stream.tellg();
     stream.seekg(0, std::ios_base::end);
     const std::streampos streamEnd = stream.tellg();
