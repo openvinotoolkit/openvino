@@ -36,10 +36,10 @@ void regclass_graph_ConstOutputRTMap(py::module m) {
              })
         .def("__delitem__",
              [warn](ConstRTMapView& self, const std::string& k) {
+                 warn();
                  auto it = self.actual->find(k);
                  if (it == self.actual->end())
                      throw py::key_error(k);
-                 warn();
                  self.actual->erase(it);
              })
         // read-only: delegate without warning
@@ -89,10 +89,6 @@ void regclass_graph_ConstOutputRTMap(py::module m) {
         .def("__repr__", [](const ConstRTMapView& self) {
             return std::string("<RTMap>");
         });
-
-    auto type_obj = py::type::of<ConstRTMapView>();
-    type_obj.attr("__name__") = py::str("RTMap");
-    type_obj.attr("__qualname__") = py::str("RTMap");
 }
 
 template <typename T>
