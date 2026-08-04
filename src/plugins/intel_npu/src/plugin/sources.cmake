@@ -67,6 +67,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_eagle3_extension.cpp
