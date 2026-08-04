@@ -4,6 +4,8 @@
 
 #include "node/include/core_wrap.hpp"
 
+#include <exception>
+
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
