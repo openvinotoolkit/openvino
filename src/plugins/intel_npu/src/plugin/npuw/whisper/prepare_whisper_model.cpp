@@ -254,6 +254,13 @@ public:
         register_matcher(
             std::make_shared<opp::Matcher>(tile, this->get_type_info().name),
             [model, unsqueeze](opp::Matcher& m) {
+                // Both patterns are rooted at Tile and neither claims the node it matched, so
+                // GraphRewrite offers every Tile to both. Exactly one matches per model, but a
+                // second match would add a second parameter named cache_position, of which only
+                // the first would ever be found again.
+                OPENVINO_ASSERT(!ov::npuw::util::has_input(model, "cache_position"),
+                                "More than one subgraph matched a cache position pattern");
+
                 auto& node_to_output = m.get_pattern_value_map();
                 auto unsqueeze_node = node_to_output.at(unsqueeze).get_node_shared_ptr();
                 auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(unsqueeze_node);
