@@ -1,0 +1,215 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
+
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/pass/manager.hpp"
+
+using namespace ov;
+using ov::op::internal::GroupQueryAttention;
+
+// Graph-level tests for GroupQueryAttentionDecomposition: the internal op is replaced by a
+// ScaledDotProductAttention-based decomposition, and each feature emits its expected structure
+// (sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
+// parity against ONNX Runtime is covered by the end-to-end tests in onnx_import_com_microsoft.
+namespace {
+
+constexpr int64_t NUM_HEADS = 2;
+constexpr int64_t KV_NUM_HEADS = 1;
+constexpr int64_t HEAD_SIZE = 16;
+
+// Stand-in for an absent optional input. The decomposition detects missing inputs by node description
+// ("NullNode"), matching the ONNX frontend's NullNode, so a filler must report the same description
+// rather than be a real Parameter (which would be treated as a supplied position_ids / bias / etc.).
+class NullNode : public op::Op {
+public:
+    OPENVINO_OP("NullNode");
+    NullNode() {
+        set_output_size(1);
+    }
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector&) const override {
+        return std::make_shared<NullNode>();
+    }
+};
+
+// Chainable so each test case reads as a one-liner without C++20 designated initializers.
+struct GqaParams {
+    std::string name;
+    bool do_rotary = false;
+    bool rotary_interleaved = false;
+    int64_t kv_cache_bit_width = 0;
+    element::Type kv_type = element::f32;
+    int64_t local_window_size = -1;
+    bool sliding_window_cache = false;
+    bool smooth_softmax = false;
+    bool head_sink = false;
+    bool attention_bias = false;
+    Dimension past_len = Dimension::dynamic();
+    Dimension seq_len = 1;
+    // Expected decomposed structure.
+    size_t expected_sdpa_inputs = 4;  // q, k, v, mask (+scale, +sink when a sink is used)
+    bool expects_scatter_update = false;
+
+    explicit GqaParams(std::string n) : name(std::move(n)) {}
+    GqaParams& rotary(bool interleaved = false) {
+        do_rotary = true;
+        rotary_interleaved = interleaved;
+        return *this;
+    }
+    GqaParams& quant(int64_t bits, element::Type t) {
+        kv_cache_bit_width = bits;
+        kv_type = t;
+        return *this;
+    }
+    GqaParams& window(int64_t w) {
+        local_window_size = w;
+        return *this;
+    }
+    GqaParams& windowed_roll(int64_t w, const Dimension& capacity) {
+        local_window_size = w;
+        sliding_window_cache = true;
+        past_len = capacity;
+        expects_scatter_update = true;
+        return *this;
+    }
+    GqaParams& sink_smooth() {
+        smooth_softmax = true;
+        expected_sdpa_inputs = 6;
+        return *this;
+    }
+    GqaParams& sink_head() {
+        head_sink = true;
+        expected_sdpa_inputs = 6;
+        return *this;
+    }
+    GqaParams& bias() {
+        attention_bias = true;
+        return *this;
+    }
+    GqaParams& shape(const Dimension& seq, const Dimension& past) {
+        seq_len = seq;
+        past_len = past;
+        expects_scatter_update = past.is_static();
+        return *this;
+    }
+};
+
+std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
+    const auto f32 = element::f32;
+    const int64_t stored_head = p.kv_cache_bit_width == 4 ? HEAD_SIZE / 2 : HEAD_SIZE;  // 4-bit packs 2/byte
+    const std::string quant = p.kv_cache_bit_width == 0 ? "NONE" : "PER_TENSOR";
+
+    OutputVector args;
+    ParameterVector params;
+    auto add = [&](const element::Type& et, const PartialShape& ps) {
+        auto prm = std::make_shared<op::v0::Parameter>(et, ps);
+        args.push_back(prm);
+        params.push_back(prm);
+    };
+    auto pad_to = [&](size_t idx) {
+        while (args.size() < idx)
+            args.push_back(std::make_shared<NullNode>());  // absent optional input
+    };
+
+    // The internal op receives Q/K/V already transposed to [batch, heads, seq, head_size] (the ONNX FE
+    // splits the packed QKV before creating it).
+    add(f32, PartialShape{1, NUM_HEADS, p.seq_len, HEAD_SIZE});              // 0: query
+    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 1: key
+    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 2: value
+    add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 3: past_key
+    add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 4: past_value
+    add(element::i32, PartialShape{1});                                      // 5: seqlens_k
+    add(element::i32, PartialShape{});                                       // 6: total_sequence_length
+    if (p.do_rotary) {
+        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 7: cos_cache
+        add(f32, PartialShape{1, HEAD_SIZE / 2});  // 8: sin_cache
+    }
+    if (p.attention_bias) {
+        pad_to(10);
+        add(f32, PartialShape{1, NUM_HEADS, p.seq_len, -1});  // 10: attention_bias
+    }
+    if (p.head_sink) {
+        pad_to(11);
+        add(f32, PartialShape{NUM_HEADS});  // 11: head_sink
+    }
+    if (p.kv_cache_bit_width != 0) {
+        pad_to(12);
+        add(element::f32, PartialShape{-1});  // 12: k_scale
+        add(element::f32, PartialShape{-1});  // 13: v_scale
+    }
+
+    const auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                           NUM_HEADS,
+                                                           KV_NUM_HEADS,
+                                                           /*scale*/ 0.0f,
+                                                           p.do_rotary,
+                                                           p.rotary_interleaved,
+                                                           p.kv_cache_bit_width,
+                                                           quant,
+                                                           quant,
+                                                           p.local_window_size,
+                                                           p.sliding_window_cache,
+                                                           p.smooth_softmax);
+    ResultVector results;
+    for (size_t i = 0; i < gqa->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
+    return std::make_shared<Model>(results, params);
+}
+
+}  // namespace
+
+class GroupQueryAttentionDecompositionTest : public testing::TestWithParam<GqaParams> {};
+
+TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
+    const auto& p = GetParam();
+    auto model = make_gqa_model(p);
+    pass::Manager manager;
+    manager.register_pass<pass::GroupQueryAttentionDecomposition>();
+    manager.run_passes(model);
+
+    // The internal op is always replaced by exactly one ScaledDotProductAttention.
+    EXPECT_EQ(count_ops_of_type<GroupQueryAttention>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 1u);
+
+    // The sink input (smooth_softmax / head_sink) shows up as extra SDPA inputs.
+    for (const auto& op : model->get_ordered_ops())
+        if (auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(op))
+            EXPECT_EQ(sdpa->get_input_size(), p.expected_sdpa_inputs);
+
+    // The windowed rolling cache assembles the present buffer with ScatterUpdate; other paths do not.
+    EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model) > 0u, p.expects_scatter_update);
+}
+
+INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
+                         GroupQueryAttentionDecompositionTest,
+                         testing::Values(GqaParams{"causal_decode"},
+                                         GqaParams{"prefill"}.shape(4, Dimension::dynamic()),
+                                         GqaParams{"rotary"}.rotary(),
+                                         GqaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
+                                         GqaParams{"static_past_scatter"}.shape(1, 8),
+                                         GqaParams{"sliding_window"}.window(2),
+                                         GqaParams{"attention_bias"}.bias(),
+                                         GqaParams{"sliding_window_bias"}.window(2).bias(),
+                                         GqaParams{"smooth_softmax"}.sink_smooth(),
+                                         GqaParams{"head_sink"}.sink_head(),
+                                         GqaParams{"i8_per_tensor"}.quant(8, element::i8),
+                                         GqaParams{"i4_per_tensor"}.quant(4, element::u8),
+                                         GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
+                                         GqaParams{"windowed_cache"}.windowed_roll(3, 4)),
+                         [](const testing::TestParamInfo<GqaParams>& i) {
+                             return i.param.name;
+                         });
