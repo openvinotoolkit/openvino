@@ -214,9 +214,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
-        const auto& weights_shape = fc->get_input_shape(1);
+        // With enable_parameter_weights, weights/scale may be Parameters with dynamic shapes.
+        const auto& weights_pshape = fc->get_input_partial_shape(1);
+        const auto& scale_pshape = weights_block->get_anchor("mul_const", pattern_map).value().get_partial_shape();
+        if (weights_pshape.is_dynamic() || scale_pshape.is_dynamic()) {
+            return false;
+        }
+        const auto weights_shape = weights_pshape.to_shape();
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
-        auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
+        const auto scale_shape = scale_pshape.to_shape();
         bool grouped = scale_shape.size() == weights_shape.size() + 1;
         ov::NodeVector result_nodes;
         const auto [fc_input_b, fc_input_scale, fc_input_zp] = process_compressed_weights(weights_block,
