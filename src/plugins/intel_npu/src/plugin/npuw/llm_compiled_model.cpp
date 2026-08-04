@@ -1650,15 +1650,28 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
         if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
             return false;  // VLM is out of scope in v1
         }
+        if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
+            return false;  // token type ids are not routed through a continued prefill
+        }
     }
     // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
-    // as a contiguous continuation and is excluded statically.
+    // as a contiguous continuation and is excluded statically. A read-only property
+    // must never throw, so a dynamic rank is treated as unsupported rather than
+    // queried through PartialShape::size(), which asserts a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
-    if (!position_ids_port.has_value() || position_ids_port.value().get_partial_shape().size() >= 3u) {
+    if (!position_ids_port.has_value()) {
         return false;
     }
-    return true;
+    const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+        return false;
+    }
+    // Every static exclusion above passed, but this change carries the protocol only:
+    // nothing attaches the coordinator to the variable state yet, so a proposal would
+    // throw. A capability the request cannot honour must never be advertised, so the
+    // answer stays false until the delta prefill path lands and lifts this.
+    return false;
 }
 
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {

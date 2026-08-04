@@ -48,7 +48,9 @@ public:
 
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override {
         if (!has_continuation()) {
-            OPENVINO_THROW("StoredTokensState::set_state() should not be called!");
+            OPENVINO_THROW("npuw_stored_tokens_state: set_state() is a continuous prefill proposal and requires "
+                           "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL on a model where "
+                           "NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED reports true.");
         }
         OPENVINO_ASSERT(new_state, "npuw_stored_tokens_state: set_state() received a null tensor.");
         OPENVINO_ASSERT(new_state->get_element_type() == ov::element::i64,
