@@ -246,6 +246,7 @@ public:
 
         union DataTypesKey {
             struct val_t {
+                uint32_t uint2 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
