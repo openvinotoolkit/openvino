@@ -676,7 +676,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
         } else if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
             OPENVINO_THROW("Batching size is not matching all the tensors.");
         }
-    } else if (!_graph->is_dynamic()) {
+    } else {
         batchSizeCandidate = _graph->get_batch_size();
     }
     if (_graph->is_dynamic()) {

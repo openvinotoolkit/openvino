@@ -370,6 +370,8 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     _logger.debug("Graph initialize finish");
 
+    _batchSize = determine_batch_size();
+
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
     _init_completed.store(true, std::memory_order_release);
 }
@@ -379,8 +381,8 @@ bool DynamicGraph::release_blob(const FilteredConfig& config) {
     return false;
 };
 
-void DynamicGraph::set_batch_size(std::size_t) {
-    // Dynamic graph batches are represented by runtime tensor shapes.
+void DynamicGraph::set_batch_size(std::size_t batch) {
+    _batchSize = batch;
 }
 
 uint32_t DynamicGraph::get_unique_id() {
@@ -395,8 +397,60 @@ uint32_t DynamicGraph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
+std::optional<size_t> DynamicGraph::determine_batch_size() {
+    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
+    if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
+        return std::nullopt;
+    }
+
+    const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
+    if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
+                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
+
+            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
+            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
+
+            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
+                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
+                return false;
+            }
+
+            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
+                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
+                    *shapeFromIRModel.begin() != candidateBatchSize) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
+        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    _logger.debug("Batching is handled by the plugin");
+
+    return candidateBatchSize;
+}
+
 const std::optional<std::size_t> DynamicGraph::get_batch_size() const {
-    return std::nullopt;
+    return _batchSize;
 }
 
 DynamicGraph::~DynamicGraph() {

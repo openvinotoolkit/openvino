@@ -281,6 +281,7 @@ protected:
 };
 
 class InferWithHostCompileDynamicBatchTests : public InferWithHostCompileTests {};
+class InferWithHostCompileStaticBatchTests : public InferWithHostCompileTests {};
 
 InferWithHostCompileTests::ScopedLogCapture::ScopedLogCapture()
     : callback([this](std::string_view s) {
@@ -351,6 +352,11 @@ std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const st
     }
     if (modelName == "MaxPool_NCHW_DynBatch") {
         return createMaxPoolModel(true, false);
+    }
+    if (modelName == "MaxPool_NCHW_StaticBatch") {
+        auto model = createMaxPoolModel(false, false);
+        model->reshape(ov::PartialShape{2, 16, 32, 32});
+        return model;
     }
 
     OPENVINO_THROW("Unknown model name for InferWithHostCompileTests: ", modelName);
@@ -708,12 +714,13 @@ TEST_P(InferWithHostCompileDynamicBatchTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(testContext.reqReference.set_tensor(model->input(), fullBatchTensor));
     OV_ASSERT_NO_THROW(testContext.reqDynamic.infer());
     OV_ASSERT_NO_THROW(testContext.reqReference.infer());
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), batchShape);
     ov::test::utils::compare(testContext.reqReference.get_tensor(model->output()),
                              testContext.reqDynamic.get_tensor(model->output()),
                              model->output().get_element_type());
 
     const auto countVMExecutions = [](const std::string& log) {
-        constexpr std::string_view marker = "Start to execute graph with runtime engine";
+        constexpr std::string_view marker = "Execute graph with runtime engine";
         size_t count = 0;
         size_t position = 0;
         while ((position = log.find(marker, position)) != std::string::npos) {
@@ -735,11 +742,64 @@ TEST_P(InferWithHostCompileDynamicBatchTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(testContext.reqReference.set_tensors(model->input(), tensorBatch));
     OV_ASSERT_NO_THROW(testContext.reqDynamic.infer());
     OV_ASSERT_NO_THROW(testContext.reqReference.infer());
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), batchShape);
     ov::test::utils::compare(testContext.reqReference.get_tensor(model->output()),
                              testContext.reqDynamic.get_tensor(model->output()),
                              model->output().get_element_type());
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+
+    logCapture.clear();
+    OV_ASSERT_NO_THROW(testContext.reqDynamic.set_tensor(model->input(), tensorBatch.front()));
+    OV_ASSERT_NO_THROW(testContext.reqReference.set_tensor(model->input(), tensorBatch.front()));
+    OV_ASSERT_NO_THROW(testContext.reqDynamic.infer());
+    OV_ASSERT_NO_THROW(testContext.reqReference.infer());
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), singleBatchShape);
+    ov::test::utils::compare(testContext.reqReference.get_tensor(model->output()),
+                             testContext.reqDynamic.get_tensor(model->output()),
+                             model->output().get_element_type());
+
+    ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+}
+
+TEST_P(InferWithHostCompileStaticBatchTests, StaticBatchKeepsPluginSplitting) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    const ov::Shape batchShape = {2, 16, 32, 32};
+    auto inputTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), batchShape, 100, 0);
+    OV_ASSERT_NO_THROW(testContext.reqDynamic.set_tensor(model->input(), inputTensor));
+    OV_ASSERT_NO_THROW(testContext.reqReference.set_tensor(model->input(), inputTensor));
+    OV_ASSERT_NO_THROW(testContext.reqDynamic.infer());
+    OV_ASSERT_NO_THROW(testContext.reqReference.infer());
+    ov::test::utils::compare(testContext.reqReference.get_tensor(model->output()),
+                             testContext.reqDynamic.get_tensor(model->output()),
+                             model->output().get_element_type());
+
+    constexpr std::string_view marker = "Execute graph with runtime engine";
+    const auto log = logCapture.str();
+    size_t count = 0;
+    size_t position = 0;
+    while ((position = log.find(marker, position)) != std::string::npos) {
+        ++count;
+        position += marker.size();
+    }
+    ASSERT_EQ(count, batchShape.front()) << log;
 }
 
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;

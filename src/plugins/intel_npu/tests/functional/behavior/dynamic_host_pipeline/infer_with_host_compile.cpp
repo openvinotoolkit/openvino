@@ -42,6 +42,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(dynamicBatchModelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileDynamicBatchTests>);
 
+const std::vector<std::string> staticBatchModelNames = {"MaxPool_NCHW_StaticBatch"};
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferWithHostCompileStaticBatchTests,
+                         ::testing::Combine(::testing::ValuesIn(devices),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(staticBatchModelNames)),
+                         ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileStaticBatchTests>);
+
 const std::vector<ov::AnyMap> defaultHostCompileconfigs = {{
     {"NPU_COMPILER_TYPE", "PLUGIN"},
     {"NPU_CREATE_EXECUTOR", "0"},
