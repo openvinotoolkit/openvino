@@ -64,14 +64,14 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
     const int n = get_global_id(0);
 
     const int OUTPUT_C_STRIDE = OUTPUT_SIZE_Y * OUTPUT_SIZE_X;
-    const int LOCAL_GRID_OFFSET_FOR_THI_BLOCK = GRID_ITEMS_PER_BLOCK * 2 * get_group_id(1);
+    const int LOCAL_GRID_OFFSET_FOR_THIS_BLOCK = GRID_ITEMS_PER_BLOCK * 2 * get_group_id(1);
     const int BLOCK_SIZE = get_local_size(1);
     const int GRID_ITEMS_FOR_THIS_BLOCK =
-        min(OUTPUT_C_STRIDE * 2 - LOCAL_GRID_OFFSET_FOR_THI_BLOCK, GRID_ITEMS_PER_BLOCK * 2);
+        min(OUTPUT_C_STRIDE * 2 - LOCAL_GRID_OFFSET_FOR_THIS_BLOCK, GRID_ITEMS_PER_BLOCK * 2);
 
     for (int thisThreadHW = get_local_linear_id() * 2; thisThreadHW < GRID_ITEMS_FOR_THIS_BLOCK;
          thisThreadHW += 2 * BLOCK_SIZE) {
-        const int globalThisThreadHW = (thisThreadHW + LOCAL_GRID_OFFSET_FOR_THI_BLOCK) / 2;
+        const int globalThisThreadHW = (thisThreadHW + LOCAL_GRID_OFFSET_FOR_THIS_BLOCK) / 2;
         const int h = globalThisThreadHW / OUTPUT_SIZE_X;
         const int w = globalThisThreadHW % OUTPUT_SIZE_X;
 
