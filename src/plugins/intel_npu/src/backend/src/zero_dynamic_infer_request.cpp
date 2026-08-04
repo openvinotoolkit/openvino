@@ -21,13 +21,11 @@ ZeroDynamicInferRequest::ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitS
 void ZeroDynamicInferRequest::create_pipeline_impl() {
     _logger.debug("create_pipeline_impl - constructing pipeline");
     // Construct pipeline. The pipeline owns the VM execution context shared by shape prediction and execution.
-    const auto batchSize = _graph->get_batch_size();
     _pipeline = std::make_unique<DynamicPipeline>(_initStructs,
                                                   _graph,
                                                   _config,
                                                   _levelZeroInputTensors,
-                                                  _levelZeroOutputTensors,
-                                                  batchSize.value_or(utils::DEFAULT_BATCH_SIZE));
+                                                  _levelZeroOutputTensors);
 
     _logger.debug("create_pipeline_impl - completed");
 }
@@ -38,13 +36,6 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                       itt::domains::LevelZeroBackend,
                       "ZeroDynamicInferRequest",
                       "sync_zero_tensor_with_graph");
-    _logger.debug("PLUGIN_BATCH_DIAG set_tensor dynamic input=%zu is input=%s graph batch=%zu configured=%s "
-                  "dynamic batch changed=%s",
-                  foundPort.idx,
-                  foundPort.is_input() ? "true" : "false",
-                  _graph->get_batch_size().value_or(0),
-                  _graph->get_batch_size().has_value() ? "true" : "false",
-                  _dynamicBatchValueChanged ? "true" : "false");
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         auto& levelZeroTensor =
             foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
@@ -65,16 +56,12 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
 
             // Check if the current Level Zero tensor was previously shared with the user. If so, it cannot be reused;
             // allocate a new tensor to back up the user tensor (which cannot be imported or used directly).
-            if (_dynamicBatchValueChanged || levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
+            if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused() ||
                 (levelZeroTensor != nullptr && (levelZeroTensor->get_byte_size() < tensor->get_byte_size()))) {
-                _logger.debug("PLUGIN_BATCH_DIAG set_tensor dynamic: allocating Level Zero tensor with graph batch=%zu "
-                              "configured=%s",
-                              _graph->get_batch_size().value_or(0),
-                              _graph->get_batch_size().has_value() ? "true" : "false");
                 _logger.debug("sync_zero_tensor_with_graph - allocate locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
-                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input(), _graph->get_batch_size());
+                levelZeroTensor = allocate_tensor(foundPort.idx, foundPort.is_input());
             } else {
                 _logger.debug("sync_zero_tensor_with_graph - reusing the level zero tensor since it is not shared with "
                               "the user, and old L0 tensor is large enough");
@@ -82,7 +69,7 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
             }
         }
 
-        if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
+        if (_pipelineIsCreated) {
             _logger.debug("sync_zero_tensor_with_graph - update graph arguments");
 
             OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
@@ -106,9 +93,6 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
                                                       : _metadata.outputs.at(foundPort.idx).indexUsedByDriver,
                                                   levelZeroTensor);
             }
-        } else if (_pipelineIsCreated) {
-            _logger.debug("PLUGIN_BATCH_DIAG set_tensor dynamic: defer command-list update until pipeline rebuild "
-                          "because dynamic batch changed");
         }
     }
     if (!_pipelineIsCreated) {
@@ -120,88 +104,41 @@ void ZeroDynamicInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest
 
 void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::FoundPort& foundPort,
                                                            const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                                           const std::optional<size_t>& batchSize) {
+                                                           const std::optional<size_t>&) {
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSORS,
                       itt::domains::LevelZeroBackend,
                       "ZeroDynamicInferRequest",
                       "sync_zero_tensors_with_graph");
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSize.has_value()) {
-        get_level_zero_inputs(foundPort.idx).resize(tensors.size());
+    auto& levelZeroTensors = get_level_zero_inputs(foundPort.idx);
+    levelZeroTensors.resize(1);
+    auto& levelZeroTensor = get_level_zero_input(foundPort.idx);
 
-        for (size_t i = 0; i < tensors.size(); i++) {
-            auto originalLevelZeroTensor = get_level_zero_input(foundPort.idx, i);
-            try {
-                _logger.debug("sync_zero_tensors_with_graph - create zero tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "create_zero_tensor");
-                get_level_zero_input(foundPort.idx, i) = std::make_shared<ZeroTensor>(_initStructs, tensors.at(i));
-            } catch (const ZeroMemException& exception) {
-                _logger.debug("sync_zero_tensors_with_graph - exception caught while trying to create a Level Zero "
-                              "tensor from the user tensor: %s",
-                              exception.what());
+    ov::Shape batchedShape = tensors.at(SINGLE_TENSOR)->get_shape();
+    batchedShape[utils::BATCH_AXIS] = tensors.size();
 
-                _logger.debug("sync_zero_tensors_with_graph - allocate locally L0 tensor");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "allocate_tensor");
-                get_level_zero_input(foundPort.idx, i) = allocate_tensor(foundPort.idx, INPUT, batchSize);
-            }
-
-            if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
-                OPENVINO_ASSERT(get_level_zero_input(foundPort.idx, i)->data(), "Empty buffer");
-                OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "update_graph_arguments");
-                if (originalLevelZeroTensor != nullptr &&
-                    originalLevelZeroTensor->get_shape() != tensors.at(i)->get_shape()) {
-                    _logger.debug(
-                        "set_tensors - update graph arguments with user tensor pointer since shape is changed");
-                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
-                                                      get_level_zero_input(foundPort.idx, i),
-                                                      i,
-                                                      tensors.at(i)._ptr);
-                    _isTensorChanged = true;
-                } else {
-                    _logger.debug(
-                        "set_tensors - update graph arguments without user tensor pointer since shape is not changed");
-                    _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver,
-                                                      get_level_zero_input(foundPort.idx, i),
-                                                      i);
-                }
-            }
-        }
-    } else if (!batchSize.has_value()) {
-        auto& levelZeroTensors = get_level_zero_inputs(foundPort.idx);
-        levelZeroTensors.resize(1);
-        auto& levelZeroTensor = get_level_zero_input(foundPort.idx);
-
-        ov::Shape batchedShape = tensors.at(SINGLE_TENSOR)->get_shape();
-        batchedShape[utils::BATCH_AXIS] = tensors.size();
-
-        if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
-            levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
-        } else {
-            levelZeroTensor->set_shape(batchedShape);
-        }
-
-        const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
-
-        if (_pipelineIsCreated) {
-            OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
-            OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "update_graph_arguments");
-            _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver, levelZeroTensor);
-        }
-
-        _isTensorChanged = true;
+    if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
+        levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
+    } else {
+        levelZeroTensor->set_shape(batchedShape);
     }
 
-    if (!_pipelineIsCreated) {
-        _isTensorChanged = true;
+    const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
+    if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
+        levelZeroTensor->set_element_type(userTensorElementType);
     }
+
+    if (_pipelineIsCreated) {
+        OPENVINO_ASSERT(levelZeroTensor->data(), "Empty buffer");
+        OV_ITT_TASK_NEXT(ZERO_SET_TENSORS, "update_graph_arguments");
+        _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver, levelZeroTensor);
+    }
+
+    _isTensorChanged = true;
 }
 
-std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
-    const size_t index,
-    const bool isInput,
-    const std::optional<std::size_t>& batchSize) const {
+std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_t index,
+                                                                     const bool isInput,
+                                                                     const std::optional<std::size_t>&) const {
     IODescriptor descriptor = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
     // Create new IODescriptor based on user input|output and descriptor
     if (isInput && get_user_input(index) != nullptr) {
@@ -220,15 +157,9 @@ std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(
 
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
-    if (batchSize.has_value()) {
-        allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
-    } else if (isInput && is_batched_input(index)) {
+    if (isInput && is_batched_input(index)) {
         allocatedTensorShape[utils::BATCH_AXIS] = get_user_inputs(index).size();
     }
-    _logger.debug("PLUGIN_BATCH_DIAG allocate tensor: %s index=%zu final shape=%s",
-                  isInput ? "input" : "output",
-                  index,
-                  allocatedTensorShape.to_string().c_str());
 
     auto tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, isInput);
 
@@ -267,12 +198,6 @@ void ZeroDynamicInferRequest::predict_output_shapes(std::vector<ov::Shape>& pred
     // Predict output shapes based on current inputs. The infer request only deals with tensors/OV shapes;
     // MemRef packing is done inside the pipeline layer.
     predictedShapes.clear();
-
-    const auto batchSize = _graph->get_batch_size();
-    _logger.debug("PLUGIN_BATCH_DIAG predict output shapes: plugin batch=%zu configured=%s tensor changed=%s",
-                  batchSize.value_or(0),
-                  batchSize.has_value() ? "true" : "false",
-                  _isTensorChanged ? "true" : "false");
 
     if (_graph->get_handle() != nullptr && _isTensorChanged) {
         std::vector<std::shared_ptr<ov::ITensor>> inputTensors(_metadata.inputs.size());
@@ -380,13 +305,6 @@ void ZeroDynamicInferRequest::prepare_outputs() {
         if (reshapeToPredicted) {
             const ov::Shape& predictedShape = _predictedShapes[outputIndex];
             if (levelZeroTensor->get_shape() != predictedShape) {
-                const auto batchSize = _graph->get_batch_size();
-                _logger.debug("PLUGIN_BATCH_DIAG prepare outputs: output=%zu reshape with plugin batch=%zu "
-                              "configured=%s predicted shape=%s",
-                              outputIndex,
-                              batchSize.value_or(0),
-                              batchSize.has_value() ? "true" : "false",
-                              predictedShape.to_string().c_str());
                 _logger.info("prepare_outputs - reshape output tensor %zu from %s to predicted shape %s",
                              outputIndex,
                              levelZeroTensor->get_shape().to_string().c_str(),
