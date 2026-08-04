@@ -60,8 +60,8 @@ private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
-    void initialize_engine();
-    void create_execution_engine();
+    void initialize_engine(const FilteredConfig& config);
+    void create_execution_engine(const FilteredConfig& config);
     void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

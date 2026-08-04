@@ -24,7 +24,7 @@ struct VMExecutionContext {
     VMExecutionContext& operator=(VMExecutionContext&&) = delete;
     ~VMExecutionContext();
 
-    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime, bool useV2 = false);
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
 };
 
 struct DynamicArguments {
