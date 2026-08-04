@@ -5,7 +5,6 @@
 //
 
 #include "sycl_stream.hpp"
-#include "CL/cl.h"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
 #include "sycl_command_queues_builder.hpp"
