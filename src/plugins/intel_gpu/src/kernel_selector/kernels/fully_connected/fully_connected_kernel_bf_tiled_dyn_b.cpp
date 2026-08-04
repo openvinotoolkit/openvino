@@ -249,7 +249,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
         if (scale_group_size % simd == 0)
             add_decompress_scale_post_op = true;
