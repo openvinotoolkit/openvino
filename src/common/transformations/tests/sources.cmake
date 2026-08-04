@@ -25,6 +25,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/binarize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_elementwise_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_matmul_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_transition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/change_placeholder_types_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/clamp_fusion.cpp
