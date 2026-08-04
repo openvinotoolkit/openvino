@@ -59,6 +59,14 @@ Linux
 
       .. tab-set::
 
+         .. tab-item:: Ubuntu 26.04
+            :sync: ubuntu-26
+
+            .. code-block:: sh
+
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu26_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+               tar -xf openvino_genai_2026.3.0.0.tgz
+
          .. tab-item:: Ubuntu 24.04
             :sync: ubuntu-24
 
@@ -73,6 +81,14 @@ Linux
             .. code-block:: sh
 
                curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu22_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+               tar -xf openvino_genai_2026.3.0.0.tgz
+
+         .. tab-item:: RHEL 8
+            :sync: rhel-8
+
+            .. code-block:: sh
+
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_rhel8_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
                tar -xf openvino_genai_2026.3.0.0.tgz
 
    .. tab-item:: ARM 64-bit
@@ -110,4 +126,3 @@ Here are the full guides:
 :doc:`Linux <install-openvino-archive-linux>`,
 :doc:`Windows <install-openvino-archive-windows>`, and
 :doc:`macOS <install-openvino-archive-macos>`.
-
