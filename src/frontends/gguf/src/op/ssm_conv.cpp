@@ -30,12 +30,13 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
 
     int64_t n_s = sx_shape[1];
     int64_t d_inner = sx_shape[2];
-    int64_t ncs = sx_shape[3];
     int64_t d_conv = c_shape[3];
-    int64_t n_t = ncs - d_conv + 1;
 
-    // [1, n_s, d_inner, ncs] -> [n_s, d_inner, ncs] for 1D GroupConvolution.
-    auto sx_new_shape = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{n_s, d_inner, ncs});
+    // The conv-window length ncs (= n_t + d_conv - 1) and the token count n_t are token-dependent: the
+    // stateful model is compiled once and reused across token counts, so keep those axes dynamic (-1)
+    // rather than baking the convert-time value. n_s/d_inner/d_conv are structurally static.
+    // [1, n_s, d_inner, ncs] -> [n_s, d_inner, ncs] (ncs dynamic) for 1D GroupConvolution.
+    auto sx_new_shape = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{n_s, d_inner, -1});
     auto sx_reshaped = std::make_shared<ov::op::v1::Reshape>(sx, sx_new_shape, false);
 
     // Filter [groups, out/groups, in/groups, kernel] = [d_inner, 1, 1, d_conv].
@@ -49,7 +50,8 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 1});
     auto transposed = std::make_shared<ov::op::v1::Transpose>(conv, perm);
 
-    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, n_s, n_t, d_inner});
+    // [1, n_s, n_t, d_inner] with the token axis n_t dynamic (-1).
+    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, n_s, -1, d_inner});
     auto res = std::make_shared<ov::op::v1::Reshape>(transposed, out_shape, false);
 
     return rename_outputs_with_suffix({res}, context.get_name());

@@ -98,8 +98,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
     loop_impl() : parent() {}
 
-    loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
-        _back_edges(other._back_edges) {}
+    loop_impl(const loop_impl& other) = default;
 
     explicit loop_impl(const loop_node& node) {
         set_node_params(node);
