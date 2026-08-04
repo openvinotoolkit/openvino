@@ -107,7 +107,11 @@ get_available_python_versions () {
             [ -e "$lib" ] || continue
             ver_tag=$(basename "$lib" | sed -n 's/^_pyopenvino\.cpython-\([0-9][0-9]*\)[a-z]*-.*/\1/p')
             [ -z "$ver_tag" ] && continue
-            available_python_versions="${available_python_versions:+$available_python_versions }${ver_tag%"${ver_tag#?}"}.${ver_tag#?}"
+            ver_str="${ver_tag%"${ver_tag#?}"}.${ver_tag#?}"
+            case " $available_python_versions " in
+                *" $ver_str "*) ;;
+                *) available_python_versions="${available_python_versions:+$available_python_versions }$ver_str" ;;
+            esac
         done
     fi
 }

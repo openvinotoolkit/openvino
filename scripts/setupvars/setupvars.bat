@@ -96,7 +96,7 @@ for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
 )
 
 :: Strip non-numeric suffix from minor version (e.g., 14t -> 14)
-call :strip_suffix pyversion_minor
+for /f "delims=t" %%i in ("%pyversion_minor%") do set "pyversion_minor=%%i"
 
 set "current_python_version=%pyversion_major%.%pyversion_minor%"
 
@@ -147,7 +147,9 @@ set "fname=%~1"
 set "tag=%fname:*_pyopenvino.cp=%"
 for /f "delims=-" %%A in ("%tag%") do set "vernum=%%A"
 call :strip_suffix vernum
-set "available_python_versions=%available_python_versions% %vernum:~0,1%.%vernum:~1%"
+set "ver=%vernum:~0,1%.%vernum:~1%"
+echo %available_python_versions% | findstr /C:" %ver%" >NUL 2>&1 || set "available_python_versions=%available_python_versions% %ver%"
+set "ver="
 exit /B 0
 
 :match_python_version
