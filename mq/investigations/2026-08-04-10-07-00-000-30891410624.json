@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-04-10-07-00-000-30891410624",
+  "timestamp": "2026-08-04T10:07:00Z",
+  "run_id": "30891410624",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30891410624",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37187",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37187",
+  "author": "aobolensk",
+  "category": "Flaky Test",
+  "title": "CachingTest.LoadMultiWithConfig_race import_model called 4 times instead of expected 5",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: import_model expected 5 calls, got 4"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 5 times\n           Actual: called 4 times - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2064 ms)"
+  ],
+  "root_cause": "The LoadMultiWithConfig_race test is a race-condition stress test that loads models concurrently and asserts a specific number of import_model calls (5 for ByModelName). Due to inherent timing non-determinism, the actual call count fluctuates between runs \u2014 the test got 4 instead of 5. The PR changes only src/plugins/intel_cpu/src/emitters/plugin/riscv64/jit_emitter.cpp (RISC-V64 CPU emitter), which is completely unrelated to the caching/multi-device load path tested here.",
+  "reproduction_steps": "Run: ov_inference_functional_tests --gtest_filter=\"CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache\" on Windows \u2014 fails intermittently due to race timing.",
+  "recommended_actions": [
+    "Re-run the failed job \u2014 this is a known flaky race-condition test",
+    "Re-add PR #37187 to the merge queue if it was dropped"
+  ],
+  "prevention_strategies": "Consider increasing the retry tolerance or stabilizing the expected call count range in LoadMultiWithConfig_race tests to reduce flakiness.",
+  "historical_context": "This CachingTest race failure pattern is new in the database but is a known category of flaky tests in the OpenVINO caching infrastructure tests."
+}
