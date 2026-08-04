@@ -16,7 +16,7 @@ OpenVINO Release Notes
 
 
 
-2026.3 - 29 July 2026
+2026.3 - 4 August 2026
 #############################################################################################
 
 :doc:`System Requirements <./release-notes-openvino/system-requirements>` | :doc:`Release policy <./release-notes-openvino/release-policy>` | :doc:`Installation Guides <./../get-started/install-openvino>`
