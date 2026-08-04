@@ -62,6 +62,7 @@ struct rms_impl : typed_primitive_impl_ocl<rms> {
     kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
         return static_canonicalize_shapes(impl_params);
     }
+    bool can_be_recorded() const override { return true; }
 };
 
 namespace detail {

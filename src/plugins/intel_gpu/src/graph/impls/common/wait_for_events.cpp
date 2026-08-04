@@ -40,6 +40,8 @@ public:
         return stream.aggregate_events(events);
     }
 
+    bool can_be_recorded() const override { return true; }
+
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
         return std::make_unique<wait_for_events_impl>(data);
     }

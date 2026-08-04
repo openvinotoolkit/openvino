@@ -496,10 +496,10 @@ bool ze_stream::is_recording() const {
 }
 
 command_list::ptr ze_stream::stop_recording() {
-    OV_ZE_EXPECT(zeCommandListClose(m_recorded_cmd_list->handle()));
     ze_command_list::ptr ret = nullptr;
     m_recorded_cmd_list.swap(ret);
     if (ret != nullptr) {
+        OV_ZE_EXPECT(zeCommandListClose(ret->handle()));
         enqueue_command_list(ret);
     }
     return ret;

@@ -67,7 +67,6 @@ public:
     /// @brief Start recording operations executed on the stream.
     /// Executed commands are not submitted to the device during recording.
     /// @param cmd_list Command list to record executed commands.
-    /// @note Recording might be stopped by some operations (e.g. finish or event host synchronization)
     virtual void start_recording(command_list::ptr cmd_list) = 0;
 
     /// @brief Check if the stream is currently recording commands to the command list.

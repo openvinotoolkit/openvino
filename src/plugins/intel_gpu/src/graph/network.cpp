@@ -999,11 +999,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         NODE_DEBUG(*inst);
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
-        if (net_stream.is_recording() && !inst->can_be_recorded()) {
-            static_cast<void>(net_stream.stop_recording());
-            GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording interrupted by " << inst->id() << std::endl;
-        }
-
         inst->clear_events();
 
         if (!started_recording && inst->is_input()) {

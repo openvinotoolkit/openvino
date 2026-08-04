@@ -2061,11 +2061,6 @@ void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
 }
 
-bool primitive_inst::can_be_recorded() const {
-    // TODO: Whitelist only known primitives
-    return !_impl->is_cpu();
-}
-
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle(id() + "::prepare"));
     const auto& primitive_id = id();
@@ -2308,6 +2303,10 @@ void primitive_inst::execute() {
         _impl_params->output_layouts[0] = _unfused_subgraph->get_output_layout(last_prim_id);
         set_out_event(outputs.at(last_prim_id).get_event());
         return;
+    }
+    if (get_network().get_stream().is_recording() && !_impl->can_be_recorded()) {
+        get_network().get_stream().stop_recording();
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording interrupted by " << id() << std::endl;
     }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
