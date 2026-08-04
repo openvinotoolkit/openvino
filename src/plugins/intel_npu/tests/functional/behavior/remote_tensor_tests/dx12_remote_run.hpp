@@ -11,6 +11,7 @@
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
