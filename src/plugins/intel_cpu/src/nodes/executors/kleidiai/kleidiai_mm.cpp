@@ -57,18 +57,16 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    bool returnValue = config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
-                       useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
-    return returnValue;
+    VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+    return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
+           useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
 
 bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory) {
     auto scales = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims();
-    OPENVINO_ASSERT(scales.size() > 1,
-                    "Scales tensor to have at least 2 dimensions. Got ",
-                    scales.size(),
-                    " dimension(s).");
-    // std::cout << "Scales[0,1,2] value: " << scales[0] << ", " << scales[1] << ", " << scales[2] << std::endl;
+    if (scales.size() == 1) {
+        return false;
+    }
     return (scales[1] > 1);
 }
 
