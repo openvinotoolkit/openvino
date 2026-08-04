@@ -556,6 +556,12 @@ def test_rt_info_const_output():
 
     assert isinstance(co.get_rt_info(), RTMap)
 
+    rt = co.get_rt_info()
+    before_len = len(rt)
+    with pytest.raises(KeyError):
+        _ = rt["nonexistent_key"]
+    assert len(rt) == before_len, "__getitem__ must not insert a default value on missing keys"
+
 
 def test_multiple_outputs():
     input_shape = [4, 4]

@@ -45,7 +45,10 @@ void regclass_graph_ConstOutputRTMap(py::module m) {
         // read-only: delegate without warning
         .def("__getitem__",
              [](ConstRTMapView& self, const std::string& k) -> py::object {
-                 return Common::utils::from_ov_any_no_leaves((*self.actual)[k]);
+                 auto it = self.actual->find(k);
+                 if (it == self.actual->end())
+                     throw py::key_error(k);
+                 return Common::utils::from_ov_any_no_leaves(it->second);
              })
         .def("__contains__",
              [](const ConstRTMapView& self, const std::string& k) {
