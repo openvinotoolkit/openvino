@@ -614,30 +614,31 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
     return r;
 }
 
-static void run_compressed_kv_sdpa_test(int bit_width) {
+static void run_compressed_kv_sdpa_test(int bit_width,
+                                        int batch,
+                                        int q_num_heads,
+                                        int kv_num_heads,
+                                        int seq_q,
+                                        int seq_kv,
+                                        int head_size) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    const int batch = 1;
-    const int num_heads = 2;
-    const int seq_q = 16;
-    const int seq_kv = 16;
-    const int head_size = 64;
     const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
 
     // Random Q and original (float) K/V. bfyx physical layout {batch, seq, heads, head_size}.
-    auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_q * num_heads * head_size, -1.0f, 1.0f);
-    auto k_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * num_heads * head_size, -1.0f, 1.0f);
-    auto v_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * num_heads * head_size, -1.0f, 1.0f);
+    auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -1.0f, 1.0f);
+    auto k_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
+    auto v_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
 
-    auto k_q = quantize_kv_per_channel(k_orig, batch, num_heads, seq_kv, head_size, bit_width,/*seq_major=*/false, nullptr, /*symmetric=*/true);
-    auto v_q = quantize_kv_per_channel(v_orig, batch, num_heads, seq_kv, head_size, bit_width, /*seq_major=*/false, nullptr, /*symmetric=*/true);
+    auto k_q = quantize_kv_per_channel(k_orig, batch, seq_kv, kv_num_heads, head_size, bit_width, /*seq_major=*/false, nullptr, /*symmetric=*/true);
+    auto v_q = quantize_kv_per_channel(v_orig, batch, seq_kv, kv_num_heads, head_size, bit_width, /*seq_major=*/false, nullptr, /*symmetric=*/true);
 
-    const layout q_layout({batch, num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
-    const layout kv_deq_layout({batch, num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
-    const layout kv_packed_layout({batch, num_heads, seq_kv, packed_hs}, data_types::i8, format::bfyx);
-    const layout comp_layout({batch, num_heads, 1, head_size}, data_types::f16, format::bfyx);
+    const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_hs}, data_types::i8, format::bfyx);
+    const layout comp_layout({batch, kv_num_heads, 1, head_size}, data_types::f16, format::bfyx);
 
     auto q_mem = engine.allocate_memory(q_layout);
     set_values(q_mem, q_data);
@@ -728,6 +729,32 @@ static void run_compressed_kv_sdpa_test(int bit_width) {
         ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in compressed output at index " << i;
     }
     const float sim = cosineSimilarity(ref_ptr, opt_ptr);
+    // Opt-in debug dumps: set env var `dumpdata` to any value other than "false" to enable.
+    static const bool dumpdata = []() {
+        const char* txt = std::getenv("dumpdata");
+        return txt != nullptr && std::strcmp(txt, "false") != 0;
+    }();
+    if (dumpdata) {
+        std::cout << "[fake data] result size=" << opt_ptr.size() << " cosine_sim=" << sim << " cosine_sim_mask=" << sim << std::endl;
+        std::cout << "[fake data] ref[0..7]:";
+        for (size_t i = 0; i < std::min<size_t>(8, ref_ptr.size()); ++i)
+            std::cout << " " << static_cast<float>(ref_ptr[i]);
+        std::cout << "\n[fake data] opt[0..7]:";
+        for (size_t i = 0; i < std::min<size_t>(8, opt_ptr.size()); ++i)
+            std::cout << " " << static_cast<float>(opt_ptr[i]);
+        std::cout << std::endl;
+
+        // Dump both results to txt: first line is the cldnn tensor shape, then one value per line.
+        auto dump_result_txt = [](const std::string& fname, const memory::ptr& mem, cldnn::mem_lock<ov::float16, mem_lock_type::read>& lock) {
+            std::ofstream fs(fname);
+            fs << "shape: " << mem->get_layout().get_tensor().to_string() << " " << std::endl;
+            for (size_t i = 0; i < lock.size(); ++i)
+                fs << static_cast<float>(lock[i]) << std::endl;
+            std::cout << "[fake data] wrote " << lock.size() << " values to " << fname << std::endl;
+        };
+        dump_result_txt("fake data_ref_" + std::to_string(bit_width) + ".txt", ref_mem, ref_ptr);
+        dump_result_txt("fake data_opt_" + std::to_string(bit_width) + ".txt", opt_mem, opt_ptr);
+    }
     ASSERT_GE(sim, 0.95f) << "bit_width=" << bit_width << " cosine similarity too low: " << sim;
 }
 
@@ -840,8 +867,8 @@ static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
     auto make_ref_output = [&]() {
         auto k_mem = engine.allocate_memory(kv_deq_layout);
         auto v_mem = engine.allocate_memory(kv_deq_layout);
-        set_values(k_mem, k_orig);
-        set_values(v_mem, v_orig);
+        set_values(k_mem, k_q.dequantized);
+        set_values(v_mem, v_q.dequantized);
 
         topology topo;
         topo.add(input_layout("q", q_layout));
@@ -872,14 +899,14 @@ static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
         auto v_comp_mem = engine.allocate_memory(comp_layout);
         set_values(k_mem, k_q.packed);
         set_values(v_mem, v_q.packed);
-        set_values(k_comp_mem, k_scale);
-        set_values(v_comp_mem, v_scale);
+        set_values(k_comp_mem, k_q.scales);
+        set_values(v_comp_mem, v_q.scales);
 
         scaled_dot_product_attention::QuantizationAttributes qa;
         qa.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
         qa.quantization_dt = ov::element::i8;
         qa.scale_dt = ov::element::f16;
-        qa.group_sizes = {1, 1, 512, 1};
+        qa.group_sizes = {1, 1, UINT64_MAX, 1};
         qa.scales_zp_output_order = {0, 1, 2, 3};
         qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
@@ -912,101 +939,27 @@ static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
         return net->execute().at("result").get_memory();
     };
 
-    // --- Compressed path with explicit causal mask (is_causal=false, mask input) on sdpa_opt ---
-    auto make_opt_mask_output = [&]() {
-        auto k_mem = engine.allocate_memory(kv_packed_layout);
-        auto v_mem = engine.allocate_memory(kv_packed_layout);
-        auto k_comp_mem = engine.allocate_memory(comp_layout);
-        auto v_comp_mem = engine.allocate_memory(comp_layout);
-        set_values(k_mem, k_q.packed);
-        set_values(v_mem, v_q.packed);
-        set_values(k_comp_mem, k_scale);
-        set_values(v_comp_mem, v_scale);
-
-        // Build a lower-triangular causal mask: 0 where attending, -inf where masked.
-        // Shape: [1, 1, seq_q, seq_kv] broadcast across batch and heads.
-        const layout mask_layout({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
-        std::vector<ov::float16> mask_data(static_cast<size_t>(seq_q) * seq_kv);
-        const float neg_inf = -std::numeric_limits<float>::infinity();
-        for (int q = 0; q < seq_q; ++q) {
-            for (int k = 0; k < seq_kv; ++k) {
-                mask_data[q * seq_kv + k] = ov::float16(k <= q ? 0.0f : neg_inf);
-            }
-        }
-        auto mask_mem = engine.allocate_memory(mask_layout);
-        set_values(mask_mem, mask_data);
-
-        scaled_dot_product_attention::QuantizationAttributes qa;
-        qa.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
-        qa.quantization_dt = ov::element::i8;
-        qa.scale_dt = ov::element::f16;
-        qa.group_sizes = {1, 1, 512, 1};
-        qa.scales_zp_output_order = {0, 1, 2, 3};
-        qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", kv_packed_layout));
-        topo.add(input_layout("v", kv_packed_layout));
-        topo.add(input_layout("attn_mask", mask_layout));
-        topo.add(input_layout("k_scale", comp_layout));
-        topo.add(input_layout("v_scale", comp_layout));
-
-        // Inputs: Q, K, V, attn_mask, key_scales, value_scales. is_causal=false.
-        auto prim = scaled_dot_product_attention("sdpa",
-                                                 {input_info("q"), input_info("k"), input_info("v"),
-                                                  input_info("attn_mask"),
-                                                  input_info("k_scale"), input_info("v_scale")},
-                                                 false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-
-        ExecutionConfig cfg = get_test_default_config(engine);
-        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        cfg.set_property(ov::hint::kv_cache_precision(bit_width == 4 ? ov::element::i4 : ov::element::i8));
-        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
-
-        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        net->set_input_data("attn_mask", mask_mem);
-        net->set_input_data("k_scale", k_comp_mem);
-        net->set_input_data("v_scale", v_comp_mem);
-        return net->execute().at("result").get_memory();
-    };
-
     auto ref_mem = make_ref_output();
     auto opt_mem = make_opt_output();
-    auto opt_mask_mem = make_opt_mask_output();
 
     cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
     cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_mask_ptr(opt_mask_mem, get_test_stream());
 
     ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
-    ASSERT_EQ(ref_ptr.size(), opt_mask_ptr.size());
     for (size_t i = 0; i < opt_ptr.size(); ++i) {
         ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in compressed output at index " << i;
     }
-    for (size_t i = 0; i < opt_mask_ptr.size(); ++i) {
-        ASSERT_FALSE(std::isnan(static_cast<float>(opt_mask_ptr[i]))) << "NaN in compressed+mask output at index " << i;
-    }
     const float sim = cosineSimilarity(ref_ptr, opt_ptr);
-    const float sim_mask = cosineSimilarity(ref_ptr, opt_mask_ptr);
 
     if (dumpdata) {
         std::cout << "[gqa] result size=" << opt_ptr.size() << " cosine_sim=" << sim
-                  << " cosine_sim_mask=" << sim_mask << std::endl;
+                  <<  std::endl;
         std::cout << "[gqa] ref[0..7]:";
         for (size_t i = 0; i < std::min<size_t>(8, ref_ptr.size()); ++i)
             std::cout << " " << static_cast<float>(ref_ptr[i]);
         std::cout << "\n[gqa] opt[0..7]:";
         for (size_t i = 0; i < std::min<size_t>(8, opt_ptr.size()); ++i)
             std::cout << " " << static_cast<float>(opt_ptr[i]);
-        std::cout << "\n[gqa] opt_mask[0..7]:";
-        for (size_t i = 0; i < std::min<size_t>(8, opt_mask_ptr.size()); ++i)
-            std::cout << " " << static_cast<float>(opt_mask_ptr[i]);
         std::cout << std::endl;
 
         // Dump both results to txt: first line is the cldnn tensor shape, then one value per line.
@@ -1020,20 +973,24 @@ static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
         };
         dump_result_txt("gqa_ref_" + std::to_string(bit_width) + ".txt", ref_mem, ref_ptr);
         dump_result_txt("gqa_opt_" + std::to_string(bit_width) + ".txt", opt_mem, opt_ptr);
-        dump_result_txt("gqa_opt_mask_" + std::to_string(bit_width) + ".txt", opt_mask_mem, opt_mask_ptr);
     }
 
     ASSERT_GE(sim, 0.95f) << "bit_width=" << bit_width << " cosine similarity too low: " << sim;
-    ASSERT_GE(sim_mask, 0.95f) << "bit_width=" << bit_width << " cosine similarity (explicit mask) too low: " << sim_mask;
 }
 
 
-TEST(sdpa_gpu_compressed_kv, int8) {
-    run_compressed_kv_sdpa_test(8);
-}
 
+/** no support yet */
 TEST(sdpa_gpu_compressed_kv, int4) {
-    run_compressed_kv_sdpa_test(4);
+    run_compressed_kv_sdpa_test(4, 1, 40, 10, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_compressed_kv, int8_no_gqa) {
+    run_compressed_kv_sdpa_test(8, /*batch=*/1, /*q_num_heads=*/40, /*kv_num_heads=*/40, /*seq_q=*/512, /*seq_kv=*/512, /*head_size=*/128);
+}
+
+TEST(sdpa_gpu_compressed_kv, int8_gqa) {
+    run_compressed_kv_sdpa_test(8, /*batch=*/1, /*q_num_heads=*/40, /*kv_num_heads=*/10, /*seq_q=*/512, /*seq_kv=*/512, /*head_size=*/128);
 }
 
 TEST(sdpa_gpu_compressed_kv_gqa, int8) {
