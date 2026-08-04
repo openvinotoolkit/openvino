@@ -285,9 +285,9 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
         auto wt = params.inputs[0].GetDType();
         if (wt == Datatype::UINT4) {
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
+            jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
         } else if (wt == Datatype::INT4) {
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
+            jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
         }
 
         const size_t scale_groups_num = params.decompression_scale.LogicalSize();
