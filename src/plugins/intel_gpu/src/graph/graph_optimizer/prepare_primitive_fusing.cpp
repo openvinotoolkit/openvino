@@ -220,7 +220,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         if (node->get_dependencies().size() > 1)
             continue;
         if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
-           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(0).get_partial_shape().size()) - 1))
+           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(false).get_partial_shape().size()) - 1))
             continue;
 
         auto& dep_node = node->get_dependency(0);

@@ -68,6 +68,7 @@ set(SRC
     conversion.cpp
     convert_tests.cpp
     convert_partially_tests.cpp
+    gather_block_quantized_tests.cpp
     graph_iterator.cpp
     library_extension.cpp
     load_from.cpp

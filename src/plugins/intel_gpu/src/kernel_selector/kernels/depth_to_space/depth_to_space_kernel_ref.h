@@ -12,7 +12,7 @@ public:
     using Parent = DepthToSpaceKernelBase;
 
     DepthToSpaceKernelRef() : DepthToSpaceKernelBase("depth_to_space_ref") {}
-    ~DepthToSpaceKernelRef() override {}
+    ~DepthToSpaceKernelRef() override = default;
 
     CommonDispatchData SetDefault(const depth_to_space_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;

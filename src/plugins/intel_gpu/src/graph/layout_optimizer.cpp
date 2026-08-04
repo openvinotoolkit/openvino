@@ -1522,7 +1522,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         } else { // gemm
             if (!use_onednn_impls && !allow_new_shape_infer) {
                 // Plain input format is enforced because gemm opt kernels allow only plain formats.
-                expected = format::get_default_format(node.get_output_layout(0).get_rank());
+                expected = format::get_default_format(node.get_output_layout(false).get_rank());
                 node.set_preferred_input_fmt(0, expected);
             }
         }

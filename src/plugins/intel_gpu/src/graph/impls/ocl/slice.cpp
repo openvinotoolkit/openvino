@@ -165,7 +165,7 @@ private:
 
         const SliceKernelRefNeededInputs kernel_needed_inputs = SliceKernelRefNeededInputs::Create(arg);
         if (kernel_needed_inputs.IsInputNeededInRuntime(idx)) {
-            const auto layout = inputs[idx].first->get_output_layout(0);
+            const auto layout = inputs[idx].first->get_output_layout(false);
             out_buff_data_type = to_data_type(layout.data_type);
             out_compile_time_buff.clear();
             out_runtime_inputs.push_back(convert_data_tensor(layout));

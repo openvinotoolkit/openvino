@@ -106,7 +106,7 @@ public:
         int32_t b_fs_yx_fsv16_network = 0;
         int32_t b_fs_zyx_fsv16_network = 0;
         int32_t bs_fs_yx_bsv16_fsv16_network = 0;
-        std::map<primitive_type_id, bool> onednn_impls = {};
+        std::map<primitive_type_id, bool> onednn_impls;
 
         void save(BinaryOutputBuffer& ob) const {
             ob << group_convolution;
