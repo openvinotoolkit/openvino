@@ -12,7 +12,6 @@
 
 #include <cctype>
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -392,11 +391,6 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
-    // The env var does not change during a conversion; read it once.
-    static const bool no_requant = std::getenv("GGUF_FE_NO_REQUANT") != nullptr;
-    if (no_requant) {
-        return false;  // diagnostic: faithful dequant only
-    }
     if (name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0) {
         return true;
     }
@@ -629,7 +623,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // Non-K requant sources (e.g. an F16 / Q4_0 / Q8_0 token_embd or output): the K-quant fast path
     // above already handled Q4_K/Q5_K/Q6_K, so here reproduce the backend's channel-wise Q8_0_C by
     // dequantizing to f32 from the extracted tensors, then re-quantizing.
-    if (requant) {  // computed above; reuse rather than re-running getenv + name scans
+    if (requant) {
         auto f32 = dequant_extracted_to_f32(w, base, rows, cols);
         return requantize_q8_0_channelwise(f32, rows, cols);
     }

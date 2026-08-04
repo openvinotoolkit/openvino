@@ -41,7 +41,7 @@ public:
     void run(program& p, base_pass& pass);
     uint32_t get_pass_count() { return pass_count; }
     uint32_t inc_pass_count() { return ++pass_count; }
-    ~pass_manager() {}
+    ~pass_manager() = default;
 
 private:
     uint32_t pass_count;
@@ -328,7 +328,8 @@ public:
 
         // If this dependency is already there, exit early
         const auto& mem_deps = node->get_memory_dependencies();
-        if (mem_deps.find(static_cast<uint32_t>(dep->get_unique_id())) != mem_deps.end()) {
+        auto it = std::lower_bound(mem_deps.begin(), mem_deps.end(), static_cast<uint32_t>(dep->get_unique_id()));
+        if (it != mem_deps.end() && *it == static_cast<uint32_t>(dep->get_unique_id())) {
             return;
         }
 
