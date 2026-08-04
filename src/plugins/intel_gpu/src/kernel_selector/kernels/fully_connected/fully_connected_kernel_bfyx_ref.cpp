@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,7 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
     return res;
 }
 
-bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {                     
+bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }

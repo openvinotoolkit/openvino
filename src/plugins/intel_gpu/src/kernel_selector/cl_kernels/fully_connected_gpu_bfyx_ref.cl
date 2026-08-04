@@ -136,12 +136,10 @@ KERNEL(fc)(
                     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4) filter_unpacked = UNPACK_UINT2x4(ACCUMULATOR_TYPE, *((UINT2_PACKED_TYPE*)&filter_packed));
                     ACCUMULATOR_TYPE filter_compressed = ((ACCUMULATOR_TYPE*)(&filter_unpacked))[filter_idx % 4];
                     #if DECOMPRESSION_ZP_TERM && !DECOMPRESSION_ZP_SCALAR
-                        
-                            const __global uchar* zp_u8 = (const __global uchar*)decompression_zp;
-                            uchar zp_packed = zp_u8[zp_offset / 4];
-                            uint zp_bit_off = (zp_offset % 4) * 2;
-                            zp = (ACCUMULATOR_TYPE)((zp_packed >> zp_bit_off) & 0x3);
-                       
+                        const __global uchar* zp_u8 = (const __global uchar*)decompression_zp;
+                        uchar zp_packed = zp_u8[zp_offset / 4];
+                        uint zp_bit_off = (zp_offset % 4) * 2;
+                        zp = (ACCUMULATOR_TYPE)((zp_packed >> zp_bit_off) & 0x3);
                     #endif
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
@@ -151,7 +149,7 @@ KERNEL(fc)(
             }
         }
     }
-  
+
     const uint dst_index = OUTPUT_GET_INDEX(b, ofm, 0, 0);
 #endif
 

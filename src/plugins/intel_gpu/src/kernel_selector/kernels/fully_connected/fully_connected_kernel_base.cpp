@@ -190,8 +190,8 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
         if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
-    }   
-   
+    }
+
     return true;
 }
 
