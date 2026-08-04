@@ -560,14 +560,12 @@ std::shared_ptr<v0::Unsqueeze> make_unsq(const ov::Output<ov::Node>& input, int6
     return std::make_shared<v0::Unsqueeze>(input, axis_c);
 }
 
-std::shared_ptr<v1::Reshape> make_resh(const ov::Output<ov::Node>& input,
-                                       const std::vector<int32_t>& shape) {
+std::shared_ptr<v1::Reshape> make_resh(const ov::Output<ov::Node>& input, const std::vector<int32_t>& shape) {
     auto pattern = v0::Constant::create(ov::element::i32, ov::Shape{shape.size()}, shape);
     return std::make_shared<v1::Reshape>(input, pattern, false);
 }
 
-std::shared_ptr<v1::Transpose> make_tr(const ov::Output<ov::Node>& input,
-                                       const std::vector<int32_t>& order) {
+std::shared_ptr<v1::Transpose> make_tr(const ov::Output<ov::Node>& input, const std::vector<int32_t>& order) {
     auto order_c = v0::Constant::create(ov::element::i32, ov::Shape{order.size()}, order);
     return std::make_shared<v1::Transpose>(input, order_c);
 }

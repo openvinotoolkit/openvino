@@ -300,10 +300,8 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
     // - e.g. we must match both Subtract(data_mov, R) and Subtract(R, data_mov). For
     // commutative ops (Add, Multiply) the second alternative is redundant but harmless.
     auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{data_mov, other_in},
-                                                        eltw_predicate_fusable) |
-        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{other_in, data_mov},
-                                                        eltw_predicate_fusable);
+        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{data_mov, other_in}, eltw_predicate_fusable) |
+        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{other_in, data_mov}, eltw_predicate_fusable);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
