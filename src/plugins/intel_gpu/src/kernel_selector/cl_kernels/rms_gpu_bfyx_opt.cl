@@ -206,6 +206,10 @@ KERNEL(rms_gpu_bfyx_opt)(
     rms = slm_buf[0];
 #endif
 
+    #if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+        const ACCUMULATOR_TYPE scalar_gamma = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET]);
+    #endif
+
     #if HAS_FUSED_OPS
         uint b, f, z, y, x;
         #if INPUT_RANK == 1
@@ -232,7 +236,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         const uint obase = output_data_offset + subgroup_offset;
         const uint gbase = subgroup_offset;
         for (; i + 8 <= items_num; i += 8) {
-#if ELEMENTWISE_AFFINE
+    #if ELEMENTWISE_AFFINE && !SCALAR_GAMMA
             MAKE_VECTOR_TYPE(INPUT1_TYPE, 8) g = DT_INPUT_BLOCK_READ8(gamma, gbase + i * sgs);
 #endif
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) o;
@@ -242,7 +246,9 @@ KERNEL(rms_gpu_bfyx_opt)(
 #else
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
-#if ELEMENTWISE_AFFINE
+#if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * scalar_gamma);
+#elif ELEMENTWISE_AFFINE
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
@@ -257,7 +263,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             DT_OUTPUT_BLOCK_WRITE8(output, obase + i * sgs, o);
         }
         for (; i + 4 <= items_num; i += 4) {
-#if ELEMENTWISE_AFFINE
+    #if ELEMENTWISE_AFFINE && !SCALAR_GAMMA
             MAKE_VECTOR_TYPE(INPUT1_TYPE, 4) g = DT_INPUT_BLOCK_READ4(gamma, gbase + i * sgs);
 #endif
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) o;
@@ -267,7 +273,9 @@ KERNEL(rms_gpu_bfyx_opt)(
 #else
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
-#if ELEMENTWISE_AFFINE
+#if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * scalar_gamma);
+#elif ELEMENTWISE_AFFINE
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
@@ -282,7 +290,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             DT_OUTPUT_BLOCK_WRITE4(output, obase + i * sgs, o);
         }
         for (; i + 2 <= items_num; i += 2) {
-#if ELEMENTWISE_AFFINE
+    #if ELEMENTWISE_AFFINE && !SCALAR_GAMMA
             MAKE_VECTOR_TYPE(INPUT1_TYPE, 2) g = DT_INPUT_BLOCK_READ2(gamma, gbase + i * sgs);
 #endif
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) o;
@@ -292,7 +300,9 @@ KERNEL(rms_gpu_bfyx_opt)(
 #else
                 ACCUMULATOR_TYPE data_value = data[i + j];
 #endif
-#if ELEMENTWISE_AFFINE
+#if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * scalar_gamma);
+#elif ELEMENTWISE_AFFINE
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * TO_ACCUMULATOR_TYPE(g[j]));
 #else
                 OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value);
@@ -315,7 +325,9 @@ KERNEL(rms_gpu_bfyx_opt)(
     #else
         ACCUMULATOR_TYPE data_value = data[i];
     #endif
-#if ELEMENTWISE_AFFINE
+#if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+    OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * scalar_gamma);
+#elif ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * sgs]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * temp);
 #else
@@ -335,7 +347,9 @@ KERNEL(rms_gpu_bfyx_opt)(
     #else
         ACCUMULATOR_TYPE data_value = data[items_num];
     #endif
-#if ELEMENTWISE_AFFINE
+#if ELEMENTWISE_AFFINE && SCALAR_GAMMA
+    OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * scalar_gamma);
+#elif ELEMENTWISE_AFFINE
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + local_data_idx]);
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data_value * temp);
 #else
