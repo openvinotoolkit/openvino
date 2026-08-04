@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from pathlib import Path
 import traceback  # noqa: F811
 
+
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
