@@ -56,6 +56,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto sliding_window_cache = node.get_attribute_value<int64_t>("sliding_window_cache", 0);
     const auto softcap = node.get_attribute_value<float>("softcap", 0.0f);
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
+    const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
 
     // Reject spec inputs whose semantics are not implemented by the OpenVINO decomposition.
     FRONT_END_OP_CONVERSION_CHECK(
@@ -79,6 +80,14 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
+        // attention_bias (input 10) is indexed by absolute total_sequence_length, but a windowed cache rolls
+        // with front eviction so cache slot j holds absolute key (survivor_start + j). After the first
+        // eviction the bias columns no longer align with the cache slots, and the decomposition slices the
+        // bias as bias[..., 0:capacity] regardless. Reject the combination until the bias is gathered with
+        // the same survivor/new index sets that build the present buffer.
+        FRONT_END_OP_CONVERSION_CHECK(
+            !common::is_input_valid(onnx_op_inputs, 10),
+            "GroupQueryAttention: attention_bias is not supported together with sliding_window_cache=1.");
         // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
         // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
         // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
@@ -91,8 +100,25 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
                                           q_ps[1].get_length(),
                                           " (multi-token staging regime is not supported).");
         }
+        // The windowed cache-end arithmetic uses gap = capacity - local_window_size + 1, which must be >= 1;
+        // with capacity < local_window_size it would divide by zero (or a negative gap) at inference. The ONNX
+        // Runtime precondition is the same: a cache capacity of at least local_window_size. Enforce it here
+        // whenever the past_key capacity (dim 2) is static; a dynamic capacity is clamped in the pass.
+        const auto& past_key_ps = onnx_op_inputs[3].get_partial_shape();
+        if (past_key_ps.rank().is_static() && past_key_ps.rank().get_length() == 4 && past_key_ps[2].is_static()) {
+            FRONT_END_OP_CONVERSION_CHECK(past_key_ps[2].get_length() >= local_window_size,
+                                          "GroupQueryAttention: sliding_window_cache=1 requires a past_key/past_value "
+                                          "cache capacity (dim 2) of at least local_window_size (",
+                                          local_window_size,
+                                          "), got capacity = ",
+                                          past_key_ps[2].get_length(),
+                                          ".");
+        }
     }
     FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "GroupQueryAttention: softcap is not supported.");
+    // qk_output (spec: emit the QxK' matrix before/after softmax as a 4th `output_qk` output) is not
+    // produced by this decomposition. Reject a non-default value rather than silently dropping the output.
+    FRONT_END_OP_CONVERSION_CHECK(qk_output == 0, "GroupQueryAttention: qk_output is not supported.");
 
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 7;
