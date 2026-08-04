@@ -373,8 +373,7 @@ using ProfilingBlob = InferRequestRunTests;
 TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        std::cout << "Skip since driver extension version is lower than expected\n";
-        GTEST_SKIP();
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
 
@@ -401,8 +400,7 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        std::cout << "Skip since driver extension version is lower than expected\n";
-        GTEST_SKIP();
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
 
@@ -425,8 +423,7 @@ TEST_P(ProfilingBlob, ProfilingCompileNoProfilingImport) {
 TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
     if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
-        std::cout << "Skip since driver extension version is lower than expected\n";
-        GTEST_SKIP();
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
     }
     ov::CompiledModel compiled_model;
 
