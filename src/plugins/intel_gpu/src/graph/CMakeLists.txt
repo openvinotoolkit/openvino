@@ -41,7 +41,6 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
 )
 
 if(ENABLE_TP_GPU)
-    list(APPEND COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/../tp_gpu/include>)
     add_definitions(-DENABLE_TP_GPU)
 endif()
 
@@ -53,6 +52,12 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::runtime
                           OpenCL::OpenCL # Onednn needs OCL headers even when running Level Zero
 )
+
+if(ENABLE_TP_GPU)
+    # Brings in the TP_GPU headers (coordination + device coordinator) used by
+    # the tp_allreduce implementations.
+    list(APPEND COMMON_LINK_LIBRARIES openvino_tp_gpu_ops)
+endif()
 
 if(OV_GPU_RT STREQUAL "ZE" OR ENABLE_TP_GPU)
     # Onednn needs ZE headers

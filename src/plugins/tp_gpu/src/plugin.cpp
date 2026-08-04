@@ -11,8 +11,10 @@
 #include "compiled_model.hpp"
 #include "graph_rewriter.hpp"
 #include "tp_l0_shared_context.hpp"
+#include "tp_gpu/properties.hpp"
 #include "tp_gpu/tp_coordination.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
@@ -27,6 +29,54 @@ inline void ze_throw_on_error(ze_result_t r, const char* what) {
         OPENVINO_THROW("[TP_GPU] L0 call ", what, " failed: 0x", std::hex, r);
     }
 }
+
+/// \brief Resolves the per-rank device list.
+///
+/// The number of ranks is whatever this returns: `DEVICE_IDS` wins when given,
+/// otherwise `TP_SIZE` ranks are mapped onto GPU.0 .. GPU.{TP_SIZE - 1}. When
+/// both are set they must agree.
+std::vector<std::string> get_device_names(const ov::AnyMap& config) {
+    std::vector<std::string> device_names;
+
+    auto it_devices = config.find(device_ids.name());
+    if (it_devices != config.end()) {
+        device_names = it_devices->second.as<std::vector<std::string>>();
+    }
+
+    size_t devices_count = device_names.size();
+    auto it_size = config.find(tp_size.name());
+    if (it_size != config.end()) {
+        devices_count = it_size->second.as<uint32_t>();
+    }
+
+    OPENVINO_ASSERT(it_devices != config.end() || it_size != config.end(),
+                    "[TP_GPU] Neither TP_SIZE nor DEVICE_IDS was set, at least one of them must be specified");
+
+    if (device_names.empty()) {
+        device_names.reserve(devices_count);
+        for (uint32_t i = 0; i < devices_count; ++i) {
+            device_names.push_back("GPU." + std::to_string(i));
+        }
+    } else {
+        OPENVINO_ASSERT(device_names.size() == devices_count,
+                        "[TP_GPU] ", device_ids.name(), " lists ", device_names.size(),
+                        " devices, which does not match ", tp_size.name(), "=", devices_count);
+    }
+
+    OPENVINO_ASSERT(device_names.size() >= 2,
+                    "[TP_GPU] Need at least 2 devices, got ", device_names.size());
+
+    return device_names;
+}
+
+/// \brief Drops the keys owned by this plugin.
+///
+/// Whatever is left in the config is forwarded to the GPU plugin verbatim, and
+/// it rejects properties it does not recognize.
+void erase_tp_keys(ov::AnyMap& config) {
+    config.erase(tp_size.name());
+    config.erase(device_ids.name());
+}
 }  // namespace
 #define ZE_THROW_ON_ERROR(expr, what) ::ov::tp_gpu::ze_throw_on_error((expr), (what))
 
@@ -40,33 +90,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.insert(m_config.begin(), m_config.end());
 
     // ---- Extract TP configuration ----
-    uint32_t tp_degree = 2;
-    std::vector<std::string> device_names;
-
-    auto it_degree = config.find("TP_SIZE");
-    if (it_degree != config.end()) {
-        tp_degree = it_degree->second.as<uint32_t>();
-        config.erase(it_degree);
-    }
-
-    auto it_devices = config.find("DEVICE_IDS");
-    if (it_devices != config.end()) {
-        device_names = it_devices->second.as<std::vector<std::string>>();
-        config.erase(it_devices);
-    }
-
-    // Auto-detect GPU devices if not specified
-    if (device_names.empty()) {
-        for (uint32_t i = 0; i < tp_degree; ++i) {
-            device_names.push_back("GPU." + std::to_string(i));
-        }
-    }
-
-    OPENVINO_ASSERT(device_names.size() >= 2,
-                    "[TP_GPU] Need at least 2 devices, got ", device_names.size());
-    OPENVINO_ASSERT(device_names.size() == tp_degree,
-                    "[TP_GPU] Device count (", device_names.size(),
-                    ") must match TP degree (", tp_degree, ")");
+    auto device_names = get_device_names(config);
+    const auto tp_degree = static_cast<uint32_t>(device_names.size());
+    erase_tp_keys(config);
 
     // ---- Build execution plan ----
     //
@@ -236,6 +262,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::tp_gpu::tp_size.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::tp_gpu::device_ids.name(), ov::PropertyMutability::RW},
         };
     } else if (name == ov::device::full_name.name()) {
         return std::string("TP_GPU");
@@ -243,6 +271,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return std::vector<std::string>{};
     } else if (name == ov::internal::supported_properties.name()) {
         return std::vector<ov::PropertyName>{};
+    } else if (name == ov::tp_gpu::tp_size.name() || name == ov::tp_gpu::device_ids.name()) {
+        auto it = m_config.find(name);
+        OPENVINO_ASSERT(it != m_config.end(), "[TP_GPU] Property ", name, " was not set");
+        return it->second;
     }
     OPENVINO_THROW("[TP_GPU] Unsupported property: ", name);
 }
@@ -257,7 +289,22 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    OPENVINO_ASSERT(model != nullptr, "[TP_GPU] query_model: model is null");
+
+    auto config = properties;
+    config.insert(m_config.begin(), m_config.end());
+
+    const auto device_names = get_device_names(config);
+    erase_tp_keys(config);
+
+    // Every rank compiles the same op set, so whatever the GPU plugin supports
+    // on one rank is what TP_GPU supports as a whole. The collectives inserted
+    // later are invisible at query time -- they do not exist in the user model.
+    auto supported = get_core()->query_model(model, device_names.front(), config);
+    for (auto& entry : supported) {
+        entry.second = get_device_name();
+    }
+    return supported;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream&, const ov::AnyMap&) const {
