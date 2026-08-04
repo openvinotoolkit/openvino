@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <queue>
 #include "llm_compiled_model.hpp"
 
 #include "embedding/embedding_infer_request.hpp"
@@ -43,6 +45,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
@@ -684,6 +687,165 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     }
 }
 
+bool constant_can_be_shared(const ov::op::v0::Constant& constant, const std::vector<std::string> &shared_ctx_names) {
+    if (constant.get_byte_size() < static_cast<size_t>(ov::util::get_system_page_size())) {
+        return false;
+    }
+
+    bool needs_conversion = false;
+    // TODO check types of remote context
+    // The code below is written in assumption that we have NPU and GPU as the remote contexts
+    (void)shared_ctx_names;
+    if (ov::shape_size(constant.get_shape()) == 1 &&
+        constant.get_output_element_type(0) == ov::element::f64) {
+        // If a constant has element type f64 but contains no elements (empty tensor),
+        // GPU have to convert it to f32 because the GPU plugin only supports the f32 data type internally.
+        needs_conversion = true;
+    } else if (constant.get_output_element_type(0) == ov::element::u16 ||
+        constant.get_output_element_type(0) == ov::element::i16) {
+        needs_conversion = true;
+    }
+    return !needs_conversion;
+}
+
+void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
+const ov::AnyMap& properties) {
+
+    NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
+    NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
+    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
+    if (shared_weight_property_it == properties.end()) {
+        return;
+    }
+
+    // If Core already accumulated a shared context from a previous plugin's compile call
+    // (injected via ov::internal::model_sharing_context), start from that so weights
+    // contributed by other devices are already visible when we build our own additions.
+    const auto ctx_it = properties.find(ov::internal::model_sharing_context.name());
+    if (ctx_it != properties.end()) {
+        if (const auto incoming = ctx_it->second.as<ov::internal::WeightSharingCtxPtr>()) {
+            m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>(*incoming);
+        }
+    }
+    std::vector<ov::SoPtr<ov::IRemoteContext>> remote_ctxs;
+    auto shared_device_contexts = ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
+    // think about allocating a one large buffer with individual weights located sequentially
+    // and distinguished by a pair of offset and size.
+    // It may reduce fragmentation and improve locality.
+    // On the other hand, allocation of individual weights can be done in parallel and may be faster.
+    const size_t kMinRelocateBytes = ov::util::get_system_page_size();  // page-sized+; skip tiny scalar constants
+    if (!m_shared_ctx_ptr) {
+        m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>();
+    }
+    // first, collect all constants that can be shared and allocate buffers for them
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> constant_to_share;
+    size_t total_bytes_can_be_occupied_by_shared_constants = 0;
+    size_t actual_bytes_occupied_by_constants = 0;
+    auto align_bytes = [kMinRelocateBytes](size_t bytes) {
+        return ((bytes + kMinRelocateBytes - 1) / kMinRelocateBytes) * kMinRelocateBytes;
+    };
+    for (const auto& op : model->get_ops()) {
+        auto not_shared_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
+        if (!not_shared_constant) {
+            continue;
+        }
+
+        if (!constant_can_be_shared(*not_shared_constant, shared_device_contexts)) {
+            LOG_DEBUG("Constant " << not_shared_constant->get_friendly_name() << " cannot be shared among selected contexts, skipping.");
+            continue;
+        }
+        // Align the constant's size to the page size to make shared memory allocation visible as a shared memory by NPU
+        const size_t bytes = align_bytes(not_shared_constant->get_byte_size());
+        total_bytes_can_be_occupied_by_shared_constants += bytes;
+        actual_bytes_occupied_by_constants += not_shared_constant->get_byte_size();
+        constant_to_share.push_back(not_shared_constant);
+    }
+    LOG_INFO("[NPUW] SHARED_WEIGHTS: actual constant bytes: " << actual_bytes_occupied_by_constants 
+             << ", total bytes that can be shared: " << total_bytes_can_be_occupied_by_shared_constants
+             << ", constant count: "
+             << constant_to_share.size());
+
+    // The integrated Intel GPU can recognize host memory as a shared memory only
+    // if a pointer is aligned with the page size and the amount of memory is lesser than 2GB.
+    // to deal with this limitation, we will allocate multiple shared buffers with a maximum size of 2GB each.
+    // This bank-buffer will act as a source for all shared constants, and each constant will be assigned a slice of this bank-buffer.
+    // Due to the limitation on the NPU side, that it can perceive only page-aligned memory block having also page-aligned sizes
+    // I align each constant's size to the page size, and if the sum of all constants' sizes exceeds 2GB, I will allocate multiple bank-buffers.
+    static constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
+    static std::atomic<size_t> s_bank_id_counter{1};
+    std::queue<std::shared_ptr<AlignedBuffer>> weight_shared_sources_pool;
+    for (size_t bank_idx = 0; bank_idx < total_bytes_can_be_occupied_by_shared_constants; bank_idx += single_weigh_shared_source_size_max) {
+        size_t bank_size = std::min(single_weigh_shared_source_size_max, total_bytes_can_be_occupied_by_shared_constants - bank_idx);
+        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocating source buffer for weight bank " 
+                 << s_bank_id_counter.load(std::memory_order_relaxed) 
+                 << ", size: " << bank_size);
+        auto raw = std::make_shared<AlignedBuffer>(bank_size, kMinRelocateBytes);
+        const size_t bank_id = s_bank_id_counter.fetch_add(1, std::memory_order_relaxed);
+        weight_shared_sources_pool.push(
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
+                raw->get_ptr<char>(), raw->size(), raw,
+                ov::create_base_descriptor(bank_id, 0, raw)));
+    }
+    OPENVINO_ASSERT(!weight_shared_sources_pool.empty(), "[NPUW] SHARED_WEIGHTS: failed to allocate shared weight sources.");
+    LOG_INFO("[NPUW] SHARED_WEIGHTS: allocated shared weight sources count:" << weight_shared_sources_pool.size() 
+             << ", total size: " << total_bytes_can_be_occupied_by_shared_constants);
+    size_t shared_bank_buffer_offset = 0;
+    std::shared_ptr<AlignedBuffer> shared_buffer_pool;
+    for (auto non_shared_constant : constant_to_share) {
+        size_t size_of_constant_aligned = align_bytes(non_shared_constant->get_byte_size());
+        if (shared_bank_buffer_offset + size_of_constant_aligned > single_weigh_shared_source_size_max) {
+            shared_bank_buffer_offset = 0;
+        }
+        if (shared_bank_buffer_offset == 0) {
+            OPENVINO_ASSERT(!weight_shared_sources_pool.empty(), "[NPUW] SHARED_WEIGHTS: not enough shared weight sources.");
+            shared_buffer_pool = weight_shared_sources_pool.front();
+            weight_shared_sources_pool.pop();
+            // Pre-register this bank as a cache source now that it has a valid descriptor ID.
+            // All constants sliced from this bank will use the same source_id as the outer key.
+            ov::weight_sharing::set_weight_source(*m_shared_ctx_ptr, shared_buffer_pool);
+        }
+        
+        const size_t bytes = non_shared_constant->get_byte_size();
+        LOG_DEBUG("Assigning shared buffer for weight" << non_shared_constant->get_friendly_name() << ", size: " << bytes);
+        // Use the bank buffer's descriptor ID as the outer key so that
+        // m_weight_registry[source_id][constant_id] and m_cache_sources[source_id]
+        // refer to the same bank buffer and get_buffer() can locate the slice.
+        // Previously constant_id++ was used here, which never matched the bank
+        // buffer's (null) descriptor, silently breaking both registrations.
+        auto const_descriptor = ov::create_base_descriptor(
+            shared_buffer_pool->get_descriptor()->get_id(),  // source_id = bank buffer's stable ID
+            shared_bank_buffer_offset,                       // constant_id = offset within this bank
+            shared_buffer_pool);                             // back-reference to bank buffer
+        auto constant_shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(shared_buffer_pool->get_ptr<char>() + shared_bank_buffer_offset, bytes, shared_buffer_pool, const_descriptor);
+        auto shared_constant =
+            std::make_shared<ov::op::v0::Constant>(non_shared_constant->get_element_type(),
+                                                   non_shared_constant->get_shape(), constant_shared_buffer);
+        shared_constant->set_friendly_name(non_shared_constant->get_friendly_name());
+        ov::copy_runtime_info(non_shared_constant, shared_constant);
+        std::memcpy(constant_shared_buffer->get_ptr(), non_shared_constant->get_data_ptr(), bytes);
+        // Preserve the weightless-cache attribute: copy_runtime_info drops it (is_copyable()==false),
+        // and without it NPUW's Const wrapper treats every relocated weight as a brand-new Constant
+        // and eagerly copies it to host (a full second ~2 GB copy at partition time).
+        // CAVEAT (under investigation): keeping the weightless attr may make NPUW reconstruct the GPU
+        // prefill submodel's constants from the original .bin mmap (off our malloc) -> GPU share_usm
+        // sees in_range=0. Toggle via NO_WEIGHTLESS_ATTR=1 to test the GPU-share path.
+        if (!std::getenv("NO_WEIGHTLESS_ATTR")) {
+            ov::copy_weightless_cache_attr(non_shared_constant, shared_constant);
+        }
+        ov::replace_node(non_shared_constant, shared_constant);
+
+        shared_bank_buffer_offset += size_of_constant_aligned;
+
+        // Register this constant's (source_id, offset) → metadata in m_weight_registry.
+        // set_constant uses desc->get_id() as the outer key and desc->get_offset() as
+        // the inner key, which now both match the bank buffer registered above.
+        ov::weight_sharing::set_constant(*m_shared_ctx_ptr, *shared_constant);
+        // Also register in m_runtime_sources for runtime memory tracking.
+        ov::weight_sharing::set_runtime_weight_source(*m_shared_ctx_ptr, constant_shared_buffer);
+    }
+    LOG_INFO("[NPUW] SHARED_WEIGHTS: registered shared weights: " << constant_to_share.size());
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -819,6 +981,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                         "Please disable one of the two options.");
         LOG_INFO("Continuous prefill is enabled");
     }
+
+    LOG_DEBUG("Assigning shared weights to model if possible.");
+    assign_shared_weight_to_model_if_possible(model, plugin, properties);
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
@@ -1783,6 +1948,15 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
     if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
         return compute_continuous_prefill_supported();
+    }
+
+    // Expose the shared weight context built during compilation so Core can write it
+    // back into SingleFileStorage and make it available to subsequent plugin compile calls.
+    if (name == ov::internal::model_sharing_context.name()) {
+        if (m_shared_ctx_ptr) {
+            return ov::Any(std::make_shared<const ov::weight_sharing::Context>(*m_shared_ctx_ptr));
+        }
+        return ov::Any(ov::internal::WeightSharingCtxPtr{nullptr});
     }
 
     auto&& configIterator = m_prop_to_opt.find(name);

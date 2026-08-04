@@ -8,6 +8,7 @@
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 
 namespace ov {
 namespace test {
@@ -168,7 +169,18 @@ private:
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          const ov::AnyMap& generate_config);
 
+    // Relocate page-aligned constants into shared cross-device memory if SHARED_WEIGHTS is set.
+    // Populates m_shared_ctx_ptr which is then exposed via get_property(model_sharing_context).
+    void assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model,
+                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                   const ov::AnyMap& properties);
+
     bool m_is_eagle = false;
+
+    // Shared weight context built by assign_shared_weight_to_model_if_possible.
+    // Exposed via get_property(ov::internal::model_sharing_context) so Core can
+    // write it back into SingleFileStorage after compilation.
+    std::unique_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
 };
 
 }  // namespace npuw
