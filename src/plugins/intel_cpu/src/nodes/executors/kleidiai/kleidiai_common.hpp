@@ -57,8 +57,6 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_qsi4c32p_qsu4c32s1s0.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi4c32p_qsu4c32s1s0.h"
 
-#define FLOAT_MAX std::numeric_limits<float>::max()
-#define FLOAT_MIN (-std::numeric_limits<float>::max())
 // Headers for INT4 group asymmetric KAI kernels
 #include "kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x4_qai4c32p4x4_8x4_neon_dotprod.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_qsi8d32p_qai4c32p/kai_matmul_clamp_f32_qsi8d32p4x8_qai4c32p4x8_8x4_neon_i8mm.h"
@@ -67,6 +65,8 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon.h"
 
 namespace ov::intel_cpu::kai_common {
+inline constexpr float FLOAT_MAX = std::numeric_limits<float>::max();
+inline constexpr float FLOAT_MIN = (-std::numeric_limits<float>::max());
 enum class KAIKernelTag : std::uint8_t {
     F32_NEON_MLA,
     I8_NEON_DOTPROD,

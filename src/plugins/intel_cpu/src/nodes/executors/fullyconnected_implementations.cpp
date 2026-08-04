@@ -108,6 +108,8 @@ static const TypeMapping aclFCTypeMapping {
 
 static const TypeMapping aclLowpFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    {{_u8, _i8, _i32 | _dynamic, _u8},             {bypass(), bypass(), bypass(),  bypass()}},
+    {{_i8, _i8, _i32 | _dynamic, _i8},             {bypass(), bypass(), bypass(),  bypass()}},
     {{_u8 | _i8, _i8, _any, _f32},                 {bypass(), bypass(), use<3>(), bypass()}}
 };
 
