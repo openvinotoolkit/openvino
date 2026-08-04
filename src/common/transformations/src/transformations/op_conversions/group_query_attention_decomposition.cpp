@@ -26,6 +26,7 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
@@ -333,8 +334,11 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     int64_t local_window_size) {
     const auto window = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {local_window_size}));
     const auto one_s = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
-    // gap = capacity - window + 1 (>= 1, the frontend enforces capacity >= window).
-    const auto gap = register_new_node<v1::Add>(register_new_node<v1::Subtract>(capacity_scalar, window), one_s);
+    // gap = capacity - window + 1. The frontend enforces capacity >= local_window_size whenever the capacity
+    // is statically known; when it is dynamic that check cannot fire, so clamp gap to >= 1 here to avoid a
+    // division by zero (or a negative gap) on a malformed capacity < local_window_size configuration.
+    auto gap = register_new_node<v1::Add>(register_new_node<v1::Subtract>(capacity_scalar, window), one_s)->output(0);
+    gap = register_new_node<v1::Maximum>(gap, one_s);
     // reclaimed = gap * ceil((x - capacity) / gap), applied only once the cache has overflowed (x > capacity).
     const auto overflow = register_new_node<v1::Subtract>(seqlen_scalar, capacity_scalar);
     const auto ceil_num = register_new_node<v1::Subtract>(register_new_node<v1::Add>(overflow, gap), one_s);
@@ -384,11 +388,17 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     }
 
     const auto typed_zero = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {0}));
-    // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN.
+    // Finite lowest(), not -inf: a fully-masked row would otherwise softmax to 0/0 = NaN. The magnitude must
+    // match the compute type so it does not overflow to -inf when narrowed: f16 and bf16 have far smaller
+    // ranges than f32. (The core op currently restricts the activation type to {f32, f16}, so bf16 is not
+    // yet reachable here, but keep an explicit branch so a future bf16 activation stays finite.)
     std::shared_ptr<ov::Node> minus_inf;
     if (compute_type == ov::element::f16)
         minus_inf = register_new_node(
             v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+    else if (compute_type == ov::element::bf16)
+        minus_inf = register_new_node(
+            v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<ov::bfloat16>::lowest()}));
     else
         minus_inf =
             register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
