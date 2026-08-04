@@ -166,8 +166,12 @@ public:
     }
 
     // Preflight failed before any mutation. Consume the command and return to IDLE
-    // with the last committed counters intact.
+    // with the last committed counters intact. Only a pending keep may be aborted:
+    // a pending reset deliberately stays pending until the full prompt arrives, and
+    // aborting from any later stage would clear the poisoning that reset() owns.
     void abort_preflight() {
+        OPENVINO_ASSERT(m_stage == Stage::PENDING,
+                        "Continuous prefill: abort_preflight() without a pending keep command.");
         m_pending.reset();
         m_stage = Stage::IDLE;
     }

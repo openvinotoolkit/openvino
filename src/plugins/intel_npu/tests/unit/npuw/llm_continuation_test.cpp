@@ -142,6 +142,26 @@ TEST(NPUWContinuation, PreflightAbortConsumesCommandAndKeepsCounters) {
     EXPECT_FALSE(c.command().is_keep());
 }
 
+TEST(NPUWContinuation, PreflightAbortRequiresAPendingKeep) {
+    // Only a pending keep may be aborted. A pending reset stays pending until the
+    // full prompt arrives, and aborting a poisoned request must not clear the
+    // poisoning that only reset() owns.
+    auto idle = make_after_prefill(3000u);
+    EXPECT_THROW(idle.abort_preflight(), ov::Exception);
+
+    auto reset_pending = make_after_prefill(3000u);
+    reset_pending.request_reset();
+    EXPECT_THROW(reset_pending.abort_preflight(), ov::Exception);
+    EXPECT_EQ(reset_pending.stage(), Stage::RESET_PENDING);
+
+    auto poisoned = make_after_prefill(3000u);
+    poisoned.propose(3000);
+    poisoned.begin_active();
+    poisoned.fail_active();
+    EXPECT_THROW(poisoned.abort_preflight(), ov::Exception);
+    EXPECT_EQ(poisoned.stage(), Stage::RESET_REQUIRED);
+}
+
 TEST(NPUWContinuation, FailureAfterActivePoisonsTheRequest) {
     auto c = make_after_prefill(3000u);
     c.propose(3000);
