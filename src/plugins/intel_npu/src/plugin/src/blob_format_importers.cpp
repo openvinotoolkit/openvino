@@ -20,6 +20,16 @@ namespace {
 
 using namespace intel_npu;
 
+ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+
+    return tensor;
+}
+
 constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
 constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
 constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
@@ -397,16 +407,6 @@ private:
 }  // namespace
 
 namespace intel_npu {
-
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-
-    return tensor;
-}
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                                          const FilteredConfig& config,
