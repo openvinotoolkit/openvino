@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-04-16-43-22-000-30929282397",
+  "timestamp": "2026-08-04T16:43:22Z",
+  "run_id": "30929282397",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30929282397",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "35941",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35941",
+  "author": "mdvoretc-intel",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 CMake configure step fails transiently on AKS runner",
+  "signature": "CMake configure step failed on Windows VS2022 build runner|Infrastructure",
+  "signature_hash": "e96b5a03078ae1df",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure step failed after ~23s; build, test and packaging steps all skipped"
+    }
+  ],
+  "key_errors": [
+    "Step 'CMake configure' (step 13) concluded: failure at 2026-08-04T16:37:12Z (ran from 2026-08-04T16:36:49Z, ~23 seconds)",
+    "All subsequent build steps skipped; logs inaccessible due to secrecy policy on attempt 1"
+  ],
+  "root_cause": "The CMake configure step failed after approximately 23 seconds on the AKS Windows runner during attempt 1. The job logs are inaccessible due to CI secrecy policy. Attempt 2 was automatically triggered and is currently in progress, passing the same early steps (currently at 'Install python dependencies'). The PR changes only affect transformation source files (convert_quantize_dequantize.cpp, qdq_stripping.cpp, transformation_pipeline.cpp) and do not introduce any CMake configuration changes. This is consistent with a transient runner infrastructure issue rather than a code-induced failure.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible outside CI",
+  "recommended_actions": [
+    "Wait for attempt 2 to complete - it is already in progress and passing early steps",
+    "If attempt 2 also fails at CMake configure, inspect the cmake output for missing dependencies or misconfigured MSVC environment",
+    "Check AKS runner pool health for aks-win-16-cores-32gb-build nodes"
+  ],
+  "prevention_strategies": "AKS Windows runner transient failures are periodic. The re-run mechanism already handles these. No code changes needed.",
+  "historical_context": "Windows VS 2022 workflow jobs on AKS runners have exhibited transient failures requiring re-runs. A related pattern 'cc822c07e113be0a' ('Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2') has occurred 8 times since 2026-07-24."
+}

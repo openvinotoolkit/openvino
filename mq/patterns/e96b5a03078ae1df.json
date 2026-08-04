@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "CMake configure step failed on Windows VS2022 build runner|Infrastructure",
+  "signature_hash": "e96b5a03078ae1df",
+  "title": "Windows VS 2022 CMake configure step fails transiently on AKS runner",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-04T16:43:22Z",
+  "last_seen": "2026-08-04T16:43:22Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/30929282397"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/35941"
+  ],
+  "recent_timestamps": [
+    "2026-08-04T16:43:22Z"
+  ],
+  "rerun_search_string": "CMake configure step failed on Windows VS2022 build runner"
+}
