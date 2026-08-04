@@ -80,6 +80,23 @@ void GroupQueryAttention::validate_and_infer_types() {
                           !m_sliding_window_cache || m_local_window_size >= 1,
                           "GroupQueryAttention: sliding_window_cache requires local_window_size >= 1, got ",
                           m_local_window_size);
+    // Windowed cache: single-token decode (sequence_length == 1) is always correct, and a multi-token step
+    // that fits inside the window (past + current <= capacity) also decomposes correctly. The unmodeled case
+    // is a multi-token step that crosses a window eviction (the staging regime ONNX Runtime runs against a
+    // temporary larger buffer). Whether a step crosses depends on the past length, which is a runtime value
+    // (derived from seqlens_k), so it cannot be decided from shapes alone. A dynamic sequence_length is
+    // therefore left enabled (CPU/GPU): at runtime it is typically decode or fitting prefill, and rejecting it
+    // would disable those. A *statically* known sequence_length > 1 is a genuine multi-token graph whose
+    // correctness we cannot guarantee (it may cross an eviction at runtime), so reject it up front; only
+    // sequence_length == 1 is provably safe statically.
+    if (m_sliding_window_cache && sequence_len.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              sequence_len.get_length() == 1,
+                              "GroupQueryAttention: sliding_window_cache with a statically known sequence length is "
+                              "only supported for single-token decode (sequence_length == 1), got ",
+                              sequence_len.get_length(),
+                              " (the multi-token staging regime is not yet modelled).");
+    }
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
