@@ -50,6 +50,7 @@
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
 
+#if F4E2M1_OUTPUT
 #if VEC_SIZE == 2
 #define VSTORE_F4(vec, off, ptr)  (*((ptr) + (off)) = (vec))
 #elif VEC_SIZE == 4
@@ -60,6 +61,7 @@
 #define VSTORE_F4(vec, off, ptr) vstore8(vec, off, ptr)
 #else
 #error "Unsupported VEC_SIZE for F4 packing"
+#endif
 #endif
 
 #if GENERATE_PRECOMPUTED_REDUCTION
