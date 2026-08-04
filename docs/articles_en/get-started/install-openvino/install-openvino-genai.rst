@@ -75,21 +75,12 @@ Linux
                curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu22_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
                tar -xf openvino_genai_2026.3.0.0.tgz
 
-         .. tab-item:: Ubuntu 20.04
-            :sync: ubuntu-20
-
-            .. code-block:: sh
-
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu20_2026.3.0.0_x86_64.tar.gz  --output openvino_genai_2026.3.0.0.tgz
-               tar -xf openvino_genai_2026.3.0.0.tgz
-
-
    .. tab-item:: ARM 64-bit
       :sync: arm-64
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu20_2026.3.0.0_arm64.tar.gz --output openvino_genai_2026.3.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/linux/openvino_genai_ubuntu22_2026.3.0.0_arm64.tar.gz --output openvino_genai_2026.3.0.0.tgz
          tar -xf openvino_genai_2026.3.0.0.tgz
 
 
@@ -106,14 +97,6 @@ macOS
 
 .. tab-set::
 
-   .. tab-item:: x86, 64-bit
-      :sync: x86-64
-
-      .. code-block:: sh
-
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.3/macos/openvino_genai_macos_12_6_2026.3.0.0_x86_64.tar.gz --output openvino_genai_2026.3.0.0.tgz
-         tar -xf openvino_genai_2026.3.0.0.tgz
-
    .. tab-item:: ARM, 64-bit
       :sync: arm-64
 
@@ -127,5 +110,4 @@ Here are the full guides:
 :doc:`Linux <install-openvino-archive-linux>`,
 :doc:`Windows <install-openvino-archive-windows>`, and
 :doc:`macOS <install-openvino-archive-macos>`.
-
 

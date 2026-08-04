@@ -48,7 +48,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/windows/openvino_toolkit_windows_2026.3.0.dev20260723_x86_64.zip --output openvino_2026.3.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3/windows/openvino_toolkit_windows_2026.3.0.22451.bd8d6542e3c_x86_64.zip --output openvino_2026.3.0.zip
 
    .. note::
 
@@ -67,7 +67,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       tar -xf openvino_2026.3.0.zip
-      ren openvino_toolkit_windows_2026.3.0.dev20260723_x86_64 openvino_2026.3.0
+      ren openvino_toolkit_windows_2026.3.0.22451.bd8d6542e3c_x86_64 openvino_2026.3.0
       move openvino_2026.3.0 "C:\Program Files (x86)\Intel"
 
 
