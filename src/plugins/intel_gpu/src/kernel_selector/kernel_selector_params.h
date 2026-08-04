@@ -30,7 +30,7 @@ class JitConstants;
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct fuse_params {
-    virtual ~fuse_params() {}
+    virtual ~fuse_params() = default;
 
     KernelType GetType() const { return kType; }
 protected:
@@ -420,7 +420,7 @@ struct EngineInfo {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct Params {
-    virtual ~Params() {}
+    virtual ~Params() = default;
 
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
@@ -655,7 +655,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    ~base_params() override {}
+    ~base_params() override = default;
 
     enum class ArgType {
         Input,

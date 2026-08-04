@@ -15,6 +15,16 @@
 
 namespace {
 
+// Metadata version + compiler payload size + magic bytes
+constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+
+constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
+constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
+    "The blob received for parsing is too small to contain all mandatory information. Blob size: ";
+constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
+    "The size of the compiler payload parsed from the blob is greater "
+    "than the size of the blob. Compiler payload size: ";
+
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
     if (stream.tellp() != std::streampos(0)) {
@@ -540,7 +550,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     }
 }
 
-std::streampos MetadataBase::getFileSize(std::istream& stream) {
+size_t MetadataBase::getFileSize(std::istream& stream) {
     auto log = Logger::global().clone("getFileSize");
     if (!stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
@@ -568,28 +578,30 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
-    size_t magicBytesSize = MAGIC_BYTES.size();
+    std::streampos currentStreamPos = stream.tellg();
+    const size_t streamSize = MetadataBase::getFileSize(stream);
+
+    OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, streamSize);
+
     std::string blobMagicBytes;
-    blobMagicBytes.resize(magicBytesSize);
+    blobMagicBytes.resize(MAGIC_BYTES.size());
+    stream.seekg(-std::streampos(MAGIC_BYTES.size()), std::ios::end);
+    stream.read(blobMagicBytes.data(), MAGIC_BYTES.size());
+    OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
 
-    std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
-    stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
-    stream.read(blobMagicBytes.data(), magicBytesSize);
-    if (MAGIC_BYTES != blobMagicBytes) {
-        OPENVINO_THROW("Blob is missing NPU metadata!");
-    }
+    uint64_t payloadSize;
+    stream.seekg(-std::streampos(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
+    stream.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
 
-    uint64_t blobDataSize;
-    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::cur);
-    stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(blobDataSize));
-    stream.seekg(-stream.tellg() + currentStreamPos + blobDataSize, std::ios::cur);
+    OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    stream.seekg(-stream.tellg() + currentStreamPos + payloadSize, std::ios::cur);
 
     uint32_t metaVersion;
     stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta = create_metadata(metaVersion, payloadSize);
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
@@ -603,27 +615,26 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
-    size_t magicBytesSize = MAGIC_BYTES.size();
-    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
-                                    magicBytesSize);
+    const size_t blobSize = tensor.get_byte_size();
+    OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, blobSize);
 
-    if (MAGIC_BYTES != blobMagicBytes) {
-        OPENVINO_THROW("Blob is missing NPU metadata!");
-    }
+    const std::string_view blobMagicBytes(tensor.data<const char>() + blobSize - MAGIC_BYTES.size(),
+                                          MAGIC_BYTES.size());
+    OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
 
-    uint64_t blobDataSize;
-    blobDataSize = *reinterpret_cast<const decltype(blobDataSize)*>(tensor.data<const char>() + tensor.get_byte_size() -
-                                                                    magicBytesSize - sizeof(blobDataSize));
+    uint64_t payloadSize;
+    payloadSize = *reinterpret_cast<const decltype(payloadSize)*>(tensor.data<const char>() + blobSize -
+                                                                  MAGIC_BYTES.size() - sizeof(payloadSize));
+
+    OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 
     uint32_t metaVersion;
-    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
+    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + payloadSize);
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        const ov::Tensor roiTensor(tensor,
-                                   ov::Coordinate{blobDataSize + sizeof(metaVersion)},
-                                   ov::Coordinate{tensor.get_byte_size()});
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        const ov::Tensor roiTensor(tensor, ov::Coordinate{payloadSize + sizeof(metaVersion)}, ov::Coordinate{blobSize});
+        storedMeta = create_metadata(metaVersion, payloadSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't read NPU metadata: ", ex.what());
@@ -666,6 +677,13 @@ std::unique_ptr<MetadataBase> read_as_text(std::string_view input) {
 
 uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
+}
+
+uint64_t MetadataBase::get_main_schedule_size() const {
+    uint64_t accumulator = 0;
+    const auto initSizes = get_init_sizes();
+    return initSizes.has_value() ? get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                                 : get_blob_size();
 }
 
 std::optional<std::vector<uint64_t>> MetadataBase::get_init_sizes() const {
