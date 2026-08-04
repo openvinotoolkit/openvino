@@ -69,6 +69,18 @@ void GroupQueryAttention::validate_and_infer_types() {
                           q_type == element::f32 || q_type == element::f16,
                           "GroupQueryAttention supports following query element types: {f32, f16}");
 
+    // The op is reachable directly from a loaded IR, so mirror the ONNX frontend's sliding-window
+    // preconditions here as well: local_window_size must be -1 (disabled) or >= 1, and a windowed cache
+    // (sliding_window_cache) requires a real window (>= 1). This keeps the op and the frontend in agreement.
+    NODE_VALIDATION_CHECK(this,
+                          m_local_window_size == -1 || m_local_window_size >= 1,
+                          "GroupQueryAttention: local_window_size must be -1 (disabled) or >= 1, got ",
+                          m_local_window_size);
+    NODE_VALIDATION_CHECK(this,
+                          !m_sliding_window_cache || m_local_window_size >= 1,
+                          "GroupQueryAttention: sliding_window_cache requires local_window_size >= 1, got ",
+                          m_local_window_size);
+
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
     const auto& kv_cache_type = get_input_element_type(3);
