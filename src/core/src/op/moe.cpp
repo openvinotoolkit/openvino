@@ -54,7 +54,7 @@ void MOE::validate_and_infer_types() {
     for (size_t i = 4; i < base_inputs_count; i++) {
         const auto& ps = get_input_partial_shape(i);
         NODE_VALIDATION_CHECK(this, ps.is_static(), "Weights must have static shape.");
-        // Note: dynamic element type or empty tensor (count == 0) means empty zero point input
+        // Note: dynamic element type or empty tensor (count == 0) means optional bias input is absent
         if (get_input_element_type(i) != ov::element::dynamic && shape_size(get_input_shape(i)) != 0) {
             NODE_VALIDATION_CHECK(this,
                                   num_experts == get_input_shape(i)[0],
