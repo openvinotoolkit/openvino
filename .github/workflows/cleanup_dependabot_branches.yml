@@ -8,7 +8,7 @@ on:
         required: false
         default: true
   schedule:
-    # at 06:00 every Monday
+    # at 06:00 UTC every Monday
     - cron: '0 6 * * 1'
 
 permissions: read-all
@@ -44,7 +44,6 @@ jobs:
           # This is a fine-grained PAT of sys-openvino-ci, scoped to this
           # repository with contents:write and pull-requests:read. That account is
           # a repository admin, a role the ruleset bypass list already covers.
-          # TEMPORARY (testing)
           GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN }}
           # Real deletions happen only on the weekly schedule, or on a manual run
           # where the dry_run checkbox was explicitly unchecked. Every other case
