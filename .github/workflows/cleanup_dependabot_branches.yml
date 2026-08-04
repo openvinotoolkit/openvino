@@ -51,7 +51,7 @@ jobs:
           # repository with contents:write and pull-requests:read. That account is
           # a repository admin, a role the ruleset bypass list already covers.
           # TEMPORARY (testing)
-          GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN || github.token }}
           # Real deletions happen only on the weekly schedule, or on a manual run
           # where the dry_run checkbox was explicitly unchecked. Every other case
           # (manual run with the box checked, or any other trigger) stays a dry run.
