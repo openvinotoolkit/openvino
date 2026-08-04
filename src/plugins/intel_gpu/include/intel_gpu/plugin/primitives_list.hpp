@@ -343,6 +343,6 @@ REGISTER_FACTORY(internal, SparsePA);
 REGISTER_FACTORY(internal, SparseSDPA);
 
 // ------------------------- Tensor Parallel ops ----------------------------- //
-#ifdef ENABLE_TENSOR_PARALLEL
-REGISTER_FACTORY(tp, TPAllReduce);
+#ifdef ENABLE_TP_GPU
+REGISTER_FACTORY(tp_gpu, TPAllReduce);
 #endif

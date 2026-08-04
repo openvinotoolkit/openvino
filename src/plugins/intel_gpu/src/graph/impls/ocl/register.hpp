@@ -64,7 +64,7 @@
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/unique.hpp"
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 #endif
 
@@ -158,7 +158,7 @@ REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);
 REGISTER_OCL(sparse_fill_empty_rows);
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
 REGISTER_OCL(tp_allreduce);
 #endif
 

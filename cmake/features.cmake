@@ -44,14 +44,12 @@ endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 
-ov_option (ENABLE_TENSOR_PARALLEL "Enables Tensor Parallel Plugin" ON)
+ov_option (ENABLE_TP_GPU "Enables Tensor Parallel Plugin" OFF)
 
 # Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
 # opt-in only; the default is never flipped.
 set(OV_GPU_DEFAULT_RT "OCL")
-if(ENABLE_TENSOR_PARALLEL)
-    set(OV_GPU_DEFAULT_RT "ZE")
-endif()
+
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported values: OCL (default), SYCL, ZE (L0 alias), and COMBINED (ZE+OCL, shared builds only)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL COMBINED)
     if(GPU_RT_TYPE STREQUAL "L0")
@@ -76,9 +74,9 @@ if (ENABLE_INTEL_GPU)
             message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
         endif()
     endif()
-    if(ENABLE_TENSOR_PARALLEL AND NOT GPU_RT_TYPE STREQUAL "ZE")
-        message(FATAL_ERROR "ENABLE_TENSOR_PARALLEL requires GPU_RT_TYPE=ZE (aka L0); got '${GPU_RT_TYPE}'. "
-                            "Rerun cmake with -DGPU_RT_TYPE=ZE (or -DGPU_RT_TYPE=L0), or disable TP via -DENABLE_TENSOR_PARALLEL=OFF.")
+    if(ENABLE_TP_GPU AND NOT GPU_RT_TYPE STREQUAL "ZE")
+        message(FATAL_ERROR "ENABLE_TP_GPU requires GPU_RT_TYPE=ZE (aka L0); got '${GPU_RT_TYPE}'. "
+                            "Rerun cmake with -DGPU_RT_TYPE=ZE (or -DGPU_RT_TYPE=L0), or disable TP via -DENABLE_TP_GPU=OFF.")
     endif()
 endif()
 
@@ -273,7 +271,7 @@ else()
 endif()
 
 # COMBINED includes a ZE build, so it needs the Level Zero loader too.
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")) OR ENABLE_TENSOR_PARALLEL)
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")) OR ENABLE_TP_GPU)
     set(ENABLE_OV_ZERO_LOADER ON)
 else()
     set(ENABLE_OV_ZERO_LOADER OFF)

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
 
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 #include "primitive_inst.h"
@@ -47,4 +47,4 @@ using tp_allreduce_inst = typed_primitive_inst<tp_allreduce>;
 
 }  // namespace cldnn
 
-#endif  // ENABLE_TENSOR_PARALLEL
+#endif  // ENABLE_TP_GPU

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
 
 #include "tp_allreduce_inst.h"
 #include "primitive_type_base.h"
@@ -49,4 +49,4 @@ tp_allreduce_inst::typed_primitive_inst(network& network, tp_allreduce_node cons
 
 }  // namespace cldnn
 
-#endif  // ENABLE_TENSOR_PARALLEL
+#endif  // ENABLE_TP_GPU

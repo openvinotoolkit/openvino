@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_allreduce_inst.h"
 #include "registry/implementation_map.hpp"
 
-#include "tensor_parallel/tp_coordination.hpp"
-#include "tensor_parallel/tp_device_coordinator.hpp"
+#include "tp_gpu/tp_coordination.hpp"
+#include "tp_gpu/tp_device_coordinator.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -26,7 +26,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
 
     uint32_t collective_id = 0;
     uint32_t rank = 0;
-    std::shared_ptr<ov::tp::TPCoordination> coordination;
+    std::shared_ptr<ov::tp_gpu::TPCoordination> coordination;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::tp_allreduce_impl)
 
@@ -124,4 +124,4 @@ attach_tp_allreduce_impl::attach_tp_allreduce_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tp_allreduce_impl)
 
-#endif  // ENABLE_TENSOR_PARALLEL
+#endif  // ENABLE_TP_GPU

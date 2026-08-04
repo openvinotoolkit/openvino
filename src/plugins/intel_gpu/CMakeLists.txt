@@ -162,9 +162,9 @@ set(PLUGIN_SOURCES ${GPU_PLUGIN_SOURCES})
 set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
 set(GPU_MLIR_SOURCES ${GPU_PLUGIN_MLIR_SOURCES})
 
-if(ENABLE_TENSOR_PARALLEL)
+if(ENABLE_TP_GPU)
     # Add TP plugin's TPAllReduce op source (needed for REGISTER_FACTORY typeinfo)
-    list(APPEND PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../tensor_parallel/src/op/tp_all_reduce.cpp)
+    list(APPEND PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../tp_gpu/src/op/tp_all_reduce.cpp)
 endif()
 
 # Fetches GraphCompiler, so it must run once rather than once per stack.
@@ -243,10 +243,10 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     target_include_directories(${MODULE_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
-    if(ENABLE_TENSOR_PARALLEL)
+    if(ENABLE_TP_GPU)
         target_include_directories(${MODULE_NAME} PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/../tensor_parallel/include/)
-        target_compile_definitions(${MODULE_NAME} PRIVATE ENABLE_TENSOR_PARALLEL)
+                ${CMAKE_CURRENT_SOURCE_DIR}/../tp_gpu/include/)
+        target_compile_definitions(${MODULE_NAME} PRIVATE ENABLE_TP_GPU)
     endif()
 
     ov_set_threading_interface_for(${MODULE_NAME})

@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-namespace ov { namespace tp { class TPCoordination; } }
+namespace ov { namespace tp_gpu { class TPCoordination; } }
 
 namespace cldnn {
 
@@ -25,7 +25,7 @@ struct tp_allreduce : public primitive_base<tp_allreduce> {
                  const input_info& input,
                  uint32_t collective_id,
                  uint32_t rank,
-                 std::shared_ptr<ov::tp::TPCoordination> coordination)
+                 std::shared_ptr<ov::tp_gpu::TPCoordination> coordination)
         : primitive_base(id, {input}),
           collective_id(collective_id),
           rank(rank),
@@ -33,7 +33,7 @@ struct tp_allreduce : public primitive_base<tp_allreduce> {
 
     uint32_t collective_id = 0;
     uint32_t rank = 0;
-    std::shared_ptr<ov::tp::TPCoordination> coordination;
+    std::shared_ptr<ov::tp_gpu::TPCoordination> coordination;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
