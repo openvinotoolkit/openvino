@@ -351,7 +351,7 @@ void test_multi_iter(size_t n, int iters) {
 }
 
 // ---------------------------------------------------------------------------
-// Test 4: Plan rebuild on size change (different N → rebuild path)
+// Test 4: Shared scratch growth on size change
 // ---------------------------------------------------------------------------
 void test_plan_rebuild() {
     std::cout << "[T4] plan rebuild on size change ..." << std::flush;
@@ -392,6 +392,15 @@ void test_plan_rebuild() {
             ov::zeMemFree(shared->context, outs[r]);
         }
     }
+
+        const auto stats = coord->get_scratch_stats();
+        const size_t expected_capacity = 4096 * sizeof(ov::float16);
+        CHECK(stats.payload_capacity_bytes == expected_capacity,
+            "unexpected scratch capacity: " << stats.payload_capacity_bytes);
+        CHECK(stats.total_allocated_bytes == 2 * expected_capacity,
+            "scratch should contain one max-sized allocation per rank");
+        CHECK(stats.growth_count == 3, "scratch must grow only for 1024, 2048 and 4096");
+        CHECK(stats.allocation_count == 6, "TP=2 must allocate two buffers per growth");
 
     for (int r = 0; r < 2; ++r) rs[r].destroy();
     coord.reset();
@@ -451,7 +460,8 @@ void test_allreduce_f32(size_t n) {
 // across all collective_id slots, so concurrent use of different slots is
 // NOT supported.  The realistic usage pattern (per-layer AllReduce ops in a
 // transformer forward pass) calls slots one after the other; this test
-// reproduces that and verifies each slot caches its own plan independently.
+// reproduces that and verifies each slot re-records the coordinator-wide
+// command lists while sharing one bounded scratch arena.
 // ---------------------------------------------------------------------------
 void test_multi_slot(size_t n) {
     std::cout << "[T6] multi-slot sequential n=" << n << " ..." << std::flush;
@@ -472,21 +482,6 @@ void test_multi_slot(size_t n) {
             outs[s][r] = rs[r].alloc(bytes);
         }
     }
-    // slot 0: 1+2=3   slot 1: 4+5=9
-    std::vector<ov::float16> h0(n, ov::float16(1.0f)), h1(n, ov::float16(2.0f));
-    std::vector<ov::float16> h4(n, ov::float16(4.0f)), h5(n, ov::float16(5.0f));
-    rs[0].copy_from_host(ins[0][0], h0.data(), bytes);
-    rs[1].copy_from_host(ins[0][1], h1.data(), bytes);
-    rs[0].copy_from_host(ins[1][0], h4.data(), bytes);
-    rs[1].copy_from_host(ins[1][1], h5.data(), bytes);
-
-    // Run each slot a few times, alternating slots to ensure each slot's plan
-    // cache is preserved across the other slot's record_plan invocation.
-    for (int rep = 0; rep < 3; ++rep) {
-        run_collective(*coord, 0, ins[0], outs[0], n, ov::element::f16);
-        run_collective(*coord, 1, ins[1], outs[1], n, ov::element::f16);
-    }
-
     auto check = [&](const std::vector<void*>& outs_set, float exp, const char* tag) {
         std::vector<ov::float16> r0(n), r1(n);
         rs[0].copy_to_host(r0.data(), outs_set[0], bytes);
@@ -498,8 +493,36 @@ void test_multi_slot(size_t n) {
         }
         CHECK(bad == 0, "slot " << tag << " mismatch (" << bad << " elems)");
     };
-    check(outs[0], 3.0f, "0");
-    check(outs[1], 9.0f, "1");
+
+    // Change values every repetition and check immediately.  This catches
+    // executing a stale command list from the other collective slot.
+    for (int rep = 0; rep < 3; ++rep) {
+        const float s0_r0 = static_cast<float>(rep + 1);
+        const float s0_r1 = static_cast<float>(rep + 2);
+        const float s1_r0 = static_cast<float>(rep + 4);
+        const float s1_r1 = static_cast<float>(rep + 5);
+        std::vector<ov::float16> h0(n, ov::float16(s0_r0));
+        std::vector<ov::float16> h1(n, ov::float16(s0_r1));
+        std::vector<ov::float16> h4(n, ov::float16(s1_r0));
+        std::vector<ov::float16> h5(n, ov::float16(s1_r1));
+        rs[0].copy_from_host(ins[0][0], h0.data(), bytes);
+        rs[1].copy_from_host(ins[0][1], h1.data(), bytes);
+        rs[0].copy_from_host(ins[1][0], h4.data(), bytes);
+        rs[1].copy_from_host(ins[1][1], h5.data(), bytes);
+
+        run_collective(*coord, 0, ins[0], outs[0], n, ov::element::f16);
+        check(outs[0], s0_r0 + s0_r1, "0");
+        run_collective(*coord, 1, ins[1], outs[1], n, ov::element::f16);
+        check(outs[1], s1_r0 + s1_r1, "1");
+    }
+
+    const auto stats = coord->get_scratch_stats();
+    CHECK(stats.payload_capacity_bytes == bytes,
+          "scratch capacity must equal the largest collective payload");
+    CHECK(stats.total_allocated_bytes == 2 * bytes,
+          "scratch size must be independent of collective slot count");
+    CHECK(stats.growth_count == 1, "equal-size slots must share the first allocation");
+    CHECK(stats.allocation_count == 2, "TP=2 must own one allocation per rank");
 
     for (int s = 0; s < 2; ++s)
         for (int r = 0; r < 2; ++r) {
@@ -507,6 +530,48 @@ void test_multi_slot(size_t n) {
             ov::zeMemFree(shared->context, outs[s][r]);
         }
     for (int r = 0; r < 2; ++r) rs[r].destroy();
+    coord.reset();
+    shared.reset();
+    std::cout << "  OK" << std::endl;
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: Input/output aliasing supported by the coordinator API.
+// ---------------------------------------------------------------------------
+void test_in_place(size_t n) {
+    std::cout << "[T7] in-place f16 n=" << n << " ..." << std::flush;
+    Watchdog wd(30, "T7 in-place");
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+
+    std::vector<RankScratch> rs(2);
+    for (int r = 0; r < 2; ++r) rs[r].init(shared->context, shared->devices[r]);
+
+    const size_t bytes = n * sizeof(ov::float16);
+    std::vector<void*> buffers(2);
+    for (int r = 0; r < 2; ++r) buffers[r] = rs[r].alloc(bytes);
+
+    std::vector<ov::float16> h0(n, ov::float16(1.0f));
+    std::vector<ov::float16> h1(n, ov::float16(2.0f));
+    rs[0].copy_from_host(buffers[0], h0.data(), bytes);
+    rs[1].copy_from_host(buffers[1], h1.data(), bytes);
+
+    run_collective(*coord, 0, buffers, buffers, n, ov::element::f16);
+
+    std::vector<ov::float16> out0(n), out1(n);
+    rs[0].copy_to_host(out0.data(), buffers[0], bytes);
+    rs[1].copy_to_host(out1.data(), buffers[1], bytes);
+    int bad = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (std::fabs(static_cast<float>(out0[i]) - 3.0f) > 1e-3f) ++bad;
+        if (std::fabs(static_cast<float>(out1[i]) - 3.0f) > 1e-3f) ++bad;
+    }
+    CHECK(bad == 0, "in-place result mismatch (" << bad << " elems)");
+
+    for (int r = 0; r < 2; ++r) {
+        ov::zeMemFree(shared->context, buffers[r]);
+        rs[r].destroy();
+    }
     coord.reset();
     shared.reset();
     std::cout << "  OK" << std::endl;
@@ -545,6 +610,7 @@ int main(int argc, char* argv[]) {
         test_plan_rebuild();
         test_allreduce_f32(n);
         test_multi_slot(n);
+        test_in_place(n);
     } catch (const std::exception& e) {
         std::cerr << "[FAIL] uncaught: " << e.what() << std::endl;
         return 1;

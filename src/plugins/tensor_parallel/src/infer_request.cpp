@@ -132,8 +132,14 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
 }
 
 void InferRequest::infer() {
+    // A CompiledModel owns one coordinator shared by all of its requests.
+    // Serialize complete outer inferences so two requests cannot mix ranks
+    // in the same rendezvous epoch or overwrite shared L0 command lists.
+    [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
+
     const auto& rank_compiled = m_compiled_model->get_rank_compiled();
     const size_t num_ranks = rank_compiled.size();
+    static const bool profiling_enabled = std::getenv("TP_PROF") != nullptr;
 
     using clock = std::chrono::steady_clock;
     auto t0 = clock::now();
@@ -152,11 +158,13 @@ void InferRequest::infer() {
     auto t1 = clock::now();
 
     // 2. Launch all ranks in parallel.
-    std::vector<double> per_rank_ms(num_ranks, 0.0);
+    std::vector<double> per_rank_ms(profiling_enabled ? num_ranks : 0, 0.0);
     if (num_ranks == 1) {
         auto r0 = clock::now();
         m_rank_requests[0]->infer();
-        per_rank_ms[0] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
+        if (profiling_enabled) {
+            per_rank_ms[0] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
+        }
     } else {
         std::vector<std::future<void>> futures;
         futures.reserve(num_ranks);
@@ -164,7 +172,9 @@ void InferRequest::infer() {
             futures.push_back(std::async(std::launch::async, [this, rank, &per_rank_ms]() {
                 auto r0 = clock::now();
                 m_rank_requests[rank]->infer();
-                per_rank_ms[rank] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
+                if (!per_rank_ms.empty()) {
+                    per_rank_ms[rank] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
+                }
             }));
         }
         for (auto& f : futures) {
@@ -185,18 +195,20 @@ void InferRequest::infer() {
 
     auto t3 = clock::now();
 
-    double ms_set = std::chrono::duration<double, std::milli>(t1 - t0).count();
-    double ms_infer = std::chrono::duration<double, std::milli>(t2 - t1).count();
-    double ms_collect = std::chrono::duration<double, std::milli>(t3 - t2).count();
+    if (profiling_enabled) {
+        double ms_set = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        double ms_infer = std::chrono::duration<double, std::milli>(t2 - t1).count();
+        double ms_collect = std::chrono::duration<double, std::milli>(t3 - t2).count();
 
-    std::cerr << "[TP] Infer breakdown: set_inputs=" << ms_set
-              << "ms  infer=" << ms_infer
-              << "ms  collect=" << ms_collect
-              << "ms  total=" << (ms_set + ms_infer + ms_collect) << "ms";
-    for (size_t r = 0; r < per_rank_ms.size(); ++r) {
-        std::cerr << "  r" << r << "=" << per_rank_ms[r] << "ms";
+        std::cerr << "[TP] Infer breakdown: set_inputs=" << ms_set
+                  << "ms  infer=" << ms_infer
+                  << "ms  collect=" << ms_collect
+                  << "ms  total=" << (ms_set + ms_infer + ms_collect) << "ms";
+        for (size_t r = 0; r < per_rank_ms.size(); ++r) {
+            std::cerr << "  r" << r << "=" << per_rank_ms[r] << "ms";
+        }
+        std::cerr << "\n";
     }
-    std::cerr << "\n";
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {

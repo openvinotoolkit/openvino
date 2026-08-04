@@ -9,6 +9,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -78,6 +79,21 @@ void resolve_counter_based_event_create(ze_driver_handle_t driver) {
 bool tp_profiling_enabled() {
     static const bool on = std::getenv("TP_PROF") != nullptr;
     return on;
+}
+
+std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
+    OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
+                    "[TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
+    return lhs * rhs;
+}
+
+std::size_t collective_payload_bytes(std::size_t n, ov::element::Type dtype) {
+    OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::f32,
+                    "[TP][L0] AllReduce supports f16/f32 only, got ", dtype);
+    OPENVINO_ASSERT(n > 0, "[TP][L0] zero-sized AllReduce is not supported");
+    OPENVINO_ASSERT(n <= std::numeric_limits<uint32_t>::max(),
+                    "[TP][L0] AllReduce element count exceeds Level Zero launch range: ", n);
+    return checked_multiply(n, dtype.size(), "collective payload");
 }
 
 void select_compute_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
@@ -247,6 +263,8 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     for (int r = 0; r < world_size; ++r) {
         m_ranks[r].device = m_shared->devices[r];
     }
+    m_scratch.allocations.assign(world_size, nullptr);
+    m_scratch.bytes_per_rank.assign(world_size, 0);
 
     try {
         for (int r = 0; r < world_size; ++r) {
@@ -267,19 +285,34 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     }
 
     m_ready = true;
-    std::cerr << "[TP][L0] coordinator ready: " << world_size << " ranks, "
-              << num_collectives << " collective slots"
-              << (m_use_immediate ? " (immediate cmdlists)" : " (regular cmdlists)")
-              << std::endl;
+    if (tp_profiling_enabled()) {
+        std::cerr << "[TP][L0] coordinator ready: " << world_size << " ranks, "
+                  << num_collectives << " collective slots"
+                  << (m_use_immediate ? " (immediate cmdlists)" : " (regular cmdlists)")
+                  << std::endl;
+    }
 }
 
 TPDeviceCoordinator::~TPDeviceCoordinator() {
     for (auto& p : m_plans) {
         if (p) destroy_plan(*p);
     }
+    destroy_scratch();
     for (auto& rs : m_ranks) {
         destroy_rank(rs);
     }
+}
+
+TPDeviceCoordinator::ScratchStats TPDeviceCoordinator::get_scratch_stats() const {
+    std::lock_guard<std::mutex> lock(m_scratch_mutex);
+    ScratchStats stats;
+    stats.payload_capacity_bytes = m_scratch.payload_capacity_bytes;
+    stats.total_allocated_bytes = m_scratch.total_allocated_bytes;
+    stats.allocated_bytes_per_rank = m_scratch.bytes_per_rank;
+    stats.generation = m_scratch.generation;
+    stats.growth_count = m_scratch.growth_count;
+    stats.allocation_count = m_scratch.allocation_count;
+    return stats;
 }
 
 void TPDeviceCoordinator::init_rank(RankState& rs) {
@@ -413,8 +446,6 @@ void TPDeviceCoordinator::destroy_rank(RankState& rs) {
 }
 
 void TPDeviceCoordinator::destroy_plan(Plan& plan) {
-    auto ctx = m_shared ? m_shared->context : nullptr;
-
     // Before destroying any GPU resources, make sure no in-flight work
     // from the previous execute_plan is still using them.  Without this
     // sync, zeCommandListReset / zeMemFree on a still-pending cmdlist
@@ -437,8 +468,9 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     for (auto& e : plan.ev_ts_copy)   if (e) ov::zeEventDestroy(e);
     for (auto& e : plan.ev_ts_kernel) if (e) ov::zeEventDestroy(e);
     if (plan.ts_pool) ov::zeEventPoolDestroy(plan.ts_pool);
-    if (ctx) {
-        for (auto* p : plan.incoming) if (p) ov::zeMemFree(ctx, p);
+    if (m_recorded_plan == &plan) {
+        m_recorded_plan = nullptr;
+        m_recorded_scratch_generation = 0;
     }
     plan.ev_recv.clear();
     plan.ev_bcast.clear();
@@ -447,12 +479,136 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.ev_ts_copy.clear();
     plan.ev_ts_kernel.clear();
     plan.ts_pool = nullptr;
-    plan.incoming.clear();
     plan.in_ptrs.clear();
     plan.out_ptrs.clear();
     plan.n = 0;
-    plan.n_capacity = 0;
     plan.dtype = ov::element::dynamic;
+    plan.max_payload_bytes = 0;
+}
+
+bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
+    std::lock_guard<std::mutex> lock(m_scratch_mutex);
+    if (payload_bytes <= m_scratch.payload_capacity_bytes) {
+        return false;
+    }
+
+    std::vector<void*> new_allocations(static_cast<std::size_t>(m_world_size), nullptr);
+    std::vector<std::size_t> new_bytes_per_rank(static_cast<std::size_t>(m_world_size), 0);
+    ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
+
+    try {
+        if (m_world_size == 2) {
+            for (int rank = 0; rank < m_world_size; ++rank) {
+                ZE_THROW(ov::zeMemAllocDevice(m_shared->context,
+                                              &mad,
+                                              payload_bytes,
+                                              64,
+                                              m_ranks[rank].device,
+                                              &new_allocations[rank]));
+                new_bytes_per_rank[rank] = payload_bytes;
+            }
+        } else {
+            const auto packed_bytes = checked_multiply(payload_bytes,
+                                                       static_cast<std::size_t>(m_world_size - 1),
+                                                       "packed scratch");
+            ZE_THROW(ov::zeMemAllocDevice(m_shared->context,
+                                          &mad,
+                                          packed_bytes,
+                                          64,
+                                          m_ranks[0].device,
+                                          &new_allocations[0]));
+            new_bytes_per_rank[0] = packed_bytes;
+        }
+    } catch (...) {
+        for (auto* ptr : new_allocations) {
+            if (ptr) {
+                ov::zeMemFree(m_shared->context, ptr);
+            }
+        }
+        throw;
+    }
+
+    try {
+        // Every execute path synchronizes before returning.  Synchronize
+        // again before replacing addresses embedded in recorded lists.  If
+        // synchronization fails, discard only the newly allocated arena and
+        // keep the old one intact.
+        for (auto& rs : m_ranks) {
+            if (rs.compute_queue) {
+                ZE_THROW(ov::zeCommandQueueSynchronize(rs.compute_queue, UINT64_MAX));
+            }
+            if (rs.copy_queue) {
+                ZE_THROW(ov::zeCommandQueueSynchronize(rs.copy_queue, UINT64_MAX));
+            }
+        }
+    } catch (...) {
+        for (auto* ptr : new_allocations) {
+            if (ptr) {
+                ov::zeMemFree(m_shared->context, ptr);
+            }
+        }
+        throw;
+    }
+
+    for (auto* ptr : m_scratch.allocations) {
+        if (ptr) {
+            ov::zeMemFree(m_shared->context, ptr);
+        }
+    }
+
+    m_scratch.allocations = std::move(new_allocations);
+    m_scratch.bytes_per_rank = std::move(new_bytes_per_rank);
+    m_scratch.payload_capacity_bytes = payload_bytes;
+    m_scratch.total_allocated_bytes = 0;
+    for (const auto bytes : m_scratch.bytes_per_rank) {
+        m_scratch.total_allocated_bytes += bytes;
+    }
+    ++m_scratch.generation;
+    ++m_scratch.growth_count;
+    m_scratch.allocation_count += m_world_size == 2 ? 2 : 1;
+    m_recorded_plan = nullptr;
+    m_recorded_scratch_generation = 0;
+
+    if (tp_profiling_enabled()) {
+        std::cerr << "[TP][MEM] scratch grow generation=" << m_scratch.generation
+                  << " payload_capacity=" << m_scratch.payload_capacity_bytes
+                  << " total=" << m_scratch.total_allocated_bytes;
+        for (int rank = 0; rank < m_world_size; ++rank) {
+            std::cerr << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
+        }
+        std::cerr << std::endl;
+    }
+    return true;
+}
+
+void TPDeviceCoordinator::destroy_scratch() {
+    std::lock_guard<std::mutex> lock(m_scratch_mutex);
+    if (m_shared && m_shared->context) {
+        for (auto*& ptr : m_scratch.allocations) {
+            if (ptr) {
+                ov::zeMemFree(m_shared->context, ptr);
+                ptr = nullptr;
+            }
+        }
+    }
+    std::fill(m_scratch.bytes_per_rank.begin(), m_scratch.bytes_per_rank.end(), 0);
+    m_scratch.payload_capacity_bytes = 0;
+    m_scratch.total_allocated_bytes = 0;
+    m_recorded_plan = nullptr;
+    m_recorded_scratch_generation = 0;
+}
+
+void* TPDeviceCoordinator::scratch_buffer(int index) const {
+    if (m_world_size == 2) {
+        OPENVINO_ASSERT(index >= 0 && index < m_world_size,
+                        "[TP][L0] scratch rank out of range: ", index);
+        return m_scratch.allocations[static_cast<std::size_t>(index)];
+    }
+
+    OPENVINO_ASSERT(index >= 0 && index < m_world_size - 1,
+                    "[TP][L0] scratch worker out of range: ", index);
+    auto* base = static_cast<uint8_t*>(m_scratch.allocations[0]);
+    return base + static_cast<std::size_t>(index) * m_scratch.payload_capacity_bytes;
 }
 
 void TPDeviceCoordinator::build_plan(int /*collective_id*/,
@@ -466,21 +622,22 @@ void TPDeviceCoordinator::build_plan(int /*collective_id*/,
 
     auto ctx = m_shared->context;
     const int N = m_world_size;
-    const std::size_t elem_bytes = dtype.size();
+    const std::size_t payload_bytes = collective_payload_bytes(n, dtype);
 
     plan.in_ptrs  = in_ptrs;
     plan.out_ptrs = out_ptrs;
     plan.n        = n;
     plan.dtype    = dtype;
 
-    // The pointer-independent resources (event pool, events, staging
-    // buffers) only depend on (n, dtype, world_size) — keep them across
-    // calls when only the input/output pointers change.
+    OPENVINO_ASSERT(m_scratch.payload_capacity_bytes >= payload_bytes,
+                    "[TP][L0] scratch arena is smaller than collective payload");
+
+    // Event resources are pointer/shape independent and remain cached per
+    // collective.  Device staging is coordinator-owned and shared.
     const bool resources_already_built = plan.pool != nullptr;
     if (resources_already_built) {
         return;
     }
-    plan.n_capacity = n;
 
     if (N == 2) {
         // Symmetric N=2: every rank pushes its `in` to peer's local staging,
@@ -535,13 +692,6 @@ void TPDeviceCoordinator::build_plan(int /*collective_id*/,
             }
         }
 
-        // One staging buffer per rank, allocated on that rank's device.
-        plan.incoming.assign(2, nullptr);
-        ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
-        for (int r = 0; r < 2; ++r) {
-            ZE_THROW(ov::zeMemAllocDevice(ctx, &mad, n * elem_bytes, 64,
-                                          m_ranks[r].device, &plan.incoming[r]));
-        }
         return;
     }
 
@@ -571,21 +721,13 @@ void TPDeviceCoordinator::build_plan(int /*collective_id*/,
     mk(plan.ev_reduce);
     for (int w = 0; w < W; ++w) mk(plan.ev_bcast[w]);
 
-    // Allocate per-worker staging buffers on main rank's device.
-    plan.incoming.assign(W, nullptr);
-    ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
-    for (int w = 0; w < W; ++w) {
-        ZE_THROW(ov::zeMemAllocDevice(ctx, &mad, n * elem_bytes, 64,
-                                      m_ranks[0].device, &plan.incoming[w]));
-    }
 }
 
 void TPDeviceCoordinator::record_plan(Plan& plan) {
     constexpr uint32_t kGroupSize = 256;
     const int N = m_world_size;
     const std::size_t n = plan.n;
-    const std::size_t elem_bytes = plan.dtype.size();
-    const std::size_t bytes = n * elem_bytes;
+    const std::size_t bytes = collective_payload_bytes(n, plan.dtype);
 
     // On the immediate path nothing is recorded ahead of time \u2014 cmdlists
     // are appended to and consumed inside execute_plan.  zeCommandListReset
@@ -635,7 +777,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
                 self.copy_list ? self.copy_list : self.compute_list;
             ZE_THROW(ov::zeCommandListAppendMemoryCopy(
                 copy_target,
-                plan.incoming[peer],
+                scratch_buffer(peer),
                 plan.in_ptrs[r],
                 bytes,
                 plan.ev_recv[r],
@@ -648,7 +790,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
             // 3. Reduce: out_self = in_self + staging_self.
             void* dst   = plan.out_ptrs[r];
             void* src0  = plan.in_ptrs[r];
-            void* src1  = plan.incoming[r];
+            void* src1  = scratch_buffer(r);
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
@@ -671,12 +813,12 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     ze_kernel_handle_t main_kernel =
         (plan.dtype == ov::element::f16) ? main_rs.kernel_f16 : main_rs.kernel_f32;
 
-    // --- Worker lists: copy local input to main.incoming[w], wait scatter ---
+    // --- Worker lists: copy local input to rank-0 scratch, wait scatter ---
     for (int w = 0; w < W; ++w) {
         auto& worker = m_ranks[w + 1];
         ZE_THROW(ov::zeCommandListAppendMemoryCopy(
             worker.compute_list,
-            plan.incoming[w],
+            scratch_buffer(w),
             plan.in_ptrs[w + 1],
             bytes,
             plan.ev_recv[w],
@@ -703,7 +845,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
 
     for (int w = 0; w < W; ++w) {
         void* a = (w == 0) ? src0_main : dst_main;
-        void* b = plan.incoming[w];
+        void* b = scratch_buffer(w);
         ZE_THROW(ov::zeKernelSetArgumentValue(main_kernel, 0, sizeof(void*), &dst_main));
         ZE_THROW(ov::zeKernelSetArgumentValue(main_kernel, 1, sizeof(void*), &a));
         ZE_THROW(ov::zeKernelSetArgumentValue(main_kernel, 2, sizeof(void*), &b));
@@ -751,7 +893,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         stats->reset = tr1 - tr0;
         // Cross-device memcpy size per rank (each rank pushes its full
         // input to the peer's staging buffer; same on both sides for N=2).
-        stats->copy_bytes = plan.n * plan.dtype.size();
+        stats->copy_bytes = collective_payload_bytes(plan.n, plan.dtype);
     }
 
     if (m_world_size == 2 && m_use_immediate) {
@@ -760,13 +902,15 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         // executes commands as they are appended; the host waits on the
         // counter-based event signaled by the tail barrier on each rank.
         constexpr uint32_t kGroupSize = 256;
-        const std::size_t bytes = plan.n * plan.dtype.size();
+        const std::size_t bytes = collective_payload_bytes(plan.n, plan.dtype);
         const uint32_t items = static_cast<uint32_t>(plan.n);
         ze_group_count_t gc{(items + kGroupSize - 1) / kGroupSize, 1, 1};
         uint64_t cn64 = plan.n;
 
         auto step = [](const char* what) {
-            std::cerr << "[TP][IMM] " << what << std::endl << std::flush;
+            if (dbg) {
+                std::cerr << "[TP][IMM] " << what << std::endl << std::flush;
+            }
         };
 
         auto ts0 = clk::now();
@@ -778,7 +922,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
             step(r == 0 ? "memcpy r0" : "memcpy r1");
             ZE_THROW(ov::zeCommandListAppendMemoryCopy(
                 self.compute_list,
-                plan.incoming[peer],
+                scratch_buffer(peer),
                 plan.in_ptrs[r],
                 bytes,
                 plan.ev_recv[r],
@@ -798,7 +942,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
 
             void* dst   = plan.out_ptrs[r];
             void* src0  = plan.in_ptrs[r];
-            void* src1  = plan.incoming[r];
+            void* src1  = scratch_buffer(r);
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
@@ -1025,49 +1169,48 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         auto& slot = m_plans[collective_id];
         if (!slot) slot = std::make_unique<Plan>();
 
-        // Pointers may shift across forwards; (n,dtype) typically does not.
-        // Reuse pool/events/staging when only pointers change — only
-        // re-record the command lists and rebind kernel args.
-        // When `n` shrinks (e.g. prefill -> decode transition where n drops
-        // from `prefill_len` to 1 across all collectives), reuse the
-        // existing plan in-place: pool/events are size-independent and
-        // `incoming[]` staging was sized for the larger `n`.  This avoids
-        // ~1ms/call of free+alloc+pool-rebuild on the first decode step.
-        const bool same_dtype = slot->dtype == dtype;
-        const bool fits       = same_dtype && n <= slot->n_capacity;
-        const bool same_shape = slot->n == n && same_dtype;
-        const bool same_ptrs  = same_shape &&
-                                slot->in_ptrs == rdz.in_ptrs &&
-                                slot->out_ptrs == rdz.out_ptrs;
-        const bool need_rerecord = !same_ptrs && fits;
-        const bool need_full_rebuild = !fits;
-        trace(need_full_rebuild ? "phase2: full rebuild"
-                                : need_rerecord ? "phase2: re-record" : "phase2: reuse plan");
+        const auto payload_bytes = collective_payload_bytes(n, dtype);
+        const bool scratch_grew = ensure_scratch_capacity(payload_bytes);
+        const bool resources_missing = slot->pool == nullptr;
+        const bool signature_matches = slot->matches(rdz.in_ptrs, rdz.out_ptrs, n, dtype);
+        const bool recorded_matches = !m_use_immediate &&
+                                      m_recorded_plan == slot.get() &&
+                                      m_recorded_scratch_generation == m_scratch.generation &&
+                                      signature_matches;
+        const bool need_record = !m_use_immediate && !recorded_matches;
+
+        trace(resources_missing ? "phase2: build resources"
+                                : scratch_grew ? "phase2: grow scratch and re-record"
+                                : need_record ? "phase2: re-record" : "phase2: reuse recording");
         auto tr0 = clk::now();
-        if (need_full_rebuild) {
-            static const bool diag = std::getenv("TP_PROF") != nullptr;
-            if (diag) {
-                static thread_local int dbg_left = 50;
-                if (dbg_left-- > 0) {
-                    std::cerr << "[TP][DIAG] full_rebuild cid=" << collective_id
-                              << " old_n=" << slot->n << " new_n=" << n
-                              << " old_dt=" << slot->dtype << " new_dt=" << dtype
-                              << " same_shape=" << same_shape
-                              << " slot_ptr=" << static_cast<void*>(slot.get())
-                              << std::endl;
-                }
-            }
+        if (resources_missing || scratch_grew) {
             ++n_rebuild;
-            destroy_plan(*slot);
+        }
+
+        const auto previous_max_payload = slot->max_payload_bytes;
+        if (tp_profiling_enabled() && payload_bytes > previous_max_payload) {
+            std::cerr << "[TP][MEM] collective cid=" << collective_id
+                      << " n=" << n
+                      << " dtype=" << dtype
+                      << " payload=" << payload_bytes
+                      << " previous_max=" << previous_max_payload
+                      << std::endl;
+        }
+
+        if (resources_missing) {
             build_plan(collective_id, rdz.in_ptrs, rdz.out_ptrs, n, dtype, *slot);
-            record_plan(*slot);
-        } else if (need_rerecord) {
-            slot->in_ptrs  = rdz.in_ptrs;
+        } else if (!signature_matches) {
+            slot->in_ptrs = rdz.in_ptrs;
             slot->out_ptrs = rdz.out_ptrs;
-            // n may shrink within existing capacity; record_plan uses the
-            // current plan.n for memcpy size and kernel launch bounds.
             slot->n = n;
+            slot->dtype = dtype;
+        }
+        slot->max_payload_bytes = std::max(previous_max_payload, payload_bytes);
+
+        if (need_record) {
             record_plan(*slot);
+            m_recorded_plan = slot.get();
+            m_recorded_scratch_generation = m_scratch.generation;
         }
         auto tr1 = clk::now();
 
@@ -1175,6 +1318,14 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                       << "  per-dir(dev_copy)=" << bw_per_dir_gbs << " GB/s"
                       << "  full-duplex(dev_copy)=" << 2.0 * bw_per_dir_gbs << " GB/s"
                       << "  effective(exec)=" << bw_walltime_gbs << " GB/s"
+                      << std::endl;
+            const auto scratch = get_scratch_stats();
+            std::cerr << "[TP][PROF]   scratch: payload_capacity="
+                      << (scratch.payload_capacity_bytes / (1024.0 * 1024.0)) << "MB"
+                      << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
+                      << " generation=" << scratch.generation
+                      << " grows=" << scratch.growth_count
+                      << " allocations=" << scratch.allocation_count
                       << std::endl;
         }
     }

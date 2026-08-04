@@ -161,8 +161,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             rank_ctx[rank] = get_core()->create_context(device_names[rank], rank_params);
         }
         shared_ctx_ok = true;
-        std::cerr << "[TP] Created shared L0 context across " << tp_degree
-                  << " devices (ctx=" << shared_ctx_h << ")" << std::endl;
+        if (std::getenv("TP_PROF") != nullptr) {
+            std::cerr << "[TP] Created shared L0 context across " << tp_degree
+                      << " devices (ctx=" << shared_ctx_h << ")" << std::endl;
+        }
     } catch (const std::exception& e) {
         std::cerr << "[TP] Shared L0 context unavailable: " << e.what()
                   << " -- falling back to per-rank contexts." << std::endl;
@@ -197,8 +199,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (uint32_t rank = 0; rank < tp_degree; ++rank) {
         auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, tp_degree, coordination);
 
-        std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size()
-                  << " ops, " << num_collectives << " AllReduce points" << std::endl;
+        if (std::getenv("TP_PROF") != nullptr) {
+            std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size()
+                      << " ops, " << num_collectives << " AllReduce points" << std::endl;
+        }
 
         if (shared_ctx_ok) {
             rank_compiled[rank] = get_core()->compile_model(

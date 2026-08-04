@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,13 @@ public:
     const std::vector<ov::SoPtr<ov::ICompiledModel>>& get_rank_compiled() const { return m_rank_compiled; }
     const std::vector<std::string>& get_device_names() const { return m_device_names; }
 
+    /// The rank rendezvous, Level Zero command lists and shared scratch arena
+    /// support one outer inference at a time.  Rank execution inside that
+    /// inference remains parallel.
+    std::unique_lock<std::mutex> lock_inference() const {
+        return std::unique_lock<std::mutex>(m_inference_mutex);
+    }
+
 protected:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
@@ -47,6 +55,7 @@ private:
     TPDeviceCoordinatorPtr m_device_coordinator;
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
+    mutable std::mutex m_inference_mutex;
 };
 
 }  // namespace tp

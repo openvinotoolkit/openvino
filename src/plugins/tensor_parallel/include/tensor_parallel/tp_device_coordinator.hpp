@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -52,6 +53,20 @@ public:
 
     /// Returns true when initialization built kernels successfully on all ranks.
     bool is_ready() const { return m_ready; }
+
+    /// Coordinator-owned device-USM scratch accounting.  These allocations
+    /// bypass the intel_gpu memory pool, so callers must account for them
+    /// separately when attributing per-device VRAM.
+    struct ScratchStats {
+        std::size_t payload_capacity_bytes{0};
+        std::size_t total_allocated_bytes{0};
+        std::vector<std::size_t> allocated_bytes_per_rank;
+        uint64_t generation{0};
+        uint64_t growth_count{0};
+        uint64_t allocation_count{0};
+    };
+
+    ScratchStats get_scratch_stats() const;
 
     /// In-place all-reduce-sum across all ranks.
     ///
@@ -119,14 +134,8 @@ private:
         std::vector<void*>          in_ptrs;        // [N]
         std::vector<void*>          out_ptrs;       // [N]
         std::size_t                 n{0};
-        // Allocated capacity of `incoming[]` staging buffers, in elements.
-        // When a subsequent collective uses `n <= n_capacity` with the same
-        // dtype, we skip the full rebuild (free/realloc + pool/event tear-
-        // down) and only re-record the cmdlist.  This is the common case
-        // on prefill->decode transitions where n drops from `prefill_len`
-        // to 1 across all collectives.
-        std::size_t                 n_capacity{0};
         ov::element::Type           dtype{ov::element::dynamic};
+        std::size_t                 max_payload_bytes{0};
 
         // Resources
         ze_event_pool_handle_t      pool{nullptr};
@@ -142,16 +151,27 @@ private:
         std::vector<ze_event_handle_t> ev_ts_copy;    // [N]
         std::vector<ze_event_handle_t> ev_ts_kernel;  // [N]
 
-        // Main-rank staging buffers (one per worker, holds worker's
-        // contribution gathered via cross-device copy).
-        std::vector<void*>          incoming;       // [N-1] device USM on rank 0
-
         bool matches(const std::vector<void*>& ins,
                      const std::vector<void*>& outs,
                      std::size_t want_n,
                      ov::element::Type want_dtype) const {
             return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs;
         }
+    };
+
+    // Device-USM staging shared by all collective plans.  For TP=2 there
+    // is one allocation on each rank device.  For N>2, allocations[0]
+    // contains N-1 packed worker contributions on rank 0; other entries are
+    // null.  Collectives are synchronous and outer InferRequests are
+    // serialized, so only one plan uses the arena at a time.
+    struct ScratchArena {
+        std::vector<void*> allocations;              // [N]
+        std::vector<std::size_t> bytes_per_rank;      // [N]
+        std::size_t payload_capacity_bytes{0};
+        std::size_t total_allocated_bytes{0};
+        uint64_t generation{0};
+        uint64_t growth_count{0};
+        uint64_t allocation_count{0};
     };
 
     // Cross-rank rendezvous slot: collects each rank's (in,out) pointers for
@@ -189,6 +209,9 @@ private:
                     ov::element::Type dtype,
                     Plan& plan);
     void record_plan(Plan& plan);
+    bool ensure_scratch_capacity(std::size_t payload_bytes);
+    void destroy_scratch();
+    void* scratch_buffer(int index) const;
 
     // Per-call host-side breakdown of execute_plan() (N=2 path).
     struct ExecStats {
@@ -219,6 +242,15 @@ private:
     bool                            m_use_immediate{false};
 
     std::vector<RankState>          m_ranks;        // [N]
+
+    mutable std::mutex              m_scratch_mutex;
+    ScratchArena                    m_scratch;
+
+    // Rank command lists are coordinator-wide rather than plan-owned.
+    // Track which plan is physically recorded so alternating collective
+    // IDs never execute a stale command list from another slot.
+    Plan*                           m_recorded_plan{nullptr};
+    uint64_t                        m_recorded_scratch_generation{0};
 
     // One rendezvous + one cached plan per collective_id.
     std::vector<std::unique_ptr<Rendezvous>> m_rendezvous;
