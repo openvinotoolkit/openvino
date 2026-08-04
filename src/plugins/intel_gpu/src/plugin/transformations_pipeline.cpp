@@ -74,6 +74,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
@@ -218,6 +219,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
@@ -246,6 +248,7 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                                                           ov::op::internal::MOE::get_type_info_static(),
                                                           ov::op::v8::Gather::get_type_info_static(),
                                                           ov::op::v17::GroupedMatMul::get_type_info_static(),
+                                                          ov::op::internal::GatherMatmul::get_type_info_static(),
                                                           ov::op::v1::Convolution::get_type_info_static(),
                                                           ov::opset1::Convolution::get_type_info_static(),
                                                           ov::op::v1::ConvolutionBackpropData::get_type_info_static(),
@@ -649,7 +652,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // MOE: TiledMoeBlock -> GatherMatmuls(compressed) -> MoeOp(compressed) -> MoeOpWithRouting(compressed).
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
-        if (device_info.supports_immad && config.get_use_onednn()) {
+        if (device_info.supports_immad && config.get_use_onednn() && !config.get_moe_disable_fusion()) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
@@ -665,7 +668,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 supported_compressed_weights_types);
             manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
-            if (!config.get_moe_disable_fusion()) {
+            {
                 // PA models flatten batch into seq.
                 const bool has_batch_dim = !is_pa;
                 // MOE3GemmCompressed kernel dispatches expert GEMMs through
@@ -732,7 +735,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type_any_of<ov::op::v0::MatMul,
                                        ov::op::internal::MOE,
-                                       ov::op::internal::GatherMatmulCompressed>(next_node);
+                                       ov::op::internal::GatherMatmulCompressed,
+                                       ov::op::internal::GroupedMatMulCompressed>(next_node);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
@@ -744,7 +748,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return !is_decompression_multiply(node, device_info.supports_immad);
         });
 
-        pass_config->set_callback<ov::pass::RMSFusion>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
+        pass_config->set_callback<ov::pass::RMSFusionMatcher>([OV_CAPTURE_CPY_AND_THIS](const_node_ptr& root) -> bool {
             if (!root->get_input_partial_shape(0).is_static()) {
                 return false;
             }
@@ -752,7 +756,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+        manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
@@ -793,7 +797,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         {
             // Disable XAttention if GPU Xe2/Xe3 architectures is unavaiable or IGC incompatiable.
-            auto check_xattn_gpu_compatibility  = [&](void) -> bool {
+            auto check_xattn_gpu_compatibility  = [&]() -> bool {
                         auto& engine = m_context->get_engine();
                         const auto& info = engine.get_device_info();
                          if (!info.supports_immad) {  // CM optimized for systolic-array architectures
@@ -1787,6 +1791,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     precomputed_reduction,
                                                                                     use_gs128_for_int8_per_token,
                                                                                     use_gs128_for_linear_attention);
+                // Deduplicate identical DynamicQuantize nodes sharing same input
+                manager.register_pass<ov::pass::SharedOpOptimization>();
             }
         }
 

@@ -75,7 +75,7 @@ ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed::ConvertGroupedMatMulToG
             ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
                 weights_block,
                 pattern_map,
-                /*convert_u4zp_to_u8=*/true,
+                /*convert_u4zp_to_u8=*/false,
                 has_transpose,
                 grouped,
                 /*batched_weights=*/true,
