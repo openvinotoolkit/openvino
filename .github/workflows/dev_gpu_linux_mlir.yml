@@ -323,21 +323,25 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
-  # MLIR disabled: a Graph-Compiler-enabled build must behave exactly like a stock GPU
+  # DGPU unit tests hang in CI (including nightly runs on the master branch):
+  # https://github.com/openvinotoolkit/openvino/actions/runs/30676046145/job/91306500336
+  # Therefore 'all-tests' run hangs in MLIR-CI as well, disabling this job for now.
+  #
+  # MLIR disabled mode: a Graph-Compiler-enabled build must behave exactly like a stock GPU
   # build when the feature is off. `OV_GPU_ENABLE_MLIR` defaults to 0, so the stock GPU
   # test job is reused as is.
-  MLIR_Disabled_Unit:
-    name: Arc B50 dGPU Unit Tests (MLIR disabled)
-    needs: [ Build, Docker, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-    uses: ./.github/workflows/job_gpu_tests.yml
-    with:
-      device: 'dgpu'
-      test_type: 'unit'
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
-      runner-group: 'Intel-GPU'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
-      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+  # MLIR_Disabled_Unit:
+  #   name: Arc B50 dGPU Unit Tests (MLIR disabled)
+  #   needs: [ Build, Docker, Smart_CI ]
+  #   if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+  #   uses: ./.github/workflows/job_gpu_tests.yml
+  #   with:
+  #     device: 'dgpu'
+  #     test_type: 'unit'
+  #     runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
+  #     runner-group: 'Intel-GPU'
+  #     image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+  #     options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
 
   MLIR_Enabled:
     name: Arc B50 dGPU MLIR Tests (MLIR enabled)
