@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -15,7 +16,7 @@
 namespace ov {
 
 template <class T>
-auto stringify(T&& arg) -> std::conditional_t<std::is_same_v<std::decay_t<T>, std::string>, T&, std::string> {
+std::string stringify(T&& arg) {
     if constexpr (std::is_same_v<std::decay_t<T>, std::string>) {
         return arg;
     } else {
@@ -32,14 +33,11 @@ OPENVINO_API std::string stringify(const std::filesystem::path& arg);
 template <typename... TS>
 std::ostream& write_all_to_stream(std::ostream& str, TS&&... args) {
     if constexpr (std::is_same_v<typename std::filesystem::path::string_type, std::wstring>) {
-        constexpr auto fwd_or_str =
-            [](auto&& arg) -> std::conditional_t<std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>,
-                                                 decltype(stringify(arg)),
-                                                 decltype(arg)&> {
+        constexpr auto fwd_or_str = [](auto&& arg) -> decltype(auto) {
             if constexpr (std::is_same_v<std::filesystem::path, std::decay_t<decltype(arg)>>) {
                 return stringify(arg);
             } else {
-                return arg;
+                return std::forward<decltype(arg)>(arg);
             }
         };
         return (str << ... << (fwd_or_str(std::forward<TS>(args))));

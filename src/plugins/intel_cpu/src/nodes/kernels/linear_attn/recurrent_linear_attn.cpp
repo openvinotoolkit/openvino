@@ -13,56 +13,48 @@
 #include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-#    include <immintrin.h>
+#    if __has_include(<simd>)
+#        include <simd>
+#        define OV_HAS_STD_SIMD 1
+#    elif __has_include(<experimental/simd>)
+#        include <experimental/simd>
+#        define OV_HAS_EXP_SIMD 1
+#    endif
 #endif
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "recurrent_linear_attn.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
+#if defined(OV_HAS_STD_SIMD)
+namespace ov_simd = std;
+#elif defined(OV_HAS_EXP_SIMD)
+namespace ov_simd = std::experimental;
+#endif
+
 static inline void l2norm(float* a, size_t n, float eps) {
     float sum = 0.0f;
-#if defined(HAVE_AVX512F)
+#if defined(OV_HAS_STD_SIMD) || defined(OV_HAS_EXP_SIMD)
+    // C++26 std::simd: single portable kernel, width chosen by the compiler
+    // (AVX2/AVX512/AMX automatically), replaces the manual AVX2/AVX512/scalar copies.
+    constexpr size_t SZ = ov_simd::native_simd<float>::size();
     size_t i = 0;
-    __m512 vsum = _mm512_setzero_ps();
-    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        __m512 v = _mm512_loadu_ps(a + i);
-        vsum = _mm512_fmadd_ps(v, v, vsum);
+    ov_simd::native_simd<float> vsum(0.0f);
+    for (; i + SZ <= n; i += SZ) {
+        ov_simd::native_simd<float> v(a + i, ov_simd::element_aligned);
+        vsum += v * v;
     }
-    sum = _mm512_reduce_add_ps(vsum);
+    sum = ov_simd::reduce(vsum, std::plus<>());
     for (; i < n; ++i) {
         sum += a[i] * a[i];
     }
     float inv = 1.0f / std::sqrt(sum + eps);
-    __m512 vscale = _mm512_set1_ps(inv);
+    ov_simd::native_simd<float> vscale(inv);
     i = 0;
-    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        __m512 v = _mm512_loadu_ps(a + i);
-        v = _mm512_mul_ps(v, vscale);
-        _mm512_storeu_ps(a + i, v);
-    }
-    for (; i < n; ++i) {
-        a[i] *= inv;
-    }
-#elif defined(HAVE_AVX2)
-    size_t i = 0;
-    __m256 vsum = _mm256_setzero_ps();
-    for (; i + 8 <= n; i += 8) {
-        __m256 v = _mm256_loadu_ps(a + i);
-        vsum = _mm256_fmadd_ps(v, v, vsum);
-    }
-    hsum(vsum);
-    sum = _mm256_cvtss_f32(vsum);
-    for (; i < n; ++i) {
-        sum += a[i] * a[i];
-    }
-    float inv = 1.0f / std::sqrt(sum + eps);
-    __m256 vscale = _mm256_set1_ps(inv);
-    i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m256 v = _mm256_loadu_ps(a + i);
-        v = _mm256_mul_ps(v, vscale);
-        _mm256_storeu_ps(a + i, v);
+    for (; i + SZ <= n; i += SZ) {
+        ov_simd::native_simd<float> v(a + i, ov_simd::element_aligned);
+        v *= vscale;
+        v.copy_to(a + i, ov_simd::element_aligned);
     }
     for (; i < n; ++i) {
         a[i] *= inv;
