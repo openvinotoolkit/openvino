@@ -127,13 +127,9 @@ private:
 std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
- * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result. Returns an
- * empty region (m_length == 0) for a null/empty mapping, an offset at or past the end, or a
- * sub-page request.
- *
- * @note This is a self-contained helper for @ref make_prefetch_plan / hint_prefetch_async() only.
- * It intentionally does not replace the pre-existing per-platform region helpers used by
- * hint_evict()/hint_prefetch(), so those call sites remain untouched.
+ * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result, rounding
+ * the length up so it is always a page multiple (both ends page-aligned). Returns an empty region
+ * (m_length == 0) for a null/empty mapping, an offset at or past the end, or a sub-page request.
  */
 inline AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
     const auto page_size = static_cast<size_t>(get_system_page_size());
@@ -142,26 +138,9 @@ inline AlignedRegion clamp_align_region(const void* data, size_t mapping_size, s
     }
     const auto available = mapping_size - offset;
     const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-    return align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-}
-
-/** @brief Aligned region and page-aligned size for a hint_prefetch_async() call. */
-struct PrefetchPlan {
-    uintptr_t m_address = 0;
-    size_t m_aligned_size = 0;
-};
-
-/**
- * @brief Computes the region and page-aligned size for a hint_prefetch_async() call, or an empty
- * plan (m_aligned_size == 0) when the region is below the parallel-I/O threshold (a real
- * population pass would not be worth it).
- */
-inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
-    if (const auto region = clamp_align_region(data, mapping_size, offset, size);
-        region.m_length > default_parallel_io_threshold) {
-        return {region.m_address, align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()))};
-    }
-    return {};
+    auto region = align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+    region.m_length = align_size_up(region.m_length, page_size);
+    return region;
 }
 
 /** @brief Upper bound on the shared page-population pool's worker threads. */

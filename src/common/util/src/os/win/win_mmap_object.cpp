@@ -821,10 +821,11 @@ void MapHolder::hint_prefetch(size_t offset, size_t size) {
 }
 
 void MapHolder::hint_prefetch_async(size_t offset, size_t size) {
-    if (const auto plan = util::make_prefetch_plan(m_data, m_size, offset, size); plan.m_aligned_size) {
-        auto token = util::vm_prefetch_async(reinterpret_cast<void*>(plan.m_address),
-                                             plan.m_aligned_size,
-                                             util::prefetch_thread_count(plan.m_aligned_size));
+    if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
+        region.m_length > util::default_parallel_io_threshold) {
+        auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                             region.m_length,
+                                             util::prefetch_thread_count(region.m_length));
         adopt_pending_prefetch(token.detach());
     }
 }

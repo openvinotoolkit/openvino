@@ -30,7 +30,7 @@ class TaskQueue {
 public:
     void push(std::list<std::function<void()>>&& batch) noexcept {
         {
-            std::lock_guard<std::mutex> lock(m_mutex);
+            std::lock_guard lock(m_mutex);
             m_queue.splice(m_queue.end(), batch);
         }
         m_cv.notify_all();
