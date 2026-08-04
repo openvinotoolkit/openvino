@@ -78,11 +78,14 @@ std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::s
     // constant [rows, hidden] behind a Gather, with whatever Convert (and, for compressed weights,
     // Subtract and Multiply) decompression left in place. Spell those intermediates out rather
     // than walking a fixed number of hops through whatever happens to sit above the Gather.
+    // int4 and nf4 exports also convert back up to the activation type after scaling, so allow a
+    // Convert on either side of the dequantization.
     auto table = opp::wrap_type<ov::op::v0::Constant>();
     auto converted = opp::optional<ov::op::v0::Convert>({table->output(0)});
     auto unzeroed = opp::optional<ov::op::v1::Subtract>({converted->output(0), opp::any_input()});
     auto scaled = opp::optional<ov::op::v1::Multiply>({unzeroed->output(0), opp::any_input()});
-    auto lookup = opp::wrap_type<ov::op::v8::Gather>({scaled->output(0), opp::any_input(), opp::any_input()});
+    auto upcast = opp::optional<ov::op::v0::Convert>({scaled->output(0)});
+    auto lookup = opp::wrap_type<ov::op::v8::Gather>({upcast->output(0), opp::any_input(), opp::any_input()});
 
     // The word, token-type and position tables are all the same lookup, so the topology on its own
     // cannot tell them apart and the exported name has to do it. It now chooses among candidates
