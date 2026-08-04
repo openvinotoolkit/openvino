@@ -690,3 +690,58 @@ TEST(rms_gpu_test, in_place_crop_rms_spatial_split) {
         ASSERT_NEAR(out1[i], ref1[i], 1e-4f) << "Branch 1 mismatch at index=" << i;
     }
 }
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_rank4_scalar_gamma_dyn) {
+    auto& engine = get_test_engine();
+
+    for (const int64_t hidden_size : {128, 2560}) {
+        const ov::PartialShape input_shape{1, 3, 4, hidden_size};
+        auto input_layout_dynamic = layout{ov::PartialShape{-1, -1, 4, hidden_size},
+                                           data_types::f32,
+                                           format::bfyx};
+        auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+        auto gamma = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
+        auto reference_gamma = engine.allocate_memory({ov::PartialShape{1, 1, 1, hidden_size},
+                                   data_types::f32,
+                                   format::bfyx});
+        auto output_ref = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+
+        std::vector<float> input_values(input->count());
+        for (size_t index = 0; index < input_values.size(); ++index) {
+            input_values[index] = static_cast<float>(index % 17) - 8.0f;
+        }
+        set_values(input, input_values);
+        constexpr float gamma_value = 3.875f;
+        constexpr float epsilon = 1e-5f;
+        set_values(gamma, {gamma_value});
+        set_values(reference_gamma, std::vector<float>(static_cast<size_t>(hidden_size), gamma_value));
+        rms_ref<float>(input, reference_gamma, output_ref, epsilon);
+
+        topology topology;
+        topology.add(input_layout("input", input_layout_dynamic));
+        topology.add(input_layout("gamma", gamma->get_layout()));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}}
+        }));
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
+        network.set_input_data("gamma", gamma);
+
+        auto impl = network.get_primitive("rms")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+        ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_bfyx_opt");
+
+        auto output = network.execute().at("rms").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+        for (size_t index = 0; index < output_ref->count(); ++index) {
+            EXPECT_NEAR(output_ptr[index], output_ref_ptr[index], 1e-4f)
+                << " hidden_size=" << hidden_size << " index=" << index;
+        }
+    }
+}
