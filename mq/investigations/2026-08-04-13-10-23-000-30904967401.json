@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-04-13-10-23-000-30904967401",
+  "timestamp": "2026-08-04T13:10:23Z",
+  "run_id": "30904967401",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30904967401",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "36684",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36684",
+  "author": "songbell",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: import_model called twice, expected 3 times"
+    }
+  ],
+  "key_errors": [
+    "caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n  Expected: to be called 3 times\n    Actual: called twice - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache"
+  ],
+  "root_cause": "This is a well-known flaky race condition in CachingTest.LoadMultiWithConfig_race on Windows. The test runs a multi-device load scenario with caching and verifies import_model is called exactly N times. Due to timing non-determinism in the race loop (which runs 137 iterations), the mock expectation count does not always match. The test itself reports 'Caching LoadMulti Test completed. Tried 137 times' before the EXPECT_CALL mismatch, confirming it is a timing/race sensitivity issue unrelated to the PR (which modifies GPU CM path kernels). This pattern has been seen 5 prior times.",
+  "reproduction_steps": "N/A - not reliably reproducible outside Windows CI runners due to timing sensitivity",
+  "recommended_actions": [
+    "Mark CachingTest/CachingTest.LoadMultiWithConfig_race as DISABLED or add GTEST_SKIP on Windows to avoid intermittent failures",
+    "Investigate and fix the race condition in caching_test.cpp around line 2667 to make import_model call count deterministic"
+  ],
+  "prevention_strategies": "Add a tracking issue for the flaky CachingTest.LoadMultiWithConfig_race on Windows. Consider using EXPECT_CALL with AnyNumber() or AT_LEAST instead of an exact count for race-sensitive tests.",
+  "historical_context": "This exact failure has been seen 5 prior times in the merge queue: runs 30891410624, 30540715415, 29813410817, 29341562536, 29234771303. It is a persistent flaky test on Windows CI."
+}

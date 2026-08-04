@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 99,
+  "total": 100,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -973,6 +973,17 @@
       "category": "Flaky Test",
       "signature_hash": "85df26485ff568d8",
       "pr_number": "37218"
+    },
+    {
+      "investigation_id": "2026-08-04-13-10-23-000-30904967401",
+      "run_id": "30904967401",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30904967401",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-04T13:10:23Z",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "43e136cf67333978",
+      "pr_number": "36684"
     }
   ]
 }
