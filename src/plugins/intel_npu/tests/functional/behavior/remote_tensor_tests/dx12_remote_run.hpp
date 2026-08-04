@@ -8,10 +8,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/memory_util.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
@@ -29,58 +31,14 @@ using CompilationParams = std::tuple<std::string,  // Device name
 namespace ov {
 namespace test {
 namespace behavior {
-class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase,
-                           public testing::WithParamInterface<CompilationParams> {
+class DX12SharedHeapHelper {
 protected:
-    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> ov_model;
-
     Microsoft::WRL::ComPtr<ID3D12Device> device;
     Microsoft::WRL::ComPtr<ID3D12Heap> heap = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> placed_resources = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> comitted_resource;
 
     HANDLE shared_mem = nullptr;
-
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
-        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-
-        std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
-        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-            }
-        }
-
-        return result.str();
-    }
-
-    void SetUp() override {
-        std::tie(target_device, configuration) = this->GetParam();
-
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        OVPluginTestBase::SetUp();
-        ov_model = getDefaultNGraphFunctionForTheDeviceNPU();
-
-        createDevice();
-    }
-
-    void TearDown() override {
-        if (!configuration.empty()) {
-            utils::PluginCache::get().reset();
-        }
-
-        APIBaseTest::TearDown();
-    }
 
     void createDevice() {
         auto res = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
@@ -200,6 +158,54 @@ public:
         res = fence->SetEventOnCompletion(fence_value, event);
         ASSERT_FALSE(FAILED(res)) << "SetEventOnCompletion failed.";
         WaitForSingleObject(event, INFINITE);
+    }
+};
+
+class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase,
+                           public testing::WithParamInterface<CompilationParams>,
+                           protected DX12SharedHeapHelper {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> ov_model;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
+        std::string targetDevice;
+        ov::AnyMap configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+            }
+        }
+
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::tie(target_device, configuration) = this->GetParam();
+
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        OVPluginTestBase::SetUp();
+        ov_model = getDefaultNGraphFunctionForTheDeviceNPU();
+
+        createDevice();
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            utils::PluginCache::get().reset();
+        }
+
+        APIBaseTest::TearDown();
     }
 };
 
@@ -328,6 +334,65 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
 
     delete[] output_data_one;
     delete[] output_data_two;
+}
+
+class DX12RemoteRunDynamicTests : public OVInferRequestDynamicTests, protected DX12SharedHeapHelper {
+protected:
+    void SetUp() override {
+        OVInferRequestDynamicTests::SetUp();
+        createDevice();
+    }
+
+    void checkOutputFP16(const ov::Tensor& in, const ov::Tensor& actual) {
+        auto net = ie->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
+        ov::InferRequest req;
+        req = net.create_infer_request();
+        auto tensor = req.get_tensor(function->inputs().back().get_any_name());
+        tensor.set_shape(in.get_shape());
+        for (size_t i = 0; i < in.get_size(); i++) {
+            tensor.data<ov::element_type_traits<ov::element::f32>::value_type>()[i] =
+                in.data<ov::element_type_traits<ov::element::f32>::value_type>()[i];
+        }
+        req.infer();
+        OVInferRequestDynamicTests::checkOutput(actual, req.get_output_tensor(0));
+    }
+};
+
+TEST_P(DX12RemoteRunDynamicTests, InferDynamicNetworkRemoteTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    std::vector<ov::Shape> vector_shapes{inOutShapes[0].first, inOutShapes[0].first};
+    const std::string inputName = "Parameter_1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[inputName] = {ov::Dimension(1, inOutShapes[1].first[0]),
+                         ov::Dimension(1, inOutShapes[1].first[1]),
+                         ov::Dimension(1, inOutShapes[1].first[2])};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+
+    auto context = ie->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto inference_request = ie->compile_model(function, target_device, configuration);
+
+    ov::InferRequest req;
+    const std::string outputName = "Relu_2";
+    for (auto& shape : vector_shapes) {
+        ov::Tensor in_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, 100, 0);
+
+        const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(in_tensor.get_shape()));
+
+        createResources(byte_size);
+        void* mem;
+        comitted_resource.Get()->Map(0, nullptr, &mem);
+        memcpy(mem, in_tensor.data(), byte_size);
+        comitted_resource.Get()->Unmap(0, nullptr);
+        copyResources(byte_size);
+
+        auto remote_tensor = context.create_tensor(ov::element::f32, in_tensor.get_shape(), shared_mem);
+
+        OV_ASSERT_NO_THROW(req = inference_request.create_infer_request());
+        OV_ASSERT_NO_THROW(req.set_tensor(inputName, remote_tensor));
+        OV_ASSERT_NO_THROW(req.infer());
+        OV_ASSERT_NO_THROW(checkOutputFP16(in_tensor, req.get_tensor(outputName)));
+    }
 }
 
 }  // namespace behavior
