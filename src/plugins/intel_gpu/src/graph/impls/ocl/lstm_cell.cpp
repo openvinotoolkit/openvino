@@ -58,8 +58,9 @@ public:
             }
         }
 
-        // clip == 0 and clip == inf both mean "no clipping"; normalize inf to 0 so the kernel skips clamping
-        const float clip = ov::op::util::is_no_clip(primitive->clip) ? 0.0f : primitive->clip;
+        // Only a finite positive clip yields usable bounds; 0, inf and NaN must all leave the kernel unclamped,
+        // so normalize them to 0 instead of forwarding a value the clamp activation cannot express.
+        const float clip = ov::op::util::requires_clip(primitive->clip) ? primitive->clip : 0.0f;
         if (clip > 0.0f) {
             params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -clip, clip);
         }

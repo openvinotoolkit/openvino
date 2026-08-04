@@ -169,7 +169,7 @@ std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::mul(const Output<Node>& lhs
 }
 
 std::shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& data) const {
-    if (is_no_clip(m_clip)) {
+    if (!requires_clip(m_clip)) {
         return data.get_node_shared_ptr();
     }
 

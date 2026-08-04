@@ -159,6 +159,24 @@ TEST_P(CellDecompositionClipTests, FiniteClipInsertsClamp) {
     test_skipped = true;
 }
 
+// Neither a negative nor a NaN clip describes usable bounds `[-clip, clip]`: Clamp rejects `min > max`, so a pass
+// that created one would throw during decomposition instead of leaving the graph unclipped. Both must be skipped.
+TEST_P(CellDecompositionClipTests, InvalidClipInsertsNoClamp) {
+    const auto& p = GetParam();
+    // This test drives its own models, so the fixture has nothing to compare. Set before the assertions below so a
+    // failure surfaces on its own instead of being masked by an uninitialized-model error from TearDown().
+    test_skipped = true;
+
+    for (const float clip : {-1.f, std::numeric_limits<float>::quiet_NaN()}) {
+        auto invalid_clip_model = p.makeModel(clip);
+
+        ov::pass::Manager invalid_clip_manager;
+        p.registerPass(invalid_clip_manager);
+        ASSERT_NO_THROW(invalid_clip_manager.run_passes(invalid_clip_model)) << "clip = " << clip;
+        EXPECT_EQ(count_ops_of_type<v0::Clamp>(invalid_clip_model), 0) << "clip = " << clip;
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          CellDecompositionClipTests,
                          ValuesIn(cell_params),
