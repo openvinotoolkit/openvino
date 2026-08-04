@@ -71,6 +71,7 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
 
 std::vector<device::ptr> ze_device_detector::create_device_list(bool initialize_devices) const {
     std::vector<device::ptr> ret;
+    ze_ocl_interop::set_driver_env_var();
 
     OV_ZE_EXPECT(ze::zeInit(ZE_INIT_FLAG_GPU_ONLY));
 
