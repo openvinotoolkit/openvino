@@ -1665,12 +1665,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             const auto key_group_size = k_head_size / key_scale_groups;
             // KQ GEMM: A=K[M=seq_k, K=head_size]
             // Per-channel broadcast (seq=1): all tokens share same scale, each head_size element has own scale
-            //   -> aqGroupM = tile_m (don't vary scale per token), aqGroupK = group_size
+            //   -> aqGroupM >= max(n_keys, wg_tile_m) so m_group is always 0
             // Per-token (seq>1): each token has own scale(s)
             //   -> aqGroupM = 1 (vary per token), aqGroupK = group_size
-            problem_kq.aqGroupM = (key_scale_seq == 1)
-                ? config->unroll_m_kq * config->wg_m_kq
-                : 1;
+            const int wg_tile_m_kq = config->unroll_m_kq * config->wg_m_kq;
+            problem_kq.aqGroupM = (key_scale_seq == 1) ? std::max(nkeys_v, wg_tile_m_kq) : 1;
             problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(key_group_size);
         }
 
@@ -1823,7 +1822,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             const auto val_group_size = v_head_size / val_scale_groups;
             // VS GEMM: A=V[M=head_size, K=seq_k]
             // Per-channel broadcast (seq=1): each head_size row has own scale, all tokens share it
-            //   -> aqGroupM = 1 (vary per head_size), aqGroupK = tile_k (don't vary per token)
+            //   -> aqGroupM = group_size, aqGroupK >= k_chunk (bounded by wg_tile_m)
             // Per-token (seq>1): all head_size share one scale per token
             //   -> aqGroupM = head_size (don't vary per head_size), aqGroupK = 1 (vary per token)
             if (val_scale_seq == 1) {

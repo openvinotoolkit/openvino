@@ -445,10 +445,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     if (window_k0_begin > 0) {
         V += (size_t)ldv * window_k0_begin / VAL_ELEMENTS_PER_BYTE;
-    #if VAL_SCALES == QUANTIZE_2D
+    #if VAL_SCALES == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_scales += (size_t)ldvq * window_k0_begin;
     #endif
-    #if VAL_ZERO_POINTS == QUANTIZE_2D
+    #if VAL_ZERO_POINTS == QUANTIZE_2D && !IS_VALUE_BY_CHANNEL
         V_zp += (size_t)ldvq * window_k0_begin / VAL_ZP_ELEMENTS_PER_BYTE;
     #endif
     }
@@ -730,70 +730,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #define k_scale_op(x) ((x)*k_scale)
         tile_elementwise(S_tile, k_scale_op);
 #endif
-
-#if KEY_SCALES == QUANTIZE_2D
-        /* DEBUG: print K data and K_scales for the first workgroup */
-        if (sg_ij == 0 && get_group_id(0) == 0 && get_group_id(1) == 0 && get_group_id(2) == 0
-            && get_sub_group_local_id() == 0) {
-            printf("=== DEBUG WG[0,0,0] ===\n");
-            printf("d=%d, k=%d, q=%d, causal_k=%d, ldk=%d, ldkq=%d, num_key_groups=%d\n",
-                d, k, q, causal_k, ldk, ldkq, num_key_groups);
-            printf("window_k_begin=%d, KEY_GROUP_SIZE=%d, IS_KEY_BY_CHANNEL=%d\n",
-                window_k_begin, KEY_GROUP_SIZE, IS_KEY_BY_CHANNEL);
-
-            /* Print K_scales for all groups (broadcast: same for all tokens) */
-            printf("--- K_scales [%d groups] (by_channel=%d) ---\n",
-                num_key_groups, IS_KEY_BY_CHANNEL);
-            for (int g = 0; g < max(16, (int)num_key_groups); g++) {
-                printf("  K_scales[group=%d] = %f\n", g, convert_float(K_scales[g]));
-            }
-
-            /* Print K data for first few tokens, first 16 head_size elements */
-            int dbg_k_end = min(4, causal_k - window_k_begin);
-            int dbg_d_print = max(16, d);
-            printf("--- K data [%d tokens x first %d of  %d head_size] (as int8) ---\n",
-                dbg_k_end, dbg_d_print, d);
-            for (int t = 0; t < dbg_k_end; t++) {
-                printf("  K[token=%d]: ", t);
-                for (int h = 0; h < dbg_d_print; h++) {
-                    printf("%d ", (int)((const global char*)K)[(window_k_begin + t) * ldk + h]);
-                }
-                printf("...\n");
-            }
-
-            /* Print Q data for first few queries, first 16 head_size elements */
-            int dbg_q_end = min(4, q - (int)wg_j0);
-            printf("--- Q data [%d queries x first %d of %d head_size] (as fp16) ---\n",
-                dbg_q_end, dbg_d_print, d);
-            for (int qi = 0; qi < dbg_q_end; qi++) {
-                printf("  Q[query=%d]: ", (int)wg_j0 + qi);
-                for (int h = 0; h < max(16, d); h++) {
-                    printf("%f ", convert_float(Q[((int)wg_j0 + qi) * ldq + h]));
-                }
-                printf("...\n");
-            }
-
-
-
-        }
-#endif
-
-        /* DEBUG: print S_tile values for WG[0,0,0], first subgroup, first iteration */
-        if (first && sg_ij == 0 && get_group_id(0) == 0 && get_group_id(1) == 0
-            && get_group_id(2) == 0 && get_sub_group_local_id() == 0) {
-            printf("=== DEBUG S_tile WG[0,0,0] sg=0 k0=%d ===\n", k0);
-            printf("S_tile layout: block0=%d, block1=%d, nblock0=%d, nblock1=%d\n",
-                   ugemm_kq_c_type_block0, ugemm_kq_c_type_block1,
-                   ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1);
-            /* Print first elements: S_tile.x[nblock][block_elements] */
-            int total_blocks = ugemm_kq_c_type_nblock0 * ugemm_kq_c_type_nblock1;
-            int elems_per_block = (ugemm_kq_c_type_block0 * ugemm_kq_c_type_block1) / SUBGROUP_SIZE;
-            for (int blk = 0; blk < min(2, total_blocks); blk++) {
-                for (int e = 0; e < min(4, elems_per_block); e++) {
-                    printf("  S_tile.x[%d][%d] = %f\n", blk, e, S_tile.x[blk][e]);
-                }
-            }
-        }
 
         /* Apply attention mask */
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
@@ -1116,6 +1052,19 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache*/ LSC_LDCC_L1C_L3C);
 #if KEY_SCALES == QUANTIZE_2D
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_scales,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_scales + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1127,8 +1076,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
 #if KEY_ZERO_POINTS == QUANTIZE_2D
+  #if IS_KEY_BY_CHANNEL
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_zp,
+                    /* r */ 1,
+                    /* c */ num_key_groups,
+                    /* rmax */ 1,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+  #else
             cooperative_prefetch_2d_maybe_rem(
                     /* ptr */ K_zp + (k0 + ugemm_kq_wg_tile_m),
                     /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
@@ -1140,6 +1103,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     /* n_sg */ sg_per_wg,
                     /* sg_size */ SUBGROUP_SIZE,
                     /* cache */ LSC_LDCC_L1C_L3C);
+  #endif
 #endif
         }
 #endif
@@ -1242,10 +1206,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_scales += ldvq * ugemm_kq_wg_tile_m;
+  #endif
 #endif
 #if VAL_ZERO_POINTS == QUANTIZE_2D
+  #if !IS_VALUE_BY_CHANNEL
         V_zp += ldvq * ugemm_kq_wg_tile_m / VAL_ZP_ELEMENTS_PER_BYTE;
+  #endif
 #endif
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         // already done
