@@ -230,3 +230,36 @@ TEST_F(TransformationTestsF, ConvertBGMToCompressed_ParameterWeightsNoZeroPointP
             std::make_shared<ov::Model>(ov::OutputVector{bgm_compressed}, ov::ParameterVector{input, weights, scale});
     }
 }
+
+// enable_parameter_weights=true with dynamic-shape Parameter weights: the pattern still matches, but
+// the callback needs static shapes for the group/transpose logic. It must skip the conversion
+// (return false) instead of throwing on get_shape() of a dynamic PartialShape.
+TEST_F(TransformationTestsF, ConvertBGMToCompressed_ParameterWeightsDynamicShapeSkipped) {
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
+    manager.register_pass<ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
+                                                                       supported_weights_types,
+                                                                       nullptr,
+                                                                       /*convert_u4zp_to_u8=*/false,
+                                                                       /*enable_parameter_weights=*/true);
+
+    const ov::PartialShape in_shape{8, 10, ov::Dimension::dynamic()};
+    const ov::PartialShape wei_shape{128, 5, ov::Dimension::dynamic()};
+    const ov::Shape scale_shape{128, 5, 1};
+    const ov::Shape index_shape{10, 8};
+
+    const auto build_model = [&]() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, in_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, wei_shape);
+        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_shape);
+        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_convert, scale);
+        auto index = ov::op::v0::Constant::create(ov::element::i32, index_shape, {1});
+        auto bgm = std::make_shared<ov::op::internal::GatherMatmul>(input, wei_scale, index);
+        return std::make_shared<ov::Model>(ov::OutputVector{bgm}, ov::ParameterVector{input, weights, scale});
+    };
+
+    // Conversion is skipped, so the reference graph is identical to the input graph.
+    model = build_model();
+    model_ref = build_model();
+}
