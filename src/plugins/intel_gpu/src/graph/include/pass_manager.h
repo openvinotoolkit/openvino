@@ -41,7 +41,7 @@ public:
     void run(program& p, base_pass& pass);
     uint32_t get_pass_count() { return pass_count; }
     uint32_t inc_pass_count() { return ++pass_count; }
-    ~pass_manager() {}
+    ~pass_manager() = default;
 
 private:
     uint32_t pass_count;

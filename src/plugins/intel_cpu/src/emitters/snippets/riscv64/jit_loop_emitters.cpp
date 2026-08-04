@@ -111,7 +111,6 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     } else {
         h->uni_li(reg_work_amount, static_cast<size_t>(work_amount));
     }
-    h->L(*loop_begin_label);
     // Compare work amount with increment and jump to end if less
     size_t eff_inc = (evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment)) ? 1 : wa_increment;
     // Use scratch for increment immediate
@@ -125,6 +124,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     h->bge(reg_work_amount, reg_inc, skip_end);
     h->j_(*loop_end_label);
     h->L(skip_end);
+    h->L(*loop_begin_label);
 }
 
 /* =================== jit_loop_end_emitter ======================= */

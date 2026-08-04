@@ -117,7 +117,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::kv_cache_impl)
 
-    kv_cache_impl() {}
+    kv_cache_impl() = default;
 
     kv_cache_impl(const kv_cache_impl& other)
         : parent(other)
