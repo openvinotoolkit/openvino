@@ -75,12 +75,13 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
                                   ? Datatype::F32
                                   : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
-    auto wt = params.weights.GetDType();
     if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+
+    auto wt = params.weights.GetDType();
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
         jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
     } else if (wt == WeightsType::UINT2) {
@@ -110,6 +111,7 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
             res.emplace_back(kd[0]);
         }
     }
+
     return res;
 }
 
