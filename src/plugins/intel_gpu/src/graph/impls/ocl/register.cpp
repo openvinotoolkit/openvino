@@ -85,7 +85,7 @@ void register_implementations() {
     REGISTER_OCL(STFT);
     REGISTER_OCL(ISTFT);
     REGISTER_OCL(sparse_fill_empty_rows);
-#ifdef ENABLE_TENSOR_PARALLEL
+#ifdef ENABLE_TP_GPU
     REGISTER_OCL(tp_allreduce);
 #endif
 }

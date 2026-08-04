@@ -106,7 +106,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
         // Wrap the caller-supplied handles as borrowed resources so ze_device
         // does NOT call zeContextDestroy in its RAII teardown — the ze_context
-        // is owned by the caller (e.g. TENSOR_PARALLEL's shared multi-device
+        // is owned by the caller (e.g. TP_GPU's shared multi-device
         // context on TPL0SharedContext) and must outlive this rank device.
         // `initialize_device=false` also skips the internal zeContextCreate
         // that would otherwise fire when the passed ze_context_resource is
@@ -200,7 +200,7 @@ void RemoteContextImpl::init_properties() {
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
 #ifdef OV_GPU_WITH_ZE_RT
-        // TENSOR_PARALLEL plugin (and any external caller wiring up their own
+        // TP_GPU plugin (and any external caller wiring up their own
         // ze_context) reads these explicit ZE handles from the property map
         // when re-creating a rank-scoped remote context.  Master's refactor
         // routes the same ze context through the `ocl_context` key for the

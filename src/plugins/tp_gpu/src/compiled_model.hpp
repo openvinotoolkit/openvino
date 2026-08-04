@@ -1,0 +1,62 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include "openvino/runtime/icompiled_model.hpp"
+#include "tp_gpu/tp_device_coordinator.hpp"
+#include "tp_l0_shared_context.hpp"
+
+namespace ov {
+namespace tp_gpu {
+
+class CompiledModel : public ov::ICompiledModel {
+public:
+    CompiledModel(const std::shared_ptr<const ov::Model>& model,
+                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                  std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
+                  std::vector<std::string>&& device_names,
+                  TPL0SharedContextPtr shared_l0_ctx = nullptr,
+                  TPDeviceCoordinatorPtr device_coordinator = nullptr);
+
+    void export_model(std::ostream& model) const override;
+
+    std::shared_ptr<const ov::Model> get_runtime_model() const override;
+
+    void set_property(const ov::AnyMap& properties) override;
+
+    ov::Any get_property(const std::string& name) const override;
+
+    const std::vector<ov::SoPtr<ov::ICompiledModel>>& get_rank_compiled() const { return m_rank_compiled; }
+    const std::vector<std::string>& get_device_names() const { return m_device_names; }
+
+    /// The rank rendezvous, Level Zero command lists and shared scratch arena
+    /// support one outer inference at a time.  Rank execution inside that
+    /// inference remains parallel.
+    std::unique_lock<std::mutex> lock_inference() const {
+        return std::unique_lock<std::mutex>(m_inference_mutex);
+    }
+
+protected:
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+private:
+    // Lifetime: shared L0 context must outlive every rank's CompiledModel
+    // (and the ze_engine/USM allocations they own). Declared first so it is
+    // destroyed last. The device coordinator depends on the shared context
+    // and is destroyed before it.
+    TPL0SharedContextPtr m_shared_l0_ctx;
+    TPDeviceCoordinatorPtr m_device_coordinator;
+    std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
+    std::vector<std::string> m_device_names;
+    mutable std::mutex m_inference_mutex;
+};
+
+}  // namespace tp_gpu
+}  // namespace ov

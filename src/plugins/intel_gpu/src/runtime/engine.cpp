@@ -251,7 +251,7 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
 //
 // `_memory_usage_data` is per-engine and hidden behind the plugin's
 // default-context lookup, so external observers cannot see allocations
-// made through user-supplied remote contexts (e.g. TENSOR_PARALLEL's
+// made through user-supplied remote contexts (e.g. TP_GPU's
 // shared L0 context).  We keep a process-wide aggregate here and dump it
 // when the current-usage total shifts by GPU_MEM_DUMP_MB (default 128)
 // MB from the last snapshot.  Setting GPU_MEM_DUMP_EVERY=N (integer)
