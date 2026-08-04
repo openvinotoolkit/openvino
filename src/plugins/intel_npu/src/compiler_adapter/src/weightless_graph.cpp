@@ -261,6 +261,7 @@ WeightlessGraph::WeightlessGraph(
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const FilteredConfig& config,
+    const std::optional<std::string>& compatibilityDescriptor,
     const bool blobIsPersistent)
     : Graph(zeGraphExt,
             zeroInitStruct,
@@ -268,7 +269,7 @@ WeightlessGraph::WeightlessGraph(
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
-            /* compatibilityDescriptor = */ std::nullopt,
+            compatibilityDescriptor,
             blobIsPersistent,
             /* calledFromWeightlessGraph = */ true),
       _initsGraphDesc(initGraphDesc),
@@ -437,8 +438,7 @@ void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
 }
 
 std::optional<std::string_view> WeightlessGraph::get_compatibility_descriptor() const {
-    _logger.warning("Compatibility descriptor is not supported for WeightlessGraph");
-    return std::nullopt;
+    return Graph::get_compatibility_descriptor();
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(

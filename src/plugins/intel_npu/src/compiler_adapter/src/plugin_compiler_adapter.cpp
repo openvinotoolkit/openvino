@@ -165,6 +165,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     ov::Tensor tensorMain;
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
+    std::optional<std::string> mainCompatibilityDescriptor;
 
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
@@ -230,7 +231,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto tensor = _compiler->compileWsIterative(targetModel, localConfig, i++)) {
+        while (true) {
+            auto [tensor, compatibilityDescriptor] = _compiler->compileWsIterative(targetModel, localConfig, i++);
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
@@ -244,6 +246,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
             }
 
             networkMetadata.name = model->get_friendly_name() + "_main";
+            mainCompatibilityDescriptor = std::move(compatibilityDescriptor);
             tensorMain = std::move(tensor);
             mainGraphDesc = graphDesc;
             mainNetworkMetadata = std::move(networkMetadata);
@@ -277,6 +280,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
+        std::move(mainCompatibilityDescriptor),
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
