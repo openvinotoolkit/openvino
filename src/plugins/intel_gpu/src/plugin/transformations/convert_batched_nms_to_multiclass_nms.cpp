@@ -49,8 +49,6 @@ bool is_const_one_like(const std::shared_ptr<ov::Node>& node) {
     if (!node) {
         return false;
     }
-    // Resolves through a Convert (or any other constant-foldable chain) to the underlying
-    // Constant, so this also covers the "Convert(Constant)" case the matched graph can contain.
     const auto constant = ov::util::get_constant_from_source(node->output(0));
     return ov::op::util::has_constant_value<float>(constant, 1.0f);
 }
@@ -173,9 +171,7 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
 ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     using namespace ov::pass::pattern;
 
-    // Batched-NMS coordinate offset trick: boxes_for_nms = boxes + Unsqueeze(class_ids_f32 * (ReduceMax(boxes) + 1)).
-    // boxes_source_m is reused below as ReduceMax's input, so the Matcher requires both
-    // occurrences to resolve to the exact same node.
+    // Batched-NMS: boxes_for_nms = boxes + Unsqueeze(class_ids_f32 * (ReduceMax(boxes) + 1)).
     auto boxes_source_m = any_input();
     auto class_ids_source_m = any_input();
     auto reduce_max_m = wrap_type<ov::op::v1::ReduceMax>({boxes_source_m, any_input()});
