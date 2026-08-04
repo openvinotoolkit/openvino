@@ -562,6 +562,9 @@ def test_rt_info_const_output():
         _ = rt["nonexistent_key"]
     assert len(rt) == before_len, "__getitem__ must not insert a default value on missing keys"
 
+    with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
+        co.get_rt_info()["iter_key"] = "iter_val"
+
 
 def test_multiple_outputs():
     input_shape = [4, 4]

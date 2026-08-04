@@ -36,10 +36,10 @@ void regclass_graph_ConstOutputRTMap(py::module m) {
              })
         .def("__delitem__",
              [warn](ConstRTMapView& self, const std::string& k) {
-                 warn();
                  auto it = self.actual->find(k);
                  if (it == self.actual->end())
                      throw py::key_error(k);
+                 warn();
                  self.actual->erase(it);
              })
         // read-only: delegate without warning
@@ -74,20 +74,18 @@ void regclass_graph_ConstOutputRTMap(py::module m) {
                 return py::make_key_iterator(self.actual->begin(), self.actual->end());
             },
             py::keep_alive<0, 1>())
-        .def("items",
-             [](const ConstRTMapView& self) {
-                 py::list out;
-                 for (const auto& kv : *self.actual)
-                     out.append(py::make_tuple(kv.first, Common::utils::from_ov_any_no_leaves(kv.second)));
-                 return out;
-             })
-        .def("values",
-             [](const ConstRTMapView& self) {
-                 py::list out;
-                 for (const auto& kv : *self.actual)
-                     out.append(Common::utils::from_ov_any_no_leaves(kv.second));
-                 return out;
-             })
+        .def(
+            "items",
+            [](ConstRTMapView& self) -> py::object {
+                return py::cast(*self.actual, py::return_value_policy::reference).attr("items")();
+            },
+            py::keep_alive<0, 1>())
+        .def(
+            "values",
+            [](ConstRTMapView& self) -> py::object {
+                return py::cast(*self.actual, py::return_value_policy::reference).attr("values")();
+            },
+            py::keep_alive<0, 1>())
         .def("__repr__", [](const ConstRTMapView& self) {
             return std::string("<RTMap>");
         });
