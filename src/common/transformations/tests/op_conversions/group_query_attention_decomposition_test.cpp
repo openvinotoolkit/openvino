@@ -35,9 +35,20 @@ constexpr int64_t HEAD_SIZE = 16;
 // Stand-in for an absent optional input. The decomposition detects missing inputs by node description
 // ("NullNode"), matching the ONNX frontend's NullNode, so a filler must report the same description
 // rather than be a real Parameter (which would be treated as a supplied position_ids / bias / etc.).
+// Declared without the OPENVINO_OP macro so no export/visibility attributes are applied to this
+// test-local type (the macro's RTTI attributes are rejected under -Werror on some toolchains).
 class NullNode : public op::Op {
 public:
-    OPENVINO_OP("NullNode");
+    static const ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ov::DiscreteTypeInfo info{"NullNode", "test"};
+        return info;
+    }
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return get_type_info_static();
+    }
+    std::string description() const override {
+        return "NullNode";
+    }
     NullNode() {
         set_output_size(1);
     }
@@ -186,9 +197,11 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
     EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 1u);
 
     // The sink input (smooth_softmax / head_sink) shows up as extra SDPA inputs.
-    for (const auto& op : model->get_ordered_ops())
-        if (auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(op))
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(op)) {
             EXPECT_EQ(sdpa->get_input_size(), p.expected_sdpa_inputs);
+        }
+    }
 
     // The windowed rolling cache assembles the present buffer with ScatterUpdate; other paths do not.
     EXPECT_EQ(count_ops_of_type<op::v3::ScatterUpdate>(model) > 0u, p.expects_scatter_update);
