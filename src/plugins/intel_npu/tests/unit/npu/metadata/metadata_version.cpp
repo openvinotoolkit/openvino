@@ -398,30 +398,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
 }
 
 /**
- * @brief The read cursor should reach the end of the metadata (minus footer) when parsing is complete.
- */
-TEST_F(MetadataUnitTests, incompleteBlobRead) {
-    std::stringstream stream;
-    std::vector<uint64_t> initSizes{16, 32};
-
-    auto meta = Metadata<METADATA_VERSION_2_1>(0, std::nullopt, initSizes);
-    meta.write(stream);
-    std::string blob = stream.str();
-
-    const uint64_t badNumberOfInits = initSizes.size() - 1;
-    const size_t numberOfInitsOffset =
-        blob.size() - FOOTER_SIZE - initSizes.size() * SIZE_OF_INIT_SCHEDULE_SIZE - sizeof(badNumberOfInits);
-    std::memcpy(&blob[numberOfInitsOffset], &badNumberOfInits, sizeof(badNumberOfInits));
-
-    std::stringstream malformedStream(blob);
-    OV_EXPECT_THROW(read_metadata_from(malformedStream), ov::Exception, _);
-
-    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
-    std::memcpy(tensor.data<char>(), blob.data(), blob.size());
-    OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
-}
-
-/**
  * @brief Throw if the size of the compiler payload is too big relative to the size of the blob
  */
 TEST_F(MetadataUnitTests, compilerPayloadSizeExceedsBlobLimit) {

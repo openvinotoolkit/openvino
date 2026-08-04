@@ -30,9 +30,6 @@ constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "than the size of the blob. Compiler payload size: ";
 constexpr std::string_view MISSING_BLOB_MESSAGE = "No blob has been provided to NPU plugin's metadata reader.";
 constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
-constexpr std::string_view INCOMPLETE_READ_MESSAGE =
-    "The cursor of the blob was found in an invalid position after read. It is possible the metadata were not parsed "
-    "until the end of the blob";
 
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
@@ -232,16 +229,16 @@ void MetadataBase::read(std::istream& stream) {
     _sourceSize = get_stream_total_size(stream);
     read();
 
-    OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
-    OPENVINO_ASSERT(static_cast<size_t>(stream.tellg()) + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
+    // Note: we could have placed an additional safeguard here. Something like "cursorPosition = streamEnd -
+    // footerSize", to make sure the whole content of the metadata section has been read. However, such a safeguard
+    // would break compatibility, because some previous plugin versions are padding the space between the end of the
+    // metadata and the footer.
 }
 
 void MetadataBase::read(const ov::Tensor& tensor) {
     _source = Source(tensor);
     _sourceSize = tensor.get_byte_size();
     read();
-
-    OPENVINO_ASSERT(_cursorOffset + FOOTER_SIZE == _sourceSize, INCOMPLETE_READ_MESSAGE);
 }
 
 void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> attrs) {
@@ -578,20 +575,29 @@ void Metadata<METADATA_VERSION_2_6>::write_as_text(std::ostream& stream) {
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
+    auto logger = Logger::global().clone("create_metadata");
+
     switch (version) {
     case METADATA_VERSION_2_0:
+        logger.debug("Creating a metadata object of version 2.0");
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize);
     case METADATA_VERSION_2_1:
+        logger.debug("Creating a metadata object of version 2.1");
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize);
     case METADATA_VERSION_2_2:
+        logger.debug("Creating a metadata object of version 2.2");
         return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize);
     case METADATA_VERSION_2_3:
+        logger.debug("Creating a metadata object of version 2.3");
         return std::make_unique<Metadata<METADATA_VERSION_2_3>>(blobSize);
     case METADATA_VERSION_2_4:
+        logger.debug("Creating a metadata object of version 2.4");
         return std::make_unique<Metadata<METADATA_VERSION_2_4>>(blobSize);
     case METADATA_VERSION_2_5:
+        logger.debug("Creating a metadata object of version 2.5");
         return std::make_unique<Metadata<METADATA_VERSION_2_5>>(blobSize);
     case METADATA_VERSION_2_6:
+        logger.debug("Creating a metadata object of version 2.6");
         return std::make_unique<Metadata<METADATA_VERSION_2_6>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
@@ -617,7 +623,9 @@ size_t MetadataBase::get_stream_remaining_size(std::istream& stream) {
     const std::streampos streamEnd = stream.tellg();
     stream.seekg(streamStart, std::ios_base::beg);
 
-    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu",
+              static_cast<size_t>(streamStart),
+              static_cast<size_t>(streamEnd));
 
     OPENVINO_ASSERT(streamEnd >= streamStart,
                     "Invalid stream size: streamEnd (",
