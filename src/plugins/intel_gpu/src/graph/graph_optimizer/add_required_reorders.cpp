@@ -229,7 +229,7 @@ void add_required_reorders::run(program& p) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
                 // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
                 // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
-                if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
+                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2))
                     continue;
 
                 if (!fused_op.has_outer_dep())

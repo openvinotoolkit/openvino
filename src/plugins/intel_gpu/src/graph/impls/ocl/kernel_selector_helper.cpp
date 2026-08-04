@@ -989,7 +989,7 @@ kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
         elm.pitch = pitch;
         elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
         elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
-        elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
+        elm.pad.is_dynamic = (dynamic_pad_dims[tensor_index] != 0);
         elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);

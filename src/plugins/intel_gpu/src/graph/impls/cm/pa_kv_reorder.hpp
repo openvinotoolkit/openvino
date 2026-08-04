@@ -26,7 +26,7 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
         }
         const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
         // CM reorder kernel handles only fp16 / int8 caches (matches CM PA validate_impl).
-        if (!(desc->cache_dt == cldnn::data_types::f16 || desc->cache_dt == cldnn::data_types::i8 || desc->cache_dt == cldnn::data_types::u8)) {
+        if (desc->cache_dt != cldnn::data_types::f16 && desc->cache_dt != cldnn::data_types::i8 && desc->cache_dt != cldnn::data_types::u8) {
             return false;
         }
 

@@ -343,7 +343,7 @@ public:
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
-        return key.restrict.val.different_input_weights_types ? true : false;
+        return key.restrict.val.different_input_weights_types != 0;
     }
     ParamsKey Merge(const ParamsKey& k) const;
 
