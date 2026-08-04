@@ -273,9 +273,13 @@ typedef uint64_t npu_vm_runtime_config_value_t;
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Runtime configuration descriptor.
 /// @details Each descriptor carries one typed uint64 value. pNext links additional
-///          descriptors and is only valid for the duration of the API call. Unknown
-///          and invalid descriptor types must be ignored. If the same type appears
-///          more than once, the first descriptor reached by pNext traversal takes precedence.
+///          descriptors and is only valid for the duration of the API call. Descriptor
+///          chains must be ordered by increasing type value during pNext traversal.
+///          Unknown and invalid descriptor types must be ignored, but still participate
+///          in numeric ordering. Runtime implementations may stop scanning once the
+///          current descriptor type is greater than the requested type. Descriptor
+///          types should be unique. If the same type appears more than once, the first
+///          descriptor reached by pNext traversal takes precedence.
 typedef struct _npu_vm_runtime_config_desc_t {
     npu_vm_runtime_config_type_t type;
     npu_vm_runtime_config_value_t value;
@@ -289,16 +293,15 @@ typedef struct _npu_vm_runtime_config_desc_t {
 #define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS       4ULL
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime execution context (v2.0)
-/// @details Use this instead of npuVMRuntimeCreateExecutionContext when the VM runtime
-///          API version is 2.0 or later. Runtime configuration descriptors are provided
-///          to npuVMRuntimeExecute2 so updated queue configuration can be applied per call.
-///          pConfig is reserved for ABI compatibility and must be nullptr.
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
-    npu_vm_runtime_handle_t hRuntime,             ///< [in] handle of VM runtime object
-    const npu_vm_runtime_config_desc_t* pConfig,  ///< [in][optional] reserved, must be nullptr
-    npu_vm_runtime_execution_context_handle_t*
-        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
+/// @brief Init VM runtime instance with initial runtime configuration and return handle (v2.0)
+/// @details Use this instead of npuVMRuntimeCreate when the VM runtime API version is 2.0 or later.
+///          Runtime configuration descriptors provide initial runtime configuration for graph creation.
+///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
+    const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
+    npu_vm_runtime_config_desc_t* pConfig,    ///< [in][optional] pointer to initial runtime configuration descriptors
+    npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
+    npu_vm_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -306,8 +309,9 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 /// @details Plugin provides Level Zero context handles and a commandQueue.
 ///          The interpreter creates and owns all internal command lists
 ///          based on current pConfig descriptors, storing them inside executionContext.
-///          pConfig is valid only for this call. Plugin never creates or manages
-///          command lists directly in this path.
+///          pConfig provides current per-execute runtime configuration and is valid
+///          only for this call. Plugin never creates or manages command lists directly
+///          in this path.
 typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Level Zero context. Used by interpreter to create internal CLs.
     ze_context_handle_t ctx;

@@ -58,8 +58,8 @@ private:
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
-    void initialize_engine();
-    void create_execution_engine();
+    void initialize_engine(const FilteredConfig& config);
+    void create_execution_engine(const FilteredConfig& config);
     void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

@@ -20,12 +20,94 @@
 
 namespace intel_npu {
 
-void DynamicGraph::create_execution_engine() {
+namespace {
+
+bool use_v2_api(npu_vm_runtime_version_t apiVersion) {
+    return apiVersion >= NPU_VM_RUNTIME_VERSION_2_0;
+}
+
+uint32_t getCommandQueueOptions(const FilteredConfig& config,
+                                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
+    OPENVINO_ASSERT(zeroInitStruct != nullptr, "Failed to get command queue options without Level Zero init data");
+
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        OPENVINO_ASSERT(zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
+                        "Turbo is not supported by the current driver");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_ASSERT(zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        "Running inferences sequentially is not supported by the current driver");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+    return commandQueueOptions;
+}
+
+struct RuntimeConfigChain {
+    RuntimeConfigChain() = default;
+    RuntimeConfigChain(const RuntimeConfigChain&) = delete;
+    RuntimeConfigChain& operator=(const RuntimeConfigChain&) = delete;
+
+    void append(npu_vm_runtime_config_type_t type, npu_vm_runtime_config_value_t value) {
+        OPENVINO_ASSERT(_size < _descs.size(), "VM runtime config descriptor chain capacity exceeded");
+        OPENVINO_ASSERT(_size == 0 || _descs[_size - 1].type < type,
+                        "VM runtime config descriptor chain must be ordered by increasing type");
+        _descs[_size] = npu_vm_runtime_config_desc_t{type, value, nullptr};
+        if (_size > 0) {
+            _descs[_size - 1].pNext = &_descs[_size];
+        }
+        ++_size;
+    }
+
+    npu_vm_runtime_config_desc_t* head() {
+        return _size == 0 ? nullptr : &_descs[0];
+    }
+
+private:
+    std::array<npu_vm_runtime_config_desc_t, 4> _descs = {};
+    size_t _size = 0;
+};
+
+void populateRuntimeConfigChain(RuntimeConfigChain& configChain,
+                                const FilteredConfig& config,
+                                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE, config.get<SHARED_COMMON_QUEUE>() ? 1ULL : 0ULL);
+    configChain.append(
+        NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
+    if (config.has<WORKLOAD_TYPE>()) {
+        const auto workloadType = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+        if (workloadType.has_value()) {
+            configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+                               static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
+        }
+    }
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, getCommandQueueOptions(config, zeroInitStruct));
+}
+
+}  // namespace
+
+void DynamicGraph::create_execution_engine(const FilteredConfig& config) {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    npu_vm_runtime_version_t apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
+    if (npuVMRuntimeGetAPIVersion(&apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime API version");
+    }
+
+    const auto result = [&]() {
+        if (use_v2_api(apiVersion)) {
+            RuntimeConfigChain runtimeConfig;
+            populateRuntimeConfigChain(runtimeConfig, config, _zeroInitStruct);
+            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
+        }
+        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
+    }();
+
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
     }
 }
@@ -151,9 +233,9 @@ void DynamicGraph::prepare_metadata() {
     _metadata.bindRelatedDescriptors();
 }
 
-void DynamicGraph::initialize_engine() {
+void DynamicGraph::initialize_engine(const FilteredConfig& config) {
     if (!_engineInitialized) {
-        create_execution_engine();
+        create_execution_engine(config);
         prepare_metadata();
         _engineInitialized = true;
         _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
@@ -200,7 +282,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
     // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
     // descriptors
-    initialize_engine();
+    initialize_engine(config);
 
     initialize(config);
 }
@@ -327,7 +409,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     if (!_engineInitialized) {
         // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine();
+        initialize_engine(config);
     }
 
     if (!_zeroInitStruct) {
@@ -337,18 +419,12 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     _logger.debug("Graph initialize without graph handle");
 
-    uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
-                        "Turbo is not supported by the current driver");
+    const uint32_t commandQueueOptions = getCommandQueueOptions(config, _zeroInitStruct);
+    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO) != 0) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
-                        "Running inferences sequentially is not supported by the current driver");
+    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     {

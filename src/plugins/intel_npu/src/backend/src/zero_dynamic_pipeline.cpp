@@ -131,14 +131,9 @@ VMExecutionContext::~VMExecutionContext() {
     }
 }
 
-npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runtime_handle_t vmRuntime, bool useV2) {
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runtime_handle_t vmRuntime) {
     if (_handle == nullptr) {
-        npu_vm_runtime_result_t result = NPU_VM_RUNTIME_RESULT_SUCCESS;
-        if (useV2) {
-            result = npuVMRuntimeCreateExecutionContext2(vmRuntime, nullptr, &_handle);
-        } else {
-            result = npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle);
-        }
+        const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle);
         if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context");
         }
@@ -378,21 +373,27 @@ const npu_vm_runtime_config_desc_t* DynamicPipeline::update_runtime_config(const
 
     size_t size = 0;
     _runtime_config_head = nullptr;
-    auto pushConfig = [&](npu_vm_runtime_config_type_t type, npu_vm_runtime_config_value_t value) {
+    auto appendConfig = [&](npu_vm_runtime_config_type_t type, npu_vm_runtime_config_value_t value) {
         OPENVINO_ASSERT(size < _runtime_config_descs.size(), "VM runtime config descriptor chain capacity exceeded");
-        _runtime_config_descs[size] = npu_vm_runtime_config_desc_t{type, value, _runtime_config_head};
-        _runtime_config_head = &_runtime_config_descs[size];
+        OPENVINO_ASSERT(size == 0 || _runtime_config_descs[size - 1].type < type,
+                        "VM runtime config descriptor chain must be ordered by increasing type");
+        _runtime_config_descs[size] = npu_vm_runtime_config_desc_t{type, value, nullptr};
+        if (size > 0) {
+            _runtime_config_descs[size - 1].pNext = &_runtime_config_descs[size];
+        } else {
+            _runtime_config_head = &_runtime_config_descs[size];
+        }
         ++size;
     };
 
-    pushConfig(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueDesc.options());
+    appendConfig(NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE, commandQueueDesc.shared_common_queue() ? 1ULL : 0ULL);
+    appendConfig(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+                 static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.priority()));
     if (commandQueueDesc.workload().has_value()) {
-        pushConfig(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
-                   static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.workload().value()));
+        appendConfig(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+                     static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.workload().value()));
     }
-    pushConfig(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
-               static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.priority()));
-    pushConfig(NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE, commandQueueDesc.shared_common_queue() ? 1ULL : 0ULL);
+    appendConfig(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueDesc.options());
 
     _runtime_config_key = commandQueueKey;
     _runtime_config_valid = true;
@@ -519,7 +520,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     params.numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
     params.pOutputs = args._outputMemRefHandles.data();
     params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
-    params.executionContext = _executionContext.ensure(vmRuntime, true);
+    params.executionContext = _executionContext.ensure(vmRuntime);
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     if (npuVMRuntimeExecute2(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
@@ -608,7 +609,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        params.executionContext = _executionContext.ensure(vmRuntime, use_v2_api(_apiVersion));
+        params.executionContext = _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
