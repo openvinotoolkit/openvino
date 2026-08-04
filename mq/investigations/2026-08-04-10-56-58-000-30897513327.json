@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-04-10-56-58-000-30897513327",
+  "timestamp": "2026-08-04T10:56:58Z",
+  "run_id": "30897513327",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30897513327",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37218",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37218",
+  "author": "as-suvorov",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing d3dcompiler_47.dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "E2E Electron test after-all hook fails with 'rm -rf demo-electron-app-project' Permission denied on d3dcompiler_47.dll"
+    }
+  ],
+  "key_errors": [
+    "rm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "After the Electron E2E tests complete on Windows, the test cleanup hook attempts to remove the demo-electron-app-project directory using 'rm -rf'. The Electron runner process (or antivirus/Windows file system) holds a lock on the DLL (d3dcompiler_47.dll) preventing deletion. This is a well-known Windows runner flaky issue with Electron test cleanups. The actual test passed; only the teardown failed.",
+  "reproduction_steps": "N/A \u2014 Windows-specific file locking race condition in CI runner environment.",
+  "recommended_actions": [
+    "Re-add PR to the merge queue \u2014 the failure is in cleanup only, actual tests passed.",
+    "Investigate using 'rimraf' or 'rimraf --glob' in the test teardown to handle locked files on Windows.",
+    "Consider adding a retry or force-remove step in the E2E test teardown on Windows."
+  ],
+  "prevention_strategies": "Use a Windows-compatible cleanup utility in the JS API E2E test teardown that handles locked files gracefully (e.g., rimraf with retries).",
+  "historical_context": "This exact pattern has been seen 15 times (first on 2026-07-09). It consistently occurs in the JS API Windows E2E Electron tests where Electron DLLs remain locked after test run."
+}

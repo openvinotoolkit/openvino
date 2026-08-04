@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 98,
+  "total": 99,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -962,6 +962,17 @@
       "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
       "pr_number": "37187"
+    },
+    {
+      "investigation_id": "2026-08-04-10-56-58-000-30897513327",
+      "run_id": "30897513327",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30897513327",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-08-04T10:56:58Z",
+      "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing d3dcompiler_47.dll",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "37218"
     }
   ]
 }
