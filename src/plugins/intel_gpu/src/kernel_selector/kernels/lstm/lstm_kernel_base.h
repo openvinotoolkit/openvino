@@ -55,7 +55,7 @@ struct lstm_params : public base_params {
 class LSTMKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~LSTMKernelBase() {}
+    ~LSTMKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {};
 

@@ -84,7 +84,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;
@@ -341,6 +340,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},

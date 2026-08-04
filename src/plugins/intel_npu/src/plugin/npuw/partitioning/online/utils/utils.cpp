@@ -137,6 +137,11 @@ size_t ov::npuw::online::util::getMinRepBlockSize(const ::intel_npu::Config& cfg
     return min_size;
 }
 
+std::unordered_set<std::string> ov::npuw::online::util::getKeepBlockTags(const ::intel_npu::Config& cfg) {
+    auto tags = splitByComma(cfg.getString<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED>());
+    return std::unordered_set<std::string>(tags.begin(), tags.end());
+}
+
 std::vector<ov::npuw::online::Avoid> ov::npuw::online::util::getAvoids(const ::intel_npu::Config& cfg) {
     std::vector<ov::npuw::online::Avoid> avoids;
 
@@ -232,6 +237,7 @@ ov::npuw::online::PassContext::PassContext(const ::intel_npu::Config& cfg) {
     min_graph_size = ov::npuw::online::util::getMinGraphSize(cfg);
     keep_blocks = ov::npuw::online::util::getMinRepBlocks(cfg);
     keep_block_size = ov::npuw::online::util::getMinRepBlockSize(cfg);
+    keep_block_tags = ov::npuw::online::util::getKeepBlockTags(cfg);
     avoids = ov::npuw::online::util::getAvoids(cfg);
     isolates = ov::npuw::online::util::getIsolates(cfg);
     nofolds = ov::npuw::online::util::getNoFolds(cfg);

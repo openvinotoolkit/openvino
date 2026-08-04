@@ -12,9 +12,7 @@ namespace ocl {
 command_queues_builder::command_queues_builder()
     : _profiling(false),
       _out_of_order(false),
-      _supports_queue_families(false),
-      _priority_mode(),
-      _throttle_mode() {}
+      _supports_queue_families(false) {}
 
 #if CL_TARGET_OPENCL_VERSION >= 200
 std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl::Device& device, uint16_t stream_id) {

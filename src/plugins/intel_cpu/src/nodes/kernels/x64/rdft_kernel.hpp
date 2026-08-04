@@ -4,17 +4,20 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <vector>
-#ifndef OPENVINO_ARCH_ARM64
+
+#include "openvino/core/visibility.hpp"
+#include "utils/cpu_utils.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "cpu/x64/jit_generator.hpp"
 #endif
-#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -39,7 +42,7 @@ struct jit_dft_args {
     size_t output_end;
 };
 
-#ifndef OPENVINO_ARCH_ARM64
+#if defined(OPENVINO_ARCH_X86_64)
 struct jit_dft_kernel {
     jit_dft_kernel(bool is_inverse, enum dft_type type) : is_inverse_(is_inverse), kernel_type_(type) {}
 

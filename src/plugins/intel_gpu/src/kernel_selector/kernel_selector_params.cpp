@@ -170,6 +170,9 @@ void ParamsKey::EnableInputWeightsType(WeightsType wt) {
         case WeightsType::UINT4:
             key.inputWeightsType.val.uint4 = 1;
             break;
+        case WeightsType::UINT2:
+            key.inputWeightsType.val.uint2 = 1;
+            break;
         case WeightsType::INT32:
             key.inputWeightsType.val.int32 = 1;
             break;
@@ -199,6 +202,9 @@ void ParamsKey::EnableOutputWeightsType(WeightsType wt) {
             break;
         case WeightsType::UINT4:
             key.outputWeightsType.val.uint4 = 1;
+            break;
+        case WeightsType::UINT2:
+            key.outputWeightsType.val.uint2 = 1;
             break;
         case WeightsType::INT32:
             key.outputWeightsType.val.int32 = 1;
@@ -350,6 +356,12 @@ void ParamsKey::EnableConcatAxis(ConcatAxis a) {
             break;
         case ConcatAxis::W:
             key.restrict.val.dedicated.concat.axisW = 1;
+            break;
+        case ConcatAxis::U:
+            key.restrict.val.dedicated.concat.axisU = 1;
+            break;
+        case ConcatAxis::V:
+            key.restrict.val.dedicated.concat.axisV = 1;
             break;
         case ConcatAxis::FEATURE:
             key.restrict.val.dedicated.concat.axisFeature = 1;

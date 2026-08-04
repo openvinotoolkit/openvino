@@ -18,7 +18,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-
+#include "openvino/util/env_util.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -122,10 +122,10 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
-                std::string stage_suffix = "";
+                std::string stage_suffix;
                 if (key.cache_hit)
                     stage_suffix += " (cache_hit) ";
-                if (key.memalloc_info != "")
+                if (!key.memalloc_info.empty())
                     stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
@@ -1189,7 +1189,9 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         && users.front()->is_type<reshape>()
         && users.front()->is_dynamic())
             return;
-
+    if (node.is_type<data>() && node.as<data>().get_primitive()->skip_device_transfer()) {
+        return;
+    }
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type
     if (node.need_lockable_memory())
