@@ -15,30 +15,104 @@ namespace py = pybind11;
 template void regclass_graph_Output<ov::Node>(py::module m, std::string typestring);
 template void regclass_graph_Output<const ov::Node>(py::module m, std::string typestring);
 
+void regclass_graph_ConstOutputRTMap(py::module m) {
+    auto warn = []() {
+        Common::utils::deprecation_warning("Setting rt_info via ConstOutput",
+                                           "2027.0",
+                                           "Use a non-const output to modify runtime info.");
+    };
+
+    py::class_<ConstRTMapView, ov::RTMap>(m, "_ConstRTMapView")
+        // mutating: warn then delegate to the real map
+        .def("__setitem__",
+             [warn](ConstRTMapView& self, const std::string& k, const std::string& v) {
+                 warn();
+                 (*self.actual)[k] = v;
+             })
+        .def("__setitem__",
+             [warn](ConstRTMapView& self, const std::string& k, int64_t v) {
+                 warn();
+                 (*self.actual)[k] = v;
+             })
+        .def("__delitem__",
+             [warn](ConstRTMapView& self, const std::string& k) {
+                 warn();
+                 auto it = self.actual->find(k);
+                 if (it == self.actual->end())
+                     throw py::key_error(k);
+                 self.actual->erase(it);
+             })
+        // read-only: delegate without warning
+        .def("__getitem__",
+             [](ConstRTMapView& self, const std::string& k) -> py::object {
+                 return Common::utils::from_ov_any_no_leaves((*self.actual)[k]);
+             })
+        .def("__contains__",
+             [](const ConstRTMapView& self, const std::string& k) {
+                 return self.actual->count(k) > 0;
+             })
+        .def("__len__",
+             [](const ConstRTMapView& self) {
+                 return self.actual->size();
+             })
+        .def("__bool__",
+             [](const ConstRTMapView& self) {
+                 return !self.actual->empty();
+             })
+        .def(
+            "__iter__",
+            [](ConstRTMapView& self) {
+                return py::make_key_iterator(self.actual->begin(), self.actual->end());
+            },
+            py::keep_alive<0, 1>())
+        .def(
+            "keys",
+            [](ConstRTMapView& self) {
+                return py::make_key_iterator(self.actual->begin(), self.actual->end());
+            },
+            py::keep_alive<0, 1>())
+        .def("items",
+             [](const ConstRTMapView& self) {
+                 py::list out;
+                 for (const auto& kv : *self.actual)
+                     out.append(py::make_tuple(kv.first, Common::utils::from_ov_any_no_leaves(kv.second)));
+                 return out;
+             })
+        .def("values",
+             [](const ConstRTMapView& self) {
+                 py::list out;
+                 for (const auto& kv : *self.actual)
+                     out.append(Common::utils::from_ov_any_no_leaves(kv.second));
+                 return out;
+             })
+        .def("__repr__", [](const ConstRTMapView& self) {
+            return std::string("<RTMap>");
+        });
+
+    auto type_obj = py::type::of<ConstRTMapView>();
+    type_obj.attr("__name__") = py::str("RTMap");
+    type_obj.attr("__qualname__") = py::str("RTMap");
+}
+
 template <typename T>
 void def_type_dependent_functions(py::class_<ov::Output<T>, std::shared_ptr<ov::Output<T>>>& output) {}
 
 template <>
 void def_type_dependent_functions<const ov::Node>(
     py::class_<ov::Output<const ov::Node>, std::shared_ptr<ov::Output<const ov::Node>>>& output) {
-    // def_property_readonly does not support keep_alive, so
-    // self_obj is passed to _ConstOutputRTMap and is stored as the owner,
-    // keeping the node alive for as long as the proxy object exists.
     auto getter = [](py::object self_obj) -> py::object {
-        auto& self = self_obj.cast<ov::Output<const ov::Node>&>();
-        ov::RTMap& rt = const_cast<ov::RTMap&>(self.get_rt_info());
-        py::object py_rtmap = py::cast(rt, py::return_value_policy::reference);
-        return py::module_::import("openvino._ov_api").attr("_ConstOutputRTMap")(py_rtmap, self_obj);
+        ov::RTMap& rt = const_cast<ov::RTMap&>(self_obj.cast<ov::Output<const ov::Node>&>().get_rt_info());
+        return py::cast(std::make_unique<ConstRTMapView>(rt, self_obj));
     };
     output.def("get_rt_info",
                getter,
                R"(
             Returns a view of the RTMap for this output.
-            Writes to this RTMap object emit a DeprecationWarning;
-            use a non-const output (e.g. node.output(i)) to modify runtime info.
+            Reads are transparent; writes are deprecated (to be removed in 2027.0).
+            Use a non-const output to modify runtime info.
 
             :return: View of runtime info dictionary.
-            :rtype: openvino._ov_api._ConstOutputRTMap
+            :rtype: openvino.RTMap
         )");
     output.def_property_readonly("rt_info", getter);
 }

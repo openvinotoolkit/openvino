@@ -19,6 +19,21 @@ using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
+// \brief Pybind11 subclass of RTMap used as the return type of ConstOutput::get_rt_info().
+//
+// The C++ base is empty and is never used for data storage; all map operations
+// are forwarded through the `actual` pointer to the real tensor RTMap owned by the node.
+// Storing `owner` (the Python ConstOutput object) keeps the node alive.
+struct ConstRTMapView : public ov::RTMap {
+    ov::RTMap* actual;  // non-owning pointer to the real RTMap
+    py::object owner;   // Python ConstOutput that owns the node
+
+    ConstRTMapView(ov::RTMap& map, py::object owner_obj)
+        : ov::RTMap(), actual(&map), owner(std::move(owner_obj)) {}
+};
+
+void regclass_graph_ConstOutputRTMap(py::module m);
+
 // this function is overloaded in the corresponding cpp file with T=ov::Node
 // it exposes additional functions with T = ov::Node, which are undefined with T = const ov::Node
 template<typename T>

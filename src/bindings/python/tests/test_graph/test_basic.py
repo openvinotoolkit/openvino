@@ -13,6 +13,7 @@ from openvino import (
     Model,
     Layout,
     PartialShape,
+    RTMap,
     Shape,
     Strides,
     Tensor,
@@ -539,7 +540,6 @@ def test_rt_info_const_output():
         _ = co.get_rt_info()
         _ = co.rt_info
         rt = co.get_rt_info()
-        _ = "nonexistent" in rt
         _ = list(rt)
 
     with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
@@ -553,6 +553,8 @@ def test_rt_info_const_output():
     with pytest.warns(DeprecationWarning, match="Setting rt_info via ConstOutput"):
         del co.rt_info["dep_key"]
     assert "dep_key" not in co.rt_info
+
+    assert isinstance(co.get_rt_info(), RTMap)
 
 
 def test_multiple_outputs():

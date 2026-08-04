@@ -3,64 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import io
-import warnings
 from types import TracebackType
 from typing import Any, Union, Optional
 from collections.abc import Iterator
 from pathlib import Path
 import traceback  # noqa: F811
-
-
-class _ConstOutputRTMap:
-    """RTMap view returned by ConstOutput.get_rt_info() / .rt_info.
-
-    Read operations delegate to the underlying RTMap.
-    Write operations emit a DeprecationWarning.
-    """
-
-    def __init__(self, rtmap, owner):
-        self._rtmap = rtmap
-        self._owner = owner  # keeps the ConstOutput (and its node) alive
-
-    def __setitem__(self, key, value):
-        warnings.warn(
-            "Setting rt_info via ConstOutput is deprecated and will be removed "
-            "in OpenVINO 2027.0. Use a non-const output to modify runtime info.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._rtmap[key] = value
-
-    def __delitem__(self, key):
-        warnings.warn(
-            "Setting rt_info via ConstOutput is deprecated and will be removed "
-            "in OpenVINO 2027.0. Use a non-const output to modify runtime info.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        del self._rtmap[key]
-
-    def __getitem__(self, key):
-        return self._rtmap[key]
-
-    def __contains__(self, key):
-        return key in self._rtmap
-
-    def __len__(self):
-        return len(self._rtmap)
-
-    def __iter__(self):
-        return iter(self._rtmap)
-
-    def __bool__(self):
-        return bool(self._rtmap)
-
-    def __repr__(self):
-        return repr(self._rtmap)
-
-    def __getattr__(self, name):
-        return getattr(self._rtmap, name)
-
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
