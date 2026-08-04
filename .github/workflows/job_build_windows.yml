@@ -31,6 +31,11 @@ on:
         type: string
         required: false
         default: 'vs2022'
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -196,6 +201,12 @@ jobs:
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DEV_PACKAGE }} --component developer_package
+
+      - name: Build OpenVINO C++/C samples
+        if: ${{ inputs.build-samples }}
+        run: |
+          & ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
+          & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.10

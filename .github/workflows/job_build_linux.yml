@@ -85,6 +85,11 @@ on:
         type: boolean
         required: false
         default: true
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
 
 permissions: read-all
 
@@ -248,6 +253,12 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR}
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
+
+      - name: Build OpenVINO C++/C samples
+        if: ${{ inputs.build-samples }}
+        run: |
+          ${INSTALL_DIR}/samples/cpp/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/cpp_samples
+          ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}

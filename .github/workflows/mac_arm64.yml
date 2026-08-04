@@ -218,6 +218,11 @@ jobs:
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
+      - name: Build OpenVINO C++/C samples
+        run: |
+          ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
+          ${{ env.INSTALL_DIR }}/samples/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+
       - name: Pack Artifacts
         run: |
           pushd ${{ env.INSTALL_DIR }}
