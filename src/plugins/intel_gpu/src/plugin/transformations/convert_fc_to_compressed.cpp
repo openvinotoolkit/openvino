@@ -22,7 +22,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "compressed_weights_pattern.hpp"
 
