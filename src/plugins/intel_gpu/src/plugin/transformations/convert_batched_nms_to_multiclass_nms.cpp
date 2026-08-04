@@ -66,99 +66,6 @@ bool is_integral_to_fp_convert(const std::shared_ptr<ov::Node>& node) {
     return input_type.is_integral_number() && output_type.is_real();
 }
 
-// The lowered graph inserts the per-class coordinate offset with an Unsqueeze, but
-// CommonOptimizations (which runs before this pass at its post-ConvertNMS9 position)
-// canonicalizes rank-changing Unsqueeze/Squeeze ops into Reshape, so both forms are
-// treated as the offset-broadcast node here.
-bool is_unsqueeze_like(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v1::Reshape>(node);
-}
-
-bool match_batched_nms_offsets(const std::shared_ptr<ov::Node>& boxes_offset_add,
-                               std::shared_ptr<ov::Node>& boxes_source,
-                               std::shared_ptr<ov::Node>& offsets_unsqueeze) {
-    const auto add = ov::as_type_ptr<ov::op::v1::Add>(boxes_offset_add);
-    if (!add) {
-        return false;
-    }
-
-    const auto first = add->input_value(0).get_node_shared_ptr();
-    const auto second = add->input_value(1).get_node_shared_ptr();
-
-    if (is_unsqueeze_like(first)) {
-        offsets_unsqueeze = first;
-        boxes_source = second;
-        return true;
-    }
-
-    if (is_unsqueeze_like(second)) {
-        offsets_unsqueeze = second;
-        boxes_source = first;
-        return true;
-    }
-
-    return false;
-}
-
-bool matches_batched_nms_chain(const std::shared_ptr<ov::Node>& boxes_offset_add,
-                               ov::Output<ov::Node>& boxes_source,
-                               ov::Output<ov::Node>& class_ids_source) {
-    std::shared_ptr<ov::Node> boxes_source_node;
-    std::shared_ptr<ov::Node> offsets_unsqueeze;
-    if (!match_batched_nms_offsets(boxes_offset_add, boxes_source_node, offsets_unsqueeze)) {
-        return false;
-    }
-
-    const auto multiply =
-        ov::as_type_ptr<ov::op::v1::Multiply>(offsets_unsqueeze->input_value(0).get_node_shared_ptr());
-    if (!multiply) {
-        return false;
-    }
-
-    std::shared_ptr<ov::Node> class_ids_convert;
-    std::shared_ptr<ov::Node> max_plus_one;
-    for (size_t index = 0; index < 2; ++index) {
-        auto lhs = multiply->input_value(index).get_node_shared_ptr();
-        auto rhs = multiply->input_value(1 - index).get_node_shared_ptr();
-        if (is_integral_to_fp_convert(lhs) && ov::is_type<ov::op::v1::Add>(rhs)) {
-            class_ids_convert = lhs;
-            max_plus_one = rhs;
-            break;
-        }
-    }
-
-    if (!class_ids_convert || !max_plus_one) {
-        return false;
-    }
-
-    const auto add = ov::as_type_ptr<ov::op::v1::Add>(max_plus_one);
-    if (!add) {
-        return false;
-    }
-
-    std::shared_ptr<ov::Node> reduce_max;
-    for (size_t index = 0; index < 2; ++index) {
-        auto lhs = add->input_value(index).get_node_shared_ptr();
-        auto rhs = add->input_value(1 - index).get_node_shared_ptr();
-        if (ov::is_type<ov::op::v1::ReduceMax>(lhs) && is_const_one_like(rhs)) {
-            reduce_max = lhs;
-            break;
-        }
-    }
-
-    if (!reduce_max) {
-        return false;
-    }
-
-    if (reduce_max->input_value(0).get_node_shared_ptr() != boxes_source_node) {
-        return false;
-    }
-
-    boxes_source = boxes_source_node;
-    class_ids_source = class_ids_convert->input_value(0);
-    return true;
-}
-
 template <typename T>
 bool get_scalar_from_const_source(const ov::Output<ov::Node>& output, T& value) {
     const auto constant = ov::util::get_constant_from_source(output);
@@ -266,7 +173,19 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
 ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     using namespace ov::pass::pattern;
 
-    auto boxes_offset_add_m = wrap_type<ov::op::v1::Add>();
+    // Batched-NMS coordinate offset trick: boxes_for_nms = boxes + Unsqueeze(class_ids_f32 * (ReduceMax(boxes) + 1)).
+    // boxes_source_m is reused below as ReduceMax's input, so the Matcher requires both
+    // occurrences to resolve to the exact same node.
+    auto boxes_source_m = any_input();
+    auto class_ids_source_m = any_input();
+    auto reduce_max_m = wrap_type<ov::op::v1::ReduceMax>({boxes_source_m, any_input()});
+    auto const_one_m = any_input(is_const_one_like);
+    auto max_plus_one_m = wrap_type<ov::op::v1::Add>({reduce_max_m, const_one_m});
+    auto class_ids_convert_m = wrap_type<ov::op::v0::Convert>({class_ids_source_m}, is_integral_to_fp_convert);
+    auto offsets_multiply_m = wrap_type<ov::op::v1::Multiply>({class_ids_convert_m, max_plus_one_m});
+    // match Unsqueeze, or Reshape if optimized after CommonOptimizations
+    auto offsets_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({offsets_multiply_m, any_input()});
+    auto boxes_offset_add_m = wrap_type<ov::op::v1::Add>({offsets_unsqueeze_m, boxes_source_m});
     auto boxes_reshape_m = wrap_type<ov::op::v1::Reshape>({boxes_offset_add_m, any_input()});
     // match Unsqueeze, or Reshape if optimized after CommonOptimizations
     auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({any_input(), any_input()});
@@ -288,7 +207,6 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto squeeze = pattern_map.at(squeeze_m).get_node_shared_ptr();
         auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(pattern_map.at(gather_m).get_node_shared_ptr());
         auto nms = pattern_map.at(nms_m).get_node_shared_ptr();
-        auto boxes_offset_add = pattern_map.at(boxes_offset_add_m).get_node_shared_ptr();
         auto boxes_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(boxes_reshape_m).get_node_shared_ptr());
         auto scores_unsqueeze = pattern_map.at(scores_unsqueeze_m).get_node_shared_ptr();
 
@@ -296,11 +214,8 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
             return false;
         }
 
-        ov::Output<ov::Node> boxes_source;
-        ov::Output<ov::Node> class_ids_source;
-        if (!matches_batched_nms_chain(boxes_offset_add, boxes_source, class_ids_source)) {
-            return false;
-        }
+        auto boxes_source = pattern_map.at(boxes_source_m);
+        auto class_ids_source = pattern_map.at(class_ids_source_m);
 
         const auto raw_scores = scores_unsqueeze->input_value(0);
         if (boxes_source.get_partial_shape().rank().is_static() && boxes_source.get_partial_shape().rank().get_length() != 2) {
