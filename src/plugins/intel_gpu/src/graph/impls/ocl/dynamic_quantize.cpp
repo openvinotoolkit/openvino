@@ -60,6 +60,8 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
         params.combine_scales_and_zp = desc->attrs.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
         params.generate_precomputed_reduction = desc->attrs.precomputed_reduction;
 
+        validate_f4e2m1_packed_output(impl_param.get_output_layout(0), "dynamic_quantize");
+
         return params;
     }
 

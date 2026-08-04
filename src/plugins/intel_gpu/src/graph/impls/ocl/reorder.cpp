@@ -112,6 +112,8 @@ public:
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
         params.truncate = impl_param.typed_desc<reorder>()->truncate;
 
+        validate_f4e2m1_packed_output(output_layout, "reorder");
+
         return params;
     }
 
@@ -122,6 +124,7 @@ public:
         }
 
         update_shapes(*_kernel_data.params, impl_param);
+        validate_f4e2m1_packed_output(impl_param.get_output_layout(), "reorder");
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
