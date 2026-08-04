@@ -46,7 +46,9 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
@@ -210,6 +212,8 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedGatedDeltaNet>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::SelectiveSSM>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::PagedSelectiveSSM>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::PagedCausalConv1D>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())

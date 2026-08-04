@@ -46,6 +46,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/group_conv.hpp"
@@ -69,6 +70,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -129,6 +131,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_selective_ssm.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -442,7 +445,9 @@ namespace {
 bool is_hybrid_linear_attention_model(const ov::Model& model) {
     for (const auto& op : model.get_ordered_ops()) {
         if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) ||
-            ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op)) {
+            ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op) ||
+            ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
+            ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
             return true;
         }
     }
@@ -676,6 +681,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+        manager.register_pass<ov::pass::SelectiveSSMFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

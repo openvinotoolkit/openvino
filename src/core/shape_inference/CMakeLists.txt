@@ -66,6 +66,8 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/fft_base_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/fft_common_validation.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gated_delta_net_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/selective_ssm_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_elements_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_nd_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gather_shape_inference.hpp
