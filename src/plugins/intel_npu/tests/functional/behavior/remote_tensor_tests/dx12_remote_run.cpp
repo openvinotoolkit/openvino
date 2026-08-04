@@ -37,8 +37,9 @@ std::shared_ptr<ov::Model> getDynamicRemoteRunFunction() {
     return std::make_shared<ov::Model>(relu, params, "SimpleActivation");
 }
 
+// C-190157
 auto dynamicRemoteConfigs = []() {
-    return std::vector<ov::AnyMap>{{{"NPU_COMPILER_TYPE", "PLUGIN"}, {"NPU_COMPILATION_MODE", "ReferenceSW"}}};
+    return std::vector<ov::AnyMap>{{{"NPU_COMPILER_TYPE", "PLUGIN"}, {"NPU_COMPILATION_MODE", "DefaultHW"}}};
 };
 
 }  // namespace
