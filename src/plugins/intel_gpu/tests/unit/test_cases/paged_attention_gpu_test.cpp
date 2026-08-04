@@ -139,6 +139,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_s
     paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
 }));
 
+static paged_attention_test_params make_zero_key_regression_params(const ov::element::Type& kv_cache_precision) {
+    paged_attention_test_params p{{{32, 0}},
+                                  32,
+                                  8,
+                                  128,
+                                  128,
+                                  16,
+                                  0,
+                                  ENABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_CHANNEL,
+                                  DYNAMIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision;
+    p.zero_key_data = true;
+    p.run_reference = false;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention,
+                         paged_attention_test,
+                         ::testing::Values(make_zero_key_regression_params(ov::element::u8),
+                                           make_zero_key_regression_params(ov::element::u4)));
+
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
     paged_attention_test_params{ {{10, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES_SNAPKV, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token

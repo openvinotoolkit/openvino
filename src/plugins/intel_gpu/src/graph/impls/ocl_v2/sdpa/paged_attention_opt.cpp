@@ -316,9 +316,10 @@ public:
         if (is_kv_compressed) {
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.add(make_uint4_kv_cache_jit_constants(params));
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+            }
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 if (is_key_by_channel) {
@@ -993,9 +994,10 @@ protected:
         if (is_kv_compressed) {
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.add(make_uint4_kv_cache_jit_constants(params));
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+            }
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 if (is_key_by_channel) {
@@ -1122,12 +1124,11 @@ protected:
         const auto is_key_by_channel = desc->is_key_by_channel;
         jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
         if (is_kv_compressed) {
-            jit.add(make_uint4_kv_cache_jit_constants(params));
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 // INT4 BY_CHANNEL: dim order {0,1,2,3}, scales embedded per-token in head dim
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
