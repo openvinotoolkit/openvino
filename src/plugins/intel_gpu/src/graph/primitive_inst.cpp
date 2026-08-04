@@ -729,6 +729,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             this->_outputs[0] = concat_inst->_outputs[0];
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return;
+        } else if (!_outputs.empty() && _outputs[0] != nullptr &&
+                   !concat_inst->_outputs.empty() && concat_inst->_outputs[0] != nullptr &&
+                   get_network().get_engine().is_the_same_buffer(*_outputs[0], *concat_inst->_outputs[0])) {
+            // In-place concat optimization is rejected now, but a previous execution with this optimization
+            // may have the same memory aliased to its deps' outputs and itself's output. In this case, we
+            // need to reallocate the memory for this node to avoid memory corruption.
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reallocate memory for concat " << concat_inst->id() 
+                                   << " after rejected in-place concat" << std::endl;
+            clear_output_memory();
         }
     }
 
@@ -1851,6 +1860,33 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
+        
+        // If the in-place concat optimization is not possible on this iteration, but it is applied
+        // previously, we need to reset the paddings of its deps' output layouts to the natural
+        // values.
+
+        bool padding_reverted = false;
+        size_t dep_idx = 0;
+        for (auto& dep : concat_inst->_deps) {
+            if (dep.first->_impl_params->output_layouts[0].data_padding != dep.first->get_node().get_output_layout(0).data_padding) {
+                dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
+                dep.first->_impl_params->output_layouts[0].data_padding = dep.first->get_node().get_output_layout(0).data_padding;
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of dep " << dep.first->id() << " : "
+                                       << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
+                padding_reverted = true;
+            }
+            if (dep_idx < concat_inst->_impl_params->input_layouts.size() &&
+                concat_inst->_impl_params->input_layouts[dep_idx].data_padding != dep.first->get_node().get_output_layout(0).data_padding) {
+                concat_inst->_impl_params->input_layouts[dep_idx].data_padding = dep.first->get_node().get_output_layout(0).data_padding;
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of input " << dep_idx << " : "
+                                       << concat_inst->_impl_params->input_layouts[dep_idx].to_string() << std::endl;
+                padding_reverted = true;
+            }
+            ++dep_idx;
+        }
+        if (padding_reverted)
+            concat_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        
         return;
     }
 
@@ -1858,12 +1894,18 @@ void primitive_inst::do_runtime_in_place_concat() {
     concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, true);
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
-        if (_impl_params->output_layouts[0] != preds_layouts[i]) {
+        if (dep.first->_impl_params->output_layouts[0] != preds_layouts[i]) {
             dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
+                                   << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         }
-        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
-                               << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
+        if (i < concat_inst->_impl_params->input_layouts.size() &&
+            concat_inst->_impl_params->input_layouts[i].data_padding != preds_layouts[i].data_padding) {
+            concat_inst->_impl_params->input_layouts[i].data_padding = preds_layouts[i].data_padding;
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of input " << i << " : "
+                                   << concat_inst->_impl_params->input_layouts[i].to_string() << std::endl;
+        }
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
