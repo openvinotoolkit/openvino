@@ -34,6 +34,8 @@ constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
+constexpr std::string_view CONSTANT_OVERFLOW_MESSAGE = "Overflow while computing byte size for constant: ";
+
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
@@ -86,8 +88,10 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             OPENVINO_ASSERT(opt.has_value(), "Failed to parse id for constant: ", descriptor.nameFromCompiler);
 
             const size_t id = opt.value();
-            const size_t byte_size =
-                ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            const auto byte_size_opt =
+                ov::util::get_memory_size_safe(descriptor.precision, descriptor.shapeFromCompiler.to_shape());
+            OPENVINO_ASSERT(byte_size_opt.has_value(), CONSTANT_OVERFLOW_MESSAGE, descriptor.nameFromCompiler);
+            const size_t byte_size = byte_size_opt.value();
             OPENVINO_ASSERT(id <= mapped_memory->size() && byte_size <= mapped_memory->size() - id,
                             "Constant offset/size is out of bounds for mapped weights file: offset=",
                             id,
@@ -444,8 +448,13 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     size_t initInputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
-        initInputsByteSize +=
-            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        const std::optional<size_t> size =
+            ov::util::get_memory_size_safe(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        OPENVINO_ASSERT(size.has_value(), CONSTANT_OVERFLOW_MESSAGE, descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(initInputsByteSize + size.value() >= initInputsByteSize,
+                        "Buffer size overflow while summing all input sizes for the init schedule index ",
+                        initIndex);
+        initInputsByteSize += size.value();
     }
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
@@ -518,8 +527,13 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
     size_t initOutputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
-        initOutputsByteSize +=
-            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        const std::optional<size_t> size =
+            ov::util::get_memory_size_safe(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        OPENVINO_ASSERT(size.has_value(), CONSTANT_OVERFLOW_MESSAGE, descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(initOutputsByteSize + size.value() >= initOutputsByteSize,
+                        "Buffer size overflow while summing all output sizes for the init schedule index ",
+                        initIndex);
+        initOutputsByteSize += size.value();
     }
 
     const std::shared_ptr<ZeroTensor> initOutputsAllocatedTensor =

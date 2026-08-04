@@ -11,11 +11,13 @@ on:
       - master
       - 'releases/**'
   pull_request:
+    paths:
+      - '.github/workflows/windows_vs2026_release.yml'
     types:
       - opened
       - synchronize
       - reopened
-      - ready_for_review      
+      - ready_for_review
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-windows-vs2026
@@ -23,7 +25,6 @@ concurrency:
 
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
 
 permissions: read-all

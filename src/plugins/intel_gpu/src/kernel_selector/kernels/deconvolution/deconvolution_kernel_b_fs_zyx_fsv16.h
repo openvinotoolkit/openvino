@@ -14,7 +14,7 @@ public:
     using Parent = DeconvolutionKernelBase;
 
     DeconvolutionKernel_b_fs_zyx_fsv16() : DeconvolutionKernelBase("gen9_common_conv_bwd_data") {}
-    ~DeconvolutionKernel_b_fs_zyx_fsv16() override {}
+    ~DeconvolutionKernel_b_fs_zyx_fsv16() override = default;
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
