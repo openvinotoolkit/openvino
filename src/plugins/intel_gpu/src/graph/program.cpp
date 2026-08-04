@@ -230,8 +230,7 @@ program::program(engine& engine, const ExecutionConfig& config)
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
-program::~program() {
-}
+program::~program() = default;
 
 void program::init_program() {
     set_options();
