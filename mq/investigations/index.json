@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 101,
+  "total": 102,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -995,6 +995,15 @@
       "category": "Infrastructure",
       "signature_hash": "e96b5a03078ae1df",
       "pr_number": "35941"
+    },
+    {
+      "investigation_id": "2026-08-04-17-46-16-000-30928353875",
+      "run_id": "30928353875",
+      "timestamp": "2026-08-04T17:46:16Z",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch",
+      "category": "Flaky Test",
+      "signature_hash": "43e136cf67333978",
+      "pr_number": "37197"
     }
   ]
 }

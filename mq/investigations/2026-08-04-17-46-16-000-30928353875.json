@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-04-17-46-16-000-30928353875",
+  "timestamp": "2026-08-04T17:46:16Z",
+  "run_id": "30928353875",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30928353875",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37197",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37197",
+  "author": "dependabot[bot]",
+  "category": "Flaky Test",
+  "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch",
+  "signature": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active|Flaky Test",
+  "signature_hash": "43e136cf67333978",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache: EXPECT_CALL import_model expected 8 times, called 7 times"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2667): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 8 times\n           Actual: called 7 times - unsatisfied and active",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache (2048 ms)"
+  ],
+  "root_cause": "The test LoadMultiWithConfig_race runs a tight loop (~143 iterations in 2 seconds) concurrently loading models to stress the caching path. The GMock expectation requires import_model to be called exactly 8 times, but race-timing conditions caused one call to be missed (7 actual vs 8 expected). This is a known intermittent race: the test loop is time-bounded (2 seconds), so under load the number of iterations and model-import calls is non-deterministic. The PR only changes src/bindings/js/node/package-lock.json (npm dependency bump) and has no relationship to the C++ inference caching code path.",
+  "reproduction_steps": "Run on a loaded Windows CI runner: .\\ov_unit_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache",
+  "recommended_actions": [
+    "Re-run the failed jobs; the race condition is intermittent and unrelated to this PR.",
+    "Consider filing a tracking issue for the flaky CachingTest race tests to use EXPECT_CALL(...).Times(testing::Ge(7)) or relax timing bounds."
+  ],
+  "prevention_strategies": "Time-bounded race tests should use flexible GMock matchers (e.g., AtLeast/Ge) rather than exact call counts when the iteration count is non-deterministic.",
+  "historical_context": "This is the first recorded occurrence of this specific caching race test failure in the CI Doctor MQ database."
+}
