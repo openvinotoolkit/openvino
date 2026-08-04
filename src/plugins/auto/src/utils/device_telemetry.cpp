@@ -21,6 +21,16 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
+// IPF path for the DTT gear-change notification (see intel-innersource
+// drivers.platform.ipf.ipf-prod IPF_EF/examples/client/SimpleApplication/SampleClientApp.cpp).
+constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnGearChanged";
+
+// Probe-only callback: logs the raw event so we can inspect the payload shape. No parsing yet.
+void gear_changed_callback(const char* path, const char* event, void* context) {
+    (void)context;
+    LOG_INFO_TAG("TelemetryClient: received event from %s. Event data: %s", path, event);
+}
+
 // Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
@@ -29,13 +39,22 @@ public:
         if (status != IpfError::IPF_ERR_OK) {
             m_handle = nullptr;
             LOG_WARNING_TAG("TelemetryClient: IPF ClientApi initialization failed: %s", ipf_ef_error_str(status));
+            return;
+        }
+        LOG_INFO_TAG("TelemetryClient: IPF ClientApi initialized successfully");
+        const ipf_err_t reg_status = IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, nullptr);
+        if (reg_status != IpfError::IPF_ERR_OK) {
+            LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s",
+                            k_dtt_gear_changed_path,
+                            ipf_ef_error_str(reg_status));
         } else {
-            LOG_INFO_TAG("TelemetryClient: IPF ClientApi initialized successfully");
+            LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
         }
     }
 
     ~Impl() {
         if (m_handle != nullptr) {
+            IpfUnregisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback);
             IpfDestroy(m_handle);
             m_handle = nullptr;
         }
