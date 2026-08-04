@@ -76,9 +76,6 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
                                   : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
     auto wt = params.weights.GetDType();
-    if (params.compressed && (wt == WeightsType::UINT2 || wt == WeightsType::UINT4 || wt == WeightsType::INT4)) {
-        accumulator_dt = Datatype::F32;
-    }
     if (params.outputs[0].GetLayout() == DataLayout::bfyx)
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
