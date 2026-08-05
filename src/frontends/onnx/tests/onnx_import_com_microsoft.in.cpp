@@ -5603,6 +5603,45 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_unsup
     }
 }
 
+// qk_output (emit the QxK' matrix as a 4th output) is not produced by the decomposition, so a model that
+// requests it must be rejected at import rather than silently losing an output.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_qk_output_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_qk_output.onnx");
+        FAIL() << "ONNX Importer did not reject unsupported qk_output for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("qk_output"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// attention_bias is indexed by the absolute total_sequence_length, but a windowed (rolling) cache evicts
+// from the front, so the bias columns no longer align with the cache slots. The combination is rejected.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_attention_bias_with_sliding_window_cache_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_bias_swc.onnx");
+        FAIL() << "ONNX Importer did not reject attention_bias + sliding_window_cache for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("attention_bias"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
+// A windowed cache needs a capacity of at least local_window_size (the cache-end arithmetic uses
+// gap = capacity - local_window_size + 1); a statically-known smaller capacity is rejected up front.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_small_capacity_unsupported_throws) {
+    try {
+        convert_model("com.microsoft/gqa_swc_small_capacity.onnx");
+        FAIL() << "ONNX Importer did not reject a too-small windowed cache capacity for GroupQueryAttention";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("capacity"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 // Packed-QKV prompt (num_heads=2, kv_num_heads=1, head_size=16, S=4, past=0) shared by the
 // smooth-softmax / head-sink tests. Reference outputs are from ONNX Runtime (MLAS CPU).
 static std::vector<float> gqa_sink_query() {
