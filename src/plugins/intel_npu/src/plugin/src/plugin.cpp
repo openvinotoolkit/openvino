@@ -6,7 +6,6 @@
 
 #include <fstream>
 #include <numeric>
-#include <optional>
 
 #include "compiled_model.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
