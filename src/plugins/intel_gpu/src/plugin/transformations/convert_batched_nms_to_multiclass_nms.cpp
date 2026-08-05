@@ -172,20 +172,21 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     using namespace ov::pass::pattern;
     using ov::pass::operator|;
 
-    // Batched-NMS: boxes_for_nms = boxes + Unsqueeze(class_ids_f32 * (ReduceMax(boxes) + 1)).
-    auto boxes_source_m = any_input();
-    auto class_ids_source_m = any_input();
+    auto boxes_source_m = any_input(rank_equals(2));
+    auto class_ids_source_m = any_input(rank_equals(1));
     auto reduce_max_m = wrap_type<ov::op::v1::ReduceMax>({boxes_source_m, any_input()});
     auto const_one_m = any_input(is_const_one_like);
     auto max_plus_one_m = wrap_type<ov::op::v1::Add>({reduce_max_m, const_one_m});
     auto class_ids_convert_m = wrap_type<ov::op::v0::Convert>({class_ids_source_m}, is_integral_to_fp_convert);
     auto offsets_multiply_m = wrap_type<ov::op::v1::Multiply>({class_ids_convert_m, max_plus_one_m});
+
     // match Unsqueeze, or Reshape if optimized after CommonOptimizations
     auto offsets_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({offsets_multiply_m, any_input()});
     auto boxes_offset_add_m = wrap_type<ov::op::v1::Add>({offsets_unsqueeze_m, boxes_source_m});
     auto boxes_reshape_m = wrap_type<ov::op::v1::Reshape>({boxes_offset_add_m, any_input()});
-    // match Unsqueeze, or Reshape if optimized after CommonOptimizations
-    auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({any_input(), any_input()});
+    auto raw_scores_m = any_input(rank_equals(1));
+    auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({raw_scores_m, any_input()});
+
     // match NMSIEInternal for a static model, or op::v9 NMS for a dynamic model.
     auto nms_m = wrap_type<ov::op::v9::NonMaxSuppression, ov::op::internal::NonMaxSuppressionIEInternal>(
         {boxes_reshape_m, scores_unsqueeze_m, any_input(), any_input(), any_input()});
@@ -212,17 +213,7 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
 
         auto boxes_source = pattern_map.at(boxes_source_m);
         auto class_ids_source = pattern_map.at(class_ids_source_m);
-
-        const auto raw_scores = scores_unsqueeze->input_value(0);
-        if (boxes_source.get_partial_shape().rank().is_static() && boxes_source.get_partial_shape().rank().get_length() != 2) {
-            return false;
-        }
-        if (raw_scores.get_partial_shape().rank().is_static() && raw_scores.get_partial_shape().rank().get_length() != 1) {
-            return false;
-        }
-        if (class_ids_source.get_partial_shape().rank().is_static() && class_ids_source.get_partial_shape().rank().get_length() != 1) {
-            return false;
-        }
+        const auto raw_scores = pattern_map.at(raw_scores_m);
 
         int64_t max_output_boxes = 0;
         float iou_threshold = 0.0f;
