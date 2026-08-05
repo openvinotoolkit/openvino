@@ -1339,7 +1339,7 @@ public:
     const char* env = std::getenv("TEST_USE_SDPA_OCL");
     const bool use_ocl = env && env[0] == '1';
     Stage::Ptr pa_sdpa_micro = use_ocl ? make_stage<SDPAOclGenerator>(true) : make_stage<SDPAMicroGenerator>(true);
-    Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
+    Stage::Ptr pa_sdpa_micro_mixed = use_ocl ? make_stage<SDPAOclGenerator>(false) : make_stage<SDPAMicroGenerator>(false);
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1383,7 +1383,7 @@ public:
         if (stage == PagedAttentionStage::PREFILL)
             return use_ocl || !pa_sdpa_micro->kd.micro_kernels.empty();
         if (stage == PagedAttentionStage::MIXED)
-            return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
+            return use_ocl || !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
         return false;
     }
 
@@ -1455,7 +1455,7 @@ public:
             if (stage == PagedAttentionStage::PREFILL)
                 return use_ocl ? SDPAOclGenerator::get_query_block_size(params) : get_micro_tile_qsize(pa_sdpa_micro->kd);
             if (stage == PagedAttentionStage::MIXED)
-                return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+                return use_ocl ? SDPAOclGenerator::get_query_block_size(params) : get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
         }
         return default_block_size;
     }
