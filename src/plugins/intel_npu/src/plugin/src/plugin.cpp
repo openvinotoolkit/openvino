@@ -139,6 +139,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
+    REGISTER_OPTION(COMPILE_LOG_LEVEL);
     REGISTER_OPTION(CACHE_DIR);
     REGISTER_OPTION(CACHE_MODE);
     REGISTER_OPTION(COMPILED_BLOB);

@@ -33,11 +33,7 @@ struct Lora : public ImplementationManager {
         }
 
         const auto& output_layout = node.get_output_layout(0);
-        if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_types)) {
-            return false;
-        }
-
-        return true;
+        return one_of(output_layout.format, supported_fmts) && one_of(output_layout.data_type, supported_types);
     }
 };
 
