@@ -2308,7 +2308,6 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
 }
 
 // Parameterized over:
-//  - slice index dtype: i32 (stop=INT32_MAX) or i64 (stop=INT64_MAX)
 //  - whether a leading {0,2,1,3} Transpose precedes the pattern. In a real model (e.g. aya-expanse-8b)
 //    the Q/K projection is BSNH [batch, seq, heads, head_size] and transposed to BNSH before RoPE;
 //    RoPEFusion's RoPEFusionPreprocess sub-pass must absorb that Transpose into the fused RoPE
@@ -2317,17 +2316,14 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
 //    In PagedAttention mode, SDPAToPagedAttention changes Q/K seq-length to 1, which causes
 //    shape propagation to canonicalize Unsqueeze ops into Reshape ops with explicit shapes.
 class ConvertToROPECohereTest : public TransformationTestsF,
-                                public ::testing::WithParamInterface<std::tuple<ov::element::Type, bool, bool>> {};
+                                public ::testing::WithParamInterface<std::tuple<bool, bool>> {};
 
 TEST_P(ConvertToROPECohereTest, basic) {
     disable_rt_info_check();
     const int batch = 2, seq_len = 16, num_heads = 8;
     const int head_size = 128;  // must be static for the pass
-    const ov::element::Type dtype = std::get<0>(GetParam());
-    const bool has_transpose = std::get<1>(GetParam());
-    const bool use_reshape = std::get<2>(GetParam());
-    const int64_t stop =
-        (dtype == ov::element::i32) ? std::numeric_limits<int32_t>::max() : std::numeric_limits<int64_t>::max();
+    const bool has_transpose = std::get<0>(GetParam());
+    const bool use_reshape = std::get<1>(GetParam());
 
     // Without a Transpose the input is already BNSH [batch, num_heads, seq_len, head_size].
     // With a Transpose the projection is BSNH [batch, seq_len, num_heads, head_size]; the {0,2,1,3}
@@ -2350,15 +2346,8 @@ TEST_P(ConvertToROPECohereTest, basic) {
         }
 
         // x[..., start::2] along axis 3; stop value encodes "all remaining elements".
-        auto make_slice = [&](int64_t start) {
-            return makeOP<ov::op::v8::Slice>({x,
-                                              makeConst(dtype, ov::Shape{1}, {start}),
-                                              makeConst(dtype, ov::Shape{1}, {stop}),
-                                              makeConst(dtype, ov::Shape{1}, {int64_t{2}}),
-                                              makeConst(dtype, ov::Shape{1}, {int64_t{3}})});
-        };
-        auto x_odd = make_slice(1);   // x[..., 1::2]
-        auto x_even = make_slice(0);  // x[..., 0::2]
+        auto x_odd = makeOP<ov::op::v8::Slice>({x, {1}, {INT_MAX}, {2}, {3}});
+        auto x_even = makeOP<ov::op::v8::Slice>({x, {0}, {INT_MAX}, {2}, {3}});
         auto neg_x_odd = makeOP<v1::Multiply>({x_odd, makeConst(ov::element::f32, ov::Shape{1}, {-1.0f})},
                                               {{"auto_broadcast", "numpy"}});
         // stack((-x_odd, x_even), dim=-1)
@@ -2421,6 +2410,5 @@ TEST_P(ConvertToROPECohereTest, basic) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
                          ConvertToROPECohereTest,
-                         ::testing::Combine(::testing::Values(ov::element::i32, ov::element::i64),
-                                            ::testing::Bool(),
+                         ::testing::Combine(::testing::Bool(),
                                             ::testing::Bool()));

@@ -1344,15 +1344,8 @@ RoPEFusionCohere::RoPEFusionCohere() {
     auto cos_input = pattern::any_input(pattern::rank_equals(4));
     auto sin_input = pattern::any_input(pattern::rank_equals(4));
 
-    // Accept both i32 (INT_MAX) and i64 (INT64_MAX) stop values so that models
-    // exported via OVModelForCausalLM (which uses sys.maxsize = INT64_MAX) are covered.
-    auto x_odd_i32 = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
-    auto x_odd_i64 = op_util::NewGenSlice(x, (int64_t)1, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
-    auto x_odd = x_odd_i32 | x_odd_i64;
-
-    auto x_even_i32 = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
-    auto x_even_i64 = op_util::NewGenSlice(x, (int64_t)0, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
-    auto x_even = x_even_i32 | x_even_i64;
+    auto x_odd = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
+    auto x_even = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
 
     auto neg_x_odd = pattern::wrap_type<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
     // Accept both Unsqueeze(x, -1) and Reshape(x, shape) for the "add last dim" step.
@@ -1412,10 +1405,8 @@ RoPEFusionCohere::RoPEFusionCohere() {
                               pattern_map.at(mul_cos).get_node_shared_ptr(),
                               pattern_map.at(mul_sin).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
-        for (const auto& np : {x_odd_i32,
-                               x_odd_i64,
-                               x_even_i32,
-                               x_even_i64,
+        for (const auto& np : {x_odd,
+                               x_even,
                                neg_x_odd_unsq_unsqueeze,
                                neg_x_odd_unsq_reshape,
                                x_even_unsq_unsqueeze,
