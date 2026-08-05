@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -148,6 +147,8 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkImportSetShapeCPUTensor) {
         OV_ASSERT_NO_THROW(checkOutputFP16(inputTensor, req.get_tensor(outputName)));
     }
 }
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVInferRequestDynamicTests);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests,
