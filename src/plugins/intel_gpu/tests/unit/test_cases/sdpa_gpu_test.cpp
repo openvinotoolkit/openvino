@@ -19,6 +19,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
+#include "impls/ocl/kernel_selector_helper.h"
 #include "scaled_dot_product_attention_inst.h"
 
 #include <cstddef>
@@ -452,4 +453,130 @@ TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
             << std::endl;
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(sdpa_gpu_micro, prefetch_first_k_tile_stays_in_bounds_for_short_sequence) {
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+
+    // Same gating as SDPAOpt::supports_micro_sdpa(): without it the forced implementation
+    // silently falls back and the test would pass without ever running the micro kernel.
+    if (!device_info.supports_immad) {
+        GTEST_SKIP() << "sdpa_micro is only available on devices with systolic support";
+    }
+    if (device_info.arch < gpu_arch::xe_hpg) {
+        GTEST_SKIP() << "sdpa_micro requires xe_hpg or newer";
+    }
+    if (!cldnn::query_microkernels_supported(engine, get_test_default_config(engine))) {
+        GTEST_SKIP() << "current IGC version does not support the vISA features required by microkernels";
+    }
+    // head_size below is 64 and micro SDPA is disabled on xe3p for head_size <= 64
+    // (oneDNN micro-kernel accuracy WA), so the forced implementation would not be taken.
+    if (device_info.arch == gpu_arch::xe3p) {
+        GTEST_SKIP() << "sdpa_micro is disabled on xe3p for head_size <= 64";
+    }
+    // The faulty prefetch itself lives behind PREFETCH_K0, which sdpa_gen_micro.cpp only
+    // emits for xe_hpc and newer - on older architectures there is nothing to reproduce.
+    if (device_info.arch < gpu_arch::xe_hpc) {
+        GTEST_SKIP() << "PREFETCH_K0 is not generated below xe_hpc, the regression cannot be reproduced";
+    }
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const int batch = 1;
+    const int num_heads = 512;
+    const int head_size = 64;
+    const int seq_length_q = 16;
+    const int seq_length_kv = 4;
+
+    const layout q_layout({batch, seq_length_q, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout k_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout v_layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(k_layout);
+    auto v_mem = engine.allocate_memory(v_layout);
+
+    auto fill_random = [&](const memory::ptr& mem) {
+        const size_t elements_num = ov::shape_size(mem->get_layout().get_shape());
+        set_values(mem, rg.generate_random_1d<ov::float16>(elements_num, -1.0f, 1.0f));
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    // Reads the result back so that the queue is synchronized before returning - an
+    // out-of-bounds access is reported at synchronization time, not at enqueue time.
+    auto run_sdpa = [&](const std::string& impl_name, std::string& selected_kernel) {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              /* is_causal */ false,
+                                              -1,
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, impl_name}}}));
+
+        auto network = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+
+        auto output = network->execute().at("result").get_memory();
+
+        auto* impl = network->get_primitive("sdpa")->get_impl();
+        selected_kernel = impl != nullptr ? impl->get_kernel_name() : "<none>";
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        std::vector<float> result(output_ptr.size());
+        for (size_t i = 0; i < output_ptr.size(); ++i) {
+            result[i] = static_cast<float>(output_ptr[i]);
+        }
+        return result;
+    };
+
+    // Run the reference first: a faulting kernel invalidates the whole context, so anything
+    // executed after the micro kernel would fail as well and hide the actual root cause.
+    std::string ref_kernel;
+    const auto ref_result = run_sdpa("sdpa_ref", ref_kernel);
+
+    std::string micro_kernel;
+    std::vector<float> micro_result;
+    ASSERT_NO_THROW(micro_result = run_sdpa("sdpa_micro", micro_kernel))
+        << "micro SDPA prefetched the first K tile past the end of the K buffer";
+
+    // Guard against a silent fallback: without this the test would happily pass while
+    // running sdpa_opt and never touching the faulty prefetch at all.
+    ASSERT_NE(micro_kernel.find("micro"), std::string::npos)
+        << "sdpa_micro was not selected, the prefetch under test never ran. kernel=" << micro_kernel;
+
+    ASSERT_EQ(ref_result.size(), micro_result.size());
+
+    double dot = 0.0;
+    double ref_norm = 0.0;
+    double micro_norm = 0.0;
+    for (size_t i = 0; i < ref_result.size(); ++i) {
+        ASSERT_FALSE(std::isnan(micro_result[i])) << "NaN found at index " << i;
+        dot += static_cast<double>(ref_result[i]) * micro_result[i];
+        ref_norm += static_cast<double>(ref_result[i]) * ref_result[i];
+        micro_norm += static_cast<double>(micro_result[i]) * micro_result[i];
+    }
+    const double similarity = dot / (std::sqrt(ref_norm) * std::sqrt(micro_norm));
+    ASSERT_GE(similarity, 0.95);
+}
+#endif
 } // namespace
