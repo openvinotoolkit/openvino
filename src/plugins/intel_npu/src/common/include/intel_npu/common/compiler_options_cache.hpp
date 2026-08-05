@@ -10,18 +10,17 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/common/npu.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
-
-class ICompilerAdapter;
 
 class CompilerOptionsCache final {
 public:
     static bool isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                   const std::string& optionName,
                                   const std::optional<std::string>& optionValue = std::nullopt,
-                                  const ICompilerAdapter* compiler = nullptr,
+                                  const ov::SoPtr<IEngineBackend>& engineBackend = ov::SoPtr<IEngineBackend>{},
                                   const std::optional<uint32_t>& compilerSupportVersion = std::nullopt);
 
 private:
