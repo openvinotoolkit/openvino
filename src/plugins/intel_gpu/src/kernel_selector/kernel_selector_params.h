@@ -259,6 +259,7 @@ public:
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
                 uint32_t BF16 : 1;
+                uint32_t F4E2M1 : 1;
                 uint32_t F8E4M3 : 1;
                 uint32_t F8E5M2 : 1;
                 uint32_t F8E8M0 : 1;
@@ -343,7 +344,7 @@ public:
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
-        return key.restrict.val.different_input_weights_types ? true : false;
+        return key.restrict.val.different_input_weights_types != 0;
     }
     ParamsKey Merge(const ParamsKey& k) const;
 
