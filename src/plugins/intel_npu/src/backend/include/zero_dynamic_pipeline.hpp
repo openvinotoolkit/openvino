@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <array>
-
 #include "intel_npu/common/network_metadata.hpp"
 #include "intel_npu/utils/vm/mem_ref_type.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "zero_pipeline.hpp"
 
 namespace intel_npu {
@@ -178,10 +177,9 @@ private:
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
-    std::array<npu_vm_runtime_config_desc_t, 4> _runtime_config_descs = {};
+    NpuVMRuntimeConfigChain _runtimeConfigChain;
     uint64_t _runtime_config_key = 0;
     bool _runtime_config_valid = false;
-    const npu_vm_runtime_config_desc_t* _runtime_config_head = nullptr;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
