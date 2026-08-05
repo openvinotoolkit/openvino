@@ -467,6 +467,32 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
 #endif
 
+#if FOLD_KEY_SCALES_INTO_Q
+    /* Fold the per-channel key scales into Q instead of dequantizing K in the KQ micro-kernel:
+     *   sum_d K_int8[m,d] * kscale[d] * Q[n,d] == sum_d K_int8[m,d] * (kscale[d] * Q[n,d])
+     * See sdpa_gen_micro.cpp for why. Q_tile packs pairs of halves along d into uints, spread over
+     * the subgroup: tile row i0 (channels 2*i0 and 2*i0+1) lives in lane (i0 % SUBGROUP_SIZE) at
+     * slot (i0 / SUBGROUP_SIZE). K_scales is already offset to this head. Channels past d are
+     * padding; K is zero there, so leaving them unscaled keeps their contribution zero. */
+    {
+        const int q_fold_lane = get_sub_group_local_id();
+#pragma unroll
+        for (int q_fold_t = 0; q_fold_t < (D_MAX / 2) / SUBGROUP_SIZE; q_fold_t++) {
+            const int q_fold_i0 = q_fold_t * SUBGROUP_SIZE + q_fold_lane;
+            const int q_fold_d0 = 2 * q_fold_i0;
+            if (q_fold_d0 >= d)
+                continue;
+            const half2 q_fold_s = (half2)(K_scales[q_fold_d0],
+                    (q_fold_d0 + 1 < d) ? K_scales[q_fold_d0 + 1] : (half)0.0h);
+#pragma unroll
+            for (int q_fold_j = 0; q_fold_j < q_tile_sg_n; q_fold_j++) {
+                Q_tile.x[q_fold_j][q_fold_t]
+                        = as_uint(as_half2(Q_tile.x[q_fold_j][q_fold_t]) * q_fold_s);
+            }
+        }
+    }
+#endif
+
 #if WITH_SCALE
         /* Load scale */
     #if INVERT_SCALE
@@ -711,7 +737,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
                         0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        #if KEY_SCALES == QUANTIZE_2D
+        /* When FOLD_KEY_SCALES_INTO_Q, the micro-kernel is generated without A scaling (the scales
+         * were already folded into Q above), so the scale arguments must not be passed. */
+        #if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_scales
         #endif
@@ -719,7 +747,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                         ,
                         K_zp
         #endif
-        #if (KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS
+        #if ((KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q) || KEY_ZERO_POINTS
                         ,
                         ldkq
         #endif

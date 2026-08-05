@@ -1143,6 +1143,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("IS_KEY_BY_CHANNEL", 1);
         if (is_value_by_channel)
             jit.make("IS_VALUE_BY_CHANNEL", 1);
+        // Symmetric per-channel key scales are folded into Q rather than applied to K in the KQ
+        // micro-kernel; see init_microkernels(), whose condition this must match.
+        if (is_key_by_channel && !use_asymmetric_quantization && !kq_common_scales)
+            jit.make("FOLD_KEY_SCALES_INTO_Q", 1);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1637,7 +1641,28 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         opts_kq.offsetA = true;
     } else {
         const auto key_cache_id = micro_get_key_cache_id(params);
-        if (configuration.is_kv_compressed && !kq_common_scales) {
+
+        // Per-channel key scales ([b, heads, 1, head_size]) vary along the KQ GEMM's *reduction* axis,
+        // which puts gemmstone's 2D A-quantization in its aqGroupK == 1 mode. That mode applies the
+        // scale to the wrong element on Xe2 and silently returns a wrong result. Fold the scales into
+        // Q instead of applying them to K, which is exact and architecture-independent because
+        //     sum_d K_int8[m,d] * kscale[d] * Q[n,d] == sum_d K_int8[m,d] * (kscale[d] * Q[n,d])
+        // K then becomes a plain s8 -> f16 upconvert; see FOLD_KEY_SCALES_INTO_Q in sdpa_micro.cl.
+        // Asymmetric quantization keeps the old path: (q - zp[d]) * scale[d] leaves an extra
+        // sum_d zp[d]*scale[d]*Q[n,d] term that a Q rescale alone cannot absorb.
+        // Keep this condition in sync with FOLD_KEY_SCALES_INTO_Q in get_jit_constants(), which is
+        // only emitted for non-paged-attention; this branch also covers paged-attention prefill, so
+        // it has to exclude paged attention explicitly or the two would disagree on whether the
+        // micro-kernel takes scale arguments. key_cache_id is only a valid index when the KV cache is
+        // compressed, hence the ordering of the checks.
+        const bool fold_key_scales_into_q = [&] {
+            if (is_paged_attention || !configuration.is_kv_compressed || kq_common_scales || use_asymmetric_quantization)
+                return false;
+            const auto& ps = params.input_layouts[key_cache_id].get_partial_shape();
+            return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+        }();
+
+        if (configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
             const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
             problem_kq.Ta_scale = scale_dt;
@@ -1657,23 +1682,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             problem_kq.aOffset = micro::ABOffset::Calc;
         }
 
-        if (configuration.is_kv_compressed) {
-            const auto key_cache_id = micro_get_key_cache_id(params);
+        if (configuration.is_kv_compressed && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale_layout = params.input_layouts[key_cache_id];
-            const auto key_scale_seq = key_cache_comp_scale_layout.get_partial_shape()[2].get_length();
             const auto key_scale_groups = key_cache_comp_scale_layout.get_partial_shape()[3].get_length();
             const auto key_group_size = k_head_size / key_scale_groups;
-            // KQ GEMM: A=K[M=seq_k, K=head_size]
-            // Per-channel broadcast (seq=1): all tokens share same scale, each head_size element has own scale
-            //   -> aqGroupM >= max(n_keys, wg_tile_m) so m_group is always 0
-            // Per-token (seq>1): each token has own scale(s)
-            //   -> aqGroupM = 1 (vary per token), aqGroupK = group_size
-            const int wg_tile_m_kq = config->unroll_m_kq * config->wg_m_kq;
-            problem_kq.aqGroupM = (key_scale_seq == 1) ? std::max(nkeys_v, wg_tile_m_kq) : 1;
+            // KQ GEMM: A=K[M=seq_k, K=head_size]. Per-token scales only (the per-channel case is
+            // folded into Q above): each token has its own scale, so aqGroupM = 1.
+            problem_kq.aqGroupM = 1;
             problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(key_group_size);
         }
 
-        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
+        opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q;
         opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
     }
 
