@@ -286,10 +286,10 @@ typedef struct _npu_vm_runtime_config_desc_t {
     const struct _npu_vm_runtime_config_desc_t* pNext;
 } npu_vm_runtime_config_desc_t;
 
-#define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID             0ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY      2ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE       3ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS       4ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID        0ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY 2ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE  3ULL
+#define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS  4ULL
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance with initial runtime configuration and return handle (v2.0)
@@ -299,8 +299,9 @@ typedef struct _npu_vm_runtime_config_desc_t {
 ///          in v2 execution-context creation and execute parameters, not by a config descriptor.
 ///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
-    const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
-    const npu_vm_runtime_config_desc_t* pConfig, ///< [in][optional] pointer to initial runtime configuration descriptors
+    const npu_vm_runtime_blob_desc_t* desc,  ///< [in] pointer to graph descriptor
+    const npu_vm_runtime_config_desc_t*
+        pConfig,                              ///< [in][optional] pointer to initial runtime configuration descriptors
     npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
     npu_vm_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
@@ -324,7 +325,8 @@ typedef struct _npu_vm_runtime_create_execution_context_params_t {
 
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
     npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    npu_vm_runtime_create_execution_context_params_t* pParams,  ///< [in] pointer to execution context creation parameters
+    npu_vm_runtime_create_execution_context_params_t*
+        pParams,  ///< [in] pointer to execution context creation parameters
     npu_vm_runtime_execution_context_handle_t*
         phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
 );
