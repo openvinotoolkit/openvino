@@ -244,13 +244,12 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
 memory_ptr ocl_engine::create_hostbuffer(void* cpu_address,
                                          size_t data_size,
                                          allocation_type _allocation_type,
-                                         const layout output_layout,
-                                         bool track_memory) {
-    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE, track_memory);
+                                         const layout output_layout) {
+    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
-memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool track_memory) {
-    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY, track_memory);
+memory_ptr ocl_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY);
 }
 
 memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
@@ -375,7 +374,7 @@ std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runt
     return std::make_shared<ocl::ocl_engine>(device, runtime_type);
 }
 
-memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags, bool track_memory) {
+memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_size, allocation_type allocation, const layout& output_layout, cl_mem_flags access_flags) {
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
 
@@ -400,7 +399,7 @@ memory_ptr ocl_engine::create_hostbuffer_impl(void* cpu_address, size_t data_siz
     // Host memory imported via CL_MEM_FORCE_HOST_MEMORY_INTEL is owned by the caller, so it is not
     // accounted by default. When track_memory is set (e.g. memory the plugin mmap-ed itself) the
     // engine is passed so the allocation is tracked and logged.
-    tracker = std::make_shared<MemoryTracker>(track_memory ? this : nullptr,
+    tracker = std::make_shared<MemoryTracker>(nullptr,
                                               cpu_address,
                                               data_size,
                                               allocation);

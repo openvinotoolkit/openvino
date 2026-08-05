@@ -66,12 +66,11 @@ public:
 
     /// Created memory object by wrapping a writable host-allocated layout region.
     /// Backends that support access flags should use read-write permissions.
-    /// When @p track_memory is true the wrapped host memory is accounted and logged by the engine's memory tracker.
-    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool track_memory = false) = 0;
+    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
 
     /// Created memory object by wrapping a read-only host-allocated layout region.
     /// Backends that support access flags should use read-only permissions.
-    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool track_memory = false) = 0;
+    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;

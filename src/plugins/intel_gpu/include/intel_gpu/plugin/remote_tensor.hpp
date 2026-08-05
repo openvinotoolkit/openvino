@@ -20,6 +20,7 @@
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -45,7 +46,7 @@ public:
                      uint32_t plane = 0,
                      ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
                      ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr),
-                     const ov::Tensor mmap_tensor = {});
+                     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -90,7 +91,7 @@ private:
     uint32_t m_plane;
     ov::intel_gpu::SharedBufferHandle m_shared_buffer_handle;
     ov::intel_gpu::VirtualAddressMemory m_va_mem;
-    const ov::Tensor m_mmap_tensor;  // keeps the file mapping alive for the whole tensor lifetime
+    std::shared_ptr<ov::MappedMemory> m_mapped_memory;  // keeps the file mapping alive for the whole tensor lifetime
     size_t m_hash = 0;
 
     bool supports_caching() const;

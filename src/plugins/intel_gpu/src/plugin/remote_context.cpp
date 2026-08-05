@@ -5,6 +5,8 @@
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
@@ -279,13 +281,14 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_handle(c
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(const ov::element::Type type,
                                                                    const ov::Shape& shape,
-                                                                   const std::string& file_path,
+                                                                   const std::filesystem::path& file_path,
                                                                    size_t offset) {
+    const auto byte_size = ov::util::get_memory_size_safe(type, shape);
+    OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
+
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
-    const auto mmap_tensor = ov::read_tensor_data(file_path, type, shape, offset);
-    const void* data_ptr = mmap_tensor.data();
-    const auto size = static_cast<int64_t>(mmap_tensor.get_byte_size());
+    auto mapped_memory = ov::load_mmap_object(file_path, offset, *byte_size);
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
                                               shape,
                                               type,
@@ -294,8 +297,8 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               0,
                                               0,
                                               ov::intel_gpu::SharedBufferHandle{},
-                                              VirtualAddressMemory{const_cast<void*>(data_ptr), size},
-                                              mmap_tensor);
+                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(*byte_size)},
+                                              mapped_memory);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {
