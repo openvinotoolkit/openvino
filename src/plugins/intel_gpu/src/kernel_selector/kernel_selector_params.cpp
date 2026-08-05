@@ -459,18 +459,15 @@ bool ParamsKey::Support(const ParamsKey& k) const {
         return false;
     if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
         return false;
-    if (!((key.inputLayout & k.key.inputLayout) != 0 || key.inputLayout == k.key.inputLayout))
+    if ((key.inputLayout & k.key.inputLayout) == 0 && key.inputLayout != k.key.inputLayout)
         return false;
-    if (!((key.outputLayout & k.key.outputLayout) != 0 || key.outputLayout == k.key.outputLayout))
+    if ((key.outputLayout & k.key.outputLayout) == 0 && key.outputLayout != k.key.outputLayout)
         return false;
-    if (!((key.weightsInputLayout & k.key.weightsInputLayout) != 0 ||
-          key.weightsInputLayout == k.key.weightsInputLayout))
+    if ((key.weightsInputLayout & k.key.weightsInputLayout) == 0 &&
+          key.weightsInputLayout != k.key.weightsInputLayout)
         return false;
-    if (!((key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 ||
-          key.weightsOutputLayout == k.key.weightsOutputLayout))
-        return false;
-
-    return true;
+    return (key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 ||
+          key.weightsOutputLayout == k.key.weightsOutputLayout;
 }
 
 ParamsKey ParamsKey::Merge(const ParamsKey& k) const {

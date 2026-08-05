@@ -39,7 +39,7 @@ static size_t get_shape_data_size(const layout& l) {
     size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
-        if (dynamic_pad[j] == 1) {
+        if (static_cast<int>(dynamic_pad[j]) == 1) {
             size += 2; // lower + upper
         }
     }
@@ -378,9 +378,7 @@ size_t program_node::get_dependency_index(const program_node& node) const {
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
-    if (!whole_branch && !dependencies.empty())
-        return false;
-    return true;
+    return whole_branch || dependencies.empty();
 }
 
 layout program_node::calc_output_layout() const {
@@ -543,7 +541,7 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 
 std::set<size_t> program_node::get_lockable_input_ids() const {
     const auto impl = get_selected_impl();
-    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || ((impl != nullptr) && impl->is_cpu());
     if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++)
