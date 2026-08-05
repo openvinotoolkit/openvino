@@ -106,7 +106,7 @@ bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::Evalua
     for (size_t i = 0; i < args.size(); i += kStride) {
         exec.arg(
             /*alignedPtr=*/args[i],
-            /*rank=*/reinterpret_cast<size_t>(args[i + 1]),
+            /*rank=*/static_cast<size_t>(reinterpret_cast<uintptr_t>(args[i + 1])),
             /*shape=*/reinterpret_cast<int64_t*>(args[i + 2]),
             /*strides=*/reinterpret_cast<int64_t*>(args[i + 3]),
             /*isUsm=*/reinterpret_cast<uintptr_t>(args[i + 4]) != 0

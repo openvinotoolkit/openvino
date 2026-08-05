@@ -61,7 +61,7 @@ struct MemRefDescriptor {
 
     void append_to_packed_args(std::vector<void*>& args, bool is_usm) {
         args.push_back(aligned);
-        args.push_back(reinterpret_cast<void*>(shape.size()));
+        args.push_back(reinterpret_cast<void*>(static_cast<uintptr_t>(shape.size())));
         args.push_back(shape.data());
         args.push_back(strides.data());
         args.push_back(reinterpret_cast<void*>(static_cast<uintptr_t>(is_usm)));
