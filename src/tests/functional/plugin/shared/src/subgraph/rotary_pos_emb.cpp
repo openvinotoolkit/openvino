@@ -1628,7 +1628,8 @@ std::shared_ptr<ov::Model> RoPETestCohere::buildROPE_Cohere(int batch,
                                                             int seq_length,
                                                             int num_head,
                                                             int rotary_dims,
-                                                            ov::element::Type element_type) {
+                                                            ov::element::Type element_type,
+                                                            bool use_pa_pattern) {
     // Q/K projection layout before Transpose: BSNH [batch, seq, num_head, rotary_dims].
     auto input = std::make_shared<ov::op::v0::Parameter>(element_type, PartialShape{batch, seq_length, num_head, rotary_dims});
     input->set_friendly_name("input");
@@ -1659,11 +1660,22 @@ std::shared_ptr<ov::Model> RoPETestCohere::buildROPE_Cohere(int batch,
     auto neg_x_odd = std::make_shared<ov::op::v1::Multiply>(
         x_odd, makeConst(element_type, ov::Shape{1}, {-1.0f}));
 
-    // stack((-x_odd, x_even), dim=-1) via Unsqueeze + Concat
-    auto neg_x_odd_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
-        neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1}));
-    auto x_even_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
-        x_even, makeConst(ov::element::i64, ov::Shape{}, {-1}));
+    // stack((-x_odd, x_even), dim=-1):
+    //   PA pattern: Reshape(x, [B,H,L,rotary_dims/2,1]) — SDPAToPagedAttention canonicalizes
+    //               Unsqueeze into Reshape with explicit shapes when seq-length becomes 1.
+    //   SDPA pattern: Unsqueeze(x, -1)
+    std::shared_ptr<ov::Node> neg_x_odd_unsq, x_even_unsq;
+    if (use_pa_pattern) {
+        auto unsq_shape = makeConst(ov::element::i32, ov::Shape{5},
+                                    std::vector<int32_t>{batch, num_head, seq_length, rotary_dims / 2, 1});
+        neg_x_odd_unsq = std::make_shared<ov::op::v1::Reshape>(neg_x_odd, unsq_shape, false);
+        x_even_unsq = std::make_shared<ov::op::v1::Reshape>(x_even, unsq_shape, false);
+    } else {
+        neg_x_odd_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
+            neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1}));
+        x_even_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
+            x_even, makeConst(ov::element::i64, ov::Shape{}, {-1}));
+    }
     auto stack = std::make_shared<ov::op::v0::Concat>(OutputVector{neg_x_odd_unsq, x_even_unsq}, -1);
 
     // flatten(-2) using special_zero=true: {0,0,0,-1} -> [B,H,L,rotary_dims]
@@ -1705,7 +1717,7 @@ void RoPETestCohere::generate_inputs(const std::vector<ov::Shape>& targetInputSt
 }
 
 void RoPETestCohere::SetUp() {
-    const auto& [element_type, _targetDevice] = this->GetParam();
+    const auto& [element_type, _targetDevice, use_pa_pattern] = this->GetParam();
     targetDevice = _targetDevice;
 
     const int batch = 2;
@@ -1717,13 +1729,14 @@ void RoPETestCohere::SetUp() {
     InputShape cos = {{1, 1, seq_length, rotary_dims}, {{1, 1, seq_length, rotary_dims}}};
     InputShape sin = {{1, 1, seq_length, rotary_dims}, {{1, 1, seq_length, rotary_dims}}};
     init_input_shapes({input, cos, sin});
-    function = buildROPE_Cohere(batch, seq_length, num_head, rotary_dims, element_type);
+    function = buildROPE_Cohere(batch, seq_length, num_head, rotary_dims, element_type, use_pa_pattern);
 }
 
-std::string RoPETestCohere::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    const auto& [element_type, targetDevice] = obj.param;
+std::string RoPETestCohere::getTestCaseName(const testing::TestParamInfo<rope_params_cohere>& obj) {
+    const auto& [element_type, targetDevice, use_pa_pattern] = obj.param;
     std::ostringstream result;
-    result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
+    result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string()
+           << "_use_pa_pattern=" << use_pa_pattern;
     return result.str();
 }
 
