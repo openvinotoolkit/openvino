@@ -36,8 +36,9 @@ public:
         if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze) {
             // For proper padding propagation we need to know output pattern at model loading stage
             // in case of squeeze/unsqueeze mode
-            if (prim->output_pattern.empty())
+            if (prim->output_pattern.empty()) {
                 return false;
+            }
 
             if (input().is_type<crop>() && prim->mode == reshape::reshape_mode::squeeze) {
                 const auto crop_axis = input().as<crop>().get_primitive()->axis;
@@ -51,16 +52,19 @@ public:
         }
 
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
-        if (!input().is_type<crop>())
+        if (!input().is_type<crop>()) {
             return false;
+        }
 
         // oneDNN supports padded input of outer axis only for buffer fusing on static shape
-        if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn)
+        if (!has_outer_padding_offset() && get_users().size() == 1 && get_users().front()->get_preferred_impl_type() == impl_types::onednn) {
             return false;
+        }
 
         // MVN canonicalizes input strides and cannot tolerate dynamic padding offsets.
-        if (get_users().size() == 1 && get_users().front()->is_type<mvn>())
+        if (get_users().size() == 1 && get_users().front()->is_type<mvn>()) {
             return false;
+        }
 
         // vl_sdpa uses a CM kernel that receives raw SVM pointers.  Generic dynamic
         // padding (e.g. from an inner-axis crop) cannot be applied through shape_info
@@ -80,8 +84,9 @@ public:
                 !input_pshape[1].is_dynamic() &&
                 input_pshape[1].get_length() == 1 &&
                 prim->output_partial_shape.size() + 1 == input_pshape.size();
-            if (!is_axis1_size1_squeeze)
+            if (!is_axis1_size1_squeeze) {
                 return false;
+            }
         }
 
         auto axis = input().as<crop>().get_primitive()->axis;
@@ -91,10 +96,12 @@ public:
         // Keep the same safeguard as for inner-axis crops: if the reshape output pattern is
         // not known at model loading time, do not enable runtime padding propagation.
         if (axis == 0 && !input_pshape[0].is_dynamic()) {
-            if (prim->output_pattern.empty())
+            if (prim->output_pattern.empty()) {
                 return false;
-            if (input_pshape[0].get_length() != 1)
+            }
+            if (input_pshape[0].get_length() != 1) {
                 return false;
+            }
             // Reject if the reshape preserves the batch=1 dim (spatial flatten, not batch squeeze).
             // output_pattern[0] == -1 means the first dim is inferred (batch absorbed/squeezed).
             // output_pattern[0] == 0 or 1 means batch=1 is explicitly kept.
@@ -142,29 +149,33 @@ public:
 
         auto input_rank = input_pshape.size();
         auto input_last_dim = static_cast<int64_t>(input_rank - 1);
-        if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic())
+        if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic()) {
             return false;
+        }
 
         auto input_last_dim_val = input_pshape[input_last_dim].get_length();
         const auto& output_pshape = prim->output_partial_shape;
         // TODO: If the reshape's output shape is non constant, issue occurs
         // during shape inference due to execution order at runtime
-        if (prim->output_pattern.empty())
+        if (prim->output_pattern.empty()) {
             return false;
+        }
 
         // Iteratively check the total product of all static innermost dimensions
         // until the crop dimension value matches or the first dynamic dimension is encountered
         int64_t mul = 1;
         size_t matched_trailing_dims = 0;
         for (size_t i = output_pshape.size(); i > 1 ; i--) {
-            if (output_pshape[i - 1].is_dynamic() || mul == input_last_dim_val)
+            if (output_pshape[i - 1].is_dynamic() || mul == input_last_dim_val) {
                 break;
+            }
 
             mul *= output_pshape[i - 1].get_length();
             matched_trailing_dims++;
         }
-        if (input_last_dim_val != mul)
+        if (input_last_dim_val != mul) {
             return false;
+        }
         // Reject when reshape drops the cropped axis (e.g. [N,M,1] -> [N,M]): no output axis can
         // carry the cropped axis padding, so sibling crop outputs would all point to the same
         // base buffer region (aliased).
@@ -178,53 +189,62 @@ public:
     }
 
     bool has_outer_padding_offset() const {
-        if (!has_padding())
+        if (!has_padding()) {
             return false;
+        }
 
         auto input_layout = input().get_output_layout(false);
         auto input_pad = input_layout.data_padding;
         for (size_t i = 0 ; i < input_layout.get_spatial_rank() ; i++) {
-            if (input_pad._lower_size[2 + i] != 0)
+            if (input_pad._lower_size[2 + i] != 0) {
                 return false;
-            if (input_pad._upper_size[2 + i] != 0)
+            }
+            if (input_pad._upper_size[2 + i] != 0) {
                 return false;
+            }
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
         if (input_layout.format.dims_order()[0] != 0 ||
             input_pad._lower_size[1] != 0 ||
-            input_pad._upper_size[1] != 0)
+            input_pad._upper_size[1] != 0) {
             return false;
+        }
 
         // Outer padding exists. It might need to update padding size of output layout
         return !format::is_multi_blocked(input_layout.format);
     }
 
     bool is_in_place() const {
-        if (this->is_output() || this->has_fused_primitives())
+        if (this->is_output() || this->has_fused_primitives()) {
             return false;
+        }
 
-        if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding())
+        if (input().get_output_layout(false).data_padding.is_dynamic() && is_runtime_propagatable_padding()) {
             return true;
+        }
 
         return !has_padding();
     }
 
     void adjust_output_padding() {
-        if (!has_padding())
+        if (!has_padding()) {
             return;
+        }
 
         auto input_layout = input().get_output_layout(false);
         auto output_layout = this->get_output_layout();
         if (input_layout.data_padding.is_dynamic()) {
             auto prim = typed_desc();
             // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
-            if (prim->mode == reshape::reshape_mode::base)
+            if (prim->mode == reshape::reshape_mode::base) {
                 return;
+            }
 
             ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
-            if (pattern_shape.size() == 0)
+            if (pattern_shape.size() == 0) {
                 pattern_shape = {};
+            }
 
             auto pattern_data = prim->output_pattern;
             auto pattern_tensor = make_tensor({pattern_shape, data_types::i64, format::bfyx}, static_cast<void*>(pattern_data.data()));

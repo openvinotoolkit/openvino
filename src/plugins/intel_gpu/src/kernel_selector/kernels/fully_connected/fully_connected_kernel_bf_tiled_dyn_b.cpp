@@ -50,13 +50,15 @@ DeviceFeaturesKey FullyConnected_bf_tiled_dyn_b::get_required_device_features_ke
 
 size_t FullyConnected_bf_tiled_dyn_b::SelectTileB(size_t batch_size) {
     // For small batches, tile = batch (exact, no tail)
-    if (batch_size <= 8)
+    if (batch_size <= 8) {
         return batch_size;
+    }
 
     // Find largest exact divisor in [8..4] (no tail needed)
     for (size_t t = 8; t >= 4; --t) {
-        if (batch_size % t == 0)
+        if (batch_size % t == 0) {
             return t;
+        }
     }
 
     // No good exact divisor (primes, 2*prime, etc.):
@@ -69,24 +71,30 @@ bool FullyConnected_bf_tiled_dyn_b::IsBeneficial(const fully_connected_params& p
     auto wt = weights.GetDType();
 
     // INT4 compressed, F16 input, shape_agnostic only
-    if (wt != WeightsType::UINT4 && wt != WeightsType::INT4)
+    if (wt != WeightsType::UINT4 && wt != WeightsType::INT4) {
         return false;
-    if (!params.compressed)
+    }
+    if (!params.compressed) {
         return false;
-    if (params.inputs[0].GetDType() != Datatype::F16)
+    }
+    if (params.inputs[0].GetDType() != Datatype::F16) {
         return false;
-    if (!params.is_shape_agnostic)
+    }
+    if (!params.is_shape_agnostic) {
         return false;
+    }
 
     // No SwiGLU support
-    if (is_swiglu_fused(params))
+    if (is_swiglu_fused(params)) {
         return false;
+    }
 
     // Only beneficial for imbalanced IFM/OFM with sufficient dimension size
     auto ifm = weights.IFM().v;
     auto ofm = weights.OFM().v;
-    if (std::min(ifm, ofm) < simd)
+    if (std::min(ifm, ofm) < simd) {
         return false;
+    }
     return 2 * ifm < ofm || ifm > 2 * ofm;
 }
 
@@ -102,57 +110,69 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
 
     // Only INT4 compressed weights
     auto wt = weights.GetDType();
-    if (wt != WeightsType::UINT4 && wt != WeightsType::INT4)
+    if (wt != WeightsType::UINT4 && wt != WeightsType::INT4) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (!fc_params.compressed)
+    if (!fc_params.compressed) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // F16 input only
-    if (input.GetDType() != Datatype::F16)
+    if (input.GetDType() != Datatype::F16) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // IFM must be known and even (for INT4 packing)
     if (input.is_dynamic()) {
         auto ifm_size = get_input_bf_size(fc_params).second;
-        if (ifm_size == 0)
+        if (ifm_size == 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
-    if (weights.IFM().v % 2 != 0)
+    if (weights.IFM().v % 2 != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // Block reads: batch pitch must be even for F16
-    if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic))
+    if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
     // For 3D: feature pitch must be even
     if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0
-        && (input.Feature().v > 1 || fc_params.is_shape_agnostic))
+        && (input.Feature().v > 1 || fc_params.is_shape_agnostic)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // No padding on spatial dimensions
     if (input.GetLayout() == DataLayout::bfyx) {
-        if (input.X().pad.Total() != 0 || input.Y().pad.Total() != 0)
+        if (input.X().pad.Total() != 0 || input.Y().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // No 4D output
     if (output.GetLayout() == DataLayout::bfyx) {
-        if (input.X().v > 1)
+        if (input.X().v > 1) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // Reject dynamic quantization targets (let bf_tiled SLM handle those)
-    if (is_weight_dyn_quantizable(fc_params) && should_dynamic_quantize(fc_params))
+    if (is_weight_dyn_quantizable(fc_params) && should_dynamic_quantize(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // This kernel is designed for dynamic batch dispatch only.
     // For static shapes, bf_tiled already selects optimal TILE_B at compile time.
-    if (!fc_params.is_shape_agnostic)
+    if (!fc_params.is_shape_agnostic) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // SwiGLU fused op is not supported (requires OUTER_OFM=2 / SWIGLU_LENGTH handling)
-    if (is_swiglu_fused(fc_params))
+    if (is_swiglu_fused(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // Only beneficial when IFM and OFM are highly imbalanced with sufficient size.
     // For near-square shapes (IFM ≈ OFM), bf_tiled's dispatch is already efficient.
@@ -160,10 +180,12 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
     {
         auto ifm = weights.IFM().v;
         auto ofm = weights.OFM().v;
-        if (std::min(ifm, ofm) < simd)
+        if (std::min(ifm, ofm) < simd) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (2 * ifm >= ofm && ifm <= 2 * ofm)
+        }
+        if (2 * ifm >= ofm && ifm <= 2 * ofm) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;
@@ -173,12 +195,13 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
 FullyConnected_bf_tiled_dyn_b::tune_params
 FullyConnected_bf_tiled_dyn_b::GetTuneParams(const fully_connected_params& params) const {
     // Same base config as static_b16 (optimized for INT4 on iGPU)
-    if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
+    if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
         return tune_params(1, 1, 4, 1, 1, EXE_MODE_DEFAULT);
-    else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
         return tune_params(2, 1, 2, 1, 1, EXE_MODE_DEFAULT);
-    else  // os_is_yx_osv32_isv2 (default)
+    } else {  // os_is_yx_osv32_isv2 (default)
         return tune_params(2, 1, 4, 1, 1, EXE_MODE_DEFAULT);
+    }
 }
 
 FullyConnected_bf_tiled_dyn_b::DispatchData
@@ -248,8 +271,9 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
         tile_k_ofm_packed /= 2;
         jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
-        if (scale_group_size % simd == 0)
+        if (scale_group_size % simd == 0) {
             add_decompress_scale_post_op = true;
+        }
     }
 
     // W_IDX and TILE_OFM_PER_OSV_SIZE based on weight layout
@@ -273,8 +297,9 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
         jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 1));
     }
 
-    if (add_decompress_scale_post_op)
+    if (add_decompress_scale_post_op) {
         jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
+    }
 
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));

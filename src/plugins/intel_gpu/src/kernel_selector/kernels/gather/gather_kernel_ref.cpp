@@ -70,14 +70,16 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
         for (size_t i = 0; i < DataTensor::max_rank(); i++) {
             int shape_raw_idx =
                 data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
-            if (shape_raw_idx >= 0)
+            if (shape_raw_idx >= 0) {
                 shape[shape_idx++] = shape_raw[shape_raw_idx];
+            }
         }
         for (auto& i : shape) {
-            if (i == 1)
+            if (i == 1) {
                 one_size_dims++;
-            else
+            } else {
                 break;
+            }
         }
         return data_tensor.Dimentions() - one_size_dims;
     } else {
@@ -86,10 +88,11 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
 }
 
 static int64_t GetGatherBatchDim(const gather_params& params) {
-    if (params.batch_dim < 0)
+    if (params.batch_dim < 0) {
         return (int64_t)GetNonEmptyDimsNumber(params.inputs[1]) + params.batch_dim;
-    else
+    } else {
         return params.batch_dim;
+    }
 }
 
 static inline Tensor::Dim GetGatherIndexDim(const gather_params& params) {
@@ -137,8 +140,9 @@ static inline std::string GetGatherMaxIndexDim(const gather_params& params) {
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
     std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
+    for (size_t i = 1; i < order.size(); i++) {
         order_str += ", " + order[i];
+    }
 
     return order_str;
 }
@@ -164,16 +168,19 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.outputs[0]) - dictionary_dims_num + 1;
 
     // Shift indices of Gather dictionary input related to output dims
-    for (size_t i = axis + 1; i < dictionary_dims_num; i++)
+    for (size_t i = axis + 1; i < dictionary_dims_num; i++) {
         idx_order[i] = idx_order[i + indices_dims_num - 1];
+    }
 
-    for (size_t i = dictionary_dims_num; i < idx_order.size(); i++)
+    for (size_t i = dictionary_dims_num; i < idx_order.size(); i++) {
         idx_order[i] = zero_val;
+    }
 
     // Fix size to inputs[0] dims size
     if (params.outputs[0].GetDims().size() > params.inputs[0].GetDims().size()) {
-        for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
+        for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++) {
             idx_order.pop_back();
+        }
     }
     idx_order[axis] = input_axis_index_macro;
 
@@ -262,11 +269,13 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         }
     }
 
-    if (!dyn_gather_idx_dim)
+    if (!dyn_gather_idx_dim) {
         jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
+    }
 
-    if (params.is_shape_agnostic && params.inputs[0].is_dynamic())
+    if (params.is_shape_agnostic && params.inputs[0].is_dynamic()) {
         jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
+    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
@@ -322,8 +331,9 @@ bool GatherKernelRef::Validate(const Params& p) const {
     const gather_params& params = static_cast<const gather_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     if (params.outputs[0].is_dynamic()) {
@@ -334,12 +344,14 @@ bool GatherKernelRef::Validate(const Params& p) const {
         };
 
         for (auto& in : params.inputs) {
-            if (!supported_tensor_layout(in))
+            if (!supported_tensor_layout(in)) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
+            }
         }
         for (auto& out : params.outputs) {
-            if (!supported_tensor_layout(out))
+            if (!supported_tensor_layout(out)) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
+            }
         }
     }
 
@@ -377,8 +389,9 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params) const {
     int inputs_count = 2;
     if (newParams.compressed) {
         inputs_count++;
-        if (newParams.has_decompression_zp && !newParams.scalar_zp)
+        if (newParams.has_decompression_zp && !newParams.scalar_zp) {
             inputs_count++;
+        }
     }
 
     FillCLKernelData(kernel,

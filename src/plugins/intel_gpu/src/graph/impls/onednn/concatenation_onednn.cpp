@@ -129,8 +129,9 @@ public:
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        if (impl_params.can_be_optimized())
+        if (impl_params.can_be_optimized()) {
             return std::make_unique<concatenation_onednn>(engine, config);
+        }
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);

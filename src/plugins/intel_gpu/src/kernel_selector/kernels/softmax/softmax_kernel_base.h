@@ -47,10 +47,11 @@ protected:
     virtual DispatchData SetDefault(const softmax_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetActivationType(const softmax_params& params) const {
-        if (params.inputs[0].GetDType() == Datatype::F16)
+        if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
-        else
+        } else {
             return Datatype::F32;
+        }
     }
 };
 

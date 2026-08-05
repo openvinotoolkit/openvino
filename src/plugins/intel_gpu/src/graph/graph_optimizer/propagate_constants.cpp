@@ -33,8 +33,9 @@ namespace {
 // incorrect shape_type classification.
 void try_reselect_impl_for_node(program_node* node) {
     bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
-    if (!can_select_impl)
+    if (!can_select_impl) {
         return;
+    }
 
     auto selected_impl = node->get_selected_impl();
     bool has_selected_impl = selected_impl != nullptr;
@@ -46,8 +47,9 @@ void try_reselect_impl_for_node(program_node* node) {
         need_new_impl_selection = (is_node_dynamic != is_impl_dynamic);
     }
 
-    if (!need_new_impl_selection)
+    if (!need_new_impl_selection) {
         return;
+    }
 
     // Refresh stale output layouts before building kernel params.
     // After invalidate_users(), cached output_layouts may still reflect
@@ -59,8 +61,9 @@ void try_reselect_impl_for_node(program_node* node) {
 
     auto params = node->get_kernel_impl_params();
     auto shape_type = ImplementationManager::get_shape_type(*params);
-    if (shape_type == shape_types::dynamic_shape)
+    if (shape_type == shape_types::dynamic_shape) {
         return;
+    }
 
     auto selected_impl_manager = node->type()->choose_impl(*node, shape_type);
     std::string fail_reason;
@@ -92,8 +95,9 @@ void try_reselect_impl_for_node(program_node* node) {
 void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
     for (auto& node : p.get_processing_order()) {
-        if (node->is_constant())
+        if (node->is_constant()) {
             handle_constant(p, *node);
+        }
     }
 
     auto&& to_replace = calculate(p.get_engine(), p.get_config(), p.get_task_executor());
@@ -107,10 +111,12 @@ void propagate_constants::run(program& p) {
     auto proc_itr = p.get_processing_order().begin();
     while (proc_itr != p.get_processing_order().end()) {
         auto& node = (*proc_itr++);
-        if (!node->is_constant())
+        if (!node->is_constant()) {
             continue;
-        if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>()))
+        }
+        if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>())) {
             continue;
+        }
 
         auto& users = node->users;
         auto& deps = node->dependencies;
@@ -160,8 +166,9 @@ void propagate_constants::run(program& p) {
         for (auto& dep : curr_node_deps) {
             auto dep_users = dep.first->get_users();
             for (auto& dep_user : dep_users) {
-                if (dep_user == &curr_node)
+                if (dep_user == &curr_node) {
                     p.remove_connection(*dep.first, curr_node);
+                }
             }
         }
 
@@ -190,8 +197,9 @@ void propagate_constants::run(program& p) {
             while (!queue.empty()) {
                 auto* n = queue.front();
                 queue.pop();
-                if (reselection_targets.count(n) > 0)
+                if (reselection_targets.count(n) > 0) {
                     continue;
+                }
                 reselection_targets.insert(n);
                 if (!n->is_all_valid_output_layouts()) {
                     for (auto& user : n->get_users()) {
@@ -211,11 +219,13 @@ void propagate_constants::run(program& p) {
 }
 
 bool propagate_constants::has_non_const_user(program_node& node) const {
-    if (!node.is_constant())
+    if (!node.is_constant()) {
         return true;
+    }
     for (auto& user : node.get_users()) {
-        if (!user->is_constant())
+        if (!user->is_constant()) {
             return true;
+        }
     }
     return false;
 }
@@ -227,8 +237,9 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>>
 propagate_constants::calculate(engine& engine,
                                const ExecutionConfig& config,
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor) {
-    if (!has_non_trivial_constants)
+    if (!has_non_trivial_constants) {
         return {};
+    }
 
     ExecutionConfig cf_config = config.clone();
     cf_config.set_property(ov::intel_gpu::optimize_data(false));
@@ -271,20 +282,23 @@ propagate_constants::calculate(engine& engine,
 void propagate_constants::handle_constant(program& prog, program_node& node) {
     if (!node.is_type<data>()) {
         add_constant(prog, node);
-        if (has_non_const_user(node))
+        if (has_non_const_user(node)) {
             const_outputs.push_back(node.id());
+        }
     }
 }
 
 void propagate_constants::add_constant(program& prog, program_node& node) {
-    if (node.is_type<data>())
+    if (node.is_type<data>()) {
         return;
+    }
     nodes.insert(prog.get_node_ptr(node.get_primitive()->id));
     has_non_trivial_constants = true;
 
     // if a node is either an endpoint or an output, always add it as an output
-    if (node.is_endpoint() || node.is_output())
+    if (node.is_endpoint() || node.is_output()) {
         const_outputs.push_back(node.id());
+    }
 
     // if a non-tirivial constant has a trivial input, add this input as an input for our network
     add_deps_to_tpl(prog, node.get_dependencies());

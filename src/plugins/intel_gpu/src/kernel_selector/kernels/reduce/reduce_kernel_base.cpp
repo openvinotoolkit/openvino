@@ -18,8 +18,9 @@ bool ReduceKernelBase::Validate(const Params& p) const {
     }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -104,16 +105,19 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     for (size_t i = 0; i < params.reduceAxes.size(); ++i) {
         divider += "INPUT0_" + getDimSizeNameByNum(convertedAxes[i]);
         size_t range_check = i;
-        if (++range_check < params.reduceAxes.size())
+        if (++range_check < params.reduceAxes.size()) {
             divider += "*";
+        }
     }
     jit.AddConstant(MakeJitConstant("DIVIDER", divider));
 
     const size_t kept_dims = inputDims.size() - params.reduceAxes.size();
     if (kept_dims == 1) {
-        for (size_t i = 0; i < inputDims.size(); ++i)
-            if (std::find(convertedAxes.begin(), convertedAxes.end(), i) == convertedAxes.end())
+        for (size_t i = 0; i < inputDims.size(); ++i) {
+            if (std::find(convertedAxes.begin(), convertedAxes.end(), i) == convertedAxes.end()) {
                 jit.AddConstant(MakeJitConstant(getDimSizeNameByNum(i) + "_IDX_COMP(index)", "index"));
+            }
+        }
     } else {
         size_t kept_cnt = 0;
         for (size_t i = 0; i < inputDims.size(); ++i) {
@@ -209,10 +213,11 @@ Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) 
 }
 
 Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
-    else
+    } else {
         return Datatype::F32;
+    }
 }
 
 void ReduceKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {

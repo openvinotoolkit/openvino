@@ -52,14 +52,14 @@ FullyConnectedCompressed::FullyConnectedCompressed(const ov::Output<Node>& A,
 std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    if (new_args.size() == 4)
+    if (new_args.size() == 4) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
                                                           new_args.at(1),
                                                           new_args.at(2),
                                                           new_args.at(3),
                                                           m_output_type,
                                                           m_transpose_b);
-    else if (new_args.size() == 5)
+    } else if (new_args.size() == 5) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
                                                           new_args.at(1),
                                                           new_args.at(2),
@@ -67,7 +67,7 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(4),
                                                           m_output_type,
                                                           m_transpose_b);
-    else if (new_args.size() == 8)
+    } else if (new_args.size() == 8) {
         return std::make_shared<FullyConnectedCompressed>(new_args.at(0),
                                                           new_args.at(1),
                                                           new_args.at(2),
@@ -78,7 +78,8 @@ std::shared_ptr<ov::Node> FullyConnectedCompressed::clone_with_new_inputs(const 
                                                           new_args.at(7),
                                                           m_output_type,
                                                           m_transpose_b);
-    else
+    } else {
         OPENVINO_THROW("Unexpected inputs count for FullyConnectedCompressed op: ", new_args.size());
+    }
 }
 }  // namespace ov::intel_gpu::op

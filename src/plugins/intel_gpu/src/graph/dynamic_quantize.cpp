@@ -21,13 +21,15 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
     }
 
     if (!node.is_runtime_skippable()
-        || !act_layout.is_static())
+        || !act_layout.is_static()) {
         return false;
+    }
 
     // Do not skip dynamic quantization if any user node is not fully connected.(such as SDPA)
     for (auto& user : node.get_users()) {
-        if (!user->is_type<fully_connected>())
+        if (!user->is_type<fully_connected>()) {
             return false;
+        }
     }
 
     // If batch size is 1, dynamic_quantize is disabled for performance reason
@@ -144,19 +146,23 @@ void dynamic_quantize_inst::on_execute() {
 }
 
 void dynamic_quantize_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
-    if (_node != nullptr)
+    if (_node != nullptr) {
         build_deps();
+    }
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
     if (static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
-        && output_memory().get_layout().identical(get_output_layout()))
+        && output_memory().get_layout().identical(get_output_layout())) {
         return;
+    }
 
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 

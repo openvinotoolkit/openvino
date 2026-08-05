@@ -277,8 +277,9 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     }
 
     auto are_multiply_from_decompression = [&](const ov::Input<ov::Node> consumer) {
-        if (!cldnn::one_of(consumer.get_node()->get_type_info(), { ov::op::v1::Multiply::get_type_info_static() }))
+        if (!cldnn::one_of(consumer.get_node()->get_type_info(), { ov::op::v1::Multiply::get_type_info_static() })) {
             return false;
+        }
         const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
 
         for (const auto& child_consumer : child_consumers) {
@@ -291,8 +292,9 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     };
 
     auto are_converts_from_decompression = [&](const std::set<ov::Input<ov::Node>>& consumers) {
-        if (!all_has_types(consumers, { ov::opset1::Convert::get_type_info_static() }))
+        if (!all_has_types(consumers, { ov::opset1::Convert::get_type_info_static() })) {
             return false;
+        }
         for (const auto& consumer : consumers) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
             for (const auto& child_consumer : child_consumers) {
@@ -363,8 +365,9 @@ bool has_shared_kv_cache_vars(const std::shared_ptr<ov::Model>& model) {
 
     for (const auto& op : ops) {
         if (!std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(op) &&
-            !ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(op))
+            !ov::as_type_ptr<ov::intel_gpu::op::ReadValue>(op)) {
             continue;
+        }
 
         size_t sdpa_count = 0;
         std::deque<ov::Node*> queue;
@@ -412,8 +415,9 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
 
     // Expected sdpa_opt usage : 3D SDPA
     if (q.size() == 3 && k.size() == 3 && v.size() == 3 && sdpa_out.size() == 3) {
-        if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic())
+        if (q.is_dynamic() || k.is_dynamic() || sdpa_out.is_dynamic()) {
             return false;
+        }
 
         // Calculate mem size of gemm for Q*K
         // Gemm layer decomposed from sdpa could exceed max size of memory allocation.
@@ -449,12 +453,14 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
 
 bool TransformationsPipeline::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto convert = ov::as_type_ptr<ov::opset10::Convert>(node);
-    if (!convert)
+    if (!convert) {
         return false;
+    }
     const auto& from = node->get_output_element_type(0);
     auto it = precisions.find(from);
-    if (it == precisions.end())
+    if (it == precisions.end()) {
         return false;
+    }
     const auto& to = it->second;
 
     if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
@@ -502,10 +508,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node)
+            if (!const_node) {
                 continue;
-            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u)
+            }
+            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u) {
                 continue;
+            }
             auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
             if (source_buf) {
                 size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
@@ -520,8 +528,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Plain ov::Any entries survive copy_runtime_info automatically.
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node)
+            if (!const_node) {
                 continue;
+            }
             const auto& rt = const_node->get_rt_info();
             auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
             if (it != rt.end()) {
@@ -825,10 +834,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                if (!check_xattn_gpu_compatibility())
+                if (!check_xattn_gpu_compatibility()) {
                     OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
                                 "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
                                 "architecture and ensure the latest IGC is installed.");
+                }
             }
 
             // KVCache layout with default attention -
@@ -908,8 +918,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
-            if (!config.get_enable_sdpa_optimization())
+            if (!config.get_enable_sdpa_optimization()) {
                 return false;
+            }
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
             // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
@@ -924,8 +935,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             // Known limitations:
             // - The data type of SDPA should be fp16
-            if (sdpa->get_output_element_type(0) != ov::element::f16)
+            if (sdpa->get_output_element_type(0) != ov::element::f16) {
                 return false;
+            }
 
             // - The attn mask type of SDPA should be fp16
             if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
@@ -935,8 +947,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - The number of dimensions for each input is expected to be 4 or 3
             if ((query_ps.size() != 3 && query_ps.size() != 4) ||
                 (key_ps.size() != 3 && key_ps.size() != 4) ||
-                (value_ps.size() != 3 && value_ps.size() != 4))
+                (value_ps.size() != 3 && value_ps.size() != 4)) {
                 return false;
+            }
 
             // - The head size of all Q, K, and V inputs should be the same static value
             if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
@@ -954,8 +967,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256) {
                 return true;
+            }
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
             // reasons and implementation limitations (see sdpa micro and sdpa opt kernels).
@@ -1161,8 +1175,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
             } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
-                if (!data_pshape[1].is_static())
+                if (!data_pshape[1].is_static()) {
                     return false;
+                }
                 return (lstm_seq->get_clip() == 0.0f &&
                     lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
                     max_seq_len != 1 &&
@@ -1217,8 +1232,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         // so that d2 is set of dimensions for normalization
 
                         // Skip unsupported ranks
-                        if (out_rank == 1 || out_rank > 5)
+                        if (out_rank == 1 || out_rank > 5) {
                             return false;
+                        }
 
                         // check axes set
                         for (size_t i = 0; i < mvn_axes.size(); i++) {
@@ -1251,8 +1267,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     auto sortAxes = axes;
                     std::sort(sortAxes.begin(), sortAxes.end());
                     for (size_t i = 0; i < sortAxes.size(); i++) {
-                        if (sortAxes[i] != i + 1)
+                        if (sortAxes[i] != i + 1) {
                             return false;
+                        }
                     }
                     return true;
                 }
@@ -1391,8 +1408,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         lptPassConfig->set_callback<TransposeTransformation>([&](const_node_ptr& node) -> bool {
             for (auto& user : node->get_users()) {
-                if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(user))
+                if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(user)) {
                     return true;
+                }
             }
 
             return false;
@@ -1452,8 +1470,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
 
         bool reshapeIgnorePerTensorQuantizationCheck = false;
-        if (device_info.supports_immad) // Disable reshape transform until onednn i8 fc is optimized
+        if (device_info.supports_immad) { // Disable reshape transform until onednn i8 fc is optimized
             reshapeIgnorePerTensorQuantizationCheck = true;
+        }
         auto params = LayerTransformation::Params(true, element::f32, defaultPrecisions, reshapeIgnorePerTensorQuantizationCheck);
         lptManager.register_pass<LowPrecision>(supportedPrecisions, perTensorQuantization, params);
         lptManager.run_passes(func);
@@ -1472,8 +1491,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [unroll_loop](const std::shared_ptr<const ov::Node> &node) -> bool {
                 auto sub_graph_op = ov::as_type_ptr<const ov::op::util::SubGraphOp>(node);
                 int64_t num_iter = sub_graph_op->get_num_iterations();
-                if (!unroll_loop)
+                if (!unroll_loop) {
                     return num_iter != 1;
+                }
                 return num_iter >= 16;
             });
 
@@ -1624,11 +1644,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Therefore, run MarkDequantization again to fold ZP constant.
         manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
         if (device_info.supports_immad) {
-            if (disable_horizontal_fc_fusion)
+            if (disable_horizontal_fc_fusion) {
                 manager.register_pass<ov::pass::ConstantFolding>();
+            }
         }
-        if (!disable_horizontal_fc_fusion)
+        if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::pass::ConstantFolding>();
+        }
 
         manager.register_pass<ov::pass::SDPAScaleFusion>();
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
@@ -1693,13 +1715,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                 dyn_quan_single >= 0) {
                     static int64_t fc_count = 0;
 
-                    if (++fc_count > dyn_quan_bisect)
+                    if (++fc_count > dyn_quan_bisect) {
                         return true;
+                    }
 
                     if (dyn_quan_single >= 0) {
-                        if (fc_count != dyn_quan_single)
+                        if (fc_count != dyn_quan_single) {
                             return true;
-                        else
+                        } else
                             GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
                     }
                 }

@@ -239,8 +239,9 @@ protected:
         jit.make("INPUT1_TYPE", "int");
         jit.make("OUTPUT_TYPE", "half");
         jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
-        if (m_use_grouped_gemm)
+        if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
+        }
 
         GPU_DEBUG_TRACE_DETAIL << "MoE3GemmSwigluPrefillGather::get_jit_constants():  hidden_size: " << hidden_size << ", block_size: " << block_size
                                << ", local_threads_count: " << local_threads_count << ", batches_per_thread: " << batches_per_thread
@@ -284,8 +285,9 @@ protected:
         } else if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_ERF) {
             jit.make("GATE_ACT_GELU_ERF", 1);
         }
-        if (m_use_grouped_gemm)
+        if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
+        }
         return jit;
     }
 
@@ -334,8 +336,9 @@ protected:
         jit.make("INPUT5_TYPE", "int");   // tokens len for experts
         jit.make("INPUT6_TYPE", "int");   // expert id
         jit.make("OUTPUT_TYPE", "half");  // output
-        if (m_use_grouped_gemm)
+        if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
+        }
 
         return jit;
     }
@@ -674,8 +677,9 @@ public:
     // --- Inline composition methods (replace virtual hooks) ---
 
     void bind_weights_on_first_exec(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
-        if (!_weight_provider->is_offloaded())
+        if (!_weight_provider->is_offloaded()) {
             return;
+        }
         if (!_weight_provider->is_bound()) {
             instance._weights.gate_w = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0));
             instance._weights.gate_z = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0));
@@ -738,8 +742,9 @@ public:
 
         auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
         if (!lease) {
-            if (auto* perf = moe_otd::get_perf_counters())
+            if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->batched_fallbacks.fetch_add(1, std::memory_order_relaxed);
+            }
             needs_fallback = true;
             return;
         }
@@ -752,8 +757,9 @@ public:
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
         std::vector<uint32_t> slots_u32(lease->size());
-        for (size_t i = 0; i < lease->size(); i++)
+        for (size_t i = 0; i < lease->size(); i++) {
             slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
+        }
         scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
 
         set_otd_weight_pointers(instance, scratch);
@@ -776,8 +782,9 @@ public:
 
         auto lease = _weight_provider->try_acquire_simultaneous(expert_ids, stream);
         if (!lease) {
-            if (auto* perf = moe_otd::get_perf_counters())
+            if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
+            }
             needs_fallback = true;
             return;
         }
@@ -790,16 +797,18 @@ public:
             scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
         std::vector<uint32_t> slots_u32(lease->size());
-        for (size_t i = 0; i < lease->size(); i++)
+        for (size_t i = 0; i < lease->size(); i++) {
             slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
+        }
         scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
         batch_mem_ptr = scratch._expert_index_buffer;
         needs_fallback = false;
     }
 
     bool on_load_expert_weights(size_t expert_no, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, dnnl::stream& dnn_stream) {
-        if (!_weight_provider->is_offloaded())
+        if (!_weight_provider->is_offloaded()) {
             return false;
+        }
 
         dnn_stream.wait();
 
@@ -847,8 +856,9 @@ public:
                                 std::vector<int32_t>& grouped_offsets_cpu,
                                 int& num_actually_used_experts,
                                 const std::vector<cldnn::event::ptr>& events) {
-        if (!_weight_provider->is_offloaded())
+        if (!_weight_provider->is_offloaded()) {
             return false;
+        }
 
         stream.finish();  // ensure routing kernel has written topk_ids
 
@@ -862,15 +872,17 @@ public:
         if (!lease) {
             GPU_DEBUG_TRACE_DETAIL << "exec_prefill_grouped_gemm OTD: unique experts exceed resident_slots=" << resident_slot_count()
                                    << ", falling back to per-expert onednn loop" << std::endl;
-            if (auto* perf = moe_otd::get_perf_counters())
+            if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->grouped_fallbacks.fetch_add(1, std::memory_order_relaxed);
+            }
             return false;  // Caller checks is_offloaded() to distinguish from non-OTD
         }
 
         // Remap using lease slots
         std::vector<uint32_t> remapped(topk_count);
-        for (size_t i = 0; i < topk_count; i++)
+        for (size_t i = 0; i < topk_count; i++) {
             remapped[i] = static_cast<uint32_t>((*lease)[i]);
+        }
 
         // Build per-slot token lists sorted by LRU slot index
         std::vector<std::vector<int32_t>> slot_tokens(num_grouped_experts);
@@ -893,8 +905,9 @@ public:
                 tokens_lens_per_expert_cpu[experts_iter] = n;
                 ++experts_iter;
                 ++num_actually_used_experts;
-                for (auto t : slot_tokens[s])
+                for (auto t : slot_tokens[s]) {
                     tokens_per_expert_cpu[tokens_iter++] = t;
+                }
             }
         }
 
@@ -913,13 +926,15 @@ public:
     }
 
     void on_after_grouped_gemm(cldnn::stream& stream) {
-        if (_weight_provider->is_offloaded())
+        if (_weight_provider->is_offloaded()) {
             stream.get_onednn_stream().wait();
+        }
     }
 
     void on_after_exec_sync(cldnn::stream& stream) {
-        if (_weight_provider->is_offloaded())
+        if (_weight_provider->is_offloaded()) {
             stream.finish();
+        }
     }
 
     bool should_pre_zero_output() {
@@ -933,8 +948,9 @@ public:
     }
 
     void on_before_grouped_gather(cldnn::stream& stream) {
-        if (_weight_provider->is_offloaded())
+        if (_weight_provider->is_offloaded()) {
             stream.finish();
+        }
     }
     ov::op::internal::MOE::Activation_type _activation_type = ov::op::internal::MOE::Activation_type::SWIGLU;
 
@@ -1046,8 +1062,9 @@ public:
     void init_dnnl_weights(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe,
                            cldnn::engine& engine,
                            const struct moe_fusion_weights_base_addr& moe_fusion_wei_addr) {
-        if (_dnnl_weights.size() == cur_moe->_config.num_expert)
+        if (_dnnl_weights.size() == cur_moe->_config.num_expert) {
             return;
+        }
         init(cur_moe);
 
         _dnnl_weights.resize(cur_moe->_config.num_expert);
@@ -1134,8 +1151,9 @@ public:
     }
 
     void init_shared_primitives(cldnn::engine& engine, const struct moe_fusion_weights_base_addr& addr, int batch) {
-        if (_shared_gate_proj && _shared_gate_proj->m_batch == batch)
+        if (_shared_gate_proj && _shared_gate_proj->m_batch == batch) {
             return;
+        }
 
         OPENVINO_ASSERT(addr.shared_weight[0], "MoE shared expert enabled (num_shared_expert > 0) but shared weight buffers are not bound");
 
@@ -1592,8 +1610,9 @@ public:
             // scratch.up = up(x) * silu(gate(x)) for all (token, expert) pairs
             std::vector<memory::ptr> args_gate_up =
                 {batch_mem_ptr, mlp_gate_wei_mem, mlp_gate_scale_mem, mlp_gate_zp_mem, mlp_up_wei_mem, mlp_up_scale_mem, mlp_up_zp_mem};
-            if (_has_shared_expert)
+            if (_has_shared_expert) {
                 args_gate_up.insert(args_gate_up.end(), extra_args_gate_up.begin(), extra_args_gate_up.end());
+            }
             args_gate_up.push_back(hidden_states_mem_ptr);
 
             auto ret_event = execute_stage(events,
@@ -1606,12 +1625,14 @@ public:
 
             // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
             std::vector<memory::ptr> args_down = {batch_mem_ptr, mlp_down_wei_mem, mlp_down_scale_mem, mlp_down_zp_mem};
-            if (_has_shared_expert)
+            if (_has_shared_expert) {
                 args_down.insert(args_down.end(), extra_args_down.begin(), extra_args_down.end());
+            }
             args_down.push_back(scratch.up);
             args_down.push_back(routing_mem_ptr);  // compact topk_weights [token_num * MAX_TOPK]
-            if (_has_shared_expert)
+            if (_has_shared_expert) {
                 args_down.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
+            }
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *stage_down,
@@ -1961,8 +1982,9 @@ public:
             if (!_kernels.has(std::make_pair(n_token, 0))) {
                 auto kernel = create_kernel(n_token, expert_no, instance);
                 _kernels.add(std::make_pair(n_token, 0), kernel);
-                if (auto* perf = moe_otd::get_perf_counters())
+                if (auto* perf = moe_otd::get_perf_counters()) {
                     perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
+                }
             }
             auto& kernel = *_kernels.get(std::make_pair(n_token, 0));
             // Patch weight memory handles for the current expert's LRU slot.
@@ -1984,8 +2006,9 @@ public:
         if (!_kernels.has(key)) {
             auto kernel = create_kernel(n_token, expert_no, instance);
             _kernels.add(key, kernel);
-            if (auto* perf = moe_otd::get_perf_counters())
+            if (auto* perf = moe_otd::get_perf_counters()) {
                 perf->created_onednn_kernels.fetch_add(1, std::memory_order_relaxed);
+            }
         }
         return *_kernels.get(key);
     }
@@ -2124,20 +2147,23 @@ public:
         gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt);
         gk->gate_prim = dnnl::matmul(gk->gate_pd);
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
-        if (has_zp)
+        if (has_zp) {
             gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, gw_dt);
+        }
 
         gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt);
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
-        if (has_zp)
+        if (has_zp) {
             gk->up_zp_md = gk->gate_zp_md;
+        }
 
         gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt);
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
-        if (has_zp)
+        if (has_zp) {
             gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dw_dt);
+        }
 
         _grouped_kernels.add(key, gk);
         return *_grouped_kernels.get(key);
@@ -2209,8 +2235,9 @@ public:
             auto n_token = static_cast<int>(expert_mask.batch[expert_no].size());
 
             // Be careful about possible overflow
-            if (n_token > std::numeric_limits<int64_t>::max() / max_topk)
+            if (n_token > std::numeric_limits<int64_t>::max() / max_topk) {
                 OPENVINO_THROW("n_token * max_topk overflow detected, n_token=", n_token, " max_topk=", max_topk);
+            }
 
             int64_t routing_weights_size = static_cast<int64_t>(n_token * max_topk);
             onednn_kernel& kernel = get_kernel(n_token, static_cast<int>(expert_no), instance);
@@ -2342,8 +2369,9 @@ public:
                     tokens_lens_per_expert_cpu[experts_iter] = n;
                     ++experts_iter;
                     ++num_actually_used_experts;
-                    for (auto t : expert_mask.batch[e])
+                    for (auto t : expert_mask.batch[e]) {
                         tokens_per_expert_cpu[tokens_iter++] = t;
+                    }
                 }
             }
         }
@@ -2369,8 +2397,9 @@ public:
         // = exclusive end of expert k = grouped_offsets_cpu[k].
         {
             std::vector<int32_t> expert_start_offsets_per_id(static_cast<size_t>(num_grouped_experts - 1));
-            for (int e = 0; e < num_grouped_experts - 1; ++e)
+            for (int e = 0; e < num_grouped_experts - 1; ++e) {
                 expert_start_offsets_per_id[e] = grouped_offsets_cpu[e];  // end[e] == start[e+1]
+            }
             intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT]
                 ->copy_from(stream, expert_start_offsets_per_id.data(), 0, 0, expert_start_offsets_per_id.size() * sizeof(int32_t), true);
         }

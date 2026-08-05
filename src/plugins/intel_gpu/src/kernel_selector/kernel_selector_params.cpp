@@ -455,23 +455,31 @@ void ParamsKey::EnableQuantization(QuantizationType q) {
 }
 
 bool ParamsKey::Support(const ParamsKey& k) const {
-    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw))  // check if this kernel supports this params
+    if (!((key.restrict.raw & k.key.restrict.raw) == k.key.restrict.raw)) {  // check if this kernel supports this params
         return false;
-    if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw))
+    }
+    if (!((key.inputType.raw & k.key.inputType.raw) == k.key.inputType.raw)) {
         return false;
-    if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw))
+    }
+    if (!((key.outputType.raw & k.key.outputType.raw) == k.key.outputType.raw)) {
         return false;
-    if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw))
+    }
+    if (!((key.inputWeightsType.raw & k.key.inputWeightsType.raw) == k.key.inputWeightsType.raw)) {
         return false;
-    if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw))
+    }
+    if (!((key.outputWeightsType.raw & k.key.outputWeightsType.raw) == k.key.outputWeightsType.raw)) {
         return false;
-    if ((key.inputLayout & k.key.inputLayout) == 0 && key.inputLayout != k.key.inputLayout)
+    }
+    if ((key.inputLayout & k.key.inputLayout) == 0 && key.inputLayout != k.key.inputLayout) {
         return false;
-    if ((key.outputLayout & k.key.outputLayout) == 0 && key.outputLayout != k.key.outputLayout)
+    }
+    if ((key.outputLayout & k.key.outputLayout) == 0 && key.outputLayout != k.key.outputLayout) {
         return false;
+    }
     if ((key.weightsInputLayout & k.key.weightsInputLayout) == 0 &&
-          key.weightsInputLayout != k.key.weightsInputLayout)
+          key.weightsInputLayout != k.key.weightsInputLayout) {
         return false;
+    }
     return (key.weightsOutputLayout & k.key.weightsOutputLayout) != 0 ||
           key.weightsOutputLayout == k.key.weightsOutputLayout;
 }

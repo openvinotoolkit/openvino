@@ -138,35 +138,41 @@ KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params) 
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);
 
-    if ((mmad_operations_number >= 1024 * 1024 * 1024) || (tuning_data.size_m == 384 && tuning_data.size_k == 384 && tuning_data.size_n == 64))
+    if ((mmad_operations_number >= 1024 * 1024 * 1024) || (tuning_data.size_m == 384 && tuning_data.size_k == 384 && tuning_data.size_n == 64)) {
         return FORCE_PRIORITY_2;
-    else if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
+    } else if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64) {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    else
+    } else {
         return FORCE_PRIORITY_5;
+    }
 }
 
 bool GemmKernelMMADslmInt8::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     auto input0_type = gmm_params.inputs[0].GetDType();
     auto input1_type = gmm_params.inputs[1].GetDType();
 
-    if (gmm_params.transpose_input0 || gmm_params.transpose_input1)
+    if (gmm_params.transpose_input0 || gmm_params.transpose_input1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     GemmTuningData tuning_data = InitGemmTuningData(gmm_params);
-    if (HasLeftovers(tuning_data))
+    if (HasLeftovers(tuning_data)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size))
+    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if ((input0_type != Datatype::UINT8 && input0_type != Datatype::INT8) ||
-        (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8))
+        (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

@@ -40,8 +40,9 @@ namespace {
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
-    if (model.has_rt_info("runtime_options"))
+    if (model.has_rt_info("runtime_options")) {
         rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+    }
 
     if (model.has_rt_info("__weights_path")) {
         rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
@@ -62,19 +63,23 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op)||
         ov::is_type<ov::op::v15::STFT>(op) ||
         ov::is_type<ov::op::v16::ISTFT>(op) ||
-        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
+        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op)) {
         return true;
+    }
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
         return true;
+    }
 
-    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op)) {
         return true;
+    }
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
+        if (body_function->is_dynamic()) {
             return true;
+        }
     }
 
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
@@ -109,18 +114,21 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
+        if (op->get_output_partial_shape(i).is_dynamic()) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
+        if (op->get_output_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
+        if (op->get_input_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     return false;
@@ -250,12 +258,14 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
-        if (!ov::is_type<ov::op::v0::MatMul>(op))
+        if (!ov::is_type<ov::op::v0::MatMul>(op)) {
             return false;
+        }
         auto weight = op->get_input_node_shared_ptr(1);
         for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
-            if (ov::is_type<ov::op::v0::Constant>(weight))
+            if (ov::is_type<ov::op::v0::Constant>(weight)) {
                 break;
+            }
             weight = weight->get_input_node_shared_ptr(0);
         }
         if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
@@ -347,10 +357,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
-         if (info.supports_immad)
+         if (info.supports_immad) {
             m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
-         else
+         } else {
             m_dynamic_quantization_group_size = 32;
+         }
     }
 
     if (!get_force_implementations().empty()) {
@@ -394,10 +405,11 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
                 m_inference_precision = ov::element::dynamic;
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
-                if (info.supports_fp16)
+                if (info.supports_fp16) {
                     m_inference_precision = ov::element::f16;
-                else
+                } else {
                     m_inference_precision = ov::element::f32;
+                }
             }
         }
     }

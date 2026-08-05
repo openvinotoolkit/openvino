@@ -14,14 +14,15 @@
 namespace ov::intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
-    if (method == "bilinear")
+    if (method == "bilinear") {
         return cldnn::pooling_mode::bilinear;
-    else if (method == "max")
+    } else if (method == "max") {
         return cldnn::pooling_mode::max;
-    else if (method == "average")
+    } else if (method == "average") {
         return cldnn::pooling_mode::average;
-    else
+    } else {
         return cldnn::pooling_mode::deformable_bilinear;
+    }
 }
 
 static void CreateDeformablePSROIPoolingOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::DeformablePSROIPooling>& op) {

@@ -58,10 +58,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
 KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
-    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5)
+    if (p.outputs[0].X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5) {
         return FORCE_PRIORITY_2;
-    else
+    } else {
         return FORCE_PRIORITY_9;
+    }
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
@@ -70,8 +71,9 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p) const {
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
-    if ((params.inputs[0].X().v % 64) != 0u)
+    if ((params.inputs[0].X().v % 64) != 0u) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     bool bFilterSize = (params.filterSize.x == 5 && params.filterSize.y == 5) ||
                        (params.filterSize.x == 3 && params.filterSize.y == 3 && (params.inputs[0].Feature().v % 4) == 0) ||

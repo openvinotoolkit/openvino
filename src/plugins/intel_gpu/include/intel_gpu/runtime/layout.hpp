@@ -57,14 +57,17 @@ struct data_type_traits {
     }
 
     static ov::element::Type max_type(ov::element::Type t1, ov::element::Type t2) {
-        if (t1.bitwidth() < t2.bitwidth())
+        if (t1.bitwidth() < t2.bitwidth()) {
             return t2;
+        }
 
-        if (t1.bitwidth() > t2.bitwidth())
+        if (t1.bitwidth() > t2.bitwidth()) {
             return t1;
+        }
 
-        if (t2.is_real())
+        if (t2.is_real()) {
             return t2;
+        }
 
         return t1;
     }
@@ -190,8 +193,9 @@ struct padding {
 
     friend bool operator<(const padding& lhs, const padding& rhs) {
         // Compare only actual padding size not _dynamic_dims_mask
-        if (lhs._lower_size < rhs._lower_size) return true;
-        else if (lhs._lower_size > rhs._lower_size) return false;
+        if (lhs._lower_size < rhs._lower_size) { return true;
+        } else if (lhs._lower_size > rhs._lower_size) { return false;
+        }
         return lhs._upper_size < rhs._upper_size;
     }
 
@@ -220,8 +224,9 @@ struct padding {
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
-        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++) {
             sizes[i] = static_cast<ov::Dimension::value_type>(_dynamic_dims_mask[i]);
+        }
         ob << sizes;
     }
 
@@ -233,8 +238,9 @@ struct padding {
         std::copy_n(sizes.begin(), sizes.size(), _upper_size.begin());
         ib >> sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
-        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
+        for (size_t i = 0; i < _dynamic_dims_mask.size(); i++) {
             _dynamic_dims_mask[i] = static_cast<bool>(sizes[i]);
+        }
     }
 };
 
@@ -272,8 +278,9 @@ struct layout {
           format(cldnn::format::any) {}
 
     layout& operator=(const layout& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         data_type = other.data_type;
         format = other.format;
         data_padding = other.data_padding;
@@ -299,12 +306,15 @@ struct layout {
     }
 
     friend bool operator<(const layout& lhs, const layout& rhs) {
-        if (lhs.data_type != rhs.data_type)
+        if (lhs.data_type != rhs.data_type) {
             return (lhs.data_type < rhs.data_type);
-        if (lhs.format != rhs.format)
+        }
+        if (lhs.format != rhs.format) {
             return (lhs.format < rhs.format);
-        if (lhs.count() < rhs.count())
+        }
+        if (lhs.count() < rhs.count()) {
             return (lhs.count() < rhs.count());
+        }
         return (lhs.data_padding < rhs.data_padding);
     }
 
@@ -382,8 +392,9 @@ struct layout {
 
     bool has_upper_bound() const {
         for (const auto& dim : size) {
-            if (dim.get_max_length() == -1)
+            if (dim.get_max_length() == -1) {
                 return false;
+            }
         }
         return true;
     }
@@ -477,8 +488,9 @@ inline ::std::ostream& operator<<(::std::ostream& os, const std::vector<layout>&
     for (size_t i = 0; i < layouts.size(); i++) {
         ss << layouts[i].to_short_string();
 
-        if (i + 1 != layouts.size())
+        if (i + 1 != layouts.size()) {
             ss << ", ";
+        }
     }
     ss << "]";
 

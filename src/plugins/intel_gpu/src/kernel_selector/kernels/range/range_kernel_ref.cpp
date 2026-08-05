@@ -34,8 +34,9 @@ void RangeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsData RangeKernelRef::GetKernelsData(const Params &params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     KernelData kernel_data = KernelData::Default<range_params>(params);
     const auto& prim_params = static_cast<const range_params&>(params);
@@ -90,16 +91,20 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
 }
 
 bool RangeKernelRef::Validate(const Params &p) const {
-    if (p.GetType() != KernelType::RANGE)
+    if (p.GetType() != KernelType::RANGE) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto &params = dynamic_cast<const range_params&>(p);
-    if (params.inputs.size() != 3)
+    if (params.inputs.size() != 3) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    for (auto &input : params.inputs)
-        if (input.LogicalSize() != 1)
+    for (auto &input : params.inputs) {
+        if (input.LogicalSize() != 1) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
+    }
     return true;
 }
 

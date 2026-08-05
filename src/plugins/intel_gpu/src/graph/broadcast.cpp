@@ -31,8 +31,9 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
         std::transform(desc->target_shape.begin(), desc->target_shape.end(), dims_converted.begin(), [](size_t value) {
             return static_cast<tensor::value_type>(value);
         });
-        for (size_t i = dims_converted.size(); i < 4; i++)
+        for (size_t i = dims_converted.size(); i < 4; i++) {
             dims_converted.push_back(1);  // extend shape to 4d
+        }
 
         return { output_type,
                  input_layout.format,
@@ -135,16 +136,19 @@ void broadcast_inst::on_execute() {
 }
 
 void broadcast_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
@@ -159,8 +163,9 @@ void broadcast_inst::update_output_memory() {
 
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
     auto input_layout = node.get_input_layout();
-    if (input_layout.is_dynamic())
+    if (input_layout.is_dynamic()) {
         return;
+    }
     const auto& output_sizes = argument->broadcast_sizes;
 
     std::vector<tensor::value_type> input_dims = input_layout.get_dims();

@@ -45,8 +45,9 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
 
 KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::NORMALIZE);
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
@@ -80,16 +81,18 @@ bool NormalizeKernelBase::Validate(const Params& params) const {
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
     for (auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;
 }
 
 Datatype NormalizeKernelBase::GetActivationType(const normalize_params& params) const {
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
+    }
     return Datatype::F32;
 }
 }  // namespace kernel_selector

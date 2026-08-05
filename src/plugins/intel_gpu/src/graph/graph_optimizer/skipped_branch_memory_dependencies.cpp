@@ -19,17 +19,20 @@ void skipped_branch_memory_dependencies::run(program& p) {
     while (itrB != processing_order.end()) {
         auto& nodeB = *itrB;
         auto itrA = ++itrB;
-        if (!nodeB->may_use_mempool())
+        if (!nodeB->may_use_mempool()) {
             continue;
-        if (nodeB->get_users().empty())
+        }
+        if (nodeB->get_users().empty()) {
             continue;
+        }
 
         // find the last user of B in processing order
         auto itrUsr = nodeB->get_users().begin();
         auto lastUsr = itrUsr++;
         while (itrUsr != nodeB->get_users().end()) {
-            if (processing_order.get_processing_number(*lastUsr) < processing_order.get_processing_number(*itrUsr))
+            if (processing_order.get_processing_number(*lastUsr) < processing_order.get_processing_number(*itrUsr)) {
                 lastUsr = itrUsr;
+            }
             itrUsr++;
         }
 

@@ -24,18 +24,21 @@ struct GRUSeqImplementationManager : public ImplementationManager {
         return true;
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
         const auto& gru_seq_node = node.as<gru_seq>();
         const auto& in_layout = gru_seq_node.get_input_layout(0);
         const auto& out_layout = gru_seq_node.get_output_layout(0);
 
         if (node.get_input_layout(0).format != cldnn::format::bfyx && node.get_input_layout(0).format != cldnn::format::fbyx
-            && node.get_input_layout(0).format != cldnn::format::ybfx)
+            && node.get_input_layout(0).format != cldnn::format::ybfx) {
             return false;
+        }
 
-        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout)) {
             return false;
+        }
 
         auto in0_dt = node.get_input_layout(0).data_type;
         auto in1_dt = node.get_input_layout(1).data_type;

@@ -21,12 +21,14 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ConvolutionKernel_b_fs_yx_fsv_16_32
 
     for (auto simd : simd_sizes) {
         for (size_t tile_x = 1; tile_x <= 32; ++tile_x) {
-            if (simd * tile_x > max_block_size)
+            if (simd * tile_x > max_block_size) {
                 continue;
+            }
             for (size_t lws0 = 1; lws0 <= 32; ++lws0) {
                 for (size_t lws1 = 1; lws1 <= 32; ++lws1) {
-                    if (lws0 * lws1 * simd > max_lws_size)
+                    if (lws0 * lws1 * simd > max_lws_size) {
                         continue;
+                    }
                     for (auto exe_mode : exe_modes) {
                         all_tune_params.push_back(AutoTuneParams{ simd, tile_x, lws0, lws1, false, exe_mode });
                         all_tune_params.push_back(AutoTuneParams{ simd, tile_x, lws0, lws1, true, exe_mode });
@@ -76,23 +78,28 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::get_required_devi
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     auto conv_params = static_cast<const convolution_params&>(params);
 
-    if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout())
+    if (conv_params.inputs[0].GetLayout() != conv_params.outputs[0].GetLayout()) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (conv_params.inputs[0].Feature().is_dynamic || conv_params.outputs[0].Feature().is_dynamic)
+    if (conv_params.inputs[0].Feature().is_dynamic || conv_params.outputs[0].Feature().is_dynamic) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v)
+    if (conv_params.groups != conv_params.outputs[0].Feature().v || conv_params.groups != conv_params.inputs[0].Feature().v) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // Incorrect choose of TILE_X leads to accuracy issue
-    if (conv_params.outputs[0].X().is_dynamic)
+    if (conv_params.outputs[0].X().is_dynamic) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // For asymmetric data, kernel needs compensation optimization
     if (conv_params.compensation.empty() &&
@@ -105,10 +112,11 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::Validate(const Params& params)
 }
 
 WeightsLayout ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetPreferredWeightsLayout(const convolution_params& params) const {
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
         return WeightsLayout::gs_oi_yxs_gsv16_yxsv4;
-    else
+    } else {
         return WeightsLayout::gs_oi_yxs_gsv32_yxsv4;
+    }
 }
 
 ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::AutoTuneParams
@@ -170,10 +178,11 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
         size_t lws0 = 1;
         // First try to select optimal group size in y dimension as it provides most data reuse
         for (size_t c_lws1 = 4; c_lws1 <= 8; ++c_lws1) {
-            if (Pad(output.Y().v, c_lws1) < Pad(output.Y().v, lws1))
+            if (Pad(output.Y().v, c_lws1) < Pad(output.Y().v, lws1)) {
                 lws1 = c_lws1;
-            else if (Pad(output.Y().v, c_lws1) == Pad(output.Y().v, lws1) && c_lws1 % 2 == 0)
+            } else if (Pad(output.Y().v, c_lws1) == Pad(output.Y().v, lws1) && c_lws1 % 2 == 0) {
                 lws1 = c_lws1;
+            }
         }
         // For best hw utilization work-group size should be multiple of 2, so if y isn't force it in x
         if (lws1 % 2 != 0) {
@@ -199,11 +208,13 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetAutoTuneParams(const convolution
             }
         }
 
-        if (tile_selected && CeilDiv(output.X().v, tile_x) == 2)
+        if (tile_selected && CeilDiv(output.X().v, tile_x) == 2) {
             lws0 = 2;
+        }
 
-        if (tile_selected)
+        if (tile_selected) {
             try_to_select(16, tile_x, lws0, lws1, true, EXE_MODE_DEFAULT);
+        }
     }
 
     if (!selected) {
@@ -232,8 +243,9 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
                                                                          const AutoTuneParams& tparams) const {
     bool valid_tune_params = true;
 
-    if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd))
+    if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd)) {
         return false;
+    }
 
     auto total_lws = tparams.simd * tparams.lws0 * tparams.lws1;
     valid_tune_params &= total_lws <= params.engineInfo.maxWorkGroupSize;
@@ -396,8 +408,9 @@ KernelsData ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetTunedKernelsDataByIn
                                                                                     int autoTuneIndex) const {
     auto convParams = static_cast<const convolution_params&>(params);
     auto tuneParams = GetAutoTuneParams(convParams, autoTuneIndex);
-    if (!ValidateAutoTuneParams(convParams, tuneParams))
+    if (!ValidateAutoTuneParams(convParams, tuneParams)) {
         return {};
+    }
     return GetCommonKernelsData(params, tuneParams.exeMode, autoTuneIndex);
 }
 

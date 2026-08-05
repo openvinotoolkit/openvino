@@ -504,8 +504,9 @@ public:
     void prepare_xattn_metadata(primitive_inst& instance) {
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         OPENVINO_ASSERT(rt_params != nullptr);
-        if (!rt_params->enable_xattn_estimation || m_xattn_meta.empty())
+        if (!rt_params->enable_xattn_estimation || m_xattn_meta.empty()) {
             return;
+        }
 
         auto& stream = instance.get_network().get_stream();
         auto meta_mem = instance.get_intermediates_memories()[PagedAttentionInternBuffIdx::XATTN_SUBSEQ_META];
@@ -781,12 +782,14 @@ private:
 
         auto validate_input = [&](size_t idx, const char* name) {
             const auto it = input_mem.find(idx);
-            if (it == input_mem.end() || it->second == nullptr)
+            if (it == input_mem.end() || it->second == nullptr) {
                 OPENVINO_THROW("XAttention ", name, " input is required at index ", idx);
+            }
 
             const auto input_size = it->second->count();
-            if (input_size != 1 && input_size != batch_size)
+            if (input_size != 1 && input_size != batch_size) {
                 OPENVINO_THROW("XAttention ", name, " input size (", input_size, ") must be 1 or equal to batch size (", batch_size, ")");
+            }
         };
 
         validate_input(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE, "block size");

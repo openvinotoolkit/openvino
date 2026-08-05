@@ -20,8 +20,9 @@ constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
     for (size_t d : {16, 8, 4, 2}) {
-        if (input_size % d == 0)
+        if (input_size % d == 0) {
             return d;
+        }
     }
 
     return 1; // Fallback: Any integer divides evenly by 1
@@ -68,8 +69,9 @@ size_t GetTileWidth(const permute_params& params) {
     if ((input_type == Datatype::INT64) || (output_type == Datatype::INT64)) {
         size_t halved = min_divisor >= 4 ? min_divisor / 2 : min_divisor;
         const auto& supported = params.engineInfo.supportedSimdSizes;
-        if (std::any_of(supported.begin(), supported.end(), [halved](size_t s) { return s == halved; }) || supported.empty())
+        if (std::any_of(supported.begin(), supported.end(), [halved](size_t s) { return s == halved; }) || supported.empty()) {
             min_divisor = halved;
+        }
     }
     if (input_type == Datatype::F16) {
         min_divisor = min_divisor * 2;

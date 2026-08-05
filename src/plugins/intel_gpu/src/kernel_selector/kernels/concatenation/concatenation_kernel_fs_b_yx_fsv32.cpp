@@ -38,8 +38,9 @@ bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p) const {
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
-    if (params.axis != ConcatAxis::FEATURE)
+    if (params.axis != ConcatAxis::FEATURE) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // all inputs have to have same layout
     auto same_layout = params.inputs[0].GetLayout();

@@ -36,16 +36,18 @@ static void CreateOneHotOpGeneric(ProgramBuilder& p, const std::shared_ptr<ov::o
 
     auto dims = op->get_input_partial_shape(0);
 
-    if (axis < -1 || axis > static_cast<int16_t>(dims.size()))
+    if (axis < -1 || axis > static_cast<int16_t>(dims.size())) {
         OPENVINO_THROW(op->get_friendly_name(), " Incorrect OneHot axis value: ", axis, ". Should be between -1 and ", dims.size());
+    }
 
     if (axis == -1) {
         axis = dims.size();
         for (int i = static_cast<int>(dims.size() - 1); i >= 0; i--) {
-            if (dims[i] == 1)
+            if (dims[i] == 1) {
                 axis--;
-            else
+            } else {
                 break;
+            }
         }
     }
 

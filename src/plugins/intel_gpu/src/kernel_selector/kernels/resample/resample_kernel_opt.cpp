@@ -12,9 +12,11 @@ static constexpr size_t sub_group_size = 16;
 
 size_t ResampleKernelOpt::GetOptimalBlockSize(const resample_params& params) const {
     std::vector<size_t> block_width = { 16, 8, 4, 2, 1 };
-    for (auto& w : block_width)
-        if (params.outputs[0].X().v % w == 0)
+    for (auto& w : block_width) {
+        if (params.outputs[0].X().v % w == 0) {
             return w;
+        }
+    }
     return 1;
 }
 
@@ -148,19 +150,22 @@ KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/) 
 
 bool ResampleKernelOpt::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& input = params.inputs[0];
 
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::BILINEAR_INTERP)
+        params.resampleType != ResampleType::BILINEAR_INTERP) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // in the case of 5D support only NEAREST_NEIGHBOR
-    if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR)
+    if (input.Dimentions() == 5 && params.resampleType != ResampleType::NEAREST_NEIGHBOR) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -184,10 +189,11 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     if (!params.fused_ops.empty()) {
         if (params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP) {
             std::vector<std::string> idx_order;
-            if (params.inputs[0].Dimentions() == 5)
+            if (params.inputs[0].Dimentions() == 5) {
                 idx_order = {"b", "feature_block", "z", "y", "(x + out_x)"};
-            else
+            } else {
                 idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+            }
             FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
             conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));

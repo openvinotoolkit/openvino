@@ -31,20 +31,23 @@ int32_t CumSumKernelBase::GetCumSumAxisIndex(const cum_sum_params& params) const
 
 size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
     size_t index = params.outputs[0].Dimentions() - GetCumSumAxisIndex(params) - 1;
-    if (params.outputs[0].Dimentions() == 6)
+    if (params.outputs[0].Dimentions() == 6) {
         return index;
-    else if (params.outputs[0].Dimentions() == 5)
+    } else if (params.outputs[0].Dimentions() == 5) {
         return (index > 1) ? index + 1 : index;
+    }
     return (index > 1) ? index + 2 : index;
 }
 
 JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, DispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    if (params.exclusive)
+    if (params.exclusive) {
         jit.AddConstant(MakeJitConstant("EXCLUSIVE", 1));
-    if (params.reverse)
+    }
+    if (params.reverse) {
         jit.AddConstant(MakeJitConstant("REVERSE", 1));
+    }
     jit.AddConstant(MakeJitConstant("AXIS", GetRealAxisIndex(params)));
 
     return jit;
@@ -109,19 +112,22 @@ bool CumSumKernelBase::Validate(const Params& p) const {
     }
 
     auto& params = static_cast<const cum_sum_params&>(p);
-    if (GetCumSumAxisIndex(params) == -1)
+    if (GetCumSumAxisIndex(params) == -1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (params.inputs.size() > 1 && params.inputs[1].GetDType() != Datatype::INT32 &&
-        params.inputs[1].GetDType() != Datatype::UINT32)
+        params.inputs[1].GetDType() != Datatype::UINT32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
 
 Datatype CumSumKernelBase::GetActivationType(const cum_sum_params& params) const {
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
+    }
     return Datatype::F32;
 }
 }  // namespace kernel_selector

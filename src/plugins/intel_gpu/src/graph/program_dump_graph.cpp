@@ -296,21 +296,24 @@ void dump_graph_init(std::ofstream& graph,
                 ++it;
             }
 
-            if (it == user->get_dependencies().end())
+            if (it == user->get_dependencies().end()) {
                 doubled = false;
+            }
             graph << "    " << get_node_id(node) << " -> " << get_node_id(user)
                   << " [label=\"" << it->second << " -> " << std::distance(user->get_dependencies().begin(), it) << "\"]";
 
 
             bool data_flow = node->is_in_data_flow() && user->is_in_data_flow();
             if (data_flow) {
-                if (doubled)
+                if (doubled) {
                     graph << " [color=red]";
-                else
+                } else {
                     graph << " [color=red, style=dashed, label=\"usr\"]";
+                }
             } else {
-                if (!doubled)
+                if (!doubled) {
                     graph << " [style=dashed, label=\"usr\"]";
+                }
             }
             graph << ";\n";
         }
@@ -329,8 +332,9 @@ void dump_graph_init(std::ofstream& graph,
 }
 
 void dump_graph_processing_order(std::ofstream& graph, const program& program) {
-    for (auto node : program.get_processing_order())
+    for (auto node : program.get_processing_order()) {
         graph << reinterpret_cast<uintptr_t>(node) << " (" << node->id() << ")\n";
+    }
     graph << '\n';
     close_stream(graph);
 }

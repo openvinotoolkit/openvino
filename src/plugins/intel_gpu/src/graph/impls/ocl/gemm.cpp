@@ -98,8 +98,9 @@ protected:
             kernel_offset += _kernels_data[s].kernels.size();
         }
         for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
-            if (_kernels_data[stage].kernels[kd_idx].skip_execution)
+            if (_kernels_data[stage].kernels[kd_idx].skip_execution) {
                 continue;
+            }
 
             size_t idx_final = kernel_offset + kd_idx;
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
@@ -135,19 +136,22 @@ protected:
 
     bool need_indirect_load(const gemm_inst& inst) const {
         auto desc = inst.get_typed_desc<gemm>();
-        if (!desc->indirect_a && !desc->indirect_b)
+        if (!desc->indirect_a && !desc->indirect_b) {
             return false;
+        }
 
         const auto& params = *inst.get_impl_params();
         const auto indirect_axis = desc->indirect_axis;
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1) {
             return false;
+        }
 
         const auto& deps = inst.dependencies();
 
         const auto& indirect_dep = deps[desc->indirect_a ? 0 : 1].first;
-        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr)
+        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr) {
             return true;
+        }
 
         auto state_layout = indirect_dep->get_impl_params()->get_input_layout(0);
         bool is_prefill = state_layout.count() == 0;
@@ -253,8 +257,9 @@ public:
         }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (auto& input : impl_param.input_layouts) {
             is_quantized &= data_type_traits::is_quantized(input.data_type);
+        }
 
         if (is_quantized) {
             params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
@@ -266,12 +271,14 @@ public:
         if ((primitive->indirect_a || primitive->indirect_b) && !indirect) {
             // Need to adjust regular gemm kernel offset to skip beam table input
             for (auto& fd : params.fused_ops) {
-                if (!fd.has_outer_dep())
+                if (!fd.has_outer_dep()) {
                     continue;
+                }
                 auto& fused_op_inputs = fd.tensors;
                 for (auto& fused_input : fused_op_inputs) {
-                    if (fused_input.is_dynamic())
+                    if (fused_input.is_dynamic()) {
                         fused_input.SetDynamicShapeOffset(fused_input.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
+                    }
                 }
             }
             for (auto& out : params.outputs) {

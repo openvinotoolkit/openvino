@@ -218,12 +218,14 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
         };
 
         std::shared_ptr<ov::Node> k_5d;
-        if (pattern_map.count(pre_reshape_b_m)) k_5d = pattern_map.at(pre_reshape_b_m).get_node_shared_ptr();
-        else if (pattern_map.count(unsqueeze_b_m)) k_5d = pattern_map.at(unsqueeze_b_m).get_node_shared_ptr();
+        if (pattern_map.count(pre_reshape_b_m)) { k_5d = pattern_map.at(pre_reshape_b_m).get_node_shared_ptr();
+        } else if (pattern_map.count(unsqueeze_b_m)) { k_5d = pattern_map.at(unsqueeze_b_m).get_node_shared_ptr();
+        }
 
         std::shared_ptr<ov::Node> v_5d;
-        if (pattern_map.count(pre_reshape_c_m)) v_5d = pattern_map.at(pre_reshape_c_m).get_node_shared_ptr();
-        else if (pattern_map.count(unsqueeze_c_m)) v_5d = pattern_map.at(unsqueeze_c_m).get_node_shared_ptr();
+        if (pattern_map.count(pre_reshape_c_m)) { v_5d = pattern_map.at(pre_reshape_c_m).get_node_shared_ptr();
+        } else if (pattern_map.count(unsqueeze_c_m)) { v_5d = pattern_map.at(unsqueeze_c_m).get_node_shared_ptr();
+        }
 
         auto k_bc = pattern_map.at(broadcast_b_m).get_node_shared_ptr();
         auto v_bc = pattern_map.at(broadcast_c_m).get_node_shared_ptr();

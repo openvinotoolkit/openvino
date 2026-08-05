@@ -215,23 +215,30 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     float out_lo_val = get_data_output_low(0);
     float out_hi_val = get_data_output_high(0);
     for (size_t i = 0; i < scales_layout.count(); i++) {
-        if (in_scale_val != get_data_input_scale(i))
+        if (in_scale_val != get_data_input_scale(i)) {
             per_tensor_in_scale = false;
-        if (in_shift_val != get_data_input_shift(i))
+        }
+        if (in_shift_val != get_data_input_shift(i)) {
             per_tensor_in_shift = false;
-        if (out_scale_val != get_data_output_scale(i))
+        }
+        if (out_scale_val != get_data_output_scale(i)) {
             per_tensor_out_scale = false;
-        if (out_shift_val != get_data_output_shift(i))
+        }
+        if (out_shift_val != get_data_output_shift(i)) {
             per_tensor_out_shift = false;
-        if (get_data_input_shift(i) != 0.0f)
+        }
+        if (get_data_input_shift(i) != 0.0f) {
             need_pre_shift = true;
+        }
 
         if (in_lo_val != get_data_input_low(i % mem_input_low->get_layout().count()) ||
-            in_hi_val != get_data_input_high(i % mem_input_high->get_layout().count()))
+            in_hi_val != get_data_input_high(i % mem_input_high->get_layout().count())) {
             per_tensor_in_range = false;
+        }
         if (out_lo_val != get_data_output_low(i % mem_output_low->get_layout().count()) ||
-            out_hi_val != get_data_output_high(i % mem_output_high->get_layout().count()))
+            out_hi_val != get_data_output_high(i % mem_output_high->get_layout().count())) {
             per_tensor_out_range = false;
+        }
     }
 
     auto out_is_int8 = quantize_node.get_output_layout().data_type == data_types::i8;
@@ -243,10 +250,12 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     // Check that we can optimize clamp operation for int8 data using saturation clamp only
     if (per_tensor_out_range && !out_is_fp && levels != 256) {
-        if ((out_is_int8 && out_lo_val == -128.f) || (out_is_uint8 && out_lo_val == 0.f))
+        if ((out_is_int8 && out_lo_val == -128.f) || (out_is_uint8 && out_lo_val == 0.f)) {
             need_min_clamp = false;
-        if ((out_is_int8 && out_hi_val == 127.f) || (out_is_uint8 && out_hi_val == 255.f))
+        }
+        if ((out_is_int8 && out_hi_val == 127.f) || (out_is_uint8 && out_hi_val == 255.f)) {
             need_max_clamp = false;
+        }
     }
 
     if (has_negative_scales) {
@@ -323,8 +332,9 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 }
 
 void prepare_quantization::handle_quantize_node(program& p, quantize_node& quantize_node) {
-    if (optimize_quantize(p, quantize_node))
+    if (optimize_quantize(p, quantize_node)) {
         return;
+    }
 
     auto l = quantize_node.get_primitive()->levels;
     if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt()) {
@@ -346,22 +356,26 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
     };
 
     const auto& eltw_mode = eltwise_node.get_primitive()->mode;
-    if (eltw_mode != eltwise_mode::sum && eltw_mode != eltwise_mode::prod)
+    if (eltw_mode != eltwise_mode::sum && eltw_mode != eltwise_mode::prod) {
         return;
+    }
 
     auto& input = eltwise_node.input();
     const auto& stream = p.get_stream();
 
     for (auto& user : input.get_users()) {
-        if (user == &eltwise_node)
+        if (user == &eltwise_node) {
             continue;
+        }
 
-        if (!user->is_type<eltwise>() || user->get_dependencies().size() != eltwise_node.get_dependencies().size())
+        if (!user->is_type<eltwise>() || user->get_dependencies().size() != eltwise_node.get_dependencies().size()) {
             continue;
+        }
 
         auto& eltwise_dep = user->as<eltwise>();
-        if (eltwise_dep.get_primitive()->mode != eltwise_node.get_primitive()->mode)
+        if (eltwise_dep.get_primitive()->mode != eltwise_node.get_primitive()->mode) {
             continue;
+        }
 
         bool valid_scale_node = true;
         for (size_t i = 1; i < eltwise_dep.get_dependencies().size(); i++) {
@@ -370,8 +384,9 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
             }
         }
 
-        if (!valid_scale_node)
+        if (!valid_scale_node) {
             continue;
+        }
 
         bool same_params = true;
         for (size_t i = 1; i < eltwise_node.get_dependencies().size(); i++) {
@@ -424,8 +439,9 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
         dep.get_output_layout().data_type != data_types::u8 ||
         (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
-        dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
+        dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor()) {
         return;
+    }
 
     p.replace_all_usages(reorder_node, dep);
     p.add_optimized_primitive_info(reorder_node.id());
@@ -439,12 +455,14 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     auto& input = quantize_node.get_dependency(0);
     auto parallel_quantizes_num = 0;
     for (auto& usr : input.get_users()) {
-        if (usr->is_type<quantize>())
+        if (usr->is_type<quantize>()) {
             parallel_quantizes_num++;
+        }
     }
 
-    if (parallel_quantizes_num < 2)
+    if (parallel_quantizes_num < 2) {
         return false;
+    }
 
     auto quantize_prim_first = quantize_node.get_primitive();
 
@@ -470,8 +488,9 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
     program_node* same_quantize = nullptr;
     for (auto& usr : input.get_users()) {
-        if (!usr->is_type<quantize>() || usr == &quantize_node)
+        if (!usr->is_type<quantize>() || usr == &quantize_node) {
             continue;
+        }
 
         auto quantize_prim_second = usr->as<quantize>().get_primitive();
 
@@ -481,8 +500,9 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
         program_node &output_high_node_second = usr->get_dependency(4);
 
         if (!input_low_node_second.is_type<data>() || !input_high_node_second.is_type<data>() ||
-            !output_low_node_second.is_type<data>() || !output_high_node_second.is_type<data>())
+            !output_low_node_second.is_type<data>() || !output_high_node_second.is_type<data>()) {
             continue;
+        }
 
         auto mem_input_low_second = input_low_node_second.as<data>().get_attached_memory_ptr();
         auto mem_input_high_second = input_high_node_second.as<data>().get_attached_memory_ptr();
@@ -495,25 +515,29 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
         mem_lock<uint8_t, mem_lock_type::read> mem_output_high_lock_second{mem_output_high_second, stream};
 
         if (mem_input_low_first->count() != mem_input_low_second->count() || mem_input_high_first->count() != mem_input_high_second->count() ||
-            mem_output_low_first->count() != mem_output_low_second->count() || mem_output_high_first->count() != mem_output_high_second->count())
+            mem_output_low_first->count() != mem_output_low_second->count() || mem_output_high_first->count() != mem_output_high_second->count()) {
             continue;
+        }
 
         if (memcmp(mem_input_low_lock_first.data(), mem_input_low_lock_second.data(), mem_input_low_first->size()) != 0 ||
             memcmp(mem_input_high_lock_first.data(), mem_input_high_lock_second.data(), mem_input_high_first->size()) != 0 ||
             memcmp(mem_output_low_lock_first.data(), mem_output_low_lock_second.data(), mem_output_low_first->size()) != 0 ||
-            memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0)
+            memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0) {
             continue;
+        }
 
         if (quantize_prim_first->output_data_types[0] != quantize_prim_second->output_data_types[0] ||
-            quantize_prim_first->levels != quantize_prim_second->levels)
+            quantize_prim_first->levels != quantize_prim_second->levels) {
             continue;
+        }
 
         same_quantize = usr;
         break;
     }
 
-    if (!same_quantize)
+    if (!same_quantize) {
         return false;
+    }
 
     while (!quantize_node.get_dependencies().empty()) {
         auto& dep = quantize_node.get_dependency(0);
@@ -529,8 +553,9 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
 static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
     auto fc_prim = fc_node.get_primitive();
-    if (!fc_prim->compressed_weights)
+    if (!fc_prim->compressed_weights) {
         return;
+    }
 
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
@@ -569,8 +594,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     }
 
     cldnn::format format = format::fbyx;
-    if (weight_rank == 3)
+    if (weight_rank == 3) {
       format = format::byfx;
+    }
 
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     if (need_reorder(decompression_scale_idx, weight_rank)) {
@@ -588,23 +614,29 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 // Reorder per-group scales/zp to byfx so physical layout is [E, G, N, 1] (N innermost for SIMD reads).
 // Mirrors optimize_weights_decompression_parameters for FullyConnected.
 static void reorder_decompression_param_to_byfx(program_node& node, size_t dep_id, program& p) {
-    if (dep_id >= node.get_dependencies().size())
+    if (dep_id >= node.get_dependencies().size()) {
         return;
+    }
     auto& dep = node.get_dependency(dep_id);
     const auto dep_layout = dep.get_output_layout();
     const auto dep_pshape = dep_layout.get_partial_shape();
-    if (dep_pshape.rank().is_dynamic())
+    if (dep_pshape.rank().is_dynamic()) {
         return;
+    }
     const auto rank = dep_pshape.size();
     // Groups at index 2; rank-4 trailing dim must be 1 for the bfyx→byfx swap.
-    if (rank != 3 && rank != 4)
+    if (rank != 3 && rank != 4) {
         return;
-    if (dep_pshape[2].is_dynamic() || dep_pshape[2].get_length() <= 1)
+    }
+    if (dep_pshape[2].is_dynamic() || dep_pshape[2].get_length() <= 1) {
         return;
-    if (rank == 4 && (dep_pshape[3].is_dynamic() || dep_pshape[3].get_length() != 1))
+    }
+    if (rank == 4 && (dep_pshape[3].is_dynamic() || dep_pshape[3].get_length() != 1)) {
         return;
-    if (dep_layout.format == cldnn::format::byfx)
+    }
+    if (dep_layout.format == cldnn::format::byfx) {
         return;
+    }
 
     auto target_layout = dep_layout;
     target_layout.format = cldnn::format::byfx;
@@ -617,8 +649,9 @@ static void reorder_decompression_param_to_byfx(program_node& node, size_t dep_i
 static void optimize_gather_matmul_decompression_parameters(gather_matmul_node& node, program& p) {
     auto prim = node.get_primitive();
     reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_SCALE, p);
-    if (prim->has_zp)
+    if (prim->has_zp) {
         reorder_decompression_param_to_byfx(node, gather_matmul::WEIGHT_ZP, p);
+    }
 }
 
 static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, program& p) {
@@ -627,11 +660,13 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
     const size_t scale_idx = prim->has_bias ? static_cast<size_t>(moe_gemm::WEIGHT_SCALE)
                                             : static_cast<size_t>(moe_gemm::WEIGHT_SCALE) - 1;
     const size_t zp_idx = scale_idx + 1;
-    if (scale_idx >= node.get_dependencies().size())
+    if (scale_idx >= node.get_dependencies().size()) {
         return;
+    }
     reorder_decompression_param_to_byfx(node, scale_idx, p);
-    if (zp_idx < node.get_dependencies().size())
+    if (zp_idx < node.get_dependencies().size()) {
         reorder_decompression_param_to_byfx(node, zp_idx, p);
+    }
 }
 
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
@@ -650,8 +685,9 @@ static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, pr
     };
     for (size_t idx : routed_scale_indices) {
         reorder_decompression_param_to_byfx(node, idx, p);
-        if (cfg.has_zp)
+        if (cfg.has_zp) {
             reorder_decompression_param_to_byfx(node, idx + 1, p);
+        }
     }
     if (cfg.num_shared_expert > 0) {
         constexpr std::array<size_t, 3> shared_scale_indices{
@@ -661,8 +697,9 @@ static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, pr
         };
         for (size_t idx : shared_scale_indices) {
             reorder_decompression_param_to_byfx(node, idx, p);
-            if (cfg.has_zp)
+            if (cfg.has_zp) {
                 reorder_decompression_param_to_byfx(node, idx + 1, p);
+            }
         }
     }
 }

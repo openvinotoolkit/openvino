@@ -44,8 +44,9 @@ static size_t packing_factor(const resample_params& params) {
     bool in_out_8bit = (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
                        (params.outputs[0].GetDType() == Datatype::UINT8 || params.outputs[0].GetDType() == Datatype::INT8);
 
-    if (!in_out_8bit)
+    if (!in_out_8bit) {
         return 1;
+    }
 
     auto get_layout_packing_factor = [](const DataLayout& layout) -> size_t {
         switch (layout) {
@@ -63,21 +64,25 @@ static size_t packing_factor(const resample_params& params) {
     size_t input_factor = get_layout_packing_factor(params.inputs[0].GetLayout());
     size_t output_factor = get_layout_packing_factor(params.outputs[0].GetLayout());
 
-    if (input_factor % output_factor == 0 || output_factor % input_factor == 0)
+    if (input_factor % output_factor == 0 || output_factor % input_factor == 0) {
         return std::min(input_factor, output_factor);
+    }
     return 1;
 }
 
 static bool use_packing(const resample_params& params) {
-    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR)
+    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR) {
         return false;
+    }
 
     auto pack = packing_factor(params);
-    if (pack == 1)
+    if (pack == 1) {
         return false;
+    }
 
-    if (params.inputs[0].Feature().pad.before % pack != 0 || params.outputs[0].Feature().pad.before % pack != 0)
+    if (params.inputs[0].Feature().pad.before % pack != 0 || params.outputs[0].Feature().pad.before % pack != 0) {
         return false;
+    }
 
     auto packed_work_items = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v
         * CeilDiv(params.outputs[0].Feature().v, pack) * params.outputs[0].Batch().v;

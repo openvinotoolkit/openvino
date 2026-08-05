@@ -126,13 +126,15 @@ KernelsPriority ResampleKernelOnnx::GetKernelsPriority(const Params& /*params*/)
 bool ResampleKernelOnnx::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
 
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
-    if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v)
+    if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -159,17 +161,19 @@ JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) 
     size_t vec_size = get_vec_size(params);
     jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16 * vec_size));
 
-    if (IsThreeSpatialResample(params))
+    if (IsThreeSpatialResample(params)) {
         jit.AddConstant(MakeJitConstant("THREE_SPATIAL_RESAMPLE", ""));
+    }
 
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        if (params.inputs[0].Dimentions() == 5)
+        if (params.inputs[0].Dimentions() == 5) {
             idx_order = {"b", "feature_block", "z", "y", "(x + out_x)"};
-        else
+        } else {
             idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+        }
         FusedOpsConfiguration conf =
             {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
         conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);

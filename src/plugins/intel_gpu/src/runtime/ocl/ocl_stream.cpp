@@ -50,16 +50,18 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
 
 
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
-    if (size == 0)
+    if (size == 0) {
         return CL_INVALID_ARG_VALUE;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
     return kernel.setArg(idx, size, nullptr);
 }
 
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
-    if (!mem)
+    if (!mem) {
         return CL_INVALID_ARG_VALUE;
+    }
 
     if (mem->get_layout().format.is_image_2d()) {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_image2d>(mem)->get_buffer();
@@ -363,8 +365,9 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 }
 
 event::ptr ocl_stream::group_events(std::vector<event::ptr> const& deps) {
-    if (deps.size() == 1)
+    if (deps.size() == 1) {
         return deps[0];
+    }
     return std::make_shared<ocl_events>(deps);
 }
 
@@ -409,14 +412,16 @@ void ocl_stream::wait() {
 }
 
 void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
-    if (events.empty())
+    if (events.empty()) {
         return;
+    }
 
     bool needs_barrier = false;
     std::vector<cl_event> clevents;
     for (auto& ev : events) {
-        if (!ev)
+        if (!ev) {
             continue;
+        }
 
         if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
             if (ocl_base_ev->get().get() != nullptr) {
@@ -456,10 +461,11 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
 
     if (needs_barrier) {
         try {
-            if (is_output)
+            if (is_output) {
                 _command_queue.enqueueBarrierWithWaitList(nullptr, &_last_barrier_ev);
-            else
+            } else {
                 _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+            }
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }

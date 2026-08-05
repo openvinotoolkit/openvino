@@ -18,10 +18,11 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     std::vector<size_t> get_shape_infer_dependencies() const override {
-        if (this->get_dependencies().size() == 3)
+        if (this->get_dependencies().size() == 3) {
             return {1, 2};
-        else
+        } else {
             return {1};
+        }
     }
 };
 

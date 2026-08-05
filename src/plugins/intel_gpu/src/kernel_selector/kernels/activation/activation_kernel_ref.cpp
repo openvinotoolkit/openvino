@@ -59,10 +59,12 @@ KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/
 }
 
 bool ActivationKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
+    if (!Parent::Validate(p)) { DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
     const auto& params = static_cast<const activation_params&>(p);
-    if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
+    if (params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

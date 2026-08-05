@@ -37,21 +37,23 @@ DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) const {
-    if (params.outputs[0].X().v > 4)
+    if (params.outputs[0].X().v > 4) {
         return 8;
-    else if (params.outputs[0].X().v > 1)
+    } else if (params.outputs[0].X().v > 1) {
         return 2;
-    else
+    } else {
         return 1;
+    }
 }
 
 size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
     auto& out = params.outputs[0];
     // Use smaller simd size in case of global pooling and small channels count to have more threads
-    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 && IsSIMDSizeSupported(params.engineInfo, 8))
+    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64 && IsSIMDSizeSupported(params.engineInfo, 8)) {
         return 8;
-    else
+    } else {
         return 16;
+    }
 }
 
 PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const pooling_params& params) const {
@@ -151,8 +153,9 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

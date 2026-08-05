@@ -30,8 +30,9 @@ size_t PickTileSize(const permute_params& params) {
 
     const auto pick_tile = [x, y](const auto& candidates) -> size_t {
         for (const auto t : candidates) {
-            if ((x % t) == 0 && (y % t) == 0)
+            if ((x % t) == 0 && (y % t) == 0) {
                 return t;
+            }
         }
         return 0;  // no tile size applies
     };
@@ -43,8 +44,9 @@ size_t PickTileSize(const permute_params& params) {
 bool IsXYSwapOrder(const std::vector<uint16_t>& order) {
     // 4D only, last two dims swapped, others identity.
     // cldnn order produced from IE {0,1,3,2} is also {0,1,3,2} for 4D inputs.
-    if (order.size() != 4)
+    if (order.size() != 4) {
         return false;
+    }
     return order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 2;
 }
 

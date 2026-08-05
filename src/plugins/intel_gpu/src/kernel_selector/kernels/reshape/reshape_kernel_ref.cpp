@@ -48,10 +48,12 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params) const {
     size_t gws2 = 1;
     const auto& in_dims = in.GetDims();
 
-    if (!in_dims.empty())
+    if (!in_dims.empty()) {
         gws0 = in_dims[0].v;
-    if (in_dims.size() >= 2)
+    }
+    if (in_dims.size() >= 2) {
         gws1 = in_dims[1].v;
+    }
     for (size_t i = 2; i < in_dims.size(); ++i) {
         gws2 *= in_dims[i].v;
     }
@@ -69,8 +71,9 @@ KernelsPriority ReshapeKernelRef::GetKernelsPriority(const Params& /*params*/) c
 }
 
 bool ReshapeKernelRef::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p))
+    if (!KernelBaseOpenCL::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& rp = static_cast<const reshape_params&>(p);
 

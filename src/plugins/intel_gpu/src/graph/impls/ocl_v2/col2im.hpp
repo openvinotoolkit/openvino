@@ -40,13 +40,15 @@ struct Col2Im : public ImplementationManager {
         }
 
         for (auto& input : node.get_input_layouts()) {
-            if (input.data_padding)
+            if (input.data_padding) {
                 return false;
+            }
         }
 
         for (auto& output : node.get_output_layouts()) {
-            if (output.data_padding)
+            if (output.data_padding) {
                 return false;
+            }
         }
 
         return true;

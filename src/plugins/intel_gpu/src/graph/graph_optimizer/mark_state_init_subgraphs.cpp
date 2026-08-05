@@ -12,23 +12,27 @@ using namespace cldnn;
 
 void mark_state_init_subgraphs::mark_init_subgraph(program& p, read_value_node& node) {
     const auto& variable_id = node.get_primitive()->variable_id;
-    if (p.contains_state(variable_id))
+    if (p.contains_state(variable_id)) {
         return;
+    }
 
     std::queue<program_node*> q;
     q.push(&node);
 
     auto can_be_marked = [&](const program_node* dep_node) {
-        if (p.has_state_initializers(variable_id, dep_node->id()))
+        if (p.has_state_initializers(variable_id, dep_node->id())) {
             return false;
+        }
 
         for (auto& u : dep_node->get_users()) {
-            if (u == &node)
+            if (u == &node) {
                 continue;
-            if (p.has_state_initializers(variable_id, u->id()))
+            }
+            if (p.has_state_initializers(variable_id, u->id())) {
                 continue;
-            else
+            } else {
                 return false;
+            }
         }
         GPU_DEBUG_TRACE_DETAIL << "marked " << dep_node->id() << " as node in a init_subgraph for " << node.id() << std::endl;
         return true;

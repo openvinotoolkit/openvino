@@ -25,8 +25,9 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
     bool use_onednn = false;
     for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
         const auto& input = node.get_dependency(idx);
-        if (!input.is_in_data_flow() || input.is_constant())
+        if (!input.is_in_data_flow() || input.is_constant()) {
             continue;
+        }
         if (input.get_output_layout().data_padding) {
             has_paddings = true;
             break;
@@ -49,8 +50,9 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
             auto node_and_port = node.get_dependency_with_port(idx);
             auto& input = *node_and_port.first;
             auto port = node_and_port.second;
-            if (!input.is_in_data_flow() || input.is_constant())
+            if (!input.is_in_data_flow() || input.is_constant()) {
                 continue;
+            }
 
             auto& in_layout = input.get_output_layout(false, port);
             auto& in_padding = in_layout.data_padding;
@@ -113,8 +115,9 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     reorder_layout.format = usr->get_output_layout().format;
     reorder_layout.data_type = usr->get_output_layout().data_type;
 
-    if (keep_original_dt)
+    if (keep_original_dt) {
         reorder_layout.data_type = node->get_output_layout().data_type;
+    }
 
     // dep index in reorder id distinguishes multi-port edges; otherwise add_intermediate fails on the second pass.
     auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
@@ -151,8 +154,9 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 
         auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
 
-        if (dep->is_constant() || format::is_weights_format(current_format))
+        if (dep->is_constant() || format::is_weights_format(current_format)) {
             continue;
+        }
 
         if (dep->is_type<reorder>()) {
             auto& port = dep_with_port.second;
@@ -172,10 +176,12 @@ void add_required_reorders::run(program& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
-        if (usr->get_dependencies().empty())
+        if (usr->get_dependencies().empty()) {
             continue;  // only nodes with dependencies
-        if (usr->is_type<data>())
+        }
+        if (usr->is_type<data>()) {
             continue;
+        }
 
         if (!usr->is_all_valid_output_layouts()) {
             usr->recalc_output_layouts(false);
@@ -200,8 +206,9 @@ void add_required_reorders::run(program& p) {
             for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
                 auto& eltwise_node = usr->as<eltwise>();
                 auto& dep = usr->get_dependency(i);
-                if (!dep.is_in_data_flow() || dep.is_constant())
+                if (!dep.is_in_data_flow() || dep.is_constant()) {
                     continue;
+                }
                 auto dep_layout = dep.get_output_layout();
                 auto out_layout = usr->get_output_layout();
                 bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
@@ -229,15 +236,18 @@ void add_required_reorders::run(program& p) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
                 // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
                 // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
-                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2))
+                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2)) {
                     continue;
+                }
 
-                if (!fused_op.has_outer_dep())
+                if (!fused_op.has_outer_dep()) {
                     continue;
+                }
                 auto dep_id = fused_op.outer_dep_start_idx;
                 auto& dep = usr->get_dependency(dep_id);
-                if (!dep.is_type<data>())
+                if (!dep.is_type<data>()) {
                     continue;
+                }
 
                 auto dep_layout = dep.get_output_layout();
 
@@ -275,8 +285,9 @@ void add_required_reorders::run(program& p) {
 
         eliminate_pad_for_onednn_impl(p, *usr);
 
-        if (usr->type()->has_impl_for(*usr))
+        if (usr->type()->has_impl_for(*usr)) {
             continue;
+        }
 
         bool correct_layout_selected = false;
         bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() || usr->is_type<fully_connected>() || usr->is_type<gated_mlp>());
@@ -306,8 +317,9 @@ void add_required_reorders::run(program& p) {
             std::vector<cldnn::format> preferred_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
-                if (format::is_weights_format(node.first->get_output_layout().format))
+                if (format::is_weights_format(node.first->get_output_layout().format)) {
                     continue;
+                }
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
             // This list of preferred layouts has been selected arbitrarily due to developers' experience

@@ -189,8 +189,9 @@ public:
         _sizes[tensor_batch_dim_max] = feature_num;
         _sizes[tensor_batch_dim_max + tensor_feature_dim_max] = x;
         _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 1] = y;
-        if (batch_num == 0 && feature_num == 0 && x == 0 && y == 0)
+        if (batch_num == 0 && feature_num == 0 && x == 0 && y == 0) {
             _sizes[tensor_batch_dim_max + tensor_feature_dim_max + 2] = 0;
+        }
     }
 
     /// @brief Constructs @p tensor.
@@ -256,25 +257,29 @@ public:
     explicit tensor(const std::vector<value_type>& sizes, value_type default_size = 1)
         : tensor(default_size) {
         int max_size = std::min(static_cast<int>(sizes.size()), tensor_dim_max);
-        for (int i = 0; i < max_size; i++)
+        for (int i = 0; i < max_size; i++) {
             _sizes[i] = sizes[i];
+        }
     }
 
     tensor(format fmt, const std::vector<value_type>& sizes, value_type default_size = 1)
         : tensor(default_size) {
         const auto& in_order = fmt.order();
         const auto& out_order = fmt.internal_order();
-        if (in_order.size() != sizes.size())
+        if (in_order.size() != sizes.size()) {
             throw std::invalid_argument("The count of values passed to initialize tensor does not match passed format.");
+        }
 
         for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
             auto channel = out_order[out_idx];
-            if (channel == '?')
+            if (channel == '?') {
                 continue;
+            }
 
             auto in_idx = in_order.find(channel);
-            if (in_idx == in_order.npos)
+            if (in_idx == in_order.npos) {
                 throw std::runtime_error("Internal order of a format contains channel which does not appear in external order.");
+            }
 
             _sizes[out_idx] = sizes[in_idx];
         }
@@ -288,8 +293,9 @@ public:
 
     /// @brief Copy assignment.
     tensor& operator=(const tensor& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         std::copy(std::cbegin(other._sizes), std::cend(other._sizes), std::begin(_sizes));
         return *this;
     }
@@ -303,13 +309,16 @@ public:
     }
 
     friend bool operator<(const tensor& lhs, const tensor& rhs) {
-        if (lhs.raw.size() != rhs.raw.size())
+        if (lhs.raw.size() != rhs.raw.size()) {
             return lhs.raw.size() < rhs.raw.size();
+        }
         for (size_t i = 0; i < lhs.raw.size(); ++i) {
-            if (lhs.raw[i] < rhs.raw[i])
+            if (lhs.raw[i] < rhs.raw[i]) {
                 return true;
-            if (rhs.raw[i] < lhs.raw[i])
+            }
+            if (rhs.raw[i] < lhs.raw[i]) {
                 return false;
+            }
         }
 
         return false;
@@ -403,15 +412,17 @@ public:
 
     /// @brief Assign and add
     tensor& operator+=(const tensor& rhs) {
-        for (size_t i = 0; i < tensor_dim_max; i++)
+        for (size_t i = 0; i < tensor_dim_max; i++) {
             _sizes[i] += rhs._sizes[i];
+        }
         return *this;
     }
 
     /// @brief Assign and subtract
     tensor& operator-=(const tensor& rhs) {
-        for (size_t i = 0; i < tensor_dim_max; i++)
+        for (size_t i = 0; i < tensor_dim_max; i++) {
             _sizes[i] -= rhs._sizes[i];
+        }
         return *this;
     }
 
@@ -424,8 +435,9 @@ public:
         for (size_t i = 0; i < sizes.size(); ++i) {
             auto c = output_order[i];
             auto pos = internal_order.find(c);
-            if (pos == std::string::npos)
+            if (pos == std::string::npos) {
                 throw std::domain_error(std::string("Unknown coord type: ") + c);
+            }
 
             sizes[i] = _sizes[pos];
         }
@@ -436,8 +448,9 @@ public:
     /// @brief Returns a vector of tensors values, ordered batch, feature, spatial_x, spatial_y.
     std::vector<value_type> sizes() const {
         std::vector<value_type> sizes(sizeof(_sizes) / sizeof(_sizes[0]), 0);
-        for (size_t i = 0; i < sizes.size(); ++i)
+        for (size_t i = 0; i < sizes.size(); ++i) {
             sizes[i] = _sizes[i];
+        }
         return sizes;
     }
 
@@ -506,8 +519,9 @@ public:
 
         for (size_t i = 0; i < new_order.size(); i++) {
             auto c = new_order[i]; //bfxywz
-            if (c == '?')
+            if (c == '?') {
                 continue;
+            }
             if (new_sizes[i] == -1) {
                 new_sizes[i] = 1;
             }
@@ -608,8 +622,9 @@ public:
     /// @brief Returns a tensor containing values maximum from @p lhs and @p rhs.
     static tensor max(tensor const& lhs, tensor const& rhs) {
         auto ret = lhs;
-        for (size_t i = 0; i < tensor_dim_max; ++i)
+        for (size_t i = 0; i < tensor_dim_max; ++i) {
             ret._sizes[i] = std::max(ret._sizes[i], rhs._sizes[i]);
+        }
 
         return ret;
     }
@@ -617,8 +632,9 @@ public:
     /// @brief Returns a tensor containing values minimum from @p lhs and @p rhs.
     static tensor min(tensor const& lhs, tensor const& rhs) {
         auto ret = lhs;
-        for (size_t i = 0; i < tensor_dim_max; ++i)
+        for (size_t i = 0; i < tensor_dim_max; ++i) {
             ret._sizes[i] = std::min(ret._sizes[i], rhs._sizes[i]);
+        }
 
         return ret;
     }
@@ -641,8 +657,9 @@ private:
 
 template <details::dim_vec_kind Kind>
 inline void details::dim_vec_kind_init<Kind>::init_tensor_values(cldnn::tensor& t) {
-    for (size_t i = _dimOffset; i < (size_t)(_dimOffset + _dimSize); i++)
+    for (size_t i = _dimOffset; i < (size_t)(_dimOffset + _dimSize); i++) {
         t._sizes[i] = _sizes[i - _dimOffset];
+    }
 }
 
 /// @brief Adds two @p tensors

@@ -65,16 +65,19 @@ DeviceFeaturesKey DeconvolutionKernel_imad_along_f_tile_bfx::get_required_device
 }
 
 bool DeconvolutionKernel_imad_along_f_tile_bfx::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto& params = static_cast<const deconvolution_params&>(p);
-    if (params.groups > 1 && params.weights.IFM().v % 4 != 0)
+    if (params.groups > 1 && params.weights.IFM().v % 4 != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Consider loosening at the cost of performance
-    if (params.groups > 1 && params.weights.OFM().v % simd != 0)
+    if (params.groups > 1 && params.weights.OFM().v % simd != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -126,10 +129,11 @@ KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(co
     const auto& p = static_cast<const deconvolution_params&>(params);
 
     // Currently most optimized for fsv16 formats
-    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
         return FORCE_PRIORITY_7;
-    else
+    } else {
         return FORCE_PRIORITY_8;
+    }
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {
@@ -240,31 +244,35 @@ size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileIFM(const deconvolution
     size_t tile_ifm = 1;
     for (auto candidate : allowed_tile_ifm) {
         if (candidate <= pref_tile_ifm
-            && (!grouped || ifm % candidate == 0))
+            && (!grouped || ifm % candidate == 0)) {
             tile_ifm = candidate;
+        }
     }
     return tile_ifm;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileOFM(const deconvolution_params& params) const {
     // TODO Loosen divisibility requirement for tile ofm 2
-    if (params.weights.OFM().v % (simd * 2) == 0 && params.outputs[0].Batch().v % 2 != 0)
+    if (params.weights.OFM().v % (simd * 2) == 0 && params.outputs[0].Batch().v % 2 != 0) {
         return 2;
+    }
 
     return 1;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileX(const deconvolution_params& params) const {
     constexpr size_t max_tile_x = simd;
-    if (params.outputs[0].X().v <= max_tile_x)
+    if (params.outputs[0].X().v <= max_tile_x) {
         return params.outputs[0].X().v;
+    }
 
     return max_tile_x;
 }
 
 size_t DeconvolutionKernel_imad_along_f_tile_bfx::GetTileB(const deconvolution_params& params) const {
-    if (params.outputs[0].Batch().v % 2 == 0)
+    if (params.outputs[0].Batch().v % 2 == 0) {
         return 2;
+    }
 
     return 1;
 }

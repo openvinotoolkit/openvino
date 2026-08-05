@@ -59,8 +59,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                 data_inputs_num -= 2; // scales
 
                 if (quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-                    quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+                    quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
                     data_inputs_num -= 2; // zp
+                }
             }
             has_attn_mask_input = data_inputs_num > ScaledDotProductAttentionInputIdx::ATTN_MASK;
             has_scale_input = data_inputs_num > ScaledDotProductAttentionInputIdx::SCALE;
@@ -116,8 +117,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const scaled_dot_product_attention>(rhs);
 

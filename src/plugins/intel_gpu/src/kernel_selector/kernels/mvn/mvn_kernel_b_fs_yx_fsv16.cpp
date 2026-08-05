@@ -58,8 +58,9 @@ DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16::get_required_device_features_key(cons
 }
 
 bool MVNKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto params = static_cast<const mvn_params&>(p);
 
@@ -67,8 +68,9 @@ bool MVNKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     // Skip padding check for dynamic tensors (padding not known at compile time).
     if (!params.has_dynamic_tensors()) {
         if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0 ||
-            params.inputs[0].Z().pad.Total() != 0)
+            params.inputs[0].Z().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -245,8 +247,9 @@ MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultFo
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     constexpr size_t intermidiate_bytes = 4;
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
@@ -385,8 +388,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
     bool has_variance = params.mvnNormalizeVariance;
@@ -701,10 +705,11 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const 
     auto enough_lws = max_lws / simd >= 1;
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
-    if (enough_slm && enough_lws && enough_items)
+    if (enough_slm && enough_lws && enough_items) {
         return GetMultiStageKernelsData(orgParams);
-    else
+    } else {
         return GetCommonKernelsData(params);
+    }
 }
 
 KernelsPriority MVNKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {

@@ -225,10 +225,11 @@ cldnn::format CustomLayer::FormatFromString(const std::string & str) {
         { "any" , cldnn::format::any },
     };
     auto it = FormatNameToType.find(str);
-    if (it != FormatNameToType.end())
+    if (it != FormatNameToType.end()) {
         return it->second;
-    else
+    } else {
         return cldnn::format::format_num;
+    }
 }
 
 void CustomLayer::LoadFromFile(const std::string configFile, CustomLayerMap& customLayers, bool can_be_missed) {

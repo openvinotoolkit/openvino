@@ -13,16 +13,19 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
 
 bool mvn::is_aligned_layout_supported(const layout& input_layout) const {
     const auto& input_pshape = input_layout.get_partial_shape();
-    if (!requires_alignment(input_pshape))
+    if (!requires_alignment(input_pshape)) {
         return true;
+    }
 
     const auto& fmt = input_layout.format;
-    if (format::is_default_format(fmt))
+    if (format::is_default_format(fmt)) {
         return true;
+    }
 
     //defer to dyn_formats
-    if (input_pshape.is_dynamic())
+    if (input_pshape.is_dynamic()) {
         return true;
+    }
 
     // Mirror the single feature-blocked case handled by mvn_impl::static_canonicalize_shapes.
     const auto& block_sizes = format::block_sizes(fmt);
