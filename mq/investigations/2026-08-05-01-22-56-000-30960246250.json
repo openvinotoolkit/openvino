@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-05-01-22-56-000-30960246250",
+  "timestamp": "2026-08-05T01:22:56Z",
+  "run_id": "30960246250",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30960246250",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37209",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37209",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "CachingTest TearDown fails - file locked by another process on Windows runner",
+  "signature": "remove_all: The process cannot access the file because it is being used by another process|Flaky Test",
+  "signature_hash": "1bf590cbb88911b2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "CachingTest TearDown throws C++ exception: remove_all file locked by another process"
+    }
+  ],
+  "key_errors": [
+    "unknown file: error: C++ exception with description \"remove_all: The process cannot access the file because it is being used by another process.: \\\"12690347162626515821_12196_4036_10864143409testCache\\\"\" thrown in TearDown().",
+    "[  FAILED  ] CachingTest/CachingTest.TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_dir/ByRemoteContext_testCache"
+  ],
+  "root_cause": "During TearDown of a CachingTest variant, std::filesystem::remove_all attempted to delete the test cache directory on Windows, but another process (likely the OpenVINO runtime/plugin still holding the cache file open from the previous test step) had the file locked. This is a Windows-only file-locking race condition in the test teardown, unrelated to the PR changes (GPU clang-tidy updates). The test is classified as Flaky Test because it reflects a timing/OS race rather than a code logic error introduced by the PR.",
+  "reproduction_steps": "Run CachingTest/CachingTest.TestLoadChangeCacheDirOneCore_by_device_name_supports_cache_dir/ByRemoteContext_testCache on a Windows machine with active process that holds cache files open.",
+  "recommended_actions": [
+    "Retry the failed CI job - the file-lock race is transient and typically resolves on retry.",
+    "Investigate the CachingTest TearDown to add retry logic or delay when remove_all fails with a file-lock error on Windows.",
+    "Consider using unique temp dirs per test process to reduce file-lock contention."
+  ],
+  "prevention_strategies": "Add retry logic in CachingTest TearDown for Windows when remove_all fails with ERROR_SHARING_VIOLATION. Use ScopedTempDir or equivalent RAII wrappers that handle Windows file-lock races gracefully.",
+  "historical_context": "No prior occurrence of this exact pattern found in the investigation database. Windows file-lock issues in test TearDown are a known source of intermittent failures on Windows CI runners."
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "remove_all: The process cannot access the file because it is being used by another process|Flaky Test",
+  "signature_hash": "1bf590cbb88911b2",
+  "title": "CachingTest TearDown fails - file locked by another process on Windows runner",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-05T01:22:56Z",
+  "last_seen": "2026-08-05T01:22:56Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/30960246250"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37209"],
+  "recent_timestamps": ["2026-08-05T01:22:56Z"],
+  "rerun_search_string": "remove_all: The process cannot access the file because it is being used by another process"
+}
