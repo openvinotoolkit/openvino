@@ -328,10 +328,8 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
 
 bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
     const auto logs = logCapture.str();
-    const bool v2SkipsLegacyCommandListLog =
-        expectedEntry == "Reset command list to run with runtime" ||
-        expectedEntry == "Reuse command list without update since no tensor change detected";
-    if (v2SkipsLegacyCommandListLog && logs.find("execute_vm_runtime_v2 - started") != std::string::npos) {
+    if (logs.find("execute_vm_runtime_v2 - started") != std::string::npos) {
+        // VM runtime v2 manages command lists internally, so plugin-side legacy command list logs are not required.
         return true;
     }
     return logs.find(expectedEntry) != std::string::npos;

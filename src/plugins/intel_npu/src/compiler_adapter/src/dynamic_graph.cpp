@@ -4,7 +4,6 @@
 
 #include "dynamic_graph.hpp"
 
-#include <array>
 #include <iostream>
 #include <iterator>
 
@@ -13,6 +12,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -21,10 +21,6 @@
 namespace intel_npu {
 
 namespace {
-
-bool use_v2_api(npu_vm_runtime_version_t apiVersion) {
-    return apiVersion >= NPU_VM_RUNTIME_VERSION_2_0;
-}
 
 uint32_t getCommandQueueOptions(const FilteredConfig& config,
                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
@@ -44,35 +40,9 @@ uint32_t getCommandQueueOptions(const FilteredConfig& config,
     return commandQueueOptions;
 }
 
-struct RuntimeConfigChain {
-    RuntimeConfigChain() = default;
-    RuntimeConfigChain(const RuntimeConfigChain&) = delete;
-    RuntimeConfigChain& operator=(const RuntimeConfigChain&) = delete;
-
-    void append(npu_vm_runtime_config_type_t type, npu_vm_runtime_config_value_t value) {
-        OPENVINO_ASSERT(_size < _descs.size(), "VM runtime config descriptor chain capacity exceeded");
-        OPENVINO_ASSERT(_size == 0 || _descs[_size - 1].type < type,
-                        "VM runtime config descriptor chain must be ordered by increasing type");
-        _descs[_size] = npu_vm_runtime_config_desc_t{type, value, nullptr};
-        if (_size > 0) {
-            _descs[_size - 1].pNext = &_descs[_size];
-        }
-        ++_size;
-    }
-
-    npu_vm_runtime_config_desc_t* head() {
-        return _size == 0 ? nullptr : &_descs[0];
-    }
-
-private:
-    std::array<npu_vm_runtime_config_desc_t, 4> _descs = {};
-    size_t _size = 0;
-};
-
-void populateRuntimeConfigChain(RuntimeConfigChain& configChain,
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain,
                                 const FilteredConfig& config,
                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
-    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE, config.get<SHARED_COMMON_QUEUE>() ? 1ULL : 0ULL);
     configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
                        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
     if (config.has<WORKLOAD_TYPE>()) {
@@ -93,14 +63,13 @@ void DynamicGraph::create_execution_engine(const FilteredConfig& config) {
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    npu_vm_runtime_version_t apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
-    if (npuVMRuntimeGetAPIVersion(&apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get VM runtime API version");
     }
 
     const auto result = [&]() {
-        if (use_v2_api(apiVersion)) {
-            RuntimeConfigChain runtimeConfig;
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            NpuVMRuntimeConfigChain runtimeConfig;
             populateRuntimeConfigChain(runtimeConfig, config, _zeroInitStruct);
             return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
         }
@@ -436,7 +405,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             this,
             config.get<SHARED_COMMON_QUEUE>()};
 
-        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+        if (!use_npu_vm_runtime_v2_api(_apiVersion) && config.get<SHARED_COMMON_QUEUE>() == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
