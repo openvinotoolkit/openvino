@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "llm_test_helpers.hpp"
-#include "openvino/runtime/intel_npu/properties.hpp"
-#include "whisper/prepare_whisper_model.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "whisper/prepare_whisper_model.hpp"
 
 namespace {
 using ov::test::npuw::CompileCall;
@@ -48,7 +48,8 @@ private:
     int64_t m_max_tiles;
 };
 
-std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(const std::shared_ptr<ov::IPlugin>& plugin, 
+std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
+    const std::shared_ptr<ov::IPlugin>& plugin,
     std::vector<std::string> device_list = std::vector<std::string>{"0"}) {
     auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
     plugin->set_core(core);
@@ -58,8 +59,8 @@ std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(const std::share
                          testing::StrEq(ov::available_devices.name()),
                          testing::An<const ov::AnyMap&>()))
         .WillByDefault([device_list](const std::string&, const std::string&, const ov::AnyMap&) -> ov::Any {
-                return ov::Any(device_list);
-            });
+            return ov::Any(device_list);
+        });
     return core;
 }
 
@@ -351,24 +352,15 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CommonRuntimeAndDebugOptionsForwardTo
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     ov::AnyMap props = {
-        {"NPUW_LLM_SHARED_HEAD", "YES"},
-        {"NPU_USE_NPUW", "YES"},
-        {"NPUW_DEVICES", "CPU,NPU"},
-        {"NPUW_SUBMODEL_DEVICE", "0:CPU,last:NPU"},
-        {"NPUW_WEIGHTS_BANK_ALLOC", "CPU"},
-        {"NPUW_CACHE_DIR", "/tmp/npuw-cache"},
-        {"NPUW_PARALLEL_COMPILE", "YES"},
-        {"NPUW_FUNCALL_ASYNC", "NO"},
-        {"NPUW_UNFOLD_IREQS", "YES"},
-        {"NPUW_FALLBACK_EXEC", "YES"},
-        {"NPUW_ACC_CHECK", "YES"},
-        {"NPUW_ACC_THRESH", "0.25"},
-        {"NPUW_ACC_DEVICE", "CPU"},
-        {"NPUW_DUMP_FULL", "YES"},
-        {"NPUW_DUMP_SUBS", "YES"},
-        {"NPUW_DUMP_SUBS_DIR", "/tmp/npuw-dumps"},
-        {"NPUW_DUMP_SUBS_ON_FAIL", "last"},
-        {"NPUW_DUMP_IO", "0,last"},
+        {"NPUW_LLM_SHARED_HEAD", "YES"},    {"NPU_USE_NPUW", "YES"},
+        {"NPUW_DEVICES", "CPU,NPU"},        {"NPUW_SUBMODEL_DEVICE", "0:CPU,last:NPU"},
+        {"NPUW_WEIGHTS_BANK_ALLOC", "CPU"}, {"NPUW_CACHE_DIR", "/tmp/npuw-cache"},
+        {"NPUW_PARALLEL_COMPILE", "YES"},   {"NPUW_FUNCALL_ASYNC", "NO"},
+        {"NPUW_UNFOLD_IREQS", "YES"},       {"NPUW_FALLBACK_EXEC", "YES"},
+        {"NPUW_ACC_CHECK", "YES"},          {"NPUW_ACC_THRESH", "0.25"},
+        {"NPUW_ACC_DEVICE", "CPU"},         {"NPUW_DUMP_FULL", "YES"},
+        {"NPUW_DUMP_SUBS", "YES"},          {"NPUW_DUMP_SUBS_DIR", "/tmp/npuw-dumps"},
+        {"NPUW_DUMP_SUBS_ON_FAIL", "last"}, {"NPUW_DUMP_IO", "0,last"},
         {"NPUW_DUMP_IO_ITERS", "YES"},
     };
 
@@ -424,8 +416,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchIn5000SeriesSetsNpuTilesInDefault
 
 struct UserStageConfigParam {
     std::string arch;
-    int64_t max_tiles;              // reported by the plugin (arch default)
-    int64_t user_tiles;             // NPU_TILES value explicitly provided by the user
+    int64_t max_tiles;   // reported by the plugin (arch default)
+    int64_t user_tiles;  // NPU_TILES value explicitly provided by the user
     // Note: NPU_COMPILATION_MODE_PARAMS is a space-separated token string.
     // Supplying it here performs a *full replace* of the arch-computed value
     // (which may include tokens like optimization-level=3 or performance-hint-override=latency).
@@ -541,9 +533,10 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
 
     for (const auto* call : {&prefill, &generate, &head}) {
         expect_missing_prop(call->props, "NPU_TILES");
-        expect_prop(call->props,
-                    "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+        expect_prop(
+            call->props,
+            "NPU_COMPILATION_MODE_PARAMS",
+            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
     }
 }
 
@@ -591,15 +584,14 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesDefaultConfig) {
     }
 }
 
-
 TEST_F(LLMCompiledModelFactoryOptionsTest, FastCompileGenerateHintKeepsCurrentGenerateDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
-                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(build_llm_model(),
+                                         {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
     const auto& generate = require_call_containing(recorder, "_kv");
     expect_prop(generate.props, "NPUW_UNFOLD_IREQS", "YES");
@@ -618,10 +610,10 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MissingNpuBackendKeepsCurrentGenerate
             OPENVINO_THROW("No available backend");
         });
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
-                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(build_llm_model(),
+                                         {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_GENERATE_HINT", "FAST_COMPILE"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& generate = require_call_containing(recorder, "_kv");
@@ -633,10 +625,10 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, BestPerfGenerateHintForcesStandaloneG
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
-                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(build_llm_model(),
+                                              {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_GENERATE_HINT", "BEST_PERF"}},
+                                              recorder));
     ASSERT_NE(compiled, nullptr);
     const auto& generate = require_call_containing(recorder, "_kv");
     expect_prop(generate.props, "NPUW_ONLINE_PIPELINE", "NONE");
@@ -723,7 +715,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughComp
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
                                                      {{"NPUW_LLM_SHARED_HEAD", "NO"},
                                                       {"NPUW_LLM_CACHE_ROPE", "YES"},
-                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                                                      {"NPUW_LLM_GENERATE_PYRAMID", "NO"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_CACHE_ROPE").as<bool>());
@@ -738,7 +731,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledRoundsTripThroughCom
     ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
                                                      {{"NPUW_LLM_SHARED_HEAD", "NO"},
                                                       {"NPUW_LLM_CACHE_ROPE", "NO"},
-                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                                                      {"NPUW_LLM_GENERATE_PYRAMID", "NO"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_CACHE_ROPE").as<bool>());
@@ -752,21 +746,23 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRemovesSinCosFromPref
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
-                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_CACHE_ROPE", "YES"},
-                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(
+            build_llm_model(),
+            {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_CACHE_ROPE", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+            recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
     ASSERT_NE(prefill, nullptr);
 
     const auto& ops = prefill->model->get_ops();
-    auto sin_count = std::count_if(ops.begin(), ops.end(),
-                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
-    auto cos_count = std::count_if(ops.begin(), ops.end(),
-                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    auto sin_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Sin>(op);
+    });
+    auto cos_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Cos>(op);
+    });
     EXPECT_EQ(sin_count, 0) << "RopeCache should have replaced all Sin nodes in the prefill model";
     EXPECT_EQ(cos_count, 0) << "RopeCache should have replaced all Cos nodes in the prefill model";
 }
@@ -777,21 +773,23 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeDisabledKeepsSinCosInPrefill
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
-                                                     {{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_CACHE_ROPE", "NO"},
-                                                      {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(
+            build_llm_model(),
+            {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_CACHE_ROPE", "NO"}, {"NPUW_LLM_MAX_PROMPT_LEN", "2048"}},
+            recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
     ASSERT_NE(prefill, nullptr);
 
     const auto& ops = prefill->model->get_ops();
-    auto sin_count = std::count_if(ops.begin(), ops.end(),
-                                   [](const auto& op) { return ov::is_type<ov::op::v0::Sin>(op); });
-    auto cos_count = std::count_if(ops.begin(), ops.end(),
-                                   [](const auto& op) { return ov::is_type<ov::op::v0::Cos>(op); });
+    auto sin_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Sin>(op);
+    });
+    auto cos_count = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<ov::op::v0::Cos>(op);
+    });
     EXPECT_GT(sin_count, 0) << "Sin nodes must remain when rope caching is disabled";
     EXPECT_GT(cos_count, 0) << "Cos nodes must remain when rope caching is disabled";
 }
@@ -835,7 +833,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPrefillPreparationAddsCrossAtt
     model = model->clone();
 
     EXPECT_TRUE(ov::npuw::util::PrepareWhisperPrefillModel(
-                    128, static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions),
+                    128,
+                    static_cast<uint32_t>(ov::test::npuw::WhisperConfig{}.max_source_positions),
                     false /*decompose_sdpa*/)
                     .run_on_model(model));
     auto prepared = model;
@@ -850,9 +849,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_decoder_model(),
-                                                      {{"NPUW_TEXT_EMBED", "YES"},
-                                                       {"NPUW_LLM_SHARED_HEAD", "NO"}},
-                                                      recorder));
+                                                     {{"NPUW_TEXT_EMBED", "YES"}, {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                     recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_GE(recorder.calls().size(), 1u);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);

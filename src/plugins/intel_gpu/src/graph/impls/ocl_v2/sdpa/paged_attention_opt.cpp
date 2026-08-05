@@ -43,6 +43,14 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     }
 }
 
+inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
+    return v_head_size / u4_elems_per_byte % subgroup_size == 0;
+}
+
+inline bool can_use_dual_nibble_v(bool is_kv_compressed, ov::element::Type kv_cache_dt, size_t v_head_size) {
+    return is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt) && is_v_head_aligned_for_dual_nibble(v_head_size);
+}
+
 inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
 }
@@ -263,6 +271,12 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
         // V per-token: head_size IS packed (inner dim)
         jit.make("PACKED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)));
         jit.make("PACKED_ADJUSTED_V_HEAD_SIZE", (kernel_selector::Align(desc->v_head_size / u4_elems_per_byte, subgroup_size)) + scales_zp_size);
+
+        // Dual-nibble V-cache optimization: each lane reads 1 packed byte (2 nibbles) via BLOCK_READN
+        // Only applicable when PACKED_V_HEAD_SIZE is divisible by SUBGROUP_SIZE (no padding lanes needed)
+        if (is_v_head_aligned_for_dual_nibble(desc->v_head_size)) {
+            jit.make("USE_DUAL_NIBBLE_V_OPT", 1);
+        }
     } else {
         jit.make("IS_INT4_COMPRESSED", false);
     }
@@ -292,7 +306,11 @@ public:
         const bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
-        jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
+
+        // For dual-nibble V opt, use PACKED_V_HEAD_SIZE for SG_SCALE_FACTOR calculation to match WG dispatch
+        const bool dual_nibble_v = can_use_dual_nibble_v(is_kv_compressed, kv_cache_dt, desc->v_head_size);
+        const size_t effective_head_size = dual_nibble_v ? desc->v_head_size / u4_elems_per_byte : desc->v_head_size;
+        jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), effective_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
         const auto is_key_by_channel = desc->is_key_by_channel;
         if (is_kv_compressed) {
@@ -476,7 +494,10 @@ public:
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
-            const size_t head_size = desc->v_head_size;
+            const size_t v_head_size = desc->v_head_size;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
+            const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
@@ -514,8 +535,11 @@ public:
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
-            const size_t head_size = desc->v_head_size;
+            const size_t v_head_size = desc->v_head_size;
             const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
+            const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             // GQA
             auto kv_groups = heads_num / kv_group_size;
@@ -680,7 +704,10 @@ public:
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
-            const size_t head_size = desc->v_head_size;
+            const size_t v_head_size = desc->v_head_size;
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            const bool dual_nibble_v = can_use_dual_nibble_v(get_kv_compressed(params), kv_cache_dt, v_head_size);
+            const size_t head_size = dual_nibble_v ? v_head_size / u4_elems_per_byte : v_head_size;
 
             auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
@@ -1357,6 +1384,15 @@ public:
         return false;
     }
 
+    bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
+        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
+            return false;
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
+            return false;
+        return true;
+    }
+
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
@@ -1366,9 +1402,11 @@ public:
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
-            // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
-            // accuracy issues (produces inf/nan) after oneDNN main branch integration.
-            if (params.get_device_info().arch == gpu_arch::xe3p && desc->k_head_size <= 64) {
+            // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
+            // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm). Falls back to
+            // the OCL paged_attention path for all stages where micro SDPA is selectable (PREFILL / MIXED)
+            // and for all KV dtypes.
+            if (params.get_device_info().arch == gpu_arch::xe3p) {
                 return false;
             }
         } else {
@@ -1468,7 +1506,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(rt_params->stage) && desc->has_token_type_ids == false;
+        rt_params->use_micro_sdpa = can_use_micro_sdpa_for(params, rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -1476,7 +1514,6 @@ public:
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            rt_params->use_micro_sdpa = false;
             if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
             } else {
@@ -1507,13 +1544,15 @@ public:
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
         std::vector<event::ptr> res_event = events;
-        if (has_rotated_blocks) {
-            const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
-            if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
-                res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+        if (desc->write_kv_cache) {
+            if (has_rotated_blocks) {
+                const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
+                if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
+                    res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+                }
             }
+            res_event = {execute_stage(res_event, instance, kv_cache_update)};
         }
-        res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1647,10 +1686,7 @@ public:
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
             can_use_micro_sdpa = rt_params->use_micro_sdpa;
         } else {
-            can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && desc->has_token_type_ids == false;
-            if (stage == PagedAttentionStage::GENERATE) {
-                can_use_micro_sdpa = false;
-            }
+            can_use_micro_sdpa = can_use_micro_sdpa_for(params, stage);
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
@@ -1763,8 +1799,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
-                                       << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
+                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;

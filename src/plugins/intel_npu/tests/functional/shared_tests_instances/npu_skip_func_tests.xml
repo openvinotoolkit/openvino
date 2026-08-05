@@ -906,6 +906,35 @@ Example:
     </skip_config>
 
     <skip_config>
+        <message>UD12 driver does not support secure compilation</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <driver_version>2020568</driver_version>
+        </enable_rules>
+        <filters>
+            <filter>.*WeightlessCacheAccuracy.ReadConcatSplitAssign.*do_encryption=True.*(config=_|NPU_COMPILER_TYPE\[DRIVER\]).*</filter>
+            <filter>.*WeightlessCacheAccuracy.SingleConcatWithConstant.*do_encryption=True.*(config=_|NPU_COMPILER_TYPE\[DRIVER\]).*</filter>
+            <filter>.*WeightlessCacheAccuracy.TiWithLstmCell.*do_encryption=True.*config=_.*</filter>
+            <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompileModelWithCorrectPropertiesTest.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVClassCompiledModelGetPropertyTest.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*OVCompileModelGetExecutionDeviceTests.CanGetExecutionDeviceInfo.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
+            <filter>.*CompileModelWithCacheEncryptionTest.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#210236-->
+    <skip_config>
+        <message>Test fails sporadically on NPU Windows drivers</message>
+        <enable_rules>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
         <message>PV driver cannot compile models securely</message>
         <enable_rules>
             <backend>LEVEL0</backend>
@@ -938,12 +967,13 @@ Example:
 
     <!-- E#218923 -->
     <skip_config>
-        <message>The tests crash when compiling model on NPU5010</message>
+        <message>The tests crash when compiling MaxPool model on NPU4000 and NPU5010</message>
         <enable_rules>
+            <device>4000</device>
             <device>5010</device>
         </enable_rules>
         <filters>
-            <filter>.*InferWithHostCompileTests.*</filter>
+            <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
         </filters>
     </skip_config>
 

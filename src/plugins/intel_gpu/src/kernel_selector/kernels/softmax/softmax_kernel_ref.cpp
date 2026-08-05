@@ -8,6 +8,8 @@
 namespace kernel_selector {
 ParamsKey SoftmaxKernelRef::GetSupportedKey() const {
     auto k = GetDefaultSupportedKey();
+    k.EnableInputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::BF16);
 
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);

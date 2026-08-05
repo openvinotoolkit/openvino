@@ -25,6 +25,20 @@ std::vector<gated_delta_net_params> test_cases = {
     {1, 2, 2, 2, 15, 15, ov::element::f32, "CPU"},
     {1, 2, 2, 2, 31, 31, ov::element::f32, "CPU"},
     {1, 2, 2, 2, 1, 1, ov::element::f32, "CPU"},
+    // f16 cases
+    {1, 32, 2, 2, 128, 128, ov::element::f16, "CPU"},
+    {1, 32, 4, 4, 128, 128, ov::element::f16, "CPU"},
+    {1, 32, 2, 4, 128, 128, ov::element::f16, "CPU"},
+    {1, 16, 2, 2, 64, 128, ov::element::f16, "CPU"},
+    {1, 32, 4, 4, 256, 256, ov::element::f16, "CPU"},
+    {1, 32, 2, 4, 256, 256, ov::element::f16, "CPU"},
+    // bf16 cases
+    {1, 32, 2, 2, 128, 128, ov::element::bf16, "CPU"},
+    {1, 32, 4, 4, 128, 128, ov::element::bf16, "CPU"},
+    {1, 32, 2, 4, 128, 128, ov::element::bf16, "CPU"},
+    {1, 16, 2, 2, 64, 128, ov::element::bf16, "CPU"},
+    {1, 32, 4, 4, 256, 256, ov::element::bf16, "CPU"},
+    {1, 32, 2, 4, 256, 256, ov::element::bf16, "CPU"},
 };
 INSTANTIATE_TEST_SUITE_P(smoke_GatedDeltaNet,
                          GatedDeltaNet,

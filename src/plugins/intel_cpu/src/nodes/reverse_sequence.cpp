@@ -62,12 +62,12 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
 
     CPU_NODE_ASSERT(dataRank == getOutputShapeAtPort(0).getRank(), "has input/output rank mismatch");
 
-    seq_axis = revSeq->get_sequence_axis();
+    seq_axis = static_cast<int>(revSeq->get_sequence_axis());
 
     CPU_NODE_ASSERT(seq_axis >= 0 && seq_axis < static_cast<int>(dataRank),
                     "has incorrect 'seq_axis' parameters dimensions and axis number!");
 
-    batch_axis = revSeq->get_batch_axis();
+    batch_axis = static_cast<int>(revSeq->get_batch_axis());
 
     CPU_NODE_ASSERT(batch_axis >= 0 && batch_axis < static_cast<int>(dataRank),
                     "has incorrect 'batch_axis' parameters dimensions and axis number!");
@@ -122,9 +122,12 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 
     OPENVINO_ASSERT(seqLengthsDims[0] == dataDims[batchAxis], "'seq_lengths' dimension mismatch");
     srcStrides.resize(dataDims.size());
-    srcStrides[srcStrides.size() - 1] = 1;
-    for (int i = srcStrides.size() - 2; i >= 0; --i) {
-        srcStrides[i] = srcStrides[i + 1] * dataDims[i + 1];
+    if (!srcStrides.empty()) {
+        srcStrides[srcStrides.size() - 1] = 1;
+        for (int64_t i = static_cast<int64_t>(srcStrides.size()) - 2; i >= 0; --i) {
+            const auto index = static_cast<size_t>(i);
+            srcStrides[index] = srcStrides[index + 1] * dataDims[index + 1];
+        }
     }
 
     workAmountDst = srcStrides[0] * dataDims[0];
@@ -140,7 +143,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     auto* seqLengthsData = seqLengthsMemPtr->getDataAs<T>();
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
-        OPENVINO_ASSERT(static_cast<int32_t>(seqLengthsData[i]) <= static_cast<int>(srcDims[seqAxis]),
+        OPENVINO_ASSERT(static_cast<size_t>(seqLengthsData[i]) <= srcDims[seqAxis],
                         "Incorrect input 'seq_lengths' values!");
     }
 
@@ -151,9 +154,11 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
         size_t srcIdx = 0;
         VectorDims counters(srcDims.size(), 0);
         splitter(workAmountDst, nthr, ithr, start, end);
-        for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {
-            counters[j] = i % srcDims[j];
-            i /= srcDims[j];
+        i = start;  // Initialize i for the first iteration calculation
+        for (int64_t j = static_cast<int64_t>(srcDims.size()) - 1; j >= 0; --j) {
+            const auto index = static_cast<size_t>(j);
+            counters[index] = i % srcDims[index];
+            i /= srcDims[index];
         }
 
         for (size_t iwork = start; iwork < end; ++iwork) {
@@ -166,9 +171,10 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
                 srcIdx += idx * srcStrides[i];
             }
             dstData[iwork] = srcData[srcIdx];
-            for (int j = srcDims.size() - 1; j >= 0; --j) {
-                counters[j] = (counters[j] + 1) % srcDims[j];
-                if (counters[j] != 0) {
+            for (int64_t j = static_cast<int64_t>(srcDims.size()) - 1; j >= 0; --j) {
+                const auto index = static_cast<size_t>(j);
+                counters[index] = (counters[index] + 1) % srcDims[index];
+                if (counters[index] != 0) {
                     break;
                 }
             }

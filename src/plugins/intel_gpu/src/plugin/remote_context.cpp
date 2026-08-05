@@ -23,12 +23,29 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
+ContextType get_default_context_type() {
+    #ifdef OV_GPU_WITH_ZE_RT
+        return ContextType::ZE;
+    #elif defined(OV_GPU_WITH_OCL_RT)
+        return ContextType::OCL;
+    #else
+        #error "Expected OpenVINO GPU runtime macros to be defined"
+    #endif
+}
+
 }  // namespace
 
 RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector<cldnn::device::ptr> devices, bool initialize_ctx)
     : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
+    m_type = get_default_context_type();
+    const auto &info = m_device->get_info();
+    if (m_type == ContextType::ZE && info.supports_leo) {
+        m_type = ContextType::OCL;
+        GPU_DEBUG_INFO << "Enabled Level Zero - OpenCL interoperability for "
+            << m_device_name << " (" << info.dev_name << ")" << std::endl;
+    }
 
     if (initialize_ctx) {
         initialize();
@@ -39,6 +56,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
+    m_type = get_default_context_type();
 
     if (params.size()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
@@ -56,10 +74,12 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
         } else if (ctx_type == ov::intel_gpu::ContextType::VA_SHARED) {
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
-            m_type = ContextType::VA_SHARED;
+        } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
+            OPENVINO_THROW("Level Zero interoperability is not supported");
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);
         }
+        m_type = ctx_type;
         if (params.find(ov::intel_gpu::tile_id.name()) != params.end()) {
             target_tile_id = extract_object(params, ov::intel_gpu::tile_id);
         }
@@ -67,9 +87,10 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
     const auto initialize_devices = true;
 
-    cldnn::device_query device_query(context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
-    auto device_map = device_query.get_available_devices();
-
+    // Always use OCL for device query
+    // Query will return devices compatible with default runtime
+    cldnn::device_query ocl_device_query(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, context_id, m_va_display, ctx_device_id, target_tile_id, initialize_devices);
+    auto device_map = ocl_device_query.get_available_devices();
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Exactly one device expected in case of context sharing, but ", device_map.size(), " found");
 
     m_device = device_map.begin()->second;
@@ -89,19 +110,20 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
 }
 
 void RemoteContextImpl::init_properties() {
-    properties = { ov::intel_gpu::ocl_context(m_engine->get_user_context()) };
-
     switch (m_type) {
     case ContextType::OCL:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::OCL));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::ocl_queue(m_external_queue));
         break;
     case ContextType::VA_SHARED:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VA_SHARED));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ocl)));
         properties.insert(ov::intel_gpu::va_device(m_va_display));
         break;
     case ContextType::ZE:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
+        properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);
@@ -160,6 +182,11 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             } else if (ov::intel_gpu::SharedMemType::USM_USER_BUFFER == mem_type) {
                 tensor_type = TensorType::BT_USM_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
+            } else if (ov::intel_gpu::SharedMemType::CPU_VA == mem_type) {
+                tensor_type = TensorType::BT_CPU_VA;
+                mem = extract_object(params, ov::intel_gpu::cpu_va);
+                auto size = extract_object(params, ov::intel_gpu::cpu_va_size);
+                return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
             } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
                 tensor_type = TensorType::BT_IMG_SHARED;
                 mem = extract_object(params, ov::intel_gpu::mem_handle);
@@ -171,7 +198,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
 #endif
             } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
                 tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
-                ov::intel_gpu::os_handle_param handle = extract_object(params, ov::intel_gpu::os_handle);
+                const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
+                SharedBufferHandle handle{os_handle};
                 return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
             } else {
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
@@ -231,9 +259,16 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory(const ov::ele
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, mem);
 }
 
+std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_cpu_va(const ov::element::Type type,
+                                                                   const ov::Shape& shape,
+                                                                   VirtualAddressMemory cpu_va,
+                                                                   TensorType tensor_type) {
+    return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, ov::intel_gpu::SharedBufferHandle{}, cpu_va);
+}
+
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_handle(const ov::element::Type type,
                                                                    const ov::Shape& shape,
-                                                                   ov::intel_gpu::os_handle_param handle,
+                                                                   ov::intel_gpu::SharedBufferHandle handle,
                                                                    TensorType tensor_type) {
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(), shape, type, tensor_type, nullptr, 0, 0, handle);
 }
@@ -256,7 +291,7 @@ void RemoteContextImpl::initialize() {
 
         m_device->initialize();  // Initialize associated device before use
         m_engine = cldnn::engine::create(
-            cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type(), m_device);
+            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
 
         init_properties();
 

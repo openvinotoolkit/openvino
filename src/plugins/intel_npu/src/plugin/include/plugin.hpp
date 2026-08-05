@@ -14,7 +14,7 @@
 #include "metadata.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "properties.hpp"
+#include "plugin_property_manager.hpp"
 
 namespace intel_npu {
 
@@ -80,9 +80,6 @@ private:
                                               std::unique_ptr<MetadataBase> metadata,
                                               const ov::AnyMap& properties) const;
 
-    ov::CompatibilityCheck validate_compatibility_descriptor(ov::intel_npu::CompilerType compilerType,
-                                                             const ov::AnyMap& arguments) const;
-
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.
@@ -90,7 +87,7 @@ private:
     ov::SoPtr<IEngineBackend> _backend;
 
     mutable Logger _logger;
-    std::unique_ptr<Properties> _propertiesManager;
+    std::unique_ptr<PluginPropertyManager> _propertiesManager;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };

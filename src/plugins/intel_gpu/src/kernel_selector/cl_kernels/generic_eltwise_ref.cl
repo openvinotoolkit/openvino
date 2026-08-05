@@ -184,13 +184,15 @@ KERNEL(eltwise)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+	// FUSED_OPS_RESULT returns result in OUTPUT_TYPE, need to convert, because ACTIVATION takes ACCUMULATOR_TYPE
+	// DECODE macro in case OUTPUT_TYPE == BF16
+    ACCUMULATOR_TYPE out = TO_ACCUMULATOR_TYPE(DECODE_OUTPUT_COMPUTE_TYPE(FUSED_OPS_RESULT));
 #else
     #define out res
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
     output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED));
 #endif

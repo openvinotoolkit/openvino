@@ -15,6 +15,17 @@
 
 namespace ov::util {
 
+namespace {
+
+void madvise_hint(void* ptr, size_t size) noexcept {
+    madvise(ptr, size, MADV_SEQUENTIAL);
+    madvise(ptr, size, MADV_WILLNEED);
+}
+
+}  // namespace
+
+void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept;
+
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment == 0) {
         alignment = alignof(std::max_align_t);
@@ -27,13 +38,14 @@ void aligned_free(void* ptr) noexcept {
 }
 
 void* vm_reserve(size_t size, std::error_code& ec) noexcept {
-    const auto p = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (p == MAP_FAILED) {
+    void* result = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result != MAP_FAILED) {
+        ec = {};
+    } else {
         ec = std::error_code(errno, std::system_category());
-        return nullptr;
+        result = nullptr;
     }
-    ec = {};
-    return p;
+    return result;
 }
 
 void vm_commit(void* ptr, size_t size, std::error_code& ec) noexcept {
@@ -60,6 +72,16 @@ void vm_decommit(void* ptr, size_t size) noexcept {
 void vm_release(void* ptr, size_t size) noexcept {
     assert(ptr != nullptr && size > 0);
     std::ignore = munmap(ptr, size);
+}
+
+void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    if (num_threads == 0) {
+        madvise_hint(ptr, size);
+    } else {
+        // blocks until every page has been faulted in.
+        populate_pages(ptr, size, num_threads);
+    }
 }
 
 }  // namespace ov::util

@@ -139,7 +139,7 @@ KERNEL(border_gpu_ref)(
 
 #ifdef BORDER_TYPE_CONSTANT
     #ifdef BORDER_VALUE_TYPE
-    INPUT0_TYPE in_val = TO_INPUT0_TYPE(border_value_param[0]);
+    INPUT0_TYPE in_val = TO_INPUT0_TYPE(DECODE_BORDER_VALUE_COMPUTE_TYPE(border_value_param[0]));
     #else
     INPUT0_TYPE in_val = TO_INPUT0_TYPE(BORDER_VALUE);
     #endif
@@ -196,5 +196,5 @@ KERNEL(border_gpu_ref)(
 #endif
 
     const int out_pos = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
-    output[out_pos] = in_val;
+    output[out_pos] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(in_val));
 }

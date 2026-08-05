@@ -30,7 +30,14 @@ using namespace ov;
 
 namespace {
 
-const element::TypeVector kLowPrecisionTypes{element::u8, element::i8, element::u4, element::i4};
+const element::TypeVector kLowPrecisionTypes{element::u8,
+                                             element::i8,
+                                             element::u4,
+                                             element::i4,
+                                             element::f8e4m3,
+                                             element::f8e5m2,
+                                             element::f4e2m1,
+                                             element::f8e8m0};
 
 }  // namespace
 
@@ -225,6 +232,132 @@ TEST_F(TransformationTestsF, LowPrecisionDequantize_NoopReshapeSkipped) {
         mark_as_dequantization_node(multiply);
 
         // No Reshape — helper detects output_shape == current shape and skips it.
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, LowPrecisionDequantize_f8e4m3) {
+    const Shape weights_shape{4, 16};
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e4m3, weights_shape, {-2});
+        auto scale = op::v0::Constant::create(element::f16, Shape{}, {0.2f});
+
+        auto out = decomposition::low_precision_dequantize(weights, scale);
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(kLowPrecisionTypes);
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e4m3, weights_shape, {-2});
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f16);
+        disable_constant_folding(convert);
+
+        auto scale = op::v0::Constant::create(element::f16, Shape{}, {0.2f});
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
+        mark_as_dequantization_node(multiply);
+
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, LowPrecisionDequantize_f8e5m2) {
+    const Shape weights_shape{4, 16};
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e5m2, weights_shape, {-2});
+        auto scale = op::v0::Constant::create(element::f16, Shape{}, {0.2f});
+
+        auto out = decomposition::low_precision_dequantize(weights, scale);
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(kLowPrecisionTypes);
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e5m2, weights_shape, {-2});
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f16);
+        disable_constant_folding(convert);
+
+        auto scale = op::v0::Constant::create(element::f16, Shape{}, {0.2f});
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
+        mark_as_dequantization_node(multiply);
+
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, LowPrecisionDequantize_mxf8e4m3) {
+    const Shape weights_shape{4, 32};
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e4m3, weights_shape, {-2});
+        auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
+
+        auto out = decomposition::low_precision_dequantize(weights, scale, {}, {}, element::f16);
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(kLowPrecisionTypes, false, false);
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e4m3, weights_shape, {-2});
+        auto convert_weights = std::make_shared<op::v0::Convert>(weights, element::f16);
+        disable_constant_folding(convert_weights);
+
+        auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
+        auto convert_scale = std::make_shared<op::v0::Convert>(scale, element::f16);
+        disable_constant_folding(convert_scale);
+
+        auto multiply = std::make_shared<op::v1::Multiply>(convert_weights, convert_scale);
+        mark_as_dequantization_node(multiply);
+
+        model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, LowPrecisionDequantize_mxf8e5m2) {
+    const Shape weights_shape{4, 32};
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e5m2, weights_shape, {-2});
+        auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
+
+        auto out = decomposition::low_precision_dequantize(weights, scale, {}, {}, element::f16);
+        model = std::make_shared<Model>(OutputVector{out}, ParameterVector{});
+    }
+
+    manager.register_pass<pass::MarkDequantization>(kLowPrecisionTypes, false, false);
+    manager.register_pass<pass::ConstantFolding>();
+
+    {
+        auto weights = op::v0::Constant::create(element::f8e5m2, weights_shape, {-2});
+        auto convert_weights = std::make_shared<op::v0::Convert>(weights, element::f16);
+        disable_constant_folding(convert_weights);
+
+        auto scale = op::v0::Constant::create(element::f8e8m0, Shape{}, {0.2f});
+        auto convert_scale = std::make_shared<op::v0::Convert>(scale, element::f16);
+        disable_constant_folding(convert_scale);
+
+        auto multiply = std::make_shared<op::v1::Multiply>(convert_weights, convert_scale);
+        mark_as_dequantization_node(multiply);
+
         model_ref = std::make_shared<Model>(OutputVector{multiply}, ParameterVector{});
     }
 

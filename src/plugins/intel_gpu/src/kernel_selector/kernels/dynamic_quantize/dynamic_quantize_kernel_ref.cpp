@@ -12,6 +12,9 @@ ParamsKey DynamicQuantizeKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
@@ -56,6 +59,9 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
     jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
@@ -155,6 +161,11 @@ KernelsPriority DynamicQuantizeKernelRef::GetKernelsPriority(const Params& /*par
 bool DynamicQuantizeKernelRef::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
+    if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

@@ -14,13 +14,6 @@
 
 namespace cldnn {
 
-/// @brief Page size alignment constant for cache blob serialization.
-/// This value (4KB) matches the typical OS page size on Windows, Linux, and macOS.
-inline constexpr uint32_t CACHE_PAGE_SIZE = 4096;
-
-/// @brief Alignment requirement for individual weight buffers within cache blobs.
-/// This alignment (128 bytes) ensures optimal GPU memory access patterns for weight data.
-inline constexpr uint32_t CACHE_SUB_BUFFER_ALIGNMENT = 128;
 struct memory;
 
 class BinaryOutputBuffer : public OutputBuffer<BinaryOutputBuffer> {
@@ -60,21 +53,6 @@ public:
     }
     size_t get_offset() const {
         return _offset;
-    }
-    bool is_offset_page_aligned() const {
-        return (get_offset() % CACHE_PAGE_SIZE == 0);
-    }
-
-    size_t get_bytes_to_page_boundary() const {
-        return CACHE_PAGE_SIZE - (get_offset() % CACHE_PAGE_SIZE);
-    }
-
-    bool is_offset_sub_buffer_aligned() const {
-        return (get_offset() % CACHE_SUB_BUFFER_ALIGNMENT == 0);
-    }
-
-    size_t get_bytes_to_sub_buffer_boundary() const {
-        return CACHE_SUB_BUFFER_ALIGNMENT - (get_offset() % CACHE_SUB_BUFFER_ALIGNMENT);
     }
 
 private:
@@ -117,15 +95,13 @@ public:
     std::streambuf* get_streambuf() const {
         return _stream.rdbuf();
     }
-    bool has_mmap_tensor() const {
+    bool is_valid_tensor() const {
         return _tensor_base_ptr != nullptr;
     }
-
-    bool is_mmap_tensor_4K_aligned() const {
-        return has_mmap_tensor() && (reinterpret_cast<std::uintptr_t>(_tensor_base_ptr) % CACHE_PAGE_SIZE == 0);
+    bool is_tensor_aligned(const size_t alignment) const {
+        return is_valid_tensor() && reinterpret_cast<std::uintptr_t>(_tensor_base_ptr) % alignment == 0;
     }
-
-    const size_t* get_mmap_tensor() const {
+    const size_t* get_tensor() const {
         return _tensor_base_ptr;
     }
 
@@ -142,7 +118,6 @@ public:
     size_t get_offset() const {
         return _offset;
     }
-
     void seek_current_ptr(std::streamsize size) {
         // Get current stream position
         std::streampos current_pos = _stream.tellg();
@@ -150,21 +125,7 @@ public:
         _stream.seekg(current_pos + static_cast<std::streampos>(size));
         _offset += size;
     }
-    bool is_offset_page_aligned() const {
-        return (get_offset() % CACHE_PAGE_SIZE == 0);
-    }
 
-    size_t get_bytes_to_page_boundary() const {
-        return CACHE_PAGE_SIZE - (get_offset() % CACHE_PAGE_SIZE);
-    }
-
-    bool is_offset_sub_buffer_aligned() const {
-        return (get_offset() % CACHE_SUB_BUFFER_ALIGNMENT == 0);
-    }
-
-    size_t get_bytes_to_sub_buffer_boundary() const {
-        return CACHE_SUB_BUFFER_ALIGNMENT - (get_offset() % CACHE_SUB_BUFFER_ALIGNMENT);
-    }
     void setKernelImplParams(void* impl_params) {
         _impl_params = impl_params;
     }

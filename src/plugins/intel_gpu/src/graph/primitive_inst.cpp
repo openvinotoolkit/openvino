@@ -135,7 +135,11 @@ bool has_cpu_user_not_shape_of(const program_node* user) {
         return false;
     }
     if (auto impl = user->get_selected_impl())
-        return impl->is_cpu() && !user->is_type<shape_of>();
+        // Use requires_lockable_input() rather than is_cpu() directly. Some impls are
+        // registered as CPU but do not actually access their inputs from the host
+        // (e.g. assign, which only enqueues USM memcpy).
+        // Those impls opt out of forcing their producer into lockable memory.
+        return impl->requires_lockable_input() && !user->is_type<shape_of>();
     return false;
 }
 
@@ -540,7 +544,7 @@ void primitive_inst::update_shape() {
 
     if (get_node().is_type<dynamic_quantize>() && get_flag(ExecutionFlags::SHAPE_CHANGED)) {
         auto &layout = _impl_params->get_output_layout(0);
-        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8}),
+        OPENVINO_ASSERT(one_of(layout.data_type, {data_types::f16, data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f8e5m2}),
             "[GPU] Unsupported data type of dynamic_quantize: ", layout.data_type);
         if (layout.data_type == data_types::f16)
             set_can_be_optimized(true);
