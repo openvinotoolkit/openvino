@@ -11,8 +11,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/multiclass_nms.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -35,48 +35,35 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(int64_t gather_column =
 
     auto reduce_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1});
     auto reduce_max = std::make_shared<ov::op::v1::ReduceMax>(boxes, reduce_axis, false);
-    auto one = std::make_shared<ov::op::v0::Convert>(
-        ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f}),
-        ov::element::f32);
+    auto one = std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f}), ov::element::f32);
     auto max_plus_one = std::make_shared<ov::op::v1::Add>(reduce_max, one);
     auto class_ids_convert = std::make_shared<ov::op::v0::Convert>(class_ids, ov::element::f32);
     auto offsets = std::make_shared<ov::op::v1::Multiply>(class_ids_convert, max_plus_one);
-    auto offsets_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
-        offsets,
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    auto offsets_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(offsets, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     auto shifted_boxes = std::make_shared<ov::op::v1::Add>(boxes, offsets_unsqueeze);
 
     auto boxes_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, -1, 4});
     auto boxes_reshape = std::make_shared<ov::op::v1::Reshape>(shifted_boxes, boxes_shape, false);
-    auto scores_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
-        scores,
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1}));
+    auto scores_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(scores, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, 1}));
 
     auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(
         boxes_reshape,
         scores_unsqueeze,
         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {2000}),
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
-        std::make_shared<ov::op::v0::Convert>(
-            ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}),
-            ov::element::f32),
+        std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
         ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
         true,
         ov::element::i64);
 
-    auto gather = std::make_shared<ov::op::v8::Gather>(
-        nms,
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {gather_column}),
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
-    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(
-        gather,
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
+    auto gather = std::make_shared<ov::op::v8::Gather>(nms,
+                                                       ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {gather_column}),
+                                                       ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
+    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
     class_ids->get_rt_info()["intel_gpu_batched_nms_static_class_count"] = int64_t{80};
     squeeze->get_rt_info()["intel_gpu_batched_nms_prefix_limit"] = int64_t{100};
 
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{std::make_shared<ov::op::v0::Result>(squeeze)},
-        ov::ParameterVector{boxes, scores, class_ids});
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(squeeze)}, ov::ParameterVector{boxes, scores, class_ids});
 }
 
 }  // namespace
@@ -111,15 +98,12 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, ReplacesLoweredBatchedNmsOutputChain)
     auto selected_box_indices = ov::as_type_ptr<ov::op::v8::Gather>(result_input);
     ASSERT_NE(selected_box_indices, nullptr);
 
-    auto valid_selected_indices =
-        ov::as_type_ptr<ov::op::v8::Slice>(selected_box_indices->input_value(0).get_node_shared_ptr());
+    auto valid_selected_indices = ov::as_type_ptr<ov::op::v8::Slice>(selected_box_indices->input_value(0).get_node_shared_ptr());
     ASSERT_NE(valid_selected_indices, nullptr);
 
-    auto multiclass_nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(
-        valid_selected_indices->input_value(0).get_node_shared_ptr());
+    auto multiclass_nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(valid_selected_indices->input_value(0).get_node_shared_ptr());
     ASSERT_NE(multiclass_nms, nullptr);
-    EXPECT_EQ(multiclass_nms->get_attrs().sort_result_type,
-              ov::op::util::MulticlassNmsBase::SortResultType::SCORE);
+    EXPECT_EQ(multiclass_nms->get_attrs().sort_result_type, ov::op::util::MulticlassNmsBase::SortResultType::SCORE);
     EXPECT_EQ(multiclass_nms->get_attrs().output_type, ov::element::i64);
     EXPECT_EQ(multiclass_nms->get_attrs().nms_top_k, 2000);
     EXPECT_EQ(multiclass_nms->get_attrs().keep_top_k, 100);
@@ -149,4 +133,3 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsGenericNmsGatherChainUntouched) 
     EXPECT_EQ(multiclass_nms_count, 0);
     EXPECT_EQ(nms_count, 1);
 }
-
