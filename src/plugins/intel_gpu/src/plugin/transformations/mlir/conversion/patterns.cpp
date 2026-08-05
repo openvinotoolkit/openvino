@@ -4,6 +4,8 @@
 
 #include "patterns.hpp"
 
+#include <algorithm>
+
 #include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
 #include <openvino/op/constant.hpp>
@@ -129,24 +131,34 @@ SDPAPattern::SDPAPattern()
             const auto k_shape = node->get_input_partial_shape(1);
             const auto v_shape = node->get_input_partial_shape(2);
             if (q_shape.rank().is_dynamic() || k_shape.rank().is_dynamic() || v_shape.rank().is_dynamic()) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — dynamic Q/K/V rank");
                 return false;
             }
             const auto q_rank = q_shape.rank().get_length();
             if (q_rank != k_shape.rank().get_length() || q_rank != v_shape.rank().get_length()) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — Q/K/V rank mismatch");
                 return false;
             }
             if (q_rank != 3 && q_rank != 4) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — unsupported rank " << q_rank << " (expected 3 or 4)");
                 return false;
             }
 
             // Causal attention is not supported
             if (node->get_causal()) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — causal attention");
                 return false;
             }
 
             const auto input_size = node->get_input_size();
             // Sink parameter (6th input) is not supported
             if (input_size >= 6) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — sink parameter (6th input) is not supported");
                 return false;
             }
 
@@ -155,6 +167,8 @@ SDPAPattern::SDPAPattern()
                 const auto mask_shape = node->get_input_partial_shape(3);
                 const bool has_mask = mask_shape.rank().is_dynamic() || mask_shape.rank().get_length() > 0;
                 if (has_mask && mask_shape.is_dynamic()) {
+                    OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                              << " — dynamic mask shape");
                     return false;
                 }
             }
@@ -162,6 +176,8 @@ SDPAPattern::SDPAPattern()
             // Scale (input 4) must be a Constant, dynamic scale input is not supported
             if (input_size > 4 &&
                 !std::dynamic_pointer_cast<v0::Constant>(node->get_input_node_shared_ptr(4))) {
+                OPENVINO_MLIR_DEBUG_PRINT("SDPAPattern: rejected " << node->get_friendly_name()
+                                          << " — non-constant scale input");
                 return false;
             }
 
@@ -172,8 +188,48 @@ SDPAPattern::SDPAPattern()
 ShapeOfPattern::ShapeOfPattern()
     : MarkPattern(wrap_type<v3::ShapeOf>({any_input()}), ConvertShapeOf()) {}
 
+// ConvertSlice only implements the static, all-positive, unit-step case.
 SlicePattern::SlicePattern()
-    : MarkPattern(wrap_type<v8::Slice>({any_input(), any_input(), any_input(), any_input(), any_input()}), ConvertSlice()) {}
+    : MarkPattern(
+        wrap_type<v8::Slice>(
+            {any_input(), any_input(), any_input(), any_input(), any_input()},
+            [](const Output<Node>& output) {
+                auto node = ov::as_type_ptr<v8::Slice>(output.get_node_shared_ptr());
+                if (!node || has_dynamic_rank(node)) {
+                    OPENVINO_MLIR_DEBUG_PRINT("SlicePattern: rejected " << node->get_friendly_name()
+                                              << " — dynamic rank");
+                    return false;
+                }
+
+                const auto start = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+                const auto stop = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(2));
+                const auto step = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(3));
+                if (!start || !stop || !step) {
+                    OPENVINO_MLIR_DEBUG_PRINT("SlicePattern: rejected " << node->get_friendly_name()
+                                              << " — start/stop/step must be Constants");
+                    return false;
+                }
+
+                // Only unit step is supported (sizes = stop - start assumes step == 1).
+                const auto step_values = step->cast_vector<int64_t>();
+                if (std::any_of(step_values.begin(), step_values.end(), [](int64_t s) { return s != 1; })) {
+                    OPENVINO_MLIR_DEBUG_PRINT("SlicePattern: rejected " << node->get_friendly_name()
+                                              << " — non-unit step");
+                    return false;
+                }
+
+                // Negative start/stop are not handled (no bounds normalization in the converter).
+                const auto start_values = start->cast_vector<int64_t>();
+                const auto stop_values = stop->cast_vector<int64_t>();
+                if (std::any_of(start_values.begin(), start_values.end(), [](int64_t v) { return v < 0; }) ||
+                    std::any_of(stop_values.begin(), stop_values.end(), [](int64_t v) { return v < 0; })) {
+                    OPENVINO_MLIR_DEBUG_PRINT("SlicePattern: rejected " << node->get_friendly_name()
+                                              << " — negative start/stop");
+                    return false;
+                }
+                return true;
+            }),
+        ConvertSlice()) {}
 
 SqueezePattern::SqueezePattern()
     : MarkPattern(wrap_type<v0::Squeeze>({any_input()}), ConvertSqueeze()) {}
