@@ -195,17 +195,6 @@ long long bench(const std::function<void()>& fn,
     return total / measured_runs;
 }
 
-long long bench_warm(const std::function<void()>& fn, int warmup_runs = 1, int measured_runs = 5) {
-    for (int i = 0; i < warmup_runs; ++i) {
-        fn();
-    }
-    long long total = 0;
-    for (int i = 0; i < measured_runs; ++i) {
-        total += measure_ms(fn);
-    }
-    return total / measured_runs;
-}
-
 double throughput_mibs(size_t size_mib, long long ms) {
     if (ms <= 0)
         return 0.0;
@@ -303,8 +292,13 @@ void native_stream_read(const std::filesystem::path& path, size_t file_size) {
 class FileLoadBenchmark : public ::testing::Test {};
 
 TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
-    const std::vector<size_t> sizes_bytes = {2 * util::one_mib, 4 * util::one_mib, 32 * util::one_mib,
-                                             500 * util::one_mib, 700 * util::one_mib, 1000 * util::one_mib, 5000 * util::one_mib};
+    const std::vector<size_t> sizes_bytes = {2 * util::one_mib,
+                                             4 * util::one_mib,
+                                             32 * util::one_mib,
+                                             500 * util::one_mib,
+                                             700 * util::one_mib,
+                                             1000 * util::one_mib,
+                                             5000 * util::one_mib};
     constexpr int warmup = 0;
     constexpr int runs = 3;
 
@@ -312,8 +306,6 @@ TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
         size_t size_mib;
         long long parallel_cold_ms;
         long long native_cold_ms;
-        long long parallel_warm_ms;
-        long long native_warm_ms;
     };
     std::vector<Row> results;
 
@@ -338,19 +330,7 @@ TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
             size_bytes,
             warmup,
             runs);
-        const auto parallel_warm_ms = bench_warm(
-            [&]() {
-                strategy::parallel_stream_read(path, size_bytes);
-            },
-            1,
-            runs);
-        const auto native_warm_ms = bench_warm(
-            [&]() {
-                strategy::native_stream_read(path, size_bytes);
-            },
-            1,
-            runs);
-        results.push_back({size_mib, parallel_ms, native_ms, parallel_warm_ms, native_warm_ms});
+        results.push_back({size_mib, parallel_ms, native_ms});
     }
 
     printf("\n--- Cold-cache latency (ms, mean of %d runs) ---\n", runs);
@@ -368,23 +348,6 @@ TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
                row.size_mib,
                throughput_mibs(row.size_mib, row.parallel_cold_ms),
                throughput_mibs(row.size_mib, row.native_cold_ms));
-    }
-
-    printf("\n--- Warm-cache latency (ms, mean of %d runs) ---\n", runs);
-    printf("%-12s | %16s | %16s\n", "Size (MiB)", "ParallelRead", "NativeStream");
-    printf("%-12s-|-%16s-|-%16s\n", "------------", "----------------", "----------------");
-    for (const auto& row : results) {
-        printf("%-12zu | %13lld ms | %13lld ms\n", row.size_mib, row.parallel_warm_ms, row.native_warm_ms);
-    }
-
-    printf("\n--- Warm-cache throughput (MiB/s, mean of %d runs) ---\n", runs);
-    printf("%-12s | %16s | %16s\n", "Size (MiB)", "ParallelRead", "NativeStream");
-    printf("%-12s-|-%16s-|-%16s\n", "------------", "----------------", "----------------");
-    for (const auto& row : results) {
-        printf("%-12zu | %16.1f | %16.1f\n",
-               row.size_mib,
-               throughput_mibs(row.size_mib, row.parallel_warm_ms),
-               throughput_mibs(row.size_mib, row.native_warm_ms));
     }
 }
 
