@@ -5,9 +5,6 @@
 #include "intel_npu/common/compiler_options_cache.hpp"
 
 #include <algorithm>
-#include <memory>
-
-#include "intel_npu/common/compiler_adapter_factory.hpp"
 
 namespace intel_npu {
 
@@ -15,75 +12,108 @@ std::mutex CompilerOptionsCache::_mutex;
 CompilerOptionsCache::CompilerTypeOptionsState CompilerOptionsCache::_driverCompilerOptionsState{};
 CompilerOptionsCache::CompilerTypeOptionsState CompilerOptionsCache::_pluginCompilerOptionsState{};
 
-bool CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType compilerType,
+bool CompilerOptionsCache::isOptionSupported(const ov::intel_npu::CompilerType& compilerType,
                                              const std::string& optionName,
                                              const std::optional<std::string>& optionValue,
-                                             const ov::SoPtr<IEngineBackend>& engineBackend,
                                              const std::optional<uint32_t>& compilerSupportVersion) {
     std::lock_guard<std::mutex> lock(_mutex);
-
-    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
-    const auto getCompiler = [&]() -> ICompilerAdapter* {
-        if (compiler == nullptr) {
-            compiler = CompilerAdapterFactory().getCompiler(engineBackend, compilerType, "");
-        }
-        return compiler.get();
-    };
-
     auto& compilerOptionsState = getStateForCompilerType(compilerType);
-    const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
-
-    if (compilerOptionsState.supportedOptionsQueried && compilerOptionsState.supportedOptions.has_value()) {
-        const bool isCachedAsSupported =
-            compilerOptionsState.legacy
-                ? isLegacyOptionCached(compilerOptionsState, optionCacheKey, compilerSupportVersion)
-                : isOptionCached(compilerOptionsState, optionCacheKey);
-        if (isCachedAsSupported) {
-            return true;
-        }
-    }
-
-    if (!compilerOptionsState.supportedOptionsQueried) {
-        auto* compilerPtr = getCompiler();
-        OPENVINO_ASSERT(compilerPtr != nullptr, "Compiler must be present to filter properties by compiler support");
-
-        compilerOptionsState.supportedOptions = compilerPtr->get_supported_options();
-        compilerOptionsState.supportedOptionsQueried = true;
-        if (!compilerOptionsState.supportedOptions.has_value()) {
-            compilerOptionsState.legacy = true;
-            compilerOptionsState.compilerVersion = compilerPtr->get_version();
-        } else {
-            if (isOptionCached(compilerOptionsState, optionCacheKey)) {
-                return true;
-            }
-        }
-    }
-
     if (compilerOptionsState.legacy) {
-        if (compilerSupportVersion.has_value() &&
-            compilerOptionsState.compilerVersion >= compilerSupportVersion.value()) {
-            addSupportedOptionImpl(compilerOptionsState,
-                                   buildLegacyOptionCacheKey(optionCacheKey, compilerSupportVersion.value()));
-            return true;
+        if (!compilerSupportVersion.has_value()) {
+            OPENVINO_THROW("Cannot determine option support in legacy mode without compiler support version.");
         }
-        return false;
+        return compilerOptionsState.compilerVersion >= compilerSupportVersion.value();
     }
 
-    auto* compilerPtr = getCompiler();
-    if (compilerPtr == nullptr) {
-        return false;
+    const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
+    if (isOptionCachedInVector(compilerOptionsState.supportedOptions, optionCacheKey) ||
+        isOptionCachedInVector(compilerOptionsState.privateSupportedOptions, optionCacheKey)) {
+        return true;
     }
 
-    const bool supported = compilerPtr->is_option_supported(optionName, optionValue);
-    if (supported) {
-        addSupportedOptionImpl(compilerOptionsState, optionCacheKey);
+    return false;
+}
+
+void CompilerOptionsCache::addSupportedOption(const ov::intel_npu::CompilerType& compilerType,
+                                              const std::string& optionName,
+                                              const std::optional<std::string>& optionValue) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto& compilerOptionsState = getStateForCompilerType(compilerType);
+    if (compilerOptionsState.legacy) {
+        OPENVINO_THROW("Cannot add private supported options in CompilerOptionsCache when legacy mode is enabled.");
     }
 
-    return supported;
+    const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
+    if (isOptionCachedInVector(compilerOptionsState.supportedOptions, optionCacheKey)) {
+        return;
+    }
+
+    if (!compilerOptionsState.privateSupportedOptions.has_value()) {
+        compilerOptionsState.privateSupportedOptions = std::vector<std::string>{};
+    }
+    if (!isOptionCachedInVector(compilerOptionsState.privateSupportedOptions, optionCacheKey)) {
+        compilerOptionsState.privateSupportedOptions->push_back(optionCacheKey);
+    }
+}
+
+void CompilerOptionsCache::setSupportedOptions(const ov::intel_npu::CompilerType& compilerType,
+                                               const std::vector<std::string>& supportedOptions) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto& compilerOptionsState = getStateForCompilerType(compilerType);
+    if (compilerOptionsState.legacy) {
+        OPENVINO_THROW("Cannot set supported options in CompilerOptionsCache when legacy mode is enabled.");
+    }
+
+    compilerOptionsState.supportedOptions = supportedOptions;
+    if (!compilerOptionsState.privateSupportedOptions.has_value()) {
+        return;
+    }
+
+    auto& privateOptions = compilerOptionsState.privateSupportedOptions.value();
+    privateOptions.erase(std::remove_if(privateOptions.begin(),
+                                        privateOptions.end(),
+                                        [&](const std::string& value) {
+                                            return std::find(supportedOptions.begin(), supportedOptions.end(), value) !=
+                                                   supportedOptions.end();
+                                        }),
+                         privateOptions.end());
+}
+
+std::optional<std::vector<std::string>> CompilerOptionsCache::getSupportedOptions(
+    const ov::intel_npu::CompilerType& compilerType) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    const auto& compilerOptionsState = getStateForCompilerType(compilerType);
+    if (compilerOptionsState.legacy) {
+        return std::nullopt;
+    }
+    return compilerOptionsState.supportedOptions;
+}
+
+std::optional<std::vector<std::string>> CompilerOptionsCache::getPrivateSupportedOptions(
+    const ov::intel_npu::CompilerType& compilerType) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    const auto& compilerOptionsState = getStateForCompilerType(compilerType);
+    if (compilerOptionsState.legacy) {
+        return std::nullopt;
+    }
+    return compilerOptionsState.privateSupportedOptions;
+}
+
+void CompilerOptionsCache::setLegacyCompilerVersion(const ov::intel_npu::CompilerType& compilerType,
+                                                    uint32_t compilerVersion) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto& compilerOptionsState = getStateForCompilerType(compilerType);
+
+    if (compilerOptionsState.supportedOptions.has_value()) {
+        OPENVINO_THROW("Cannot switch CompilerOptionsCache to legacy mode after supported options were initialized.");
+    }
+
+    compilerOptionsState.legacy = true;
+    compilerOptionsState.compilerVersion = compilerVersion;
 }
 
 CompilerOptionsCache::CompilerTypeOptionsState& CompilerOptionsCache::getStateForCompilerType(
-    ov::intel_npu::CompilerType compilerType) {
+    const ov::intel_npu::CompilerType& compilerType) {
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
         return _driverCompilerOptionsState;
     }
@@ -107,65 +137,14 @@ std::string CompilerOptionsCache::buildOptionCacheKey(const std::string& optionN
     return key;
 }
 
-std::string CompilerOptionsCache::buildLegacyOptionCacheKey(const std::string& optionCacheKey,
-                                                            uint32_t compilerSupportVersion) {
-    std::string key = optionCacheKey;
-    key += "@v=";
-    key += std::to_string(compilerSupportVersion);
-    return key;
-}
-
-bool CompilerOptionsCache::isOptionCached(const CompilerTypeOptionsState& compilerOptionsState,
-                                          const std::string& optionCacheKey) {
-    if (!compilerOptionsState.supportedOptions.has_value()) {
+bool CompilerOptionsCache::isOptionCachedInVector(const std::optional<std::vector<std::string>>& options,
+                                                  const std::string& optionCacheKey) {
+    if (!options.has_value()) {
         return false;
     }
 
-    const auto& supportedOptions = compilerOptionsState.supportedOptions.value();
-    return std::find(supportedOptions.begin(), supportedOptions.end(), optionCacheKey) != supportedOptions.end();
-}
-
-bool CompilerOptionsCache::isLegacyOptionCached(const CompilerTypeOptionsState& compilerOptionsState,
-                                                const std::string& optionCacheKey,
-                                                const std::optional<uint32_t>& compilerSupportVersion) {
-    if (!compilerOptionsState.supportedOptions.has_value()) {
-        return false;
-    }
-
-    const auto& supportedOptions = compilerOptionsState.supportedOptions.value();
-    if (compilerSupportVersion.has_value()) {
-        const auto cacheKey = buildLegacyOptionCacheKey(optionCacheKey, compilerSupportVersion.value());
-        return std::find(supportedOptions.begin(), supportedOptions.end(), cacheKey) != supportedOptions.end();
-    }
-
-    const std::string prefix = optionCacheKey + "@v=";
-    return std::any_of(supportedOptions.begin(), supportedOptions.end(), [&](const std::string& value) {
-        if (value == optionCacheKey) {
-            return true;
-        }
-        return value.size() > prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
-    });
-}
-
-void CompilerOptionsCache::addSupportedOptionImpl(CompilerTypeOptionsState& compilerOptionsState,
-                                                  const std::string& optionName) {
-    if (compilerOptionsState.supportedOptions.has_value()) {
-        const auto& supportedOptions = compilerOptionsState.supportedOptions.value();
-        if (std::find(supportedOptions.begin(), supportedOptions.end(), optionName) != supportedOptions.end()) {
-            return;
-        }
-    }
-
-    if (!compilerOptionsState.supportedOptionsQueried) {
-        compilerOptionsState.supportedOptionsQueried = true;
-        compilerOptionsState.supportedOptions = std::vector<std::string>{};
-    }
-
-    if (!compilerOptionsState.supportedOptions.has_value()) {
-        compilerOptionsState.supportedOptions = std::vector<std::string>{};
-    }
-
-    compilerOptionsState.supportedOptions->push_back(optionName);
+    const auto& values = options.value();
+    return std::find(values.begin(), values.end(), optionCacheKey) != values.end();
 }
 
 }  // namespace intel_npu
