@@ -93,14 +93,13 @@ struct MemRefTypeImpl {
                                                 memref._basePtr,
                                                 memref._data,
                                                 memref._offset,
-                                                _shapeUpdated? memref._sizes.data(): nullptr,
-                                                _strideUpdated? memref._strides.data(): nullptr,
+                                                _shapeUpdated ? memref._sizes.data() : nullptr,
+                                                _strideUpdated ? memref._strides.data() : nullptr,
                                                 memref._dimsCount);
             if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 OPENVINO_THROW("Failed to update MemRef handle");
             }
         }
-        
     }
 
 private:
@@ -138,16 +137,14 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runt
     return _handle;
 }
 
-npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
-    npu_vm_runtime_handle_t vmRuntime,
-    ze_context_handle_t ctx,
-    ze_device_handle_t device,
-    ze_command_queue_handle_t commandQueue,
-    ze_graph_dditable_ext_t* graphDdiTableExt) {
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(npu_vm_runtime_handle_t vmRuntime,
+                                                                       ze_context_handle_t ctx,
+                                                                       ze_device_handle_t device,
+                                                                       ze_command_queue_handle_t commandQueue,
+                                                                       ze_graph_dditable_ext_t* graphDdiTableExt) {
     if (_handle == nullptr) {
         npu_vm_runtime_create_execution_context_params_t params = {ctx, device, commandQueue, graphDdiTableExt};
-        const npu_vm_runtime_result_t result =
-            npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
+        const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
         if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context (v2)");
         }
