@@ -195,7 +195,7 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     K = ctx_to_sdpa(k_ctx_rows);
     V = ctx_to_sdpa(v_ctx_rows);
 
-    // === Step 5: broadcast KV heads for grouped-query attention (num_heads / kv_num_heads > 1) ===
+    // === Step 5: broadcast KV heads when num_heads / kv_num_heads > 1 (repeat each KV head to Q heads) ===
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
     if (kv_num_heads_factor > 1) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);

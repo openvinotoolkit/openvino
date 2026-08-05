@@ -199,7 +199,7 @@ TEST(PagedAttentionOpValidation, rejects_local_window_size_zero) {
 }
 
 TEST(PagedAttentionOpValidation, rejects_num_heads_not_divisible_by_kv_num_heads) {
-    // num_heads must be a multiple of kv_num_heads for grouped-query attention.
+    // num_heads must be a multiple of kv_num_heads (each KV head is shared by a group of query heads).
     OV_EXPECT_THROW(make_pa_op(1, /*num_heads*/ 3, /*kv_num_heads*/ 2, /*window*/ -1),
                     ov::NodeValidationFailure,
                     testing::HasSubstr("divisible"));
