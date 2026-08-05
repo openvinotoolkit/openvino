@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,10 +53,15 @@ struct PaParams {
     bool do_rotary = false;
     bool rotary_interleaved = false;
     Dimension batch = 1;  // past_seqlens length; 1 (static) -> single-sequence path, else varlen path
+    element::Type type = element::f32;
     // Expected decomposed structure.
     bool expects_sdpa = true;  // softcap > 0 uses the manual core instead of SDPA
 
     explicit PaParams(std::string n) : name(std::move(n)) {}
+    PaParams& etype(const element::Type& t) {
+        type = t;
+        return *this;
+    }
     PaParams& tokens(const Dimension& t) {
         num_tokens = t;
         return *this;
@@ -85,7 +91,7 @@ struct PaParams {
 };
 
 std::shared_ptr<Model> make_pa_model(const PaParams& p) {
-    const auto f32 = element::f32;
+    const auto ft = p.type;  // activation / cache float type
     OutputVector args;
     ParameterVector params;
     auto add = [&](const element::Type& et, const PartialShape& ps) {
@@ -96,17 +102,17 @@ std::shared_ptr<Model> make_pa_model(const PaParams& p) {
 
     // The internal op receives separate 2-D Q/K/V (the ONNX FE splits the packed QKV before creating it).
     const int64_t q_hidden = (p.packed ? (NUM_HEADS + 2 * KV_NUM_HEADS) : NUM_HEADS) * HEAD_SIZE;
-    add(f32, PartialShape{p.num_tokens, q_hidden});                           // 0: query
-    add(f32, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 1: key
-    add(f32, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 2: value
-    add(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 3: key_cache
-    add(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 4: value_cache
-    add(element::i32, PartialShape{p.batch + 1});                             // 5: cumulative_sequence_length
-    add(element::i32, PartialShape{p.batch});                                 // 6: past_seqlens
-    add(element::i32, PartialShape{p.batch, MAX_BLOCKS});                     // 7: block_table
+    add(ft, PartialShape{p.num_tokens, q_hidden});                           // 0: query
+    add(ft, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 1: key
+    add(ft, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 2: value
+    add(ft, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 3: key_cache
+    add(ft, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 4: value_cache
+    add(element::i32, PartialShape{p.batch + 1});                            // 5: cumulative_sequence_length
+    add(element::i32, PartialShape{p.batch});                                // 6: past_seqlens
+    add(element::i32, PartialShape{p.batch, MAX_BLOCKS});                    // 7: block_table
     if (p.do_rotary) {
-        add(f32, PartialShape{-1, HEAD_SIZE / 2});  // 8: cos_cache
-        add(f32, PartialShape{-1, HEAD_SIZE / 2});  // 9: sin_cache
+        add(ft, PartialShape{-1, HEAD_SIZE / 2});  // 8: cos_cache
+        add(ft, PartialShape{-1, HEAD_SIZE / 2});  // 9: sin_cache
     }
 
     const auto pa = std::make_shared<PagedAttention>(args,
@@ -246,4 +252,28 @@ TEST(PagedAttentionValues, sliding_window_boundary_uses_window_size_constant) {
     auto window_const = as_type_ptr<op::v0::Constant>(greater_eq->get_input_node_shared_ptr(1));
     ASSERT_NE(window_const, nullptr) << "window boundary is not a constant";
     EXPECT_EQ(window_const->cast_vector<int64_t>(), std::vector<int64_t>{W});
+}
+
+TEST(PagedAttentionValues, bf16_mask_uses_finite_bfloat16_lowest) {
+    // bf16 is a spec activation type (T = float16/bfloat16). The additive mask must use the compute type's
+    // finite lowest() (never -inf) so a fully-masked row cannot softmax to NaN, and the magnitude must be the
+    // bf16 lowest() so it does not overflow to -inf when narrowed. Assert the bf16 branch emits exactly that.
+    auto model = make_pa_model(PaParams{"bf16"}.etype(element::bf16));
+    pass::Manager manager;
+    manager.register_pass<pass::PagedAttentionDecomposition>();
+    manager.run_passes(model);
+
+    // The mask is Select(masked_bool, minus_inf, 0) in bf16. Find the bf16 constant equal to bfloat16 lowest().
+    const auto expected = std::numeric_limits<ov::bfloat16>::lowest();
+    bool found = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto c = as_type_ptr<op::v0::Constant>(op);
+        if (c && c->get_element_type() == element::bf16 && ov::shape_size(c->get_shape()) == 1) {
+            if (c->cast_vector<ov::bfloat16>()[0] == expected) {
+                found = true;
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(found) << "bf16 mask must use std::numeric_limits<ov::bfloat16>::lowest() for masked positions";
 }
