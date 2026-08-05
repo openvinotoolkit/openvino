@@ -167,8 +167,13 @@ private:
 
     /* Dynamic support */
     void reshapeSubgraphInput();
-    void reshapeAndFillOutput(const dnnl::stream& strm);
+    void reshapeAndFillOutput(const dnnl::stream& strm, bool zeroIterations);
     bool checkForInputAndBodyShapesInequality() const;
+
+    /* Zero iterations support */
+    int getInitialValueInputPort(const PortMap& outputMapRule) const;
+    bool fillOutputByInitialValue(const dnnl::stream& strm, const PortMap& outputMapRule);
+
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
     void prepareParamsImpl(bool compileStage);
 
@@ -191,10 +196,22 @@ private:
     std::unordered_map<std::pair<int, int>, std::shared_ptr<PortMapHelper>, PortMapHasher>
         first_mappers;  /// < Applied once before loop
 
-    std::vector<std::shared_ptr<PortMapHelper>> last_mappers,  /// < Applied once after loop
-        before_mappers,                                        /// < Applied before each iteration
-        after_mappers,                                         /// < Applied after each iteration
-        back_mappers;                                          /// < Applied before each iteration for dynamic shapes
+    /**
+     * Pair of helpers to fill one node output port when the loop is over.
+     * 'mapper' takes the value produced by the body on the last executed iteration, while
+     * 'zeroIterMapper' takes the initial value of the corresponding loop carried dependency
+     * (merged input) and is used when the body has not been executed at all. It stays empty
+     * for the output ports which are not loop carried dependencies.
+     */
+    struct LastPortMapper {
+        std::shared_ptr<PortMapHelper> mapper;
+        std::shared_ptr<PortMapHelper> zeroIterMapper;
+    };
+    std::vector<LastPortMapper> last_mappers;  /// < Applied once after loop
+
+    std::vector<std::shared_ptr<PortMapHelper>> before_mappers,  /// < Applied before each iteration
+        after_mappers,                                           /// < Applied after each iteration
+        back_mappers;                                            /// < Applied before each iteration for dynamic shapes
 
     std::shared_ptr<PortChecker> trip_count_check,  /// < Perform check of trip count value. value >= -1
         initial_cond_check,   /// < Perform check of initial continue condition value. value [0, 1]
