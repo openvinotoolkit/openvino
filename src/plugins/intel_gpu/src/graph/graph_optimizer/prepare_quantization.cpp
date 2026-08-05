@@ -352,7 +352,7 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
     auto& input = eltwise_node.input();
     const auto& stream = p.get_stream();
 
-    for (auto& user : input.get_users()) {
+    for (const auto& user : input.get_users()) {
         if (user == &eltwise_node)
             continue;
 
@@ -384,8 +384,8 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
 
             mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
             mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
-            auto ptr0 = mem0_lock.data();
-            auto ptr1 = mem1_lock.data();
+            auto* ptr0 = mem0_lock.data();
+            auto* ptr1 = mem1_lock.data();
 
             for (size_t j = 0; j < mem0->get_layout().bytes_count(); j++) {
                 if (ptr0[j] != ptr1[j]) {
@@ -417,7 +417,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
         return;
     }
 
-    auto &usr = reorder_node.get_users().front();
+    const auto& usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
     if (!usr->is_type<convolution>() || usr->get_input_layout(1).data_type != data_types::i8 ||
         !dep.is_input() ||
@@ -438,7 +438,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
     auto& input = quantize_node.get_dependency(0);
     auto parallel_quantizes_num = 0;
-    for (auto& usr : input.get_users()) {
+    for (const auto& usr : input.get_users()) {
         if (usr->is_type<quantize>())
             parallel_quantizes_num++;
     }
@@ -469,7 +469,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     mem_lock<uint8_t, mem_lock_type::read> mem_output_high_lock_first{mem_output_high_first, stream};
 
     program_node* same_quantize = nullptr;
-    for (auto& usr : input.get_users()) {
+    for (const auto& usr : input.get_users()) {
         if (!usr->is_type<quantize>() || usr == &quantize_node)
             continue;
 
@@ -670,7 +670,7 @@ static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, pr
 void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto &node = (*itr++);
+        const auto& node = (*itr++);
         if (node->is_type<quantize>()) {
             handle_quantize_node(p, node->as<quantize>());
         } else if (node->is_type<eltwise>()) {

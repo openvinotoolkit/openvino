@@ -267,7 +267,7 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
             for (auto& output : current->outputs()) {
                 if (!output.get_element_type().is_real())
                     continue;
-                for (auto& target_input : output.get_target_inputs()) {
+                for (const auto& target_input : output.get_target_inputs()) {
                     auto consumer = target_input.get_node()->shared_from_this();
                     if (!visited.insert(consumer.get()).second)
                         continue;
