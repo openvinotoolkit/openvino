@@ -1983,7 +1983,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
              ov::element::i8 == matched_qweight->get_element_type()) && (standard_layout || pretransposed_layout)) {
             if (!only_scale_zeropoint) {
                 to_keep.get().push_back(matched_qweight);
-            };
+            }
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed

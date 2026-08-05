@@ -83,14 +83,18 @@ public:
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            if (matched_qweight->get_element_type() != ov::element::u8) {
+                return false;
+            }
+            if (matched_qweight->get_shape().size() != 2) {
+                return false;
+            }
             auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto qcoeff_shape = std::static_pointer_cast<ov::op::v0::Constant>(matched_qcoeff)->get_shape();
-
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(node_to_output.at(qres).get_node_shared_ptr());
 
-            if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+            if (qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&
                 !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
                 auto matched_qweight_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qweight);
                 auto matched_qzerop_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qzerop);
@@ -108,12 +112,11 @@ public:
                     i8_qzerop_data[i] = static_cast<int8_t>(static_cast<uint8_t>(i8_qzerop_data[i]) - 128u);
                 }
 
-                for (const auto& target_input : matched_qweight->output(0).get_target_inputs()) {
-                    target_input.get_source_output().replace(i8_qweight_constant);
-                }
-                for (const auto& target_input : matched_qzerop->output(0).get_target_inputs()) {
-                    target_input.get_source_output().replace(i8_qzerop_constant);
-                }
+                auto target_qweight_input = matched_qweight->output(0).get_target_inputs().begin();
+                target_qweight_input->get_source_output().replace(i8_qweight_constant);
+                auto& target_qzerop_input = *matched_qzerop->output(0).get_target_inputs().begin();
+                target_qzerop_input.get_source_output().replace(i8_qzerop_constant);
+
                 matched_qweight.reset();
                 matched_qweight_const.reset();
                 matched_qzerop.reset();
@@ -909,9 +912,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
     }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
-    if (lm_head_model) {
-        ov::save_model(lm_head_model, "lm_head_model.xml");
-    }
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
