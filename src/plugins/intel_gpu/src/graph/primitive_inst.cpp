@@ -2384,10 +2384,6 @@ void primitive_inst::execute() {
         set_out_event(outputs.at(last_prim_id).get_event());
         return;
     }
-    if (get_network().get_stream().is_recording() && !_impl->can_be_recorded()) {
-        get_network().get_stream().stop_recording();
-        GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording interrupted by " << id() << std::endl;
-    }
 
     set_out_event(_impl->execute(_impl_params->dep_events, *this));
 

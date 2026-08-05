@@ -475,7 +475,7 @@ command_list::ptr ocl_stream::create_command_list() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ocl_stream::start_recording(command_list::ptr cmd_list) {
+void ocl_stream::start_recording(command_list::ptr cmd_list) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -483,11 +483,11 @@ bool ocl_stream::is_recording() const {
     return false;
 }
 
-command_list::ptr ocl_stream::stop_recording() {
+command_list::ptr ocl_stream::stop_recording() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ocl_stream::enqueue_command_list(command_list::ptr cmd_list) {
+void ocl_stream::enqueue_command_list(command_list::ptr cmd_list) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

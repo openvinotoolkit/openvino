@@ -62,10 +62,10 @@ public:
 
     bool supports_recording() const override;
     command_list::ptr create_command_list() const override;
-    void start_recording(command_list::ptr cmd_list) override;
+    void start_recording(command_list::ptr cmd_list) const override;
     bool is_recording() const override;
-    command_list::ptr stop_recording() override;
-    void enqueue_command_list(command_list::ptr cmd_list) override;
+    command_list::ptr stop_recording() const override;
+    void enqueue_command_list(command_list::ptr cmd_list) const override;
 
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
@@ -86,7 +86,7 @@ private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
-    std::shared_ptr<ze_command_list> m_recorded_cmd_list = nullptr;
+    mutable std::shared_ptr<ze_command_list> m_recorded_cmd_list = nullptr;
     bool m_profiling_enabled;
 };
 

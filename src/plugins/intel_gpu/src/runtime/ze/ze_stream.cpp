@@ -408,7 +408,10 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    OPENVINO_ASSERT(!is_recording(), "[GPU] Can't finish stream while recording is in progress");
+    if (is_recording()) {
+        stop_recording();
+        GPU_DEBUG_TRACE << "[GPU] Stream finish interrupted recording" << std::endl;
+    }
     OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_imm_cmd_list.handle(), endless_wait));
 }
 
@@ -483,7 +486,7 @@ std::shared_ptr<command_list> ze_stream::create_command_list() const {
     return std::make_shared<ze_command_list>(*this, m_queue_type);
 }
 
-void ze_stream::start_recording(command_list::ptr cmd_list) {
+void ze_stream::start_recording(command_list::ptr cmd_list) const {
     auto ze_cmd_list = std::dynamic_pointer_cast<ze_command_list>(cmd_list);
     OPENVINO_ASSERT(!is_recording(), "[GPU] Can't start recording command list while another command list is being recorded");
     OPENVINO_ASSERT(ze_cmd_list != nullptr, "[GPU] Can't start recording command list other than ze_command_list");
@@ -495,7 +498,7 @@ bool ze_stream::is_recording() const {
     return m_recorded_cmd_list != nullptr;
 }
 
-command_list::ptr ze_stream::stop_recording() {
+command_list::ptr ze_stream::stop_recording() const {
     ze_command_list::ptr ret = nullptr;
     m_recorded_cmd_list.swap(ret);
     if (ret != nullptr) {
@@ -505,7 +508,7 @@ command_list::ptr ze_stream::stop_recording() {
     return ret;
 }
 
-void ze_stream::enqueue_command_list(command_list::ptr cmd_list) {
+void ze_stream::enqueue_command_list(command_list::ptr cmd_list) const {
     auto ze_cmd_list = std::dynamic_pointer_cast<ze_command_list>(cmd_list);
     OPENVINO_ASSERT(ze_cmd_list != nullptr, "[GPU] Can't enqueue command list other than ze_command_list");
     ze_command_list_handle_t enqueued_cmd_list = ze_cmd_list->handle();

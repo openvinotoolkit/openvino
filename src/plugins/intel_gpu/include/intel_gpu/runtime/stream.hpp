@@ -67,7 +67,7 @@ public:
     /// @brief Start recording operations executed on the stream.
     /// Executed commands are not submitted to the device during recording.
     /// @param cmd_list Command list to record executed commands.
-    virtual void start_recording(command_list::ptr cmd_list) = 0;
+    virtual void start_recording(command_list::ptr cmd_list) const = 0;
 
     /// @brief Check if the stream is currently recording commands to the command list.
     /// @return True if the stream is recording, false otherwise.
@@ -75,12 +75,12 @@ public:
 
     /// @brief Stop recording and submit all recorded commands to the device.
     /// @return Command list with recorded commands or nullptr if stream was not recording.
-    virtual command_list::ptr stop_recording() = 0;
+    virtual command_list::ptr stop_recording() const = 0;
 
     /// @brief Enqueue command list.
     /// @param cmd_list Command list to enqueue.
     /// @note Resources referenced by the command list must remain valid during command list execution.
-    virtual void enqueue_command_list(command_list::ptr cmd_list) = 0;
+    virtual void enqueue_command_list(command_list::ptr cmd_list) const = 0;
 
     virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,

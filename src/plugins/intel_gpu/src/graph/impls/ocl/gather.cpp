@@ -192,7 +192,6 @@ public:
         update_shapes(*_kernel_data.params, impl_param);
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
-    bool can_be_recorded() const override { return true; }
 };
 
 std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {

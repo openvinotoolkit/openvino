@@ -88,9 +88,6 @@ struct primitive_impl {
     // between USM buffers) or that never touch tensor data (e.g. shape_of) should override
     // this to return false so their input producers are not forced to allocate lockable memory.
     virtual bool requires_lockable_input() const { return is_cpu(); }
-    /// @brief Checks if this implementation can be recorded to the command list.
-    /// Implementations that can be recorded should override this method to return true.
-    virtual bool can_be_recorded() const { return false; }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
     virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }

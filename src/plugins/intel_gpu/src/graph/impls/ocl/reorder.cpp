@@ -160,7 +160,6 @@ public:
 
         return std::make_unique<reorder_impl>(best_kernel);
     }
-    bool can_be_recorded() const override { return true; }
 };
 
 std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
