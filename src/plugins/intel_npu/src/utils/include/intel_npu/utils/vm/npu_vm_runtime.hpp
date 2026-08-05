@@ -299,18 +299,30 @@ typedef struct _npu_vm_runtime_config_desc_t {
 ///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
     const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
-    npu_vm_runtime_config_desc_t* pConfig,    ///< [in][optional] pointer to initial runtime configuration descriptors
+    const npu_vm_runtime_config_desc_t* pConfig, ///< [in][optional] pointer to initial runtime configuration descriptors
     npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
     npu_vm_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime execution context with Level Zero handles (v2.0)
+typedef struct _npu_vm_runtime_create_execution_context_params_t {
+    /// @brief Level Zero context. Used by interpreter to create internal CLs.
+    ze_context_handle_t ctx;
+
+    /// @brief Level Zero device. Used by interpreter to create internal CLs.
+    ze_device_handle_t device;
+
+    /// @brief Level Zero command queue. Used by interpreter to create a fence for host synchronization.
+    ze_command_queue_handle_t commandQueue;
+
+    /// @brief Graph DDI table extension pointer.
+    ze_graph_dditable_ext_t* graphDdiTableExt;
+} npu_vm_runtime_create_execution_context_params_t;
+
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
     npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    ze_context_handle_t ctx,           ///< [in] Level Zero context
-    ze_device_handle_t device,         ///< [in] Level Zero device
-    ze_graph_dditable_ext_t* graphDdiTableExt,  ///< [in] Graph DDI table extension pointer
+    npu_vm_runtime_create_execution_context_params_t* pParams,  ///< [in] pointer to execution context creation parameters
     npu_vm_runtime_execution_context_handle_t*
         phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
 );
