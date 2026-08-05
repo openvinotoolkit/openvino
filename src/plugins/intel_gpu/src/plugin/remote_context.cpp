@@ -283,7 +283,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                                                    size_t offset) {
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
-    auto mmap_tensor = ov::read_tensor_data(file_path, type, shape, offset);
+    const auto mmap_tensor = ov::read_tensor_data(file_path, type, shape, offset);
     const void* data_ptr = mmap_tensor.data();
     const auto size = static_cast<int64_t>(mmap_tensor.get_byte_size());
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),

@@ -171,7 +171,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
                                    ov::intel_gpu::VirtualAddressMemory va_mem,
-                                   ov::Tensor mmap_tensor)
+                                   const ov::Tensor mmap_tensor)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -182,7 +182,7 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
     , m_va_mem(va_mem)
-    , m_mmap_tensor(std::move(mmap_tensor)) {
+    , m_mmap_tensor(mmap_tensor) {
     update_hash();
     allocate();
 }
@@ -376,12 +376,12 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         // Track (account and log) the host memory only when the plugin owns the mapping (file-mmap case).
-        const bool track_memory = static_cast<bool>(m_mmap_tensor);
-        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
+        const bool tensor_initialized = static_cast<bool>(m_mmap_tensor);
+        m_memory_object = engine.create_hostbuffer(tensor_initialized ? const_cast<const void*>(m_va_mem.ptr) : m_va_mem.ptr,
                                         m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
                                         cldnn::allocation_type::cl_mem,
                                         m_layout,
-                                        track_memory);
+                                        tensor_initialized);
         break;
     }
 #ifdef _WIN32
