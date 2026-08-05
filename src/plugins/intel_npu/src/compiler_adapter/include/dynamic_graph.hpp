@@ -91,6 +91,7 @@ private:
 
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
     bool _engineInitialized = false;
 };
 

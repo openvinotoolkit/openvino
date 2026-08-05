@@ -287,7 +287,6 @@ typedef struct _npu_vm_runtime_config_desc_t {
 } npu_vm_runtime_config_desc_t;
 
 #define NPU_VM_RUNTIME_CONFIG_TYPE_INVALID             0ULL
-#define NPU_VM_RUNTIME_CONFIG_TYPE_SHARED_COMMON_QUEUE 1ULL
 #define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY      2ULL
 #define NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE       3ULL
 #define NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS       4ULL
@@ -296,6 +295,8 @@ typedef struct _npu_vm_runtime_config_desc_t {
 /// @brief Init VM runtime instance with initial runtime configuration and return handle (v2.0)
 /// @details Use this instead of npuVMRuntimeCreate when the VM runtime API version is 2.0 or later.
 ///          Runtime configuration descriptors provide initial runtime configuration for graph creation.
+///          Shared command queue usage is selected by passing a non-null commandQueue handle
+///          in v2 execution-context creation and execute parameters, not by a config descriptor.
 ///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
     const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
@@ -313,7 +314,8 @@ typedef struct _npu_vm_runtime_create_execution_context_params_t {
     /// @brief Level Zero device. Used by interpreter to create internal CLs.
     ze_device_handle_t device;
 
-    /// @brief Level Zero command queue. Used by interpreter to create a fence for host synchronization.
+    /// @brief Initial Level Zero command queue. Used by interpreter to create a fence for host synchronization.
+    ///        Later npuVMRuntimeExecute2 calls may provide a different commandQueue.
     ze_command_queue_handle_t commandQueue;
 
     /// @brief Graph DDI table extension pointer.
@@ -333,8 +335,11 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 ///          The interpreter creates and owns all internal command lists
 ///          based on current pConfig descriptors, storing them inside executionContext.
 ///          pConfig provides current per-execute runtime configuration and is valid
-///          only for this call. Plugin never creates or manages command lists directly
-///          in this path.
+///          only for this call. A non-null commandQueue provides the plugin-selected
+///          shared command queue; a null commandQueue lets the runtime manage queue usage.
+///          If commandQueue differs from the one currently stored in executionContext,
+///          runtime updates queue-dependent internal objects as needed.
+///          Plugin never creates or manages command lists directly in this path.
 typedef struct _npu_vm_runtime_execute_params2_t {
     /// @brief Level Zero context. Used by interpreter to create internal CLs.
     ze_context_handle_t ctx;
