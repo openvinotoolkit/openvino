@@ -84,11 +84,7 @@ struct memory {
             return true;
         }
 
-        if (_bytes_count == l.bytes_count()) {
-            return false;
-        }
-
-        return true;
+        return _bytes_count != l.bytes_count();
     }
 
     // Device <== Host

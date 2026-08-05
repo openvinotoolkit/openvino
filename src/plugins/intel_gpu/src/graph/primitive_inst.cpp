@@ -526,7 +526,7 @@ void primitive_inst::update_shape() {
         auto desc = get_node().as<kv_cache>().get_primitive();
         const auto trim_length = kv_cache_inst::compute_trim_length(*_impl_params, *desc);
         if (trim_length > 0) {
-            OPENVINO_ASSERT(!(desc->indirect || desc->compressed),
+            OPENVINO_ASSERT(!desc->indirect && !desc->compressed,
                             "[GPU] Unsupported trim for indirect or compressed kvcache:  indirect:",
                             desc->indirect,
                             "  compressed:",
@@ -729,6 +729,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             this->_outputs[0] = concat_inst->_outputs[0];
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
             return;
+        } else if (!_outputs.empty() && _outputs[0] != nullptr &&
+                   !concat_inst->_outputs.empty() && concat_inst->_outputs[0] != nullptr &&
+                   get_network().get_engine().is_the_same_buffer(*_outputs[0], *concat_inst->_outputs[0])) {
+            // In-place concat optimization is rejected now, but a previous execution with this optimization
+            // may have the same memory aliased to its deps' outputs and itself's output. In this case, we
+            // need to reallocate the memory for this node to avoid memory corruption.
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reallocate memory for concat " << concat_inst->id() 
+                                   << " after rejected in-place concat" << std::endl;
+            clear_output_memory();
         }
     }
 
@@ -1186,7 +1195,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 break;
             }
         }
-        if (present_layout.data_padding._dynamic_dims_mask[sequence_axis] == 1) {
+        if (static_cast<int>(present_layout.data_padding._dynamic_dims_mask[sequence_axis]) == 1) {
             // Apply padding of variable to make it be optimized in the next iteration
             auto max_pad = kv_cache_inst::get_max_pad(present_layout,
                                                       _max_output_layout_count[0],
@@ -1305,17 +1314,17 @@ bool primitive_inst::use_async_compilation() {
     if (compile_gemm_impls) {
         // Do not async-compile if opt_gemm is chosen for iGPU
         // Do async-compile if it is to be executed from onednn
-        compile_gemm_impls = get_node().get_selected_impl() && get_node().get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
-        compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+        compile_gemm_impls = (get_node().get_selected_impl() != nullptr) && get_node().get_selected_impl()->get_kernel_name().find("gemm_ref") != std::string::npos;
+        compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && (get_node().get_selected_impl() != nullptr) && !get_node().get_selected_impl()->is_onednn();
     }
 
     bool compile_conv_impls = get_node().is_type<convolution>();
     if (compile_conv_impls) {
-        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && (get_node().get_selected_impl() != nullptr) && !get_node().get_selected_impl()->is_onednn();
     }
 
     return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
-            (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
+            (get_node().is_type<softmax>() && (get_node().get_selected_impl() != nullptr) &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
 
@@ -1338,7 +1347,7 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     const auto& lower_pads = data_padding._lower_size;
     const auto& upper_pads = data_padding._upper_size;
     for (size_t j = 0; j < shape_with_max_rank.size(); ++j) {
-        if (dynamic_pad[j] == 1) {
+        if (static_cast<int>(dynamic_pad[j]) == 1) {
             GPU_DEBUG_TRACE_DETAIL << " shape_info[" << offset << "] = " << lower_pads[j]
                                    << "(pad_before for " << j << "-th dim)" << std::endl;
             shape_info_ptr[offset++] = static_cast<int32_t>(lower_pads[j]);  // pad_before
@@ -1399,7 +1408,7 @@ void primitive_inst::update_impl(bool use_async_compilation) {
         return;
     }
 
-    if (!get_node().is_type<data>() && !(get_node().is_type<mutable_data>() && get_node().get_dependencies().empty())) {
+    if (!get_node().is_type<data>() && (!get_node().is_type<mutable_data>() || !get_node().get_dependencies().empty())) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (_impls_factory->has(impl_types::onednn)) {
             auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
@@ -1559,7 +1568,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     }
 
     auto sequence_axis = kv_cache_inst::get_sequence_axis(desc->concat_axis, past_layout.get_partial_shape().size());
-    if (present_layout.data_padding._dynamic_dims_mask[sequence_axis] != 1)
+    if (static_cast<int>(present_layout.data_padding._dynamic_dims_mask[sequence_axis]) != 1)
         return;
 
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
@@ -1807,7 +1816,7 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     auto concat_inst = get_user_insts().front();
 
-    if (!concat_inst->get_node().is_type<concatenation>() || !(concat_inst->get_node().can_be_optimized() && concat_inst->get_node().is_runtime_skippable()))
+    if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized() || !concat_inst->get_node().is_runtime_skippable())
         return;
 
     if (has_subgraph_dependency(concat_inst->dependencies())) {
@@ -1851,6 +1860,33 @@ void primitive_inst::do_runtime_in_place_concat() {
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
         GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << " cannot be optimized " << std::endl;
+        
+        // If the in-place concat optimization is not possible on this iteration, but it is applied
+        // previously, we need to reset the paddings of its deps' output layouts to the natural
+        // values.
+
+        bool padding_reverted = false;
+        size_t dep_idx = 0;
+        for (auto& dep : concat_inst->_deps) {
+            if (dep.first->_impl_params->output_layouts[0].data_padding != dep.first->get_node().get_output_layout(0).data_padding) {
+                dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
+                dep.first->_impl_params->output_layouts[0].data_padding = dep.first->get_node().get_output_layout(0).data_padding;
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of dep " << dep.first->id() << " : "
+                                       << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
+                padding_reverted = true;
+            }
+            if (dep_idx < concat_inst->_impl_params->input_layouts.size() &&
+                concat_inst->_impl_params->input_layouts[dep_idx].data_padding != dep.first->get_node().get_output_layout(0).data_padding) {
+                concat_inst->_impl_params->input_layouts[dep_idx].data_padding = dep.first->get_node().get_output_layout(0).data_padding;
+                GPU_DEBUG_TRACE_DETAIL << "[In place concat] Revert padding of input " << dep_idx << " : "
+                                       << concat_inst->_impl_params->input_layouts[dep_idx].to_string() << std::endl;
+                padding_reverted = true;
+            }
+            ++dep_idx;
+        }
+        if (padding_reverted)
+            concat_inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
+        
         return;
     }
 
@@ -1858,12 +1894,18 @@ void primitive_inst::do_runtime_in_place_concat() {
     concat_in_place_optimization::update_in_place_concat_paddings(concat_layout, preds_layouts, concat_axis, true);
     size_t i = 0;
     for (auto& dep : concat_inst->_deps) {
-        if (_impl_params->output_layouts[0] != preds_layouts[i]) {
+        if (dep.first->_impl_params->output_layouts[0] != preds_layouts[i]) {
             dep.first->set_flag(ExecutionFlags::SHAPE_CHANGED);
             dep.first->_impl_params->output_layouts[0] = preds_layouts[i];
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
+                                   << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         }
-        GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of pred " << i << " : "
-                               << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
+        if (i < concat_inst->_impl_params->input_layouts.size() &&
+            concat_inst->_impl_params->input_layouts[i].data_padding != preds_layouts[i].data_padding) {
+            concat_inst->_impl_params->input_layouts[i].data_padding = preds_layouts[i].data_padding;
+            GPU_DEBUG_TRACE_DETAIL << "[In place concat] Update padding of input " << i << " : "
+                                   << concat_inst->_impl_params->input_layouts[i].to_string() << std::endl;
+        }
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
@@ -1875,9 +1917,9 @@ void primitive_inst::do_runtime_in_place_concat() {
 void primitive_inst::do_runtime_skip_scatter_update() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_scatter_update: " + id()));
     // Check pattern
-    if (!(get_node().is_type<scatter_update>()
-        || get_node().is_type<scatter_elements_update>()
-        || get_node().is_type<scatter_nd_update>())
+    if ((!get_node().is_type<scatter_update>()
+        && !get_node().is_type<scatter_elements_update>()
+        && !get_node().is_type<scatter_nd_update>())
         || !get_node().is_runtime_skippable())
         return;
 
@@ -2697,7 +2739,7 @@ void primitive_inst::update_weights() {
 
 static bool user_requesting_mem_reuse_false(const program_node& node) {
     for (auto& user : node.get_users()) {
-        if ((user->get_selected_impl() != nullptr) && (user->get_selected_impl()->can_reuse_memory == false)) {
+        if ((user->get_selected_impl() != nullptr) && (!user->get_selected_impl()->can_reuse_memory)) {
             return true;
         } else if (user->get_selected_impl() == nullptr) {
             if (user->is_dynamic()) {
