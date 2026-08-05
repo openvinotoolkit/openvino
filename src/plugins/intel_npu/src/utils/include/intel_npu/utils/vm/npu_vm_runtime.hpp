@@ -10,8 +10,8 @@
 #endif
 
 #include <level_zero/ze_api.h>
-
 #include "ze_graph_ext.h"
+#include <ze_command_queue_npu_ext.h>
 
 #if defined(__cplusplus)
 #    include <cstdint>
@@ -321,6 +321,8 @@ typedef struct _npu_vm_runtime_create_execution_context_params_t {
 
     /// @brief Graph DDI table extension pointer.
     ze_graph_dditable_ext_t* graphDdiTableExt;
+
+    ze_command_queue_npu_dditable_ext_t* commandQueueDdiTableExt;
 } npu_vm_runtime_create_execution_context_params_t;
 
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext2(
@@ -343,15 +345,6 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 ///          runtime updates queue-dependent internal objects as needed.
 ///          Plugin never creates or manages command lists directly in this path.
 typedef struct _npu_vm_runtime_execute_params2_t {
-    /// @brief Level Zero context. Used by interpreter to create internal CLs.
-    ze_context_handle_t ctx;
-
-    /// @brief Level Zero device. Used by interpreter to create internal CLs.
-    ze_device_handle_t device;
-
-    /// @brief Graph DDI table extension pointer.
-    ze_graph_dditable_ext_t* graphDdiTableExt;
-
     /// @brief Command queue for submitting command lists or configuring internal command lists.
     ze_command_queue_handle_t commandQueue;
 
