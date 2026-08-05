@@ -102,7 +102,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     padding::DynamicDimsMask ret_update_pad_mask;
     OPENVINO_ASSERT(update_pad_mask.size() <= ret_update_pad_mask.size(), "invalid update_pad_mask.size().");
     for (size_t i = 0; i < update_pad_mask.size(); i++) {
-        ret_update_pad_mask[i] = update_pad_mask[i];
+        ret_update_pad_mask[i] = (update_pad_mask[i] != 0);
     }
     return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
@@ -289,7 +289,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
 }
 
 reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
-        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+        parent(network, node, !node.can_be_optimized() && node.get_output_layout().is_static()) {
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
@@ -316,7 +316,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             update_output_memory();
         }
     } else {
-        if (_exec_deps.size() > 0 && input_memory_ptr())
+        if (!_exec_deps.empty() && input_memory_ptr())
             update_output_memory();
     }
 }

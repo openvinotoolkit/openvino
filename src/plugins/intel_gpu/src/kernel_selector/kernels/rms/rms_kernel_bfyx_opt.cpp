@@ -4,25 +4,13 @@
 
 #include "rms_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
+#include "../mvn_rms_scheduling_utils.h"
+#include <algorithm>
+#include <cctype>
+#include <limits>
 #include <string>
 
 namespace kernel_selector {
-static constexpr size_t subgroup_size = 16;
-
-// Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory reads
-static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, size_t data_size) {
-    size_t lws = 1;
-    size_t itemsNum = data_size;
-    const auto& input = params.inputs[0];
-    auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
-    auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
-
-    while ((itemsNum > 8 || lws < itemsNum) && (2 * lws <= max_lws)) {
-        lws *= 2;
-        itemsNum /= 2;
-    }
-    return {itemsNum, lws};
-}
 
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
@@ -88,31 +76,64 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
                 break;
         }
 
-        const std::string lws_0 = "get_local_size(0)";
-        // data_size string starts digit when it has static dim.
-        bool is_static_data_size = std::isdigit(data_size[0]);
-        size_t stack_size = 33;
-        if (is_static_data_size) {
-            auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
-            stack_size = cldnn::ceil_div(std::stoi(data_size), item_num_and_lws.second);
+        std::string lws_0 = "get_local_size(0)";
+        size_t stack_size = RmsSchedulingPolicy::kMaxRegisterStack;
+        bool reread_input = true;
+        bool one_subgroup_row = false;
+        bool multi_subgroup_row = false;
+        size_t subgroup_block_size = 8;
+        size_t static_data_size = 0;
+        bool has_static_data_size = false;
+        if (StaticDimExpressionParser::IsDecimalNumber(data_size)) {
+            static_data_size = std::stoul(data_size);
+            has_static_data_size = true;
+        } else {
+            has_static_data_size = StaticDimExpressionParser::TryFoldMulExpression(data_size, static_data_size);
         }
+
+        if (has_static_data_size) {
+            const auto policy = RmsSchedulingPolicy::GetAdaptivePolicy(static_data_size);
+            const size_t lws = RmsSchedulingPolicy::GetGeneralizedLws(static_data_size,
+                                                                       dispatchData.maxSlmSize,
+                                                                       policy.target_items);
+            const size_t required_stack = RmsSchedulingPolicy::GetStackSize(static_data_size, lws);
+            lws_0 = std::to_string(lws);
+            stack_size = std::min(required_stack, policy.stack_cap);
+            reread_input = required_stack > policy.stack_cap;
+            one_subgroup_row = lws == RmsSchedulingPolicy::kSubgroupSize;
+            multi_subgroup_row = !one_subgroup_row;
+            subgroup_block_size = RmsSchedulingPolicy::GetAdaptiveSubgroupBlockSize(static_data_size / lws);
+        }
+        // maxSlmSize stores the max LWS budget; SLM is indexed by subgroup id, so reserve max subgroup slots.
+        const size_t slm_size = std::max<size_t>(1, dispatchData.maxSlmSize / RmsSchedulingPolicy::kSubgroupSize);
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
             MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("STACK_SIZE", stack_size)
+            MakeJitConstant("SLM_SIZE", slm_size),
+            MakeJitConstant("STACK_SIZE", stack_size),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", subgroup_block_size),
+            MakeJitConstant("ONE_SUBGROUP_ROW", one_subgroup_row),
+            MakeJitConstant("MULTI_SUBGROUP_ROW", multi_subgroup_row),
+            MakeJitConstant("RMS_REREAD_INPUT", reread_input),
         });
     } else {
+        // maxSlmSize stores the max LWS budget; SLM is indexed by subgroup id, so reserve max subgroup slots.
+        const size_t slm_size = std::max<size_t>(1, dispatchData.maxSlmSize / RmsSchedulingPolicy::kSubgroupSize);
+        const auto policy = RmsSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSize);
+        const size_t stack_size = RmsSchedulingPolicy::GetStackSize(dispatchData.dataSize, dispatchData.lws[0]);
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", dispatchData.dataSize),
             MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
+            MakeJitConstant("SLM_SIZE", slm_size),
+            MakeJitConstant("STACK_SIZE", std::min(stack_size, policy.stack_cap)),
+            MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize),
+            MakeJitConstant("ONE_SUBGROUP_ROW", dispatchData.lws[0] == RmsSchedulingPolicy::kSubgroupSize),
+            MakeJitConstant("MULTI_SUBGROUP_ROW", dispatchData.lws[0] != RmsSchedulingPolicy::kSubgroupSize),
+            MakeJitConstant("RMS_REREAD_INPUT", stack_size > policy.stack_cap),
         });
     }
     jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
-    jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", RmsSchedulingPolicy::kSubgroupSize));
     if (!params.fused_ops.empty()) {
         switch (params.ov_input_rank) {
             case 1 :
@@ -151,27 +172,31 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
+    // Store the local-memory-constrained max LWS budget here; JIT consumes this value to size per-kernel SLM usage.
     dispatchData.maxSlmSize = max_lws;
-    if (!params.has_dynamic_tensors()) {
-        // data size to be processed within a LWG
-        switch (params.ov_input_rank) {
-            case 1:
-                dispatchData.dataSize = input.Batch().v;
-                dispatchData.dataCount = 1;
-                break;
-            case 2:
-                dispatchData.dataSize = input.Feature().v;
-                dispatchData.dataCount = input.Batch().v;
-                break;
-            case 3:
-                dispatchData.dataSize = input.Y().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v;
-                break;
-            default:
-                dispatchData.dataSize = input.X().v;
-                dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
-                break;
-        }
+    // data size to be processed within a LWG. For dynamic kernels, these values are
+    // populated during dispatch update once concrete dimensions are known; if a dimension
+    // is still unknown, leave the default dynamic dispatch data untouched.
+    switch (params.ov_input_rank) {
+        case 1:
+            dispatchData.dataSize = input.Batch().v;
+            dispatchData.dataCount = 1;
+            break;
+        case 2:
+            dispatchData.dataSize = input.Feature().v;
+            dispatchData.dataCount = input.Batch().v;
+            break;
+        case 3:
+            dispatchData.dataSize = input.Y().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v;
+            break;
+        default:
+            dispatchData.dataSize = input.X().v;
+            dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
+            break;
+    }
+
+    if (dispatchData.dataSize != 0 && dispatchData.dataCount != 0) {
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataCount;
         dispatchData.gws[2] = 1;
@@ -180,20 +205,14 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
 
-        auto item_num_and_lws = get_item_num_and_lws(params, dispatchData.dataSize);
-        dispatchData.itemsNum = item_num_and_lws.first;
-        dispatchData.lws[0] = item_num_and_lws.second;
+        const auto policy = RmsSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSize);
+        dispatchData.lws[0] = RmsSchedulingPolicy::GetGeneralizedLws(dispatchData.dataSize,
+                                         max_lws,
+                                         policy.target_items);
+        dispatchData.itemsNum = dispatchData.dataSize / dispatchData.lws[0];
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
-
-        if (dispatchData.itemsNum >> 3)
-            dispatchData.subgroupBlockSize = 8;
-        else if (dispatchData.itemsNum >> 2)
-            dispatchData.subgroupBlockSize = 4;
-        else if (dispatchData.itemsNum >> 1)
-            dispatchData.subgroupBlockSize = 2;
-        else
-            dispatchData.subgroupBlockSize = 1;
+        dispatchData.subgroupBlockSize = RmsSchedulingPolicy::GetAdaptiveSubgroupBlockSize(dispatchData.itemsNum);
     } else {
         dispatchData.subgroupBlockSize = 8;
     }
@@ -210,7 +229,7 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
 
         if (!gamma.is_dynamic()) {
             size_t data_size = gamma.LogicalSize();
-            if (data_size < subgroup_size) {
+            if (data_size < RmsSchedulingPolicy::kSubgroupSize) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }

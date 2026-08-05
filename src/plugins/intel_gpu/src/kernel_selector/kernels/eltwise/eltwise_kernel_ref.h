@@ -10,7 +10,7 @@ namespace kernel_selector {
 class EltwiseKernelRef : public EltwiseKernelBase {
 public:
     EltwiseKernelRef() : EltwiseKernelBase("generic_eltwise_ref") {}
-    ~EltwiseKernelRef() override {}
+    ~EltwiseKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

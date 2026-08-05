@@ -35,7 +35,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
 
     // Only one activation can be fused.
     if (ewParams.fused_ops.size() > 1 ||
-        (ewParams.activations.size() !=0 && ewParams.fused_ops.size() != 0)) {
+        (!ewParams.activations.empty() && !ewParams.fused_ops.empty())) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
@@ -72,7 +72,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
         if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) &&
+            ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) &&
              ewParams.inputs[i].PhysicalSize() != 1))
             bCheckSizes = false;
     }
@@ -117,7 +117,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params) const {
 
     try {
         // move a fused activation from fused_ops to activations
-        if (newParams.activations.size() == 0 &&
+        if (newParams.activations.empty() &&
             newParams.fused_ops.size() == 1 &&
             newParams.fused_ops[0].GetType() == KernelType::ACTIVATION) {
             auto p = newParams.fused_ops[0].GetOpParams<activation_fuse_params>();

@@ -196,7 +196,7 @@ void dump_graph_init(std::ofstream& graph,
         return out;
     };
     const auto dump_mem_preferred_info = [](const program_node* ptr) {
-        std::string out = "";
+        std::string out;
         auto input_fmts = ptr->get_preferred_input_fmts();
         if (!input_fmts.empty()) {
             out += "preferred_in_fmt";

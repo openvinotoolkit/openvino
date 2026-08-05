@@ -27,7 +27,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -78,7 +78,7 @@ public:
                 params.mean = convert_data_tensor(mean_layout);
                 params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (primitive->subtract_per_feature.empty() == false) {
+        } else if (!primitive->subtract_per_feature.empty()) {
             params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
             params.meanValues = primitive->subtract_per_feature;
         } else {

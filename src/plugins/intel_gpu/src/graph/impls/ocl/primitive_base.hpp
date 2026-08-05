@@ -90,9 +90,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
-            !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<crop>() ||
-               impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
+            ((!impl_param.is_type<concatenation>() &&
+               !impl_param.is_type<crop>() &&
+               !impl_param.runtime_skippable()) || !impl_param.is_dynamic())) {
             return std::make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -277,7 +277,7 @@ protected:
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+        if ((all_events.empty()) && (!tmp_events.empty()))
             return stream.aggregate_events(tmp_events);
 
         bool group_events = (all_events.size() > 1);

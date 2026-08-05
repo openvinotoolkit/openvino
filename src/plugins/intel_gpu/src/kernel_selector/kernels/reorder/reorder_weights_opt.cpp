@@ -119,16 +119,13 @@ static inline std::pair<size_t, size_t> GetSliceSizes(WeightsLayout l) {
 }
 
 static inline bool IsOsvFirst(WeightsLayout l) {
-    if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
+    return l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
         l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16 ||
         l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16||
         l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 ||
         l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::is_os_yx_isv16_osv16 ||
         l == WeightsLayout::is_os_zyx_isv16_osv16 || l == WeightsLayout::g_is_os_yx_isv16_osv16 ||
-        l == WeightsLayout::g_is_os_zyx_isv16_osv16)
-        return true;
-    else
-        return false;
+        l == WeightsLayout::g_is_os_zyx_isv16_osv16;
 }
 
 static inline size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_sizes) {

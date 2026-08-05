@@ -152,14 +152,7 @@ public:
             sliced_data_prim(std::move(sliced_data_prim)),
             io_prim_map(io_prim_map) {}
 
-        concatenated_memory_mapping(const concatenated_memory_mapping& o) :
-            concatenated_mem(o.concatenated_mem),
-            sliced_mems(o.sliced_mems),
-            stream(o.stream),
-            engine(o.engine),
-            concat_data_prim(o.concat_data_prim),
-            sliced_data_prim(o.sliced_data_prim),
-            io_prim_map(o.io_prim_map) {}
+        concatenated_memory_mapping(const concatenated_memory_mapping& o) = default;
 
         void update_concatenated_mem(memory::ptr mem) {
             concatenated_mem = mem;
@@ -178,7 +171,7 @@ public:
 
         memory::ptr get_or_create_sliced_mem(int64_t idx, const layout& mem_layout) const {
             while (sliced_mems.size() <= static_cast<size_t>(idx)) {
-                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, 0);
+                memory::ptr sliced_mem = engine.allocate_memory(mem_layout, false);
                 sliced_mems.push_back(sliced_mem);
             }
             return sliced_mems.at(idx);
