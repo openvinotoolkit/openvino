@@ -58,8 +58,17 @@ struct FlashAttentionResults {
 // ============================================================================
 // Helper function: Create input parameters for HFA tile model
 // ============================================================================
+// state_dtype  : element type for past_acc / past_max / past_d (internal HFA state;
+//               typically f16 to match KV-block storage dtype).
+// kv_tile_dtype: element type for k_tile / v_tile (the KV slice fed into each tile).
+//               May differ from state_dtype — e.g. f32 for the final tile that
+//               receives the freshly-computed present-KV from the upstream graph,
+//               vs f16 for regular tiles that read stored KV blocks.
+// ============================================================================
 static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
-                                            const ov::element::Type& input_dtype,
+                                            const ov::element::Type& state_dtype,
+                                            const ov::element::Type& kv_tile_dtype,
+                                            const ov::element::Type& q_dtype,
                                             const ov::element::Type& mask_dtype,
                                             int64_t tile_size,
                                             size_t kv_num_heads,
@@ -77,22 +86,25 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
         param->output(0).get_tensor().set_names({name});
     };
 
+    // State tensors (acc / max / d) use state_dtype so they stay consistent between
+    // the regular tile output and the next tile's input without any conversion.
     // past_acc: [batch, num_heads, seq_len, head_dim]
     inputs.past_acc =
-        std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
+        std::make_shared<ov::op::v0::Parameter>(state_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
     set_param_name(inputs.past_acc, HFATileInputId::PAST_ACC);
 
     // past_max: [batch, num_heads, seq_len, 1]
-    inputs.past_max = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
+    inputs.past_max = std::make_shared<ov::op::v0::Parameter>(state_dtype, ov::Shape{batch, num_heads, seq_len, 1});
     set_param_name(inputs.past_max, HFATileInputId::PAST_MAX);
 
     // past_d: [batch, num_heads, seq_len, 1]
-    inputs.past_d = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, 1});
+    inputs.past_d = std::make_shared<ov::op::v0::Parameter>(state_dtype, ov::Shape{batch, num_heads, seq_len, 1});
     set_param_name(inputs.past_d, HFATileInputId::PAST_D);
 
+    // KV tile tensors use kv_tile_dtype (may differ from state_dtype).
     // k_tile: [batch, kv_num_heads, tile_size, head_dim]
     inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
-        input_dtype,
+        kv_tile_dtype,
         ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
     set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
@@ -100,17 +112,18 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
     //          [batch, kv_num_heads, tile_size, head_dim] when V is in normal (non-transposed) layout.
     if (v_transposed) {
         inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
-            input_dtype,
+            kv_tile_dtype,
             ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
     } else {
         inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
-            input_dtype,
+            kv_tile_dtype,
             ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
     }
     set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
     // q: [batch, num_heads, seq_len, head_dim]
-    inputs.q = std::make_shared<ov::op::v0::Parameter>(input_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
+    // Q may run at a different precision from KV cache (e.g. f32 vs f16); use q_dtype.
+    inputs.q = std::make_shared<ov::op::v0::Parameter>(q_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
     set_param_name(inputs.q, HFATileInputId::Q);
 
     // mask_tile: [batch, 1, seq_len, tile_size] - use mask's original dtype
@@ -591,10 +604,17 @@ static ov::ResultVector create_regular_tile_outputs_fused(const FlashAttentionRe
 // Helper function: Create individual tile model (regular or final)
 // ============================================================================
 // Parameters:
-//   is_final_tile: If true, creates final tile with division/transpose/reshape
-//   output_dtype: Output data type (only used when is_final_tile=true)
+//   state_dtype    : element type for past_acc / past_max / past_d state tensors
+//                    (shared between regular and final tile — typically f16).
+//   kv_tile_dtype  : element type for k_tile / v_tile.
+//                    Regular tiles: f16 (KV-block storage dtype).
+//                    Final tile:    f32 (present-KV output dtype from upstream graph).
+//   is_final_tile  : If true, creates final tile with division/transpose/reshape.
+//   output_dtype   : Output data type (only used when is_final_tile=true).
 static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape,
-                                                        const ov::element::Type& input_dtype,
+                                                        const ov::element::Type& state_dtype,
+                                                        const ov::element::Type& kv_tile_dtype,
+                                                        const ov::element::Type& q_dtype,
                                                         const ov::element::Type& mask_dtype,
                                                         int64_t tile_size,
                                                         size_t kv_num_heads,
@@ -604,7 +624,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         bool v_transposed = true,
                                                         const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
-                              << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
+                              << ", kv_num_heads=" << kv_num_heads
+                              << ", state_dtype=" << state_dtype
+                              << ", kv_tile_dtype=" << kv_tile_dtype
+                              << ", mask_dtype=" << mask_dtype
                               << (is_final_tile ? ", output_dtype=" + output_dtype.get_type_name() : "")
                               << ", fused_flash_attention=" << fused_flash_attention);
 
@@ -618,10 +641,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     NPUW_ASSERT(num_heads % kv_num_heads == 0 && "Q heads must be divisible by KV heads");
 
     auto compute_dtype = ov::element::f32;
-    LOG_DEBUG("Using compute_dtype=f32 for all operations to match mask type");
+    LOG_DEBUG("Using compute_dtype=f32 for all operations");
 
     // Create input parameters
-    auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads, v_transposed);
+    auto inputs = create_hfa_tile_inputs(q_shape, state_dtype, kv_tile_dtype, q_dtype, mask_dtype, tile_size, kv_num_heads, v_transposed);
 
     // Convert all inputs to f32.
     // For the fused operation only the final tile uses a mask, regular tiles skip mask for performance if
@@ -707,21 +730,25 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                   head_dim,
                                                   fused_flash_attention);
         model_name = "HFA_Final_Tile";
-        LOG_DEBUG("HFA FINAL tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
-                                                          << ", output=" << output_dtype);
+        LOG_DEBUG("HFA FINAL tile model created: state=" << state_dtype << ", kv_tile=" << kv_tile_dtype
+                                                         << ", compute=" << compute_dtype
+                                                         << ", output=" << output_dtype);
     } else {
         // === REGULAR TILE: Output intermediate states (acc, max, d) ===
+        // State outputs use state_dtype so they can be directly reused as the next
+        // tile's state inputs without any type conversion.
         if (fused_flash_attention) {
             LOG_DEBUG("Using fused flash attention implementation - outputs acc, max, d from separate nodes");
-            model_results = create_regular_tile_outputs_fused(results, input_dtype);
+            model_results = create_regular_tile_outputs_fused(results, state_dtype);
 
         } else {
             LOG_DEBUG("Using host flash attention implementation - outputs acc, max, d from the same node");
-            model_results = create_regular_tile_outputs(results, input_dtype);
+            model_results = create_regular_tile_outputs(results, state_dtype);
         }
         model_name = "HFA_Tile";
-        LOG_DEBUG("HFA tile model created: inputs=" << input_dtype << ", compute=" << compute_dtype
-                                                    << ", outputs=" << input_dtype);
+        LOG_DEBUG("HFA tile model created: state=" << state_dtype << ", kv_tile=" << kv_tile_dtype
+                                                    << ", compute=" << compute_dtype
+                                                    << ", state_out=" << state_dtype);
     }
 
     // Create model parameters
@@ -976,7 +1003,36 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     auto q_shape_static = q_shape.to_shape();
-    auto dtype = q_input->get_output_element_type(0);
+    // KV cache and Q may have different element types (e.g. f16 KV vs f32 Q).
+    // Derive kv_dtype from the actual past-block parameter, NOT from K-Concat output.
+    // In many models (e.g. Gemma-4), Convert(past_block_f16 -> f32) nodes sit between
+    // the f16 block parameters and the Concat, causing the Concat output to be f32.
+    // The block manager, however, allocates tensors with the block parameter's own dtype
+    // (f16).  Using the Concat output dtype would produce a tile model that expects f32
+    // KV inputs while every runtime KV tensor is f16 — causing a type mismatch on the
+    // second (and later) prefill chunks.
+    // Derive kv_dtype by skipping any Convert(f16->f32) nodes that may sit between the
+    // actual block Parameter and the Concat.  The Concat output type can be upcast to f32
+    // (e.g. Gemma-4), while the block manager allocates tensors at the underlying storage
+    // dtype (f16).  Reading through the Convert gives us the correct storage dtype.
+    // block_kv_dtype: dtype of stored KV blocks (what the block manager allocates).
+    // Derived by skipping any Convert(f16->f32) nodes between the block Parameter and
+    // the K-Concat, so we get the storage dtype (f16) rather than the potentially-
+    // upcast Concat output dtype (f32).
+    auto first_kv_node = skip_convert_nodes(k_concat->get_input_node_shared_ptr(0));
+    const ov::element::Type block_kv_dtype = first_kv_node->get_output_element_type(0);
+
+    // present_kv_dtype: dtype of the freshly-computed present-KV tensors that the
+    // upstream NPU subgraph passes at runtime (typically f32).
+    // The last input of k_concat is the present key; skip any Convert to get its
+    // declared parameter dtype.
+    auto present_kv_node =
+        skip_convert_nodes(k_concat->get_input_node_shared_ptr(k_concat->get_input_size() - 1));
+    const ov::element::Type present_kv_dtype = present_kv_node->get_output_element_type(0);
+
+    const ov::element::Type q_dtype = q_input->get_output_element_type(0);
+    LOG_DEBUG("HFA dtypes: block_kv=" << block_kv_dtype
+              << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Validate Q shape and extract query_size (seq_len dimension)
     if (q_shape_static.size() != 4) {
@@ -1050,9 +1106,20 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // V tensors are pre-transposed (stored as [B,H,head_dim,seq]) only when OptimizeValueTensors
     // succeeded, which is reflected by the V-concat axis being 3 instead of the default 2.
     const bool v_transposed = (v_seq_dim == 3);
-    LOG_INFO("Creating HFA tile models with tile_size=" << query_size << ", v_transposed=" << v_transposed);
+    // Regular tile: state and KV-tile both use block_kv_dtype (f16).
+    //   past_acc/max/d: f16   k_tile/v_tile: f16  (from KV blocks)
+    // Final tile: state still uses block_kv_dtype (f16) for zero-copy with regular
+    //   tile outputs; KV-tile uses present_kv_dtype (f32) matching the upstream graph.
+    //   past_acc/max/d: f16   k_tile/v_tile: f32  (present-KV from upstream)
+    LOG_INFO("Creating HFA tile models: tile_size=" << query_size
+             << ", v_transposed=" << v_transposed
+             << ", block_kv=" << block_kv_dtype
+             << ", present_kv=" << present_kv_dtype
+             << ", q=" << q_dtype);
     auto tile_model = create_hfa_tile_model(q_shape_static,
-                                            dtype,
+                                            block_kv_dtype,   // state_dtype
+                                            block_kv_dtype,   // kv_tile_dtype (past blocks)
+                                            q_dtype,
                                             mask_dtype,
                                             query_size,
                                             kv_num_heads,
@@ -1066,7 +1133,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     }
 
     auto final_tile_model = create_hfa_tile_model(q_shape_static,
-                                                  dtype,
+                                                  block_kv_dtype,    // state_dtype (consistent with regular tile)
+                                                  present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
+                                                  q_dtype,
                                                   mask_dtype,
                                                   query_size,
                                                   kv_num_heads,
