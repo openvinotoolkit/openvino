@@ -24,6 +24,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
@@ -364,6 +365,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
         // the attention isolation to work properly
         ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    }
+
+    if (cfg_get<::intel_npu::NPUW_PLAN>(properties).empty()) {
+        // Fold shape-compute chains into Constants before partitioning, but only on the
+        // online path (no NPUW_PLAN). When a plan is loaded, node identities must be left
+        // untouched so they still match the plan XML. Strict no-op unless the model has a
+        // VariadicSplit with a non-constant split_lengths (see the function's definition).
+        ov::npuw::patterns::util::foldShapeComputeChainsForConstAttrs(model);
     }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
