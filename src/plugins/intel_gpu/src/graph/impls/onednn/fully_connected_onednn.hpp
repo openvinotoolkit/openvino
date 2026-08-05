@@ -28,9 +28,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         assert(node.is_type<fully_connected>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             LOG_AND_RETURN_FALSE(node);
-        }
 
         const auto& fc_node = node.as<fully_connected>();
         const auto& in_layout = fc_node.get_input_layout(0);
@@ -40,20 +39,17 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         auto out_dt = out_layout.data_type;
         auto fc_prim = fc_node.get_primitive();
 
-        if (one_of(data_types::i64, {in0_dt, wei_dt})) {
+        if (one_of(data_types::i64, {in0_dt, wei_dt}))
             LOG_AND_RETURN_FALSE(node);
-        }
 
         if (!everyone_is(format::bfyx, in_layout.format, out_layout.format) &&
             !everyone_is(format::bfzyx, in_layout.format, out_layout.format) &&
             !everyone_is(format::bfwzyx, in_layout.format, out_layout.format) &&
-            !everyone_is(format::any, in_layout.format, out_layout.format)) {
+            !everyone_is(format::any, in_layout.format, out_layout.format))
             LOG_AND_RETURN_FALSE(node);
-        }
 
-        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout)) {
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
             LOG_AND_RETURN_FALSE(node);
-        }
 
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
         bool bf16bf16_case = everyone_is(data_types::bf16, in0_dt, wei_dt) &&
@@ -68,9 +64,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
         const bool fp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f8e5m2}) &&
                                         one_of(wei_dt, {data_types::f8e4m3, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
-        if (!f16f16_case && !bf16bf16_case && !f32f32_case && !u8s8_case && !compressed_case && !fp_compressed_case) {
+        if (!f16f16_case && !bf16bf16_case && !f32f32_case && !u8s8_case && !compressed_case && !fp_compressed_case)
             LOG_AND_RETURN_FALSE(node);
-        }
 
         if (fc_prim->compressed_weights) {
             if (fc_prim->decompression_zero_point.is_valid()) {
