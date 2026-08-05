@@ -142,9 +142,10 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(npu_vm_ru
                                                                        ze_context_handle_t ctx,
                                                                        ze_device_handle_t device,
                                                                        ze_command_queue_handle_t commandQueue,
-                                                                       ze_graph_dditable_ext_t* graphDdiTableExt) {
+                                                                       ze_graph_dditable_ext_t* graphDdiTableExt,
+                                                                       ze_command_queue_npu_dditable_ext_t* queueDdiTableExt) {
     if (_handle == nullptr) {
-        npu_vm_runtime_create_execution_context_params_t params = {ctx, device, commandQueue, graphDdiTableExt};
+        npu_vm_runtime_create_execution_context_params_t params = {ctx, device, commandQueue, graphDdiTableExt, queueDdiTableExt};
         const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
         if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context (v2)");
@@ -216,7 +217,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                    init_structs->getContext(),
                                    init_structs->getDevice(),
                                    commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr,
-                                   _init_structs->getGraphDdiTable().getImpl());
+                                   _init_structs->getGraphDdiTable().getImpl(),
+                                   _init_structs->getCommandQueueDdiTable().getImpl());
     } else {
         _logger.debug("DynamicPipeline: using v1.x VM runtime API");
         const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
@@ -461,17 +463,13 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     processMemRefs(args._outputsMemRef, args._outputMemRefHandles);
 
     auto& params = args._executeParams2;
-    params.ctx = _init_structs->getContext();
-    params.device = _init_structs->getDevice();
-    params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
     params.commandQueue = commandQueue;
     params.pConfig = pConfig;
     params.pInputs = args._inputMemRefHandles.data();
     params.numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
     params.pOutputs = args._outputMemRefHandles.data();
     params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
-    params.executionContext =
-        _executionContext.ensureV2(vmRuntime, params.ctx, params.device, params.commandQueue, params.graphDdiTableExt);
+    params.executionContext = _executionContext.handle();
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
@@ -570,11 +568,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             commandQueue = commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr;
         }
         params.executionContext = use_npu_vm_runtime_v2_api(_apiVersion)
-                                      ? _executionContext.ensureV2(vmRuntime,
-                                                                   _init_structs->getContext(),
-                                                                   _init_structs->getDevice(),
-                                                                   commandQueue,
-                                                                   _init_structs->getGraphDdiTable().getImpl())
+                                      ? _executionContext.handle()
                                       : _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
