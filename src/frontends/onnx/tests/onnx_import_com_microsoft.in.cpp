@@ -7254,8 +7254,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_paged_attention_softcap) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_paged_attention_varlen_batch2) {
     if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
-        GTEST_SKIP() << "Variable-length multi-sequence PagedAttention (dynamic CumSum/GatherND paged "
-                        "gather) is validated on CPU and INTERPRETER; the GPU path is a follow-up.";
+        GTEST_SKIP() << "Variable-length multi-sequence PagedAttention (dynamic num_tokens/context length via "
+                        "CumSum, per-token GatherND, and a dynamic block-diagonal SDPA mask) is validated on CPU "
+                        "and INTERPRETER; the GPU plugin mislowers this fully-dynamic graph (attention degenerates "
+                        "to raw V) - tracked as a GPU follow-up. Single-sequence GPU is covered and passes.";
     }
     const auto model = convert_model("com.microsoft/pa_varlen_f32.onnx");
     std::vector<float> query = {
@@ -7371,8 +7373,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_paged_attention_varlen_batch2) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_paged_attention_varlen_batch2_window) {
     if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
-        GTEST_SKIP() << "Variable-length multi-sequence PagedAttention (dynamic CumSum/GatherND paged "
-                        "gather) is validated on CPU and INTERPRETER; the GPU path is a follow-up.";
+        GTEST_SKIP() << "Variable-length multi-sequence PagedAttention (dynamic num_tokens/context length via "
+                        "CumSum, per-token GatherND, and a dynamic block-diagonal SDPA mask) is validated on CPU "
+                        "and INTERPRETER; the GPU plugin mislowers this fully-dynamic graph (attention degenerates "
+                        "to raw V) - tracked as a GPU follow-up. Single-sequence GPU is covered and passes.";
     }
     const auto model = convert_model("com.microsoft/pa_varlen_window_f32.onnx");
     std::vector<float> query = {0.284013f,  0.293883f,  0.459595f,  0.458099f,  0.195347f,  -0.094174f, -0.241769f,
