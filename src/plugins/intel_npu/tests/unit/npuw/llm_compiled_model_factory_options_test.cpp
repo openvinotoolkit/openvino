@@ -1002,4 +1002,17 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
     EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, WeightSharingContextFillUp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"SHARED_WEIGHTS", "NPU,GPU"}, {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    ov::Any prop = compiled->get_property(ov::internal::model_sharing_context.name());
+    auto weightCtx = prop.as<ov::internal::WeightSharingCtxPtr>();
+    ASSERT_NE(weightCtx, nullptr);
+}
+
 }  // namespace
