@@ -220,7 +220,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         if (node->get_dependencies().size() > 1)
             continue;
         if (swiglu_prim->glu_type != ov::op::internal::GLU::GluType::Swish ||
-           !(swiglu_prim->axis == -1 || swiglu_prim->axis == static_cast<int64_t>(node->get_output_layout(false).get_partial_shape().size()) - 1))
+           (swiglu_prim->axis != -1 && swiglu_prim->axis != static_cast<int64_t>(node->get_output_layout(false).get_partial_shape().size()) - 1))
             continue;
 
         auto& dep_node = node->get_dependency(0);
@@ -565,23 +565,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return true;
 
             if ((node.get_output_layout().format == format::bfzyx &&
-                (!lo.get_optimization_attributes().b_fs_zyx_fsv16_network || !lo.is_format_optimized(node, format::b_fs_zyx_fsv16))))
+                ((lo.get_optimization_attributes().b_fs_zyx_fsv16_network == 0) || !lo.is_format_optimized(node, format::b_fs_zyx_fsv16))))
                 return true;
 
             if ((node.get_output_layout().format == format::fs_b_yx_fsv32 ||
-                (lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                ((lo.get_optimization_attributes().fs_b_yx_fsv32_network != 0) &&
                  lo.is_format_optimized(node, format::fs_b_yx_fsv32) && node.get_primitive()->groups == 1)))
                     return true;
 
             const size_t in_feature = node.get_input_layout(0).feature();
             if ((node.get_output_layout().format == format::b_fs_zyx_fsv16 ||
                  (lo.is_format_optimized(node, format::b_fs_zyx_fsv16) &&
-                  lo.get_optimization_attributes().b_fs_zyx_fsv16_network)) && in_feature != 3)
+                  (lo.get_optimization_attributes().b_fs_zyx_fsv16_network != 0))) && in_feature != 3)
                 return true;
 
             if ((node.get_output_layout().format == format::bs_fs_yx_bsv16_fsv16 ||
                  (lo.is_format_optimized(node, format::bs_fs_yx_bsv16_fsv16) &&
-                  lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network)) && node.get_primitive()->groups == 1)
+                  (lo.get_optimization_attributes().bs_fs_yx_bsv16_fsv16_network != 0))) && node.get_primitive()->groups == 1)
                 return true;
 
             if (node.get_output_layout().format == format::bs_fs_yx_bsv32_fsv32 || lo.is_format_optimized(node, format::bs_fs_yx_bsv32_fsv32))
@@ -629,7 +629,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (node.get_inputs_count() == 3) {
                     auto in2_dt = node.get_input_layout(2).data_type;
                     auto in2_fmt = node.get_input_layout(2).format;
-                    does_support_fusings = data_type_traits::is_i8_u8(in2_dt) && in2_fmt == format::bfyx ? true : false;
+                    does_support_fusings = data_type_traits::is_i8_u8(in2_dt) && in2_fmt == format::bfyx;
                 } else {
                     does_support_fusings = true;
                 }
@@ -649,9 +649,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto mvn_supports_fusings = [](mvn_node& node) -> bool {
             auto in_layout = node.get_input_layout(0);
-            if (node.get_primitive()->requires_alignment(in_layout.get_partial_shape()))
-                return false;
-            return true;
+            return !node.get_primitive()->requires_alignment(in_layout.get_partial_shape());
         };
 
         auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
@@ -677,10 +675,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto reduce_supports_fusings = [&](reduce_node& node) -> bool {
             auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
 
-            if (keep_dims)
-                return true;
-
-            return false;
+            return keep_dims;
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
@@ -700,13 +695,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
-            if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
-                ((lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                  !lo.has_all_enabled_onednn_impls_optimization_attribute() && !has_reorder_behind_mvn()) ||
-                 out_layout.format == format::fs_b_yx_fsv32)) {
-                return false;
-            }
-            return true;
+            return out_layout.data_type != data_types::f16 || !out_layout.is_static() || out_layout.batch() <= 1 ||
+                (((lo.get_optimization_attributes().fs_b_yx_fsv32_network == 0) ||
+                  lo.has_all_enabled_onednn_impls_optimization_attribute() || has_reorder_behind_mvn()) &&
+                 out_layout.format != format::fs_b_yx_fsv32);
         };
 
         auto get_users_from_fusing_history = [&](const primitive_id& id) {
@@ -784,10 +776,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (consumer->is_type<eltwise>()) {
                 const auto& input_layout = bcast_node.get_output_layout();
                 const auto& output_layout = consumer->get_output_layout();
-                if (input_layout.data_type != output_layout.data_type) {
-                    return false;
-                }
-                return true;
+                return input_layout.data_type == output_layout.data_type;
             }
 
             return false;
@@ -998,8 +987,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             // float-to-int8 output narrowing (e.g., f16->u8). Prevent fusion in this case
             // to keep deconv output as float (optimized kernel) + separate quantize.
             should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
-                           !(lo.has_all_enabled_onednn_impls_optimization_attribute() &&
-                             !in_dt_is_i8_u8 && out_dt_is_i8_u8);
+                           (!lo.has_all_enabled_onednn_impls_optimization_attribute() ||
+                             in_dt_is_i8_u8 || !out_dt_is_i8_u8);
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
@@ -1311,10 +1300,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     auto curr_users = current_node.first->get_users();
                     auto invalid_user_iter = std::find_if(curr_users.begin(), curr_users.end(), [&](cldnn::program_node* user) {
                         return (user->is_output() ||
-                                    (!(user->is_type<eltwise>() && user->get_primitive()->input.size() == 2 &&
-                                        (std::find(supported_modes.begin(), supported_modes.end(),
+                                    ((!user->is_type<eltwise>() || user->get_primitive()->input.size() != 2 ||
+                                        !(std::find(supported_modes.begin(), supported_modes.end(),
                                         (user->as<eltwise>()).get_primitive()->mode) != supported_modes.end())) &&
-                                    !(user->is_type<activation>() && user->get_dependency(0).get_users().size() == 1)));
+                                    (!user->is_type<activation>() || user->get_dependency(0).get_users().size() != 1)));
                     });
 
                     if (invalid_user_iter != curr_users.end()) {

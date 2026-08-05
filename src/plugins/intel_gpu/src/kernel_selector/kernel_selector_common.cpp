@@ -146,6 +146,7 @@ std::string toString(DataLayout l) {
 
 std::string toString(Datatype dType) {
     switch (dType) {
+        case Datatype::UINT2:  return "UINT2";
         case Datatype::UINT4:  return "UINT4";
         case Datatype::INT4:   return "INT4";
         case Datatype::INT8:   return "INT8";
@@ -168,6 +169,7 @@ std::string toString(WeightsType wType) {
     switch (wType) {
         case WeightsType::F16:    return "F16";
         case WeightsType::F32:    return "F32";
+        case WeightsType::UINT2:  return "UINT2";
         case WeightsType::UINT4:  return "UINT4";
         case WeightsType::INT4:   return "INT4";
         case WeightsType::INT8:   return "INT8";

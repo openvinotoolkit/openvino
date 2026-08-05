@@ -550,7 +550,7 @@ IncreasePositionIdsPrecisionForGemma4::IncreasePositionIdsPrecisionForGemma4() {
     this->register_matcher(m, callback);
 }
 
-IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
+IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() = default;
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
