@@ -170,6 +170,7 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
 
 ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
 
     // Batched-NMS: boxes_for_nms = boxes + Unsqueeze(class_ids_f32 * (ReduceMax(boxes) + 1)).
     auto boxes_source_m = any_input();
@@ -193,9 +194,8 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto gather_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
     auto gather_m = wrap_type<ov::op::util::GatherBase>({nms_output_m, gather_indices_m, gather_axis_m});
     auto squeeze_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
-    auto squeeze_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
-        wrap_type<ov::op::v0::Squeeze>({gather_m, squeeze_axis_m}),
-        wrap_type<ov::op::v1::Reshape>({gather_m, any_input()})});
+    auto squeeze_m = wrap_type<ov::op::v0::Squeeze>({gather_m, squeeze_axis_m}) |
+                     wrap_type<ov::op::v1::Reshape>({gather_m, any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
