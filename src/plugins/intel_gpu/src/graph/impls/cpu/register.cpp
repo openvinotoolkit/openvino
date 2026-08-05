@@ -34,9 +34,6 @@ void register_implementations() {
     REGISTER_CPU(fake_convert);
     REGISTER_CPU(moe_mask_gen);
     REGISTER_CPU(moe_mask_gen_reshape);
-#ifdef ENABLE_TP_GPU
-    REGISTER_CPU(tp_allreduce);
-#endif
 }
 
 }  // namespace cpu

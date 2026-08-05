@@ -58,7 +58,12 @@ ov_build_target_faster(${TARGET_NAME}
 
 find_package(Threads REQUIRED)
 find_package(OpenCL REQUIRED)
-target_link_libraries(${TARGET_NAME} PRIVATE Threads::Threads openvino::tp_gpu_ops openvino::zero_loader OpenCL::OpenCL)
+target_link_libraries(${TARGET_NAME} PRIVATE
+    Threads::Threads
+    openvino::runtime::dev   # transformations/utils/utils.hpp
+    openvino::tp_gpu_ops
+    openvino::zero_loader
+    OpenCL::OpenCL)
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

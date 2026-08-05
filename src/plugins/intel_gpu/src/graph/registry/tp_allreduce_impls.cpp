@@ -17,8 +17,6 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<tp_al
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_GET_INSTANCE_OCL(tp_allreduce, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(tp_allreduce, shape_types::dynamic_shape)
-        OV_GPU_GET_INSTANCE_CPU(tp_allreduce, shape_types::static_shape)
-        OV_GPU_GET_INSTANCE_CPU(tp_allreduce, shape_types::dynamic_shape)
     };
 
     return impls;

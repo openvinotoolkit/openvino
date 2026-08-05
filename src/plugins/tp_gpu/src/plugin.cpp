@@ -4,6 +4,7 @@
 
 #include "plugin.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -120,6 +121,36 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto sharding_plan = GraphRewriter::analyze(model);
     int num_collectives = GraphRewriter::count_collectives(sharding_plan);
 
+    if (std::getenv("TP_PROF") != nullptr) {
+        const auto column_count = sharding_plan.linears.size() - static_cast<size_t>(num_collectives);
+        const auto biased = std::count_if(sharding_plan.linears.begin(), sharding_plan.linears.end(),
+                                          [](const ShardingPlan::LinearDesc& l) { return l.has_bias; });
+        std::cerr << "[TP] Sharding plan: layers=" << sharding_plan.num_layers
+                  << " linears=" << sharding_plan.linears.size()
+                  << " (column=" << column_count << " row=" << num_collectives
+                  << " biased=" << biased << ")"
+                  << " heads=" << sharding_plan.num_heads
+                  << " kv_heads=" << sharding_plan.num_kv_heads
+                  << " head_dim=" << sharding_plan.head_dim
+                  << " hidden=" << sharding_plan.hidden_size
+                  << " intermediate=" << sharding_plan.intermediate_size << std::endl;
+    }
+
+    // Attention is split by KV head.  When they do not divide evenly the first
+    // ranks take one extra each, and since every layer ends in a collective the
+    // slowest rank paces the whole model -- worth saying out loud, because the
+    // model still runs and the cost is invisible otherwise.
+    if (const int remainder = sharding_plan.num_kv_heads % static_cast<int>(tp_degree)) {
+        const int base = sharding_plan.num_kv_heads / static_cast<int>(tp_degree);
+        const int imbalance_pct = 100 / (base + 1);
+        if (imbalance_pct > 10) {
+            std::cerr << "[TP_GPU] Warning: " << sharding_plan.num_kv_heads
+                      << " KV heads do not divide evenly across " << tp_degree << " ranks ("
+                      << remainder << " rank(s) get " << (base + 1) << ", the rest " << base
+                      << "), about " << imbalance_pct << "% load imbalance." << std::endl;
+        }
+    }
+
     auto coordination = std::make_shared<TPCoordination>(tp_degree, num_collectives);
 
     // ---- Build a single L0 context spanning every rank's GPU ----
@@ -130,93 +161,74 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // properties, then create one shared L0 context covering all of them and
     // hand it back to each rank's compile_model() call as a non-owning
     // ContextType::ZE remote context.
-    TPL0SharedContextPtr shared_l0_ctx;
+    //
+    // Every failure here is fatal by design: without the shared context the
+    // collectives would have to fall back to host-staged reductions, which is
+    // slow enough to look like a hang on an LLM.  A clear error beats silent
+    // degradation.
+    ZE_THROW_ON_ERROR(ov::zeInit(0), "zeInit");
+
+    std::vector<ze_driver_handle_t> drivers(tp_degree);
+    std::vector<ze_device_handle_t> rank_devs(tp_degree);
+
+    for (uint32_t rank = 0; rank < tp_degree; ++rank) {
+        auto def_ctx = get_core()->get_default_context(device_names[rank]);
+        const auto& props = def_ctx->get_property();
+
+        auto it_drv = props.find(ov::intel_gpu::ze_driver_handle.name());
+        auto it_dev = props.find(ov::intel_gpu::ze_device_handle.name());
+        OPENVINO_ASSERT(it_drv != props.end() && it_dev != props.end(),
+                        "[TP_GPU] device ", device_names[rank],
+                        " did not expose Level-Zero (driver, device) handles. "
+                        "intel_gpu plugin must be built with GPU_RT_TYPE=L0.");
+
+        drivers[rank] = reinterpret_cast<ze_driver_handle_t>(it_drv->second.as<ov::intel_gpu::gpu_handle_param>());
+        rank_devs[rank] = reinterpret_cast<ze_device_handle_t>(it_dev->second.as<ov::intel_gpu::gpu_handle_param>());
+    }
+
+    for (uint32_t rank = 1; rank < tp_degree; ++rank) {
+        OPENVINO_ASSERT(drivers[rank] == drivers[0],
+                        "[TP_GPU] all ranks must share a single L0 driver, but ", device_names[rank],
+                        " belongs to a different one than ", device_names[0]);
+    }
+
+    OPENVINO_ASSERT(ov::zeContextCreateEx != nullptr,
+                    "[TP_GPU] L0 loader does not export zeContextCreateEx, which is required to "
+                    "share one context across devices. Update the Level-Zero loader.");
+
+    ze_context_desc_t ctx_desc{ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
+    ze_context_handle_t shared_ctx_h = nullptr;
+    ZE_THROW_ON_ERROR(ov::zeContextCreateEx(drivers[0], &ctx_desc,
+                                            static_cast<uint32_t>(rank_devs.size()),
+                                            rank_devs.data(), &shared_ctx_h),
+                      "zeContextCreateEx");
+
+    auto shared_l0_ctx = std::make_shared<TPL0SharedContext>();
+    shared_l0_ctx->driver = drivers[0];
+    shared_l0_ctx->devices = rank_devs;
+    shared_l0_ctx->context = shared_ctx_h;
+
     std::vector<ov::SoPtr<ov::IRemoteContext>> rank_ctx(tp_degree);
-    bool shared_ctx_ok = false;
-    try {
-        // Touch the L0 loader early; if zero_loader/zeInit fails we fall back
-        // to the legacy per-rank path which still works for single-GPU cases.
-        ZE_THROW_ON_ERROR(ov::zeInit(0), "zeInit");
-
-        std::vector<ze_driver_handle_t>  drivers(tp_degree);
-        std::vector<ze_device_handle_t>  rank_devs(tp_degree);
-
-        for (uint32_t rank = 0; rank < tp_degree; ++rank) {
-            auto def_ctx = get_core()->get_default_context(device_names[rank]);
-            const auto& props = def_ctx->get_property();
-
-            auto it_drv = props.find(ov::intel_gpu::ze_driver_handle.name());
-            auto it_dev = props.find(ov::intel_gpu::ze_device_handle.name());
-            OPENVINO_ASSERT(it_drv != props.end() && it_dev != props.end(),
-                            "[TP_GPU] device ", device_names[rank],
-                            " did not expose Level-Zero (driver, device) handles. "
-                            "intel_gpu plugin must be built with GPU_RT_TYPE=L0.");
-
-            drivers[rank]   = reinterpret_cast<ze_driver_handle_t>(it_drv->second.as<ov::intel_gpu::gpu_handle_param>());
-            rank_devs[rank] = reinterpret_cast<ze_device_handle_t>(it_dev->second.as<ov::intel_gpu::gpu_handle_param>());
-        }
-
-        for (uint32_t rank = 1; rank < tp_degree; ++rank) {
-            OPENVINO_ASSERT(drivers[rank] == drivers[0],
-                            "[TP_GPU] all ranks must share a single L0 driver");
-        }
-
-        OPENVINO_ASSERT(ov::zeContextCreateEx != nullptr,
-                        "[TP_GPU] L0 loader does not export zeContextCreateEx");
-
-        ze_context_desc_t ctx_desc{ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-        ze_context_handle_t shared_ctx_h = nullptr;
-        ZE_THROW_ON_ERROR(
-            ov::zeContextCreateEx(drivers[0], &ctx_desc,
-                                  static_cast<uint32_t>(rank_devs.size()),
-                                  rank_devs.data(), &shared_ctx_h),
-            "zeContextCreateEx");
-
-        shared_l0_ctx = std::make_shared<TPL0SharedContext>();
-        shared_l0_ctx->driver  = drivers[0];
-        shared_l0_ctx->devices = rank_devs;
-        shared_l0_ctx->context = shared_ctx_h;
-
-        for (uint32_t rank = 0; rank < tp_degree; ++rank) {
-            ov::AnyMap rank_params{
-                {ov::intel_gpu::context_type.name(),     ov::intel_gpu::ContextType::ZE},
-                {ov::intel_gpu::ze_context.name(),       static_cast<ov::intel_gpu::gpu_handle_param>(shared_ctx_h)},
-                {ov::intel_gpu::ze_device_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(rank_devs[rank])},
-                {ov::intel_gpu::ze_driver_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(drivers[0])},
-            };
-            rank_ctx[rank] = get_core()->create_context(device_names[rank], rank_params);
-        }
-        shared_ctx_ok = true;
-        if (std::getenv("TP_PROF") != nullptr) {
-            std::cerr << "[TP] Created shared L0 context across " << tp_degree
-                      << " devices (ctx=" << shared_ctx_h << ")" << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "[TP] Shared L0 context unavailable: " << e.what()
-                  << " -- falling back to per-rank contexts." << std::endl;
-        shared_l0_ctx.reset();
-        shared_ctx_ok = false;
+    for (uint32_t rank = 0; rank < tp_degree; ++rank) {
+        ov::AnyMap rank_params{
+            {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::ZE},
+            {ov::intel_gpu::ze_context.name(), static_cast<ov::intel_gpu::gpu_handle_param>(shared_ctx_h)},
+            {ov::intel_gpu::ze_device_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(rank_devs[rank])},
+            {ov::intel_gpu::ze_driver_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(drivers[0])},
+        };
+        rank_ctx[rank] = get_core()->create_context(device_names[rank], rank_params);
     }
 
-    // Build the device-side AllReduce coordinator on top of the shared L0
-    // context. Failure here is non-fatal: we simply fall through to the
-    // legacy CPU-staged AllReduce path.
+    if (std::getenv("TP_PROF") != nullptr) {
+        std::cerr << "[TP] Created shared L0 context across " << tp_degree << " devices (ctx=" << shared_ctx_h
+                  << ")" << std::endl;
+    }
+
+    // Device-side AllReduce coordinator on top of the shared L0 context.
     TPDeviceCoordinatorPtr device_coordinator;
-    if (shared_ctx_ok && num_collectives > 0) {
-        try {
-            device_coordinator = std::make_shared<TPDeviceCoordinator>(
-                shared_l0_ctx, static_cast<int>(tp_degree), num_collectives);
-        } catch (const std::exception& e) {
-            std::cerr << "[TP] Device coordinator init failed: " << e.what()
-                      << " -- AllReduce will use the CPU-staged fallback." << std::endl;
-            device_coordinator.reset();
-        }
-    }
-
-    // Hand the device coordinator to the coordination object so that the
-    // CPU-side `tp_allreduce` primitive picked up by intel_gpu can choose
-    // the device fast-path when its inputs/outputs live in USM-device.
-    if (device_coordinator) {
+    if (num_collectives > 0) {
+        device_coordinator =
+            std::make_shared<TPDeviceCoordinator>(shared_l0_ctx, static_cast<int>(tp_degree), num_collectives);
         coordination->set_device_coordinator(device_coordinator);
     }
 
@@ -226,17 +238,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, tp_degree, coordination);
 
         if (std::getenv("TP_PROF") != nullptr) {
-            std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size()
-                      << " ops, " << num_collectives << " AllReduce points" << std::endl;
+            std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
+                      << num_collectives << " AllReduce points" << std::endl;
         }
 
-        if (shared_ctx_ok) {
-            rank_compiled[rank] = get_core()->compile_model(
-                rank_model, rank_ctx[rank], config);
-        } else {
-            rank_compiled[rank] = get_core()->compile_model(
-                rank_model, device_names[rank], config);
-        }
+        rank_compiled[rank] = get_core()->compile_model(rank_model, rank_ctx[rank], config);
     }
 
     return std::make_shared<CompiledModel>(model, shared_from_this(),
