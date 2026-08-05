@@ -215,7 +215,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto tensor = _compiler->compileWsIterative(targetModel, localConfig, i++)) {
+        while (true) {
+            auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
+            auto tensor = std::move(iterativeResult.first);
+            if (iterativeResult.second.has_value()) {
+                compatibilityDescriptor = std::move(iterativeResult.second);
+            }
+            if (!tensor) {
+                break;
+            }
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
