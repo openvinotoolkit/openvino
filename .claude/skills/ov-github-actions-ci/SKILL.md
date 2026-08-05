@@ -123,6 +123,24 @@ Follow [adding_tests.md](../../../docs/dev/ci/github_actions/adding_tests.md):
 * Update [custom_actions.md](../../../docs/dev/ci/github_actions/custom_actions.md) if the action is
   user-facing.
 
+#### Choosing the implementation environment
+* **Python is the default and preferred** implementation language for a custom action's logic. Use it for
+  any action that does **not** need extensive access to the GitHub (Actions) API — file/artifact
+  handling, environment setup, packaging, running tools, parsing, etc.
+  * If the action needs a `requirements.txt`, it must pin the **full dependency tree**, not just
+    top-level packages. Generate it from a clean environment with `pip freeze`:
+    ```bash
+    python3 -m venv /tmp/act-env && . /tmp/act-env/bin/activate
+    pip install <top-level-deps>            # only the packages you directly import
+    pip freeze > .github/actions/<name>/requirements.txt
+    ```
+    This makes installs reproducible and pinned. Regenerate the same way whenever deps change.
+* **Use JavaScript/TypeScript only when the action uses the GitHub (Actions) API extensively** — the
+  Octokit/`@actions/*` toolkit gives first-class typed access to it. The bundled
+  [`.github/actions/cache`](../../../.github/actions/cache) action is the reference example of a
+  JS-based action.
+* When in doubt, prefer Python and keep API interaction minimal.
+
 ### Add / use a custom Docker image
 Follow [docker_images.md](../../../docs/dev/ci/github_actions/docker_images.md): add a Dockerfile under
 `.github/dockerfiles/{ov_build,ov_test}/<platform>/`, ensure a `Docker` job runs `handle_docker` with the
