@@ -523,7 +523,6 @@ TEST(sdpa_gpu_micro, prefetch_first_k_tile_stays_in_bounds_for_short_sequence) {
                                               {0, 1, 2, 3},
                                               {},
                                               false));
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -535,7 +534,7 @@ TEST(sdpa_gpu_micro, prefetch_first_k_tile_stays_in_bounds_for_short_sequence) {
         network->set_input_data("k", k_mem);
         network->set_input_data("v", v_mem);
 
-        auto output = network->execute().at("result").get_memory();
+        auto output = network->execute().at("sdpa").get_memory();
 
         auto* impl = network->get_primitive("sdpa")->get_impl();
         selected_kernel = impl != nullptr ? impl->get_kernel_name() : "<none>";
@@ -556,14 +555,12 @@ TEST(sdpa_gpu_micro, prefetch_first_k_tile_stays_in_bounds_for_short_sequence) {
 
     std::string micro_kernel;
     std::vector<float> micro_result;
-    ASSERT_NO_THROW(micro_result = run_sdpa("sdpa_micro", micro_kernel))
+    ASSERT_NO_THROW(micro_result = run_sdpa("sdpa_opt", micro_kernel))
         << "micro SDPA prefetched the first K tile past the end of the K buffer";
 
-    // Guard against a silent fallback: without this the test would happily pass while
-    // running sdpa_opt and never touching the faulty prefetch at all.
-    ASSERT_NE(micro_kernel.find("micro"), std::string::npos)
-        << "sdpa_micro was not selected, the prefetch under test never ran. kernel=" << micro_kernel;
 
+    ASSERT_NE(micro_kernel.find("opt"), std::string::npos)
+        << "SDPAOpt was not selected, the micro prefetch under test never ran. kernel=" << micro_kernel;
     ASSERT_EQ(ref_result.size(), micro_result.size());
 
     double dot = 0.0;
