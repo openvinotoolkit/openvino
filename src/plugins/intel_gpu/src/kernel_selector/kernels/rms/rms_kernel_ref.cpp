@@ -27,19 +27,6 @@ ParamsKey RMSKernelRef::GetSupportedKey() const {
 
 JitConstants RMSKernelRef::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
-    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
-    if (params.elementwise_affine) {
-        // ov_input_rank describes the original logical OpenVINO shape, while GetDims()
-        // describes the physical GPU storage. Rank 4+ uses logical X; otherwise a
-        // lower-rank tensor padded to 5D bfzyx uses Z, and padded 4D bfyx uses Y.
-        if (params.ov_input_rank >= 4) {
-            jit.AddConstant(MakeJitConstant("GAMMA_AXIS_INDEX", "x"));
-        } else if (params.inputs[0].GetDims().size() == 5) {
-            jit.AddConstant(MakeJitConstant("GAMMA_AXIS_INDEX", "z"));
-        } else {
-            jit.AddConstant(MakeJitConstant("GAMMA_AXIS_INDEX", "y"));
-        }
-    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
