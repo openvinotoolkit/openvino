@@ -254,8 +254,7 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
     auto p_index = wrap_type<v0::Constant>(value_matches("0"));
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
-    auto p_gather =
-        wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
+    auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto gather = m.get_match_root();
