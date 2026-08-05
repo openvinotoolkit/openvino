@@ -9,6 +9,7 @@
 
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
+#include "intel_npu/common/compiler_options_cache.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -293,8 +294,15 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_options() const {
+    if (auto cachedOptions = CompilerOptionsCache::getSupportedOptions(ov::intel_npu::CompilerType::PLUGIN);
+        cachedOptions.has_value()) {
+        return cachedOptions;
+    }
+
     std::vector<char> options;
     if (!_compiler->get_supported_options(options)) {
+        // Legacy path: compiler does not expose supported options list.
+        CompilerOptionsCache::setLegacyCompilerVersion(ov::intel_npu::CompilerType::PLUGIN, _compiler->get_version());
         _logger.warning("VCLCompilerImpl get_supported_options failed. Returning empty supported options.");
         return std::nullopt;
     }
@@ -313,14 +321,21 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     while (suppstream >> option) {
         compilerOpts.push_back(option);
     }
+
+    CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, compilerOpts);
     return compilerOpts;
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
+    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::PLUGIN, optname, optValue)) {
+        return true;
+    }
+
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
+        CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::PLUGIN, optname, optValue);
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
                       hasValue ? value.c_str() : "null");
