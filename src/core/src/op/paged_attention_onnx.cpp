@@ -74,20 +74,9 @@ void PagedAttention::validate_and_infer_types() {
                           "PagedAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                           m_local_window_size);
 
-    // The single-sequence decomposition derives a scalar past length and assumes one sequence per call. With
-    // batch_size > 1 the per-sequence past lengths and block tables differ (the varlen/continuous-batching
-    // regime), which the single-sequence path cannot model. The batch dimension is the length of past_seqlens
-    // (input 6); reject only a statically known batch_size > 1, leaving the dynamic path enabled for CPU/GPU.
-    const auto& past_seqlens_ps = get_input_partial_shape(6);
-    if (past_seqlens_ps.rank().is_static() && past_seqlens_ps.rank().get_length() == 1 &&
-        past_seqlens_ps[0].is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              past_seqlens_ps[0].get_length() == 1,
-                              "PagedAttention is only supported for batch_size == 1 when the batch dimension "
-                              "(past_seqlens length) is statically known, got batch_size = ",
-                              past_seqlens_ps[0].get_length(),
-                              " (the multi-sequence varlen regime is not yet modelled).");
-    }
+    // Any batch size is supported: a statically-known batch == 1 takes the single-sequence fast path, and
+    // everything else (static batch > 1, or a dynamic batch) takes the general variable-length path where each
+    // packed token is mapped by its own sequence's past length and block_table row.
 
     // output[0] has the same [num_tokens, num_heads * head_size] shape and float type as the (separate) query.
     set_output_type(0, q_type, get_input_partial_shape(0));

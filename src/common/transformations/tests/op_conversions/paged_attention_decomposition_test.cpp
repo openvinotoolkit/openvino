@@ -51,12 +51,17 @@ struct PaParams {
     float softcap = 0.0f;
     bool do_rotary = false;
     bool rotary_interleaved = false;
+    Dimension batch = 1;  // past_seqlens length; 1 (static) -> single-sequence path, else varlen path
     // Expected decomposed structure.
     bool expects_sdpa = true;  // softcap > 0 uses the manual core instead of SDPA
 
     explicit PaParams(std::string n) : name(std::move(n)) {}
     PaParams& tokens(const Dimension& t) {
         num_tokens = t;
+        return *this;
+    }
+    PaParams& batch_size(const Dimension& b) {
+        batch = b;
         return *this;
     }
     PaParams& pack() {
@@ -96,9 +101,9 @@ std::shared_ptr<Model> make_pa_model(const PaParams& p) {
     add(f32, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 2: value
     add(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 3: key_cache
     add(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE});  // 4: value_cache
-    add(element::i32, PartialShape{2});                                       // 5: cumulative_sequence_length
-    add(element::i32, PartialShape{1});                                       // 6: past_seqlens
-    add(element::i32, PartialShape{1, MAX_BLOCKS});                           // 7: block_table
+    add(element::i32, PartialShape{p.batch + 1});                             // 5: cumulative_sequence_length
+    add(element::i32, PartialShape{p.batch});                                 // 6: past_seqlens
+    add(element::i32, PartialShape{p.batch, MAX_BLOCKS});                     // 7: block_table
     if (p.do_rotary) {
         add(f32, PartialShape{-1, HEAD_SIZE / 2});  // 8: cos_cache
         add(f32, PartialShape{-1, HEAD_SIZE / 2});  // 9: sin_cache
@@ -173,19 +178,24 @@ TEST_P(PagedAttentionDecompositionTest, decomposes) {
     EXPECT_EQ(model->get_results().size(), 3u);
 }
 
-INSTANTIATE_TEST_SUITE_P(PagedAttentionDecomposition,
-                         PagedAttentionDecompositionTest,
-                         testing::Values(PaParams{"decode"},
-                                         PaParams{"prefill"}.tokens(Dimension::dynamic()),
-                                         PaParams{"packed"}.pack(),
-                                         PaParams{"rotary"}.rotary(),
-                                         PaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
-                                         PaParams{"sliding_window"}.window(2),
-                                         PaParams{"softcap"}.cap(30.0f),
-                                         PaParams{"softcap_window"}.cap(30.0f).window(2)),
-                         [](const testing::TestParamInfo<PaParams>& i) {
-                             return i.param.name;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    PagedAttentionDecomposition,
+    PagedAttentionDecompositionTest,
+    testing::Values(PaParams{"decode"},
+                    PaParams{"prefill"}.tokens(Dimension::dynamic()),
+                    PaParams{"packed"}.pack(),
+                    PaParams{"rotary"}.rotary(),
+                    PaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
+                    PaParams{"sliding_window"}.window(2),
+                    PaParams{"softcap"}.cap(30.0f),
+                    PaParams{"softcap_window"}.cap(30.0f).window(2),
+                    PaParams{"varlen_dynamic_batch"}.batch_size(Dimension::dynamic()).tokens(Dimension::dynamic()),
+                    PaParams{"varlen_static_batch"}.batch_size(2).tokens(Dimension::dynamic()),
+                    PaParams{"varlen_window"}.batch_size(2).tokens(Dimension::dynamic()).window(2),
+                    PaParams{"varlen_softcap"}.batch_size(2).tokens(Dimension::dynamic()).cap(30.0f)),
+    [](const testing::TestParamInfo<PaParams>& i) {
+        return i.param.name;
+    });
 
 // --- Op-level validation (validate_and_infer_types) ------------------------------------------------
 // These guard the assumptions the decomposition relies on. They reject only what is provably unsupported
@@ -205,16 +215,13 @@ TEST(PagedAttentionOpValidation, rejects_num_heads_not_divisible_by_kv_num_heads
                     testing::HasSubstr("divisible"));
 }
 
-TEST(PagedAttentionOpValidation, rejects_static_batch_greater_than_one) {
-    // The single-sequence decomposition uses a scalar past length and assumes batch == 1; a statically
-    // known batch (past_seqlens length) > 1 is the multi-sequence varlen regime, rejected up front.
-    OV_EXPECT_THROW(make_pa_op(/*batch*/ 2, NUM_HEADS, KV_NUM_HEADS, /*window*/ -1),
-                    ov::NodeValidationFailure,
-                    testing::HasSubstr("batch_size == 1"));
+TEST(PagedAttentionOpValidation, allows_static_batch_greater_than_one) {
+    // Any batch size is supported: a static batch > 1 takes the general variable-length decomposition path.
+    EXPECT_NO_THROW(make_pa_op(/*batch*/ 2, NUM_HEADS, KV_NUM_HEADS, /*window*/ -1));
 }
 
 TEST(PagedAttentionOpValidation, allows_dynamic_batch) {
-    // A dynamic batch dimension cannot be checked from shapes and stays enabled for CPU/GPU.
+    // A dynamic batch dimension is supported (variable-length path); it cannot be checked from shapes anyway.
     EXPECT_NO_THROW(make_pa_op(Dimension::dynamic(), NUM_HEADS, KV_NUM_HEADS, /*window*/ -1));
 }
 

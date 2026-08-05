@@ -30,6 +30,15 @@ public:
 private:
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::PagedAttention> node);
 
+    // Single-sequence (statically-known batch == 1) fast path: a lean decode/prefill decomposition without
+    // the per-token sequence bookkeeping the general path needs.
+    ov::OutputVector decompose_single_sequence(std::shared_ptr<ov::op::internal::PagedAttention> node);
+
+    // General variable-length multi-sequence path (dynamic or static batch > 1): all packed tokens run through
+    // one attention with a block-diagonal mask (a token attends only keys of its own sequence), and the cache
+    // scatter/gather map every token by its own sequence's past length and block_table row.
+    ov::OutputVector decompose_varlen(std::shared_ptr<ov::op::internal::PagedAttention> node);
+
     // Gather one or more dimensions of a node's shape as an i64 1-D tensor (Gather on ShapeOf).
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
@@ -59,6 +68,14 @@ private:
                                                  const ov::Output<ov::Node>& start_pos_scalar,
                                                  const ov::Output<ov::Node>& count_scalar,
                                                  const ov::Output<ov::Node>& block_size_scalar);
+
+    // Per-entry physical flat slot index (i32, shape [N]) for the varlen path. Each of the N entries has its
+    // own sequence id seq[n] and logical position pos[n]; slot(n) = block_table[seq[n], pos[n] / block_size] *
+    // block_size + pos[n] % block_size, with block_table indexed as a 2-D [batch, max_blocks] table via GatherND.
+    std::shared_ptr<ov::Node> build_slot_indices_varlen(const ov::Output<ov::Node>& block_table,
+                                                        const ov::Output<ov::Node>& seq,
+                                                        const ov::Output<ov::Node>& pos,
+                                                        const ov::Output<ov::Node>& block_size_scalar);
 
     // Additive float attention mask [curr, kv_len] for SDPA: causal (key j masked when j > past + i), optionally
     // fused with a sliding-window band (masked when (past + i) - j >= local_window_size). Masked positions use

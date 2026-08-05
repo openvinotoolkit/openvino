@@ -12,21 +12,26 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/cum_sum.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -65,6 +70,18 @@ ov::pass::PagedAttentionDecomposition::PagedAttentionDecomposition() {
 
 ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::internal::PagedAttention> node) {
+    // Dispatch on the batch dimension (past_seqlens length, input 6). A statically-known batch == 1 takes the
+    // lean single-sequence fast path; everything else (static batch > 1, or a dynamic batch that may be > 1 at
+    // runtime) takes the general variable-length path, which is also correct for batch == 1.
+    const auto& past_seqlens_ps = node->get_input_partial_shape(6);
+    const bool static_single_sequence = past_seqlens_ps.rank().is_static() &&
+                                        past_seqlens_ps.rank().get_length() == 1 && past_seqlens_ps[0].is_static() &&
+                                        past_seqlens_ps[0].get_length() == 1;
+    return static_single_sequence ? decompose_single_sequence(node) : decompose_varlen(node);
+}
+
+ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_single_sequence(
+    std::shared_ptr<ov::op::internal::PagedAttention> node) {
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
@@ -76,7 +93,7 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     // Inputs (attribute-determined arity, set by the frontend): Q, K, V (all 2-D [num_tokens, heads*head_size]),
     // key_cache, value_cache ([num_blocks, block_size, kv_num_heads, head_size]), cumulative_sequence_length
     // ([batch+1] i32), past_seqlens ([batch] i32), block_table ([batch, max_blocks] i32), and cos/sin caches
-    // when do_rotary. This decomposition handles the single-sequence (batch == 1) case.
+    // when do_rotary. This is the single-sequence (batch == 1) fast path.
     auto Q = node->input_value(0);
     auto K = node->input_value(1);
     auto V = node->input_value(2);
@@ -239,6 +256,218 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     return {output, key_cache_out, value_cache_out};
 }
 
+ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_varlen(
+    std::shared_ptr<ov::op::internal::PagedAttention> node) {
+    const auto num_heads = node->get_num_heads();
+    const auto kv_num_heads = node->get_kv_num_heads();
+    const auto scale = node->get_scale();
+    const auto softcap = node->get_softcap();
+    const auto local_window_size = node->get_local_window_size();
+    const auto do_rotary = node->get_do_rotary();
+    const auto rotary_interleaved = node->get_rotary_interleaved();
+
+    auto Q = node->input_value(0);
+    auto K = node->input_value(1);
+    auto V = node->input_value(2);
+    auto key_cache = node->input_value(3);
+    auto value_cache = node->input_value(4);
+    auto cumulative_sequence_length = node->input_value(5);  // [batch + 1] i32, prefix sum of new Q tokens
+    auto past_seqlens = node->input_value(6);                // [batch] i32
+    auto block_table = node->input_value(7);                 // [batch, max_blocks] i32
+
+    const auto element_type = Q.get_element_type();
+
+    // Constants.
+    const auto zero_i64 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto one_i64 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto neg_one_i64 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto zero_i32_s = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+    const auto one_i32_s = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
+    const auto zero_i32_1 = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+    const auto one_i32_1 = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{1}, {1}));
+
+    // block_size from key_cache dim 1; head_size from Q's hidden / num_heads.
+    const auto kc_shape = register_new_node<v3::ShapeOf>(key_cache);
+    const auto block_size =
+        register_new_node<v0::Convert>(register_new_node<v0::Squeeze>(get_dimensions(kc_shape, {1})),
+                                       ov::element::i32);  // scalar i32
+    const auto head_size_i64 = register_new_node<v1::Divide>(
+        get_dimensions(register_new_node<v3::ShapeOf>(Q), {1}),
+        register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads})));
+
+    // --- Per-sequence lengths (all i32, shape [batch]) ---
+    // new_len[b] = cum[b+1] - cum[b]; ctx_len[b] = past_seqlens[b] + new_len[b].
+    const auto batch_p1 =
+        register_new_node<v3::ShapeOf>(cumulative_sequence_length, ov::element::i32);  // [1] = batch+1
+    const auto batch = register_new_node<v1::Subtract>(batch_p1, one_i32_s);           // [1]
+    const auto batch_s = register_new_node<v0::Squeeze>(batch);                        // scalar
+    const auto cum_hi = register_new_node<v8::Slice>(cumulative_sequence_length,
+                                                     one_i32_1,
+                                                     batch_p1,
+                                                     one_i32_1,
+                                                     zero_i32_1);  // cum[1:]
+    const auto cum_lo = register_new_node<v8::Slice>(cumulative_sequence_length,
+                                                     zero_i32_1,
+                                                     batch,
+                                                     one_i32_1,
+                                                     zero_i32_1);            // cum[:-1]
+    const auto new_len = register_new_node<v1::Subtract>(cum_hi, cum_lo);    // [batch]
+    const auto ctx_len = register_new_node<v1::Add>(past_seqlens, new_len);  // [batch]
+    // ctx_begin = [0, cumsum(ctx_len)] -> [batch + 1]; total_ctx_all = ctx_begin[batch].
+    const auto ctx_cumsum = register_new_node<ov::op::v0::CumSum>(ctx_len, zero_i32_s);  // inclusive [batch]
+    const auto ctx_begin = register_new_node<v0::Concat>(ov::OutputVector{zero_i32_1, ctx_cumsum}, 0);  // [batch+1]
+    const auto total_ctx_s = register_new_node<v0::Squeeze>(
+        register_new_node<v8::Gather>(ctx_begin, batch, zero_i32_s));  // scalar = sum(ctx_len)
+
+    const auto num_tokens_s = register_new_node<v0::Squeeze>(
+        register_new_node<v8::Gather>(register_new_node<v3::ShapeOf>(Q, ov::element::i32),
+                                      zero_i32_1,
+                                      zero_i32_s));  // scalar
+
+    // --- Per-token sequence id (which sequence each of the num_tokens rows belongs to) ---
+    // qseq[i] = #{b : cum[b+1] <= i} = sum over b of (i >= cum[b+1]). Shape [num_tokens].
+    const auto tok_range = register_new_node<v4::Range>(zero_i32_s, num_tokens_s, one_i32_s, ov::element::i32);
+    const auto tok_col = register_new_node<v0::Unsqueeze>(tok_range, one_i64);   // [num_tokens, 1]
+    const auto cum_hi_row = register_new_node<v0::Unsqueeze>(cum_hi, zero_i64);  // [1, batch]
+    const auto ge = register_new_node<v1::GreaterEqual>(tok_col, cum_hi_row);    // [num_tokens, batch] bool
+    const auto qseq = register_new_node<v1::ReduceSum>(register_new_node<v0::Convert>(ge, ov::element::i32),
+                                                       one_i32_1,
+                                                       false);  // [num_tokens] i32
+    // Local query position within its sequence: qlocal[i] = i - cum[qseq[i]].
+    const auto q_cum = register_new_node<v8::Gather>(cumulative_sequence_length, qseq, zero_i32_s);  // [num_tokens]
+    const auto q_local = register_new_node<v1::Subtract>(tok_range, q_cum);                          // [num_tokens]
+    const auto q_past = register_new_node<v8::Gather>(past_seqlens, qseq, zero_i32_s);               // [num_tokens]
+    const auto q_abs = register_new_node<v1::Add>(q_past, q_local);  // absolute query pos [num_tokens]
+
+    // --- Per-context-entry sequence id and local key position over the packed [0, total_ctx_all) axis ---
+    const auto ctx_range = register_new_node<v4::Range>(zero_i32_s, total_ctx_s, one_i32_s, ov::element::i32);
+    const auto ctx_col = register_new_node<v0::Unsqueeze>(ctx_range, one_i64);  // [total_ctx, 1]
+    // kseq[j] = #{b : ctx_begin[b+1] <= j}. ctx_begin[1:] is the inclusive cumsum.
+    const auto ctxbeg_hi_row = register_new_node<v0::Unsqueeze>(ctx_cumsum, zero_i64);  // [1, batch]
+    const auto kge = register_new_node<v1::GreaterEqual>(ctx_col, ctxbeg_hi_row);       // [total_ctx, batch]
+    const auto kseq = register_new_node<v1::ReduceSum>(register_new_node<v0::Convert>(kge, ov::element::i32),
+                                                       one_i32_1,
+                                                       false);                        // [total_ctx]
+    const auto k_begin = register_new_node<v8::Gather>(ctx_begin, kseq, zero_i32_s);  // [total_ctx]
+    const auto k_local = register_new_node<v1::Subtract>(ctx_range, k_begin);         // local key pos [total_ctx]
+
+    // === Unpack Q/K/V to [1, heads, tokens, head_size] (single synthetic batch; sequences kept apart by mask) ===
+    const auto perm = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
+    const auto num_tokens_i64 =
+        register_new_node<v0::Convert>(register_new_node<v0::Unsqueeze>(num_tokens_s, zero_i32_s), ov::element::i64);
+    auto to_sdpa_layout = [&](const ov::Output<ov::Node>& x, int64_t heads) {
+        const auto shape = register_new_node<v0::Concat>(
+            ov::NodeVector{one_i64,
+                           num_tokens_i64,
+                           register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {heads})),
+                           head_size_i64},
+            0);
+        return register_new_node<v1::Transpose>(register_new_node<v1::Reshape>(x, shape, false), perm)->output(0);
+    };
+    Q = to_sdpa_layout(Q, num_heads);
+    K = to_sdpa_layout(K, kv_num_heads);
+    V = to_sdpa_layout(V, kv_num_heads);
+
+    // === RoPE on Q and the new K, per-token absolute position q_abs ===
+    if (do_rotary) {
+        auto cos_cache = node->input_value(node->get_input_size() - 2);
+        auto sin_cache = node->input_value(node->get_input_size() - 1);
+        const auto cos = register_new_node<v8::Gather>(cos_cache, q_abs, zero_i32_s);  // [num_tokens, rot/2]
+        const auto sin = register_new_node<v8::Gather>(sin_cache, q_abs, zero_i32_s);
+        Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
+        K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+    }
+
+    // === Write new K/V into the paged cache at each token's physical slot (per-token block_table row) ===
+    const auto flat_pattern =
+        register_new_node<v0::Concat>(ov::NodeVector{neg_one_i64, get_dimensions(kc_shape, {2, 3})}, 0);
+    const auto kc_flat = register_new_node<v1::Reshape>(key_cache, flat_pattern, false);
+    const auto vc_flat = register_new_node<v1::Reshape>(value_cache, flat_pattern, false);
+    // write slot for token i: block_table[qseq[i], q_abs[i] / block_size] * block_size + q_abs[i] % block_size.
+    const auto write_slots = build_slot_indices_varlen(block_table, qseq, q_abs, block_size);  // [num_tokens]
+    const auto write_indices = register_new_node<v0::Unsqueeze>(write_slots, neg_one_i64);     // [num_tokens, 1]
+    auto to_cache_rows = [&](const ov::Output<ov::Node>& x) {
+        return register_new_node<v0::Squeeze>(register_new_node<v1::Transpose>(x, perm), zero_i64)->output(0);
+    };
+    const auto kc_flat_new = register_new_node<v3::ScatterNDUpdate>(kc_flat, write_indices, to_cache_rows(K));
+    const auto vc_flat_new = register_new_node<v3::ScatterNDUpdate>(vc_flat, write_indices, to_cache_rows(V));
+    const auto key_cache_out = register_new_node<v1::Reshape>(kc_flat_new, kc_shape, false);
+    const auto value_cache_out =
+        register_new_node<v1::Reshape>(vc_flat_new, register_new_node<v3::ShapeOf>(value_cache), false);
+
+    // === Gather the full packed context [total_ctx_all, kv, head] (per-entry block_table row) ===
+    const auto read_slots = build_slot_indices_varlen(block_table, kseq, k_local, block_size);  // [total_ctx]
+    const auto k_ctx_rows = register_new_node<v8::Gather>(kc_flat_new, read_slots, zero_i32_s);
+    const auto v_ctx_rows = register_new_node<v8::Gather>(vc_flat_new, read_slots, zero_i32_s);
+    auto ctx_to_sdpa = [&](const ov::Output<ov::Node>& rows) {
+        const auto p = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, 0, 2}));
+        return register_new_node<v0::Unsqueeze>(register_new_node<v1::Transpose>(rows, p), zero_i64)->output(0);
+    };
+    K = ctx_to_sdpa(k_ctx_rows);
+    V = ctx_to_sdpa(v_ctx_rows);
+
+    // === Broadcast KV heads when num_heads / kv_num_heads > 1 ===
+    const size_t kv_num_heads_factor = num_heads / kv_num_heads;
+    if (kv_num_heads_factor > 1) {
+        const auto kv_shape = register_new_node<v3::ShapeOf>(K);
+        const auto kv_prev_2 = get_dimensions(kv_shape, {0, 1});
+        const auto kv_last_2 = get_dimensions(kv_shape, {2, 3});
+        const auto expand_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_prev_2, one_i64, kv_last_2}, 0);
+        K = register_new_node<v1::Reshape>(K, expand_shape, false);
+        V = register_new_node<v1::Reshape>(V, expand_shape, false);
+        K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
+        V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
+        const auto q_prev_2 = get_dimensions(register_new_node<v3::ShapeOf>(Q), {0, 1});
+        const auto final_shape = register_new_node<v0::Concat>(ov::NodeVector{q_prev_2, kv_last_2}, 0);
+        K = register_new_node<v1::Reshape>(K, final_shape, false);
+        V = register_new_node<v1::Reshape>(V, final_shape, false);
+    }
+
+    // === Block-diagonal additive mask [num_tokens, total_ctx_all] ===
+    // Allowed iff same sequence AND causal (k_local <= q_abs) AND (no window OR q_abs - k_local < window).
+    const auto q_seq_col = register_new_node<v0::Unsqueeze>(qseq, one_i64);      // [num_tokens, 1]
+    const auto k_seq_row = register_new_node<v0::Unsqueeze>(kseq, zero_i64);     // [1, total_ctx]
+    const auto q_abs_col = register_new_node<v0::Unsqueeze>(q_abs, one_i64);     // [num_tokens, 1]
+    const auto k_loc_row = register_new_node<v0::Unsqueeze>(k_local, zero_i64);  // [1, total_ctx]
+    // masked (disallowed) = (qseq != kseq) OR (k_local > q_abs) OR window band.
+    std::shared_ptr<ov::Node> masked = register_new_node<v1::NotEqual>(q_seq_col, k_seq_row);
+    masked = register_new_node<v1::LogicalOr>(masked, register_new_node<v1::Greater>(k_loc_row, q_abs_col));
+    if (local_window_size >= 1) {
+        const auto distance = register_new_node<v1::Subtract>(q_abs_col, k_loc_row);
+        const auto window = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{}, {local_window_size}));
+        masked = register_new_node<v1::LogicalOr>(masked, register_new_node<v1::GreaterEqual>(distance, window));
+    }
+    const auto typed_zero = register_new_node(v0::Constant::create(element_type, ov::Shape{}, {0}));
+    std::shared_ptr<ov::Node> minus_inf;
+    if (element_type == ov::element::f16)
+        minus_inf = register_new_node(
+            v0::Constant::create(element_type, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+    else if (element_type == ov::element::bf16)
+        minus_inf = register_new_node(
+            v0::Constant::create(element_type, ov::Shape{}, {std::numeric_limits<ov::bfloat16>::lowest()}));
+    else
+        minus_inf =
+            register_new_node(v0::Constant::create(element_type, ov::Shape{}, {std::numeric_limits<float>::lowest()}));
+    const auto mask = register_new_node<v1::Select>(masked, minus_inf, typed_zero);
+
+    // === Attention core + repack (mask carries same-sequence + causal + window) ===
+    std::shared_ptr<ov::Node> sdpa_out;
+    if (softcap > 0.0f) {
+        sdpa_out = build_attention_softcap(Q, K, V, mask, scale, softcap, element_type);
+    } else if (scale != 0.0f) {
+        const auto scale_node = register_new_node(v0::Constant::create(element_type, ov::Shape{}, {scale}));
+        sdpa_out = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+    } else {
+        sdpa_out = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+    }
+    const auto out_t = register_new_node<v1::Transpose>(sdpa_out, perm);
+    const auto merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
+    const auto out_3d = register_new_node<v1::Reshape>(out_t, merge_shape, true);
+    const auto output = register_new_node<v0::Squeeze>(out_3d, zero_i64);
+
+    return {output, key_cache_out, value_cache_out};
+}
+
 std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::build_attention_softcap(
     const ov::Output<ov::Node>& Q,
     const ov::Output<ov::Node>& K,
@@ -288,6 +517,26 @@ std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::build_slot_indi
     const auto logical_block = register_new_node<v1::Divide>(p, block_size_scalar);
     const auto slot_in_block = register_new_node<v1::Mod>(p, block_size_scalar);
     const auto block_number = register_new_node<v8::Gather>(block_table_row, logical_block, zero_i32_s);
+    const auto base = register_new_node<v1::Multiply>(block_number, block_size_scalar);
+    return register_new_node<v1::Add>(base, slot_in_block);
+}
+
+std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::build_slot_indices_varlen(
+    const ov::Output<ov::Node>& block_table,
+    const ov::Output<ov::Node>& seq,
+    const ov::Output<ov::Node>& pos,
+    const ov::Output<ov::Node>& block_size_scalar) {
+    // For each entry n: logical_block = pos[n] / block_size, slot_in_block = pos[n] % block_size, and the
+    // physical block is block_table[seq[n], logical_block]. Gather the block via GatherND with a per-entry
+    // [seq, logical_block] index pair, then slot = block * block_size + slot_in_block. All i32.
+    const auto neg_one_i64 = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+    const auto logical_block = register_new_node<v1::Divide>(pos, block_size_scalar);  // [N]
+    const auto slot_in_block = register_new_node<v1::Mod>(pos, block_size_scalar);     // [N]
+    // GatherND index pairs: [N, 2] = stack(seq, logical_block) along a new last axis.
+    const auto seq_col = register_new_node<v0::Unsqueeze>(seq, neg_one_i64);                        // [N, 1]
+    const auto blk_col = register_new_node<v0::Unsqueeze>(logical_block, neg_one_i64);              // [N, 1]
+    const auto gather_idx = register_new_node<v0::Concat>(ov::OutputVector{seq_col, blk_col}, -1);  // [N, 2]
+    const auto block_number = register_new_node<ov::op::v8::GatherND>(block_table, gather_idx);     // [N]
     const auto base = register_new_node<v1::Multiply>(block_number, block_size_scalar);
     return register_new_node<v1::Add>(base, slot_in_block);
 }
