@@ -301,27 +301,6 @@ void ScaledAttnLayerGPUMlirTest::generate_inputs(const std::vector<ov::Shape>& t
             inputs.insert({model_inputs[idx].get_node_shared_ptr(), scale_tensor});
         }
     }
-
-    // Print first 10 values of each input
-    for (const auto& [node, tensor] : inputs) {
-        size_t n = std::min<size_t>(tensor.get_size(), 10);
-        std::cout << "Input \"" << node->get_friendly_name() << "\" shape=" << tensor.get_shape()
-                  << " type=" << tensor.get_element_type() << " first " << n << " values: [";
-        if (tensor.get_element_type() == ov::element::f16) {
-            auto* data = reinterpret_cast<const ov::float16*>(tensor.data());
-            for (size_t i = 0; i < n; ++i) {
-                if (i > 0) std::cout << ", ";
-                std::cout << static_cast<float>(data[i]);
-            }
-        } else if (tensor.get_element_type() == ov::element::f32) {
-            auto* data = reinterpret_cast<const float*>(tensor.data());
-            for (size_t i = 0; i < n; ++i) {
-                if (i > 0) std::cout << ", ";
-                std::cout << data[i];
-            }
-        }
-        std::cout << "]" << std::endl;
-    }
 }
 
 void ScaledAttnLayerGPUMlirTest::check_mlir_execution() {
