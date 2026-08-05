@@ -657,6 +657,26 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_V_F16_MULTIBLOCK"))
         v_f16_multiblock = std::atoi(env);
     jit.make("V_F16_MULTIBLOCK_READ", v_f16_multiblock);
+    // Paged-attention mixed stage: read the V cache with the 16b VNNI-transform block read instead
+    // of the per-lane scalar gather. Each (block, kv_head) cache page is a
+    // [PAGED_ATTENTION_BLOCK_SIZE, v_head_size] row-major f16 tile, so the kernel points the
+    // surface at the page and uses a v_head_size row pitch -- NOT ldv, which for the cache layout
+    // spans a whole page. That means the block2d rule has to be checked against the page pitch:
+    //   width = pitch = v_head_size * 2 bytes  =>  needs (v_head_size * 2) % 64 == 0 and >= 64,
+    // and the page base is a multiple of PAGED_ATTENTION_BLOCK_SIZE * v_head_size * 2, which is
+    // 64B-aligned whenever the pitch rule holds. Only f16 (uncompressed) caches qualify; the
+    // compressed layouts interleave scale/zp into the row and break the pitch rule outright.
+    int v_pa_2d = 0;
+    if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed &&
+        !data_type_traits::is_i8_u8(V.data_type) && !data_type_traits::is_i4_u4(V.data_type)) {
+        const auto v_page_pitch = v_head_size * ov::element::Type(V.data_type).size();
+        v_pa_2d = block2d_surface_ok(v_page_pitch);
+    }
+    // Bisection toggle, same role as SDPA_OCL_KV_2D: =0 restores the scalar gather so a wrong
+    // result can be attributed to the block read rather than to the S*V indexing.
+    if (const char* env = std::getenv("SDPA_OCL_V_PA_2D"))
+        v_pa_2d = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_V_PA", v_pa_2d);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
