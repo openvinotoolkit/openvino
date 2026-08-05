@@ -422,20 +422,20 @@ TEST_F(TransformationTestsF, MVNFusionTestWithParametersInside) {
 // Graph: Multiply(Subtract(x, ReduceMean(x)), Divide(1, Sqrt(Add(ReduceMean(Power(sub, 2)), eps))))
 TEST_F(TransformationTestsF, MVNFusionTestRsqrtInsideSqrt) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 224});
-        auto mean1_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mean1 = std::make_shared<opset6::ReduceMean>(input, mean1_axes, true);
-        auto sub1 = std::make_shared<opset6::Subtract>(input, mean1);
-        auto const_2 = opset6::Constant::create(element::f32, Shape{}, {2});
-        auto power_sqr = std::make_shared<opset6::Power>(sub1, const_2);
-        auto mean3_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mean3 = std::make_shared<opset6::ReduceMean>(power_sqr, mean3_axes, true);
-        auto eps = opset6::Constant::create(element::f32, Shape{}, {1e-9});
-        auto add_eps = std::make_shared<opset6::Add>(mean3, eps);
-        auto sqrt_node = std::make_shared<opset6::Sqrt>(add_eps);
-        auto const_1 = opset6::Constant::create(element::f32, Shape{}, {1.0});
-        auto rsqrt = std::make_shared<opset6::Divide>(const_1, sqrt_node);
-        auto result = std::make_shared<opset6::Multiply>(sub1, rsqrt);
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+        auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes, true);
+        auto sub1 = std::make_shared<ov::op::v1::Subtract>(input, mean1);
+        auto const_2 = ov::op::v0::Constant::create(element::f32, Shape{}, {2});
+        auto power_sqr = std::make_shared<ov::op::v1::Power>(sub1, const_2);
+        auto mean3_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean3 = std::make_shared<ov::op::v1::ReduceMean>(power_sqr, mean3_axes, true);
+        auto eps = ov::op::v0::Constant::create(element::f32, Shape{}, {1e-9});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean3, eps);
+        auto sqrt_node = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto const_1 = ov::op::v0::Constant::create(element::f32, Shape{}, {1.0});
+        auto rsqrt = std::make_shared<ov::op::v1::Divide>(const_1, sqrt_node);
+        auto result = std::make_shared<ov::op::v1::Multiply>(sub1, rsqrt);
 
         model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{input});
 
@@ -443,9 +443,9 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtInsideSqrt) {
     }
 
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 224});
-        auto axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mvn = std::make_shared<opset6::MVN>(input, axes, true, 1e-9f, op::MVNEpsMode::INSIDE_SQRT);
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+        auto axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mvn = std::make_shared<ov::op::v6::MVN>(input, axes, true, 1e-9f, op::MVNEpsMode::INSIDE_SQRT);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
     }
@@ -454,23 +454,23 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtInsideSqrt) {
 // Cohere-style MVN with f16 compressed constants: all constants (const_2, const_1, eps) wrapped in Convert
 TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithConvertedConstants) {
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 224});
-        auto mean1_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mean1 = std::make_shared<opset6::ReduceMean>(input, mean1_axes, true);
-        auto sub1 = std::make_shared<opset6::Subtract>(input, mean1);
-        auto const_2_f16 = opset6::Constant::create(element::f16, Shape{}, {2});
-        auto const_2_convert = std::make_shared<opset6::Convert>(const_2_f16, element::f32);
-        auto power_sqr = std::make_shared<opset6::Power>(sub1, const_2_convert);
-        auto mean3_axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mean3 = std::make_shared<opset6::ReduceMean>(power_sqr, mean3_axes, true);
-        auto eps_f16 = opset6::Constant::create(element::f16, Shape{}, {9.765625e-04f});
-        auto eps_convert = std::make_shared<opset6::Convert>(eps_f16, element::f32);
-        auto add_eps = std::make_shared<opset6::Add>(mean3, eps_convert);
-        auto sqrt_node = std::make_shared<opset6::Sqrt>(add_eps);
-        auto const_1_f16 = opset6::Constant::create(element::f16, Shape{}, {1.0});
-        auto const_1_convert = std::make_shared<opset6::Convert>(const_1_f16, element::f32);
-        auto rsqrt = std::make_shared<opset6::Divide>(const_1_convert, sqrt_node);
-        auto result = std::make_shared<opset6::Multiply>(sub1, rsqrt);
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+        auto mean1_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean1 = std::make_shared<ov::op::v1::ReduceMean>(input, mean1_axes, true);
+        auto sub1 = std::make_shared<ov::op::v1::Subtract>(input, mean1);
+        auto const_2_f16 = ov::op::v0::Constant::create(element::f16, Shape{}, {2});
+        auto const_2_convert = std::make_shared<ov::op::v0::Convert>(const_2_f16, element::f32);
+        auto power_sqr = std::make_shared<ov::op::v1::Power>(sub1, const_2_convert);
+        auto mean3_axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mean3 = std::make_shared<ov::op::v1::ReduceMean>(power_sqr, mean3_axes, true);
+        auto eps_f16 = ov::op::v0::Constant::create(element::f16, Shape{}, {9.765625e-04f});
+        auto eps_convert = std::make_shared<ov::op::v0::Convert>(eps_f16, element::f32);
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean3, eps_convert);
+        auto sqrt_node = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto const_1_f16 = ov::op::v0::Constant::create(element::f16, Shape{}, {1.0});
+        auto const_1_convert = std::make_shared<ov::op::v0::Convert>(const_1_f16, element::f32);
+        auto rsqrt = std::make_shared<ov::op::v1::Divide>(const_1_convert, sqrt_node);
+        auto result = std::make_shared<ov::op::v1::Multiply>(sub1, rsqrt);
 
         model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{input});
 
@@ -478,9 +478,9 @@ TEST_F(TransformationTestsF, MVNFusionTestRsqrtWithConvertedConstants) {
     }
 
     {
-        auto input = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 3, 224});
-        auto axes = opset6::Constant::create(element::i32, Shape{1}, {2});
-        auto mvn = std::make_shared<opset6::MVN>(input, axes, true, 9.765625e-04f, op::MVNEpsMode::INSIDE_SQRT);
+        auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 3, 224});
+        auto axes = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
+        auto mvn = std::make_shared<ov::op::v6::MVN>(input, axes, true, 9.765625e-04f, op::MVNEpsMode::INSIDE_SQRT);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{mvn}, ParameterVector{input});
     }
