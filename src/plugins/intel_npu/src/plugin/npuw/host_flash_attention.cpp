@@ -62,7 +62,8 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
                                             const ov::element::Type& input_dtype,
                                             const ov::element::Type& mask_dtype,
                                             int64_t tile_size,
-                                            size_t kv_num_heads) {
+                                            size_t kv_num_heads,
+                                            bool v_transposed = true) {
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
@@ -95,10 +96,17 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
         ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
     set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
-    // v_tile: [batch, kv_num_heads, head_dim, tile_size]
-    inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
-        input_dtype,
-        ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
+    // v_tile: [batch, kv_num_heads, head_dim, tile_size] when V is pre-transposed by OptimizeValueTensors,
+    //          [batch, kv_num_heads, tile_size, head_dim] when V is in normal (non-transposed) layout.
+    if (v_transposed) {
+        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
+            input_dtype,
+            ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
+    } else {
+        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
+            input_dtype,
+            ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
+    }
     set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
     // q: [batch, num_heads, seq_len, head_dim]
@@ -162,7 +170,8 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
                                                            const std::shared_ptr<ov::Node>& k_input,
                                                            const std::shared_ptr<ov::Node>& v_input,
                                                            bool is_last_tile = false,
-                                                           bool is_first_tile = false) {
+                                                           bool is_first_tile = false,
+                                                           bool v_transposed = true) {
     ov::intel_npu::op::FlashAttentionTile::Config config;
     config.is_head = is_first_tile;
     config.is_tail = is_last_tile;
@@ -171,13 +180,24 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     auto rank = v_shape.rank().get_length();
     if (rank != 4)
         OPENVINO_THROW("v_input rank must be 4 for flash attention");
-    std::vector<int64_t> transpose_v_order({0, 1, 3, 2});
-    auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                  ov::Shape{static_cast<size_t>(rank)},
-                                                                  transpose_v_order);
 
-    auto v_transpose = std::make_shared<ov::op::v1::Transpose>(v_input, transpose_order);
-    v_transpose->set_friendly_name("v_input_transposed");
+    // When V is pre-transposed by OptimizeValueTensors, the tile parameter is [B,H,head_dim,tile_size];
+    // we transpose it back to [B,H,tile_size,head_dim] before feeding FlashAttentionTile (which expects
+    // normal [B,H,seq_len,head_dim] layout).  When V was NOT transposed, the tile parameter already
+    // holds normal layout [B,H,tile_size,head_dim] and no transpose is needed.
+    std::shared_ptr<ov::Node> v_for_attn;
+    if (v_transposed) {
+        std::vector<int64_t> transpose_v_order({0, 1, 3, 2});
+        auto transpose_order = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                      ov::Shape{static_cast<size_t>(rank)},
+                                                                      transpose_v_order);
+        auto v_transpose = std::make_shared<ov::op::v1::Transpose>(v_input, transpose_order);
+        v_transpose->set_friendly_name("v_input_transposed");
+        v_for_attn = v_transpose;
+    } else {
+        // V is already in [B,H,tile_size,head_dim] — pass directly.
+        v_for_attn = v_input;
+    }
 
     auto squeeze = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
 
@@ -192,7 +212,7 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
         // Use mask for final tile to ensure proper masking of the last KV block
         flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
                                                                                   k_input,
-                                                                                  v_transpose,
+                                                                                  v_for_attn,
                                                                                   f32_nodes.past_acc_f32,
                                                                                   past_max_squeezed,
                                                                                   past_sum_squeezed,
@@ -201,7 +221,7 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     } else {
         flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
                                                                                   k_input,
-                                                                                  v_transpose,
+                                                                                  v_for_attn,
                                                                                   f32_nodes.past_acc_f32,
                                                                                   past_max_squeezed,
                                                                                   past_sum_squeezed,
@@ -580,6 +600,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         size_t kv_num_heads,
                                                         bool is_final_tile = false,
                                                         bool fused_flash_attention = false,
+                                                        bool v_transposed = true,
                                                         const ov::element::Type& output_dtype = ov::element::f16) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", mask_dtype=" << mask_dtype
@@ -599,7 +620,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     LOG_DEBUG("Using compute_dtype=f32 for all operations to match mask type");
 
     // Create input parameters
-    auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads);
+    auto inputs = create_hfa_tile_inputs(q_shape, input_dtype, mask_dtype, tile_size, kv_num_heads, v_transposed);
 
     // Convert all inputs to f32.
     // For the fused operation only the final tile uses a mask (regular tiles skip mask for performance)
@@ -642,7 +663,9 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                 f32_nodes.q_f32,
                                                 f32_nodes.k_tile_f32,
                                                 f32_nodes.v_tile_f32,
-                                                is_final_tile);
+                                                is_final_tile,
+                                                false,  // is_first_tile
+                                                v_transposed);
     } else {
         // Broadcast K and V tiles from kv_num_heads to num_heads
         auto [k_broadcast, v_broadcast] = broadcast_kv_tiles(f32_nodes.k_tile_f32,
@@ -1021,14 +1044,18 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     // Step 5: Create tile models using query_size as tile_size
     // ========================================================================
-    LOG_INFO("Creating HFA tile models with tile_size=" << query_size);
+    // V tensors are pre-transposed (stored as [B,H,head_dim,seq]) only when OptimizeValueTensors
+    // succeeded, which is reflected by the V-concat axis being 3 instead of the default 2.
+    const bool v_transposed = (v_seq_dim == 3);
+    LOG_INFO("Creating HFA tile models with tile_size=" << query_size << ", v_transposed=" << v_transposed);
     auto tile_model = create_hfa_tile_model(q_shape_static,
                                             dtype,
                                             mask_dtype,
                                             query_size,
                                             kv_num_heads,
                                             false,
-                                            fused_flash_attention);
+                                            fused_flash_attention,
+                                            v_transposed);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
@@ -1041,6 +1068,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   kv_num_heads,
                                                   true,
                                                   fused_flash_attention,
+                                                  v_transposed,
                                                   output_dtype);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
