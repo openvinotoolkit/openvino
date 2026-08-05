@@ -37,7 +37,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
-        global half *A,
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        const global QRY_DATA_T *Kc,
+        const global QRY_DATA_T *Vc,
+#endif
+    global half *A,
 #if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
     #if !IS_PREFILL
@@ -165,9 +169,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // Tokens of all subsequences are packed into one matrix, so a batch index does not exist:
     // seek to the first token of this workgroup's subsequence and to this head's column slice.
     Q += (size_t)subsequence_begin * ldq + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-    K += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
-    V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     A += (size_t)subsequence_begin * lda + b0 * HEAD_SIZE;
+    #if IS_PREFILL
+        K += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+        V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+    #else
+        const uint base_block_index = block_indices_begins[gws_mapping];
+    #endif
 #else
     Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
     K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
@@ -253,6 +261,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+    const int query_position_offset = past_len;
+#else
+    const int query_position_offset = 0;
+#endif
+
     // Causal upper bound on the key loop. With IS_CAUSAL every key > query is masked to -inf, so a
     // workgroup owning queries [wg_j0, wg_j0 + kq_wg_tile_queries) can never need a key beyond
     // wg_j0 + kq_wg_tile_queries - 1. Without this bound the loop walks the FULL key range and
@@ -263,7 +277,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // per-tile inner loop.
     // The non-causal case keeps the full range, and the bound is a no-op there.
 #if IS_CAUSAL
-    const int causal_k = min(k, (int)wg_j0 + kq_wg_tile_queries);
+    const int causal_k = min(k, query_position_offset + (int)wg_j0 + kq_wg_tile_queries);
 #else
     const int causal_k = k;
 #endif
@@ -277,7 +291,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // loop keeps its kq_wg_tile_keys stride and key_base stays tile-aligned (the 2D block reads
     // and the S_slm indexing both assume that).
 #if IS_CAUSAL && SLIDING_WINDOW_SIZE
-    const int window_k_begin = max(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    const int window_k_begin = max(0, query_position_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     const int window_k0_begin = (window_k_begin / kq_wg_tile_keys) * kq_wg_tile_keys;
 #else
     const int window_k0_begin = 0;
@@ -323,6 +337,28 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+        // Paged K/V live in 16-key cache pages reached through block_indices[]. That lookup depends
+        // only on the key, so it is invariant in db (the head-dim chunk) AND constant across the 8
+        // keys of one DPAS row-block: key_base = k0 + sg_i0_kq is a multiple of kq_sg_tile_keys and
+        // k0 a multiple of kq_wg_tile_keys, both multiples of PAGED_ATTENTION_BLOCK_SIZE, so an
+        // 8-key block starting at an 8-aligned offset from key_base never straddles a page.
+        // The old code issued it from the innermost (db, mb, key_offset) position -- lane-uniform,
+        // so IGC emitted a per-key SIMD-1 scalar load, DKS * kq_key_blocks * DPAS_ROWS of them per
+        // k0 iteration (64 at head 64). Hoisting to one per row-block leaves kq_key_blocks (2).
+        // Guarded by (mb_key0 < k) rather than the old per-key (key < k): key >= mb_key0, so
+        // mb_key0 >= k implies no key in the block would have been read anyway -- equivalent, and
+        // it keeps the lookup inside block_indices[] for this subsequence (key_base can run past k
+        // in the final k0 tile, where an unguarded load would index past the allocated blocks).
+        uint k_page[kq_key_blocks];
+        #pragma unroll
+        for (int mb = 0; mb < kq_key_blocks; ++mb) {
+            const int mb_key0 = key_base + mb * DPAS_ROWS;
+            k_page[mb] = (mb_key0 < k) ? block_indices[base_block_index + mb_key0 / PAGED_ATTENTION_BLOCK_SIZE]
+                                       : 0u;
+        }
+#endif
+
         #pragma unroll
         for (int db = 0; db < DKS; ++db) {
             int8 qB[kq_query_blocks];
@@ -334,7 +370,26 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             ushort8 k_raw[kq_key_blocks];
-#if USE_2D_BLOCK_IO_K_I8
+#if IS_PAGED_ATTENTION && !IS_PREFILL
+            const int head = db * DPAS_K + lane;
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
+                k_raw[mb] = (ushort8)0;
+                // Page base for this row-block, hoisted above; only the intra-page key offset and
+                // the head vary here.
+                const size_t mb_page_base =
+                    (((size_t)k_page[mb] * KV_HEADS_NUM + b0_kv) * HEAD_SIZE + head) *
+                    PAGED_ATTENTION_BLOCK_SIZE;
+                #pragma unroll
+                for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
+                    const int key = key_base + mb * DPAS_ROWS + key_offset;
+                    if (head < d && key < k) {
+                        k_raw[mb][key_offset] =
+                            as_ushort(K[mb_page_base + key % PAGED_ATTENTION_BLOCK_SIZE]);
+                    }
+                }
+            }
+#elif USE_2D_BLOCK_IO_K_I8
             // int8 K via the 8-bit VNNI-transform read (same builtin as V). Reading K's row-major
             // [key, head] memory at (x=db*DPAS_K head-col, y=key_base) gives lane=head with each
             // uint packing 4 consecutive keys as bytes (GPU-probed: lane==head exactly, key order
@@ -446,7 +501,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #else
                 mask_tile[ii] = (half)0.0f;
             #endif
-            k_mask[ii] = (key < k) ? 0.0f : -INFINITY;
+            // Bound against causal_k, not k: the key loop stops at causal_k but its LAST tile can
+            // overrun it (causal_k = past_len + wg_j0 + kq_wg_tile_queries is not tile-aligned once
+            // past_len is arbitrary, which is the norm in the paged-attention mixed stage). Keys in
+            // [causal_k, k) are past every query this workgroup owns, so they must read as -inf.
+            // They do get -inf from the causal mask below too, but only as long as that mask
+            // actually runs: BLOCK_SKIP_CAUSAL elides it for blocks it proves fully in-region. That
+            // proof cannot currently cover such a block, so this is equivalence-preserving -- it
+            // just stops the remainder from depending on the block-skip predicate. sdpa_micro has
+            // always bounded its k_mask this way (k0 + sg_i0_kq + ... < causal_k).
+            k_mask[ii] = (key < causal_k) ? 0.0f : -INFINITY;
         }
         float2 mask_tile_float = convert_float2(mask_tile);
         #pragma unroll
@@ -503,7 +567,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_CAUSAL
     #if BLOCK_SKIP_CAUSAL
             const int blk_key_last = key_base + kq_sg_tile_keys - 1;
-            const int blk_query_first = (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE;
+            const int blk_query_first = query_position_offset + (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE;
         #if SLIDING_WINDOW_SIZE
             // With a window the block must also sit fully inside it: the oldest key the block's
             // LAST query may attend is (blk_query_last - SLIDING_WINDOW_SIZE), so the block's
@@ -528,6 +592,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int mask_idx = key_rel / SUBGROUP_SIZE;
                     const int mask_lane = key_rel - mask_idx * SUBGROUP_SIZE;
                     const int query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
+                    const int query_position = query_position_offset + query;
                     const int key = key_base + key_rel;
                     float s = S_tile[mb][qb][mm] + sub_group_broadcast(k_mask[mask_idx], mask_lane);
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
@@ -549,9 +614,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #if SLIDING_WINDOW_SIZE
                         // Keys outside (query - SLIDING_WINDOW_SIZE, query] are dropped, matching
                         // sdpa_micro's greater_than() predicate.
-                        if (key > query || key <= query - SLIDING_WINDOW_SIZE) {
+                        if (key > query_position || key <= query_position - SLIDING_WINDOW_SIZE) {
     #else
-                        if (key > query) {
+                        if (key > query_position) {
     #endif
                             s = -INFINITY;
                         }
@@ -566,7 +631,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             __builtin_IB_atomic_max_local_f32(&S_max_slm[query], lmax);
         }
 
-    #if MAX_BARRIER_V_PREFETCH && USE_2D_BLOCK_IO_KV
+    #if MAX_BARRIER_V_PREFETCH && USE_2D_BLOCK_IO_KV && !(IS_PAGED_ATTENTION && !IS_PREFILL)
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
@@ -738,7 +803,82 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #endif
 
             int8 vb[sv_value_blocks];
-            #if USE_2D_BLOCK_IO_V_I8
+            #if IS_PAGED_ATTENTION && !IS_PREFILL
+                // One cp block is exactly SUBGROUP_SIZE (== DPAS_K == PAGED_ATTENTION_BLOCK_SIZE)
+                // consecutive keys starting at k0 + cp * SUBGROUP_SIZE, and k0 is a multiple of
+                // kq_wg_tile_keys, so the block coincides with ONE cache page. The page lookup is
+                // therefore invariant across BOTH the cd (value-column) and key_pair loops -- the
+                // old code repeated it for every key of every cd, i.e. sv_value_blocks * DPAS_ROWS
+                // * 2 lane-uniform SIMD-1 loads per cp; this leaves one.
+                const int cp_key0 = k0 + cp * SUBGROUP_SIZE;
+                const size_t v_page_base =
+                    (size_t)((cp_key0 < k) ? block_indices[base_block_index +
+                                                           cp_key0 / PAGED_ATTENTION_BLOCK_SIZE]
+                                           : 0u) *
+                    KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE +
+                    (size_t)b0_kv * PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE;
+                #if USE_2D_BLOCK_IO_V_PA
+                    // The cp block coincides with one (block, head) cache page, and that page is a
+                    // [PAGED_ATTENTION_BLOCK_SIZE tokens x HEAD_SIZE values] ROW-MAJOR tile -- the
+                    // same [key, value] geometry the prefill path reads, just with the page as the
+                    // surface origin and HEAD_SIZE (not HEAD_SIZE*KV_HEADS_NUM) as the pitch. So the
+                    // 16b VNNI-transform builtin applies unchanged and lands the operand in the
+                    // layout the DPAS below wants, replacing the sv_value_blocks * DPAS_ROWS * 2
+                    // per-lane scalar loads with sv_value_blocks coalesced messages.
+                    //
+                    // Surface height is clamped to the tokens this page actually holds
+                    // (k - cp_key0, at most a full page) instead of the full page: cache slots at or
+                    // past k were never written by kv_cache_update, so reading them could pull in
+                    // uninitialised bits -- and a NaN there would survive the `0 * garbage` score
+                    // multiply as NaN rather than vanishing. Rows past the surface height read as 0,
+                    // which is the same guarantee the prefill V/A paths already depend on for their
+                    // k and d remainders (see the width note in the i8 branch below).
+                    // The cp loop is a full unroll over the whole WG key tile, so a block can sit
+                    // ENTIRELY at/past k (k - cp_key0 <= 0) on the final k0 iteration. A surface
+                    // height of 0 or less is not a valid block-read argument, so such a block is
+                    // zero-filled directly and the read is skipped. cp_key0 is a full-unroll
+                    // constant only in cp, not in k, so this stays a real (uniform) branch.
+                    const int vp_rows = min((int)PAGED_ATTENTION_BLOCK_SIZE, k - cp_key0);
+                    if (vp_rows > 0) {
+                        const global half *Vp = (const global half *)(V + v_page_base);
+                        const int VP_w = d * (int)sizeof(half);
+                        const int VP_p = HEAD_SIZE * (int)sizeof(half);
+                        #pragma unroll
+                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                            intel_sub_group_2d_block_read_transform_16b_16r16x1c(
+                                (global void *)Vp, VP_w, vp_rows, VP_p,
+                                (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, 0), (private uint *)&vb[cd]);
+                        }
+                    } else {
+                        #pragma unroll
+                        for (int cd = 0; cd < sv_value_blocks; ++cd)
+                            vb[cd] = (int8)0;
+                    }
+                #else
+                #pragma unroll
+                for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                    vb[cd] = (int8)0;
+                    const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
+                    if (value < d) {
+                        #pragma unroll
+                        for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
+                            const int key0 = cp_key0 + key_pair * 2;
+                            const int key1 = key0 + 1;
+                            half2 vv = (half2)0.0h;
+                            if (key0 < k) {
+                                vv[0] = V[v_page_base +
+                                          (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * HEAD_SIZE + value];
+                            }
+                            if (key1 < k) {
+                                vv[1] = V[v_page_base +
+                                          (size_t)(key1 % PAGED_ATTENTION_BLOCK_SIZE) * HEAD_SIZE + value];
+                            }
+                            vb[cd][key_pair] = as_int(vv);
+                        }
+                    }
+                }
+                #endif
+            #elif USE_2D_BLOCK_IO_V_I8
                 // int8 V via 8-bit VNNI-transform read: one coalesced read gives a 32-key x
                 // 16-value tile (lane=value, each uint packs 4 consecutive keys as bytes). We
                 // need this cp-block's 16 keys, which are the 4 uints at vt_half (0 for an even
