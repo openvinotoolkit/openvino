@@ -24,9 +24,6 @@
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/reduce.hpp"
 #include "intel_gpu/primitives/moe_mask_gen.hpp"
-#ifdef ENABLE_TP_GPU
-#include "intel_gpu/primitives/tp_allreduce.hpp"
-#endif
 
 namespace cldnn {
 namespace cpu {
@@ -63,9 +60,6 @@ REGISTER_CPU(reduce);
 REGISTER_CPU(fake_convert);
 REGISTER_CPU(moe_mask_gen);
 REGISTER_CPU(moe_mask_gen_reshape);
-#ifdef ENABLE_TP_GPU
-REGISTER_CPU(tp_allreduce);
-#endif
 
 #undef REGISTER_CPU
 

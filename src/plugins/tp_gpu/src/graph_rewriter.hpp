@@ -27,6 +27,10 @@ struct ShardingPlan {
         /// Column-parallel: shard output dim (weight axis 0).
         /// Row-parallel:    shard input dim  (weight axis 1).
         bool is_column_parallel;
+        /// Whether the projection carries a bias.  Column-parallel biases are
+        /// sharded along with the weight; row-parallel ones stay whole and are
+        /// applied after the AllReduce.
+        bool has_bias = false;
     };
 
     std::vector<LinearDesc> linears;
