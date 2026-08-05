@@ -177,7 +177,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     compiledModel = {};
 }
 
-TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupportedForWS) {
     // Preparing the model for the test
     std::stringstream model_xml, model_bin;
     {
@@ -202,15 +202,15 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS
                             ov::enable_weightless(true)}));
 
     std::vector<ov::PropertyName> properties;
-    // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
-    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-                    ov::Exception,
-                    testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
-
-    // Test that RUNTIME_REQUIREMENTS is not in the list of supported properties either
+    // Test that RUNTIME_REQUIREMENTS is supported for a weightless model
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-    ASSERT_TRUE(it == properties.cend());
+    ASSERT_TRUE(it != properties.cend());
+    ASSERT_FALSE(it->is_mutable());
+
+    std::string requirements;
+    OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
+    ASSERT_FALSE(requirements.empty());
 }
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {

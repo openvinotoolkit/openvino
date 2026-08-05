@@ -33,7 +33,8 @@ public:
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>&& constants,
                     const FilteredConfig& config,
-                    const bool blobIsPersistent = false);
+                    const bool blobIsPersistent = false,
+                    std::optional<std::string> compatibilityDescriptor = std::nullopt);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
@@ -46,8 +47,6 @@ public:
      * compiled model.
      */
     void initialize_impl(const FilteredConfig& config) override;
-
-    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {

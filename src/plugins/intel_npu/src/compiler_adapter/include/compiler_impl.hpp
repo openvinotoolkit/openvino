@@ -39,11 +39,12 @@ public:
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
      * the same scope.
-     * @return An ov::Tensor object for each init schedule, followed by another one corresponding to the main
-     * part.
+     * @return A pair containing one ov::Tensor for each init schedule, followed by another one corresponding to the
+     * main part, and an optional compatibility string for the compiled blobs.
      */
-    std::vector<ov::Tensor> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                             const FilteredConfig& config) const;
+    std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
+        const std::shared_ptr<ov::Model>& model,
+        const FilteredConfig& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
