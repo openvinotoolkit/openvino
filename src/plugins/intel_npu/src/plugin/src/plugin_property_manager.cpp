@@ -52,7 +52,6 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
-                                       const intel_npu::ICompilerAdapter* compiler,
                                        ov::intel_npu::CompilerType compilerType,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                        const intel_npu::Logger& logger) {
@@ -67,7 +66,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
             isEnabled = CompilerOptionsCache::isOptionSupported(compilerType,
                                                                 key,
                                                                 std::nullopt,
-                                                                compiler,
+                                                                backend,
                                                                 opt.compilerSupportVersion());
 
             if (!isEnabled) {
@@ -584,7 +583,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
               compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), compilerType, _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -696,7 +695,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
                                      compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), compilerType, _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -792,7 +791,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
                                  compilationPlatform == _currentlyUsedPlatform)) {
         // In case properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(_config, compiler.get(), compilerType, _backend, _logger);
+        filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
         // reset properties for the new options
         registerProperties();
@@ -860,8 +859,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
     return std::move(updatedConfig);
 }
 
-FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties,
-                                                                   const ICompilerAdapter* compiler) const {
+FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties) const {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
         [&]() {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -895,7 +893,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, effectiveCompilerType, _backend, logger);
+        filterPropertiesByCompilerSupport(updatedConfig, effectiveCompilerType, _backend, logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
@@ -904,7 +902,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
-            if (!CompilerOptionsCache::isOptionSupported(effectiveCompilerType, key, std::nullopt, compiler)) {
+            if (!CompilerOptionsCache::isOptionSupported(effectiveCompilerType, key, std::nullopt, _backend)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
             updatedConfig.addOrUpdateInternal(key, value);

@@ -5,8 +5,9 @@
 #include "intel_npu/common/compiler_options_cache.hpp"
 
 #include <algorithm>
+#include <memory>
 
-#include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 
 namespace intel_npu {
 
@@ -17,9 +18,18 @@ CompilerOptionsCache::CompilerTypeOptionsState CompilerOptionsCache::_pluginComp
 bool CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                              const std::string& optionName,
                                              const std::optional<std::string>& optionValue,
-                                             const ICompilerAdapter* compiler,
+                                             const ov::SoPtr<IEngineBackend>& engineBackend,
                                              const std::optional<uint32_t>& compilerSupportVersion) {
     std::lock_guard<std::mutex> lock(_mutex);
+
+    std::unique_ptr<ICompilerAdapter> compiler = nullptr;
+    const auto getCompiler = [&]() -> ICompilerAdapter* {
+        if (compiler == nullptr) {
+            compiler = CompilerAdapterFactory().getCompiler(engineBackend, compilerType, "");
+        }
+        return compiler.get();
+    };
+
     auto& compilerOptionsState = getStateForCompilerType(compilerType);
     const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
 
@@ -34,13 +44,14 @@ bool CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType compile
     }
 
     if (!compilerOptionsState.supportedOptionsQueried) {
-        OPENVINO_ASSERT(compiler != nullptr, "Compiler must be present to filter properties by compiler support");
+        auto* compilerPtr = getCompiler();
+        OPENVINO_ASSERT(compilerPtr != nullptr, "Compiler must be present to filter properties by compiler support");
 
-        compilerOptionsState.supportedOptions = compiler->get_supported_options();
+        compilerOptionsState.supportedOptions = compilerPtr->get_supported_options();
         compilerOptionsState.supportedOptionsQueried = true;
         if (!compilerOptionsState.supportedOptions.has_value()) {
             compilerOptionsState.legacy = true;
-            compilerOptionsState.compilerVersion = compiler->get_version();
+            compilerOptionsState.compilerVersion = compilerPtr->get_version();
         } else {
             if (isOptionCached(compilerOptionsState, optionCacheKey)) {
                 return true;
@@ -58,11 +69,12 @@ bool CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType compile
         return false;
     }
 
-    if (compiler == nullptr) {
+    auto* compilerPtr = getCompiler();
+    if (compilerPtr == nullptr) {
         return false;
     }
 
-    const bool supported = compiler->is_option_supported(optionName, optionValue);
+    const bool supported = compilerPtr->is_option_supported(optionName, optionValue);
     if (supported) {
         addSupportedOptionImpl(compilerOptionsState, optionCacheKey);
     }
