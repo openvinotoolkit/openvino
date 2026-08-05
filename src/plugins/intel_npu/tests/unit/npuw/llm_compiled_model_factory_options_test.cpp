@@ -856,4 +856,17 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, WeightSharingContextFillUp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(),
+                                                     {{"SHARED_WEIGHTS", "NPU,GPU"}, {"NPUW_LLM_SHARED_HEAD", "NO"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    ov::Any prop = compiled->get_property(ov::internal::model_sharing_context.name());
+    auto weightCtx = prop.as<ov::internal::WeightSharingCtxPtr>();
+    ASSERT_NE(weightCtx, nullptr);
+}
+
 }  // namespace
