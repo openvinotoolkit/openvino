@@ -1140,8 +1140,6 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGemma4) {
         manager.register_pass<IncreasePositionIdsPrecision>();
     }
     {
-        // Expected: each branch gets its own Convert(i32->f32) branched off reshape_pos, and the shared
-        // Convert(i32->f16) is gone once its last user has been promoted. No f16->f32 Convert anywhere.
         auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
         auto convert_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
         auto reshape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{-1, 1, 1});
