@@ -28,6 +28,7 @@ struct VMExecutionContext {
     npu_vm_runtime_execution_context_handle_t ensureV2(npu_vm_runtime_handle_t vmRuntime,
                                                        ze_context_handle_t ctx,
                                                        ze_device_handle_t device,
+                                                       ze_command_queue_handle_t commandQueue,
                                                        ze_graph_dditable_ext_t* graphDdiTableExt);
 };
 
