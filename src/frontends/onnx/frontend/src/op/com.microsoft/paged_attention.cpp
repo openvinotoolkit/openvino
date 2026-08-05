@@ -52,10 +52,6 @@ ov::OutputVector paged_attention(const ov::frontend::onnx::Node& node) {
                                   "PagedAttention: local_window_size must be -1 (disabled) or >= 1, got ",
                                   local_window_size,
                                   ".");
-    // softcap requires the manual attention core (ScaledDotProductAttention has no soft-capping); it is added
-    // in a later commit. Reject a non-default value rather than silently dropping it.
-    FRONT_END_OP_CONVERSION_CHECK(softcap == 0.0f, "PagedAttention: softcap is not yet supported.");
-
     // Rotary requires cos_cache (input 8) and sin_cache (input 9).
     if (0 != do_rotary) {
         constexpr size_t cos_cache_index = 8;

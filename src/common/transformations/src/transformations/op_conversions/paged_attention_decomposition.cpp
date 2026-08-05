@@ -17,16 +17,20 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -64,6 +68,7 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
+    const auto softcap = node->get_softcap();
     const auto local_window_size = node->get_local_window_size();
     const auto do_rotary = node->get_do_rotary();
     const auto rotary_interleaved = node->get_rotary_interleaved();
@@ -210,9 +215,15 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     // === Step 6: causal + sliding-window additive mask [T, total_ctx] ===
     const auto mask = make_attention_mask(T_scalar, total_ctx_scalar, past_len_scalar, element_type, local_window_size);
 
-    // === Step 7: SDPA (mask encodes causal + past offset + window; causal flag must stay false) + repack ===
+    // === Step 7: attention core (mask encodes causal + past offset + window) + repack ===
+    // Without softcap, use ScaledDotProductAttention (causal=false: the mask already carries causal + past
+    // offset + window). With softcap, ScaledDotProductAttention has no soft-capping, so build the attention
+    // manually: scale -> softcap(softcap * tanh(scores / softcap)) -> mask -> softmax -> @ V, matching the
+    // ONNX Runtime PagedAttention reference order.
     std::shared_ptr<ov::Node> sdpa_out;
-    if (scale != 0.0f) {
+    if (softcap > 0.0f) {
+        sdpa_out = build_attention_softcap(Q, K, V, mask, scale, softcap, element_type);
+    } else if (scale != 0.0f) {
         const auto scale_node = register_new_node(v0::Constant::create(element_type, ov::Shape{}, {scale}));
         sdpa_out = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
     } else {
@@ -226,6 +237,41 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
     const auto output = register_new_node<v0::Squeeze>(out_3d, zero_i64);
 
     return {output, key_cache_out, value_cache_out};
+}
+
+std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::build_attention_softcap(
+    const ov::Output<ov::Node>& Q,
+    const ov::Output<ov::Node>& K,
+    const ov::Output<ov::Node>& V,
+    const ov::Output<ov::Node>& mask,
+    float scale,
+    float softcap,
+    const ov::element::Type& compute_type) {
+    // Manual attention core for the softcap path (ScaledDotProductAttention has no soft-capping). Q/K/V are
+    // [1, num_heads, T/total_ctx, head_size]. Order matches ONNX Runtime attention_ref: scale -> softcap ->
+    // mask -> softmax -> @ V. Returns [1, num_heads, T, head_size].
+    // scores = Q @ K^T
+    auto scores = register_new_node<ov::op::v0::MatMul>(Q, K, false, true)->output(0);
+    // scale: explicit op scale, else 1/sqrt(head_size).
+    if (scale != 0.0f) {
+        const auto scale_node = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {scale}));
+        scores = register_new_node<v1::Multiply>(scores, scale_node);
+    } else {
+        const auto head_size =
+            register_new_node<v0::Convert>(get_dimensions(Q.get_node_shared_ptr(), {3}), compute_type);
+        const auto neg_half = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {-0.5f}));
+        const auto inv_sqrt = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size, neg_half));
+        scores = register_new_node<v1::Multiply>(scores, inv_sqrt);
+    }
+    // softcap: softcap * tanh(scores / softcap).
+    const auto cap = register_new_node(v0::Constant::create(compute_type, ov::Shape{}, {softcap}));
+    const auto capped =
+        register_new_node<v1::Multiply>(register_new_node<ov::op::v0::Tanh>(register_new_node<v1::Divide>(scores, cap)),
+                                        cap);
+    // + additive mask, then softmax over the key axis.
+    const auto masked = register_new_node<v1::Add>(capped, mask);
+    const auto probs = register_new_node<ov::op::v8::Softmax>(masked, -1);
+    return register_new_node<ov::op::v0::MatMul>(probs, V, false, false);
 }
 
 std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::build_slot_indices(

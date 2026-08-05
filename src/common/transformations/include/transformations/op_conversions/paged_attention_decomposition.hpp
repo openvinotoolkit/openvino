@@ -41,6 +41,17 @@ private:
                                               ov::Output<ov::Node> sin,
                                               bool interleaved);
 
+    // Manual attention core for the softcap path (ScaledDotProductAttention has no soft-capping):
+    // scale -> softcap(softcap * tanh(scores / softcap)) -> + mask -> softmax -> @ V, matching the ONNX
+    // Runtime PagedAttention reference. Q/K/V are [1, heads, seq, head_size]; returns [1, heads, T, head_size].
+    std::shared_ptr<ov::Node> build_attention_softcap(const ov::Output<ov::Node>& Q,
+                                                      const ov::Output<ov::Node>& K,
+                                                      const ov::Output<ov::Node>& V,
+                                                      const ov::Output<ov::Node>& mask,
+                                                      float scale,
+                                                      float softcap,
+                                                      const ov::element::Type& compute_type);
+
     // Physical flat slot index (i32, shape [count]) into a cache reshaped to [num_blocks * block_size, ...] for
     // `count` logical positions starting at `start_pos`: slot(p) = block_table[p / block_size] * block_size +
     // p % block_size. Mirrors the ONNX Runtime / OV PagedAttention paged KV-cache indexing.
