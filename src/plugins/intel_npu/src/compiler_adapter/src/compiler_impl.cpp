@@ -40,6 +40,21 @@ UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const 
     return {usedMajor, usedMinor};
 }
 
+void checkVclVersion(const UsedVersion& usedVersion, const vcl_version_info_t& loadedVersion) {
+    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
+        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
+        OPENVINO_THROW("Unsupported VCL version: ",
+                       loadedVersion.major,
+                       ".",
+                       loadedVersion.minor,
+                       ", please use VCL ",
+                       VCL_COMPILER_VERSION_MAJOR,
+                       ".",
+                       VCL_COMPILER_VERSION_MINOR,
+                       " or later");
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -241,18 +256,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
-    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
-        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
-        OPENVINO_THROW("Unsupported VCL version: ",
-                       _vclVersion.major,
-                       ".",
-                       _vclVersion.minor,
-                       ", please use VCL ",
-                       VCL_COMPILER_VERSION_MAJOR,
-                       ".",
-                       VCL_COMPILER_VERSION_MINOR,
-                       " or later");
-    }
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -376,6 +380,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion, _vclVersion);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -480,14 +485,15 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     return std::make_pair(std::move(initMainTensors), std::move(compatibilityString));
 }
 
-ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                               const FilteredConfig& config,
-                                               size_t callNumber) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
+    const std::shared_ptr<ov::Model>& model,
+    const FilteredConfig& config,
+    size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    // The compatibility descriptor is not supported in this case
-    return compile(model, updatedConfig, true).first;
+    // Return the compatibility descriptor together with the compiled blob.
+    return compile(model, updatedConfig, true);
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
