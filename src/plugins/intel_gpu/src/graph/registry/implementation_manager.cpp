@@ -48,10 +48,7 @@ bool ImplementationManager::is_supported(const program_node& node, const std::se
     auto key_out = implementation_key()(node.get_outputs_count() > 0
                                         ? node.is_valid_output_layout(0) ? node.get_output_layout(0) : node.calc_output_layouts()[0]
                                         : layout{ov::PartialShape{}, data_types::f32, format::any});
-    if (!supported_keys.empty() && supported_keys.find(key_out) == supported_keys.end())
-        return false;
-
-    return true;
+    return supported_keys.empty() || supported_keys.find(key_out) != supported_keys.end();
 }
 
 std::unique_ptr<primitive_impl> ImplementationManager::create(const program_node& node, const kernel_impl_params& params) const {
