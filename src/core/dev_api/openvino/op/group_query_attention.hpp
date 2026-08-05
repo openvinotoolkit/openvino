@@ -10,14 +10,12 @@
 
 namespace ov::op::internal {
 
-// ONNX GroupQueryAttention input position enumeration
-// Matches com.microsoft.GroupQueryAttention spec
 enum class GroupQueryAttentionInputs : int64_t {
-    QUERY = 0,                  // Q or packed QKV
-    KEY = 1,                    // K (optional if Q is packed QKV)
-    VALUE = 2,                  // V (optional if Q is packed QKV)
-    PAST_KEY = 3,               // KV cache key (optional)
-    PAST_VALUE = 4,             // KV cache value (optional)
+    QUERY = 0,                  // Q (mandatory)
+    KEY = 1,                    // K (mandatory)
+    VALUE = 2,                  // V (mandatory)
+    PAST_KEY = 3,               // KV cache key (mandatory)
+    PAST_VALUE = 4,             // KV cache value (mandatory)
     SEQLENS_K = 5,              // Sequence lengths (mandatory)
     TOTAL_SEQUENCE_LENGTH = 6,  // Total sequence length (mandatory)
     COS_CACHE = 7,              // RoPE cos cache (optional, required if do_rotary=1)
