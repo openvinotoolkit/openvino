@@ -63,6 +63,7 @@ struct MemRefTypeImpl {
         // Update current MemRef handle to use latest metadata
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
+            _ptrUpdated = _shapeUpdated = _strideUpdated = true;
         } else {
             // Create a temporary MemRefType based on current handle and compare, use arg to create right size
             MemRefType tempMemRef(memref._basePtr,
@@ -94,16 +95,20 @@ struct MemRefTypeImpl {
                 _strideUpdated = false;
             }
         }
-        auto result = npuVMRuntimeSetMemRef(_memRef,
-                                            memref._basePtr,
-                                            memref._data,
-                                            memref._offset,
-                                            memref._sizes.data(),
-                                            memref._strides.data(),
-                                            memref._dimsCount);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to update MemRef handle");
+
+        if (_ptrUpdated || _shapeUpdated || _strideUpdated) {
+            auto result = npuVMRuntimeSetMemRef(_memRef,
+                                                memref._basePtr,
+                                                memref._data,
+                                                memref._offset,
+                                                _shapeUpdated? memref._sizes.data(): nullptr,
+                                                _strideUpdated? memref._strides.data(): nullptr,
+                                                memref._dimsCount);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to update MemRef handle");
+            }
         }
+        
     }
 
 private:
@@ -145,10 +150,12 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
     npu_vm_runtime_handle_t vmRuntime,
     ze_context_handle_t ctx,
     ze_device_handle_t device,
+    ze_command_queue_handle_t commandQueue,
     ze_graph_dditable_ext_t* graphDdiTableExt) {
     if (_handle == nullptr) {
+        npu_vm_runtime_create_execution_context_params_t params = {ctx, device, commandQueue, graphDdiTableExt};
         const npu_vm_runtime_result_t result =
-            npuVMRuntimeCreateExecutionContext2(vmRuntime, ctx, device, graphDdiTableExt, &_handle);
+            npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
         if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context (v2)");
         }
@@ -214,8 +221,13 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     if (use_v2_api(_apiVersion)) {
         _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
+        const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+        _executionContext.ensureV2(vmRuntime, init_structs->getContext(), init_structs->getDevice(), _command_queue->handle(),
+            _init_structs->getGraphDdiTable().getImpl());
     } else {
         _logger.debug("DynamicPipeline: using v1.x VM runtime API");
+        const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+        _executionContext.ensure(vmRuntime);
     }
 
     if (!use_v2_api(_apiVersion) && !_sync_output_with_fences) {
@@ -536,7 +548,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     params.pOutputs = args._outputMemRefHandles.data();
     params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
     params.executionContext =
-        _executionContext.ensureV2(vmRuntime, params.ctx, params.device, params.graphDdiTableExt);
+        _executionContext.ensureV2(vmRuntime, params.ctx, params.device, params.commandQueue, params.graphDdiTableExt);
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     if (npuVMRuntimeExecute2(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
@@ -629,6 +641,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
                                       ? _executionContext.ensureV2(vmRuntime,
                                                                    _init_structs->getContext(),
                                                                    _init_structs->getDevice(),
+                                                                   nullptr,
                                                                    _init_structs->getGraphDdiTable().getImpl())
                                       : _executionContext.ensure(vmRuntime);
 
