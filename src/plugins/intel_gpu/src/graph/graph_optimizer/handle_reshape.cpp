@@ -93,7 +93,7 @@ void handle_reshape::run(program& p) {
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>() &&
-                    (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
+                    !(*user).as<reorder>().get_primitive()->truncate)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
                 if (user->can_use(impl_types::onednn))
                     onednn_users.push_back(user);

@@ -5,6 +5,8 @@
 #include <cm/cm.h>
 #include <cm/cmtl.h>
 
+#include "cm_qq_bias_mask.hpp"
+
 //# CM-compiler is C++17
 static_assert(__cplusplus >= 201703L);
 

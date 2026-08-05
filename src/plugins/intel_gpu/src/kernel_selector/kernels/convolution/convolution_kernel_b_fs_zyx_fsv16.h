@@ -17,7 +17,7 @@ public:
         ConvolutionKernelBase(use_data_type == Datatype::F32 ? "gen9_common_conv_fwd_data_f32" : "gen9_common_conv_fwd_data_f16"),
         use_data_type(use_data_type) {}
 
-    ~ConvolutionKernel_b_fs_zyx_fsv16() override {}
+    ~ConvolutionKernel_b_fs_zyx_fsv16() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
