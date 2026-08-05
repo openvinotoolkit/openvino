@@ -732,7 +732,7 @@ TEST_P(InferWithHostCompileDynamicBatchTests, DynamicBatchUsesOneVMExecution) {
     tensorBatch.push_back(
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 0));
     tensorBatch.push_back(
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 0));
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 100));
     OV_ASSERT_NO_THROW(reqDynamic1.set_tensors(testContext.compiledModel.input(), tensorBatch));
     OV_ASSERT_NO_THROW(reqReference1.set_tensors(testContext.referenceCompiledModel.input(), tensorBatch));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());

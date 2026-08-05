@@ -210,6 +210,15 @@ std::tuple<std::shared_ptr<ov::Model>, bool> handlePluginBatching(
     }
 
     try {
+        const auto usesDynamicHostCompileInterpreter = batchMode == ov::intel_npu::BatchMode::PLUGIN &&
+                                                       model->is_dynamic() && localConfig.has<COMPILATION_MODE>() &&
+                                                       localConfig.get<COMPILATION_MODE>() == "HostCompile_Interpreter";
+        if (usesDynamicHostCompileInterpreter) {
+            logger.info("Dynamic HostCompile Interpreter will handle the full batch through compiler batching.");
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+            return {resultModel, successfullyDebatched};
+        }
+
         const auto pluginBatchingIsSupported = validateModelBatch(model, logger);
 
         if (!pluginBatchingIsSupported) {

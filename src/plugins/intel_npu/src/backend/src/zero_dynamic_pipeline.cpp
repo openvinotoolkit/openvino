@@ -7,7 +7,6 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
-#include <optional>
 #include <sstream>
 
 #include "intel_npu/common/itt.hpp"
@@ -468,29 +467,6 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         _logger.debug("Output shape prediction is done successfully.");
     }
 
-    // Compiler metadata can encode an unbounded dynamic batch as 1. VM shape prediction may preserve that fallback
-    // for outputs instead of propagating the runtime input batch.
-    const auto usesDynamicBatchCompilerFallback = [](const IODescriptor& descriptor) {
-        return descriptor.shapeFromIRModel.has_value() && descriptor.shapeFromIRModel->size() > utils::BATCH_AXIS &&
-               descriptor.shapeFromIRModel.value()[utils::BATCH_AXIS].is_dynamic() &&
-               descriptor.shapeFromCompiler.size() > utils::BATCH_AXIS &&
-               descriptor.shapeFromCompiler[utils::BATCH_AXIS] == utils::DEFAULT_BATCH_SIZE;
-    };
-
-    std::optional<size_t> dynamicBatchSize;
-    for (size_t i = 0; i < inputTensors.size(); ++i) {
-        const auto& tensor = inputTensors.at(i);
-        if (tensor == nullptr || tensor->get_shape().size() <= utils::BATCH_AXIS ||
-            !usesDynamicBatchCompilerFallback(metadata.inputs.at(i))) {
-            continue;
-        }
-
-        const auto inputBatchSize = tensor->get_shape()[utils::BATCH_AXIS];
-        OPENVINO_ASSERT(!dynamicBatchSize.has_value() || dynamicBatchSize.value() == inputBatchSize,
-                        "Dynamic batch size is not matching all the input tensors.");
-        dynamicBatchSize = inputBatchSize;
-    }
-
     // Build predicted output shapes (OV shapes) and detect whether prediction changed any
     // output shape vs the pre-prediction (input-derived) shapes. MemRef stays internal to the pipeline layer.
     std::vector<ov::Shape> predictedShapes(outputsMemRefs.size());
@@ -502,16 +478,6 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             shape.push_back(static_cast<size_t>(outputsMemRefs[i]._sizes[j]));
         }
 
-        if (dynamicBatchSize.has_value() && shape.size() > utils::BATCH_AXIS &&
-            shape[utils::BATCH_AXIS] == utils::DEFAULT_BATCH_SIZE &&
-            usesDynamicBatchCompilerFallback(metadata.outputs.at(i))) {
-            _logger.debug("predict_output_shapes - restore output %zu batch from compiler fallback %zu to %zu",
-                          i,
-                          shape[utils::BATCH_AXIS],
-                          dynamicBatchSize.value());
-            shape[utils::BATCH_AXIS] = dynamicBatchSize.value();
-            outputShapeChanged = true;
-        }
         predictedShapes[i] = std::move(shape);
 
         if (!outputShapeChanged && !outputsMemRefs[i].compare(originalOutputMemRefs[i])) {
