@@ -192,10 +192,12 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
     FRONT_END_OP_CONVERSION_CHECK(
         common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
         "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
+    // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
+    // also be updated and  may need mapping the index manually.
     for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
         if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
             ov_op_inputs.push_back(onnx_op_inputs[i]);
