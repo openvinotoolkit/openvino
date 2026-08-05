@@ -43,8 +43,9 @@ uint32_t getCommandQueueOptions(const FilteredConfig& config,
 void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain,
                                 const FilteredConfig& config,
                                 const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
-    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
-                       static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
+    configChain.append(
+        NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
     if (config.has<WORKLOAD_TYPE>()) {
         const auto workloadType = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
         if (workloadType.has_value()) {
@@ -52,8 +53,7 @@ void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain,
                                static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
         }
     }
-    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS,
-                       getCommandQueueOptions(config, zeroInitStruct));
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, getCommandQueueOptions(config, zeroInitStruct));
 }
 
 }  // namespace
