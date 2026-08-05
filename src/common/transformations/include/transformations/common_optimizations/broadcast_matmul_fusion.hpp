@@ -17,14 +17,14 @@ class TRANSFORMATIONS_API BroadcastMatMulFusion;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Removes a redundant Broadcast that expands a Constant on a MatMul input.
+ * @brief Removes a redundant Broadcast that expands one MatMul input's batch dimensions.
  *
- * Matches the Constant -> Broadcast -> MatMul pattern, with the Broadcast on either
- * MatMul input. MatMul broadcasts the batch (leading) dimensions of its operands
- * implicitly, so an explicit Broadcast that only expands those dimensions of a
- * constant is redundant. The Broadcast is detached and the Constant is connected to
- * the MatMul directly; the now-dangling Broadcast and its target-shape subgraph are
- * left unreferenced and removed by later clean-up.
+ * Matches the Data -> Broadcast -> MatMul pattern, with the Broadcast on either MatMul
+ * input and Data being an arbitrary input (not necessarily a Constant). MatMul broadcasts
+ * the batch (leading) dimensions of its operands implicitly, so an explicit Broadcast that
+ * only expands those dimensions is redundant. The Broadcast is detached and Data is
+ * connected to the MatMul directly; the now-dangling Broadcast and its target-shape
+ * subgraph are left unreferenced and removed by later clean-up.
  *
  * A common source is the rotary-embedding branch, where a constant (e.g. inv_freq) is
  * expanded to the batch dimension taken from another input's shape. Detaching the
@@ -33,7 +33,7 @@ class TRANSFORMATIONS_API BroadcastMatMulFusion;
  *
  * Before:
  *
- *   Constant        Other
+ *     Data          Other
  *       │             │
  *   ┌───┴─────┐       │
  *   │Broadcast│       │
@@ -46,7 +46,7 @@ class TRANSFORMATIONS_API BroadcastMatMulFusion;
  *
  * After:
  *
- *   Constant        Other
+ *     Data          Other
  *       │             │
  *       └──────┬──────┘
  *           ┌──┴───┐
@@ -54,12 +54,14 @@ class TRANSFORMATIONS_API BroadcastMatMulFusion;
  *           └──────┘
  *
  * The Broadcast is removed only when it does not change the MatMul result:
- *  - the Broadcast has a single consumer (the MatMul);
  *  - the matrix (last two) dimensions are left intact by the Broadcast;
  *  - for every expanded batch dimension, the other MatMul operand carries the same
- *    dimension. The other operand is considered to carry the dimension when it is
- *    provably equal (equal static value or equal shape symbol) or dynamic
- *    (runtime-compatible); a differing static value skips the match.
+ *    dimension, proven equal by static value or by shape symbol; an unlabeled dynamic
+ *    dimension is never assumed compatible, since that could hide a runtime batch mismatch
+ *    the Broadcast would have rejected.
+ *
+ * The Broadcast node itself is not removed and may keep other consumers; only the matched
+ * MatMul input is rewired to Data directly.
  */
 class ov::pass::BroadcastMatMulFusion : public ov::pass::MatcherPass {
 public:
