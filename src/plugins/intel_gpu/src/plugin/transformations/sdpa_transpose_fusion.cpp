@@ -104,9 +104,14 @@ SDPATransposeFusion::SDPATransposeFusion() {
             if (!is_rank_4(sdpa->get_output_partial_shape(0)))
                 return false;
 
-            // Compose output_transpose_order with the Transpose permutation.
-            // Only apply when the SDPA's current output order is identity —
-            // backbone GQA SDPA ops have custom orders that must not be touched.
+            // Absorb the trailing Transpose into the SDPA's output_transpose_order,
+            // but only when that order is still identity. output_transpose_order is set
+            // by prior transpose fusion around the SDPA (TransposeFusion fuses input
+            // transposes; this pass is the only producer of a non-identity *output*
+            // order). A non-identity output order therefore means the output layout was
+            // already customized, and composing the Transpose again would double-apply
+            // the permutation and mislayout the result. This is a layout invariant on
+            // output_transpose_order
             auto cur_out_order = sdpa->get_output_transpose_order();
             for (size_t i = 0; i < cur_out_order.size(); ++i) {
                 if (cur_out_order[i] != static_cast<int64_t>(i))

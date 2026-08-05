@@ -52,6 +52,35 @@ static std::shared_ptr<ov::intel_gpu::op::SDPA> make_internal_sdpa(
                                                      ov::element::dynamic);
 }
 
+// Symmetric KV-cache-compressed internal op::SDPA: QKV + 2 scale inputs.
+static std::shared_ptr<ov::intel_gpu::op::SDPA> make_internal_sdpa_compressed(
+    const ov::Output<ov::Node>& q,
+    const ov::Output<ov::Node>& k,
+    const ov::Output<ov::Node>& v,
+    const ov::Output<ov::Node>& k_scale,
+    const ov::Output<ov::Node>& v_scale,
+    bool causal,
+    const std::vector<int64_t>& in0_order,
+    const std::vector<int64_t>& in1_order,
+    const std::vector<int64_t>& in2_order,
+    const std::vector<int64_t>& out_order) {
+    ov::intel_gpu::op::SDPA::QuantizationAttribute qattr;
+    qattr.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    qattr.quantization_dt = ov::element::i8;
+    qattr.scale_dt = ov::element::f16;
+    qattr.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    qattr.group_sizes = {1, 1, 1, UINT64_MAX};
+    qattr.scales_zp_output_order = {0, 1, 2, 3};
+    return std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{q, k, v, k_scale, v_scale},
+                                                     causal,
+                                                     in0_order,
+                                                     in1_order,
+                                                     in2_order,
+                                                     out_order,
+                                                     qattr,
+                                                     ov::element::dynamic);
+}
+
 // ---------------------------------------------------------------------------
 // 1. Internal op::SDPA (identity output order) + Transpose({0,2,1,3})
 //    → SDPA with output_order = {0,2,1,3}, Transpose eliminated.
@@ -332,6 +361,43 @@ TEST_F(TransformationTestsF, SDPATransposeFusion_InternalSDPA_NonIdentityInputOr
         auto sdpa = make_internal_sdpa(q, k, v, causal, q_order, k_order, v_order, swap_hs);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{q, k, v});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Internal op::SDPA (first pattern) that is KV-cache compressed +
+//     Transpose({0,2,1,3}). Exercises the sdpa->get_kv_compressed() branch:
+//     the replacement must preserve the compression state / quantization attrs
+//     and the extra scale inputs, input orders preserved, output order absorbed.
+// ---------------------------------------------------------------------------
+TEST_F(TransformationTestsF, SDPATransposeFusion_InternalSDPA_KvCompressed_Preserved) {
+    const bool causal = false;
+    const std::vector<int64_t> identity{0, 1, 2, 3};
+    const std::vector<int64_t> swap_hs{0, 2, 1, 3};
+
+    {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto ks = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto vs = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto sdpa = make_internal_sdpa_compressed(q, k, v, ks, vs, causal, identity, identity, identity, identity);
+        auto out_tp = make_transpose(sdpa, swap_hs);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{out_tp}, ov::ParameterVector{q, k, v, ks, vs});
+        manager.register_pass<SDPATransposeFusion>();
+    }
+    {
+        auto q = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto k = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto v = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto ks = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto vs = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        // Compression state + scale inputs preserved; output order absorbs the Transpose.
+        auto sdpa = make_internal_sdpa_compressed(q, k, v, ks, vs, causal, identity, identity, identity, swap_hs);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{q, k, v, ks, vs});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
 }

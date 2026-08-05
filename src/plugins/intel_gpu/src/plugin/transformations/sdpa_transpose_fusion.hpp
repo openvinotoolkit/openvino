@@ -13,11 +13,17 @@ namespace ov::intel_gpu {
 ///
 /// When an SDPA op is followed by a Transpose that swaps the heads and sequence
 /// dimensions (axes 1 and 2 in a 4-D [b,h,seq,d] tensor), the Transpose can be
-/// eliminated by composing it with the SDPA's output_transpose_order:
+/// eliminated by composing it into the SDPA's output_transpose_order. Writing the
+/// currently-absorbed order explicitly ({0,1,2,3} is the identity, i.e. nothing
+/// absorbed yet, so out_order ∘ {0,1,2,3} == out_order):
 ///
-///   SDPA(out_order) → Transpose({0,2,1,3})
+///   SDPA(out_order ∘ {0,1,2,3}) → Transpose({0,2,1,3})
 ///      becomes
 ///   SDPA(out_order ∘ {0,2,1,3})
+///
+/// i.e. the {0,2,1,3} from the external Transpose replaces the identity in the
+/// composition slot. (In this pass out_order is always the identity, so the
+/// result is simply SDPA({0,2,1,3}).)
 ///
 /// A second matcher handles framework v13::ScaledDotProductAttention ops that
 /// were never converted to the internal op::SDPA (e.g. TransposeSDPAMatcher
