@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu::op {
 
-ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values) : Op() {
+ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values) {
     m_variable = past_values;
     validate_and_infer_types();
 }

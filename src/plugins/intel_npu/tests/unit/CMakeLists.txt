@@ -16,6 +16,7 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino_npu_common"
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
+        "openvino_npu_compiler_adapter"
 )
 
 ov_add_test_target(
@@ -43,6 +44,7 @@ ov_add_test_target(
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/gqa_compiled_model.cpp

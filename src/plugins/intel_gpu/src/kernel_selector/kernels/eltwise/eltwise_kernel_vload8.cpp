@@ -72,7 +72,7 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
         if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) &&
+            ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) &&
              ewParams.inputs[i].PhysicalSize() != 1))
             bCheckSizes = false;
     }

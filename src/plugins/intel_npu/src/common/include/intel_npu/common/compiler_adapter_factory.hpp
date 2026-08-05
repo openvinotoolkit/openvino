@@ -6,7 +6,6 @@
 
 #include <atomic>
 #include <memory>
-#include <optional>
 #include <string_view>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
