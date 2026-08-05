@@ -51,16 +51,26 @@ void concat(const std::vector<const char*>& args,
 
     const auto copy_func = elem_type == ov::element::string ? copy_string_elements : copy_elements;
 
+    // Sub-byte element types pack multiple values per byte.  The shape_sizes
+    // and in_offset arithmetic below are in *elements*, but copy_elements
+    // works in bytes (num_of_elements * elem_size, where elem_size == 1 for
+    // all sub-byte types).  Divide element counts by the packing factor so
+    // the memcpy length and source/destination byte offsets are correct.
+    size_t elem_pack = 1;
+    if (elem_type == ov::element::u2)
+        elem_pack = 4;
+    else if (elem_type == ov::element::u4 || elem_type == ov::element::i4)
+        elem_pack = 2;
+
     size_t out_offset = 0;
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {
-            size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = step * size;
-            if (elem_type == ov::element::u4 || elem_type == ov::element::i4)
-                size /= 2;
-            copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
+            const size_t size = shape_sizes[in_index] / steps;
+            const size_t in_offset = step * size / elem_pack;
+            const size_t copy_size = size / elem_pack;
+            copy_func(args[in_index], out, in_offset, out_offset, copy_size, elem_size);
 
-            out_offset += size;
+            out_offset += copy_size;
         }
     }
 }
