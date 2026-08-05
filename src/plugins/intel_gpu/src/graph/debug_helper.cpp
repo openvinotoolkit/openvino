@@ -318,10 +318,7 @@ bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iterati
     if (dump_iteration.empty())
         return true;
 
-    if (dump_iteration.find(iteration) == std::end(dump_iteration))
-        return false;
-
-    return true;
+    return dump_iteration.find(iteration) != std::end(dump_iteration);
 }
 
 std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) {

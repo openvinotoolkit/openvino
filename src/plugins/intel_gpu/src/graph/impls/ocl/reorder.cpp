@@ -78,7 +78,7 @@ public:
                 params.mean = convert_data_tensor(mean_layout);
                 params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (primitive->subtract_per_feature.empty() == false) {
+        } else if (!primitive->subtract_per_feature.empty()) {
             params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
             params.meanValues = primitive->subtract_per_feature;
         } else {

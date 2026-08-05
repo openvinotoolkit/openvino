@@ -81,7 +81,7 @@ DeconvolutionKernel_b_fs_zyx_fsv16_dw::GetDispatchParams(const deconvolution_par
         bool good_block_size_x = params.outputs[0].X().v % d_params.block_size_x == 0 || params.outputs[0].X().v > d_params.block_size_x * 3;
         bool good_reg_pressure = EstimateRegPressure(params, d_params) <= max_reg_pressure;
         // No support for no input preload and weights line preload in kernel
-        bool good_preloads = !(d_params.preload_input == input_preload::none && d_params.preload_weights == weights_preload::line);
+        bool good_preloads = d_params.preload_input != input_preload::none || d_params.preload_weights != weights_preload::line;
         // At least one input preload
         bool full_input_preload = d_params.preload_input != input_preload::line ||
                                   CeilDiv(d_params.block_size_x + params.filterSize.x - 1, params.stride.x) <= params.inputs[0].X().v;
