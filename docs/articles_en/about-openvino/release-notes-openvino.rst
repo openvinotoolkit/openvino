@@ -204,7 +204,7 @@ OpenVINO™ Physical AI
 Other Changes and Known Issues
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Released optimum-intel v2.1.0, paired with OpenVINO 2026.3, available on PyPI <https://pypi.org/project/optimum-intel/>__.
+* Released optimum-intel v2.1.0, paired with OpenVINO 2026.3, available on `PyPI <https://pypi.org/project/optimum-intel/>`__.
 
 Jupyter Notebooks
 -----------------------------
