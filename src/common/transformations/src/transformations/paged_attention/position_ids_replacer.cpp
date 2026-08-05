@@ -5,13 +5,11 @@
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 
 #include <cstdint>
-#include <numeric>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -175,7 +173,7 @@ ov::pass::PositionIDsReplacerLFM2::PositionIDsReplacerLFM2(const Output<Node>& p
     // Allow either the dequant-like start branch or a direct Parameter connection.
     auto p_start_subtract = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
     auto p_start_dequant = wrap_type<v0::Convert>({p_start_subtract});
-    auto p_start = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_start_dequant, p_max_context_len});
+    auto p_start = p_start_dequant | p_max_context_len;
     auto p_end = wrap_type<v1::Add>({p_start, any_input()});
     auto p_range = wrap_type<ov::op::v4::Range>({p_start, p_end, ov::pass::pattern::wrap_const()});
 
@@ -254,15 +252,11 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
 
     // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
-    auto p_gather =
-        wrap_type<v8::Gather>({p_convert, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()},
-                              [](const Output<Node>& output) -> bool {
-                                  const auto gather = ov::as_type_ptr<v8::Gather>(output.get_node_shared_ptr());
-                                  const auto indices = ov::util::get_constant_from_source(gather->input_value(1));
-                                  const auto axis = ov::util::get_constant_from_source(gather->input_value(2));
-                                  return ov::op::util::has_constant_value<int64_t>(indices, 0) &&
-                                         ov::op::util::has_constant_value<int64_t>(axis, 0);
-                              });
+    auto p_zero_scalar_const = []() {
+        return wrap_type<v0::Constant>(ov::pass::pattern::shape_matches("[]") && ov::pass::pattern::value_matches("0"));
+    };
+    auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_zero_scalar_const(), p_zero_scalar_const()},
+                                                        {{"batch_dims", 0}});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto gather = m.get_match_root();
@@ -271,10 +265,7 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
                                                      v0::Constant::create(element::i64, Shape{1}, {-1}),
                                                      false);
 
-        reshape->set_friendly_name(gather->get_friendly_name());
-        reshape->output(0).set_names(gather->output(0).get_names());
-        ov::copy_runtime_info(gather, reshape);
-        ov::replace_node(gather, reshape);
+        ov::replace_output_update_name(gather->output(0), reshape->output(0));
         return true;
     };
 

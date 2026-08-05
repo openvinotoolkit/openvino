@@ -11,7 +11,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
 
@@ -118,43 +117,24 @@ public:
  * dimension to select from, this is equivalent to the original select but no longer depends on a batch axis
  * being present.
  *
- * We change from this:
+ * We change from this:                        to this:
  *
- *  ┌──────────────┐
- *  │ position_ids │
- *  └──────┬───────┘
- *         │
- *  ┌──────┴──────┐
- *  │  Unsqueeze  │ (optional)
- *  └──────┬──────┘
- *         │
- *  ┌──────┴──────┐
- *  │   Convert   │ (optional)
- *  └──────┬──────┘
- *         │
- *  ┌──────┴──────┐
- *  │Gather(idx=0,│
- *  │   axis=0)   │
- *  └─────────────┘
- *
- * To this:
- *
- *  ┌──────────────┐
- *  │ position_ids │
- *  └──────┬───────┘
- *         │
- *  ┌──────┴──────┐
- *  │  Unsqueeze  │ (optional)
- *  └──────┬──────┘
- *         │
- *  ┌──────┴──────┐
- *  │   Convert   │ (optional)
- *  └──────┬──────┘
- *         │
- *  ┌──────┴──────┐
- *  │   Reshape   │
- *  │    (-1)     │
- *  └─────────────┘
+ *  ┌──────────────┐                     ┌──────────────┐
+ *  │ position_ids │                     │ position_ids │
+ *  └──────┬───────┘                     └──────┬───────┘
+ *         │                                    │
+ *  ┌──────┴──────┐                       ┌──────┴──────┐
+ *  │  Unsqueeze  │ (optional)             │  Unsqueeze  │ (optional)
+ *  └──────┬──────┘                       └──────┬──────┘
+ *         │                                     │
+ *  ┌──────┴──────┐                       ┌──────┴──────┐
+ *  │   Convert   │ (optional)             │   Convert   │ (optional)
+ *  └──────┬──────┘                       └──────┬──────┘
+ *         │                                     │
+ *  ┌──────┴──────┐                       ┌──────┴──────┐
+ *  │Gather(idx=0,│                       │   Reshape   │
+ *  │   axis=0)   │                       │    (-1)     │
+ *  └─────────────┘                       └─────────────┘
  */
 class ov::pass::EliminateDropBatch : public ov::pass::MatcherPass {
 public:
@@ -172,51 +152,28 @@ public:
  * the layout Q/K arrive in. This is independent of how the per-token positions were derived (works whether
  * or not EliminateDropBatch has already collapsed a batch-drop select feeding into the outer product).
  *
- * We change from this:
+ * We change from this:            to this:
  *
- *  ┌───────┐
- *  │ MatMul│ (outer product with inv_freq)
- *  └───┬───┘
- *      │
- *  ┌───┴───┐
- *  │Cos/Sin│
- *  └───┬───┘
- *      │
- *  ┌───┴────┐
- *  │Multiply│ (scale)
- *  └───┬────┘
- *      │
- *  ┌───┴─────┐
- *  │Broadcast│ (optional)
- *  └───┬─────┘
- *      │
- *  ┌───┴──────┐
- *  │Unsqueeze │
- *  │ (axis=0) │
- *  └──────────┘
- *
- * To this:
- *
- *  ┌───────┐
- *  │ MatMul│ (outer product with inv_freq)
- *  └───┬───┘
- *      │
- *  ┌───┴───┐
- *  │Cos/Sin│
- *  └───┬───┘
- *      │
- *  ┌───┴────┐
- *  │Multiply│ (scale)
- *  └───┬────┘
- *      │
- *  ┌───┴─────┐
- *  │Broadcast│ (optional)
- *  └───┬─────┘
- *      │
- *  ┌───┴──────┐
- *  │Unsqueeze │
- *  │ (axis=1) │
- *  └──────────┘
+ *  ┌───────┐                ┌───────┐
+ *  │ MatMul│                │ MatMul│  (outer product with inv_freq)
+ *  └───┬───┘                └───┬───┘
+ *      │                        │
+ *  ┌───┴───┐                ┌───┴───┐
+ *  │Cos/Sin│                │Cos/Sin│
+ *  └───┬───┘                └───┬───┘
+ *      │                        │
+ *  ┌───┴────┐               ┌───┴────┐
+ *  │Multiply│ (scale)       │Multiply│ (scale)
+ *  └───┬────┘               └───┬────┘
+ *      │                        │
+ *  ┌───┴─────┐              ┌───┴─────┐
+ *  │Broadcast│ (optional)   │Broadcast│ (optional)
+ *  └───┬─────┘              └───┬─────┘
+ *      │                        │
+ *  ┌───┴──────┐             ┌───┴──────┐
+ *  │Unsqueeze │             │Unsqueeze │
+ *  │ (axis=0) │             │ (axis=1) │
+ *  └──────────┘             └──────────┘
  */
 class ov::pass::RoPEUnsqueezeAxisReplacer : public ov::pass::MatcherPass {
 public:

@@ -463,13 +463,13 @@ public:
         auto gather_2 = makeOP<v8::Gather>({shape_of, -1ll, 0ll}, {{"batch_dims", 0}});
         head_size = makeOP<v0::Unsqueeze>({gather_2, 0});
 
-        return makeOP<v1::Reshape>({transpose, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose, {0, -1}}, {special_zero_true});
     }
 
     static std::shared_ptr<Node> gen_K(const std::shared_ptr<Node>& rope_K) {
         auto gather = makeOP<v8::Gather>({{0, 2, 1, 3}, {0, 2, 1, 3}, 0ll}, {{"batch_dims", 0}});
         auto transpose = makeOP<v1::Transpose>({rope_K, gather});
-        return makeOP<v1::Reshape>({transpose, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose, {0, -1}}, {special_zero_true});
     }
 
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& total_seq_len,
@@ -484,7 +484,7 @@ public:
         auto transpose_1 = makeOP<v1::Transpose>({mul, {0, 2, 1, 3}});
 
         auto transpose_2 = makeOP<v1::Transpose>({transpose_1, {0, 2, 1, 3}});
-        return makeOP<v1::Reshape>({transpose_2, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose_2, {0, -1}}, {special_zero_true});
     }
 };
 
@@ -684,7 +684,7 @@ public:
     static std::shared_ptr<Node> gen_Q(const std::shared_ptr<Node>& q_proj) {
         auto q = Opt125mSDPA::gen_Q(q_proj);
         auto transpose_pa = makeOP<v1::Transpose>({q, {0, 2, 1, 3}});
-        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
     }
 
     // K path: Reshape → Transpose → PA-Transpose → Reshape[0,-1]
@@ -692,7 +692,7 @@ public:
         auto reshape = makeOP<v1::Reshape>({k_proj, {0, 0, 12, 64}}, {special_zero_true});
         auto transpose_orig = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
         auto transpose_pa = makeOP<v1::Transpose>({transpose_orig, {0, 2, 1, 3}});
-        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
     }
 
     // V path: same as K but also extracts head_size for align_pa_layout
@@ -704,7 +704,7 @@ public:
         auto shape_of = makeOP<v3::ShapeOf>({transpose_pa}, {{"output_type", "i64"}});
         auto gather_dim = makeOP<v8::Gather>({shape_of, -1ll, 0ll}, {{"batch_dims", 0}});
         head_size = makeOP<v0::Unsqueeze>({gather_dim, 0});
-        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {{"special_zero", true}});
+        return makeOP<v1::Reshape>({transpose_pa, {0, -1}}, {special_zero_true});
     }
 
     // PA output → Reshape[0, 1, -1, head_size] → Transpose[0, 2, 1, 3]
@@ -1555,10 +1555,11 @@ TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_ReconnectsDownstreamConsumer) {
 
 namespace {
 // A Gather that isn't the scalar select(dim=0, index=0) pattern on a Parameter named "position_ids": wrong
-// index, wrong axis, a non-scalar indices tensor, or a differently-named Parameter.
+// index, wrong axis, non-zero batch_dims, a non-scalar indices tensor, or a differently-named Parameter.
 struct EliminateDropBatchNegativeCase {
     std::vector<int64_t> indices;
     int64_t axis;
+    int64_t batch_dims;
     std::string param_name;
     std::string name;
 };
@@ -1573,7 +1574,8 @@ TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotAB
     auto select = std::make_shared<v8::Gather>(
         position_ids,
         v0::Constant::create(element::i64, Shape{test_case.indices.size()}, test_case.indices),
-        v0::Constant::create(element::i64, Shape{}, {test_case.axis}));
+        v0::Constant::create(element::i64, Shape{}, {test_case.axis}),
+        test_case.batch_dims);
     model =
         std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, nodes_to_params({position_ids}));
     manager.register_pass<pass::EliminateDropBatch>();
@@ -1584,10 +1586,11 @@ TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotAB
 INSTANTIATE_TEST_SUITE_P(
     SDPAToPA,
     SDPAToPAEliminateDropBatchNegativeTest,
-    ::testing::Values(EliminateDropBatchNegativeCase{{1}, 0, "position_ids", "WrongIndex"},
-                      EliminateDropBatchNegativeCase{{0}, 1, "position_ids", "WrongAxis"},
-                      EliminateDropBatchNegativeCase{{0, 1}, 0, "position_ids", "NonScalarIndices"},
-                      EliminateDropBatchNegativeCase{{0}, 0, "input_ids", "NotPositionIdsParam"}),
+    ::testing::Values(EliminateDropBatchNegativeCase{{1}, 0, 0, "position_ids", "WrongIndex"},
+                      EliminateDropBatchNegativeCase{{0}, 1, 0, "position_ids", "WrongAxis"},
+                      EliminateDropBatchNegativeCase{{0, 1}, 0, 0, "position_ids", "NonScalarIndices"},
+                      EliminateDropBatchNegativeCase{{0}, 0, 0, "input_ids", "NotPositionIdsParam"},
+                      EliminateDropBatchNegativeCase{{0}, 0, -1, "position_ids", "WrongBatchDims"}),
     [](const ::testing::TestParamInfo<EliminateDropBatchNegativeCase>& info) {
         return info.param.name;
     });
