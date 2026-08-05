@@ -1346,41 +1346,44 @@ RoPEFusionCohere::RoPEFusionCohere() {
 
     // Accept both i32 (INT_MAX) and i64 (INT64_MAX) stop values so that models
     // exported via OVModelForCausalLM (which uses sys.maxsize = INT64_MAX) are covered.
-    auto x_odd_i32  = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
-    auto x_odd_i64  = op_util::NewGenSlice(x, (int64_t)1, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
-    auto x_odd      = x_odd_i32 | x_odd_i64;
+    auto x_odd_i32 = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
+    auto x_odd_i64 = op_util::NewGenSlice(x, (int64_t)1, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
+    auto x_odd = x_odd_i32 | x_odd_i64;
 
     auto x_even_i32 = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
     auto x_even_i64 = op_util::NewGenSlice(x, (int64_t)0, std::numeric_limits<int64_t>::max(), (int64_t)2, (size_t)3);
-    auto x_even     = x_even_i32 | x_even_i64;
+    auto x_even = x_even_i32 | x_even_i64;
 
-    auto neg_x_odd      = pattern::wrap_type<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_x_odd = pattern::wrap_type<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
     // Accept both Unsqueeze(x, -1) and Reshape(x, shape) for the "add last dim" step.
     // In PagedAttention mode, SDPAToPagedAttention changes Q/K seq-length to 1, which causes
     // shape propagation to canonicalize Unsqueeze ops into Reshape ops with explicit shapes.
     // The shape_matches predicate constrains the output to [?,?,?,?,1] (equivalent to Unsqueeze(x,-1))
     // regardless of the special_zero attribute, so both special_zero=true and false are accepted.
     auto neg_x_odd_unsq_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({neg_x_odd, -1});
-    auto neg_x_odd_unsq_reshape   = pattern::wrap_type<v1::Reshape>({neg_x_odd, pattern::any_input()}, pattern::shape_matches("[?, ?, ?, ?, 1]"));
+    auto neg_x_odd_unsq_reshape =
+        pattern::wrap_type<v1::Reshape>({neg_x_odd, pattern::any_input()}, pattern::shape_matches("[?, ?, ?, ?, 1]"));
     auto neg_x_odd_unsq = neg_x_odd_unsq_unsqueeze | neg_x_odd_unsq_reshape;
     auto x_even_unsq_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({x_even, -1});
-    auto x_even_unsq_reshape   = pattern::wrap_type<v1::Reshape>({x_even, pattern::any_input()}, pattern::shape_matches("[?, ?, ?, ?, 1]"));
+    auto x_even_unsq_reshape =
+        pattern::wrap_type<v1::Reshape>({x_even, pattern::any_input()}, pattern::shape_matches("[?, ?, ?, ?, 1]"));
     auto x_even_unsq = x_even_unsq_unsqueeze | x_even_unsq_reshape;
     auto stack = pattern::wrap_type<v0::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
 
     // Flatten the last two dims of `stack` back to head_size.  Two variants:
     //   (a) dynamic: Reshape(stack, Concat([ShapeOf(stack)[0:3], [-1]], axis=0))
     //   (b) static:  Reshape(stack, any,  special_zero=true)
-    auto ShapeOf_stack    = pattern::wrap_type<v0::ShapeOf>({stack});
-    auto flatten_Slice    = op_util::NewGenSlice(ShapeOf_stack, 0, 3, 1, 0);
-    auto flatten_Concat   = pattern::wrap_type<v0::Concat>({flatten_Slice, {-1}}, {{"axis", 0}});
-    auto flatten_Reshape_dyn  = pattern::wrap_type<v1::Reshape>({stack, flatten_Concat});
-    auto flatten_Reshape_zero = pattern::wrap_type<v1::Reshape>({stack, pattern::any_input()}, {{"special_zero", true}});
+    auto ShapeOf_stack = pattern::wrap_type<v0::ShapeOf>({stack});
+    auto flatten_Slice = op_util::NewGenSlice(ShapeOf_stack, 0, 3, 1, 0);
+    auto flatten_Concat = pattern::wrap_type<v0::Concat>({flatten_Slice, {-1}}, {{"axis", 0}});
+    auto flatten_Reshape_dyn = pattern::wrap_type<v1::Reshape>({stack, flatten_Concat});
+    auto flatten_Reshape_zero =
+        pattern::wrap_type<v1::Reshape>({stack, pattern::any_input()}, {{"special_zero", true}});
     auto x_rotate = flatten_Reshape_dyn | flatten_Reshape_zero;
 
     auto mul_cos = pattern::wrap_type<v1::Multiply>({x, cos_input}, {{"auto_broadcast", "numpy"}});
     auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate, sin_input}, {{"auto_broadcast", "numpy"}});
-    auto result  = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
+    auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -1409,9 +1412,14 @@ RoPEFusionCohere::RoPEFusionCohere() {
                               pattern_map.at(mul_cos).get_node_shared_ptr(),
                               pattern_map.at(mul_sin).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
-        for (const auto& np : {x_odd_i32, x_odd_i64, x_even_i32, x_even_i64,
-                               neg_x_odd_unsq_unsqueeze, neg_x_odd_unsq_reshape,
-                               x_even_unsq_unsqueeze, x_even_unsq_reshape})
+        for (const auto& np : {x_odd_i32,
+                               x_odd_i64,
+                               x_even_i32,
+                               x_even_i64,
+                               neg_x_odd_unsq_unsqueeze,
+                               neg_x_odd_unsq_reshape,
+                               x_even_unsq_unsqueeze,
+                               x_even_unsq_reshape})
             if (pattern_map.count(np))
                 rt_from.push_back(pattern_map.at(np).get_node_shared_ptr());
         if (pattern_map.count(flatten_Reshape_dyn))
