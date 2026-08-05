@@ -32,10 +32,10 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::value_matches;
 using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
@@ -252,11 +252,10 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
 
     // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
-    auto p_zero_scalar_const = []() {
-        return wrap_type<v0::Constant>(ov::pass::pattern::shape_matches("[]") && ov::pass::pattern::value_matches("0"));
-    };
-    auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_zero_scalar_const(), p_zero_scalar_const()},
-                                                        {{"batch_dims", 0}});
+    auto p_index = wrap_type<v0::Constant>(value_matches("0"));
+    auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
+    auto p_gather =
+        wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto gather = m.get_match_root();
@@ -289,9 +288,7 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
     auto p_broadcast = ov::pass::pattern::optional<op::util::BroadcastBase>({p_scaled, any_input()});
     auto p_concat = wrap_type<v0::Concat>({p_broadcast, p_broadcast});
     auto p_rope_out = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_broadcast, p_concat});
-    auto p_axis = wrap_type<v0::Constant>([](const Output<Node>& output) -> bool {
-        return ov::op::util::has_constant_value<int64_t>(output.get_node_shared_ptr(), 0);
-    });
+    auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
     auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_rope_out, p_axis});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
