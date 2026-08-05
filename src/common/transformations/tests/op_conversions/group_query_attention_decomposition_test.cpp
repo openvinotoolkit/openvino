@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -181,6 +182,36 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     return std::make_shared<Model>(results, params);
 }
 
+// Minimal 7-input GroupQueryAttention for exercising the op's own validation (validate_and_infer_types
+// runs at construction). Only the validated attributes/shapes vary; the KV cache stays unquantized float.
+std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
+                                                 const Dimension& seq,
+                                                 const Dimension& past,
+                                                 int64_t local_window_size,
+                                                 bool sliding_window_cache) {
+    const auto f32 = element::f32;
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, NUM_HEADS, seq, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, seq, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, seq, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, past, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{batch, KV_NUM_HEADS, past, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{batch});
+    auto total_seq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    return std::make_shared<GroupQueryAttention>(args,
+                                                 NUM_HEADS,
+                                                 KV_NUM_HEADS,
+                                                 /*scale*/ 0.0f,
+                                                 /*do_rotary*/ false,
+                                                 /*rotary_interleaved*/ false,
+                                                 /*kv_cache_bit_width*/ 0,
+                                                 "NONE",
+                                                 "NONE",
+                                                 local_window_size,
+                                                 sliding_window_cache,
+                                                 /*smooth_softmax*/ false);
+}
+
 }  // namespace
 
 class GroupQueryAttentionDecompositionTest : public testing::TestWithParam<GqaParams> {};
@@ -226,3 +257,40 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
                          });
+
+// --- Op-level validation (validate_and_infer_types) ------------------------------------------------
+// These guard the assumptions the decomposition relies on. They must reject only what is provably
+// unsupported from shapes/attributes alone, and must NOT reject the dynamic-shape configurations that
+// CPU/GPU legitimately run (a dynamic sequence length or batch cannot be checked and stays enabled).
+
+TEST(GroupQueryAttentionOpValidation, rejects_sliding_window_cache_without_window) {
+    // sliding_window_cache requires a real window (local_window_size >= 1).
+    EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ -1, /*swc*/ true), ov::NodeValidationFailure);
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_zero) {
+    // 0 is an empty attention (every query masks all keys) and is not a valid config.
+    EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ 0, /*swc*/ false), ov::NodeValidationFailure);
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_static_multi_token_windowed_cache) {
+    // A statically-known sequence_length > 1 with a windowed cache may cross an eviction at runtime
+    // (the unmodeled staging regime), so it is rejected up front.
+    EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true), ov::NodeValidationFailure);
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
+    // The decomposition uses a scalar past length and assumes batch == 1.
+    EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false), ov::NodeValidationFailure);
+}
+
+TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cache) {
+    // A dynamic sequence_length is left enabled: at runtime it is typically decode / fitting prefill,
+    // which the decomposition handles correctly. Rejecting it would disable CPU/GPU dynamic shapes.
+    EXPECT_NO_THROW(make_gqa_op(1, Dimension::dynamic(), 8, /*window*/ 2, /*swc*/ true));
+}
+
+TEST(GroupQueryAttentionOpValidation, allows_dynamic_batch) {
+    // A dynamic batch dimension cannot be checked from shapes and stays enabled.
+    EXPECT_NO_THROW(make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false));
+}
