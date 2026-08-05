@@ -63,6 +63,70 @@ bool is_aligned_to(T value, T alignment) {
 
 }  // namespace
 
+class ConvertVocabAsymU8ToI8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::ConvertVocabU8ToI8");
+    explicit ConvertVocabAsymU8ToI8() {
+        auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+        auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+        auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
+        auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+        auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+        auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+        auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+        auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+        auto qmmi = opp::any_input();
+        auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+        auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            auto matched_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+            auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+            auto qcoeff_shape = std::static_pointer_cast<ov::op::v0::Constant>(matched_qcoeff)->get_shape();
+
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
+            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(node_to_output.at(qres).get_node_shared_ptr());
+
+            if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+                !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+                auto matched_qweight_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qweight);
+                auto matched_qzerop_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qzerop);
+                std::shared_ptr<ov::op::v0::Constant> i8_qweight_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i8, matched_qweight->get_shape());
+                std::shared_ptr<ov::op::v0::Constant> i8_qzerop_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i8, matched_qzerop->get_shape());
+                int8_t* i8_qweight_data = const_cast<int8_t*>(i8_qweight_constant->get_data_ptr<int8_t>());
+                int8_t* i8_qzerop_data = const_cast<int8_t*>(i8_qzerop_constant->get_data_ptr<int8_t>());
+                std::memcpy(i8_qweight_data, matched_qweight_const->get_data_ptr(), matched_qweight_const->get_byte_size());
+                std::memcpy(i8_qzerop_data, matched_qzerop_const->get_data_ptr(), matched_qzerop_const->get_byte_size());
+                // TODO: vectorize or use already vectorized functions
+                for (size_t i = 0; i < matched_qweight->get_shape()[0] * matched_qweight->get_shape()[1]; ++i) {
+                    i8_qweight_data[i] = static_cast<int8_t>(static_cast<uint8_t>(i8_qweight_data[i]) - 128u);
+                }
+                for (size_t i = 0; i < matched_qzerop->get_shape()[0] * matched_qzerop->get_shape()[1]; ++i) {
+                    i8_qzerop_data[i] = static_cast<int8_t>(static_cast<uint8_t>(i8_qzerop_data[i]) - 128u);
+                }
+
+                for (const auto& target_input : matched_qweight->output(0).get_target_inputs()) {
+                    target_input.get_source_output().replace(i8_qweight_constant);
+                }
+                for (const auto& target_input : matched_qzerop->output(0).get_target_inputs()) {
+                    target_input.get_source_output().replace(i8_qzerop_constant);
+                }
+                matched_qweight.reset();
+                matched_qweight_const.reset();
+                matched_qzerop.reset();
+                matched_qzerop_const.reset();
+
+                return true;
+            }
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(qres, "ConvertVocabAsymU8ToI8"), std::move(callback));
+    }
+};
+
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
@@ -148,6 +212,14 @@ public:
 };
 
 namespace {
+bool convert_vocab_to_i8(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ConvertVocabAsymU8ToI8>();
+    auto id_converted = rewr.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+    return id_converted;
+}
+
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
@@ -833,7 +905,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>()) {
+        NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
+    }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+    if (lm_head_model) {
+        ov::save_model(lm_head_model, "lm_head_model.xml");
+    }
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");

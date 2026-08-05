@@ -1745,7 +1745,8 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+        if ((ov::element::u8 == matched_qweight->get_element_type() || ov::element::i8 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
@@ -1927,7 +1928,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     ???(Act) -------------------------------------------->
 
 PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
-                                                           PreserveConstDictMatMulAsymm::Results to_keep) {
+                                                           PreserveConstDictMatMulAsymm::Results to_keep,
+                                                           bool only_scale_zeropoint) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1977,8 +1979,11 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         // Pre-transposed layout: weight [IC, OC], scale [1, OC], transpose_b=false
         const bool pretransposed_layout = qcoeff_shape.size() == 2 && qcoeff_shape[0] == 1 &&
                                           !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
-        if (ov::element::u8 == matched_qweight->get_element_type() && (standard_layout || pretransposed_layout)) {
-           // to_keep.get().push_back(matched_qweight);
+        if ((ov::element::u8 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) && (standard_layout || pretransposed_layout)) {
+            if (!only_scale_zeropoint) {
+                to_keep.get().push_back(matched_qweight);
+            };
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed
@@ -2033,7 +2038,7 @@ PreserveConstDictMatMulFP8::PreserveConstDictMatMulFP8(Context::Ref ctx, Preserv
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            //to_keep.get().push_back(matched_qweight);
+            to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed
         }
