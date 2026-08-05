@@ -85,7 +85,7 @@ public:
             std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
             bool innerProgram = false,
             ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
