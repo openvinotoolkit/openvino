@@ -28,7 +28,11 @@ struct VMExecutionContext {
                                                        ze_context_handle_t ctx,
                                                        ze_device_handle_t device,
                                                        ze_command_queue_handle_t commandQueue,
-                                                       ze_graph_dditable_ext_t* graphDdiTableExt);
+                                                       ze_graph_dditable_ext_t* graphDdiTableExt,
+                                                       ze_command_queue_npu_dditable_ext_t* queueDdiTableExt);
+    npu_vm_runtime_execution_context_handle_t handle() const {
+        return _handle;
+    }
 };
 
 struct DynamicArguments {
