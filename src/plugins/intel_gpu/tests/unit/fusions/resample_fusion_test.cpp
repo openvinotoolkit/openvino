@@ -78,6 +78,17 @@ public:
 #define CASE_RESAMPLE_FP16_13 { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::f16, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::f16, format::bfyx
 #define CASE_RESAMPLE_FP16_14 { 1, 32, 4, 5 }, { 1, 32, 2, 3 }, data_types::f16, format::fs_b_yx_fsv32, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::f16, format::bfyx
 
+#define CASE_RESAMPLE_BF16_1 { 1, 15, 4, 5 }, { 1, 15, 2, 3 }, data_types::bf16, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_3 { 1, 15, 4, 5 }, { 1, 15, 2, 3 }, data_types::bf16, format::bfyx, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_4 { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::bf16, format::bfyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_6 { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::bf16, format::bfyx, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_7 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, data_types::bf16, format::bfzyx, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::bf16, format::bfzyx
+#define CASE_RESAMPLE_BF16_8 { 1, 16, 4, 5, 4 }, { 1, 16, 2, 3, 2 }, data_types::bf16, format::bfzyx, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfzyx
+#define CASE_RESAMPLE_BF16_11 { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::bf16, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_12 { 2, 32, 4, 5 }, { 2, 32, 7, 8 }, data_types::bf16, format::fs_b_yx_fsv32, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_13 { 1, 16, 4, 5 }, { 1, 16, 7, 8 }, data_types::bf16, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+#define CASE_RESAMPLE_BF16_14 { 1, 32, 4, 5 }, { 1, 32, 2, 3 }, data_types::bf16, format::fs_b_yx_fsv32, resample::InterpolateOp::InterpolateMode::LINEAR, data_types::bf16, format::bfyx
+
 #define CASE_RESAMPLE_I8_1 { 1, 16, 4, 5 }, { 1, 16, 2, 3 }, data_types::i8, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
 #define CASE_RESAMPLE_I8_2 { 2, 32, 4, 5 }, { 2, 32, 2, 3 }, data_types::i8, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
 
@@ -140,6 +151,9 @@ TEST_P(resample_scale_activation_eltwise, basic) {
     );
 
     tolerance = 1e-5f;
+    // bf16 accumulates larger rounding error, relax tolerance accordingly
+    if (p.data_type == data_types::bf16)
+        tolerance = 5e-2f;
     execute(p);
 }
 
@@ -163,6 +177,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_activation_eltwise, ::testi
     resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
     resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+
+    resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_6, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_8, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_11, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_12, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_13, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
+    resample_test_params{ CASE_RESAMPLE_BF16_14, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 
     resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
     resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
@@ -221,6 +246,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat, ::testing::Value
     resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_QUANTIZE_CONCAT_CNT },
+
+    // concat is not yet supported for bf16 (no layout format available for concat with bf16), so bf16 cases are disabled
+    // resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_3, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_6, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_8, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_11, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_12, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_13, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_14, RESAMPLE_QUANTIZE_CONCAT_CNT },
 }));
 
 class resample_eltwise_concat : public ResamplePrimitiveFusingTest {};
@@ -270,6 +307,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::Values
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_ELTWISE_CONCAT_CNT },
 
+    // concat is not yet supported for bf16 (no layout format available for concat with bf16), so bf16 cases are disabled
+    // resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_3, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_6, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_8, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_11, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_12, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_13, RESAMPLE_ELTWISE_CONCAT_CNT },
+    // resample_test_params{ CASE_RESAMPLE_BF16_14, RESAMPLE_ELTWISE_CONCAT_CNT },
+
     resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_CNT },
 
@@ -314,6 +363,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through, ::testing
     resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
     resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
 
+    resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_BF16_3, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_BF16_6, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+    resample_test_params{ CASE_RESAMPLE_BF16_8, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_FP },
+
     resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
     resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT_INT },
 
@@ -347,6 +403,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_fusing_through_not_allowe
     resample_test_params{ CASE_RESAMPLE_FP32_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
 
     resample_test_params{ CASE_RESAMPLE_FP16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
+
+    resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_ELTWISE_FUSING_THROUGH_CNT },
 }));
 
 class resample_eltwise : public ResamplePrimitiveFusingTest {};
@@ -371,6 +429,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise, ::testing::ValuesIn(std:
     resample_test_params{ CASE_RESAMPLE_FP16_4, RESAMPLE_QUANTIZE_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_7, RESAMPLE_QUANTIZE_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CNT },
+
+    resample_test_params{ CASE_RESAMPLE_BF16_1, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_BF16_4, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_QUANTIZE_CNT },
+    resample_test_params{ CASE_RESAMPLE_BF16_11, RESAMPLE_QUANTIZE_CNT },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -472,6 +535,42 @@ public:
     std::vector<int64_t>{2, 3}
 
 // BICUBIC_PILLOW, spatial axes = {2,3} (downscale)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_1 \
+    ov::PartialShape{ 1, 15, 5, 4 }, ov::PartialShape{ 1, 15, 3, 2 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (upscale)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_2 \
+    ov::PartialShape{ 1, 16, 5, 4 }, ov::PartialShape{ 1, 16, 8, 7 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (downscale only horizontal - vertical axis not changed)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_3 \
+    ov::PartialShape{ 1, 15, 5, 4 }, ov::PartialShape{ 1, 15, 5, 2 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (upscale only horizontal - vertical axis not changed)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_4 \
+    ov::PartialShape{ 1, 16, 5, 4 }, ov::PartialShape{ 1, 16, 5, 7 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (downscale only vertical - horizontal axis not changed)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_5 \
+    ov::PartialShape{ 1, 15, 5, 4 }, ov::PartialShape{ 1, 15, 3, 4 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (upscale only vertical - horizontal axis not changed)
+#define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_6 \
+    ov::PartialShape{ 1, 16, 5, 4 }, ov::PartialShape{ 1, 16, 8, 4 }, data_types::bf16, format::bfyx, \
+    resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::bf16, format::bfyx, \
+    std::vector<int64_t>{2, 3}
+
+// BICUBIC_PILLOW, spatial axes = {2,3} (downscale)
 #define CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_1 \
     ov::PartialShape{ 1, 15, 5, 4 }, ov::PartialShape{ 1, 15, 3, 2 }, data_types::f32, format::bfyx, \
     resample::InterpolateOp::InterpolateMode::BICUBIC_PILLOW, data_types::f32, format::bfyx, \
@@ -524,6 +623,9 @@ TEST_P(resample_bicubic_pillow_axes_scale_activation_eltwise, basic) {
     );
 
     tolerance = 5e-2f;
+    // bf16 accumulates larger rounding error, relax tolerance accordingly
+    if (p.data_type == data_types::bf16)
+        tolerance = 1e-1f;
     execute(p);
 }
 
@@ -536,6 +638,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_scale_activat
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_4, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_5, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_6, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_1, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_2, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_3, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_4, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_5, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_6, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_1, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_2, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_3, RESAMPLE_BICUBIC_PILLOW_AXES_SCALE_ACTIVATION_ELTWISE_CNT },
@@ -569,6 +677,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_activation,
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_4, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_5, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_6, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_1, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_2, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_3, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_4, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_5, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_6, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_1, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_2, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_3, RESAMPLE_BICUBIC_PILLOW_AXES_ACTIVATION_CNT },
@@ -627,6 +741,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_bicubic_pillow_axes_quantize,
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_4, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_5, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F16_6, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_3, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_4, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_5, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
+        resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_BF16_6, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_1, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_2, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },
         resample_axes_test_params{ CASE_RESAMPLE_BICUBIC_PILLOW_AXES_F32_3, RESAMPLE_BICUBIC_PILLOW_AXES_QUANTIZE_CNT },

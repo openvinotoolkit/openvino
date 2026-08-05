@@ -5,8 +5,6 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
-#define STORE_RAW_(idx, val) output[idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, val, ACTIVATION_PARAMS_TYPED))
-
 __attribute__((reqd_work_group_size(1, LWS1, 1)))
 KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
         const __global INPUT_REORDER_TYPE* input,
@@ -50,10 +48,10 @@ KERNEL (reorder_fs_b_yx_fsv32_to_bfyx)(
         const bool skip = x_idx >= OUTPUT_SIZE_X;
 #endif
         if (!skip) {
-            STORE_RAW_(out_idx, in_data[data_idx]);
+            output[out_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED));
         }
 #else
-        STORE_RAW_(out_idx, in_data[data_idx]);
+        output[out_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, in_data[data_idx], ACTIVATION_PARAMS_TYPED));
 #endif
     }
 }

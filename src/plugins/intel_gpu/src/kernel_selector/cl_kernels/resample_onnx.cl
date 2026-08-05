@@ -11,6 +11,7 @@
 
 #define IN_VEC_TYPE                     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define TO_IN_VEC_TYPE(x)               CAT(convert_, IN_VEC_TYPE)(x)
+#define DECODE_IN_VEC_TYPE(x)           DECODE_INPUT0_COMPUTE_VECTOR_TYPE(x, VEC_SIZE)
 #define ACC_VEC_TYPE                    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE)
 #define TO_ACC_VEC_TYPE(x)              CAT(convert_, ACC_VEC_TYPE)(x)
 #define OUT_VEC_TYPE                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
@@ -18,7 +19,7 @@
 #ifdef RTE_OUTPUT
     #define TO_OUT_VEC_TYPE(x)          CAT(CAT(convert_, OUT_VEC_TYPE), _rte)(x)
 #else
-    #define TO_OUT_VEC_TYPE(x)          CAT(convert_, OUT_VEC_TYPE)(x)
+    #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
 
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
@@ -121,23 +122,23 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         bool FrontBottomLOutOfBounds = in_z2 < 0 || in_z2 >= INPUT0_SIZE_Z || in_y2 < 0 || in_y2 >= INPUT0_SIZE_Y || in_x1 < 0 || in_x1 >= INPUT0_SIZE_X;
         bool FrontBottomROutOfBounds = in_z2 < 0 || in_z2 >= INPUT0_SIZE_Z || in_y2 < 0 || in_y2 >= INPUT0_SIZE_Y || in_x2 < 0 || in_x2 >= INPUT0_SIZE_X;
 
-        const acc_vec_t x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x1)));
-        const acc_vec_t x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x2)));
-        const acc_vec_t x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x1)));
-        const acc_vec_t x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x2)));
-        const acc_vec_t x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x1)));
-        const acc_vec_t x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x2)));
-        const acc_vec_t x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x1)));
-        const acc_vec_t x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x2)));
+        const acc_vec_t x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x1))));
+        const acc_vec_t x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x2))));
+        const acc_vec_t x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x1))));
+        const acc_vec_t x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x2))));
+        const acc_vec_t x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x1))));
+        const acc_vec_t x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x2))));
+        const acc_vec_t x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x1))));
+        const acc_vec_t x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x2))));
 #else
-        const acc_vec_t x111 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x1)));
-        const acc_vec_t x211 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x2)));
-        const acc_vec_t x121 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x1)));
-        const acc_vec_t x221 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x2)));
-        const acc_vec_t x112 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x1)));
-        const acc_vec_t x212 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x2)));
-        const acc_vec_t x122 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x1)));
-        const acc_vec_t x222 = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x2)));
+        const acc_vec_t x111 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x1))));
+        const acc_vec_t x211 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y1, in_x2))));
+        const acc_vec_t x121 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x1))));
+        const acc_vec_t x221 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z1, in_y2, in_x2))));
+        const acc_vec_t x112 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x1))));
+        const acc_vec_t x212 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y1, in_x2))));
+        const acc_vec_t x122 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x1))));
+        const acc_vec_t x222 = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_z2, in_y2, in_x2))));
 #endif // PADDING_USED == 1
 
         acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * dz2 * x111) + TO_ACC_VEC_TYPE(dx1 * dy2 * dz2 * x211);
@@ -192,27 +193,27 @@ KERNEL (resample_onnx)(__global INPUT0_TYPE* input,
         int safe_x1 = clamp(in_x1, 0, (int)INPUT0_SIZE_X - 1);
         int safe_x2 = clamp(in_x2, 0, (int)INPUT0_SIZE_X - 1);
   #if OUTPUT_DIMS == 5
-        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x1)));
-        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x2)));
-        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x1)));
-        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x2)));
+        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x1))));
+        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y1, safe_x2))));
+        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x1))));
+        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, safe_y2, safe_x2))));
   #else
-        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x1)));
-        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x2)));
-        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x1)));
-        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x2)));
+        acc_vec_t top_left     = tlOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x1))));
+        acc_vec_t top_right    = trOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y1, safe_x2))));
+        acc_vec_t bottom_left  = blOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x1))));
+        acc_vec_t bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, safe_y2, safe_x2))));
   #endif
 #else
   #if OUTPUT_DIMS == 5
-        acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x1)));
-        acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x2)));
-        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x1)));
-        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x2)));
+        acc_vec_t top_left     = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x1))));
+        acc_vec_t top_right    = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y1, in_x2))));
+        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x1))));
+        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, z, in_y2, in_x2))));
   #else
-        acc_vec_t top_left     = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1)));
-        acc_vec_t top_right    = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2)));
-        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1)));
-        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2)));
+        acc_vec_t top_left     = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x1))));
+        acc_vec_t top_right    = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y1, in_x2))));
+        acc_vec_t bottom_left  = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x1))));
+        acc_vec_t bottom_right = TO_ACC_VEC_TYPE(DECODE_IN_VEC_TYPE(READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, in_y2, in_x2))));
   #endif
 #endif // PADDING_USED == 1
         acc_vec_t res = TO_ACC_VEC_TYPE(dx2 * dy2 * top_left) +
