@@ -67,6 +67,9 @@ struct HandleGuard {
     }
 };
 
+inline const auto read_testing_values =
+    ::testing::Values(size_t{511}, size_t{512}, size_t{4 * 1024}, size_t{4 * 1024 + 7});
+
 }  // namespace
 
 class NativeStreamTest : public ::testing::Test {
@@ -83,49 +86,6 @@ protected:
         }
     }
 };
-
-// Decreased threshold to 1
-TEST_F(NativeStreamTest, FullReadSmallThreshold) {
-    constexpr size_t k_size = 16 * 1024;  // 16 KB
-    std::vector<char> expected(k_size);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
-
-    HandleGuard hg{util::open_file(m_tmp_path)};
-    ASSERT_NE(hg.handle, ov::invalid_handle);
-    util::NativeStreamBuf buf(hg.handle,
-                              /*offset=*/0,
-                              static_cast<std::streamoff>(k_size),
-                              util::default_native_window,
-                              /*threshold=*/1);
-    std::istream stream(&buf);
-
-    std::vector<char> got(k_size);
-    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_size)));
-    EXPECT_EQ(got, expected);
-}
-
-TEST_F(NativeStreamTest, NonZeroHeaderOffsetSmallData) {
-    constexpr size_t k_prefix_size = 512;  // size of the garbage prefix
-    constexpr size_t k_payload_size = 4 * 1024;
-
-    std::vector<char> payload(k_payload_size);
-    fill_pattern(payload);
-    write_temp_file_impl(m_tmp_path, payload, k_prefix_size);
-
-    HandleGuard hg{util::open_file(m_tmp_path)};
-    ASSERT_NE(hg.handle, ov::invalid_handle);
-    util::NativeStreamBuf buf(hg.handle,
-                              static_cast<std::streamoff>(k_prefix_size),
-                              static_cast<std::streamoff>(k_payload_size),
-                              util::default_native_window,
-                              /*threshold=*/1);
-    std::istream stream(&buf);
-
-    std::vector<char> got(k_payload_size);
-    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload_size)));
-    EXPECT_EQ(got, payload);
-}
 
 TEST_F(NativeStreamTest, ChunkedReads) {
     constexpr size_t k_size = 8 * 1024;
@@ -153,6 +113,73 @@ TEST_F(NativeStreamTest, ChunkedReads) {
     EXPECT_EQ(got, expected);
 }
 
+class NativeStreamTestSizes
+    : public NativeStreamTest,
+      public ::testing::WithParamInterface<std::tuple</*payload*/ size_t, /*treshold*/ size_t, /*prefix*/ size_t>> {};
+
+TEST_P(NativeStreamTestSizes, FullFileReadTest) {
+    const auto [k_payload, k_treshold, k_prefix] = GetParam();
+    std::vector<char> expected(k_payload);
+    fill_pattern(expected);
+    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+
+    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)}; // CVS-192237
+    ASSERT_NE(hg.handle, ov::invalid_handle);
+    util::NativeStreamBuf buf(hg.handle,
+                              k_prefix,
+                              static_cast<std::streamoff>(k_payload),
+                              util::default_native_window,
+                              k_treshold);
+    std::istream stream(&buf);
+
+    std::vector<char> got(k_payload);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)));
+    EXPECT_EQ(got, expected);
+}
+
+// the test below satisfies O_DIRECT requirement - destination buffer is aligned to 4096 bytes
+TEST_P(NativeStreamTestSizes, AlignedDestBufferFullFileReadTest) {
+    const auto [k_size, treshold, k_prefix] = GetParam();
+    std::vector<char> expected(k_size);
+    fill_pattern(expected);
+    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+
+    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ )}; // CVS-192237
+    ASSERT_NE(hg.handle, ov::invalid_handle);
+    util::NativeStreamBuf buf(hg.handle,
+                              /*offset=*/k_prefix,
+                              static_cast<std::streamoff>(k_size),
+                              util::default_native_window,
+                              treshold);
+    std::istream stream(&buf);
+
+    constexpr size_t k_align = 4096;
+    std::vector<char> storage(k_size + k_align);
+    const auto raw = reinterpret_cast<uintptr_t>(storage.data());
+    char* aligned_dst = reinterpret_cast<char*>((raw + k_align - 1) & ~(k_align - 1));
+    ASSERT_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % k_align, 0u) << "Destination buffer is not aligned";
+
+    ASSERT_TRUE(stream.read(aligned_dst, static_cast<std::streamsize>(k_size)))
+        << "Read into an aligned destination failed.";
+    EXPECT_TRUE(std::equal(aligned_dst, aligned_dst + k_size, expected.begin()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    PayloadBypassOffsetSizes,
+    NativeStreamTestSizes,
+    testing::Combine(
+        read_testing_values,
+        ::testing::Values(
+            size_t{1},
+            size_t{ov::util::default_native_threshold}),  // this value shows issues, decrease threshold to make this
+                                                          // test smaller. best to add a parameter for threshold and
+                                                          // run the test with a smaller threshold
+        ::testing::Values(size_t{0}, size_t{511})),       // a garbage prefix offset
+    [](const ::testing::TestParamInfo<std::tuple<size_t, size_t, size_t>>& info) {
+        return "payload_" + std::to_string(std::get<0>(info.param)) + "_treshold_" +
+               std::to_string(std::get<1>(info.param)) + "_prefix_" + std::to_string(std::get<2>(info.param));
+    });
+
 class NativeIfstreamTest : public NativeStreamTest {};
 
 TEST_F(NativeIfstreamTest, DefaultConstructedReturnsEof) {
@@ -163,20 +190,6 @@ TEST_F(NativeIfstreamTest, DefaultConstructedReturnsEof) {
     stream.read(&sink, 1);
     EXPECT_TRUE(stream.eof());
     EXPECT_EQ(stream.gcount(), 0);
-}
-
-// tests fill_window() path, size below the threshold.
-TEST_F(NativeIfstreamTest, OwningPathReadsWholeFile) {
-    std::vector<char> expected(4096);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
-
-    util::NativeIfstream stream(m_tmp_path);
-    ASSERT_TRUE(stream.good());
-    std::vector<char> got(expected.size());
-    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(got.size())));
-    EXPECT_EQ(got, expected);
-    EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());
 }
 
 TEST_F(NativeIfstreamTest, NonExistentPathSetsFailbit) {
@@ -192,7 +205,6 @@ TEST_F(NativeIfstreamTest, NonExistentPathSetsFailbit) {
 TEST_F(NativeIfstreamTest, BorrowedHandleReadsSubrangeAndKeepsHandleOpen) {
     constexpr size_t k_prefix_size = 127;
     std::vector<char> payload(9000);
-    printf("payload size = %zu\n", payload.size());
     fill_pattern(payload);
     write_temp_file_impl(m_tmp_path, payload, k_prefix_size);
 
@@ -208,8 +220,7 @@ TEST_F(NativeIfstreamTest, BorrowedHandleReadsSubrangeAndKeepsHandleOpen) {
         EXPECT_EQ(got, payload);
     }  // stream destroyed here – handle must NOT be closed.
 
-    // Re-use the still-open handle through a second stream; if the first
-    // stream had closed the handle, this read would fail.
+    // Re-use the handle
     util::NativeIfstream stream2(hg.handle,
                                  static_cast<std::streamoff>(k_prefix_size),
                                  static_cast<std::streamoff>(payload.size()));
@@ -218,55 +229,10 @@ TEST_F(NativeIfstreamTest, BorrowedHandleReadsSubrangeAndKeepsHandleOpen) {
     EXPECT_EQ(got2, payload);
 }
 
-TEST_F(NativeIfstreamTest, OwningPathReadsIntoMisalignedDestination) {
-    constexpr size_t k_payload = 8 * 1024;
-    std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
+class NativeIfstreamTestPayload : public NativeStreamTest, public ::testing::WithParamInterface<size_t> {};
 
-    // Force a non-page-aligned destination by shifting inside a slightly
-    // larger allocation. The +17 offset ensures the address cannot be a
-    // multiple of any power of two up to 4096.
-    constexpr size_t k_shift = 17;
-    std::vector<char> buffer(k_payload + 64);
-    char* misaligned_dst = buffer.data() + k_shift;
-    ASSERT_NE(reinterpret_cast<uintptr_t>(misaligned_dst) % 512u, 0u)
-        << "Test precondition failed: destination happened to be LBA-aligned";
-
-    util::NativeIfstream stream(m_tmp_path);
-    ASSERT_TRUE(stream.good());
-    ASSERT_TRUE(stream.read(misaligned_dst, static_cast<std::streamsize>(k_payload)))
-        << "NativeIfstream(path) must succeed even when destination is not LBA-aligned "
-           "(as in strategy::native_stream_read in file_load_benchmark.cpp)";
-    EXPECT_TRUE(std::equal(misaligned_dst, misaligned_dst + k_payload, expected.begin()));
-}
-
-// O_DIRECT alignment test
-TEST_F(NativeIfstreamTest, OwningPathLargeReadIntoMisalignedDestination) {
-    // Just above the parallel-dispatch threshold; kept small to stay lightweight.
-    constexpr size_t k_payload = 4 * 1024 * 1024;  // 4 MiB, LBA- and page-aligned
-    std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
-
-    constexpr size_t k_shift = 17;
-    std::vector<char> buffer(k_payload + 64);
-    char* misaligned_dst = buffer.data() + k_shift;
-    ASSERT_NE(reinterpret_cast<uintptr_t>(misaligned_dst) % 512u, 0u)
-        << "Test precondition failed: destination happened to be LBA-aligned";
-
-    util::NativeIfstream stream(m_tmp_path);
-    ASSERT_TRUE(stream.good());
-    ASSERT_TRUE(stream.read(misaligned_dst, static_cast<std::streamsize>(k_payload)))
-        << "NativeIfstream(path) must succeed on the parallel-dispatch branch even when "
-           "destination is not LBA-aligned (this is the >= 4 MiB regime of the benchmark)";
-    EXPECT_TRUE(std::equal(misaligned_dst, misaligned_dst + k_payload, expected.begin()));
-}
-
-// O_DIRECT alignment test
-TEST_F(NativeIfstreamTest, OwningPathReadsFileWithNonLbaSize) {
-    // 8000 bytes: not a multiple of 512 or 4096.
-    constexpr size_t k_payload = 8000;
+TEST_P(NativeIfstreamTestPayload, FullFileReadFromPathTest) {
+    const size_t k_payload = GetParam();
     std::vector<char> expected(k_payload);
     fill_pattern(expected);
     write_temp_file_impl(m_tmp_path, expected, 0);
@@ -274,10 +240,48 @@ TEST_F(NativeIfstreamTest, OwningPathReadsFileWithNonLbaSize) {
     util::NativeIfstream stream(m_tmp_path);
     ASSERT_TRUE(stream.good());
     std::vector<char> got(k_payload);
-    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)))
-        << "NativeIfstream(path) must handle files whose size is not a multiple of the LBA";
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)));
     EXPECT_EQ(got, expected);
     EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());
 }
+
+INSTANTIATE_TEST_SUITE_P(PayloadSizes,
+                         NativeIfstreamTestPayload,
+                         read_testing_values,
+                         [](const ::testing::TestParamInfo<size_t>& info) {
+                             return "payload_" + std::to_string(info.param);
+                         });
+
+class NativeIfstreamTestPayloadOffset
+    : public NativeStreamTest,
+      public ::testing::WithParamInterface<std::tuple</*payload*/ size_t, /*prefix*/ size_t>> {};
+
+TEST_P(NativeIfstreamTestPayloadOffset, FullFileReadFromHandleTest) {
+    const auto [k_payload, k_prefix] = GetParam();
+    std::vector<char> expected(k_payload);
+    fill_pattern(expected);
+    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+
+    HandleGuard hg{util::open_file(m_tmp_path)};
+    ASSERT_NE(hg.handle, ov::invalid_handle);
+
+    util::NativeIfstream stream(hg.handle,
+                                static_cast<std::streamoff>(k_prefix),
+                                static_cast<std::streamoff>(k_payload));
+
+    ASSERT_TRUE(stream.good());
+    std::vector<char> got(k_payload);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)));
+    EXPECT_EQ(got, expected);
+    EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());
+}
+
+INSTANTIATE_TEST_SUITE_P(PayloadOffsetSizes,
+                         NativeIfstreamTestPayloadOffset,
+                         testing::Combine(read_testing_values, ::testing::Values(size_t{0}, size_t{511})),
+                         [](const ::testing::TestParamInfo<std::tuple<size_t, size_t>>& info) {
+                             return "payload_" + std::to_string(std::get<0>(info.param)) + "_prefix_" +
+                                    std::to_string(std::get<1>(info.param));
+                         });
 
 }  // namespace ov::test
