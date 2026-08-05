@@ -12,7 +12,10 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_D
 
 # Build the optional IPF telemetry client used by the device utilization monitor.
 add_subdirectory(thirdparty)
-
+if(NOT ENABLE_QSPECTRE)
+    string(REPLACE "/Qspectre" "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Qspectre" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
 # WA for issue 141313
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
     ov_add_compiler_flags(-Wno-stringop-overflow)
