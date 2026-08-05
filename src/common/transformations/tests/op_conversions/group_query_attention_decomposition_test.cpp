@@ -13,8 +13,12 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -293,4 +297,74 @@ TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cach
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_batch) {
     // A dynamic batch dimension cannot be checked from shapes and stays enabled.
     EXPECT_NO_THROW(make_gqa_op(Dimension::dynamic(), 1, 8, /*window*/ -1, /*swc*/ false));
+}
+
+// --- Decomposed constant values -------------------------------------------------------------------
+// The structural TEST_P above checks topology only; a wrong window boundary or a wrong sink value would
+// still pass it. These assert the actual constants the decomposition emits for those two features.
+
+namespace {
+void decompose(const std::shared_ptr<Model>& model) {
+    pass::Manager manager;
+    manager.register_pass<pass::GroupQueryAttentionDecomposition>();
+    manager.run_passes(model);
+}
+
+std::shared_ptr<op::v13::ScaledDotProductAttention> find_sdpa(const std::shared_ptr<Model>& model) {
+    for (const auto& op : model->get_ordered_ops())
+        if (auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(op))
+            return sdpa;
+    return nullptr;
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, sliding_window_boundary_uses_window_size_constant) {
+    constexpr int64_t W = 5;
+    auto model = make_gqa_model(GqaParams{"win"}.window(W));
+    decompose(model);
+
+    // The sliding-window band is the only GreaterEqual in the mask: too_old = GreaterEqual(distance, window),
+    // where window is a scalar constant. A wrong boundary here would silently widen/narrow the window.
+    std::shared_ptr<Node> greater_eq;
+    for (const auto& op : model->get_ordered_ops())
+        if (ov::is_type<op::v1::GreaterEqual>(op))
+            greater_eq = op;
+    ASSERT_NE(greater_eq, nullptr) << "sliding-window GreaterEqual band not found";
+    auto window_const = as_type_ptr<op::v0::Constant>(greater_eq->get_input_node_shared_ptr(1));
+    ASSERT_NE(window_const, nullptr) << "window boundary is not a constant";
+    EXPECT_EQ(window_const->cast_vector<int64_t>(), std::vector<int64_t>{W});
+}
+
+TEST(GroupQueryAttentionValues, smooth_softmax_sink_is_zero) {
+    auto model = make_gqa_model(GqaParams{"smooth"}.sink_smooth());
+    decompose(model);
+
+    // smooth_softmax adds a zero logit to the softmax denominator: the SDPA sink input (6th) is a
+    // Broadcast of a zero constant. A non-zero value here would bias every row's normalization.
+    auto sdpa = find_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_EQ(sdpa->get_input_size(), 6u);
+    auto sink_bcast = as_type_ptr<op::v3::Broadcast>(sdpa->get_input_node_shared_ptr(5));
+    ASSERT_NE(sink_bcast, nullptr) << "smooth_softmax sink must be a Broadcast of a zero constant";
+    auto zero_const = as_type_ptr<op::v0::Constant>(sink_bcast->get_input_node_shared_ptr(0));
+    ASSERT_NE(zero_const, nullptr);
+    const auto vals = zero_const->cast_vector<float>();
+    ASSERT_EQ(vals.size(), 1u);
+    EXPECT_FLOAT_EQ(vals[0], 0.0f);
+}
+
+TEST(GroupQueryAttentionValues, head_sink_reshapes_input_to_per_head_sink) {
+    auto model = make_gqa_model(GqaParams{"hsink"}.sink_head());
+    decompose(model);
+
+    // head_sink provides a per-head logit: the SDPA sink input (6th) is the head_sink input reshaped to
+    // the [1, num_heads, 1, 1] layout SDPA expects. A wrong target shape would misroute the per-head values.
+    auto sdpa = find_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_EQ(sdpa->get_input_size(), 6u);
+    auto sink_reshape = as_type_ptr<op::v1::Reshape>(sdpa->get_input_node_shared_ptr(5));
+    ASSERT_NE(sink_reshape, nullptr) << "head_sink sink must be a Reshape of the head_sink input";
+    auto shape_const = as_type_ptr<op::v0::Constant>(sink_reshape->get_input_node_shared_ptr(1));
+    ASSERT_NE(shape_const, nullptr);
+    EXPECT_EQ(shape_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, -1, 1, 1}));
 }
