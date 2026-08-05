@@ -243,14 +243,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     }
 }
 
-std::optional<ov::log::Level> read_log_level(const ov::AnyMap& properties) {
-    const auto it = properties.find(ov::log::level.name());
-    if (it == properties.end()) {
-        return std::nullopt;
-    }
-    return it->second.as<ov::log::Level>();
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -310,7 +302,7 @@ bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& ar
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    LogLevelScope logScope(properties, _logger);
+    update_log_level(properties);
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -566,7 +558,7 @@ bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
-    LogLevelScope logScope(properties, _logger);
+    update_log_level(properties);
 
     _logger.debug("Importing a compiled model from the given stream");
 
@@ -606,7 +598,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
-    LogLevelScope logScope(properties, _logger);
+    update_log_level(properties);
 
     _logger.debug("Importing a compiled model from the given tensor");
 
@@ -694,7 +686,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    LogLevelScope logScope(properties, _logger);
+    update_log_level(properties);
 
     auto localProperties = properties;
 
@@ -733,33 +725,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-Plugin::LogLevelScope::LogLevelScope(const ov::AnyMap& props, Logger& instanceLogger)
-    : _instanceLogger(instanceLogger) {
-    const auto lvl = read_log_level(props);
-    if (!lvl) {
-        return;
-    }
-    _prevGlobal = Logger::global().level();
-    _prevInstance = _instanceLogger.level();
-    Logger::global().setLevel(*lvl);
-    _instanceLogger.setLevel(*lvl);
-}
-
-Plugin::LogLevelScope::~LogLevelScope() {
-    if (!_prevGlobal) {
-        return;
-    }
-    Logger::global().setLevel(*_prevGlobal);
-    _instanceLogger.setLevel(*_prevInstance);
-}
-
 void Plugin::update_log_level(const ov::AnyMap& properties) const {
-    const auto lvl = read_log_level(properties);
-    if (!lvl) {
-        return;
+    if (properties.count(ov::log::level.name()) != 0) {
+        Logger::global().setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
+        _logger.setLevel(properties.at(ov::log::level.name()).as<ov::log::Level>());
     }
-    Logger::global().setLevel(*lvl);
-    _logger.setLevel(*lvl);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
