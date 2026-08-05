@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -269,23 +270,31 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
 
 TEST(GroupQueryAttentionOpValidation, rejects_sliding_window_cache_without_window) {
     // sliding_window_cache requires a real window (local_window_size >= 1).
-    EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ -1, /*swc*/ true), ov::NodeValidationFailure);
+    OV_EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ -1, /*swc*/ true),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("sliding_window_cache requires local_window_size"));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_local_window_size_zero) {
     // 0 is an empty attention (every query masks all keys) and is not a valid config.
-    EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ 0, /*swc*/ false), ov::NodeValidationFailure);
+    OV_EXPECT_THROW(make_gqa_op(1, 1, 8, /*window*/ 0, /*swc*/ false),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("local_window_size must be -1"));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_static_multi_token_windowed_cache) {
     // A statically-known sequence_length > 1 with a windowed cache may cross an eviction at runtime
     // (the unmodeled staging regime), so it is rejected up front.
-    EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true), ov::NodeValidationFailure);
+    OV_EXPECT_THROW(make_gqa_op(1, /*seq*/ 4, 8, /*window*/ 2, /*swc*/ true),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("single-token decode"));
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_static_batch_greater_than_one) {
     // The decomposition uses a scalar past length and assumes batch == 1.
-    EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false), ov::NodeValidationFailure);
+    OV_EXPECT_THROW(make_gqa_op(/*batch*/ 2, 1, 8, /*window*/ -1, /*swc*/ false),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("batch_size == 1"));
 }
 
 TEST(GroupQueryAttentionOpValidation, allows_dynamic_sequence_with_windowed_cache) {

@@ -358,7 +358,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
-    const bool has_window = local_window_size >= 0;
+    // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
+    const bool has_window = local_window_size >= 1;
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
