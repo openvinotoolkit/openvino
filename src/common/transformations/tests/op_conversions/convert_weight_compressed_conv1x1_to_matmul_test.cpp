@@ -355,16 +355,16 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x
 
     {
         // input [1, 1, W, Cin] -> Transpose[0,3,1,2] -> conv input [1, Cin, 1, W]
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
-        auto in_transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
-        auto act_node = std::make_shared<ov::opset1::Transpose>(input, in_transpose_const);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
+        auto in_transpose_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto act_node = std::make_shared<ov::op::v1::Transpose>(input, in_transpose_const);
 
-        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin, 1, 1}, {1});
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{Cout, Cin, 1, 1}, {1});
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
-        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1, 1, 1}, {1});
-        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{Cout, 1, 1, 1}, {1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
 
-        auto conv = std::make_shared<ov::opset1::Convolution>(act_node,
+        auto conv = std::make_shared<ov::op::v1::Convolution>(act_node,
                                                               mul,
                                                               ov::Strides{1, 1},
                                                               ov::CoordinateDiff{0, 0},
@@ -372,31 +372,31 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x
                                                               ov::Strides{1, 1},
                                                               ov::op::PadType::EXPLICIT);
         // conv output NCHW [1, Cout, 1, W] -> Reshape to [Cout, W]
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
-        auto reshape = std::make_shared<ov::opset1::Reshape>(conv, reshape_const, false);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(conv, reshape_const, false);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, W, Cin});
 
         // weights squeezed to 2D [Cout, Cin]
-        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin}, {1});
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{Cout, Cin}, {1});
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
-        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1}, {1});
-        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{Cout, 1}, {1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
 
         // activation is used directly (input transpose is absorbed); MatMul(transpose_b=true)
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);  // -> [1, 1, W, Cout] NHWC
 
         // MatMul output is already NHWC [N, H, W, Cout], so a single Transpose [0, 3, 1, 2] restores NCHW
-        auto nhwc_to_nchw_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
-        auto nchw = std::make_shared<ov::opset1::Transpose>(matmul, nhwc_to_nchw_const);  // -> [1, Cout, 1, W]
+        auto nhwc_to_nchw_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto nchw = std::make_shared<ov::op::v1::Transpose>(matmul, nhwc_to_nchw_const);  // -> [1, Cout, 1, W]
 
         // matched Reshape to [Cout, W]
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
-        auto reshape = std::make_shared<ov::opset1::Reshape>(nchw, reshape_const, false);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {Cout, W});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(nchw, reshape_const, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
@@ -417,16 +417,16 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x
 
     {
         // input [1, 1, 1, Cin] -> Transpose[0,3,1,2] -> conv input [1, Cin, 1, 1]
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, Cin});
-        auto in_transpose_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
-        auto act_node = std::make_shared<ov::opset1::Transpose>(input, in_transpose_const);
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, Cin});
+        auto in_transpose_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto act_node = std::make_shared<ov::op::v1::Transpose>(input, in_transpose_const);
 
-        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin, 1, 1}, {1});
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{Cout, Cin, 1, 1}, {1});
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
-        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1, 1, 1}, {1});
-        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{Cout, 1, 1, 1}, {1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
 
-        auto conv = std::make_shared<ov::opset1::Convolution>(act_node,
+        auto conv = std::make_shared<ov::op::v1::Convolution>(act_node,
                                                               mul,
                                                               ov::Strides{1, 1},
                                                               ov::CoordinateDiff{0, 0},
@@ -434,27 +434,27 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ReshapeConsumerSpatial, conv1x
                                                               ov::Strides{1, 1},
                                                               ov::op::PadType::EXPLICIT);
         // conv output NCHW [1, Cout, 1, 1] -> Reshape to [1, Cout]
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, Cout});
-        auto reshape = std::make_shared<ov::opset1::Reshape>(conv, reshape_const, false);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, Cout});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(conv, reshape_const, false);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
 
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, Cin});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, Cin});
 
         // weights squeezed to 2D [Cout, Cin]
-        auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{Cout, Cin}, {1});
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{Cout, Cin}, {1});
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
-        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{Cout, 1}, {1});
-        auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{Cout, 1}, {1});
+        auto mul = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
 
         // activation is used directly (input transpose is absorbed); MatMul(transpose_b=true)
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);  // -> [1, 1, 1, Cout] NHWC
 
         // H*W == 1: the MatMul output feeds the matched Reshape directly, no Reshape/Transpose pair.
-        auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, Cout});
-        auto reshape = std::make_shared<ov::opset1::Reshape>(matmul, reshape_const, false);
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, Cout});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{input});
     }
