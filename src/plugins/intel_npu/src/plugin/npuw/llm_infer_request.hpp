@@ -56,6 +56,17 @@ protected:
     // that a variant switch requires no explicit lincache migration. Called once after
     // m_kvcache_strategy->on_initialize() and is strategy-independent.
     void share_lincache_across_generate_variants();
+
+    // Create prefill variant requests (one per compiled prefill chunk size).
+    void create_prefill_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+
+    // Select the smallest prefill variant that can hold the tail chunk.
+    size_t select_prefill_variant_index(int64_t tail_length);
+
+    // Copy accumulated state into a smaller tail variant and make it active.
+    void prepare_prefill_tail_variant(const std::shared_ptr<ov::IAsyncInferRequest>& tail_req,
+                                      size_t tail_index,
+                                      uint32_t num_stored);
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -119,6 +130,12 @@ protected:
     // Used to propagate dummy tensors to sub-requests on conversation reset, ensuring that
     // sub-requests also release stale block tensor refs.
     std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_generate_base_requests;
+
+    // Multiple prefill requests, ordered by increasing compiled chunk size. The last is the base variant.
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_prefill_requests;
+    std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_prefill_base_requests;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_prefill_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_prefill_variant_out_ports;
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     ov::SoPtr<ov::ITensor> m_logits;
