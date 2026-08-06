@@ -2355,10 +2355,10 @@ TEST_P(ConvertToROPECohereTest, basic) {
         if (use_reshape) {
             // Use Reshape(x, explicit_shape, special_zero=false) instead of Unsqueeze(x, -1).
             // This is what SDPAToPagedAttention produces when the seq dimension becomes 1.
-            neg_x_odd_unsq = makeOP<v1::Reshape>({neg_x_odd, {-1, num_heads, seq_len, head_size / 2, 1}},
-                                                  {{"special_zero", false}});
-            x_even_unsq = makeOP<v1::Reshape>({x_even, {-1, num_heads, seq_len, head_size / 2, 1}},
-                                              {{"special_zero", false}});
+            neg_x_odd_unsq =
+                makeOP<v1::Reshape>({neg_x_odd, {-1, num_heads, seq_len, head_size / 2, 1}}, {{"special_zero", false}});
+            x_even_unsq =
+                makeOP<v1::Reshape>({x_even, {-1, num_heads, seq_len, head_size / 2, 1}}, {{"special_zero", false}});
         } else {
             neg_x_odd_unsq = makeOP<v0::Unsqueeze>({neg_x_odd, -1});
             x_even_unsq = makeOP<v0::Unsqueeze>({x_even, -1});
@@ -2407,5 +2407,4 @@ TEST_P(ConvertToROPECohereTest, basic) {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTestsF,
                          ConvertToROPECohereTest,
-                         ::testing::Combine(::testing::Bool(),
-                                            ::testing::Bool()));
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool()));
