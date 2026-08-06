@@ -66,6 +66,8 @@ class OVDict(Mapping):
         # or alternatively:
         out1, out2, out3, _ = request.infer(inputs).to_tuple()
     """
+    __slots__ = ("_dict", "_names", "__weakref__")
+
     def __init__(self, _dict: dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
         self._names: Optional[dict[ConstOutput, set[str]]] = None
