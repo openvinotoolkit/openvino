@@ -114,7 +114,7 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     auto mod_y = (input.Y().v - pp.poolSize.y) % pp.poolStride.y;
     auto mod_z = (input.Z().v - pp.poolSize.z) % pp.poolStride.z;
 
-    return mod_x || mod_y || mod_z;
+    return (mod_x != 0u) || (mod_y != 0u) || (mod_z != 0u);
 }
 
 bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) const {
@@ -126,13 +126,9 @@ bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& param
         }
     }
 
-    if (!has_fused_quantize_to_int8 &&
+    return !has_fused_quantize_to_int8 &&
         (params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8) &&
-        params.poolType == PoolType::AVG) {
-        return true;
-    }
-
-    return false;
+        params.poolType == PoolType::AVG;
 }
 
 PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_params& params) const {

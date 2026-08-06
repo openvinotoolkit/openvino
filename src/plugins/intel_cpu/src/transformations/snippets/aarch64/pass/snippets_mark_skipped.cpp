@@ -24,6 +24,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/group_conv.hpp"
+#include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -34,10 +35,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/convolution_backprop_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
@@ -258,7 +261,7 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 }
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::op::v0::MatMul>(node) &&
+    return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
@@ -277,6 +280,31 @@ bool isACLInt8PoolingFQChainMarked(const std::shared_ptr<Node>& node) {
 
 bool isACLInt8ConvFQChainMarked(const std::shared_ptr<Node>& node) {
     if (!match_acl_int8_conv_fq_chain(node)) {
+        return false;
+    }
+    // Mark whole FQ -> [Swish] -> Mul -> Add chain as it is fused into the int8 ACL convolution
+    snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    auto mul_parent = node->get_input_node_shared_ptr(0);
+    if (const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(mul_parent)) {
+        snippets::pass::SetSnippetsNodeType(swish, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        mul_parent = swish->get_input_node_shared_ptr(0);
+    }
+
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_parent);
+    if (!mul) {
+        return true;
+    }
+    snippets::pass::SetSnippetsNodeType(mul, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+
+    if (const auto add = ov::as_type_ptr<ov::op::v1::Add>(mul->get_input_node_shared_ptr(0)); add) {
+        snippets::pass::SetSnippetsNodeType(add, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+    }
+    return true;
+}
+
+bool isACLInt8MatMulFQChainMarked(const std::shared_ptr<Node>& node) {
+    if (!match_acl_int8_matmul_fq_chain(node)) {
         return false;
     }
     snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
@@ -308,6 +336,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             continue;
         }
         if (isACLInt8ConvFQChainMarked(node)) {
+            continue;
+        }
+        if (isACLInt8MatMulFQChainMarked(node)) {
             continue;
         }
 #endif

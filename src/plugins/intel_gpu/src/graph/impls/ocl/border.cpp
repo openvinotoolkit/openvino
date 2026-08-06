@@ -31,9 +31,6 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         size_t rank = impl_param.get_input_layout(0).get_rank();
         format pads_format = format::adjust_to_rank(format::bfyx, rank);
 
-        std::vector<int32_t> begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
-        std::vector<int32_t> end(primitive->pads_end.begin(), primitive->pads_end.end());
-
         size_t input_offset = 1;
         if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN)) {
             params.begin_type = kernel_selector::base_params::ArgType::Constant;
@@ -127,7 +124,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> zero_input;
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);

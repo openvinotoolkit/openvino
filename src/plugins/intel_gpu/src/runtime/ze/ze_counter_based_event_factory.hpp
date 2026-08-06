@@ -11,7 +11,7 @@
 namespace cldnn {
 namespace ze {
 
-// Interface for creating l0 counter based events
+// Interface for creating ze counter based events
 // Should only be used with in-order queue
 struct ze_counter_based_event_factory : public ze_base_event_factory {
 public:

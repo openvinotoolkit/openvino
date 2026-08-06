@@ -8,9 +8,11 @@
 
 #include "../llm_compiled_model_utils.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -113,7 +115,8 @@ public:
         for (auto node : model->get_ops()) {
             if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node)) {
                 if (node->inputs().size() > kAttnMaskPort &&
-                    ov::is_type<ov::op::v8::Slice>(node->input(kAttnMaskPort).get_source_output().get_node())) {
+                    (ov::is_type<ov::op::v8::Slice>(node->input(kAttnMaskPort).get_source_output().get_node()) ||
+                     ov::is_type<ov::op::v1::Select>(node->input(kAttnMaskPort).get_source_output().get_node()))) {
                     self_attn_nodes.push_back(node);
                 } else {
                     cross_attn_nodes.push_back(node);
@@ -197,6 +200,12 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::CachePositionInput");
 
     CachePositionInput(std::shared_ptr<ov::Model> model) {
+        // Here the past length is folded into Range's start:
+        //
+        //   Gather ---------------+
+        //          \              +-> Range -> Unsqueeze -> Tile
+        //           -> Add -------+
+        //
         auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto add = opp::wrap_type<ov::op::v1::Add>({gather, opp::any_input()});
         auto range = opp::wrap_type<ov::op::v4::Range>({gather, add, opp::any_input()});
@@ -224,6 +233,241 @@ public:
                 matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
                 return false;
             });
+    }
+};
+
+class CachePositionInput_2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::CachePositionInput_2");
+
+    CachePositionInput_2(std::shared_ptr<ov::Model> model) {
+        // transformers>=5.4 aranges from zero and adds the past length on top of it instead of
+        // folding it into Range's start as CachePositionInput above expects:
+        //
+        //   Range -> Add -> Unsqueeze -> Tile
+        //
+        auto range = opp::wrap_type<ov::op::v4::Range>();
+        auto add = opp::wrap_type<ov::op::v1::Add>({range, opp::any_input()});
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({add, opp::any_input()});
+        auto tile = opp::wrap_type<ov::op::v0::Tile>({unsqueeze, opp::any_input()});
+
+        register_matcher(
+            std::make_shared<opp::Matcher>(tile, this->get_type_info().name),
+            [model, unsqueeze](opp::Matcher& m) {
+                // Both patterns are rooted at Tile and neither claims the node it matched, so
+                // GraphRewrite offers every Tile to both. Exactly one matches per model, but a
+                // second match would add a second parameter named cache_position, of which only
+                // the first would ever be found again.
+                OPENVINO_ASSERT(!ov::npuw::util::has_input(model, "cache_position"),
+                                "More than one subgraph matched a cache position pattern");
+
+                auto& node_to_output = m.get_pattern_value_map();
+                auto unsqueeze_node = node_to_output.at(unsqueeze).get_node_shared_ptr();
+                auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(unsqueeze_node);
+
+                auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+                cache_position->get_output_tensor(0).set_names({"cache_position"});
+                cache_position->set_friendly_name("cache_position");
+                model->add_parameters({cache_position});
+                std::shared_ptr<ov::Node> cache_pos_unsqueeze_arg;
+                if (matched_unsqueeze->input(0).get_element_type() == ov::element::f32) {
+                    cache_pos_unsqueeze_arg = std::make_shared<ov::op::v0::Convert>(cache_position, ov::element::f32);
+                } else {
+                    cache_pos_unsqueeze_arg = cache_position;
+                }
+
+                // cache_position is already absolute, so the matched Add is dropped with the
+                // rest of the replaced subgraph.
+                matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
+                return false;
+            });
+    }
+};
+
+bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
+                                 const ov::Output<ov::Node>& kT,
+                                 const ov::Output<ov::Node>& scale) {
+    const auto& scale_pshape = scale.get_partial_shape();
+    const auto& query_pshape = query.get_partial_shape();
+    if (scale_pshape.is_dynamic() || query_pshape.is_dynamic()) {
+        return false;
+    }
+
+    // According to the ov SDPA specification, the scale input have to be 1d with 1 element
+    // or scalar.
+    if (ov::shape_size(scale_pshape.to_shape()) != 1) {
+        return false;
+    }
+
+    // using the original implementation to calculate the shapes.
+    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
+    auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
+    auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
+    const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
+    if (scaled_attn_pshape.is_static()) {
+        return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
+    }
+    return false;
+}
+
+// FIXME: Whisper Decompose SDPA
+class WhisperScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("WhisperScaledDotProductAttentionDecomposition");
+    WhisperScaledDotProductAttentionDecomposition() {
+        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
+
+        ov::matcher_pass_callback callback = [this, pattern_node](ov::pass::pattern::Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+
+            auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
+                pattern_to_output.at(pattern_node).get_node_shared_ptr());
+
+            if (node == nullptr || transformation_callback(node)) {
+                return false;
+            }
+
+            const std::string& node_name = node->get_friendly_name();
+            if (node_name.find("encoder_attn") == std::string::npos) {
+                // This pass is only for encoder-decoder cross-attention layers
+                return false;
+            }
+
+            auto new_output_node = decompose(node);
+            ov::replace_node(node, new_output_node);
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node,
+                                                              "WhisperScaledDotProductAttentionDecompositionMatcher");
+        register_matcher(m, callback);
+    }
+
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
+        using namespace ov::op;
+        using namespace ov;
+        auto query = node->input_value(0);
+        auto key = node->input_value(1);
+        auto value = node->input_value(2);
+        auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
+        auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
+        auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{}, {-2}));
+        auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{}, {1}));
+        auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
+        auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
+
+        auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
+                                                          const int64_t idx) -> std::shared_ptr<ov::Node> {
+            const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
+            const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
+
+            register_new_node(dim_to_extract_const);
+            return register_new_node(gather);
+        };
+
+        Output<Node> scale;
+        Output<Node> sink;
+        bool has_sink = false;
+        if (node->get_input_size() < 5) {
+            scale = build_extract_dim_subgraph(q_shape, -1);
+            scale = register_new_node<v1::ConvertLike>(scale, query);
+            auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
+            scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
+        } else {
+            scale = node->input_value(4);
+            if (node->get_input_size() == 6) {
+                sink = node->input_value(5);
+                has_sink = true;
+            }
+        }
+
+        auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
+        auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
+        auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
+        k_rank = register_new_node<v0::Squeeze>(k_rank, zero_i);
+        auto minus_inf =
+            register_new_node(v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}))
+                ->output(0);
+        auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
+        auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
+
+        auto transpose_dims =
+            register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
+        auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
+
+        ov::Output<Node> scaled_atten;
+        if (can_move_scale_after_matmul(query, k_transposed, scale)) {
+            auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+            scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
+        } else {
+            auto q_scaled = register_new_node<v1::Multiply>(query, scale);
+            scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+        }
+
+        minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
+
+        if (node->get_causal() || node->get_input_size() > 3) {
+            Output<Node> mask;
+            Output<Node> atten_mask;
+            if (!node->get_causal()) {
+                mask = node->input_value(3);
+
+                // two types of masks are supported. A boolean mask where a value of True indicates that the element
+                // should take part in attention. A float mask of the same type as query, key, value that is added to
+                // the attention score.
+                if (mask.get_element_type() == element::boolean) {
+                    atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
+                } else {
+                    atten_mask = mask;
+                }
+            } else {
+                auto target_s_len = build_extract_dim_subgraph(q_shape, -2);
+                auto source_s_len = build_extract_dim_subgraph(k_shape, -2);
+                auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
+                auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
+                auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);
+                mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
+                auto horizontal_range =
+                    register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
+                horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
+                auto stop = register_new_node<v1::Add>(target_s_len, one_i);
+                auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
+                vertical_range = register_new_node<v0::Unsqueeze>(vertical_range, one_i);
+                auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
+                atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
+            }
+            scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
+        }
+
+        scaled_atten.add_names({"cross_attention_qk_scaled_scores"});
+
+        if (has_sink) {
+            auto minus_two = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-2}));
+            auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+            auto zero_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+            auto one_i = register_new_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+
+            auto q_last_but_one_dim = register_new_node<v1::Subtract>(register_new_node<v0::ShapeOf>(q_shape),
+                                                                      v0::Constant::create(element::i64, Shape{}, {1}));
+            auto sink_target_shape_1 = register_new_node<v8::Slice>(q_shape, zero_i, q_last_but_one_dim, one_i);
+            auto sink_target_shape = register_new_node<v0::Concat>(OutputVector{sink_target_shape_1, one_i}, 0);
+            auto sink_broadcast = register_new_node<v1::Broadcast>(sink, sink_target_shape);
+
+            auto scaled_attn_sink = register_new_node<v0::Concat>(OutputVector{scaled_atten, sink_broadcast}, -1);
+            scaled_atten = register_new_node<v8::Softmax>(scaled_attn_sink, -1);
+
+            auto prev_seq_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+            scaled_atten = register_new_node<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
+        } else {
+            scaled_atten = register_new_node<v8::Softmax>(scaled_atten, -1);
+        }
+
+        auto result = register_new_node<v0::MatMul>(scaled_atten, value);
+        result->set_friendly_name(node->get_friendly_name());
+        copy_runtime_info(node, get_new_nodes());
+        return result;
     }
 };
 
@@ -465,9 +709,52 @@ void add_attention_mask_input(const std::shared_ptr<ov::Model>& model,
 void add_cache_position_input(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<CachePositionInput>(model);
+    rewr.add_matcher<CachePositionInput_2>(model);  // transformers>=5.4
     rewr.run_on_model(model);
 
     ov::pass::Validate().run_on_model(model);
+}
+
+// FIXME: Whisper Decompose SDPA
+void decompose_scaled_dot_product_attention_for_whisper(std::shared_ptr<ov::Model> model) {
+    ov::pass::Manager manager;
+    manager.register_pass<WhisperScaledDotProductAttentionDecomposition>();
+    manager.run_passes(model);
+}
+
+// FIXME: Whisper Decompose SDPA
+size_t add_cross_attention_qk_scaled_scores_outputs_for_whisper(std::shared_ptr<ov::Model> model) {
+    size_t idx = 0;
+    for (auto& op : model->get_ordered_ops()) {
+        if (op->get_type_info().name != std::string("Add")) {
+            continue;
+        }
+
+        bool should_skip_op = true;
+
+        for (const auto& output : op->outputs()) {
+            for (const auto& name : output.get_names()) {
+                if (name.find("cross_attention_qk_scaled_scores") != std::string::npos) {
+                    should_skip_op = false;
+                    break;
+                }
+            }
+
+            // output found, exit outputs loop
+            if (!should_skip_op) {
+                break;
+            }
+        }
+
+        if (should_skip_op) {
+            continue;
+        }
+
+        model->add_output(op->output(0)).set_names({"cross_attention_qk_scaled_scores_" + std::to_string(idx)});
+        idx++;
+    }
+
+    return idx;
 }
 
 #ifdef __GNUC__
@@ -489,6 +776,12 @@ bool ov::npuw::util::PrepareWhisperPrefillModel::run_on_model(const std::shared_
     normalize_output_key_value_names(model);
 
     add_attention_mask_input(model, m_max_prompt_size, m_lhs_seq_size, true);
+
+    // FIXME: Whisper Decompose SDPA
+    if (m_decompose_sdpa) {
+        decompose_scaled_dot_product_attention_for_whisper(model);
+        m_decomposed_layers_size = add_cross_attention_qk_scaled_scores_outputs_for_whisper(model);
+    }
 
     model->validate_nodes_and_infer_types();
 

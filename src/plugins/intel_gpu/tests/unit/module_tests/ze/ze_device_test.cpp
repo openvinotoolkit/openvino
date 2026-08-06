@@ -155,9 +155,9 @@ TEST(ze_devices_test, on_demand_initialization) {
 		auto ze_device = std::dynamic_pointer_cast<ze::ze_device>(device.second);
 		ASSERT_NE(ze_device, nullptr);
 		ASSERT_FALSE(ze_device->is_initialized());
-		ASSERT_EQ(ze_device->get_context(), nullptr);
-		ASSERT_TRUE(ze_device->get_device() != nullptr);
-		ASSERT_TRUE(ze_device->get_driver() != nullptr);
+		ASSERT_EQ(ze_device->get_context().is_empty(), true);
+		ASSERT_TRUE(ze_device->get_device().handle() != nullptr);
+		ASSERT_TRUE(ze_device->get_driver().handle() != nullptr);
 		ASSERT_FALSE(ze_device->get_info().execution_units_count == 0);
 		ASSERT_FALSE(ze_device->get_info().vendor_id == 0);
 	}
@@ -170,8 +170,8 @@ TEST(ze_devices_test, on_demand_initialization) {
 		auto ze_device = std::dynamic_pointer_cast<ze::ze_device>(device.second);
 		ASSERT_NE(ze_device, nullptr);
 		ASSERT_TRUE(ze_device->is_initialized());
-		ASSERT_TRUE(ze_device->get_device() != nullptr);
-		ASSERT_TRUE(ze_device->get_context() != nullptr);
+		ASSERT_TRUE(ze_device->get_device().handle() != nullptr);
+		ASSERT_TRUE(ze_device->get_context().handle() != nullptr);
 	}
 }
 
@@ -187,9 +187,9 @@ TEST(ze_devices_test, user_context_initialization_not_implemented) {
 	auto initialized_device = std::dynamic_pointer_cast<ze::ze_device>(devices.begin()->second);
 	ASSERT_NE(initialized_device, nullptr);
 	auto user_context = initialized_device->get_context();
-	ASSERT_TRUE(user_context != nullptr);
+	ASSERT_TRUE(user_context.handle() != nullptr);
 
-	ASSERT_ANY_THROW(device_detector.get_available_devices(user_context, nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */));
+	ASSERT_ANY_THROW(device_detector.get_available_devices(user_context.handle(), nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */));
 }
 
 TEST(ze_devices_test, user_device_initialization_not_implemented) {
@@ -204,9 +204,9 @@ TEST(ze_devices_test, user_device_initialization_not_implemented) {
 	auto initialized_device = std::dynamic_pointer_cast<ze::ze_device>(devices.begin()->second);
 	ASSERT_NE(initialized_device, nullptr);
 	auto user_device = initialized_device->get_device();
-	ASSERT_TRUE(user_device != nullptr);
+	ASSERT_TRUE(user_device.handle() != nullptr);
 
-	ASSERT_ANY_THROW(device_detector.get_available_devices(nullptr, user_device, 0, std::numeric_limits<int>::max() /* ignore sub-devices */));
+	ASSERT_ANY_THROW(device_detector.get_available_devices(nullptr, user_device.handle(), 0, std::numeric_limits<int>::max() /* ignore sub-devices */));
 }
 
 #endif  // OV_GPU_WITH_ZE_RT

@@ -33,15 +33,15 @@ include(FetchContent)
 
 FetchContent_Declare(
     node-api-headers
-    URL      https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.1.0.tar.gz
-    URL_HASH SHA256=70608bc1e6dddce280285f3462f18a106f687c0720a4b90893e1ecd86e5a8bbf
+    URL      https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.9.0.tar.gz
+    URL_HASH SHA256=071f773bd10479f865f6828b86fe8232d63e255290d9bbb7a0ec487c57310231
 )
 FetchContent_MakeAvailable(node-api-headers)
 
 FetchContent_Declare(
     node-addon-api
-    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v8.0.0.tar.gz
-    URL_HASH SHA256=42424c5206b9d67b41af4fcff5d6e3cb22074168035a03b8467852938a281d47
+    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v8.9.0.tar.gz
+    URL_HASH SHA256=d3c35d47f57461a49826349928da4913cb467d81288549973b7f9335f5d4c001
 )
 FetchContent_MakeAvailable(node-addon-api)
 
@@ -61,6 +61,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/errors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/type_validation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
@@ -80,7 +81,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime::dev openvino::runtime openvino::util ${DELAYIMP_LIB} ${CMAKE_JS_LIB})
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
     # Generate node.lib

@@ -1,0 +1,170 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "scan_with_initializer_output"
+  node {
+    input: "init_state"
+    input: "seq"
+    output: "final_state"
+    output: "scan_out"
+    name: "scan_node"
+    op_type: "Scan"
+    attribute {
+      name: "num_scan_inputs"
+      type: INT
+      i: 1
+    }
+    attribute {
+      name: "body"
+      type: GRAPH
+      g {
+        name: "scan_body"
+        initializer {
+          dims: 1
+          data_type: 1
+          float_data: 7.0
+          name: "leak"
+        }
+        node {
+          input: "state_in"
+          input: "seq_in"
+          output: "state_next"
+          name: "add"
+          op_type: "Add"
+        }
+        node {
+          input: "state_next"
+          output: "state_copy"
+          name: "ident"
+          op_type: "Identity"
+        }
+        input {
+          name: "state_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "seq_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "state_next"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "state_copy"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "leak"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "init_state"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seq"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "final_state"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "scan_out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}

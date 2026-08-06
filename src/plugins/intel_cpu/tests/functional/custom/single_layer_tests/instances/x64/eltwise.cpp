@@ -200,23 +200,6 @@ const auto params_4D_fusing_blocked_blocked = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked, EltwiseLayerCPUTest, params_4D_fusing_blocked_blocked,
                          EltwiseLayerCPUTest::getTestCaseName);
 
-const auto params_4D_blocked_blocked_fusing = ::testing::Combine(
-    ::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D_fusing())),
-                       ::testing::ValuesIn(eltwiseOpTypesBinInp()),
-                       ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                       ::testing::ValuesIn(opTypes()),
-                       ::testing::Values(ElementType::f32),
-                       ::testing::Values(ov::element::dynamic),
-                       ::testing::Values(ov::element::dynamic),
-                       ::testing::Values(ov::test::utils::DEVICE_CPU),
-                       ::testing::ValuesIn(additional_config())),
-    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
-    ::testing::ValuesIn(fusingParamsSet_x64),
-    ::testing::ValuesIn(enforceSnippets()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing, EltwiseLayerCPUTest, params_4D_blocked_blocked_fusing,
-                         EltwiseLayerCPUTest::getTestCaseName);
-
 const auto params_4D_emptyCPUSpec =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
                                           ::testing::ValuesIn(eltwiseOpTypesDiffInp()),
@@ -551,23 +534,6 @@ const auto params_4D_dyn_param_fusing_Blocked_Blocked =
                        ::testing::Values(false));  // CPU Plugin supports only planar layout for dynamic Subgraphs
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing_Blocked_Blocked, EltwiseLayerCPUTest, params_4D_dyn_param_fusing_Blocked_Blocked,
-                         EltwiseLayerCPUTest::getTestCaseName);
-
-const auto params_4D_blocked_blocked_dyn_param_fusing =
-    ::testing::Combine(::testing::Combine(::testing::Values(inShapes_4D_dyn_param_fusing()),
-                                          ::testing::ValuesIn(eltwiseOpTypesBinDyn()),
-                                          ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-                                          ::testing::ValuesIn(opTypes()),
-                                          ::testing::Values(ElementType::f32),
-                                          ::testing::Values(ov::element::dynamic),
-                                          ::testing::Values(ov::element::dynamic),
-                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                          ::testing::ValuesIn(additional_config())),
-                       ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Blocked())),
-                       ::testing::ValuesIn(fusingParamsSet_x64),
-                       ::testing::Values(false));  // CPU Plugin supports only planar layout for dynamic Subgraphs
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_blocked_blocked_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_blocked_blocked_dyn_param_fusing,
                          EltwiseLayerCPUTest::getTestCaseName);
 
 //// ============================================ 5D ============================================

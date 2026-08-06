@@ -7,13 +7,115 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <set>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_context_helpers.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
 #include "snippets/emitter.hpp"
+#include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+
+namespace ov::intel_cpu::riscv64 {
+
+namespace {
+
+constexpr int64_t gpr_size = 8;
+
+int64_t get_vec_slot_size() {
+    return rnd_up(Xbyak_riscv::CPU::getInstance().getVlen() / 8, 16);
+}
+
+std::vector<snippets::Reg> filter_regs(const std::vector<snippets::Reg>& regs, snippets::RegType type) {
+    std::vector<snippets::Reg> filtered;
+    filtered.reserve(regs.size());
+    std::copy_if(regs.begin(), regs.end(), std::back_inserter(filtered), [type](const snippets::Reg& reg) {
+        return reg.type == type;
+    });
+    return filtered;
+}
+
+void validate_supported_regs(const std::vector<snippets::Reg>& regs) {
+    for (const auto& reg : regs) {
+        OPENVINO_ASSERT(reg.type == snippets::RegType::gpr || reg.type == snippets::RegType::vec,
+                        "Unsupported register type in RV64 RegSpill emitter");
+    }
+}
+
+}  // namespace
+
+EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg) {}
+
+EmitABIRegSpills::~EmitABIRegSpills() {
+    OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
+}
+
+void EmitABIRegSpills::store_regs_to_stack(jit_generator_t* h, const std::vector<snippets::Reg>& regs_to_store) {
+    validate_supported_regs(regs_to_store);
+
+    const auto vec_slot_size = get_vec_slot_size();
+    for (const auto& reg : filter_regs(regs_to_store, snippets::RegType::vec)) {
+        utils::sub_sp(*h, vec_slot_size);
+        h->vs1r_v(Xbyak_riscv::VReg(static_cast<int>(reg.idx)), Xbyak_riscv::sp);
+    }
+
+    const auto gpr_regs = filter_regs(regs_to_store, snippets::RegType::gpr);
+    const auto gpr_frame_size = rnd_up(gpr_regs.size() * gpr_size, 16);
+    if (gpr_frame_size > 0) {
+        utils::sub_sp(*h, gpr_frame_size);
+    }
+
+    int32_t offset = 0;
+    for (const auto& reg : gpr_regs) {
+        h->sd(Xbyak_riscv::Reg(static_cast<int>(reg.idx)), Xbyak_riscv::sp, offset);
+        offset += gpr_size;
+    }
+}
+
+void EmitABIRegSpills::load_regs_from_stack(jit_generator_t* h, const std::vector<snippets::Reg>& regs_to_load) {
+    validate_supported_regs(regs_to_load);
+
+    const auto gpr_regs = filter_regs(regs_to_load, snippets::RegType::gpr);
+    int32_t offset = 0;
+    for (const auto& reg : gpr_regs) {
+        h->ld(Xbyak_riscv::Reg(static_cast<int>(reg.idx)), Xbyak_riscv::sp, offset);
+        offset += gpr_size;
+    }
+
+    const auto gpr_frame_size = rnd_up(gpr_regs.size() * gpr_size, 16);
+    if (gpr_frame_size > 0) {
+        utils::add_sp(*h, gpr_frame_size);
+    }
+
+    const auto vec_regs = filter_regs(regs_to_load, snippets::RegType::vec);
+    const auto vec_slot_size = get_vec_slot_size();
+    for (auto it = vec_regs.rbegin(); it != vec_regs.rend(); ++it) {
+        h->vl1re8_v(Xbyak_riscv::VReg(static_cast<int>(it->idx)), Xbyak_riscv::sp);
+        utils::add_sp(*h, vec_slot_size);
+    }
+}
+
+void EmitABIRegSpills::preamble(const std::vector<snippets::Reg>& live_regs) {
+    OPENVINO_ASSERT(spill_status, "Attempt to spill ABI registers twice in a row");
+    m_regs_to_spill = live_regs;
+    store_regs_to_stack(h, m_regs_to_spill);
+    spill_status = false;
+}
+
+void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
+    preamble(std::vector<snippets::Reg>(live_regs.begin(), live_regs.end()));
+}
+
+void EmitABIRegSpills::postamble() {
+    OPENVINO_ASSERT(!spill_status, "Attempt to restore ABI registers that were not spilled");
+    load_regs_from_stack(h, m_regs_to_spill);
+    m_regs_to_spill.clear();
+    spill_status = true;
+}
+
+}  // namespace ov::intel_cpu::riscv64
 
 namespace ov::intel_cpu::riscv64::utils {
 
@@ -68,70 +170,6 @@ Xbyak_riscv::Reg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     }
 
     OPENVINO_THROW("No available auxiliary GPR registers");
-}
-
-std::vector<Xbyak_riscv::Reg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
-    std::vector<Xbyak_riscv::Reg> result;
-    std::vector<size_t> current_used = used_gpr_idxs;
-
-    for (size_t i = 0; i < count; ++i) {
-        auto aux_reg = get_aux_gpr(current_used);
-        result.push_back(aux_reg);
-        current_used.push_back(aux_reg.getIdx());
-    }
-
-    return result;
-}
-
-Xbyak_riscv::Reg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
-                                            const std::vector<size_t>& aux_gpr_idxs,
-                                            std::set<snippets::Reg>& regs_to_spill) {
-    if (!aux_gpr_idxs.empty()) {
-        return Xbyak_riscv::Reg(static_cast<int>(aux_gpr_idxs.front()));
-    }
-
-    // Find an available register and mark it for spilling
-    auto aux_reg = get_aux_gpr(used_gpr_reg_idxs);
-    regs_to_spill.insert({snippets::RegType::gpr, static_cast<size_t>(aux_reg.getIdx())});
-    return aux_reg;
-}
-
-void push_ptr_with_runtime_offset_on_stack(ov::intel_cpu::riscv64::jit_generator_t* h,
-                                           int32_t stack_offset,
-                                           const Xbyak_riscv::Reg& ptr_reg,
-                                           const std::vector<Xbyak_riscv::Reg>& aux_regs,
-                                           size_t runtime_offset) {
-    OPENVINO_ASSERT(aux_regs.size() >= 3, "Need at least 3 auxiliary registers");
-
-    const auto& aux1 = aux_regs[0];
-    const auto& aux2 = aux_regs[1];
-
-    // Load runtime offset from runtime params
-    h->lw(aux1, Xbyak_riscv::a0, static_cast<int32_t>(runtime_offset));
-
-    // Add offset to pointer
-    h->add(aux2, ptr_reg, aux1);
-
-    // Store adjusted pointer to stack
-    h->sw(aux2, Xbyak_riscv::sp, stack_offset);
-}
-
-void push_ptr_with_static_offset_on_stack(ov::intel_cpu::riscv64::jit_generator_t* h,
-                                          int32_t stack_offset,
-                                          const Xbyak_riscv::Reg& ptr_reg,
-                                          const std::vector<Xbyak_riscv::Reg>& aux_regs,
-                                          size_t ptr_offset) {
-    OPENVINO_ASSERT(aux_regs.size() >= 2, "Need at least 2 auxiliary registers");
-
-    if (ptr_offset == 0) {
-        // Direct store without offset
-        h->sw(ptr_reg, Xbyak_riscv::sp, stack_offset);
-    } else {
-        // Add static offset and store
-        const auto& aux = aux_regs[0];
-        h->addi(aux, ptr_reg, static_cast<int32_t>(ptr_offset));
-        h->sw(aux, Xbyak_riscv::sp, stack_offset);
-    }
 }
 
 }  // namespace ov::intel_cpu::riscv64::utils

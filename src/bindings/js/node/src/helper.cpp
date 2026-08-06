@@ -4,10 +4,15 @@
 
 #include "node/include/helper.hpp"
 
+#include <sstream>
+
 #include "node/include/compiled_model.hpp"
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
+#include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -321,6 +326,29 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_m
     return obj;
 }
 
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
+    Napi::Object version_obj = Napi::Object::New(env);
+    version_obj.Set("buildNumber", Napi::String::New(env, version.buildNumber));
+    version_obj.Set("description", Napi::String::New(env, version.description));
+
+    std::ostringstream formatted;
+    formatted << version;
+    const std::string formatted_str{ov::util::rtrim(formatted.str())};
+    const auto to_string_fn = Napi::Function::New(
+        env,
+        [formatted_str](const Napi::CallbackInfo& cb) -> Napi::Value {
+            return Napi::String::New(cb.Env(), formatted_str);
+        },
+        "toString");
+    // toString() is defined as a non-enumerable method so it does not show up
+    // in Object.keys()/spread and keeps the object a pure data shape.
+    version_obj.DefineProperty(
+        Napi::PropertyDescriptor::Value("toString",
+                                        to_string_fn,
+                                        static_cast<napi_property_attributes>(napi_writable | napi_configurable)));
+    return version_obj;
+}
+
 ov::TensorVector parse_input_data(const Napi::Value& input) {
     ov::TensorVector parsed_input;
     if (input.IsArray()) {
@@ -369,17 +397,10 @@ ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
 ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
                           const ov::Shape& shape,
                           const ov::element::Type_t& type) {
-    /* The difference between TypedArray::ArrayBuffer::Data() and e.g. Float32Array::Data() is byteOffset
-    because the TypedArray may have a non-zero `ByteOffset()` into the `ArrayBuffer`. */
-    if (typed_array.ByteOffset() != 0) {
-        OPENVINO_THROW("TypedArray.byteOffset has to be equal to zero.");
-    }
-    auto array_buffer = typed_array.ArrayBuffer();
-    auto tensor = ov::Tensor(type, shape, array_buffer.Data());
-    if (tensor.get_byte_size() != array_buffer.ByteLength()) {
-        OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
-    }
-    return tensor;
+    OPENVINO_ASSERT(typed_array.ByteOffset() == 0,
+                    "TypedArray.byteOffset must be zero for zero-copy tensor construction.");
+    auto impl = std::make_shared<ov::js::TensorImpl>(typed_array.Env(), typed_array, type, shape);
+    return ov::make_tensor(ov::SoPtr<ov::ITensor>{impl, nullptr});
 }
 
 void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {

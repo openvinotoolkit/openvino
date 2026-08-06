@@ -31,11 +31,13 @@
 #include <unordered_set>
 #include <functional>
 #include <utility>
+#include <mutex>
+#include <shared_mutex>
 
 namespace {
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
-    return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
+    return src_et != dst_et && (dst_et != ov::element::boolean || src_et != ov::element::u8);
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
@@ -85,6 +87,34 @@ cldnn::data_types data_type_for_remote_tensor(ov::element::Type t) {
 namespace ov::intel_gpu {
 
 // ----------------------------------------------------------------------------------------------- //
+// -------------- ThreadSafeVariableStateWrapper (see issue #36458) ----------------------------- //
+// ----------------------------------------------------------------------------------------------- //
+
+ThreadSafeVariableStateWrapper::ThreadSafeVariableStateWrapper(
+    std::shared_ptr<ov::IVariableState> state,
+    std::shared_ptr<Graph> graph)
+    : ov::IVariableState(state->get_name())
+    , m_state(std::move(state))
+    , m_graph(std::move(graph)) {}
+
+void ThreadSafeVariableStateWrapper::reset() {
+    // Acquire the same mutex that infer() holds during shape inference
+    // to prevent concurrent modification of variable state layouts.
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->reset();
+}
+
+void ThreadSafeVariableStateWrapper::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    m_state->set_state(state);
+}
+
+ov::SoPtr<ov::ITensor> ThreadSafeVariableStateWrapper::get_state() const {
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+    return m_state->get_state();
+}
+
+// ----------------------------------------------------------------------------------------------- //
 // ---------------------------- OpenVINO API impl ------------------------------------------------ //
 // ----------------------------------------------------------------------------------------------- //
 
@@ -131,7 +161,13 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
     for (const auto& pair : m_variables) {
-        ret.emplace_back(pair.second, nullptr);
+        // Wrap each variable state with a thread-safe proxy that acquires the
+        // graph mutex before reset()/set_state(), preventing concurrent
+        // modification during shape inference on sibling InferRequests.
+        // See: https://github.com/openvinotoolkit/openvino/issues/36458
+        ret.emplace_back(
+            std::make_shared<ThreadSafeVariableStateWrapper>(pair.second, m_graph),
+            nullptr);
     }
     return ret;
 }
@@ -170,14 +206,15 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
         // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
+            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
         }
     };
 
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
     if (is_input) {
-        update_tensors_maps(port_index, m_user_inputs, m_plugin_inputs, tensor);
+        auto inputs = m_user_inputs.write();
+        update_tensors_maps(port_index, *inputs, m_plugin_inputs, tensor);
     } else {
         update_tensors_maps(port_index, m_user_outputs, m_plugin_outputs, tensor);
     }
@@ -209,8 +246,23 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
     bool is_input = port_info.type == ov::ISyncInferRequest::FoundPort::Type::INPUT;
     size_t port_index = port_info.idx;
     if (is_input) {
-        OPENVINO_ASSERT(m_user_inputs.count(port_index) == 1, "[GPU] Input tensor with index ", port_index, " is not found");
-        return { m_user_inputs.at(port_index).ptr, nullptr };
+        std::shared_ptr<ov::ITensor> tensor_ptr;
+        {
+            auto inputs = m_user_inputs.read();
+            auto it = inputs->find(port_index);
+            OPENVINO_ASSERT(it != inputs->end(), "[GPU] Input tensor with index ", port_index, " is not found");
+            tensor_ptr = it->second.ptr;
+        }
+        // Materialize the reserved slot on first access.
+        if (!tensor_ptr) {
+            ensure_input_allocated(port_index);
+            GPU_DEBUG_LOG << "[lazy alloc] input " << port_index
+                          << " shape: " << port.get_partial_shape()
+                          << " allocated at get_tensor" << std::endl;
+            auto inputs = m_user_inputs.read();
+            tensor_ptr = inputs->at(port_index).ptr;
+        }
+        return { tensor_ptr, nullptr };
     } else {
         OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1, "[GPU] Output tensor with index ", port_index, " is not found");
         return { m_user_outputs.at(port_index).ptr, nullptr };
@@ -220,8 +272,17 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = get_compiled_model()->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        if (!is_batched_input(inputs[i]))
+        if (!is_batched_input(inputs[i])) {
+            // Skip not-yet-materialized lazy slots.
+            const bool not_allocated = [&] {
+                auto inputs = m_user_inputs.read();
+                auto it = inputs->find(i);
+                return it != inputs->end() && !it->second.ptr;
+            }();
+            if (not_allocated)
+                continue;
             check_tensor(inputs[i], get_tensor_ptr(inputs[i]));
+        }
     }
     const auto& outputs = get_compiled_model()->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
@@ -266,17 +327,44 @@ void SyncInferRequest::enqueue() {
         size_t port_idx = it.first;
         const auto& port = it.second;
 
-        if (m_batched_tensors.count(port.get_tensor_ptr()) > 0) {
+        const bool is_batched = m_batched_tensors.count(port.get_tensor_ptr()) > 0;
+
+        // Materialize a reserved lazy input slot before inference.
+        if (!is_batched) {
+            bool needs_alloc = false;
+            {
+                auto inputs = m_user_inputs.read();
+                auto uit = inputs->find(port_idx);
+                needs_alloc = uit != inputs->end() && !uit->second.ptr;
+            }
+            if (needs_alloc) {
+                ensure_input_allocated(port_idx);
+                GPU_DEBUG_LOG << "[lazy alloc] input " << port_idx
+                              << " shape: " << port.get_partial_shape()
+                              << " allocated at enqueue" << std::endl;
+            }
+        }
+
+        if (is_batched) {
             auto events = prepare_batched_input(port_idx, port, m_batched_tensors.at(port.get_tensor_ptr()));
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         } else {
             cldnn::primitive_id internal_name = m_graph->input_port_index_to_internal(port_idx)[0];
-            auto events = prepare_input(internal_name, port_idx, port, m_user_inputs.at(port_idx));
+            TensorWrapper user_tensor;
+            {
+                auto inputs = m_user_inputs.read();
+                user_tensor = inputs->at(port_idx);
+            }
+            auto events = prepare_input(internal_name, port_idx, port, user_tensor);
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
 
         if (need_alias_detection) {
-            const auto& wrapper = m_user_inputs.at(port_idx);
+            TensorWrapper wrapper;
+            {
+                auto inputs = m_user_inputs.read();
+                wrapper = inputs->at(port_idx);
+            }
             if (wrapper.ptr && !std::dynamic_pointer_cast<IRemoteTensor>(wrapper.ptr)) {
                 if (auto* p = wrapper.ptr->data()) {
                     input_host_ptrs.insert(p);
@@ -292,7 +380,7 @@ void SyncInferRequest::enqueue() {
     if (!m_output_memory_blocks.empty() && !input_host_ptrs.empty()) {
         auto network = m_graph->get_network();
         for (auto& [idx, block] : m_output_memory_blocks) {
-            if (block->rawPtr() && input_host_ptrs.count(block->rawPtr())) {
+            if ((block->rawPtr() != nullptr) && (input_host_ptrs.count(block->rawPtr()) != 0u)) {
                 block->nextMemory();
                 network->invalidate_ext_block_compute_nodes(m_output_names_map.at(idx));
                 GPU_DEBUG_TRACE_DETAIL << "Output block [" << idx << "]: input aliases output - switching to alternate buffer" << std::endl;
@@ -365,7 +453,7 @@ void SyncInferRequest::wait() {
 
     // wait for completion & collect outputs as requested by the model
     // for in_order_queue, it is enough to call finish only once
-    bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    bool do_sync_per_output = network.get_stream().get_queue_type() != QueueTypes::in_order;
     if (!do_sync_per_output) {
         auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
@@ -651,18 +739,33 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, ov:
     }
 }
 
-void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx) {
-    const auto& shape = port.get_partial_shape();
-    auto element_type = port.get_element_type();
+void SyncInferRequest::ensure_input_allocated(size_t input_idx) const {
+    // Serializes lazy allocation against concurrent get_tensor()/infer().
+    auto inputs = m_user_inputs.write();
+    auto it = inputs->find(input_idx);
+    if (it != inputs->end() && it->second.ptr) {
+        return;  // already materialized
+    }
+    // const_cast: base set_tensor() is non-const.
+    const_cast<SyncInferRequest&>(*this).allocate_input(input_idx, *inputs);
+}
 
-    m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+void SyncInferRequest::allocate_input(size_t input_idx, GuardedMap::map_t& user_inputs) {
+    // Caller passes the already write-locked map. Shape/type come from m_input_ports_map (this
+    // compiled model's own port), not a caller port which may carry a different (un-reshaped) shape.
+    const auto& internal_port = m_input_ports_map.at(input_idx);
+    const auto& shape = internal_port.get_partial_shape();
+    auto element_type = internal_port.get_element_type();
+
+    user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
     if (element_type == ov::element::string) {
         // In case the element type is string and input data is an empty string,
         // it produces the segmentation fault unless the each element of tensor.data is initialized.
-        auto data = m_user_inputs.at(input_idx).ptr->data<std::string>();
-        std::uninitialized_fill_n(data, m_user_inputs.at(input_idx).ptr->get_size(), std::string());
+        auto data = user_inputs.at(input_idx).ptr->data<std::string>();
+        std::uninitialized_fill_n(data, user_inputs.at(input_idx).ptr->get_size(), std::string());
     }
-    ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
+    // Base-qualified to avoid re-entering the input lock; use internal_port to match the allocated shape.
+    ov::ISyncInferRequest::set_tensor(internal_port, user_inputs.at(input_idx).ptr);
 }
 
 void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx) {
@@ -674,10 +777,17 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
 
     // For dynamic outputs with USM host support, create an OutputMemoryBlock
     // that will be plugged into the graph to enable zero-copy output.
-    if (shape.is_dynamic() && can_use_usm_host(m_graph->get_engine(), total_output_bytes)) {
+    auto&& engine = m_graph->get_engine();
+    const auto& device_info = engine.get_device_info();
+    // In the case of dynamic shapes, the total_output_bytes is useless as the actual output size is determined only at runtime.
+    // For dGPUs, using USM Host memory for outputs may lead to performance degradation in some scenarios (see can_use_usm_host impl).
+    // We have to be conservative and enable USM Host memory for dynamic outputs only on iGPUs. 
+    if (cldnn::device_type::integrated_gpu == device_info.dev_type &&
+        shape.is_dynamic() &&
+        can_use_usm_host(engine, total_output_bytes)) {
         auto device_et = convert_to_supported_device_type(element_type);
         if (!is_convert_required(device_et, element_type)) {
-            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(m_graph->get_engine());
+            m_output_memory_blocks[output_idx] = std::make_unique<OutputMemoryBlock>(engine);
         }
     }
 }
@@ -685,13 +795,17 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
 void SyncInferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_inputs");
 
+    auto inputs = m_user_inputs.write();
+    // Reserve up-front to avoid rehashing while the lazy path holds the lock.
+    inputs->reserve(m_input_ports_map.size());
+
     for (const auto& it : m_input_ports_map) {
         size_t input_idx = it.first;
         const auto& port = it.second;
         GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         bool is_nv12_input = false;
-        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
             std::string mem_type = port.get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                      .as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
@@ -700,7 +814,17 @@ void SyncInferRequest::allocate_inputs() {
         }
 
         if (!is_nv12_input) {
-            allocate_input(port, input_idx);
+            const auto& pshape = port.get_partial_shape();
+            const bool can_defer = pshape.is_static() && port.get_element_type() != ov::element::string;
+            if (can_defer) {
+                // Reserve a null slot; materialized lazily or replaced by set_tensor().
+                (*inputs)[input_idx] = { nullptr, TensorOwner::PLUGIN };
+                GPU_DEBUG_LOG << "[lazy alloc] reserved input slot " << input_idx
+                              << " shape: " << pshape << std::endl;
+            } else {
+                // Dynamic/string inputs stay eager.
+                allocate_input(input_idx, *inputs);
+            }
         }
     }
 }

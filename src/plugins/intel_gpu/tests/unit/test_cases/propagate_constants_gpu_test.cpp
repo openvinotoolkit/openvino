@@ -104,7 +104,7 @@ TEST(propagate_constants, permute_1_0_reorder_fc) {
 
     auto outputs = network.execute();
     auto output = outputs.at("fc1").get_memory();
-    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     config_ref.set_property(ov::intel_gpu::optimize_data(false));
@@ -121,7 +121,7 @@ TEST(propagate_constants, permute_1_0_reorder_fc) {
 
     auto outputs_ref = network_ref.execute();
     auto output_ref = outputs_ref.at("fc1").get_memory();
-    cldnn::mem_lock<ov::float16> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ref_ptr(output_ref, get_test_stream());
 
     for (size_t i = 0; i < output_ref_ptr.size(); ++i) {
         ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);

@@ -4,6 +4,8 @@
 
 #include "zero_graph.hpp"
 
+#include "openvino/util/codec_xor.hpp"
+
 namespace {
 const std::vector<ov::AnyMap> configsGraphCompilationTests = {{},
                                                               {ov::cache_dir("test")},
@@ -30,6 +32,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          IsOptionSupported,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfigsTests),
+                                            graphExtVersions),
+                         ZeroGraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         EncryptionCallbacks,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),

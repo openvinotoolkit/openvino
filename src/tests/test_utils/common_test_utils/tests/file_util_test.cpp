@@ -88,33 +88,6 @@ TEST(file_util, path_join) {
     }
 }
 
-TEST(file_util, sanitize_path) {
-    {
-        string path = "../../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "/../tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..";
-        EXPECT_STREQ("", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "workspace/data/tensor.data";
-        EXPECT_STREQ("workspace/data/tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "..\\..\\tensor.data";
-        EXPECT_STREQ("tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-    {
-        string path = "C:\\workspace\\tensor.data";
-        EXPECT_STREQ("workspace\\tensor.data", ov::util::sanitize_path(path).c_str());
-    }
-}
-
 using namespace testing;
 
 class TrimFileTest : public Test {
@@ -676,4 +649,85 @@ TEST_P(FileUtilTestP, create_directories) {
 
     std::filesystem::remove_all(test_dir);
 }
+
+class SanitizePathTest : public ::testing::Test {
+protected:
+    std::filesystem::path base{std::filesystem::temp_directory_path() / "ov_sanitize_test_base"};
+};
+
+TEST_F(SanitizePathTest, valid_nested_relative_path) {
+    const auto result = ov::util::sanitize_path(base, "workspace/data/tensor.data");
+    EXPECT_EQ(result, base / "workspace/data/tensor.data");
+}
+
+TEST_F(SanitizePathTest, invalid_single_dotdot) {
+    EXPECT_THROW(ov::util::sanitize_path(base, ".."), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_dotdot_prefix) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "../tensors_data/tensor.data"), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_absolute_path_outside_base) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "/../tensor.data"), std::runtime_error);
+}
+
+#ifdef _WIN32
+TEST_F(SanitizePathTest, invalid_windows_absolute_path_different_drive) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "C:\\workspace\\tensor.data"), std::runtime_error);
+}
+
+TEST_F(SanitizePathTest, invalid_windows_dotdot_backslash) {
+    EXPECT_THROW(ov::util::sanitize_path(base, "..\\..\\tensor.data"), std::runtime_error);
+}
+#endif
+
+TEST_F(SanitizePathTest, empty_dir_uses_cwd) {
+    const auto result = ov::util::sanitize_path("", "tensors/data.bin");
+    const auto expected = ov::util::get_absolute_file_path(
+        std::filesystem::weakly_canonical(std::filesystem::current_path() / "tensors/data.bin"));
+    EXPECT_EQ(result, expected);
+}
+
+TEST_F(SanitizePathTest, empty_dir_dotdot_still_rejected) {
+    EXPECT_THROW(ov::util::sanitize_path("", ".."), std::runtime_error);
+}
+
+TEST(file_util_get_id_for_file, matches_byte_fold) {
+    // Recompute the id by independently folding the raw path bytes with u64_hash_combine. The id must
+    // match this fold; if get_id_for_file is switched back to std::filesystem::hash_value / std::hash
+    // (ABI-sensitive, crashed across a libstdc++ ABI boundary), it will diverge and this test fails.
+    const auto expected_file_id = [](const std::filesystem::path& path, size_t offset, size_t size) {
+        using unsigned_value_type = std::make_unsigned_t<std::filesystem::path::value_type>;
+        uint64_t path_hash = 0;
+        for (const auto* value = path.c_str(); *value != 0; ++value) {
+            const auto byte = static_cast<uint64_t>(static_cast<unsigned_value_type>(*value));
+            path_hash = ov::util::u64_hash_combine(path_hash, byte);
+        }
+        return ov::util::u64_hash_combine(path_hash, {offset, size});
+    };
+
+    const std::filesystem::path path = "dir/subdir/weights.bin";
+    EXPECT_EQ(ov::util::get_id_for_file(path, 0, 128), expected_file_id(path, 0, 128));
+    EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), expected_file_id(path, 64, 256));
+}
+
+TEST(file_util_get_id_for_file, is_deterministic) {
+    const std::filesystem::path path = "dir/subdir/model.bin";
+    // Same inputs -> same id (used as a weight-sharing cache key).
+    EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(path, 64, 256));
+    // Rebuilding the path from its native string must not change the id (id is over the path bytes).
+    const std::filesystem::path same_path{path.native()};
+    EXPECT_EQ(ov::util::get_id_for_file(path, 64, 256), ov::util::get_id_for_file(same_path, 64, 256));
+}
+
+TEST(file_util_get_id_for_file, distinguishes_path_offset_and_size) {
+    const std::filesystem::path path_a = "weights_a.bin";
+    const std::filesystem::path path_b = "weights_b.bin";
+    const auto base = ov::util::get_id_for_file(path_a, 0, 128);
+    EXPECT_NE(base, ov::util::get_id_for_file(path_b, 0, 128));  // different path
+    EXPECT_NE(base, ov::util::get_id_for_file(path_a, 1, 128));  // different offset
+    EXPECT_NE(base, ov::util::get_id_for_file(path_a, 0, 129));  // different size
+}
+
 }  // namespace ov::test

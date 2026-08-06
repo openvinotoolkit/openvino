@@ -17,7 +17,7 @@ It is nothing special... :) First, make sure that all prerequisites are met and 
 
 Code snippets and detailed explanations can be found here:
 
-[Examples of OpenVINO™ Python API code](./code_example.md)
+[Examples of OpenVINO™ Python API code](./code_examples.md)
 
 ### Always test out our code! Don't forget about it before pushing and triggering CIs.
 

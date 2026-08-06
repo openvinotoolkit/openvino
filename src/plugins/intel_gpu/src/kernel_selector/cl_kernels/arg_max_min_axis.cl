@@ -383,7 +383,7 @@ KERNEL(arg_max_min_modified)(
         const uint counter_offset = counter_size * OPERATION_NUM;
         __global uint* merge_counter = OFFSET_GLOBAL_PTR(uint, tmp_buffer1, output_idx * counter_size);
         __global uint* max_merge_counter = OFFSET_GLOBAL_PTR(uint, tmp_buffer1, counter_offset + output_idx * counter_size);
-        __global bool* subgroup_done = OFFSET_GLOBAL_PTR(bool, tmp_buffer2, output_idx);
+        __global bool* subgroup_done = OFFSET_GLOBAL_PTR(bool, tmp_buffer2, output_idx * group_num);
     #else
         uint merge_counter[group_num];
         uint max_merge_counter[group_num];

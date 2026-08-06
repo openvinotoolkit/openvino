@@ -32,10 +32,7 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
         for (size_t i = 0; i < shape.size(); i++)
             dynamic_dims += shape[i].is_dynamic() ? 1 : 0;
 
-        if (dynamic_dims != 1)
-            return false;
-
-        return true;
+        return dynamic_dims == 1;
     };
 
     auto first_reshape_data = any_input(single_dynamic_dim);
@@ -77,7 +74,7 @@ OptimizeSubsequentReshapes::OptimizeSubsequentReshapes() {
             if (dim.is_dynamic()) {
                 new_pattern.push_back(-1);
             } else {
-                new_pattern.push_back(dim.get_length());
+                new_pattern.push_back(static_cast<int32_t>(dim.get_length()));
             }
         }
 

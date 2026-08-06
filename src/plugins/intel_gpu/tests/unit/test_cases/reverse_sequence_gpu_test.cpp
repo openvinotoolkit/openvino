@@ -44,7 +44,7 @@ void test_fp32_d2_2_ba1_sa0(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
             0.0f, 3.0f, 2.0f, 1.0f
@@ -93,7 +93,7 @@ void test_fp32_d3_3_3_ba0_sa1(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<T> expected_results = {
             3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f, 6.0f, 7.0f, 8.0f,
@@ -143,7 +143,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f,
@@ -189,7 +189,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
@@ -236,7 +236,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             2.0f, 3.0f, 0.0f, 1.0f, 4.0f, 5.0f,
@@ -283,7 +283,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 1.0f, 2.0f, 3.0f, 16.0f, 17.0f,
@@ -328,7 +328,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 3.0f, 2.0f, 1.0f
@@ -370,7 +370,7 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 3.0f, 2.0f, 1.0f
@@ -414,7 +414,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f, 6.0f, 7.0f, 8.0f,
@@ -460,7 +460,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f,
@@ -506,7 +506,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
@@ -553,7 +553,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             2.0f, 3.0f, 0.0f, 1.0f, 4.0f, 5.0f,
@@ -600,7 +600,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     std::vector<float> expected_results = {
             0.0f, 1.0f, 2.0f, 3.0f, 16.0f, 17.0f,

@@ -213,6 +213,8 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::BITWISE_OR;
         case eltwise_mode::bitwise_xor:
             return kernel_selector::eltwise_mode::BITWISE_XOR;
+        case eltwise_mode::atan2:
+            return kernel_selector::eltwise_mode::ATAN2;
         default:
             OPENVINO_ASSERT(false, "Unsupported eltwise mode!");
             return kernel_selector::eltwise_mode::ADD;
@@ -253,7 +255,7 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
+        if (first_pshape[i] != 1 && (first_to_second_only || second_pshape[i] != 1) && first_pshape[i] != second_pshape[i]) {
             return false;
         }
     }

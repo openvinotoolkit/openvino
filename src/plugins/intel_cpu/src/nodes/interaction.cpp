@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -25,19 +24,22 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "node.h"
-#include "nodes/common/cpu_convert.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/debug_capabilities.h"
+#ifdef CPU_DEBUG_CAPS
+#    include "utils/debug_capabilities.h"
+#endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
 #    include <common/utils.hpp>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #    include "openvino/core/type.hpp"
@@ -45,8 +47,10 @@
 #    include "utils/cpu_utils.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -226,7 +230,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         return;
     }
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision != ov::element::f32 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+    if (dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
         dataPrecision = ov::element::bf16;
     } else {
         dataPrecision = ov::element::f32;

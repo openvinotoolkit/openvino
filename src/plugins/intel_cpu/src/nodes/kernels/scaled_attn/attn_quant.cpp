@@ -422,22 +422,27 @@ void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float* params) {
     attn_dequant_kernel<float, ov::element::u8>(src, dst, n, params);
 }
 
-template <typename T>
-static void attn_quant_by_token_typed(const ov::intel_cpu::PlainTensor& cur,
-                                      const ov::intel_cpu::PlainTensor& dst,
-                                      const ov::intel_cpu::PlainTensor& scale_zp,
-                                      size_t L0,
-                                      size_t group_size,
-                                      const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+template <typename SrcT, typename QuantFn>
+static void attn_quant_by_token_impl(const ov::intel_cpu::PlainTensor& cur,
+                                     const ov::intel_cpu::PlainTensor& dst,
+                                     const ov::intel_cpu::PlainTensor& scale_zp,
+                                     size_t L0,
+                                     size_t group_size,
+                                     const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
+                                     QuantFn quant_fn) {
     const auto B = cur.m_dims[0];
     const auto H = cur.m_dims[1];
     const auto L1 = cur.m_dims[2];
     const auto S = cur.m_dims[3];
+    // dst_group_bytes: byte size of one group in dst. For u4: group_size/2. For u8: group_size.
+    const size_t dst_group_bytes = group_size * dst.m_element_size / dst.m_sub_byte_multiplier;
     cpu_parallel->parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         auto* p_szp = scale_zp.ptr<float>(L0 + m, b, h);
+        auto* dst_row = static_cast<uint8_t*>(dst.ptr_v(b, h, L0 + m));
         for (size_t group_id = 0; group_id < S / group_size; group_id++) {
-            quant_u8(cur.ptr<T>(b, h, m, group_id * group_size),
-                     dst.ptr<uint8_t>(b, h, L0 + m, group_id * group_size),
+            const auto* src = cur.ptr<SrcT>(b, h, m, group_id * group_size);
+            quant_fn(src,
+                     dst_row + group_id * dst_group_bytes,
                      group_size,
                      p_szp[group_id * 2],
                      p_szp[group_id * 2 + 1]);
@@ -451,15 +456,34 @@ void attn_quant_by_token(const ov::intel_cpu::PlainTensor& cur,
                          size_t L0,
                          size_t group_size,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const auto prec = cur.get_precision();
-    if (prec == ov::element::f32) {
-        attn_quant_by_token_typed<float>(cur, dst, scale_zp, L0, group_size, cpu_parallel);
-    } else if (prec == ov::element::bf16) {
-        attn_quant_by_token_typed<ov::bfloat16>(cur, dst, scale_zp, L0, group_size, cpu_parallel);
-    } else if (prec == ov::element::f16) {
-        attn_quant_by_token_typed<ov::float16>(cur, dst, scale_zp, L0, group_size, cpu_parallel);
-    } else {
-        OPENVINO_THROW("unsupported src precision ", prec, " in attn_quant_by_token");
+    auto dispatch_src = [&](auto quant_fn) {
+        switch (cur.get_precision()) {
+        case ov::element::f32:
+            attn_quant_by_token_impl<float>(cur, dst, scale_zp, L0, group_size, cpu_parallel, quant_fn);
+            break;
+        case ov::element::bf16:
+            attn_quant_by_token_impl<ov::bfloat16>(cur, dst, scale_zp, L0, group_size, cpu_parallel, quant_fn);
+            break;
+        case ov::element::f16:
+            attn_quant_by_token_impl<ov::float16>(cur, dst, scale_zp, L0, group_size, cpu_parallel, quant_fn);
+            break;
+        default:
+            OPENVINO_THROW("unsupported src precision ", cur.get_precision(), " in attn_quant_by_token");
+        }
+    };
+    switch (dst.get_precision()) {
+    case ov::element::u4:
+        dispatch_src([](const auto* src, void* d, size_t n, float& s, float& z) {
+            quant_u4(src, d, n, s, z);
+        });
+        break;
+    case ov::element::u8:
+        dispatch_src([](const auto* src, void* d, size_t n, float& s, float& z) {
+            quant_u8(src, static_cast<uint8_t*>(d), n, s, z);
+        });
+        break;
+    default:
+        OPENVINO_THROW("unsupported dst precision ", dst.get_precision(), " in attn_quant_by_token");
     }
 }
 

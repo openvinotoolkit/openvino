@@ -87,10 +87,7 @@ bool FullyConnected_bf_tiled_dyn_b::IsBeneficial(const fully_connected_params& p
     auto ofm = weights.OFM().v;
     if (std::min(ifm, ofm) < simd)
         return false;
-    if (!(2 * ifm < ofm || ifm > 2 * ofm))
-        return false;
-
-    return true;
+    return 2 * ifm < ofm || ifm > 2 * ofm;
 }
 
 bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
@@ -165,7 +162,7 @@ bool FullyConnected_bf_tiled_dyn_b::Validate(const Params& params) const {
         auto ofm = weights.OFM().v;
         if (std::min(ifm, ofm) < simd)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (!(2 * ifm < ofm || ifm > 2 * ofm))
+        if (2 * ifm >= ofm && ifm <= 2 * ofm)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
@@ -249,7 +246,7 @@ JitConstants FullyConnected_bf_tiled_dyn_b::GetJitConstants(const fully_connecte
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
         if (scale_group_size % simd == 0)
             add_decompress_scale_post_op = true;

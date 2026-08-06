@@ -2124,7 +2124,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LtxVideo) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_negative) {
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_negative_axis) {
     disable_rt_info_check();
     const int batch = 2;
     const int num_head = 32;
@@ -2133,7 +2133,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_negative) {
     const int half_ndims = ndims / 2;
     using namespace ov;
     {
-        // gpt-oss style RoPE pattern with concat axis = -1
+        // gpt-oss style RoPE pattern with Concat and VariadicSplit using axis = -1 to represent the last dimension.
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
         auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
         auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
@@ -2194,7 +2194,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
     const int half_ndims = ndims / 2;
     using namespace ov;
     {
-        // gpt-oss style RoPE pattern with concat axis = 3 (positive last axis for rank-4 tensor)
+        // gpt-oss style RoPE pattern with Concat using axis = 3 to represent the last dimension.
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
         auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
         auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
@@ -2215,6 +2215,67 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_concat_axis_positive) {
         auto second_ = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
 
         auto result = makeOP<opset1::Concat>({first_, second_}, {{"axis", 3}});
+
+        model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input, t_cos, t_sin});
+    }
+    manager.register_pass<pass::RoPEFusion>();
+    {
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto rope = makeOP<op::internal::RoPE>({input, t_cos, t_sin},
+                                               {{"config.slice_start", 0},
+                                                {"config.slice_stop", 0},
+                                                {"config.input_trans0213", false},
+                                                {"config.output_trans0213", false},
+                                                {"config.is_interleaved", false},
+                                                {"config.rotary_ndims", ndims},
+                                                {"config.cos_sin_ndims", half_ndims},
+                                                {"config.is_chatglm", false},
+                                                {"config.support_2d_rope", false},
+                                                {"config.support_3d_rope", false},
+                                                {"config.is_qwen", false},
+                                                {"config.use_rope_cache", false},
+                                                {"config.is_ltx_video", false},
+                                                {"config.head_cnt", 0},
+                                                {"config.head_size", 0},
+                                                {"config.gather_position_arg_id", 0}});
+
+        model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{input, t_cos, t_sin});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_GPTOSS_split_axis_positive) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_head = 32;
+    const int seq_len = 16;
+    const int ndims = 128;
+    const int half_ndims = ndims / 2;
+    using namespace ov;
+    {
+        // gpt-oss style RoPE pattern with VariadicSplit using axis = 3 to represent the last dimension.
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, num_head, seq_len, ndims});
+        auto t_cos = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+        auto t_sin = std::make_shared<opset1::Parameter>(element::f32, PartialShape{batch, 1, seq_len, half_ndims});
+
+        auto split_lengths = makeConst(element::i64, {2}, std::vector<int64_t>{half_ndims, half_ndims});
+        auto axis_const = makeConst(element::i64, {}, std::vector<int64_t>{3});
+        auto vsplit = makeOP<opset1::VariadicSplit>({input, axis_const, split_lengths});
+
+        // first_ = first_half * cos - second_half * sin
+        auto first_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(0), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto second_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(1), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto neg = makeOP<opset1::Multiply>({second_half_mul_sin, -1.0f}, {{"auto_broadcast", "numpy"}});
+        auto first_ = makeOP<opset1::Add>({first_half_mul_cos, neg}, {{"auto_broadcast", "numpy"}});
+
+        // second_ = second_half * cos + first_half * sin
+        auto second_half_mul_cos = makeOP<opset1::Multiply>({vsplit->output(1), t_cos}, {{"auto_broadcast", "numpy"}});
+        auto first_half_mul_sin = makeOP<opset1::Multiply>({vsplit->output(0), t_sin}, {{"auto_broadcast", "numpy"}});
+        auto second_ = makeOP<opset1::Add>({second_half_mul_cos, first_half_mul_sin}, {{"auto_broadcast", "numpy"}});
+
+        auto result = makeOP<opset1::Concat>({first_, second_}, {{"axis", -1}});
 
         model = std::make_shared<Model>(OutputVector{result}, ParameterVector{input, t_cos, t_sin});
     }

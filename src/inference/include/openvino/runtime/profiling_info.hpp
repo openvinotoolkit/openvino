@@ -62,6 +62,13 @@ struct ProfilingInfo {
      * @brief Node type.
      */
     std::string node_type;
+
+    /**
+     * @brief The node start timestamp, in microseconds, from the backend profiling clock epoch.
+     *
+     * A value of zero indicates an invalid/unavailable timestamp.
+     */
+    std::chrono::microseconds start_time;
 };
 
 }  // namespace ov

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "common/utils.hpp"
 #include "cpu_memory.h"
@@ -14,6 +15,7 @@
 #include "kai/ukernels/matmul/matmul_clamp_f16_f16_f16p/kai_matmul_clamp_f16_f16_f16p_interface.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p16x1b_6x16_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
+#include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp_qsi8cxp_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x16p32x1b_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_x32p16x1b_x32_x32_neon.h"
 
@@ -39,7 +41,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K, size_t row_stride_bytes, size_t col_stride_bytes);
+    void update(size_t N, size_t K, size_t row_stride_bytes, size_t col_stride_bytes, bool is_transposed);
 
     [[nodiscard]] size_t hash() const override {
         return m_hash;
@@ -57,6 +59,9 @@ public:
     [[nodiscard]] size_t get_copy_b_col_stride() const {
         return m_copy_b_col_stride;
     }
+    [[nodiscard]] bool is_transposed() const {
+        return m_is_transposed;
+    }
     [[nodiscard]] static size_t get_N_blk() {
         return m_N_blk;
     }
@@ -72,6 +77,7 @@ private:
     size_t m_K = 0;
     size_t m_copy_b_wei_stride = 0;
     size_t m_copy_b_col_stride = 0;
+    bool m_is_transposed = false;
     size_t m_hash{SIZE_MAX};
 };
 
@@ -107,6 +113,16 @@ struct GemmCopyBCompiledKernelF16 {
         kai_get_dst_offset_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
         kai_get_dst_size_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla,
         kai_run_matmul_clamp_f16_f16_f16p32x1b_6x32_neon_mla};
+};
+
+struct GemmCopyBCompiledKernelI8 {
+    explicit GemmCopyBCompiledKernelI8(size_t N) : scales(N, 1.0F) {}
+
+    static kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel get_selected_ukernel();
+
+    std::shared_ptr<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel> copy_b_ukernel =
+        std::make_shared<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(get_selected_ukernel());
+    const std::vector<float> scales;
 };
 
 class GemmCopyBKaiKernelExecutorBase {
@@ -145,6 +161,21 @@ public:
     void update_kernel(const GemmCopyBKernelKaiConfig& config,
                        std::shared_ptr<GemmCopyBCompiledKernelF16>& kernel) const override final;
     static void execute(const GemmCopyBF16KaiKernelExecutor* executor, void* in0, void* out0);
+
+private:
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                       GemmCopyBKernelKaiConfig& config) const override;
+};
+
+class GemmCopyBI8KaiKernelExecutor
+    : public GemmCopyBKaiKernelExecutorBase,
+      public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernelI8> {
+public:
+    GemmCopyBI8KaiKernelExecutor(GemmCopyBKernelKaiConfig config);
+    void update_kernel(const GemmCopyBKernelKaiConfig& config,
+                       std::shared_ptr<GemmCopyBCompiledKernelI8>& kernel) const override final;
+    static void execute(const GemmCopyBI8KaiKernelExecutor* executor, void* in0, void* out0);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,

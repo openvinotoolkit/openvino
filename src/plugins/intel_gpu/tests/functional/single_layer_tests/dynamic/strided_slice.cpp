@@ -472,3 +472,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_new_axis_3D, StridedSliceLayerRes
                              ::testing::ValuesIn(model_types),
                              ::testing::Values(rest_input_types[0])),
                          StridedSliceLayerGPUTest::getTestCaseName);
+
+const std::vector<InputShape> inputShapesDynamic3D_new_axis_linear = {
+        {{-1, -1, -1},
+         {{ 160, 256, 3 }}},
+};
+const std::vector<StridedSliceParams> params3D_new_axis_linear = {
+        StridedSliceParams{ { 0, 0, 0 }, { 1, 160, 256 }, { 1, 1, 1 }, { 0, 0, 0 }, { 0, 0, 0 },  { 1, 0, 0 },  { },  { } },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_new_axis_3D_linear_order, StridedSliceLayerGPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesDynamic3D_new_axis_linear),
+                             ::testing::ValuesIn(params3D_new_axis_linear),
+                             ::testing::ValuesIn(model_types),
+                             ::testing::Values(rest_input_types[0])),
+                         StridedSliceLayerGPUTest::getTestCaseName);

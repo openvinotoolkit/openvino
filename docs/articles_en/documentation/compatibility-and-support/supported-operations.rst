@@ -141,7 +141,7 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        GlobalMaxPool
        Greater
        GreaterOrEqual
-       GridSample
+       GridSample                                  Only 4D input tensors are supported.
        GroupNormalization
        GRU
        HammingWindow
@@ -211,8 +211,10 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        Reshape
        Resize
        ReverseSequence
+       RMSNormalization
        RNN
        RoiAlign
+       RotaryEmbedding
        Round
        Scan
        ScatterElements
@@ -292,6 +294,8 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        Fused_Conv
        FusedGemm
        FusedMatMul
+       GatherBlockQuantized
+       GroupQueryAttention
        MatMulIntegerToFloat
        MatMulNBits
        Pad

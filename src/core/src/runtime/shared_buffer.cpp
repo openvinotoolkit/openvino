@@ -7,6 +7,7 @@
 #include <memory>
 
 namespace ov {
+
 class SharedBufferDescriptor : public IBufferDescriptor {
 public:
     SharedBufferDescriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer)

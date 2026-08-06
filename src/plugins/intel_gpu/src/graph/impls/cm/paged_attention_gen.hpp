@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 
@@ -84,6 +85,30 @@ inline std::string get_pa_build_options() {
     return " -cmc -Qxcm_register_file_size=" + std::to_string(PA_CM_REGISTER_FILE_SIZE);
 }
 
+// TILE_Q: how many q-tokens each pa_small_q SG packs into the DPAS M dim.
+// Constraint: Q_head_chunk_size * TILE_Q <= 8 (DPAS RepeatCount cap).
+// Default: 2 on xe2/xe3 (satiates DPAS at Q_ROWS=8 for GQA-4), 1 on xe1
+// (register file half as big → wider M spills). Overridable via env
+// OV_GPU_PA_TILE_Q for testing.
+//
+// The caller is responsible for clamping to at most (8 / q_head_chunk_size).
+inline int get_small_q_tile_q_raw(int xe_arch) {
+    int default_val = (xe_arch >= 2) ? 2 : 1;
+    if (const char* env = std::getenv("OV_GPU_PA_TILE_Q")) {
+        int v = std::atoi(env);
+        if (v >= 1 && v <= 8) {
+            default_val = v;
+        }
+    }
+    return default_val;
+}
+
+inline int get_small_q_tile_q(int xe_arch, int q_head_chunk_size) {
+    int tile_q = get_small_q_tile_q_raw(xe_arch);
+    const int max_tile_q = std::max(1, 8 / std::max(1, q_head_chunk_size));
+    return std::min(tile_q, max_tile_q);
+}
+
 #define FIND_DEBUG_ACC 0
 // The block size for KV cache is set to 256 for xattn to achieve better performance.
 // For non-xattn case, it can be set to 16 for compatibility to legacy implementations.
@@ -92,52 +117,93 @@ inline std::string get_pa_build_options() {
 
 constexpr uint32_t SG_M = 4;
 constexpr uint32_t SG_N = 8;
-constexpr size_t WG_SIZE = 16;
 constexpr int STRIDE = 16;
 
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
+enum class MixedRouteMode : uint8_t { MULTI = 0, SPLIT = 1 };
+
+// Subsequences with q_len in (1, SMALL_Q_THRESHOLD] and past_len > 0 are routed
+// to pa_small_q in split-mixed mode. Bound matches the typical EAGLE/draft
+// spec_num = 16 and the Q_head_chunk_size × KV_PARTITION_STEP_NUM register
+// budget that fits the rS tile under -Qxcm_register_file_size.
+constexpr size_t SMALL_Q_THRESHOLD = 16;
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t max_context_len;
-    // below are rt params for decoding
-    size_t num_of_partitions;
-    // cached single-token Q chunking
-    SingleTokenQChunking q_chunking;
-    // below are rt params for xattn
-    size_t block_wg_m;
-    size_t q_block_pad;
-    size_t k_block_pad;
-    size_t q_stride_pad;
-    size_t q_block_pad_merged;
-    size_t N_kq_groups;
-    size_t M;
-    size_t N;
-    size_t K;
-    size_t xattn_block_size;
+    // common runtime state
+    PagedAttentionStage stage;       // Current PA execution stage
+    size_t max_context_len;          // Maximum KV context length in current batch
+    size_t batch_size_in_sequences;  // Number of subsequences in current request
+
+    // single-token/decode path
+    size_t num_of_partitions;                // Number of KV partitions for decode/finalization
+    SingleTokenQChunking q_chunking;         // Cached single-token Q-head chunking parameters
+    size_t single_token_selected_count = 0;  // Number of subsequences routed to single-token kernel
+
+    // multi-token dispatch size
+    size_t multi_token_wg_count = 0;  // Number of WGs required by pa_multi_token
+
+    // small-q decode path (q_len > 1 spec-decoding subsequences)
+    size_t small_q_token_count = 0;  // Total (subseq, q-token) pairs routed to pa_small_q
+    size_t small_q_tile_count = 0;   // Number of SG tiles = ceil_div(small_q_token_count, TILE_Q)
+    int small_q_tile_q = 1;          // TILE_Q value chosen at JIT time (must match kernel)
+    size_t small_q_max_kv_len = 0;   // Max kv_len across small-q subsequences (for partition count)
+
+    // xattention runtime state
+    bool enable_xattn_estimation = false;  // Whether xattn estimate stages are enabled
+    size_t xattn_block_size = 1;           // Selected xattn sparse block size (1/128/256)
+    size_t xattn_num_subseqs = 1;          // Number of subsequences participating in xattn path
+
+    // xattention dispatch sizes
+    size_t xattn_gemmqk_wg_count = 0;  // Exact WG count for xattn_gemm_qk
+    size_t xattn_find_wg_count = 0;    // Exact WG count for xattn_find_block
+    size_t xattn_post_wg_count = 0;    // Exact WG count for xattn_post_proc
+
+    // xattention internal buffer sizing
+    size_t xattn_cumul_kq_max_bytes = 0;   // Total bytes for XATTN_GEMMQK_MAX
+    size_t xattn_cumul_exp_sum_bytes = 0;  // Total bytes for XATTN_GEMMQK_EXPSUMS
+    size_t xattn_cumul_mask_elems = 0;     // Total elements for XATTN_BLOCKMASK
+    size_t xattn_cumul_mask_wg_elems = 0;  // Total elements for XATTN_BLOCKMASK_MERGED
+    size_t xattn_meta_num_int32s = 0;      // Total int32 count in XATTN_SUBSEQ_META
 };
 
 enum PagedAttentionInternBuffIdx {
-    // for decoding kernels
-    DECODE_PARTITIONOUT = 0,  // 0: intermediate partition output
-    DECODE_EXPSUMS = 1,       // 1: softmax exp_sums
-    // for xattn kernels
-    XATTN_GEMMQK_MAX = 2,        // 2: kq_max_wg
-    XATTN_GEMMQK_EXPSUMS = 3,    // 3: kq_exp_partial_sum
-    XATTN_BLOCKMASK = 4,         // 4: sparse_block_mask
-    XATTN_BLOCKMASK_MERGED = 5,  // 5: sparse_block_mask_wg
+    // Decode scratch buffers used by generate path and split-mixed single-token path.
+    DECODE_PARTITIONOUT = 0,  // 0: f32 partial attention outputs before final reduction
+    DECODE_EXPSUMS = 1,       // 1: f32 softmax exp-sum accumulators for partition reduction
+
+    // Routing scratch buffers used to map subsequences onto decode/multi-token kernels.
+    MULTI_TOKEN_WG_MAPPING = 2,         // 2: i32 pairs [block_start_pos, subsequence_id]
+    SINGLE_TOKEN_SELECTED_SEQ_IDS = 3,  // 3: i32 subsequence ids selected for single-token dispatch
+
+    // XAttention estimate scratch buffers for multi-token sparse-attention path.
+    XATTN_GEMMQK_MAX = 4,        // 4: f32 max logits per GEMM-QK work-group tile
+    XATTN_GEMMQK_EXPSUMS = 5,    // 5: f32 partial exp-sums produced by GEMM-QK stage
+    XATTN_BLOCKMASK = 6,         // 6: boolean sparse block mask per q-block / k-block pair
+    XATTN_BLOCKMASK_MERGED = 7,  // 7: boolean sparse block mask after q-block merge in post-proc
+    XATTN_SUBSEQ_META = 8,       // 8: i32 per-subsequence metadata table (16 entries per subsequence)
+    XATTN_FIND_WG_MAP = 9,       // 9: i32 pairs [subseq_id, q_block_idx] for find-block dispatch
+    XATTN_POST_WG_MAP = 10,      // 10: i32 pairs [subseq_id, merged_q_block_idx] for post-proc dispatch
 #if FIND_DEBUG_ACC
-    XATTN_FIND_DEBUG_ACC = 6,  // 6: kq_sum for debug purpose only
+    XATTN_FIND_DEBUG_ACC = 11,  // 11: f16 debug-only KQ accumulation buffer
+    SMALL_Q_PARTITIONOUT = 12,
+    SMALL_Q_EXPSUMS = 13,
+    SMALL_Q_SELECTED_MAPPING = 14,
+#else
+    // Small-q decode scratch buffers (q_len > 1 spec-decoding path).
+    SMALL_Q_PARTITIONOUT = 11,      // f32 partial outputs indexed by (sel_idx, head, partition, head_size)
+    SMALL_Q_EXPSUMS = 12,           // f32 lse per (sel_idx, head, partition)
+    SMALL_Q_SELECTED_MAPPING = 13,  // triples (orig_seq_idx, q_start, valid_count)
 #endif
 };
 
 //-----------------------------------------------------------------------------------------------------------------
 // Helpers of XAttention
 //-----------------------------------------------------------------------------------------------------------------
-int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size);
+// Stage/context helpers shared across CM paged-attention implementation units.
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param);
 size_t get_max_context_len(const kernel_impl_params& params);
-size_t get_past_len(const kernel_impl_params& params, const size_t seq_idx);
+size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
 
+// XAttention policy helpers.
 float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
 bool bypass_xattn(const kernel_impl_params& impl_param);
 
@@ -156,10 +222,15 @@ public:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+private:
+    static size_t get_kv_update_wg_size(const RuntimeParams& params);
 };
 
 class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
+    static constexpr size_t _wg_size = 16;
+
     explicit PagedAttentionGeneratorMultiToken(size_t xattn_block_size = 1)
         : PagedAttentionGeneratorBase("pa_multi_token", "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
@@ -174,7 +245,13 @@ public:
     }
 
     static size_t get_wg_seq_len(const kernel_impl_params& params) {
-        return WG_SIZE * get_q_step(params);
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto xe_arch = params.get_device_info().arch < gpu_arch::xe2 ? 1 : 2;
+        if (desc->k_head_size == 256 && xe_arch >= 2) {
+            constexpr size_t num_team = 8;
+            return num_team * get_q_step(params);
+        }
+        return _wg_size * get_q_step(params);
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
@@ -211,6 +288,31 @@ public:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 };
 
+// Small-q decode kernel for q_len > 1 subsequences. GWS fans the (subseq, q-token,
+// kv-partition, head-chunk) combinations out one per SG; reuses pa_single_token's
+// per-partition FA layout but indexes everything by a packed sel_idx.
+class PagedAttentionGeneratorSmallQ : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorSmallQ() : PagedAttentionGeneratorBase("pa_small_q") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+
+    // Reuse single-token's partition-size policy: spec windows are short relative
+    // to past KV, so the large 256-token partition still amortises K/V loads well.
+    static size_t get_partition_size(const bool has_xattention = false) {
+        return PagedAttentionGeneratorSingleToken::get_partition_size(has_xattention);
+    }
+};
+
+class PagedAttentionGeneratorSmallQFinalization : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorSmallQFinalization() : PagedAttentionGeneratorBase("pa_small_q_finalization") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
+};
+
 //-----------------------------------------------------------------------------------------------------------------
 // XAttention Estimate generators
 //-----------------------------------------------------------------------------------------------------------------
@@ -233,6 +335,12 @@ public:
 
     static uint32_t get_block_wg_n(const kernel_impl_params& params) {
         return get_block_sg_n(params) * SG_N;
+    }
+
+    // XAttention metadata is built at WG-level Q-tile granularity, ignoring the
+    // head_size=256 worker subdivision used inside the multi-token kernel.
+    static size_t get_wg_seq_len(const kernel_impl_params& params) {
+        return PagedAttentionGeneratorMultiToken::_wg_size * PagedAttentionGeneratorMultiToken::get_q_step(params);
     }
 
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {

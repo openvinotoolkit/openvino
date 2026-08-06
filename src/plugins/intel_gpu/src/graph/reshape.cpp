@@ -102,7 +102,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     padding::DynamicDimsMask ret_update_pad_mask;
     OPENVINO_ASSERT(update_pad_mask.size() <= ret_update_pad_mask.size(), "invalid update_pad_mask.size().");
     for (size_t i = 0; i < update_pad_mask.size(); i++) {
-        ret_update_pad_mask[i] = update_pad_mask[i];
+        ret_update_pad_mask[i] = (update_pad_mask[i] != 0);
     }
     return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
@@ -121,7 +121,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
-    uint32_t shape_count = 1;
+    int64_t shape_count = 1;
 
     for (size_t i = 0; i < sizes.size(); i++) {
         if (sizes[i] == -1) {
@@ -137,7 +137,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         shape_count *= sizes[i];
     }
     if (need_recalc)
-        sizes[need_recalc] = static_cast<int>(input_layout.count()) / shape_count;
+        sizes[need_recalc] = static_cast<int64_t>(input_layout.count()) / shape_count;
 
     return layout{input_layout.data_type, input_layout.format, tensor(sizes)};
 }
@@ -185,7 +185,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
             case reshape::reshape_mode::base: {
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
                 // If the reshape is base mode, it is currently not set as can_be_optimized at prepare_buffer_fusing.
                 // So we can just run the reshape kernel
@@ -195,14 +195,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
             }
             case reshape::reshape_mode::squeeze: {
                 ov::op::v0::Squeeze op;
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = shape_infer(&op, input_shapes, ta);
                 out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
                 break;
             }
             case reshape::reshape_mode::unsqueeze: {
                 ov::op::v0::Unsqueeze op;
-                op.set_friendly_name(prim->id.c_str());
+                op.set_friendly_name(prim->id);
                 output_shapes = shape_infer(&op, input_shapes, ta);
                 out_pad = propagate_padding(input_layout, output_shapes[0], prim->mode, ta);
                 break;
@@ -289,7 +289,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
 }
 
 reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
-        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+        parent(network, node, !node.can_be_optimized() && node.get_output_layout().is_static()) {
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
@@ -316,7 +316,7 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             update_output_memory();
         }
     } else {
-        if (_exec_deps.size() > 0 && input_memory_ptr())
+        if (!_exec_deps.empty() && input_memory_ptr())
             update_output_memory();
     }
 }
@@ -334,9 +334,8 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
-    if (get_node().get_program().is_new_shape_infer() && input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr)
         return;
-    OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

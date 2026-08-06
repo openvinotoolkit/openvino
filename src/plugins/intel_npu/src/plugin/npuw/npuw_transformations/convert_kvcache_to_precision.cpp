@@ -79,7 +79,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
         // TODO: int4 precision for value-cache lead to compilation failure for now
         value_storage_type = ov::element::i8;
     }
-
     ov::preprocess::PrePostProcessor ppp(model);
 
     for (const auto& tensor : model->inputs()) {
@@ -112,7 +111,6 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_low_precision(const std::shared_ptr<ov
                                                               << " on model[" << model->get_friendly_name() << "]");
         ov::npuw::run_kv_cache_dynamic_quantization_passes(new_model, dq_params);
     }
-
     return new_model;
 }
 

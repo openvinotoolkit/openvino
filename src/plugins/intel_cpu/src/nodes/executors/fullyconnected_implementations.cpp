@@ -6,7 +6,6 @@
 #include <optional>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
@@ -29,6 +28,7 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -63,13 +63,6 @@ using LayoutConfig = std::vector<LayoutType>;
 static const LayoutConfig dnnlFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 static const LayoutConfig aclFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 
-template <dnnl::impl::cpu::x64::cpu_isa_t ISA>
-struct Require {
-    bool operator()() {
-        return dnnl::impl::cpu::x64::mayiuse(ISA);
-    }
-};
-
 // clang-format off
 static const TypeMapping dnnlFCTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
@@ -92,7 +85,7 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_u8 | _i8, _i8, _any, _any}, {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights (@todo more strict requrements for output precision?)
     {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1 | _u2, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()},
-     Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
+     []() { return ov::with_cpu_x86_bfloat16(); }}, // Ticket 122347
     {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {just<f32>(), bypass(), just<f32>(), just<f32>()}},
     {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1 | _u2, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
@@ -108,6 +101,8 @@ static const TypeMapping aclFCTypeMapping {
 
 static const TypeMapping aclLowpFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
+    {{_u8, _i8, _i32 | _dynamic, _u8},             {bypass(), bypass(), bypass(),  bypass()}},
+    {{_i8, _i8, _i32 | _dynamic, _i8},             {bypass(), bypass(), bypass(),  bypass()}},
     {{_u8 | _i8, _i8, _any, _f32},                 {bypass(), bypass(), use<3>(), bypass()}}
 };
 
@@ -226,7 +221,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     return wrapped.offset0();
                 };
 
-                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+                VERIFY(ov::with_cpu_x86_avx512_core(), UNSUPPORTED_ISA);
                 VERIFY(srcType(config) == ov::element::f32, UNSUPPORTED_SRC_PRECISIONS);
                 // disable rank=4:
                 // if layout is nhwc:

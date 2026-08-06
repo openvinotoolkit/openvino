@@ -114,7 +114,7 @@ TEST(type_prop, gated_delta_net_invalid_type) {
                     testing::HasSubstr("Element type of `query` input should be in"));
 }
 
-TEST(type_prop, gated_delta_net_head_num_mismatch_qkv) {
+TEST(type_prop, gated_delta_net_head_num_mismatch_qk) {
     OV_EXPECT_THROW(std::ignore = make_gdn(element::f32,
                                            Shape{2, 5, 4, 8},
                                            Shape{2, 5, 6, 8},
@@ -123,7 +123,7 @@ TEST(type_prop, gated_delta_net_head_num_mismatch_qkv) {
                                            Shape{2, 5, 4},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    testing::HasSubstr("The number of heads in query key and value should be the same"));
+                    testing::HasSubstr("The number of heads in query and key should be the same"));
 }
 
 TEST(type_prop, gated_delta_net_head_size_mismatch_qk) {
@@ -147,7 +147,23 @@ TEST(type_prop, gated_delta_net_gate_beta_head_num_mismatch) {
                                            Shape{2, 5, 6},
                                            Shape{2, 5, 4}),
                     NodeValidationFailure,
-                    testing::HasSubstr("The number of heads in gate, beta, and query should be the same"));
+                    testing::HasSubstr("The number of heads in gate, beta, and value should be the same"));
+}
+
+TEST(type_prop, gated_delta_net_gqa_v_num_heads_greater_than_num_heads) {
+    // GQA: query/key have 4 heads, value/gate/beta/state have 8 heads
+    const auto op = make_gdn(element::f32,
+                             Shape{2, 5, 4, 8},
+                             Shape{2, 5, 4, 8},
+                             Shape{2, 5, 8, 16},
+                             Shape{2, 8, 8, 16},
+                             Shape{2, 5, 8},
+                             Shape{2, 5, 8});
+
+    EXPECT_EQ(op->get_output_size(), 2);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{2, 5, 8, 16}));
+    EXPECT_EQ(op->get_output_partial_shape(1), PartialShape(Shape{2, 8, 8, 16}));
 }
 
 TEST(type_prop, gated_delta_net_state_shape_mismatch) {

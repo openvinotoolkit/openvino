@@ -54,11 +54,11 @@ protected:
     bool evaluate_node(const std::shared_ptr<Node>& node,
                        ov::TensorVector& outputs,
                        const ov::TensorVector& inputs) const;
-    bool m_is_compiled = false;
-    std::shared_ptr<ov::Model> m_model;
+    bool m_is_compiled{};
+    std::shared_ptr<ov::Model> m_model{};
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::atomic_bool m_cancel_execution{false};
-    std::mutex m_mutex;
+    std::atomic_bool m_cancel_execution{};
+    std::mutex m_mutex{};
 
     struct InfoForNMS5 {
         int64_t max_output_boxes_per_class;

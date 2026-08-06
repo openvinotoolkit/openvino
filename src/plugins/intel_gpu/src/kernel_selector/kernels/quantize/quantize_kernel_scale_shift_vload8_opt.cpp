@@ -49,7 +49,7 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
 
     auto can_use_output_range = params.per_tensor_output_range && params.out_lo < params.out_hi;
     auto has_output_range_round =
-        !(params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8);
+        params.outputs[0].GetDType() != Datatype::INT8 && params.outputs[0].GetDType() != Datatype::UINT8;
 
     jit.AddConstant(MakeJitConstant("HAS_POST_SCALE", params.has_post_scale));
     jit.AddConstant(MakeJitConstant("HAS_POST_SHIFT", params.has_post_shift));

@@ -127,6 +127,37 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     return cache.at(device);
 }
 
+static bool parse_driver_version(const std::string& driver_version, size_t num_components, std::vector<int>& components) {
+    components.assign(num_components, 0);
+    const char* first = driver_version.data();
+    const char* last = driver_version.data() + driver_version.size();
+    for (size_t i = 0; i < num_components; i++) {
+        auto [ptr, ec] = std::from_chars(first, last, components[i]);
+        if (ec != std::errc())
+            return false;
+        if (i + 1 < num_components) {
+            // Expect a '.' separator before the next component
+            if (ptr == last || *ptr != '.')
+                return false;
+            first = ptr + 1;
+        }
+    }
+    return true;
+}
+
+static bool driver_version_supports_microkernels(const std::string& driver_version) {
+    std::vector<int> v;
+#ifdef _WIN32
+    if (!parse_driver_version(driver_version, 4, v))
+        return false;
+    return std::tie(v[0], v[1], v[2], v[3]) >= std::make_tuple(31, 0, 101, 6987);
+#else
+    if (!parse_driver_version(driver_version, 3, v))
+        return false;
+    return std::tie(v[0], v[1], v[2]) >= std::make_tuple(24, 22, 29735);
+#endif
+}
+
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
 
@@ -135,6 +166,13 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
     static std::map<cldnn::device*, bool> cache;
     if (cache.find(device) != cache.end()) {
         return cache.at(device);
+    }
+
+    // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
+    // known to support microkernels, skip building the igc_check probe kernel.
+    if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
+        cache[device] = true;
+        return true;
     }
 
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
@@ -204,6 +242,8 @@ bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::Ex
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
+        case cldnn::data_types::u2:
+            return kernel_selector::data_type::UINT2;
         case cldnn::data_types::i4:
             return kernel_selector::data_type::INT4;
         case cldnn::data_types::u4:
@@ -228,6 +268,14 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::F32;
         case cldnn::data_types::bf16:
             return kernel_selector::data_type::BF16;
+        case cldnn::data_types::f4e2m1:
+            return kernel_selector::data_type::F4E2M1;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::data_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::data_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::data_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
@@ -235,6 +283,8 @@ kernel_selector::data_type to_data_type(data_types dt) {
 
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
+        case kernel_selector::data_type::UINT2:
+            return cldnn::data_types::u2;
         case kernel_selector::data_type::INT4:
             return cldnn::data_types::i4;
         case kernel_selector::data_type::UINT4:
@@ -257,6 +307,14 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::f16;
         case kernel_selector::data_type::F32:
             return cldnn::data_types::f32;
+        case kernel_selector::data_type::F4E2M1:
+            return cldnn::data_types::f4e2m1;
+        case kernel_selector::data_type::F8E4M3:
+            return cldnn::data_types::f8e4m3;
+        case kernel_selector::data_type::F8E5M2:
+            return cldnn::data_types::f8e5m2;
+        case kernel_selector::data_type::F8E8M0:
+            return cldnn::data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -264,6 +322,8 @@ data_types from_data_type(kernel_selector::data_type dt) {
 
 kernel_selector::weights_type to_weights_type(data_types dt) {
     switch (dt) {
+        case cldnn::data_types::u2:
+            return kernel_selector::weights_type::UINT2;
         case cldnn::data_types::u4:
             return kernel_selector::weights_type::UINT4;
         case cldnn::data_types::i4:
@@ -280,6 +340,14 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::INT32;
         case cldnn::data_types::bf16:
             return kernel_selector::weights_type::BF16;
+        case cldnn::data_types::f4e2m1:
+            return kernel_selector::weights_type::F4E2M1;
+        case cldnn::data_types::f8e4m3:
+            return kernel_selector::weights_type::F8E4M3;
+        case cldnn::data_types::f8e5m2:
+            return kernel_selector::weights_type::F8E5M2;
+        case cldnn::data_types::f8e8m0:
+            return kernel_selector::weights_type::F8E8M0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
@@ -287,6 +355,8 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
 
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
+        case kernel_selector::weights_type::UINT2:
+            return data_types::u2;
         case kernel_selector::weights_type::INT4:
             return data_types::i4;
         case kernel_selector::weights_type::UINT4:
@@ -301,6 +371,14 @@ data_types from_weights_type(kernel_selector::weights_type dt) {
             return data_types::f32;
         case kernel_selector::weights_type::INT32:
             return data_types::i32;
+        case kernel_selector::weights_type::F4E2M1:
+            return data_types::f4e2m1;
+        case kernel_selector::weights_type::F8E4M3:
+            return data_types::f8e4m3;
+        case kernel_selector::weights_type::F8E5M2:
+            return data_types::f8e5m2;
+        case kernel_selector::weights_type::F8E8M0:
+            return data_types::f8e8m0;
         default:
             OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
     }
@@ -919,7 +997,7 @@ kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
         elm.pitch = pitch;
         elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
         elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
-        elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
+        elm.pad.is_dynamic = (dynamic_pad_dims[tensor_index] != 0);
         elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);
@@ -1062,6 +1140,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
         case cldnn::activation_func::round_half_away_from_zero:
             return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
+        case cldnn::activation_func::erfinv:
+            return kernel_selector::activation_function::ERFINV;
         default:
             throw std::runtime_error("Unknown activation function");
             break;
@@ -1078,8 +1158,8 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
         auto clamp_max = casted->_desc->clamp_max;
         auto swish_beta = casted->_desc->swish_beta;
         auto up_add_val = casted->_desc->up_add_val;
-        return std::make_shared<kernel_selector::swiglu_fuse_params>(axis,
-                                                                     glu_stride,
+        return std::make_shared<kernel_selector::swiglu_fuse_params>(static_cast<int32_t>(axis),
+                                                                     static_cast<size_t>(glu_stride),
                                                                      gate_idx,
                                                                      clamp_min,
                                                                      clamp_max,

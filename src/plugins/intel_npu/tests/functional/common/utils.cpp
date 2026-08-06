@@ -48,65 +48,6 @@ std::string removeDeviceNameOnlyID(const std::string& device_name_id) {
     return std::string(first_digit, last_digit + 1);
 }
 
-std::vector<ov::AnyMap> getRWMandatoryPropertiesValues(std::vector<ov::AnyMap> props) {
-    ov::hint::PerformanceMode performanceModes[] = {ov::hint::PerformanceMode::LATENCY,
-                                                    ov::hint::PerformanceMode::THROUGHPUT,
-                                                    ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT};
-    for (auto& performanceMode : performanceModes) {
-        if (std::find(props.begin(),
-                      props.end(),
-                      ov::AnyMap{{ov::hint::performance_mode.name(), ov::Any(performanceMode)}}) != props.end()) {
-            continue;
-        }
-        props.push_back({{ov::hint::performance_mode(performanceMode)}});
-    }
-
-    if (std::find(props.begin(), props.end(), ov::AnyMap{{ov::hint::num_requests.name(), ov::Any(1)}}) == props.end()) {
-        props.push_back({{ov::hint::num_requests(1)}});
-    }
-
-    ov::hint::ExecutionMode executionModes[] = {ov::hint::ExecutionMode::PERFORMANCE,
-                                                ov::hint::ExecutionMode::ACCURACY};
-    for (auto& executionMode : executionModes) {
-        if (std::find(props.begin(),
-                      props.end(),
-                      ov::AnyMap{{ov::hint::execution_mode.name(), ov::Any(executionMode)}}) != props.end()) {
-            continue;
-        }
-        props.push_back({{ov::hint::execution_mode(executionMode)}});
-    }
-
-    bool enableProfilingValues[] = {true, false};
-    for (auto enableProfilingValue : enableProfilingValues) {
-        if (std::find(props.begin(),
-                      props.end(),
-                      ov::AnyMap{{ov::enable_profiling.name(), ov::Any(enableProfilingValue)}}) != props.end()) {
-            continue;
-        }
-        props.push_back({{ov::enable_profiling(enableProfilingValue)}});
-    }
-
-    ov::log::Level logLevels[] = {ov::log::Level::NO,
-                                  ov::log::Level::ERR,
-                                  ov::log::Level::WARNING,
-                                  ov::log::Level::INFO,
-                                  ov::log::Level::DEBUG,
-                                  ov::log::Level::TRACE};
-    for (auto& logLevel : logLevels) {
-        if (std::find(props.begin(), props.end(), ov::AnyMap{{ov::log::level.name(), ov::Any(logLevel)}}) !=
-            props.end()) {
-            continue;
-        }
-        props.push_back({ov::log::level(logLevel)});
-    }
-
-    if (std::find(props.begin(), props.end(), ov::AnyMap{{ov::streams::num.name(), ov::Any(ov::streams::num(3))}}) !=
-        props.end()) {
-        props.push_back({ov::streams::num(3)});
-    }
-    return props;
-}
-
 std::shared_ptr<ov::Model> createModelWithStates(ov::element::Type type, const ov::Shape& shape) {
     auto input = std::make_shared<ov::op::v0::Parameter>(type, shape);
     auto mem_i1 = std::make_shared<ov::op::v0::Constant>(type, shape, 0);

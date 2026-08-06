@@ -192,11 +192,7 @@ TEST_P(ActivationsScaling, Inference) {
 }
 
 TEST_P(ActivationsScaling, Inference_cached) {
-    std::stringstream ss;
-    ss << "gpu_model_cache_" << std::hash<std::string>{}(
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) +
-          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-    std::string cacheDirName = ss.str();
+    std::string cacheDirName = ov::test::utils::generateTestFilePrefix() + "_gpu_model_cache";
     {
         ov::test::utils::removeFilesWithExt(cacheDirName, "blob");
         ov::test::utils::removeFilesWithExt(cacheDirName, "cl_cache");

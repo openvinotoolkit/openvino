@@ -12,6 +12,7 @@
 #include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
 
+#include <algorithm>
 #include <any>
 #include <cmath>
 #include <cstddef>
@@ -22,7 +23,6 @@
 #include "acl_utils.hpp"
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/convolution_config.hpp"
@@ -50,7 +50,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
     Shape srcShape = srcMemPtr->getShape();
     Shape dstShape = dstMemPtr->getShape();
 
-    const auto with_groups = static_cast<const int>(weiShape.getRank() == srcShape.getRank() + 1);
+    const auto with_groups = static_cast<int>(weiShape.getRank() == srcShape.getRank() + 1);
     const int kh = weiShape.getDims()[with_groups + srcShape.getRank() - 2];
     const int kw = weiShape.getDims()[with_groups + srcShape.getRank() - 1];
     const int oc = dstShape.getDims()[1];
@@ -68,14 +68,14 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                paddingBottom,
                                                arm_compute::DimensionRoundingType::FLOOR);
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
-
-    if (attrs.postOps.size() == 1) {
-        if (const auto* const activation = std::any_cast<ActivationPostOp>(attrs.postOps.data())) {
+    // Instead of checking ==1 ==2 branch, iterate throught the vector
+    for (const auto& postOp : attrs.postOps) {
+        if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                          activation->alpha(),
                                                          activation->beta(),
                                                          activation->gamma());
-        } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(attrs.postOps.data())) {
+        } else if (const auto* const fq = std::any_cast<FakeQuantizePostOp>(&postOp)) {
             fqInputScale = fq->inputScale();
             fqInputShift = fq->inputShift();
             fqOutputScale = fq->outputScale();
@@ -102,42 +102,49 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                 }
             }
 
-            if (fqOutputScale.size() == 1 && fqOutputScale[0] == 1.0F && fqOutputShift.size() == 1 &&
-                fqOutputShift[0] == std::trunc(fqOutputShift[0])) {
-                for (auto& v : fqInputShift) {
-                    v += fqOutputShift[0];
-                }
-                fqOutputShift.clear();
-            }
+            foldFakeQuantizeOutputShift(fqInputShift, fqOutputScale, fqOutputShift);
+            fqOutputShift.clear();
         } else {
             OPENVINO_THROW("ACLConvolutionExecutor: the executor supports FakeQuantize and Activation post ops only");
         }
-    } else if (attrs.postOps.size() > 1) {
-        OPENVINO_THROW("ACLConvolutionExecutor: ACL does not support more than 1 post op");
     }
 }
 
 bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
-    VERIFY(config.attrs.postOps.size() <= 1U, UNSUPPORTED_BY_EXECUTOR);
+    VERIFY(config.attrs.postOps.size() <= 2U, UNSUPPORTED_BY_EXECUTOR);
 
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
 
+    VERIFY(aclSupported({srcDesc, weiDesc, dstDesc}), UNSUPPORTED_ACL_COMMON_PRECONDITION);
+
     // ACL GemmConv2d supports 4D activations and 4D weight only
     VERIFY(srcDesc->getShape().getRank() == 4 && weiDesc->getShape().getRank() == 4, UNSUPPORTED_BY_EXECUTOR);
     // isQuantized verifies whether src is u8/i8, weights is i8 and FQ is fused if dst is u8/i8
     // the last requirement is due to ACL int32 accumulation that needs to be requantized by non-trivial scales
-    const bool hasQuantizationPostOp = std::any_cast<FakeQuantizePostOp>(config.attrs.postOps.data()) != nullptr;
+    const bool hasQuantizationPostOp =
+        std::any_of(config.attrs.postOps.begin(), config.attrs.postOps.end(), [](const std::any& op) {
+            return std::any_cast<FakeQuantizePostOp>(&op) != nullptr;
+        });
     const bool isQuantizedU8 = srcDesc->getPrecision() == ov::element::u8 &&
                                any_of(weiDesc->getPrecision(), ov::element::u8, ov::element::i8) &&
                                dstDesc->getPrecision() == ov::element::u8 && hasQuantizationPostOp;
     const bool isQuantizedI8 = srcDesc->getPrecision() == ov::element::i8 &&
                                weiDesc->getPrecision() == ov::element::i8 &&
                                dstDesc->getPrecision() == ov::element::i8 && hasQuantizationPostOp;
-    VERIFY(isQuantizedU8 || isQuantizedI8, UNSUPPORTED_BY_EXECUTOR);
+    const bool isQuantizedI8DstF32 = srcDesc->getPrecision() == ov::element::i8 &&
+                                     weiDesc->getPrecision() == ov::element::i8 &&
+                                     dstDesc->getPrecision() == ov::element::f32;
+
+    VERIFY(isQuantizedU8 || isQuantizedI8 || isQuantizedI8DstF32, UNSUPPORTED_BY_EXECUTOR);
     if (config.attrs.withBias) {
-        VERIFY(config.descs.at(ARG_BIAS)->getPrecision() == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        const auto biasPrecision = config.descs.at(ARG_BIAS)->getPrecision();
+        if (isQuantizedI8DstF32) {
+            VERIFY(biasPrecision == ov::element::f32, UNSUPPORTED_BIAS_PRECISIONS);
+        } else {
+            VERIFY(biasPrecision == ov::element::i32, UNSUPPORTED_BIAS_PRECISIONS);
+        }
     }
 
     return true;
@@ -150,15 +157,17 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     // - weights: scale is equal to result dequantization scale after Convolution propagated by LPT
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
-    //                shift = input shift
+    //                shift = input shift. Skipped for f32 dst (dequantize-to-float path).
     aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
-    const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
-                                  ? ov::element::i8
-                                  : ov::element::u8;
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
-        getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+    if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
+        const auto dstPrecision = aclMemoryInfos[ACLArgs::ACL_DST]->data_type() == arm_compute::DataType::QASYMM8_SIGNED
+                                      ? ov::element::i8
+                                      : ov::element::u8;
+        aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(
+            getDstQuantizationInfo(fqInputScale, fqInputShift, dstPrecision));
+    }
 
     return arm_compute::NEConvolutionLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                      aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -167,7 +176,9 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
                                                      padStrideInfo,
                                                      weightsInfo,
                                                      dilation,
-                                                     activationLayerInfo);
+                                                     activationLayerInfo,
+                                                     false,  // enable fast math
+                                                     1);     // num_groups
 }
 
 ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemoryTensors) {
@@ -180,7 +191,9 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       padStrideInfo,
                       weightsInfo,
                       dilation,
-                      activationLayerInfo);
+                      activationLayerInfo,
+                      false,  // enable fast math
+                      1);     // num_groups
     return neConv;
 }
 

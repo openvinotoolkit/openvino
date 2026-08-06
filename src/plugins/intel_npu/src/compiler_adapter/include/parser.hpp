@@ -21,8 +21,11 @@ public:
     std::shared_ptr<IGraph> parse(
         const ov::Tensor& mainBlob,
         const FilteredConfig& config,
+        std::variant<std::monostate,
+                     std::shared_ptr<const ov::Model>,
+                     std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
         const std::optional<std::vector<ov::Tensor>>& initBlobs = std::nullopt,
-        std::optional<std::shared_ptr<const ov::Model>>&& model = std::nullopt) const override;
+        const std::optional<std::string>& compatibilityDescriptor = std::nullopt) const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

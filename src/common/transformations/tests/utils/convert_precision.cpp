@@ -77,7 +77,8 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -376,13 +377,13 @@ TEST(TransformationTests, ConvertPrecision_Range_i32_to_i64) {
         auto add = std::make_shared<v1::Add>(reshape, add_const);
         auto res = std::make_shared<v0::Result>(add);
 
-        ov::disable_fp16_compression(start);
-        ov::disable_fp16_compression(reduction_axes);
-        ov::disable_fp16_compression(stop);
-        ov::disable_fp16_compression(step);
-        ov::disable_fp16_compression(range);
-        ov::disable_fp16_compression(add_const);
-        ov::disable_fp16_compression(add);
+        disable_conversion(start, ov::element::f16);
+        disable_conversion(reduction_axes, ov::element::f16);
+        disable_conversion(stop, ov::element::f16);
+        disable_conversion(step, ov::element::f16);
+        disable_conversion(range, ov::element::f16);
+        disable_conversion(add_const, ov::element::f16);
+        disable_conversion(add, ov::element::f16);
 
         model = std::make_shared<Model>(OutputVector{res}, ParameterVector{param});
 
@@ -2436,6 +2437,72 @@ TEST(TransformationTests, ConvertPrecisionExplicitConvertsForParameterAndResult)
 
     const auto& results = model->get_results();
     ASSERT_EQ("sine.0", results[0]->get_input_node_ptr(0)->get_friendly_name());
+}
+
+TEST(TransformationTests, ConvertPrecisionSkipsParameterWithKeepConstPrecision) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto marked_param = std::make_shared<opset10::Parameter>(element::f16, Shape{2, 2});
+        enable_keep_const_precision(marked_param);
+        auto relu = std::make_shared<opset10::Relu>(marked_param);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<Model>(result, ParameterVector{marked_param});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto marked_param = std::make_shared<opset10::Parameter>(element::f16, Shape{2, 2});
+        enable_keep_const_precision(marked_param);
+        auto relu = std::make_shared<opset10::Relu>(marked_param);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model_ref = std::make_shared<Model>(result, ParameterVector{marked_param});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecisionConvertsUnmarkedParameters) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto param = std::make_shared<opset10::Parameter>(element::f16, Shape{2, 2});
+        auto relu = std::make_shared<opset10::Relu>(param);
+        auto result = std::make_shared<opset10::Result>(relu);
+        model = std::make_shared<Model>(result, ParameterVector{param});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = false;
+        bool convert_input_output_precision = false;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision);
+        manager.run_passes(model);
+    }
+
+    {
+        auto param = std::make_shared<opset10::Parameter>(element::f16, Shape{2, 2});
+        auto convert_before = std::make_shared<opset10::Convert>(param, element::f32);
+        auto relu = std::make_shared<opset10::Relu>(convert_before);
+        auto convert_after = std::make_shared<opset10::Convert>(relu, element::f16);
+        auto result = std::make_shared<opset10::Result>(convert_after);
+        model_ref = std::make_shared<Model>(result, ParameterVector{param});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, ConvertPrecisionExplicitConvertsMultiParam) {

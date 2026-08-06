@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <array>
-
 #include "primitive.hpp"
 
 namespace cldnn {
@@ -38,12 +36,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         seed = hash_combine(seed, adjusted_v_head_size);
         seed = hash_combine(seed, static_cast<size_t>(cache_dt));
         seed = hash_combine(seed, is_kv_compressed);
-        for (const auto value : key_cache_dim_order) {
-            seed = hash_combine(seed, value);
-        }
-        for (const auto value : value_cache_dim_order) {
-            seed = hash_combine(seed, value);
-        }
+        seed = hash_combine(seed, has_xattention);
         return seed;
     }
 
@@ -56,7 +49,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
                adjusted_k_head_size == rhs_casted.adjusted_k_head_size &&
                adjusted_paged_attention_block_size == rhs_casted.adjusted_paged_attention_block_size &&
                adjusted_v_head_size == rhs_casted.adjusted_v_head_size && cache_dt == rhs_casted.cache_dt && is_kv_compressed == rhs_casted.is_kv_compressed &&
-               key_cache_dim_order == rhs_casted.key_cache_dim_order && value_cache_dim_order == rhs_casted.value_cache_dim_order;
+               has_xattention == rhs_casted.has_xattention;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -69,12 +62,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         ob << adjusted_v_head_size;
         ob << static_cast<int64_t>(cache_dt);
         ob << is_kv_compressed;
-        for (const auto value : key_cache_dim_order) {
-            ob << value;
-        }
-        for (const auto value : value_cache_dim_order) {
-            ob << value;
-        }
+        ob << has_xattention;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -89,12 +77,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         ib >> cache_dt_val;
         cache_dt = static_cast<data_types>(cache_dt_val);
         ib >> is_kv_compressed;
-        for (auto& value : key_cache_dim_order) {
-            ib >> value;
-        }
-        for (auto& value : value_cache_dim_order) {
-            ib >> value;
-        }
+        ib >> has_xattention;
     }
 
     bool is_key_by_channel = false;
@@ -105,8 +88,8 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
     size_t adjusted_v_head_size = 0;
     data_types cache_dt = data_types::f16;
     bool is_kv_compressed = false;
-    std::array<size_t, 4> key_cache_dim_order = {0, 1, 3, 2};
-    std::array<size_t, 4> value_cache_dim_order = {0, 1, 2, 3};
+    // Align with paged_attention::has_xattention
+    bool has_xattention = false;
 };
 
 }  // namespace cldnn

@@ -13,7 +13,6 @@
 #include <common/utils.hpp>
 #include <cpu/primitive_attr_postops.hpp>
 #include <cpu/ref_depthwise_injector.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -37,7 +36,6 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/selective_build.h"
@@ -50,6 +48,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
@@ -57,6 +56,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
 
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
@@ -69,9 +69,11 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    define GET_OFF(field) offsetof(jit_normalize_call_args, field)
@@ -860,14 +862,14 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
     }
 
     if (inputPrecision == ov::element::bf16 || outputPrecision == ov::element::bf16) {
-        if (!mayiuse(avx512_core)) {
+        if (!ov::with_cpu_x86_avx512_core()) {
             inputPrecision = outputPrecision = ov::element::f32;
         } else {
             inputPrecision = outputPrecision = ov::element::bf16;
         }
     }
 
-    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && ov::with_cpu_x86_sse42()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 
@@ -914,9 +916,9 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
 
     // only plain layout support when w/o sse42
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             pushDesc(LayoutType::nspc, impl_type);
-            if (mayiuse(cpu::x64::avx512_core)) {
+            if (ov::with_cpu_x86_avx512_core()) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
             } else {
                 pushDesc(LayoutType::nCsp8c, impl_type);
@@ -1050,7 +1052,8 @@ public:
 private:
     void normalize(const in_data_t* src_data, out_data_t* dst_data, const CpuParallelPtr& cpu_parallel) {
         cpu_parallel->parallel_for(workAmount, [&](size_t i) {
-            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+            dst_data[i] =
+                src_data[i] == static_cast<in_data_t>(0) ? static_cast<out_data_t>(0) : static_cast<out_data_t>(1);
         });
     }
 
@@ -1492,9 +1495,9 @@ private:
                         float dst_value = src_data_bc[m] * modulo_inv;
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == ov::element::u8) {
-                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                            dst_data_bc[m] = static_cast<out_data_t>((dst_value >= 0.0F) ? dst_value : 0.0F);
                         } else {
-                            dst_data_bc[m] = dst_value;
+                            dst_data_bc[m] = static_cast<out_data_t>(dst_value);
                         }
                     }
                 });
@@ -1524,9 +1527,10 @@ private:
                         float dst_value = src_data_bc[m] * moduloM[m];
                         apply_post_ops_scalar(dst_value, ic, post_ops_data);
                         if (attrs.output_prec == ov::element::u8) {
-                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                            dst_data_bc[m] = (dst_value >= 0.0F) ? static_cast<out_data_t>(dst_value)
+                                                                 : static_cast<out_data_t>(0.0F);
                         } else {
-                            dst_data_bc[m] = dst_value;
+                            dst_data_bc[m] = static_cast<out_data_t>(dst_value);
                         }
                     }
                 });

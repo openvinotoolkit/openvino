@@ -38,7 +38,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
     std::unordered_map<std::shared_ptr<ov::opset1::Result>, element::Type> result_types;
     auto results = m->get_results();
     for (auto& result : results) {
-        result_types.emplace(result, result->get_input_element_type(0));
+        result_types.emplace(std::shared_ptr<ov::opset1::Result>(result), result->get_input_element_type(0));
     }
 
     bool was_updated = false;

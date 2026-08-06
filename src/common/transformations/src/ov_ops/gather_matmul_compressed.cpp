@@ -40,13 +40,6 @@ void GatherMatmulCompressed::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this, input_size == 6, "Number of inputs is incorrect. Current value is: ", input_size);
 
-    // Check weight_scales and weight_zero_points are on constant path
-    NODE_VALIDATION_CHECK(this,
-                          ov::is_type<ov::op::v0::Constant>(get_input_node_shared_ptr(4)),
-                          "Input weight_scales must be a Constant node.");
-    NODE_VALIDATION_CHECK(this,
-                          ov::is_type<ov::op::v0::Constant>(get_input_node_shared_ptr(5)),
-                          "Input weight_zero_points must be a Constant node.");
     GatherMatmul::validate_and_infer_types();
 }
 }  // namespace ov::op::internal

@@ -116,11 +116,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (keep_original_dt)
         reorder_layout.data_type = node->get_output_layout().data_type;
 
-    auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
-    auto& new_reorder_node = p.get_or_create(new_reorder);
-    new_reorder_node.set_output_layout(reorder_layout, false);
-
-    // ToDo: add a method to program class which adds an intermediate node given a node and its user
+    // dep index in reorder id distinguishes multi-port edges; otherwise add_intermediate fails on the second pass.
     auto it = std::find_if(usr->get_dependencies().begin(), usr->get_dependencies().end(),
     [&](const std::pair<program_node*, int32_t>& dep) {
         return node == dep.first;
@@ -132,6 +128,12 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
         throw std::runtime_error("Internal Error: container index out of range exception.");
     }
+
+    auto new_reorder = std::make_shared<reorder>(
+        node->id() + "_reorder_" + usr->id() + "_p" + std::to_string(idx), node->id(), reorder_layout);
+    auto& new_reorder_node = p.get_or_create(new_reorder);
+    new_reorder_node.set_output_layout(reorder_layout, false);
+
     p.add_intermediate(new_reorder_node, *usr, idx);
     new_reorder_node.recalc_output_layouts(false);
 }
@@ -170,7 +172,7 @@ void add_required_reorders::run(program& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
-        if (usr->get_dependencies().size() == 0)
+        if (usr->get_dependencies().empty())
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
@@ -227,7 +229,7 @@ void add_required_reorders::run(program& p) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
                 // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
                 // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
-                if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
+                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2))
                     continue;
 
                 if (!fused_op.has_outer_dep())
@@ -308,7 +310,7 @@ void add_required_reorders::run(program& p) {
                     continue;
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);
             }
-            // This list of preferred layouts has been selected arbitrary due to developers' experience
+            // This list of preferred layouts has been selected arbitrarily due to developers' experience
             preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
             if (max_in_dims == 8) {
                 preferred_layout_formats.push_back(cldnn::format::bfvuwzyx);

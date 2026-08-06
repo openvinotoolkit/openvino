@@ -233,6 +233,47 @@ struct LOG_LEVEL final : OptionBase<LOG_LEVEL, ov::log::Level> {
     }
 };
 
+// The option is intentionally left without a default value: an unset option means it inherits LOG_LEVEL, which
+// cannot be expressed from defaultValue() alone (it has no visibility of other options). resolve() implements
+// that fallback.
+struct COMPILE_LOG_LEVEL final : OptionBase<COMPILE_LOG_LEVEL, ov::log::Level> {
+    static std::string_view key() {
+        return ov::intel_npu::compile_log_level.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::log::Level";
+    }
+
+    static std::string_view envVar() {
+        return "OV_NPU_COMPILE_LOG_LEVEL";
+    }
+
+    // RunTime despite its name: this is a plugin-side knob, never serialized to the compiler under its own key.
+    // serializeConfig() resolves it and forwards the result to the compiler under the compiler-understood
+    // LOG_LEVEL key instead.
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return false;
+    }
+
+    /**
+     * @brief Returns the effective compile log level.
+     * @param config The configuration to resolve the compile log level against.
+     * @return The explicitly-set COMPILE_LOG_LEVEL when present (via property or OV_NPU_COMPILE_LOG_LEVEL env
+     * var), otherwise the plugin LOG_LEVEL it inherits from.
+     */
+    static ov::log::Level resolve(const Config& config) {
+        if (config.has<COMPILE_LOG_LEVEL>()) {
+            return config.get<COMPILE_LOG_LEVEL>();
+        }
+        return config.get<LOG_LEVEL>();
+    }
+};
+
 struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     static std::string_view key() {
         return ov::intel_npu::platform.name();
@@ -467,32 +508,6 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 };
 
-struct EXCLUSIVE_ASYNC_REQUESTS final : OptionBase<EXCLUSIVE_ASYNC_REQUESTS, bool> {
-    static std::string_view key() {
-        return ov::internal::exclusive_async_requests.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "bool";
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-};
-
 struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::ProfilingType> {
     static std::string_view key() {
         return ov::intel_npu::profiling_type.name();
@@ -671,32 +686,30 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
         return "ov::streams::Num";
     }
 
-    // The only supported number for currently supported platforms.
-    // FIXME: update in the future
     static ov::streams::Num defaultValue() {
-        return ov::streams::Num(1);
+        return ov::streams::AUTO;
     }
 
     static ov::streams::Num parse(std::string_view val) {
         std::istringstream stringStream = std::istringstream(std::string(val));
         ov::streams::Num numberOfStreams;
-
         stringStream >> numberOfStreams;
 
         return numberOfStreams;
     }
 
-    static std::string itoString(const ov::streams::Num& val) {
+    static std::string toString(const ov::streams::Num& val) {
         std::ostringstream stringStream;
-
         stringStream << val;
 
         return stringStream.str();
     }
 
     static void validateValue(const ov::streams::Num& num) {
-        if (defaultValue() != num && ov::streams::AUTO != num) {
-            OPENVINO_THROW("NUM_STREAMS can not be set");
+        if (num != ov::streams::AUTO && num < 0) {
+            OPENVINO_THROW("NUM_STREAMS cannot be set to this value: ",
+                           num,
+                           ". Supported values are non-negative integers (including 0) or ov::streams::AUTO");
         }
     }
 
@@ -709,11 +722,14 @@ struct NUM_STREAMS final : OptionBase<NUM_STREAMS, ov::streams::Num> {
     }
 
     static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
+        return ov::PropertyMutability::RW;
     }
 };
 
-struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
+OPENVINO_SUPPRESS_DEPRECATED_START
+struct OPENVINO_DEPRECATED("This property is deprecated and has no effect on the NPU Plugin. It will be removed in "
+                           "the OpenVINO 2027.0 release.") ENABLE_CPU_PINNING final
+    : OptionBase<ENABLE_CPU_PINNING, bool> {
     static std::string_view key() {
         return ov::hint::enable_cpu_pinning.name();
     }
@@ -722,8 +738,9 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return false;
     }
 
-    static bool isPublic() {
-        return true;
+    static constexpr const char* deprecationMessage() {
+        return "The \"ENABLE_CPU_PINNING\" property is deprecated and has no effect on the NPU Plugin. It will "
+               "be removed in the OpenVINO 2027.0 release.";
     }
 
     static ov::PropertyMutability mutability() {
@@ -734,6 +751,7 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return OptionMode::RunTime;
     }
 };
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
     static std::string_view key() {
@@ -1393,20 +1411,6 @@ struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     }
 };
 
-struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::weightless_blob.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();
@@ -1545,11 +1549,104 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
     }
 
     static bool defaultValue() {
-        return true;
+        return false;
     }
 
     static OptionMode mode() {
         return OptionMode::RunTime;
+    }
+};
+
+struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS, ov::EncryptionCallbacks> {
+    static std::string_view key() {
+        return ov::cache_encryption_callbacks.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::EncryptionCallbacks";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static std::string toString(const ov::EncryptionCallbacks&) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be converted to string");
+    }
+
+    static ov::EncryptionCallbacks parse(std::string_view) {
+        OPENVINO_THROW("Option ", ov::cache_encryption_callbacks.name(), " cannot be parsed from string");
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::WO;
+    }
+};
+
+struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
+    static std::string_view key() {
+        return ov::runtime_requirements.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
+    }
+};
+
+struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, ov::CompatibilityCheck> {
+    static std::string_view key() {
+        return ov::compatibility_check.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::CompatibilityCheck";
+    }
+
+    static ov::CompatibilityCheck defaultValue() {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static ov::CompatibilityCheck parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::CompatibilityCheck check_result;
+        stringStream >> check_result;
+
+        return check_result;
+    }
+
+    static std::string toString(const ov::CompatibilityCheck& val) {
+        std::ostringstream stringStream;
+        stringStream << val;
+
+        return stringStream.str();
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RO;
     }
 };
 

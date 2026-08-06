@@ -87,6 +87,11 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         srcDescs[argId - ARG_SRC] = desc;
     }
 
+    if (!aclSupported({srcDescs[0], dstDescs[0]})) {
+        DEBUG_LOG("ACL common preconditions are not met");
+        return false;
+    }
+
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc,
                                                  ov::element::Type dstPrc) -> bool {
         for (size_t i = 0; i < srcDescs.size(); i++) {
@@ -471,9 +476,9 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         if (!NEActivationLayer::validate(srcTensorsInfo.data(),
                                          dstTensorsInfo.data(),
                                          getActivationLayerInfo(aclEltwiseAttrs.data.algo,
-                                                                static_cast<float>(aclEltwiseAttrs.data.alpha),
-                                                                static_cast<float>(aclEltwiseAttrs.data.beta),
-                                                                static_cast<float>(aclEltwiseAttrs.data.gamma)))) {
+                                                                aclEltwiseAttrs.data.alpha,
+                                                                aclEltwiseAttrs.data.beta,
+                                                                aclEltwiseAttrs.data.gamma))) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
@@ -481,9 +486,9 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
             acl_op->configure(srcTensors.data(),
                               dstTensors.data(),
                               getActivationLayerInfo(aclEltwiseAttrs.data.algo,
-                                                     static_cast<float>(aclEltwiseAttrs.data.alpha),
-                                                     static_cast<float>(aclEltwiseAttrs.data.beta),
-                                                     static_cast<float>(aclEltwiseAttrs.data.gamma)));
+                                                     aclEltwiseAttrs.data.alpha,
+                                                     aclEltwiseAttrs.data.beta,
+                                                     aclEltwiseAttrs.data.gamma));
             return acl_op;
         };
         break;

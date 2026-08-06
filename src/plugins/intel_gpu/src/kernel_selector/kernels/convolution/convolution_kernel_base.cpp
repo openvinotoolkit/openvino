@@ -266,7 +266,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 }
 
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc) {
-    assert(params.inputs.size() >= 1);
+    assert(!params.inputs.empty());
 
     bool properPadding = reqDesc.X().pad.before <= params.inputs[0].X().pad.before &&
                          reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
@@ -284,7 +284,7 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
 }
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
-    assert(cp.inputs.size() >= 1);
+    assert(!cp.inputs.empty());
     auto ndims = cp.inputs[0].GetDims().size();
 
     DataTensor t = cp.inputs[0];
@@ -341,11 +341,7 @@ bool ConvolutionCheckInput(const Params& p) {
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
     const bool bInputPadded = params.allowInputReordering || bProperInputDesc;
 
-    if (!bInputPadded) {
-        return false;
-    }
-
-    return true;
+    return bInputPadded;
 }
 
 bool ConvolutionUpdateInputParams(convolution_params& params) {

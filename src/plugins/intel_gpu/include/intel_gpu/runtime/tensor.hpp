@@ -123,7 +123,7 @@ struct tensor {
     friend class details::dim_vec_kind_init<details::dim_vec_kind::spatial>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::group>;
 
-    typedef ov::Dimension::value_type value_type;   ///< Values type stored in tensor.
+    using value_type = ov::Dimension::value_type;   ///< Values type stored in tensor.
     // TODO find the way to prevent direct change of following fields.
     mutable_array_ref<value_type> raw;      ///< Raw representation of all dimensions.
     mutable_array_ref<value_type> batch;    ///< Batch dimensions.
@@ -283,14 +283,14 @@ public:
     /// @brief Copy construction.
     tensor(const tensor& other)
         : tensor(0) {
-        std::copy_n(other._sizes, tensor_dim_max, _sizes);
+        std::copy(std::cbegin(other._sizes), std::cend(other._sizes), std::begin(_sizes));
     }
 
     /// @brief Copy assignment.
     tensor& operator=(const tensor& other) {
         if (this == &other)
             return *this;
-        std::copy_n(other._sizes, tensor_dim_max, _sizes);
+        std::copy(std::cbegin(other._sizes), std::cend(other._sizes), std::begin(_sizes));
         return *this;
     }
 
@@ -581,7 +581,7 @@ public:
         }
 
         assert(my_sizes.size() == adjusted_coords.size());
-        assert(adjusted_coords.size() > 0);
+        assert(!adjusted_coords.empty());
 
         size_t offset = adjusted_coords[0];
         for (size_t i = 1; i < adjusted_coords.size(); i++) {

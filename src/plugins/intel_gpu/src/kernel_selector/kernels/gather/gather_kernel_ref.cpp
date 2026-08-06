@@ -285,9 +285,9 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
         auto wt = params.inputs[0].GetDType();
         if (wt == Datatype::UINT4) {
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
+            jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
         } else if (wt == Datatype::INT4) {
-            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
+            jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
         }
 
         const size_t scale_groups_num = params.decompression_scale.LogicalSize();
@@ -328,13 +328,9 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
     if (params.outputs[0].is_dynamic()) {
         auto supported_tensor_layout = [](const DataTensor& t) -> bool {
-            if (t.GetLayout() == DataLayout::bfyx ||
+            return t.GetLayout() == DataLayout::bfyx ||
                 t.GetLayout() == DataLayout::bfzyx ||
-                t.GetLayout() == DataLayout::bfwzyx) {
-                return true;
-            }
-
-            return false;
+                t.GetLayout() == DataLayout::bfwzyx;
         };
 
         for (auto& in : params.inputs) {

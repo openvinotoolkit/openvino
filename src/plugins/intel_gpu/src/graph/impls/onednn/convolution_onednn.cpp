@@ -210,7 +210,7 @@ protected:
                                                 cldnn::data_node& node, int& zero_point_mask) {
         int32_t zp_val = DNNL_RUNTIME_S32_VAL;
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
-        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+        memory::ptr s32_mem = onednn::convert_zp_data_to_s32(node.get_attached_memory_ptr());
         node.attach_memory(s32_mem, false);
         zero_point_mask = is_per_tensor ? 0 : 2;
         attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);
@@ -221,6 +221,11 @@ protected:
                                                                             int& zero_point_mask,
                                                                             dnnl::memory::data_type& wzp_data_type) {
         auto attrs = impl_params.attrs_onednn;
+
+        // accumulation_mode::any allows oneDNN to use f16 as the accumulation type.
+        if (impl_params.get_input_layout(0).data_type == data_types::f16) {
+            attrs->set_accumulation_mode(dnnl::accumulation_mode::any);
+        }
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
@@ -337,6 +342,12 @@ public:
         ib >> zero_bias;
 
         auto prim = impl_params->typed_desc<convolution>();
+        if (prim->activations_zero_points.is_valid()) {
+            auto& a_zp = impl_params->get_program().get_node_ptr(prim->id)->as<convolution>().activations_zero_points().as<data>();
+            memory::ptr s32_mem = onednn::convert_zp_data_to_s32(a_zp.get_attached_memory_ptr());
+            if (s32_mem != nullptr)
+                a_zp.attach_memory(s32_mem, false);
+        }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));

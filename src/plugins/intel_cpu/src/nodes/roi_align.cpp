@@ -20,7 +20,6 @@
 #include <utils/bfloat16.hpp>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -36,6 +35,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
@@ -47,6 +47,7 @@
 #    include <type_traits>
 #    include <unordered_map>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
@@ -56,9 +57,11 @@
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -826,7 +829,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
     if (inputPrec0 != ov::element::f32 || outputPrec != ov::element::f32) {
-        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && mayiuse(avx512_core)) {
+        if ((outputPrec == ov::element::bf16 || inputPrec0 == ov::element::bf16) && ov::with_cpu_x86_avx512_core()) {
             outputPrec = inputPrec0 = ov::element::bf16;
         } else {
             outputPrec = inputPrec0 = ov::element::f32;
@@ -838,13 +841,13 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
@@ -852,7 +855,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats{{LayoutType::ncsp, LayoutType::ncsp}};
 
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         supportedFormats.emplace_back(LayoutType::nspc, LayoutType::nspc);
         if (impl_desc_type::jit_avx512 == impl_type) {
             supportedFormats.emplace_back(LayoutType::nCsp16c, LayoutType::nCsp16c);
@@ -962,7 +965,7 @@ void ROIAlign::executeSpecified() {
         }
     }
 
-    std::vector<int> numSamples(realRois);
+    std::vector<size_t> numSamples(realRois);
     std::vector<std::vector<float>> weightsTbl(realRois);
     std::vector<std::vector<size_t>> srcAddressListTbl;
     std::vector<std::vector<int>> srcIndexTbl;
@@ -1018,8 +1021,8 @@ void ROIAlign::executeSpecified() {
         float binHeight = roiHeight / static_cast<float>(pooledH);
         float binWidth = roiWidth / static_cast<float>(pooledW);
 
-        auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
-        auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
+        auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(std::ceil(binWidth)) : samplingRatio;
+        auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(std::ceil(binHeight)) : samplingRatio;
 
         uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
         numSamples[n] = numSamplesInBin;

@@ -65,7 +65,7 @@ std::shared_ptr<Node> SegmentMax::clone_with_new_inputs(const ov::OutputVector& 
     }
 }
 
-const op::FillMode SegmentMax::get_fill_mode() const {
+op::FillMode SegmentMax::get_fill_mode() const {
     return m_fill_mode;
 }
 

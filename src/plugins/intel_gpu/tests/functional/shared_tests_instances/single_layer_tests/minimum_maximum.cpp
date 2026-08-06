@@ -4,6 +4,11 @@
 
 #include "single_op_tests/minimum_maximum.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
 
 namespace {
 using ov::test::MaxMinLayerTest;
@@ -41,5 +46,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_maximum, MaxMinLayerTest,
                                 ::testing::ValuesIn(second_inputType),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         MaxMinLayerTest::getTestCaseName);
+
+template <typename OpType>
+void compile_int_extremum(ov::element::Type precision) {
+    const auto input0 = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{4, 4});
+    const auto input1 = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{4, 4});
+    const auto extremum = std::make_shared<OpType>(input0, input1);
+    const auto result = std::make_shared<ov::op::v0::Result>(extremum);
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
+
+    ov::Core core;
+    OV_ASSERT_NO_THROW(core.compile_model(model, ov::test::utils::DEVICE_GPU));
+}
+
+TEST(smoke_IntMinimum, CompileModel) {
+    compile_int_extremum<ov::op::v1::Minimum>(ov::element::u8);
+    compile_int_extremum<ov::op::v1::Minimum>(ov::element::u16);
+}
+
+TEST(smoke_IntMaximum, CompileModel) {
+    compile_int_extremum<ov::op::v1::Maximum>(ov::element::u8);
+    compile_int_extremum<ov::op::v1::Maximum>(ov::element::u16);
+}
 
 }  // namespace

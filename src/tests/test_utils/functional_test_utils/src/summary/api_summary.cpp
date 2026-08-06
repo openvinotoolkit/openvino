@@ -5,6 +5,7 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 
 #include <pugixml.hpp>
+#include <thread>
 
 #include "common_test_utils/file_utils.hpp"
 
@@ -222,6 +223,9 @@ void ApiSummary::saveReport() {
     bool result = false;
     do {
         result = doc.save_file(outputFilePath.c_str());
+        if (!result && std::chrono::system_clock::now() < exitTime) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
     } while (!result && std::chrono::system_clock::now() < exitTime);
 
     if (!result) {

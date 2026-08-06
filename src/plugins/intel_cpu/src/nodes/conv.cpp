@@ -21,8 +21,6 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/cpu_convert.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -51,9 +49,9 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
-#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -68,7 +66,7 @@ public:
         std::unordered_set<NodePtr> nodesSet;
         std::vector<EdgePtr> edges;
 
-        auto addEdge = [&](const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) -> void {
+        auto addEdge = [&](const NodePtr& parent, const NodePtr& child, int parentPort, int childPort) -> void {
             auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
             Node::addEdge(edge);
             edges.push_back(edge);
@@ -111,7 +109,7 @@ public:
                 addEdge(parentNode, currentNode, 0, 0);
                 auto constantsItr = conv.fusedConstNodes.find(currentNode);
                 if (constantsItr != conv.fusedConstNodes.end()) {
-                    size_t inpPort = 1LU;
+                    int inpPort = 1;
                     for (const auto& item : constantsItr->second) {
                         addEdge(item, currentNode, 0, inpPort++);
                     }
@@ -259,8 +257,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         }
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
-    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !context->isGraphQuantized();
+    const bool isAvx2FP32 = !ov::with_cpu_x86_avx512_core() && ov::with_cpu_x86_avx2() && !context->isGraphQuantized();
     useJitPlanar = ((all_of(1U, IC, groupOC * groupNum)) && isAvx2FP32);
 }
 
@@ -325,7 +322,7 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
         impl_desc_type::ref,
     };
     // WA heuristic to avoid regressions introduced by avx2 brgconv.
-    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !useJitPlanar;
+    const bool isBrgConvAvailable = ov::with_cpu_x86_avx2() && !useJitPlanar;
     if (isBrgConvAvailable) {
         return priorities;
     }
@@ -565,7 +562,46 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
+    // check for multiply node
+    auto isScaleShiftMul = [&](const NodePtr& n) -> bool {
+        if (n->getAlgorithm() != Algorithm::EltwiseMultiply) {
+            return false;
+        }
+        for (size_t i = 0; i < n->getParentEdges().size(); i++) {
+            auto parent = n->getParentEdgeAt(i)->getParent();
+            if (parent.get() != this && parent->isConstant()) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    auto isSwish = [](const NodePtr& n) -> bool {
+        return n->getType() == Type::Eltwise && n->getAlgorithm() == Algorithm::EltwiseSwish;
+    };
+
     if (!fusedWith.empty()) {
+        if (node->getType() == Type::Eltwise) {
+            return DnnlExtensionUtils::isUnarySupportedAsPostOp(node->getAlgorithm()) || isScaleShiftMul(node) ||
+                   isSwish(node);
+        }
+        // Allow FakeQuantize to fuse after a single Eltwise activation
+        // to enable Conv -> Activation -> FakeQuantize for the ACL INT8 path.
+        if (fusedWith.back()->getType() == Type::Eltwise && node->getType() == Type::FakeQuantize) {
+            const auto fqOutPrc = node->getOriginalOutputPrecisionAtPort(0);
+            const auto convInPrc = getOriginalInputPrecisionAtPort(0);
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
+                fusedWith.back()->getAlgorithm() == Algorithm::EltwiseSwish) {
+                return false;
+            }
+
+            if (any_of(convInPrc, ov::element::u8, ov::element::i8) &&
+                any_of(fqOutPrc, ov::element::u8, ov::element::i8) && fqOutPrc != convInPrc) {
+                return false;
+            }
+            return canFuseSimpleOperation(node);
+        }
+
         return false;
     }
 
@@ -578,6 +614,15 @@ bool Convolution::canFuse(const NodePtr& node) const {
             return false;
         }
     }
+
+    if (node->getType() == Type::Eltwise && isScaleShiftMul(node)) {
+        return true;
+    }
+
+    if (isSwish(node)) {
+        return none_of(getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8);
+    }
+
 #endif
     return canFuseSimpleOperation(node);
 }
@@ -609,7 +654,7 @@ void Convolution::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
-        m_memory[argumentId] = getSrcMemoryAtPort(inputId);
+        m_memory[static_cast<int>(argumentId)] = getSrcMemoryAtPort(inputId);
     }
 
     if (!m_attrs.withBias) {
@@ -807,12 +852,12 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         // @todo padding should be updated by the graph optimizer / transformation
         for (size_t j = 0; j < m_attrs.paddingR.size(); j++) {
             int with_group = m_attrs.isGrouped ? 1 : 0;
-            int krn = weightDims[with_group + 2 + j];
-            int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
-            int dst = fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j];
+            auto krn = static_cast<int>(weightDims[with_group + 2 + j]);
+            const auto src = static_cast<int>(getInputShapeAtPort(0).getStaticDims()[2 + j]);
+            const auto dst = static_cast<int>(fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j]);
 
-            krn = (krn - 1) * (m_attrs.dilation[j] + 1) + 1;
-            int calc_dst = (src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1;
+            krn = static_cast<int>((krn - 1) * (m_attrs.dilation[j] + 1) + 1);
+            const auto calc_dst = static_cast<int>((src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1);
             m_attrs.paddingR[j] = (dst - calc_dst) * m_attrs.stride[j];
         }
     }
@@ -839,9 +884,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     // per-channel zp If zero point is pertensor, both legacy zp and stock zp would be passed into conv node. The conv
     // node would determine how to create post-ops attribute and prioritize to choose final onednn kernel.
     if (m_attrs.inputZeroPointsType == ZeroPointsType::PerTensor &&
-        (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) ||
-         impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni) ||
-         impl::cpu::x64::mayiuse(impl::cpu::x64::avx2_vnni_2))) {
+        (ov::with_cpu_x86_avx512_core_amx() || ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx2_vnni_2())) {
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
     } else {
         m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;

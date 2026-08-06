@@ -39,7 +39,7 @@ static size_t get_shape_data_size(const layout& l) {
     size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
-        if (dynamic_pad[j] == 1) {
+        if (static_cast<int>(dynamic_pad[j]) == 1) {
             size += 2; // lower + upper
         }
     }
@@ -50,7 +50,7 @@ static size_t get_shape_data_size(const layout& l) {
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : std::string()) {
     if (prim) {
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
@@ -195,17 +195,27 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
+const std::vector<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.insert(static_cast<uint32_t>(val));
+        OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(),
+            "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
+        const auto v32 = static_cast<uint32_t>(val);
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), v32);
+        if (it == memory_dependencies.end() || *it != v32) {
+            memory_dependencies.insert(it, v32);
+        }
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
+    if (dep.may_use_mempool() && may_use_mempool()) {
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), static_cast<uint32_t>(dep.get_unique_id()));
+        if (it == memory_dependencies.end() || *it != static_cast<uint32_t>(dep.get_unique_id())) {
+            memory_dependencies.insert(it, static_cast<uint32_t>(dep.get_unique_id()));
+        }
+    }
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
@@ -251,7 +261,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
-    if (onednn_post_ops.size()) {
+    if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
         for (auto& fused_prim_desc : onednn_post_ops) {
@@ -368,9 +378,7 @@ size_t program_node::get_dependency_index(const program_node& node) const {
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
-    if (!whole_branch && !dependencies.empty())
-        return false;
-    return true;
+    return whole_branch || dependencies.empty();
 }
 
 layout program_node::calc_output_layout() const {
@@ -533,7 +541,7 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 
 std::set<size_t> program_node::get_lockable_input_ids() const {
     const auto impl = get_selected_impl();
-    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || ((impl != nullptr) && impl->is_cpu());
     if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++)
@@ -1224,8 +1232,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         }
     };
 
-    int64_t cur_post_op_idx = 1;
-    int64_t prev_post_op_idx = 0;
+    int cur_post_op_idx = 1;
+    int prev_post_op_idx = 0;
     bool optimization_done = false;
 
     GPU_DEBUG_TRACE << "================================================" << std::endl;
@@ -1251,7 +1259,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
     GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
     // Get post-ops size for current node
-    int64_t post_ops_size = cur_post_ops.size();
+    int post_ops_size = static_cast<int>(cur_post_ops.size());
 
     auto get_optimized_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {

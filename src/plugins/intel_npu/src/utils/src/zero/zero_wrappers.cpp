@@ -76,22 +76,31 @@ void CommandQueueDesc::update_key() {
     _key = hash;
 }
 
-EventPool::EventPool(ze_device_handle_t device_handle, const ze_context_handle_t& context, uint32_t event_count)
-    : _log("EventPool", Logger::global().level()) {
+EventPool::EventPool(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, uint32_t event_count)
+    : _init_structs(init_structs),
+      _log("EventPool", Logger::global().level()) {
     ze_event_pool_desc_t event_pool_desc = {ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
                                             nullptr,
                                             ZE_EVENT_POOL_FLAG_HOST_VISIBLE,
                                             event_count};
-    THROW_ON_FAIL_FOR_LEVELZERO("zeEventPoolCreate",
-                                zeEventPoolCreate(context, &event_pool_desc, 1, &device_handle, &_handle));
+    auto device_handle = _init_structs->getDevice();
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeEventPoolCreate",
+        zeEventPoolCreate(_init_structs->getContext(), &event_pool_desc, 1, &device_handle, &_handle));
 }
 EventPool::~EventPool() {
-    auto result = zeEventPoolDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or EventPool handle is null during destruction. EventPool might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeEventPoolDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeEventPoolDestroy failed %#X", uint64_t(result));
+    }
 }
 
 Event::Event(const std::shared_ptr<EventPool>& event_pool, uint32_t event_index)
@@ -119,12 +128,17 @@ void Event::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeEventHostReset", zeEventHostReset(_handle));
 }
 Event::~Event() {
-    auto result = zeEventDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeEventDestroy failed %#X", uint64_t(result));
+    if (_event_pool->getZeroContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or Event handle is null during destruction. Event might be already destroyed.");
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeEventDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeEventDestroy failed %#X", uint64_t(result));
+    }
 }
 
 CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
@@ -204,12 +218,19 @@ void CommandList::close() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListClose", zeCommandListClose(_handle));
 }
 CommandList::~CommandList() {
-    auto result = zeCommandListDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning(
+            "Context or CommandList handle is null during destruction. CommandList might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeCommandListDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
+    }
 }
 void CommandList::updateMutableCommandList(uint32_t index, const void* data) const {
     ze_mutable_graph_argument_exp_desc_t desc = {};
@@ -303,13 +324,7 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
 
     if (_desc.workload().has_value()) {
         try {
-            if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-                THROW_ON_FAIL_FOR_LEVELZERO(
-                    "zeSetWorkloadType",
-                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, _desc.workload().value()));
-            } else {
-                OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
-            }
+            setWorkloadType(_desc.workload().value());
         } catch (...) {
             auto result = zeCommandQueueDestroy(_handle);
             _handle = nullptr;
@@ -321,6 +336,15 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         }
     }
 }
+void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
+    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
+                                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
+    } else {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
+}
+
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
@@ -330,12 +354,19 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
 CommandQueue::~CommandQueue() {
-    auto result = zeCommandQueueDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+    if (_init_structs->getContext() == nullptr || _handle == nullptr) {
+        _log.warning(
+            "Context or CommandQueue handle is null during destruction. CommandQueue might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeCommandQueueDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+    }
 }
 
 Fence::Fence(const std::shared_ptr<CommandQueue>& command_queue)
@@ -351,12 +382,18 @@ void Fence::hostSynchronize() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeFenceHostSynchronize", zeFenceHostSynchronize(_handle, UINT64_MAX));
 }
 Fence::~Fence() {
-    auto result = zeFenceDestroy(_handle);
-    if (ZE_RESULT_SUCCESS != result) {
-        _log.error("zeFenceDestroy failed %#X", uint64_t(result));
+    if (_command_queue->getZeroContext() == nullptr || _handle == nullptr) {
+        _log.warning("Context or Fence handle is null during destruction. Fence might be already destroyed.");
+        _handle = nullptr;
+        return;
     }
 
-    _handle = nullptr;
+    auto result = zeFenceDestroy(_handle);
+    if (ZE_RESULT_SUCCESS == result) {
+        _handle = nullptr;
+    } else {
+        _log.error("zeFenceDestroy failed %#X", uint64_t(result));
+    }
 }
 
 }  // namespace intel_npu

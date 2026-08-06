@@ -328,7 +328,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
                         continue;
                     io_formats.insert(fmt_map.at(dep.first));
                 }
-                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+                if (io_formats.size() != 1 || io_formats.count(preferred_format) != 0)
                     continue;
             } else {
                 continue;
@@ -409,6 +409,13 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     if (successor->is_type<convolution>() || successor->is_type<deconvolution>() || successor->is_type<fully_connected>()) {
         size_t dep_idx = successor->get_dependency_index(*predecessor);
         is_weights_dep = dep_idx == successor->get_primitive()->input_size();
+    }
+    // Reorder nodes with weights_reorder_params handle their own format conversion
+    // (e.g. bfyx → os_iyx_osv32). Don't insert data reorders before them.
+    if (!is_weights_dep && successor->is_type<reorder>()) {
+        const auto& r_prim = successor->as<reorder>().get_primitive();
+        if (r_prim->weights_reorder_params)
+            is_weights_dep = true;
     }
     return is_weights_dep;
 }
@@ -909,7 +916,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         continue;
 
                     auto data_shape = data_layout.get_shape();
-                    if (data_shape.size() && shape_size(data_shape) == 1ul)
+                    if (!data_shape.empty() && shape_size(data_shape) == 1ul)
                         continue;
 
                     static size_t idx = 0;

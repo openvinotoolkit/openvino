@@ -46,15 +46,16 @@ void pre_replace_deconv::run(program& p) {
             // limit optimization to stride = 1
             // iterators shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
             bool unit_stride = all_ones(deconv_prim->stride);
-            if (unit_stride) {
+            bool unit_dilation = all_ones(deconv_prim->dilations);
+            if (unit_stride && unit_dilation) {
                 auto groups = deconv_node.get_groups();
 
                 bool perform_opt = false;
                 // fp16 and fp32 bfyx implementation supports transposed convolution
                 perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
                                (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
-                               !((lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
-                                lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
+                               ((lo.get_optimization_attributes().b_fs_yx_fsv16_network == 0 && input_layout.format != format::b_fs_yx_fsv16) ||
+                                !lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
                 perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
@@ -161,7 +162,7 @@ void pre_replace_deconv::run(program& p) {
 
                 update_processing_order = true;
             // current optimization only available for specific deconvolution parameters
-            } else if (deconv_node.is_output() == false &&
+            } else if (!deconv_node.is_output() &&
                deconv_node.get_output_layout().feature() == 1 &&
                deconv_prim->stride[deconv_prim->stride.size() - 1] == 2 && deconv_prim->stride[deconv_prim->stride.size() - 2] == 2 &&
                filter_layout.spatial(0) == 9 && filter_layout.spatial(1) == 9 &&

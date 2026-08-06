@@ -46,7 +46,9 @@ public:
     using OutputSet = std::set<Output>;
     using InputVector = std::vector<Input>;
     using OutputVector = std::vector<Output>;
-    SubgraphCollector(const std::shared_ptr<ov::Model>& model, const AffinitiesMap& affinities);
+    SubgraphCollector(const std::shared_ptr<ov::Model>& model,
+                      const AffinitiesMap& affinities,
+                      std::string log_context = {});
     SubgraphIdsMap get_subgraph_ids() {
         return _subgraph_ids;
     }
@@ -55,7 +57,9 @@ public:
 private:
     void init();
     bool is_graph_input_node(const ov::Node* node) const;
-    void split_cyclic_dependencies();
+    // Splits cyclic subgraph dependencies and returns the final SubgraphIdsMap valid
+    // w.r.t. the resulting _subgraph_inputs, so the caller does not need to recompute it.
+    SubgraphIdsMap split_cyclic_dependencies();
     void split_subgraphs_by_parameter_results();
     SubgraphIdsMap collect_subgraphs_ids();
     std::unordered_map<SubgraphId, Subgraph> collect_subgraphs();
@@ -70,10 +74,10 @@ private:
     ov::ParameterVector _intermediate_parameters;
     ov::ResultVector _intermediate_results;
     AffinitiesMap _affinities;
-    NodeMap<InputSet> _node_input_dependencies;
     InputSet _subgraph_inputs;
     SubgraphIdsMap _subgraph_ids;
     ParameterResultMap _subgraph_parameter_to_prev_result;
+    std::string _log_context;
 };
 
 void merge_submodels(SubmodelsVector& submodels, const std::map<NodeInfo, NodeInfo>& submodels_input_to_prev_output);
@@ -82,12 +86,14 @@ std::pair<SubgraphsVector, SubgraphsMappingInfo> get_model_subgraphs(const std::
                                                                      ov::SupportedOpsMap& supported_ops,
                                                                      const bool user_set_affinities = false,
                                                                      const bool dump_dot_files = false,
-                                                                     const std::string default_device = "");
+                                                                     const std::string default_device = "",
+                                                                     const std::string log_context = "");
 
 SubgraphsMappingInfo mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& model,
                                                  ov::SupportedOpsMap& supported_ops,
                                                  const bool dump_dot_files = false,
-                                                 const std::string default_device = "");
+                                                 const std::string default_device = "",
+                                                 const std::string log_context = "");
 
 void fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model);
 

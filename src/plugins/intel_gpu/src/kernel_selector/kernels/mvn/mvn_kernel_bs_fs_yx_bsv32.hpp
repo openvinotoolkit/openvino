@@ -12,8 +12,8 @@ namespace kernel_selector {
 class MVNKernel_bs_fs_yx_bsv32 : public MVNKernelBase {
 public:
     using Parent = MVNKernelBase;
-    MVNKernel_bs_fs_yx_bsv32() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16_imad") {}
-    virtual ~MVNKernel_bs_fs_yx_bsv32() {}
+    MVNKernel_bs_fs_yx_bsv32() : MVNKernelBase("mvn_gpu_b_fs_yx_bsv32") {}
+    ~MVNKernel_bs_fs_yx_bsv32() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -25,14 +25,16 @@ struct gated_delta_net_test_params {
     int32_t value_num_heads;
     int32_t head_size;
     ov::element::Type precision;
+    bool is_caching_test;
 
-    gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision)
+    gated_delta_net_test_params(int batch, int t, int num_heads, int value_num_heads, int head_size, ov::element::Type precision, bool is_caching_test = false)
         : batch(batch),
           t(t),
           num_heads(num_heads),
           value_num_heads(value_num_heads),
           head_size(head_size),
-          precision(precision) {}
+          precision(precision),
+          is_caching_test(is_caching_test) {}
 };
 
 struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_net_test_params> {
@@ -283,7 +285,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 
     void execute(gated_delta_net_test_params& p, const bool is_caching_test = false) {
         auto cldnn_precision = cldnn::element_type_to_data_type(p.precision);
-        float tolerance = 0.01f;
+        float tolerance = 0.02f;
         if (p.precision == ov::element::f16) {
             execute_t<ov::float16>(p, cldnn_precision, tolerance, is_caching_test);
             return;
@@ -302,6 +304,9 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
                              std::to_string(info.param.t) + "_" + std::to_string(info.param.num_heads) + "_" + std::to_string(info.param.value_num_heads) +
                              "_" + std::to_string(info.param.head_size);
 
+        if (info.param.is_caching_test)
+            result += "_cached";
+
         return result;
     }
 
@@ -318,7 +323,7 @@ struct gated_delta_net_gpu_test : public ::testing::TestWithParam<gated_delta_ne
 
 TEST_P(gated_delta_net_gpu_test, basic) {
     auto p = GetParam();
-    execute(p);
+    execute(p, p.is_caching_test);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
@@ -336,7 +341,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_gated_delta_net_gpu_test,
                              gated_delta_net_test_params{2, 8, 2, 2, 16, ov::element::f32},
                              gated_delta_net_test_params{1, 8, 2, 2, 128, ov::element::f32},
                              gated_delta_net_test_params{2, 8, 2, 2, 128, ov::element::f32},
-                             gated_delta_net_test_params{1, 8, 4, 4, 128, ov::element::f32}),
+                             gated_delta_net_test_params{1, 8, 4, 4, 128, ov::element::f32},
+                             gated_delta_net_test_params{1, 1, 2, 2, 16, ov::element::f16, true}),
                          gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace

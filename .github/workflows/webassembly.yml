@@ -51,7 +51,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs,GPU,NPU'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -115,6 +115,7 @@ jobs:
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -124,7 +125,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: 'openvino'
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: emcmake cmake - configure
         run: |
@@ -139,8 +140,8 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
-      - name: emmake make - build
-        run: emmake make -j$(nproc) hello_query_device -C ${OPENVINO_BUILD_DIR}
+      - name: cmake --build - build
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats

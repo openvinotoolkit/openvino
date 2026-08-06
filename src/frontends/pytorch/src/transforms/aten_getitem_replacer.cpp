@@ -72,6 +72,49 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto axis_1d = rg.make<v0::Unsqueeze>(axis, const_0);
                 auto getitem_idx = getitem->input(1).get_source_output();
 
+                // Static OOB check when both index and input shape are known at conversion time.
+                auto getitem_idx_const = ov::util::get_constant_from_source(getitem_idx);
+                auto input_pshape = input.get_partial_shape();
+                auto axis_const = ov::util::get_constant_from_source(axis);
+                auto split_size_const = ov::util::get_constant_from_source(split_size);
+                if (getitem_idx_const && axis_const && split_size_const && input_pshape.rank().is_static()) {
+                    auto axis_const_1d = axis_const->cast_vector<int64_t>();
+                    if (axis_const_1d.size() != 1) {
+                        add_exception_to_fw_node(getitem, "aten::__getitem__ axis is not scalar.");
+                        return false;
+                    }
+                    auto axis_val = axis_const_1d[0];
+                    auto input_rank = static_cast<int64_t>(input_pshape.rank().get_length());
+                    if (input_rank < 0) {  // NOTE: Very unlikely, but staying on the safe side
+                        add_exception_to_fw_node(getitem, "aten::__getitem__ input_rank overflow.");
+                        return false;
+                    }
+                    if (axis_val < 0)
+                        axis_val += input_rank;
+                    if (axis_val >= 0 && axis_val < input_rank && input_pshape[axis_val].is_static()) {
+                        auto dim_size = input_pshape[axis_val].get_length();
+                        auto split_size_const_1d = split_size_const->cast_vector<int64_t>();
+                        if (split_size_const_1d.size() != 1) {
+                            add_exception_to_fw_node(getitem, "aten::__getitem__ split_size is not scalar.");
+                            return false;
+                        }
+                        auto split_size = split_size_const_1d[0];
+                        if (split_size <= 0) {
+                            add_exception_to_fw_node(getitem, "aten::__getitem__ split_size must be positive.");
+                            return false;
+                        }
+                        auto num_splits = (dim_size + split_size - 1) / split_size;
+                        auto idx_val = getitem_idx_const->cast_vector<int64_t>()[0];
+                        if (idx_val < -num_splits || idx_val >= num_splits) {
+                            add_exception_to_fw_node(getitem,
+                                                     "aten::__getitem__: index " + std::to_string(idx_val) +
+                                                         " is out of bounds for split with " +
+                                                         std::to_string(num_splits) + " outputs.");
+                            return false;
+                        }
+                    }
+                }
+
                 // Calculate number of splits based on input shape and split_size.
                 auto shape = rg.make<v3::ShapeOf>(input, element::i32);
                 auto len_to_split = rg.make<v8::Gather>(shape, axis, const_0);
@@ -108,8 +151,16 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                     return false;
                 }
                 auto index = index_val[0];
+                auto num_outputs = static_cast<int64_t>(split->outputs().size());
+                if (index < -num_outputs || index >= num_outputs) {
+                    add_exception_to_fw_node(getitem,
+                                             "aten::__getitem__: index " + std::to_string(index_val[0]) +
+                                                 " is out of bounds for split with " + std::to_string(num_outputs) +
+                                                 " outputs.");
+                    return false;
+                }
                 if (index < 0) {
-                    index = split->outputs().size() + index;
+                    index += num_outputs;
                 }
                 getitem->output(0).replace(split->outputs()[index]);
             }
@@ -119,7 +170,24 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             auto getitem_idx_const = ov::util::get_constant_from_source(getitem_idx);
             if (getitem_idx_const) {
                 auto idx = getitem_idx_const->cast_vector<int64_t>();
-                getitem->output(0).replace(seq_mark->input_value(idx[0]));
+                if (idx.size() != 1) {
+                    add_exception_to_fw_node(getitem, "aten::__getitem__ index is not scalar.");
+                    return false;
+                }
+                auto idx_val = idx[0];
+                auto inputs = seq_mark->get_sequence();
+                auto num_inputs = static_cast<int64_t>(inputs.size());
+                if (idx_val < -num_inputs || idx_val >= num_inputs) {
+                    add_exception_to_fw_node(getitem,
+                                             "aten::__getitem__: index " + std::to_string(idx[0]) +
+                                                 " is out of bounds for sequence with " + std::to_string(num_inputs) +
+                                                 " inputs.");
+                    return false;
+                }
+                if (idx_val < 0) {
+                    idx_val += num_inputs;
+                }
+                getitem->output(0).replace(inputs[idx_val]);
             } else {
                 auto input_concat = concat_list_construct(seq_mark);
                 auto zero = v0::Constant::create(element::i32, Shape{}, {0});

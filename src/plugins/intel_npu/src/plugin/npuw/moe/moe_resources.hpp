@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -47,10 +49,11 @@ struct MoEResources {
     // Used to select optimal chunk size for token batches
     std::vector<size_t> sorted_chunk_sizes;
 
-    // Infer requests for different chunk sizes
-    // Map: chunk_size -> infer_request
-    // Reused across experts by unpacking different weights
-    std::map<size_t, ov::SoPtr<ov::IAsyncInferRequest>> chunk_infer_requests;
+    // Infer requests for different chunk sizes, double-buffered for pipeline overlap.
+    // Map: chunk_size -> [slot0, slot1]
+    // Pipeline alternates between slot 0 and slot 1 so that Unpack+Gather for item i+1
+    // can run on the CPU while NPU is executing item i.
+    std::map<size_t, std::array<ov::SoPtr<ov::IAsyncInferRequest>, 2>> chunk_infer_requests;
 
     // Output accumulation buffer
     // Shape: [num_active_experts, 1, input_token_count, expert_hidden_dim]

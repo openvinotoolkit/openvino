@@ -3,17 +3,21 @@
 //
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <openvino/core/type/element_type.hpp>
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
+#include "openvino/core/visibility.hpp"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif  // OPENVINO_ARCH_X86_64
 
 namespace ov::Extensions::Cpu {
 
@@ -50,7 +54,8 @@ struct PagedAttentionExecutor {
     static const size_t ID_QQ_BIAS = 26;         // [batch_mask_size_in_sequences], uint8
     static const size_t ID_QQ_BIAS_BEGINS = 27;  // [B_seq + 1], int32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
-                         std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+                         std::vector<ov::intel_cpu::MemoryPtr> outputs,
+                         bool write_kv_cache) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };
 

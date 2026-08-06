@@ -6,33 +6,27 @@
 
 #include <cstddef>
 #include <memory>
-#include <set>
-#include <utility>
 
 #include "emitters/snippets/input_repacker.hpp"
-#include "openvino/core/model.hpp"
-#include "openvino/pass/pass.hpp"
+#include "openvino/core/node.hpp"
+#include "transformations/snippets/common/pass/eliminate_copy_b.hpp"
 
-namespace ov::intel_cpu::pass {
+namespace ov::intel_cpu::pass::x64 {
 
 /**
  * @interface EliminateBrgemmCopyB
- * @brief EliminateBrgemmCopyB identifies BrgemmCopyB nodes which can be inferred outside the Subgraph.
- * If this is possible, CopyB node is removed, and the external repacking is configured on the further pipeline stages
- * in RuntimeConfigurator.
- *
+ * @brief x64 specialization of common CopyB elimination for BrgemmCopyB nodes.
  * @ingroup snippets
  */
-class EliminateBrgemmCopyB : public ov::pass::ModelPass {
+class EliminateBrgemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateBrgemmCopyB");
     explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers)
-        : m_input_repackers(input_repackers) {}
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+        : EliminateCopyB(input_repackers, true, {}) {}
 
 private:
-    ov::intel_cpu::InputRepackerMap& m_input_repackers;
+    [[nodiscard]] std::shared_ptr<ov::Node> get_copy_b_pattern(const std::shared_ptr<ov::Node>& input) const override;
+    [[nodiscard]] bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) const override;
 };
 
-}  // namespace ov::intel_cpu::pass
+}  // namespace ov::intel_cpu::pass::x64

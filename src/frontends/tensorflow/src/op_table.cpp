@@ -430,6 +430,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"UniqueWithCounts", CreatorFunction(translate_unique_with_counts_op)},
         {"Unpack", CreatorFunction(translate_unpack_op)},
         {"UnravelIndex", CreatorFunction(translate_unravel_index_op)},
+        {"UnsortedSegmentMax", CreatorFunction(translate_unsorted_segment_max_op)},
         {"UnsortedSegmentSum", CreatorFunction(translate_unsorted_segment_sum_op)},
         {"While", CreatorFunction(translate_while_op)},
         {"Where", CreatorFunction(translate_where_op)},

@@ -21,9 +21,13 @@
 #    include <sys/types.h>
 #endif
 
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4244 4267 4334)
+#endif
+
 #include "compiled_model.h"
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
 #include "internal_properties.hpp"
@@ -47,6 +51,7 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
@@ -62,7 +67,15 @@
 #include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
-#include "xbyak/xbyak_util.h"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "xbyak/xbyak_util.h"
+#endif
+
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
 
 using namespace ov::threading;
 
@@ -233,10 +246,12 @@ static std::string getDeviceFullName() {
 
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+#if defined(OPENVINO_ARCH_X86_64)
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
+#endif
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
@@ -401,6 +416,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         new_result.get_tensor().set_names(orig_result.get_tensor().get_names());
     }
 
+#if defined(OPENVINO_ARCH_X86_64)
     // SSE runtime check is needed for some ATOM machine, which is x86-64 but w/o SSE
     static Xbyak::util::Cpu cpu;
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
@@ -412,6 +428,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             denormals_as_zero(false);
         }
     }
+#endif
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
@@ -624,11 +641,10 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
     if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) ||
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+        if (ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2()) {
             capabilities.emplace_back(ov::device::capability::BF16);
         }
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             capabilities.emplace_back(ov::device::capability::WINOGRAD);
         }
         capabilities.emplace_back(ov::device::capability::FP32);
