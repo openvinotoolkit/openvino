@@ -22,14 +22,14 @@ namespace {
 ov::OutputVector make_valid_gqa_args(const element::Type& t = element::f32) {
     using ov::op::v0::Parameter;
 
-    const auto query = std::make_shared<Parameter>(t, PartialShape{3, 6, 4, 8});
-    const auto key = std::make_shared<Parameter>(t, PartialShape{3, 2, 4, 8});
-    const auto value = std::make_shared<Parameter>(t, PartialShape{3, 2, 4, 8});
+    const auto query = std::make_shared<Parameter>(t, PartialShape{1, 6, 4, 8});
+    const auto key = std::make_shared<Parameter>(t, PartialShape{1, 2, 4, 8});
+    const auto value = std::make_shared<Parameter>(t, PartialShape{1, 2, 4, 8});
 
-    const auto past_key = std::make_shared<Parameter>(t, PartialShape{3, 2, 5, 8});
-    const auto past_value = std::make_shared<Parameter>(t, PartialShape{3, 2, 5, 8});
+    const auto past_key = std::make_shared<Parameter>(t, PartialShape{1, 2, 5, 8});
+    const auto past_value = std::make_shared<Parameter>(t, PartialShape{1, 2, 5, 8});
 
-    const auto seqlens_k = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto seqlens_k = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto total_sequence_length = std::make_shared<Parameter>(element::i32, PartialShape{});
 
     return {query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
@@ -52,12 +52,12 @@ ov::OutputVector make_valid_gqa_quant_args(const element::Type& kv_type,
     using ov::op::v0::Parameter;
     const auto empty = Constant::create(element::f32, Shape{0}, {});
 
-    const auto query = std::make_shared<Parameter>(element::f32, PartialShape{3, 6, 4, 8});
-    const auto key = std::make_shared<Parameter>(element::f32, PartialShape{3, 2, 4, 8});
-    const auto value = std::make_shared<Parameter>(element::f32, PartialShape{3, 2, 4, 8});
-    const auto past_key = std::make_shared<Parameter>(kv_type, PartialShape{3, 2, 5, 8});
-    const auto past_value = std::make_shared<Parameter>(kv_type, PartialShape{3, 2, 5, 8});
-    const auto seqlens_k = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto query = std::make_shared<Parameter>(element::f32, PartialShape{1, 6, 4, 8});
+    const auto key = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 4, 8});
+    const auto value = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 4, 8});
+    const auto past_key = std::make_shared<Parameter>(kv_type, PartialShape{1, 2, 5, 8});
+    const auto past_value = std::make_shared<Parameter>(kv_type, PartialShape{1, 2, 5, 8});
+    const auto seqlens_k = std::make_shared<Parameter>(element::i32, PartialShape{1});
     const auto total_sequence_length = std::make_shared<Parameter>(element::i32, PartialShape{});
     // positions 7-11: cos_cache, sin_cache, position_ids, attention_mask, head_sink (all absent)
     const auto k_scale = std::make_shared<Parameter>(scale_type, PartialShape{});
@@ -88,18 +88,18 @@ TEST(type_prop, group_query_attention_gqa_output_shapes) {
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_element_type(1), element::f32);
     EXPECT_EQ(op->get_output_element_type(2), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, 5, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
 TEST(type_prop, group_query_attention_mha_output_shapes) {
-    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, 4, 8});
-    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, 4, 8});
-    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, 4, 8});
-    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, 5, 8});
-    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, 5, 8});
-    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 4, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 4, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 4, 8});
+    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 5, 8});
+    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 5, 8});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
     const auto total_sequence_length = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
     const auto args = ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
@@ -107,49 +107,49 @@ TEST(type_prop, group_query_attention_mha_output_shapes) {
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 2, 2, 1.0f, false, false);
 
     EXPECT_EQ(op->get_output_size(), 3);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 16}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, 5, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 16}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
 TEST(type_prop, group_query_attention_dynamic_seq_len) {
-    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 6, -1, 8});
-    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, -1, 8});
-    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, -1, 8});
-    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, -1, 8});
-    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, -1, 8});
-    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 6, -1, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, -1, 8});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
     const auto total_sequence_length = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
     const auto args = ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
 
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, -1, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, -1, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, -1, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, -1, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, -1, 8}));
 }
 
 TEST(type_prop, group_query_attention_dynamic_kv_len_accumulates) {
-    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 6, {1, 4}, 8});
-    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, {1, 4}, 8});
-    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, {1, 4}, 8});
-    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, {5, 9}, 8});
-    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 2, {5, 9}, 8});
-    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 6, {1, 4}, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, {1, 4}, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, {1, 4}, 8});
+    const auto past_key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, {5, 9}, 8});
+    const auto past_value = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, {5, 9}, 8});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
     const auto total_sequence_length = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
     const auto args = ov::OutputVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
 
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
 
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, {1, 4}, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, {6, 13}, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, {6, 13}, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, {1, 4}, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, {6, 13}, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, {6, 13}, 8}));
 }
 
 TEST(type_prop, group_query_attention_invalid_query_rank) {
     auto args = make_valid_gqa_args();
-    args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 6, 8});
+    args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 6, 8});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
                     ov::NodeValidationFailure,
@@ -168,9 +168,9 @@ TEST(type_prop, group_query_attention_rotary_inputs_static_shapes) {
     const auto args = make_valid_gqa_rotary_args();
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, true, false);
 
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, 5, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
 // ---------- quantized KV cache ----------
@@ -190,9 +190,9 @@ TEST(type_prop, group_query_attention_kv_cache_int8_per_tensor) {
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_element_type(1), element::i8);
     EXPECT_EQ(op->get_output_element_type(2), element::i8);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{3, 2, 5, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{3, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
 TEST(type_prop, group_query_attention_kv_cache_uint4_not_supported) {
