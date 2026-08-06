@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
+#include <common/primitive_hashing.hpp>
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"

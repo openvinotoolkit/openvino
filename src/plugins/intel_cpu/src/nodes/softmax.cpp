@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
+#include <common/primitive_hashing.hpp>
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
