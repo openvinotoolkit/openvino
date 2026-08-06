@@ -98,30 +98,28 @@ public:
                 !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
                 auto matched_qweight_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qweight);
                 auto matched_qzerop_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qzerop);
-                std::shared_ptr<ov::op::v0::Constant> i8_qweight_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i8, matched_qweight->get_shape());
-                std::shared_ptr<ov::op::v0::Constant> i8_qzerop_constant = std::make_shared<ov::op::v0::Constant>(ov::element::i8, matched_qzerop->get_shape());
-                int8_t* i8_qweight_data = const_cast<int8_t*>(i8_qweight_constant->get_data_ptr<int8_t>());
-                int8_t* i8_qzerop_data = const_cast<int8_t*>(i8_qzerop_constant->get_data_ptr<int8_t>());
-                std::memcpy(i8_qweight_data, matched_qweight_const->get_data_ptr(), matched_qweight_const->get_byte_size());
-                std::memcpy(i8_qzerop_data, matched_qzerop_const->get_data_ptr(), matched_qzerop_const->get_byte_size());
-                // TODO: vectorize or use already vectorized functions
-                for (size_t i = 0; i < matched_qweight->get_shape()[0] * matched_qweight->get_shape()[1]; ++i) {
-                    i8_qweight_data[i] = static_cast<int8_t>(static_cast<uint8_t>(i8_qweight_data[i]) - 128u);
-                }
-                for (size_t i = 0; i < matched_qzerop->get_shape()[0] * matched_qzerop->get_shape()[1]; ++i) {
-                    i8_qzerop_data[i] = static_cast<int8_t>(static_cast<uint8_t>(i8_qzerop_data[i]) - 128u);
-                }
 
-                auto target_qweight_input = matched_qweight->output(0).get_target_inputs().begin();
-                target_qweight_input->get_source_output().replace(i8_qweight_constant);
-                auto& target_qzerop_input = *matched_qzerop->output(0).get_target_inputs().begin();
-                target_qzerop_input.get_source_output().replace(i8_qzerop_constant);
+                auto reinterpret_u8_as_i8 = [](const std::shared_ptr<ov::op::v0::Constant>& src) {
+                    OPENVINO_ASSERT(src->get_element_type() == ov::element::u8);
+                    auto dst = std::make_shared<ov::op::v0::Constant>(
+                        ov::element::i8, src->get_shape(),
+                        src->get_data_ptr(),
+                        src);                     // <-- 'so': source node kept alive => no dangling, no copy
+                    dst->set_friendly_name(src->get_friendly_name());
+                    // FIXME: This copies weightless attribute to not preserve a constant as a new for weightless import.
+                    //        Thus, weightless import will be broken and need additional handling for I8 as U8 consts.
+                    ov::copy_runtime_info(src, dst);
+                    return dst;
+                };
 
-                matched_qweight.reset();
-                matched_qweight_const.reset();
-                matched_qzerop.reset();
-                matched_qzerop_const.reset();
 
+                // To not mmap and allocate vocab memory here, its shifting will be deferred to the LazyTensor unpacking stage.
+                auto i8_qweight_constant = reinterpret_u8_as_i8(matched_qweight_const);
+                i8_qweight_constant->get_rt_info()["needs_shift"] = true;
+                ov::replace_node(matched_qweight_const, i8_qweight_constant);
+                auto i8_qzerop_constant = reinterpret_u8_as_i8(matched_qzerop_const);
+                ov::replace_node(matched_qzerop_const, i8_qzerop_constant);
+                i8_qzerop_constant->get_rt_info()["needs_shift"] = true;
                 return true;
             }
             return false;
@@ -908,7 +906,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_AS_INPUT>()) {
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
         NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
     }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);

@@ -59,6 +59,15 @@ bool Const::operator==(const Const& other) const {
 
 ov::Tensor Const::eval() const {
     if (m_node) {
+        if (m_node->get_element_type() == ov::element::i8 && m_node->get_rt_info()["needs_shift"].as<bool>()) {
+            LOG_INFO("This node is U8 that needs conversion to I8 " << m_node->get_friendly_name());
+            auto i8_tensor = ov::npuw::util::copy_tensor_from_const(m_node);
+            auto* data = i8_tensor.data<int8_t>();
+            for (std::size_t i = 0; i < i8_tensor.get_size(); ++i) {
+                data[i] = static_cast<int8_t>(static_cast<uint8_t>(data[i]) - 128);
+            }
+            return i8_tensor;
+        }
         return ov::npuw::util::copy_tensor_from_const(m_node);
     }
 

@@ -1929,7 +1929,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
                                                            PreserveConstDictMatMulAsymm::Results to_keep,
-                                                           bool only_scale_zeropoint) {
+                                                           bool only_scale) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1981,10 +1981,10 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
                                           !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
         if ((ov::element::u8 == matched_qweight->get_element_type() ||
              ov::element::i8 == matched_qweight->get_element_type()) && (standard_layout || pretransposed_layout)) {
-            if (!only_scale_zeropoint) {
+            if (!only_scale) {
                 to_keep.get().push_back(matched_qweight);
+                to_keep.get().push_back(matched_qzerop);
             }
-            to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed
         }
