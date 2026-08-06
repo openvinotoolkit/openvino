@@ -1295,3 +1295,80 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+// Verifies the CONTENT of the rotated K cache, which the end-to-end output comparison does not pin
+// down: pa_kv_cache_rotate rewrites cache slots in place, and an indexing bug there (e.g. a kernel
+// assuming a d-major page against a token-major cache) rotates the wrong pairs of slots. Reading the
+// cache back and comparing against the CPU reference rotation localises such a bug to the rotate
+// kernel instead of leaving it to surface as an output mismatch somewhere downstream.
+class kv_cache_rotation_content_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(kv_cache_rotation_content_test, verify_rotated_cache_content) {
+    auto p = GetParam();
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam_ref = *this->pam;
+
+    // Snapshot the unrotated key data before the GPU run mutates the cache, then apply the reference
+    // rotation to that snapshot -- pam.key_data itself is what the harness wrote into the cache.
+    auto expected_key_data = pam_ref.key_data;
+
+    auto result = run_gpu_inference(pam_ref, p);
+    PagedAttentionReference ref(pam_ref);
+
+    ASSERT_FALSE(pam_ref.rotated_block_indices.empty())
+        << "test case rotates nothing -- it cannot detect a rotate-kernel bug";
+
+    for (size_t seq_idx = 0; seq_idx < p.subsequences.size(); seq_idx++) {
+        const auto& sd = p.subsequences[seq_idx];
+        const int total_tokens = sd.num_tokens + sd.past_len;
+
+        const auto blocks_start = pam_ref.block_indices_begins[seq_idx];
+        const auto blocks_end = pam_ref.block_indices_begins[seq_idx + 1];
+
+        for (auto it = pam_ref.block_indices.begin() + blocks_start; it != pam_ref.block_indices.begin() + blocks_end; ++it) {
+            auto rot_it = std::find(pam_ref.rotated_block_indices.begin(), pam_ref.rotated_block_indices.end(), *it);
+            if (rot_it == pam_ref.rotated_block_indices.end())
+                continue;
+            const int index = static_cast<int>(std::distance(pam_ref.rotated_block_indices.begin(), rot_it));
+            ref.rotate_block_for_test(expected_key_data[seq_idx],
+                                      pam_ref.rotation_deltas,
+                                      pam_ref.rotation_trig_lut,
+                                      index,
+                                      *rot_it - blocks_start,
+                                      p.num_kv_heads,
+                                      p.k_head_size,
+                                      p.block_size,
+                                      p.rotation_config.per_block);
+        }
+
+        auto cached_key = ref.read_key_from_cache(result.key_cache_mem, seq_idx, total_tokens);
+
+        // Only the past_len prefix lives in the cache in rotated form; the rotate kernel runs before
+        // kv_cache_update writes the new tokens, and only fully-occupied past blocks are rotated.
+        for (int token_idx = 0; token_idx < sd.past_len; token_idx++) {
+            for (int head_idx = 0; head_idx < p.num_kv_heads; head_idx++) {
+                for (int dim = 0; dim < p.k_head_size; dim++) {
+                    const size_t cache_offset = static_cast<size_t>(head_idx) * total_tokens * p.k_head_size +
+                                                static_cast<size_t>(token_idx) * p.k_head_size + dim;
+                    const size_t input_offset = static_cast<size_t>(token_idx) * p.num_kv_heads * p.k_head_size +
+                                                static_cast<size_t>(head_idx) * p.k_head_size + dim;
+
+                    ASSERT_NEAR(static_cast<float>(cached_key[cache_offset]),
+                                static_cast<float>(expected_key_data[seq_idx][input_offset]),
+                                2e-3f)
+                        << " seq=" << seq_idx << " token=" << token_idx << " head=" << head_idx << " dim=" << dim;
+                }
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_content_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // past_len must be >= 2 * block_size for any block to be rotated (see PagedAttentionManager:
+    // only odd, fully-occupied past blocks are picked), so these all use past_len >= 32.
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{1, 128}}, 2, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    // GQA, and a head size the 2D-block path cannot use (48 -> 96 B pitch), to keep both K read paths covered.
+    paged_attention_test_params{ {{4, 96}}, 8, 2, 48, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+}));
+
