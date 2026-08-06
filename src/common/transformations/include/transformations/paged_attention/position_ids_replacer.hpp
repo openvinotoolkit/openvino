@@ -124,7 +124,7 @@ public:
  *  └──────┬───────┘                     └──────┬───────┘
  *         │                                    │
  *  ┌──────┴──────┐                       ┌──────┴──────┐
- *  │  Unsqueeze  │ (optional)             │  Unsqueeze  │ (optional)
+ *  │  Unsqueeze  │ (optional)            │  Unsqueeze  │ (optional)
  *  └──────┬──────┘                       └──────┬──────┘
  *         │                                     │
  *  ┌──────┴──────┐                       ┌──────┴──────┐
