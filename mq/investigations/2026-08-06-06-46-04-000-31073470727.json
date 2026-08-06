@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-06-46-04-000-31073470727",
+  "timestamp": "2026-08-06T06:46:04Z",
+  "run_id": "31073470727",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31073470727",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "34808",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/34808",
+  "author": "ZackyLake",
+  "category": "Flaky Test",
+  "title": "JS API E2E of openvino-node package fails on Windows",
+  "signature": "e2e of openvino-node package step failed|Flaky Test",
+  "signature_hash": "323dd65ac8d70bf1",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "E2E of openvino-node package step failed"
+    }
+  ],
+  "key_errors": [
+    "Job: JS API (24) - Step: E2E of openvino-node package - conclusion: failure"
+  ],
+  "root_cause": "The JS API E2E test for openvino-node package failed on a Windows runner (Node 24). The failure is unrelated to the GPU plugin changes in PR #34808 (which only modifies fully_connected.cpp and related tests). This appears to be a flaky test or transient runner issue given: (1) the run is on attempt 2, suggesting it has already been retried, (2) Node.js E2E tests on Windows are known to be sensitive to runner environment conditions, and (3) the PR only changes Intel GPU plugin sources with no JS API changes.",
+  "reproduction_steps": "N/A - likely not reproducible locally; transient runner or E2E test flakiness",
+  "recommended_actions": [
+    "Re-run the failed JS API job to verify if transient",
+    "Check for recent changes to the JS API E2E test suite or openvino-node package",
+    "If consistently failing, investigate the Node 24 compatibility with the openvino-node E2E tests"
+  ],
+  "prevention_strategies": "Add retry logic for flaky JS API E2E tests on Windows. Monitor JS API test stability on Node 24.",
+  "historical_context": "No prior pattern recorded for this specific failure signature."
+}

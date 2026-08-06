@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "e2e of openvino-node package step failed|Flaky Test",
+  "signature_hash": "323dd65ac8d70bf1",
+  "title": "JS API E2E of openvino-node package fails on Windows",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-06T06:46:04Z",
+  "last_seen": "2026-08-06T06:46:04Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31073470727"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/34808"
+  ],
+  "recent_timestamps": [
+    "2026-08-06T06:46:04Z"
+  ],
+  "rerun_search_string": "E2E of openvino-node package"
+}
