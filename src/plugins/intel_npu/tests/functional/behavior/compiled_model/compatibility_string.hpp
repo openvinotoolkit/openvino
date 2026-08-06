@@ -114,11 +114,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
     ASSERT_FALSE(it->is_mutable());
     OV_ASSERT_NO_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements));
 
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-                           model,
-                           deviceName,
-                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                            ov::intel_npu::bypass_umd_caching(true)}));
+    OV_ASSERT_NO_THROW(compiledModel =
+                           core.compile_model(model,
+                                              deviceName,
+                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::bypass_umd_caching(true)}));
     // Test that RUNTIME_REQUIREMENTS is supported for CID when the L0 graph extension version >= 1.16,
     // and unsupported for earlier driver versions. CIP always supports it.
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
@@ -155,11 +155,11 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     OV_ASSERT_NO_THROW(requirements = compiledModel.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
 
-    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-                           model,
-                           deviceName,
-                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                            ov::intel_npu::bypass_umd_caching(true)}));
+    OV_ASSERT_NO_THROW(compiledModel =
+                           core.compile_model(model,
+                                              deviceName,
+                                              {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+                                               ov::intel_npu::bypass_umd_caching(true)}));
 
     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
     it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
@@ -177,43 +177,43 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
     compiledModel = {};
 }
 
-// due to use ONE_SHOT, maybe not need to be droped?
-// TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWS) {
-//     // Preparing the model for the test
-//     std::stringstream model_xml, model_bin;
-//     {
-//         // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime information
-//         // of constant nodes
-//         auto model = ov::test::utils::make_conv_pool_relu();
-//         ov::pass::Serialize serializer(model_xml, model_bin);
-//         serializer.run_on_model(model);
-//     }
-//     auto model_bin_str = model_bin.str();
-//     ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
-//     std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
-//     auto model = core.read_model(model_xml.str(), model_weights);
+TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsNotSupportedForWSOneShot) {
+    // The ONE_SHOT weights separation flow does not produce a compatibility descriptor, so
+    // RUNTIME_REQUIREMENTS must be absent (unlike the ITERATIVE flow, which does support it).
+    std::stringstream model_xml, model_bin;
+    {
+        // Serialize generated model into stringstream to later populate `WeightlessCacheAttribute` runtime information
+        // of constant nodes
+        auto model = ov::test::utils::make_conv_pool_relu();
+        ov::pass::Serialize serializer(model_xml, model_bin);
+        serializer.run_on_model(model);
+    }
+    auto model_bin_str = model_bin.str();
+    ov::Tensor model_weights(ov::element::u8, ov::Shape{model_bin_str.size()});
+    std::memcpy(model_weights.data<char>(), model_bin_str.data(), model_bin_str.size());
+    auto model = core.read_model(model_xml.str(), model_weights);
 
-//     ov::CompiledModel compiledModel;
-//     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
-//                            model,
-//                            deviceName,
-//                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-//                             ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
-//                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
-//                             ov::enable_weightless(true),
-//                             ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT)}));
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
+                           model,
+                           deviceName,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                                ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
+                            ov::enable_weightless(true),
+                            ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT)}));
 
-//     std::vector<ov::PropertyName> properties;
-//     // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
-//     OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
-//                     ov::Exception,
-//                     testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
+    std::vector<ov::PropertyName> properties;
+    // Test that RUNTIME_REQUIREMENTS is not supported for a weightless model
+    OV_EXPECT_THROW(auto requirements = compiledModel.get_property(ov::runtime_requirements),
+                    ov::Exception,
+                    testing::HasSubstr("Unsupported configuration key: RUNTIME_REQUIREMENTS"));
 
-//     // Test that RUNTIME_REQUIREMENTS is not in the list of supported properties either
-//     OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
-//     auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
-//     ASSERT_TRUE(it == properties.cend());
-// }
+    // Test that RUNTIME_REQUIREMENTS is not in the list of supported properties either
+    OV_ASSERT_NO_THROW(properties = compiledModel.get_property(ov::supported_properties));
+    auto it = find(properties.cbegin(), properties.cend(), ov::runtime_requirements);
+    ASSERT_TRUE(it == properties.cend());
+}
 
 TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupportedForWSIterative) {
     // Preparing the model for the test
