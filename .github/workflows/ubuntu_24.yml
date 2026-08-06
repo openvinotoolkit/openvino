@@ -174,7 +174,7 @@ jobs:
 
   LLM_Accuracy_CPU:
     name: LLM accuracy CPU tests
-    needs: [ Docker, Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     if: ${{ github.event_name != 'schedule' }}
     timeout-minutes: 90
     runs-on: aks-linux-4-cores-16gb
@@ -210,6 +210,12 @@ jobs:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+
       - name: Setup Python 3.12
         uses: ./.github/actions/setup_python
         with:
@@ -218,11 +224,11 @@ jobs:
           self-hosted-runner: true
           use-pip-proxy: true
 
-      - name: Install OpenVINO Python wheel
+      - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino'
+          wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install LLM accuracy test requirements
         run: |
@@ -305,7 +311,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
       target-branch: ${{ inputs.target-branch }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS && github.event_name != 'schedule'
+    if: ${{ github.event_name != 'schedule' }}
 
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
