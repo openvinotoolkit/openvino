@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-15-27-25-000-31112143407",
+  "timestamp": "2026-08-06T15:27:25Z",
+  "run_id": "31112143407",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31112143407",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37189",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37189",
+  "author": "aobolensk",
+  "category": "Infrastructure",
+  "title": "Setup Python action fails to resolve download info - Service Unavailable",
+  "signature": "failed to resolve action download info service unavailable|Infrastructure",
+  "signature_hash": "20483f6ec6095dbe",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests", "conclusion": "failure", "symptom": "Setup Python 3.11 step failed: Service Unavailable when resolving action download info"},
+    {"name": "TensorFlow Layer Tests / TensorFlow Layer Tests", "conclusion": "failure", "symptom": "Setup Python 3.11 step failed: Service Unavailable (and Internal Server Error) when resolving action download info"},
+    {"name": "ci/gha_overall_status_linux_arm64", "conclusion": "failure", "symptom": "Overall status check failed due to upstream job failures"}
+  ],
+  "key_errors": [
+    "2026-08-06T15:08:11.7613612Z Failed to resolve action download info. Error: Service Unavailable",
+    "2026-08-06T15:09:50.7398735Z Failed to resolve action download info. Error: Service Unavailable",
+    "2026-08-06T15:11:41.8560179Z ##[error]Service Unavailable",
+    "2026-08-06T15:11:41.8576703Z ##[error]Failed to resolve action download info.",
+    "2026-08-06T15:13:05.3924679Z Failed to resolve action download info. Error: Service Unavailable",
+    "2026-08-06T15:13:41.3115548Z Failed to resolve action download info. Error: Internal Server Error",
+    "2026-08-06T15:15:45.4124984Z ##[error]Failed to resolve action download info."
+  ],
+  "root_cause": "The GitHub Actions infrastructure returned HTTP 503 Service Unavailable (and once 500 Internal Server Error) when the runner tried to resolve and download the setup-python action. This is a transient GitHub Actions infrastructure outage — the runner retried multiple times over several minutes before finally failing. The failure is completely unrelated to the PR changes (RISC-V64 fill emitter optimization in the CPU plugin). The ci/gha_overall_status_linux_arm64 job then failed because it runs 'exit 1' when any upstream required job fails.",
+  "reproduction_steps": "N/A — not reproducible outside CI; requires a GitHub Actions infrastructure outage.",
+  "recommended_actions": [
+    "Re-add PR #37189 to the merge queue — the failure is transient and unrelated to the PR changes.",
+    "Monitor GitHub Actions status page (githubstatus.com) for ongoing incidents.",
+    "Consider adding retry logic or a longer timeout to the Setup Python step if this pattern recurs."
+  ],
+  "prevention_strategies": "Infrastructure outages from GitHub Actions cannot be prevented at the repository level. Consider implementing workflow retry logic using the 'retry-on-failure' pattern or GitHub's built-in re-run capabilities.",
+  "historical_context": "This is the first recorded occurrence of this specific 'Service Unavailable' pattern for the Linux ARM64 workflow in the CI Doctor MQ database."
+}
