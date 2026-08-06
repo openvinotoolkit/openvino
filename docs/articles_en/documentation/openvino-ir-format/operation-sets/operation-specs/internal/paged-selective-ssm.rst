@@ -104,59 +104,59 @@ Cases for reading and updating blocks:
 
 **Inputs**
 
-* **0**: ``A`` - Tensor of type *T* and shape ``[num_heads]``.
+* **1**: ``A`` - Tensor of type *T* and shape ``[num_heads]``.
   Per-head (negative) log-decay rates used to compute the discretized state transition
   ``dA``. **Required.**
 
-* **1**: ``dt`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_heads]``.
+* **2**: ``dt`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_heads]``.
   Per-token, per-head time steps used for discretization. **Required.**
 
-* **2**: ``B`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_groups, state_size]``.
+* **3**: ``B`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_groups, state_size]``.
   Grouped input projection for all tokens in the batch. Shared across heads within a group.
   **Required.**
 
-* **3**: ``x`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_heads, head_dim]``.
+* **4**: ``x`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_heads, head_dim]``.
   Input hidden states for all tokens in the batch. **Required.**
 
-* **4**: ``C`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_groups, state_size]``.
+* **5**: ``C`` - Tensor of type *T* and shape ``[batch_size_in_tokens, num_groups, state_size]``.
   Grouped output projection for all tokens in the batch. Shared across heads within a group.
   **Required.**
 
-* **5**: ``recurrent_state_table`` - Tensor of type *T* and shape
+* **6**: ``recurrent_state_table`` - Tensor of type *T* and shape
   ``[num_blocks, num_heads, head_dim, state_size]``.
   Paged table of recurrent state snapshots. Each row is one block storing a complete state for
   all heads at a cached token position. This tensor is updated in place during execution.
   The initial state before any tokens are processed is an all-zeros tensor. **Required.**
 
-* **6**: ``subsequence_begins`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences + 1]``.
+* **7**: ``subsequence_begins`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences + 1]``.
   Start indices of each sequence's tokens in the flattened token batch (0-th dimension of
   ``dt``, ``B``, ``x``, ``C``). The tokens of sequence ``s`` span
   ``[subsequence_begins[s], subsequence_begins[s+1])``. **Required.**
 
-* **7**: ``la_block_indices`` - Tensor of type *T_IND* and shape ``[num_blocks]``.
+* **8**: ``la_block_indices`` - Tensor of type *T_IND* and shape ``[num_blocks]``.
   Physical block row indices into ``recurrent_state_table``, concatenated across all sequences.
   For example, ``[0, 1, 3, 2, 4]`` with five blocks. **Required.**
 
-* **8**: ``la_block_indices_begins`` - Tensor of type *T_IND* and shape
+* **9**: ``la_block_indices_begins`` - Tensor of type *T_IND* and shape
   ``[batch_size_in_sequences + 1]``.
   Splits ``la_block_indices`` among sequences. The block indices for sequence ``s`` are
   ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
   For example, ``la_block_indices = [0, 1, 3, 2, 4]`` and ``la_block_indices_begins = [0, 3, 5]``
   means sequence 0 uses blocks ``[0, 1, 3]`` and sequence 1 uses blocks ``[2, 4]``. **Required.**
 
-* **9**: ``num_processed_tokens`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
+* **10**: ``num_processed_tokens`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
   Number of tokens already processed for each sequence. Used together with the cached states
   in ``recurrent_state_table`` to determine the starting recurrent state for each sequence.
   **Required.**
 
-* **10**: ``cache_interval`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
+* **11**: ``cache_interval`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
   Interval (in tokens) at which the recurrent state is saved into a block of
   ``recurrent_state_table`` for each sequence. A value ``<= 0`` disables caching for that
   sequence. **Required.**
 
 **Outputs**
 
-* **0**: ``output`` - Tensor of type *T* and shape
+* **1**: ``output`` - Tensor of type *T* and shape
   ``[batch_size_in_tokens, num_heads, head_dim]``.
   Per-token, per-head output vectors produced by contracting the updated recurrent state
   with ``C``.
