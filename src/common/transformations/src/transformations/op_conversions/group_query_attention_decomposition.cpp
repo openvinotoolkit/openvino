@@ -278,7 +278,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     ov::Output<ov::Node> external_bias;
     if (node->has_input(static_cast<int64_t>(GQAInputs::ATTENTION_BIAS))) {
-        external_bias = node->input_value(static_cast<int64_t>(GQAInputs::ATTENTION_BIAS));
+        external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
     const auto mask = make_attention_mask(curr_seqlen_scalar,
                                           concat_kv_len_scalar,
@@ -296,7 +296,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (has_head_sink || smooth_softmax) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
-            auto head_sink = node->input_value(static_cast<int64_t>(GQAInputs::HEAD_SINK));
+            auto head_sink = get_input(GQAInputs::HEAD_SINK);
             if (head_sink.get_element_type() != T) {
                 head_sink = register_new_node<v0::Convert>(head_sink, T);
             }

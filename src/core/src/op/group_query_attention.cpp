@@ -154,7 +154,7 @@ void GroupQueryAttention::validate_and_infer_types() {
                 {4},
                 {element::f32, element::f16, element::i8, element::u8, element::f8e4m3});
     check_input(GroupQueryAttentionInputs::SEQLENS_K, {1, 2}, integral_types);
-    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH, {0, 1}, integral_types);
+    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH, {0, 1}, integral_types, false);
 
     if (m_do_rotary) {
         check_input(GroupQueryAttentionInputs::COS_CACHE, {2}, {}, true);
