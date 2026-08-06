@@ -677,6 +677,22 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_V_PA_2D"))
         v_pa_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_V_PA", v_pa_2d);
+    // Same idea for the K cache, but ONLY once the K cache is stored token-major
+    // (paged_attention::k_token_major()): a d-major page's row is block_size keys = 32 B, below the
+    // 64 B block2d minimum, so no head size can satisfy the rule -- which is exactly why the K read
+    // was a per-key scalar gather. Token-major makes a page a [block_size, k_head_size] row-major
+    // tile, i.e. the same geometry as V above, so the pitch rule is checked the same way against the
+    // page pitch (k_head_size * 2), not ldk.
+    int k_pa_2d = 0;
+    if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed && paged_attention::k_token_major() &&
+        !data_type_traits::is_i8_u8(K.data_type) && !data_type_traits::is_i4_u4(K.data_type)) {
+        const auto k_page_pitch = k_head_size * ov::element::Type(K.data_type).size();
+        k_pa_2d = block2d_surface_ok(k_page_pitch);
+    }
+    // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather.
+    if (const char* env = std::getenv("SDPA_OCL_K_PA_2D"))
+        k_pa_2d = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_K_PA", k_pa_2d);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
