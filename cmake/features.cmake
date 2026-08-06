@@ -131,7 +131,6 @@ ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
-ov_dependent_option (ENABLE_IPF_CLIENT_API "Enable IPF ClientApi integration for AUTO device telemetry" ON "MSVC;ENABLE_AUTO" OFF)
 ov_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
 ov_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 ov_option (ENABLE_TEMPLATE "Enable template plugin" ON)
@@ -222,6 +221,8 @@ ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NO
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
 ov_dependent_option(ENABLE_IO_URING "Enables io_uring feature" OFF "LINUX" OFF)
+
+ov_dependent_option (ENABLE_IPF_CLIENT_API "Enable IPF ClientApi integration for AUTO device telemetry" ON "MSVC;ENABLE_AUTO" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
