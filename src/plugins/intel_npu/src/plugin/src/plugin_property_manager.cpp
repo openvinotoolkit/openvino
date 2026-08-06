@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "compiler_property_helper.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
@@ -57,17 +58,25 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const intel_npu::Logger& logger) {
     using namespace intel_npu;
 
+    std::optional<std::vector<std::string>> compilerSupportList = getCompilerSupportedOptions(compilerType, backend);
+    if (!compilerSupportList.has_value()) {
+        logger.info("No compiler support options list received! Fallback to version-based option registration");
+        logger.debug("Legacy registration mode enabled");
+    } else {
+        const auto& supportedOptions = compilerSupportList.value();
+        logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
+        for (const auto& str : supportedOptions) {
+            logger.debug("    %s ", str.c_str());
+        }
+    }
+
     config.walkEnables([&](const std::string& key) {
-        bool isEnabled = false;
         auto opt = config.getOpt(key);
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
         if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
-            isEnabled = CompilerOptionsCache::isOptionSupported(compilerType,
-                                                                key,
-                                                                std::nullopt,
-                                                                backend,
-                                                                opt.compilerSupportVersion());
+            bool isEnabled =
+                isCompilerOptionSupported(compilerType, key, std::nullopt, backend, opt.compilerSupportVersion());
 
             if (!isEnabled) {
                 logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
@@ -902,7 +911,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
-            if (!CompilerOptionsCache::isOptionSupported(effectiveCompilerType, key, std::nullopt, _backend)) {
+            if (!isCompilerOptionSupported(effectiveCompilerType, key, std::nullopt, _backend, std::nullopt)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
             updatedConfig.addOrUpdateInternal(key, value);
