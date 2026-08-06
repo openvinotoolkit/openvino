@@ -18,6 +18,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/flux2_compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
@@ -81,7 +82,9 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
             stream.clear();
             stream.seekg(stream_start_pos);
 
-            if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+            if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
+                return ov::npuw::Flux2CompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
                 return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
                 // Properties are required for ov::weights_path
