@@ -51,7 +51,7 @@ struct MemRefTypeImpl {
         }
     }
 
-    void UpdateMemRefHandleStatus(MemRefType& memref) {
+    void UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
         // Update current MemRef handle to use latest metadata
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
@@ -93,8 +93,8 @@ struct MemRefTypeImpl {
                                                 memref._basePtr,
                                                 memref._data,
                                                 memref._offset,
-                                                _shapeUpdated ? memref._sizes.data() : nullptr,
-                                                _strideUpdated ? memref._strides.data() : nullptr,
+                                                useV2Api && !_shapeUpdated ? nullptr : memref._sizes.data(),
+                                                useV2Api && !_strideUpdated ? nullptr : memref._strides.data(),
                                                 memref._dimsCount);
             if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 OPENVINO_THROW("Failed to update MemRef handle");
@@ -545,7 +545,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref);
+            impl->UpdateMemRefHandleStatus(memref, true);
             targetHandles.push_back(impl->_memRef);
         }
     };
@@ -625,7 +625,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref);
+            impl->UpdateMemRefHandleStatus(memref, use_npu_vm_runtime_v2_api(_apiVersion));
             destMemRefHandles.push_back(impl->_memRef);
         }
     };
