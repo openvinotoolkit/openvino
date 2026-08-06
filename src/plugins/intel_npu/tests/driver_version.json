@@ -1,0 +1,16 @@
+{
+    "windows10": {
+        "MTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260723_1903/npu-driver-ci-master-13131-RelWithDebInfo.zip",
+        "LNL": "windows/unified/integration/ci_tag_driver_rc_config1_20260723_1903/npu-driver-ci-master-13131-RelWithDebInfo.zip",
+        "PTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260723_1903/npu-driver-ci-master-13131-RelWithDebInfo.zip",
+        "MTL_release": "windows/unified/UD202612/ci_tag_driver_rc_ud202612_20260318_1230/npu-driver-ci-releases_26ww10-ci-master-10946-568-RelWithDebInfo.zip",
+        "LNL_release": "windows/unified/UD202612/ci_tag_driver_rc_ud202612_20260318_1230/npu-driver-ci-releases_26ww10-ci-master-10946-568-RelWithDebInfo.zip",
+        "PTL_release": "windows/unified/UD202612/ci_tag_driver_rc_ud202612_20260318_1230/npu-driver-ci-releases_26ww10-ci-master-10946-568-RelWithDebInfo.zip",
+        "MTL_PV": "windows/MTL/PV2/ci_tag_mtl_pv2_driver_rc_20231031_2101/npu_win_31.0.100.1688.zip"
+    },
+    "ubuntu24": {
+        "MTL": "ubuntu24/unified/integration/npu-linux-driver-ci-1.37.0.20260723-30021051329/npu-linux-driver-ci-1.37.0.20260723-30021051329-ubuntu2404-release.tar.gz",
+        "MTL_release": "ubuntu24/unified/1.33.0/npu-linux-driver-ci-1.33.0.20260519-26100334120/npu-linux-driver-ci-1.33.0.20260519-26100334120-ubuntu2404-release.tar.gz",
+        "PTL_release": "ubuntu24/unified/integration/npu-linux-driver-ci-1.37.0.20260625-28159615814/npu-linux-driver-ci-1.37.0.20260625-28159615814-ubuntu2404-release.tar.gz"
+    }
+}

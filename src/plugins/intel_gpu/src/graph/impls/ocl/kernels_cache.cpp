@@ -133,7 +133,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string key = options;
 
-            if (batch_compilation == false) {
+            if (!batch_compilation) {
                 key += " __PROGRAM__" + std::to_string(program_buckets.size());
             }
 
@@ -284,7 +284,7 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         return;
     }
 
-    std::string current_dump_file_name = "";
+    std::string current_dump_file_name;
     if (dump_sources) {
         current_dump_file_name = std::move(dump_sources_dir);
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')

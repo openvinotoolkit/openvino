@@ -284,6 +284,8 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f8e4m3)
         dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f4e2m1)
+        dump<ov::float4_e2m1>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f8e8m0)
         dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::boolean)
@@ -316,10 +318,7 @@ bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iterati
     if (dump_iteration.empty())
         return true;
 
-    if (dump_iteration.find(iteration) == std::end(dump_iteration))
-        return false;
-
-    return true;
+    return dump_iteration.find(iteration) != std::end(dump_iteration);
 }
 
 std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) {

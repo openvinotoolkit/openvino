@@ -108,11 +108,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) con
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
     auto sel_lwg_d = tune_params.lwg_depth;
-    if (CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d != 0) {
-        return false;
-    }
-
-    return true;
+    return CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d == 0;
 }
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(const convolution_params& params,
