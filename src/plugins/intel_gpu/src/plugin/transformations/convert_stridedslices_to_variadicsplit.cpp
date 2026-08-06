@@ -110,7 +110,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                         return false;
                     if (!check_mask(end_mask))
                         return false;
-                    if (!((values.back() == end_offset) || (values.back() == max_value)))
+                    if ((values.back() != end_offset) && (values.back() != max_value))
                         return false;
                 } else {
                     return false;
