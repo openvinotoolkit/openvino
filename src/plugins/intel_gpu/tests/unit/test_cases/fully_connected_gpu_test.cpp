@@ -6532,20 +6532,19 @@ TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
-    fully_connected_gpu_u2_validation,
-    ::testing::Values(std::make_tuple(1, 4, 4, 4, 1, false),      // minimum size (single group)
-                      std::make_tuple(2, 16, 8, 4, 1, false),     // multiple batches, small group size
-                      std::make_tuple(4, 64, 32, 32, 1, false),   // group_size == ifm (single group per row)
-                      std::make_tuple(1, 128, 64, 32, 1, false),  // larger dimensions, multiple groups
-                      std::make_tuple(8, 256, 128, 64, 1, false), // large batch + large matrix
-                      std::make_tuple(1, 512, 256, 128, 1, false), // stress test
-                      std::make_tuple(2, 64, 63, 16, 1, false),   // odd ofm_num
-                      std::make_tuple(2, 60, 64, 4, 1, false),    // odd number of scale groups
-                      std::make_tuple(2, 8, 4, 4, 3, false),      // 3D (OUTPUT_3D) path
-                      std::make_tuple(1, 16, 8, 4, 5, false),     // 3D with longer sequence
-                      std::make_tuple(2, 16, 8, 4, 1, true),      // with zero-point
-                      std::make_tuple(1, 64, 32, 16, 1, true),    // with zero-point, larger
-                      std::make_tuple(2, 8, 4, 4, 3, true)        // 3D with zero-point
-    ),
-    fully_connected_gpu_u2_validation::GetTestCaseName);
-
+                         fully_connected_gpu_u2_validation,
+                         ::testing::Values(std::make_tuple(1, 4, 4, 4, 1, false),        // minimum size (single group)
+                                           std::make_tuple(2, 16, 8, 4, 1, false),       // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),     // group_size == ifm (single group per row)
+                                           std::make_tuple(1, 128, 64, 32, 1, false),    // larger dimensions, multiple groups
+                                           std::make_tuple(8, 256, 128, 64, 1, false),   // large batch + large matrix
+                                           std::make_tuple(1, 512, 256, 128, 1, false),  // stress test
+                                           std::make_tuple(2, 64, 63, 16, 1, false),     // odd ofm_num
+                                           std::make_tuple(2, 60, 64, 4, 1, false),      // odd number of scale groups
+                                           std::make_tuple(2, 8, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
+                                           std::make_tuple(1, 16, 8, 4, 5, false),       // 3D with longer sequence
+                                           std::make_tuple(2, 16, 8, 4, 1, true),        // with zero-point
+                                           std::make_tuple(1, 64, 32, 16, 1, true),      // with zero-point, larger
+                                           std::make_tuple(2, 8, 4, 4, 3, true)          // 3D with zero-point
+                                           ),
+                         fully_connected_gpu_u2_validation::GetTestCaseName);
