@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Intel Platform Framework (IPF) telemetry client from submodule.
-# Built only on MSVC; other toolchains keep AUTO functional without IPF telemetry.
-# IPF is disabled when OpenVINO uses static MSVC runtime (/MT, /MTd).
+# Intel Platform Framework (IPF) telemetry client from submodule (MSVC only).
+# ClientApi requires dynamic CRT (/MD); static CRT toolchain sets
+# ENABLE_IPF_CLIENT_API=OFF.
 # Only ClientApi shared library is linked via ClientApiC.h.
 
 set(_ipf_ef_dir "${CMAKE_CURRENT_SOURCE_DIR}/ipf/IPF_EF")
@@ -16,27 +16,6 @@ endif()
 
 if(NOT MSVC)
     message(STATUS "[AUTO] IPF: non-MSVC toolchain, device utilization monitoring disabled")
-    return()
-endif()
-
-# IPF's ClientApi is always built against the dynamic CRT (/MD). Mixing it into an
-# OpenVINO build that uses the static CRT (/MT) yields incompatible runtimes, so
-# force-disable IPF whenever a static MSVC runtime is detected.
-set(_ov_auto_static_crt OFF)
-if(CMAKE_MSVC_RUNTIME_LIBRARY)
-    if(CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "BOOL:(OFF|FALSE|0|NO|N|IGNORE)>:DLL")
-        set(_ov_auto_static_crt ON)
-    elseif(NOT CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "DLL")
-        set(_ov_auto_static_crt ON)
-    endif()
-elseif(CMAKE_CXX_FLAGS MATCHES "(^| )/MTd?( |$)" OR CMAKE_CXX_FLAGS_RELEASE MATCHES "(^| )/MT( |$)"
-       OR CMAKE_CXX_FLAGS_DEBUG MATCHES "(^| )/MTd( |$)" OR CMAKE_C_FLAGS MATCHES "(^| )/MTd?( |$)")
-    set(_ov_auto_static_crt ON)
-endif()
-
-if(_ov_auto_static_crt)
-    message(STATUS "[AUTO] IPF: OpenVINO uses static MSVC runtime (/MT), but IPF ClientApi requires /MD; "
-                   "device utilization monitoring disabled")
     return()
 endif()
 
@@ -59,9 +38,7 @@ if(NOT TARGET ClientApi)
 endif()
 
 set_target_properties(ClientApi PROPERTIES EXPORT_NAME ipf_client_api)
-if(NOT TARGET openvino::ipf_client_api)
-    add_library(openvino::ipf_client_api ALIAS ClientApi)
-endif()
+add_library(openvino::ipf_client_api ALIAS ClientApi)
 
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ClientApi EXPORT OpenVINOTargets
