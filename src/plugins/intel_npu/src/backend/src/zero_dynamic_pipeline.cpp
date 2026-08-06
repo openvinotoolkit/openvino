@@ -137,14 +137,19 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runt
     return _handle;
 }
 
-npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(npu_vm_runtime_handle_t vmRuntime,
-                                                                       ze_context_handle_t ctx,
-                                                                       ze_device_handle_t device,
-                                                                       ze_command_queue_handle_t commandQueue,
-                                                                       ze_graph_dditable_ext_t* graphDdiTableExt,
-                                                                       ze_command_queue_npu_dditable_ext_t* queueDdiTableExt) {
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
+    npu_vm_runtime_handle_t vmRuntime,
+    ze_context_handle_t ctx,
+    ze_device_handle_t device,
+    ze_command_queue_handle_t commandQueue,
+    ze_graph_dditable_ext_t* graphDdiTableExt,
+    ze_command_queue_npu_dditable_ext_t* queueDdiTableExt) {
     if (_handle == nullptr) {
-        npu_vm_runtime_create_execution_context_params_t params = {ctx, device, commandQueue, graphDdiTableExt, queueDdiTableExt};
+        npu_vm_runtime_create_execution_context_params_t params = {ctx,
+                                                                   device,
+                                                                   commandQueue,
+                                                                   graphDdiTableExt,
+                                                                   queueDdiTableExt};
         const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
         if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context (v2)");
@@ -626,9 +631,8 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             }
             commandQueue = commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr;
         }
-        params.executionContext = use_npu_vm_runtime_v2_api(_apiVersion)
-                                      ? _executionContext.handle()
-                                      : _executionContext.ensure(vmRuntime);
+        params.executionContext =
+            use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
