@@ -37,6 +37,14 @@
         #define KEY_CACHE_ZP_OFFSET(physical_block, token_offset) \
             (KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) + SIZEOF_HALF * PAGED_ATTENTION_BLOCK_SIZE)
     #endif
+#elif IS_KEY_TOKEN_MAJOR
+    // Uncompressed token-major layout: [num_blocks, KV_HEADS_NUM, PAGED_ATTENTION_BLOCK_SIZE, K_HEAD_SIZE]
+    // -- head dims contiguous, matching the value cache. Page size is unchanged, so only the
+    // in-page token / head-dim strides differ from the d-major case below.
+    #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+        ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
+         head_idx * K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + \
+         (token_offset) * K_HEAD_SIZE + (d))
 #else
     // Uncompressed layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]
     #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
