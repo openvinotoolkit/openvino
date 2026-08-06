@@ -6,7 +6,6 @@
 #define INPUT0_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define INPUT1_COMPUTE_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT1_COMPUTE_TYPE, 8)
 #define OUTPUT_VEC_TYPE  MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
-#define TO_INPUT1_TYPE              CAT(convert_, INPUT1_TYPE)
 #define TO_VECTOR_TYPE_IMPL_8(elem_type)  CAT(convert_##elem_type, 8)
 #define TO_VECTOR_TYPE(elem_type, size)   CAT(TO_VECTOR_TYPE_IMPL_, size)(elem_type)
 #define TO_VECTOR_TYPE_IMPL_SAT_8(elem_type)  CAT(convert_##elem_type, 8##_sat)
@@ -161,7 +160,7 @@ KERNEL(quantize_gpu_scale_shift_vload8_opt)(OPTIONAL_SHAPE_INFO_ARG
 #endif // CAN_USE_OUTPUT_RANGE
 
 #if OUTPUT_IS_FP
-        res = TO_OUTPUT_VECTOR_TYPE(val, 8);
+        res = TO_OUTPUT_VECTOR_TYPE_SAT(val, 8);
 #else
         res = TO_VECTOR_TYPE_SAT_RTE(OUTPUT_TYPE, 8)(val);;
 #endif
