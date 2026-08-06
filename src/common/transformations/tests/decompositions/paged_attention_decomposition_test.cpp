@@ -47,7 +47,6 @@ constexpr int64_t MAX_BLOCKS = 2;
 struct PaParams {
     std::string name;
     Dimension num_tokens = 1;
-    bool packed = false;
     int64_t local_window_size = -1;
     float softcap = 0.0f;
     bool do_rotary = false;
@@ -68,10 +67,6 @@ struct PaParams {
     }
     PaParams& batch_size(const Dimension& b) {
         batch = b;
-        return *this;
-    }
-    PaParams& pack() {
-        packed = true;
         return *this;
     }
     PaParams& window(int64_t w) {
@@ -100,8 +95,10 @@ std::shared_ptr<Model> make_pa_model(const PaParams& p) {
         params.push_back(prm);
     };
 
-    // The internal op receives separate 2-D Q/K/V (the ONNX FE splits the packed QKV before creating it).
-    const int64_t q_hidden = (p.packed ? (NUM_HEADS + 2 * KV_NUM_HEADS) : NUM_HEADS) * HEAD_SIZE;
+    // The internal op receives separate 2-D Q/K/V (the ONNX FE splits the packed QKV before creating it), so Q's
+    // hidden is always num_heads * head_size. Packed-QKV splitting is a frontend concern, covered end-to-end by
+    // onnx_model_paged_attention_packed in onnx_import_com_microsoft.
+    const int64_t q_hidden = NUM_HEADS * HEAD_SIZE;
     add(ft, PartialShape{p.num_tokens, q_hidden});                           // 0: query
     add(ft, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 1: key
     add(ft, PartialShape{p.num_tokens, KV_NUM_HEADS * HEAD_SIZE});           // 2: value
@@ -189,7 +186,6 @@ INSTANTIATE_TEST_SUITE_P(
     PagedAttentionDecompositionTest,
     testing::Values(PaParams{"decode"},
                     PaParams{"prefill"}.tokens(Dimension::dynamic()),
-                    PaParams{"packed"}.pack(),
                     PaParams{"rotary"}.rotary(),
                     PaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
                     PaParams{"sliding_window"}.window(2),
