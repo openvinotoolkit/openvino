@@ -27,7 +27,7 @@
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
-using ov::op::internal::PagedAttention;
+using ov::op::internal::PagedAttentionONNX;
 
 // Graph-level tests for PagedAttentionDecomposition: the internal PagedAttention op is replaced by a
 // ScaledDotProductAttention-based subgraph (or a manual MatMul/Softmax core when softcap > 0). The new K/V
@@ -112,14 +112,14 @@ std::shared_ptr<Model> make_pa_model(const PaParams& p) {
         add(ft, PartialShape{-1, HEAD_SIZE / 2});  // 9: sin_cache
     }
 
-    const auto pa = std::make_shared<PagedAttention>(args,
-                                                     NUM_HEADS,
-                                                     KV_NUM_HEADS,
-                                                     /*scale*/ 0.0f,
-                                                     p.softcap,
-                                                     p.local_window_size,
-                                                     p.do_rotary,
-                                                     p.rotary_interleaved);
+    const auto pa = std::make_shared<PagedAttentionONNX>(args,
+                                                         NUM_HEADS,
+                                                         KV_NUM_HEADS,
+                                                         /*scale*/ 0.0f,
+                                                         p.softcap,
+                                                         p.local_window_size,
+                                                         p.do_rotary,
+                                                         p.rotary_interleaved);
     ResultVector results;
     for (size_t i = 0; i < pa->get_output_size(); ++i)
         results.push_back(std::make_shared<op::v0::Result>(pa->output(i)));
@@ -128,10 +128,10 @@ std::shared_ptr<Model> make_pa_model(const PaParams& p) {
 
 // Minimal 8-input PagedAttention op for exercising the op's own validation (validate_and_infer_types runs at
 // construction). batch is the past_seqlens length (dim 0).
-std::shared_ptr<PagedAttention> make_pa_op(const Dimension& batch,
-                                           int64_t num_heads,
-                                           int64_t kv_num_heads,
-                                           int64_t local_window_size) {
+std::shared_ptr<PagedAttentionONNX> make_pa_op(const Dimension& batch,
+                                               int64_t num_heads,
+                                               int64_t kv_num_heads,
+                                               int64_t local_window_size) {
     const auto f32 = element::f32;
     OutputVector args{
         std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, num_heads * HEAD_SIZE}),
@@ -143,19 +143,19 @@ std::shared_ptr<PagedAttention> make_pa_op(const Dimension& batch,
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{batch}),
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{batch, MAX_BLOCKS}),
     };
-    return std::make_shared<PagedAttention>(args,
-                                            num_heads,
-                                            kv_num_heads,
-                                            /*scale*/ 0.0f,
-                                            /*softcap*/ 0.0f,
-                                            local_window_size,
-                                            /*do_rotary*/ false,
-                                            /*rotary_interleaved*/ false);
+    return std::make_shared<PagedAttentionONNX>(args,
+                                                num_heads,
+                                                kv_num_heads,
+                                                /*scale*/ 0.0f,
+                                                /*softcap*/ 0.0f,
+                                                local_window_size,
+                                                /*do_rotary*/ false,
+                                                /*rotary_interleaved*/ false);
 }
 
 // 10-input rotary PagedAttention op with a configurable cos/sin last dim, for exercising the rotary-width
 // validation and the dynamic-width decomposition path. cos_last_dim < 0 builds a dynamic width.
-std::shared_ptr<PagedAttention> make_pa_rotary_op(const Dimension& cos_last_dim) {
+std::shared_ptr<PagedAttentionONNX> make_pa_rotary_op(const Dimension& cos_last_dim) {
     const auto f32 = element::f32;
     OutputVector args{
         std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, NUM_HEADS * HEAD_SIZE}),
@@ -169,14 +169,14 @@ std::shared_ptr<PagedAttention> make_pa_rotary_op(const Dimension& cos_last_dim)
         std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, cos_last_dim}),  // cos_cache
         std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, cos_last_dim}),  // sin_cache
     };
-    return std::make_shared<PagedAttention>(args,
-                                            NUM_HEADS,
-                                            KV_NUM_HEADS,
-                                            /*scale*/ 0.0f,
-                                            /*softcap*/ 0.0f,
-                                            /*local_window_size*/ -1,
-                                            /*do_rotary*/ true,
-                                            /*rotary_interleaved*/ false);
+    return std::make_shared<PagedAttentionONNX>(args,
+                                                NUM_HEADS,
+                                                KV_NUM_HEADS,
+                                                /*scale*/ 0.0f,
+                                                /*softcap*/ 0.0f,
+                                                /*local_window_size*/ -1,
+                                                /*do_rotary*/ true,
+                                                /*rotary_interleaved*/ false);
 }
 
 }  // namespace
@@ -191,7 +191,7 @@ TEST_P(PagedAttentionDecompositionTest, decomposes) {
     manager.run_passes(model);
 
     // The internal op is always replaced.
-    EXPECT_EQ(count_ops_of_type<PagedAttention>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<PagedAttentionONNX>(model), 0u);
     // Without softcap the core is one ScaledDotProductAttention; with softcap it is a manual MatMul/Softmax
     // core (no SDPA, two MatMuls: Q@K^T and probs@V).
     if (p.expects_sdpa) {
@@ -286,8 +286,8 @@ OutputVector valid_pa_args() {
         std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, MAX_BLOCKS}),
     };
 }
-std::shared_ptr<PagedAttention> pa_from(const OutputVector& args) {
-    return std::make_shared<PagedAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, 0.0f, -1, false, false);
+std::shared_ptr<PagedAttentionONNX> pa_from(const OutputVector& args) {
+    return std::make_shared<PagedAttentionONNX>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, 0.0f, -1, false, false);
 }
 }  // namespace
 
@@ -335,7 +335,7 @@ TEST(PagedAttentionDecompositionRotary, decomposes_with_dynamic_cos_width) {
     pass::Manager manager;
     manager.register_pass<pass::PagedAttentionDecomposition>();
     ASSERT_NO_THROW(manager.run_passes(model));
-    EXPECT_EQ(count_ops_of_type<PagedAttention>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<PagedAttentionONNX>(model), 0u);
     EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 1u);
 }
 

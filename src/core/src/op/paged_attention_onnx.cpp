@@ -8,14 +8,14 @@
 
 namespace ov::op::internal {
 
-PagedAttention::PagedAttention(const OutputVector& args,
-                               int64_t num_heads,
-                               int64_t kv_num_heads,
-                               float scale,
-                               float softcap,
-                               int64_t local_window_size,
-                               bool do_rotary,
-                               bool rotary_interleaved)
+PagedAttentionONNX::PagedAttentionONNX(const OutputVector& args,
+                                       int64_t num_heads,
+                                       int64_t kv_num_heads,
+                                       float scale,
+                                       float softcap,
+                                       int64_t local_window_size,
+                                       bool do_rotary,
+                                       bool rotary_interleaved)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -27,8 +27,8 @@ PagedAttention::PagedAttention(const OutputVector& args,
     constructor_validate_and_infer_types();
 }
 
-void PagedAttention::validate_and_infer_types() {
-    OV_OP_SCOPE(PagedAttention_validate_and_infer_types);
+void PagedAttentionONNX::validate_and_infer_types() {
+    OV_OP_SCOPE(PagedAttentionONNX_validate_and_infer_types);
     // PagedAttention (ONNX Runtime com.microsoft) expects the following inputs (the packed-QKV form is split
     // into separate Q/K/V by the frontend, so this op always receives three separate 2-D activation tensors):
     //   0 query, 1 key, 2 value                    (2-D [num_tokens, heads * head_size])
@@ -156,8 +156,8 @@ void PagedAttention::validate_and_infer_types() {
     set_output_type(2, get_input_element_type(4), get_input_partial_shape(4));
 }
 
-bool PagedAttention::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(PagedAttention_visit_attributes);
+bool PagedAttentionONNX::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(PagedAttentionONNX_visit_attributes);
     visitor.on_attribute("num_heads", m_num_heads);
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("scale", m_scale);
@@ -168,17 +168,17 @@ bool PagedAttention::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-std::shared_ptr<ov::Node> PagedAttention::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OV_OP_SCOPE(PagedAttention_clone_with_new_inputs);
+std::shared_ptr<ov::Node> PagedAttentionONNX::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+    OV_OP_SCOPE(PagedAttentionONNX_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<PagedAttention>(new_args,
-                                            m_num_heads,
-                                            m_kv_num_heads,
-                                            m_scale,
-                                            m_softcap,
-                                            m_local_window_size,
-                                            m_do_rotary,
-                                            m_rotary_interleaved);
+    return std::make_shared<PagedAttentionONNX>(new_args,
+                                                m_num_heads,
+                                                m_kv_num_heads,
+                                                m_scale,
+                                                m_softcap,
+                                                m_local_window_size,
+                                                m_do_rotary,
+                                                m_rotary_interleaved);
 }
 
 }  // namespace ov::op::internal

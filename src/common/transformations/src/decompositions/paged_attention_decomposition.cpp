@@ -55,10 +55,10 @@ namespace v13 = ov::op::v13;
 
 ov::pass::PagedAttentionDecomposition::PagedAttentionDecomposition() {
     MATCHER_SCOPE(PagedAttentionDecomposition);
-    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::PagedAttention>();
+    auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::PagedAttentionONNX>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        auto node = ov::as_type_ptr<ov::op::internal::PagedAttention>(m.get_match_root());
+        auto node = ov::as_type_ptr<ov::op::internal::PagedAttentionONNX>(m.get_match_root());
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }
@@ -72,7 +72,7 @@ ov::pass::PagedAttentionDecomposition::PagedAttentionDecomposition() {
 }
 
 ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
-    std::shared_ptr<ov::op::internal::PagedAttention> node) {
+    std::shared_ptr<ov::op::internal::PagedAttentionONNX> node) {
     // Dispatch on the batch dimension (past_seqlens length, input 6). A statically-known batch == 1 takes the
     // lean single-sequence fast path; everything else (static batch > 1, or a dynamic batch that may be > 1 at
     // runtime) takes the general variable-length path, which is also correct for batch == 1.
@@ -84,7 +84,7 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose(
 }
 
 ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_single_sequence(
-    std::shared_ptr<ov::op::internal::PagedAttention> node) {
+    std::shared_ptr<ov::op::internal::PagedAttentionONNX> node) {
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
@@ -260,7 +260,7 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_single_sequenc
 }
 
 ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_varlen(
-    std::shared_ptr<ov::op::internal::PagedAttention> node) {
+    std::shared_ptr<ov::op::internal::PagedAttentionONNX> node) {
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();

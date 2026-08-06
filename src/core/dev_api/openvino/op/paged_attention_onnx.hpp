@@ -14,11 +14,11 @@ namespace ov::op::internal {
 // `ov::op::PagedAttentionExtension` op (28 inputs, externally-managed cache Parameters, no cache
 // output): this op honors the ONNX cache-in -> cache-out contract and is lowered by a common
 // decomposition (PagedAttentionDecomposition) into a ScaledDotProductAttention-based subgraph.
-class OPENVINO_API PagedAttention : public Op {
+class OPENVINO_API PagedAttentionONNX : public Op {
 public:
-    OPENVINO_OP("PagedAttention");
+    OPENVINO_OP("PagedAttentionONNX");
 
-    PagedAttention() = default;
+    PagedAttentionONNX() = default;
 
     // Inputs (matching the ONNX Runtime op; the packed-QKV form is split into separate Q/K/V by the
     // frontend, so this op always receives three separate 2-D activation tensors):
@@ -36,14 +36,14 @@ public:
     //   0 output        [num_tokens, num_heads * head_size]
     //   1 key_cache_out   same shape/type as key_cache (in-place updated cache)
     //   2 value_cache_out same shape/type as value_cache
-    PagedAttention(const ov::OutputVector& args,
-                   int64_t num_heads,
-                   int64_t kv_num_heads,
-                   float scale,
-                   float softcap,
-                   int64_t local_window_size,
-                   bool do_rotary,
-                   bool rotary_interleaved);
+    PagedAttentionONNX(const ov::OutputVector& args,
+                       int64_t num_heads,
+                       int64_t kv_num_heads,
+                       float scale,
+                       float softcap,
+                       int64_t local_window_size,
+                       bool do_rotary,
+                       bool rotary_interleaved);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;

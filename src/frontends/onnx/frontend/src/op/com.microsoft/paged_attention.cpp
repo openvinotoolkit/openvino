@@ -120,14 +120,14 @@ ov::OutputVector paged_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(onnx_op_inputs[9]);
     }
 
-    return std::make_shared<internal::PagedAttention>(ov_op_inputs,
-                                                      num_heads,
-                                                      kv_num_heads,
-                                                      scale,
-                                                      softcap,
-                                                      local_window_size,
-                                                      do_rotary != 0,
-                                                      rotary_interleaved != 0)
+    return std::make_shared<internal::PagedAttentionONNX>(ov_op_inputs,
+                                                          num_heads,
+                                                          kv_num_heads,
+                                                          scale,
+                                                          softcap,
+                                                          local_window_size,
+                                                          do_rotary != 0,
+                                                          rotary_interleaved != 0)
         ->outputs();
 }
 

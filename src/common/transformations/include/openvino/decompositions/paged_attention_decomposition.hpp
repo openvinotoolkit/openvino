@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API PagedAttentionDecomposition;
 }  // namespace pass
 }  // namespace ov
 
-// Decomposes the internal ov::op::internal::PagedAttention (the ONNX com.microsoft.PagedAttention op) into a
+// Decomposes the internal ov::op::internal::PagedAttentionONNX (the ONNX com.microsoft.PagedAttention op) into a
 // ScaledDotProductAttention-based subgraph that honors the ONNX cache-in -> cache-out contract, so a standalone
 // ONNX model runs on CPU/GPU. This is the "decompose by default" half of the design; a plugin/serving pipeline
 // can disable this pass (transformation_callback) to keep the op native. Two paths, both implemented: a lean
@@ -30,16 +30,16 @@ public:
     PagedAttentionDecomposition();
 
 private:
-    ov::OutputVector decompose(std::shared_ptr<ov::op::internal::PagedAttention> node);
+    ov::OutputVector decompose(std::shared_ptr<ov::op::internal::PagedAttentionONNX> node);
 
     // Single-sequence (statically-known batch == 1) fast path: a lean decode/prefill decomposition without
     // the per-token sequence bookkeeping the general path needs.
-    ov::OutputVector decompose_single_sequence(std::shared_ptr<ov::op::internal::PagedAttention> node);
+    ov::OutputVector decompose_single_sequence(std::shared_ptr<ov::op::internal::PagedAttentionONNX> node);
 
     // General variable-length multi-sequence path (dynamic or static batch > 1): all packed tokens run through
     // one attention with a block-diagonal mask (a token attends only keys of its own sequence), and the cache
     // scatter/gather map every token by its own sequence's past length and block_table row.
-    ov::OutputVector decompose_varlen(std::shared_ptr<ov::op::internal::PagedAttention> node);
+    ov::OutputVector decompose_varlen(std::shared_ptr<ov::op::internal::PagedAttentionONNX> node);
 
     // Gather one or more dimensions of a node's shape as an i64 1-D tensor (Gather on ShapeOf).
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
