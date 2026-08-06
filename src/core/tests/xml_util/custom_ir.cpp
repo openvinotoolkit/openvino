@@ -425,8 +425,8 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
 }
 
 /**
- * @brief parse_weightless_cache_attribute must reject inflated offset/size before
- * they propagate to a weights buffer dereference.
+ * @brief An inflated size in a Const's <data> element must be rejected before
+ * any weights buffer dereference;
  */
 TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
     {

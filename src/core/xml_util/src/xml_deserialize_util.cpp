@@ -428,10 +428,6 @@ ov::Any XmlDeserializer::parse_weightless_cache_attribute(const pugi::xml_node& 
         if (size && offset && element_type) {
             const auto original_size = static_cast<size_t>(pugixml::get_uint64_attr(data_node, "size"));
             const auto bin_offset = static_cast<size_t>(pugixml::get_uint64_attr(data_node, "offset"));
-            if (m_weights) {
-                OPENVINO_ASSERT(bin_offset <= m_weights->size() && original_size <= m_weights->size() - bin_offset,
-                                "WeightlessCacheAttribute offset/size is out of range for weights buffer");
-            }
             wl_attr = ov::WeightlessCacheAttribute(original_size,
                                                    bin_offset,
                                                    ov::element::Type(pugixml::get_str_attr(data_node, "element_type")));
