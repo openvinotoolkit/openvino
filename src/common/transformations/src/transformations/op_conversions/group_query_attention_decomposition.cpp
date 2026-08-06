@@ -167,6 +167,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // past_seqlen expressed in the coordinate system the attention mask uses. Equals the absolute past
     // length for a full-length cache; a windowed cache overrides it with the resident row count.
     ov::Output<ov::Node> mask_past_seqlen = past_seqlen;
+    // Absolute key position of the KV buffer's first slot, used to align an external attention_bias (indexed
+    // by absolute key). 0 for a full-length cache (slot j == absolute key j); a windowed cache rolls, so its
+    // first slot holds absolute key P - resident_rows (set in the windowed branches below).
+    ov::Output<ov::Node> bias_col_offset = zero;
     ov::Output<ov::Node> present_k, present_v;
 
     if (node->get_sliding_window_cache()) {
@@ -217,6 +221,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             K = present_k;
             V = present_v;
             mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
+            // First resident slot holds absolute key P - kept (the survivors start there).
+            bias_col_offset =
+                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, kept), zero);
         } else {
             // Staging (ORT parity): attend against a temp buffer of the end_before resident rows + S new
             // tokens, then write only the surviving tail (last end_after rows) back into the capacity-C cache.
@@ -242,6 +249,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             K = temp_k;
             V = temp_v;
             mask_past_seqlen = register_new_node<v0::Unsqueeze>(end_before, zero);
+            // Temp buffer's first slot holds absolute key P - end_before.
+            bias_col_offset =
+                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, end_before), zero);
         }
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
@@ -304,7 +314,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           mask_past_seqlen,
                                           T,
                                           local_window_size,
-                                          external_bias);
+                                          external_bias,
+                                          bias_col_offset);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -387,7 +398,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& past_seqlen,
     const ov::element::Type& compute_type,
     int64_t local_window_size,
-    const ov::Output<ov::Node>& external_bias) {
+    const ov::Output<ov::Node>& external_bias,
+    const ov::Output<ov::Node>& bias_col_offset) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     const bool has_window = local_window_size >= 1;
@@ -439,10 +451,13 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
 
     if (has_bias) {
         // Add the external attention_bias [1, num_heads, curr, max_kv] -> [num_heads, curr, kv_len] on top
-        // of the causal/window mask (broadcasts over the head axis against the [curr, kv_len] mask).
+        // of the causal/window mask (broadcasts over the head axis against the [curr, kv_len] mask). The bias
+        // is indexed by absolute key position, so the key window starts at bias_col_offset (0 for a
+        // full-length cache; P - resident_rows for a windowed cache, whose first slot is not absolute key 0).
         const auto squeeze_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
         std::shared_ptr<ov::Node> bias = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
-        bias = register_new_node<v8::Slice>(bias, zero, kv_len_1d, one, two);
+        const auto bias_stop = register_new_node<v1::Add>(bias_col_offset, kv_len_1d);
+        bias = register_new_node<v8::Slice>(bias, bias_col_offset, bias_stop, one, two);
         mask = register_new_node<v1::Add>(mask, bias);
     }
 
