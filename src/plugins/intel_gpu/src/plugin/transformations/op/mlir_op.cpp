@@ -6,7 +6,9 @@
 
 #include "intel_gpu/op/mlir_op.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -29,16 +31,20 @@ struct MemRefDescriptor {
         : allocated(tensor.data()),
           aligned(tensor.data()),
           offset(0) {
-        if (module_input_shape.rank() == shape_size(tensor.get_shape())) {
-            shape.assign(tensor.get_shape().begin(), tensor.get_shape().end());
-        } else {
-            auto it = tensor.get_shape().begin();
-            std::advance(it, module_input_shape.rank().get_length());
-            shape.assign(tensor.get_shape().begin(), it);
+        OPENVINO_ASSERT(module_input_shape.rank().is_static(), "MLIROp: module_input_shape rank must be static");
+        const auto module_rank = static_cast<size_t>(module_input_shape.rank().get_length());
+        OPENVINO_ASSERT(module_rank <= tensor.get_shape().size(),
+                        "MLIROp: tensor rank (",
+                        tensor.get_shape().size(),
+                        ") is smaller than expected module rank (",
+                        module_rank,
+                        ")");
 
-            if (std::any_of(it, tensor.get_shape().end(), [](size_t dim) { return dim != 1; })) {
-                OPENVINO_THROW("Mismatch in shape sizes");
-            }
+        // Keep only the leading `module_rank` dims; the trailing ones must all be 1
+        auto it = std::next(tensor.get_shape().begin(), module_rank);
+        shape.assign(tensor.get_shape().begin(), it);
+        if (std::any_of(it, tensor.get_shape().end(), [](size_t dim) { return dim != 1; })) {
+            OPENVINO_THROW("Mismatch in shape sizes");
         }
 
         strides.resize(shape.size());
