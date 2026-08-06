@@ -149,6 +149,7 @@ set(CONTROL_FLOW_TESTS_SRCS
 
 set(DECOMPOSITIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/low_precision_dequantize_decomposition_mark_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/paged_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rms_norm_decomposition_fuse_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rope_decomposition_fuse_test.cpp
 )
@@ -224,7 +225,6 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/gelu7_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_normalization_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_query_attention_decomposition_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/paged_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hsigmoid_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hswish_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/log_softmax_decomposition_test.cpp

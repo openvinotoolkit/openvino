@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/paged_attention_decomposition.hpp"
+#include "openvino/decompositions/paged_attention_decomposition.hpp"
 
 #include <limits>
 #include <memory>

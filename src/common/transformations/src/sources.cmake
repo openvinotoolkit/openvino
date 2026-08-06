@@ -219,7 +219,6 @@ set(OP_CONVERSIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/gelu7_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/group_normalization_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/group_query_attention_decomposition.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/paged_attention_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/gru_cell_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/hard_sigmoid_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/hsigmoid_decomposition.cpp
@@ -331,6 +330,7 @@ set(UTILS_SOURCES
 
 set(DECOMPOSITIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/low_precision_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/paged_attention_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/decompositions/rope.cpp
 )
