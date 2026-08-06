@@ -10,8 +10,9 @@
 #endif
 
 #include <level_zero/ze_api.h>
-#include "ze_graph_ext.h"
 #include <ze_command_queue_npu_ext.h>
+
+#include "ze_graph_ext.h"
 
 #if defined(__cplusplus)
 #    include <cstdint>

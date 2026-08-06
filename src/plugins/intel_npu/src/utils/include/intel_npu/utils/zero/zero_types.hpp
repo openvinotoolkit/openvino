@@ -271,7 +271,7 @@ public:
         throwWhenUnsupported("pfnSetWorkloadType", ZE_COMMAND_QUEUE_NPU_EXT_VERSION_1_0);
         return _impl->pfnSetWorkloadType(hCommandQueue, workloadType);
     }
-    
+
     ze_command_queue_npu_dditable_ext_t* getImpl() {
         return _impl;
     }
