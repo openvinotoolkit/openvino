@@ -285,7 +285,7 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+            const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
