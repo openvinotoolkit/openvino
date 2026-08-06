@@ -230,7 +230,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         bool is_parameter_compressed_weight = supports_immad &&
             is_compressed_weight &&
             !matmul->get_transpose_b() &&
-            pattern_map.count(weights_param_m) &&
+            pattern_map.count(weights_param_m) != 0 &&
             pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr &&
             pattern_map.at(weights_param_m).get_element_type().bitwidth() < 8;
 
