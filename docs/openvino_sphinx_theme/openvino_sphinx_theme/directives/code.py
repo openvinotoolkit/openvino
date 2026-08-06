@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os.path
 from sphinx.directives.code import LiteralInclude, LiteralIncludeReader, container_wrapper
 from sphinx.util import logging
