@@ -2342,33 +2342,30 @@ TEST_P(ConvertToROPECohereTest, basic) {
         // The Cohere rotation operates on BNSH; with a Transpose it is applied to the transposed tensor.
         std::shared_ptr<ov::Node> x = input;
         if (has_transpose) {
-            x = makeOP<v1::Transpose>({input, makeConst(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3})});
+            x = makeOP<v1::Transpose>({input, {0, 2, 1, 3}});
         }
 
         // x[..., start::2] along axis 3; stop value encodes "all remaining elements".
         auto x_odd = makeOP<ov::op::v8::Slice>({x, {1}, {INT_MAX}, {2}, {3}});
         auto x_even = makeOP<ov::op::v8::Slice>({x, {0}, {INT_MAX}, {2}, {3}});
-        auto neg_x_odd = makeOP<v1::Multiply>({x_odd, makeConst(ov::element::f32, ov::Shape{1}, {-1.0f})},
-                                              {{"auto_broadcast", "numpy"}});
+        auto neg_x_odd = makeOP<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
         // stack((-x_odd, x_even), dim=-1)
         std::shared_ptr<ov::Node> neg_x_odd_unsq;
         std::shared_ptr<ov::Node> x_even_unsq;
         if (use_reshape) {
             // Use Reshape(x, explicit_shape, special_zero=false) instead of Unsqueeze(x, -1).
             // This is what SDPAToPagedAttention produces when the seq dimension becomes 1.
-            auto unsq_shape = makeConst(ov::element::i32,
-                                        ov::Shape{5},
-                                        std::vector<int32_t>{-1, num_heads, seq_len, head_size / 2, 1});
-            neg_x_odd_unsq = makeOP<v1::Reshape>({neg_x_odd, unsq_shape}, {{"special_zero", false}});
-            x_even_unsq = makeOP<v1::Reshape>({x_even, unsq_shape}, {{"special_zero", false}});
+            neg_x_odd_unsq = makeOP<v1::Reshape>({neg_x_odd, {-1, num_heads, seq_len, head_size / 2, 1}},
+                                                  {{"special_zero", false}});
+            x_even_unsq = makeOP<v1::Reshape>({x_even, {-1, num_heads, seq_len, head_size / 2, 1}},
+                                              {{"special_zero", false}});
         } else {
-            neg_x_odd_unsq = makeOP<v0::Unsqueeze>({neg_x_odd, makeConst(ov::element::i64, ov::Shape{}, {-1})});
-            x_even_unsq = makeOP<v0::Unsqueeze>({x_even, makeConst(ov::element::i64, ov::Shape{}, {-1})});
+            neg_x_odd_unsq = makeOP<v0::Unsqueeze>({neg_x_odd, -1});
+            x_even_unsq = makeOP<v0::Unsqueeze>({x_even, -1});
         }
         auto stack = makeOP<v0::Concat>({neg_x_odd_unsq, x_even_unsq}, {{"axis", -1}});
         // .flatten(-2) using special_zero=true: {0,0,0,-1} -> [B,H,L,head_size]
-        auto shape_const = makeConst(ov::element::i64, ov::Shape{4}, {0LL, 0LL, 0LL, -1LL});
-        auto x_rotate = makeOP<v1::Reshape>({stack, shape_const}, {{"special_zero", true}});
+        auto x_rotate = makeOP<v1::Reshape>({stack, {0, 0, 0, -1}}, {{"special_zero", true}});
         auto mul_cos = makeOP<v1::Multiply>({x, param_cos}, {{"auto_broadcast", "numpy"}});
         auto mul_sin = makeOP<v1::Multiply>({x_rotate, param_sin}, {{"auto_broadcast", "numpy"}});
         auto result = makeOP<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
