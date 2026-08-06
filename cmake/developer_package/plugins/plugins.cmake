@@ -224,6 +224,11 @@ macro(ov_register_in_plugins_xml)
         list(GET name 1 library_target)
 
         ov_plugin_get_file_name(${library_target} library_name)
+        # Reset per-device list on first encounter to avoid reusing a stale
+        # ${device_name}_LIBRARY_NAMES from a previous ov_register_plugins() invocation.
+        if(NOT device_name IN_LIST registered_devices)
+            unset(${device_name}_LIBRARY_NAMES)
+        endif()
         list(APPEND registered_devices ${device_name})
         list(APPEND ${device_name}_LIBRARY_NAMES "${library_name}")
     endforeach()
