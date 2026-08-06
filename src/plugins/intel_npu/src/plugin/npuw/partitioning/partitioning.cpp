@@ -1618,7 +1618,9 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     ov::npuw::patterns::opt::Context ctx;
     ctx.mm_gate = cfg.get<::intel_npu::NPUW_MM_GATED>();
 
-    bool asymm_vocab_as_input = cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>() || cfg.get<::intel_npu::NPUW_LLM_ASYM_I8_VOCAB_AS_INPUT>();
+    bool asymm_vocab_as_input = cfg.get<::intel_npu::NPUW_ASYM_VOCAB_AS_INPUT>() || cfg.get<::intel_npu::NPUW_ASYM_I8_VOCAB_AS_INPUT>();
+    std::cout << "Asymm vocab as input: " << asymm_vocab_as_input << std::endl;
+    std::cout << "I8 vocab as input: " << cfg.get<::intel_npu::NPUW_ASYM_I8_VOCAB_AS_INPUT>() << std::endl;
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep), asymm_vocab_as_input);
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulFP8>(std::ref(ctx), std::ref(to_keep));

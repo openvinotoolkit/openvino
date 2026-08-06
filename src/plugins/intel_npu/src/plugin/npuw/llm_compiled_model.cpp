@@ -109,17 +109,19 @@ public:
                     // FIXME: This copies weightless attribute to not preserve a constant as a new for weightless import.
                     //        Thus, weightless import will be broken and need additional handling for I8 as U8 consts.
                     ov::copy_runtime_info(src, dst);
+                    dst->get_rt_info() = src->get_rt_info();
                     return dst;
                 };
-
 
                 // To not mmap and allocate vocab memory here, its shifting will be deferred to the LazyTensor unpacking stage.
                 auto i8_qweight_constant = reinterpret_u8_as_i8(matched_qweight_const);
                 i8_qweight_constant->get_rt_info()["needs_shift"] = true;
                 ov::replace_node(matched_qweight_const, i8_qweight_constant);
+                matched_qweight.reset();
                 auto i8_qzerop_constant = reinterpret_u8_as_i8(matched_qzerop_const);
-                ov::replace_node(matched_qzerop_const, i8_qzerop_constant);
                 i8_qzerop_constant->get_rt_info()["needs_shift"] = true;
+                ov::replace_node(matched_qzerop_const, i8_qzerop_constant);
+                matched_qzerop.reset();
                 return true;
             }
             return false;
@@ -423,6 +425,14 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     }
 
     return std::make_optional(std::move(desc));
+}
+
+template <typename T>
+std::optional<T> get_option(const ov::AnyMap& config, const std::string& option_name) {
+    if (auto it = config.find(option_name); it != config.end()) {
+        return std::make_optional(it->second.as<T>());
+    }
+    return std::nullopt;
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -868,6 +878,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Also make these maps for third: lm head model, in case it will be created:
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
+    auto vocab_as_i8_opt = get_option<bool>(other_props, std::string("NPUW_ASYM_I8_VOCAB_AS_INPUT"));
+    auto matmul_first_vocab_opt = get_option<bool>(other_props, std::string("NPUW_MATMUL_FIRST_VOCAB"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -998,13 +1010,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_I8_VOCAB_AS_INPUT>()) {
+    if (vocab_as_i8_opt.has_value() && vocab_as_i8_opt.value() == true) {
         NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
     }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
     if (lm_head_model) {
-        
-        if (m_cfg.get<::intel_npu::NPUW_LLM_MATMUL_FIRST_VOCAB>()) {
+        if (matmul_first_vocab_opt.has_value() && matmul_first_vocab_opt.value() == true) {
+            std::cout << "Here" << std::endl;
             NPUW_ASSERT(apply_matmul_first_vocab(lm_head_model));
         }
     }
