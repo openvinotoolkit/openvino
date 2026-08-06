@@ -107,8 +107,8 @@ Flux2Submodel detect_submodel(const std::shared_ptr<ov::Model>& model) {
     bool has_input_ids = false;
     for (const auto& p : model->get_parameters()) {
         const auto& pname = p->get_friendly_name();
-        if (pname.find("encoder_hidden_states") != std::string::npos ||
-            pname.find("timestep") != std::string::npos || pname.find("txt_ids") != std::string::npos) {
+        if (pname.find("encoder_hidden_states") != std::string::npos || pname.find("timestep") != std::string::npos ||
+            pname.find("txt_ids") != std::string::npos) {
             has_transformer_sig = true;
         }
         if (pname.find("input_ids") != std::string::npos) {
