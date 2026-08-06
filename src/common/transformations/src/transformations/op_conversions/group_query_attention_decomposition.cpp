@@ -170,50 +170,79 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     ov::Output<ov::Node> present_k, present_v;
 
     if (node->get_sliding_window_cache()) {
-        // Windowed KV cache: the past/present buffers are capacity-sized (C) and rolled with front
-        // eviction. seqlens_k stays absolute, so the resident row counts are derived from it.
-        //
-        // present is built as [survivors, new, zeros] left-aligned in the C buffer: the last
-        // kept = end_after - S resident rows, then the S new tokens, matching ONNX Runtime. The
-        // construction uses Gather + ScatterUpdate into a zero buffer (no runtime-bounded Slice/Pad)
-        // so it stays static-shape friendly for plugins (e.g. NPU) that require it. Attention then runs
-        // over the full C buffer with cache-relative past length = kept; the dropped resident rows are
-        // older than the window and the zero tail is beyond the causal edge, so both are masked out.
+        // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
+        // row counts before/after appending the S new tokens (see windowed_cache_end).
         const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
         const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
         const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
         const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
         const auto end_before = windowed_cache_end(abs_past_scalar, capacity_scalar, local_window_size);
         const auto end_after = windowed_cache_end(abs_total_scalar, capacity_scalar, local_window_size);
-        const auto kept = register_new_node<v1::Subtract>(end_after, curr_seqlen_scalar);  // end_after - S
-        const auto survivor_start = register_new_node<v1::Subtract>(end_before, kept);
 
-        // Row index sets, built as Range(0, N) + offset (constant-start Range plus a runtime offset)
-        // rather than Range(runtime_start, ...), matching the idiom the existing static path uses so the
-        // graph stays lowerable on static-shape plugins. kept_row = [0, kept); survivor_row picks the last
-        // kept resident rows [survivor_start, end_before); new_row places the S new tokens at [kept, end_after).
-        const auto kept_row =
-            register_new_node<v4::Range>(zero_without_shape, kept, one_without_shape, ov::element::i64);
-        const auto survivor_idx = register_new_node<v1::Add>(kept_row, survivor_start);
-        const auto survivor_k = register_new_node<v8::Gather>(past_key, survivor_idx, two);
-        const auto survivor_v = register_new_node<v8::Gather>(past_value, survivor_idx, two);
-        const auto kept_idx = kept_row;
-        const auto new_row =
-            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        const auto new_idx = register_new_node<v1::Add>(new_row, kept);
+        // Static single-token decode (S == 1) always fits the window and uses the in-place Gather +
+        // ScatterUpdate assembly (static-shape friendly). Otherwise (dynamic S) a multi-token step may cross
+        // an eviction, making the in-place kept = end_after - S negative, so it takes the staging path below.
+        // A statically-known S > 1 is rejected up front (FE + op), so it never reaches here.
+        const auto& q_ps = node->get_input_partial_shape(0);
+        const bool static_single_token = q_ps.rank().is_static() && q_ps.rank().get_length() == 4 &&
+                                         q_ps[2].is_static() && q_ps[2].get_length() == 1;
 
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         const auto zeros =
             register_new_node<v3::Broadcast>(register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0})),
                                              register_new_node<v3::ShapeOf>(past_key));
-        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        present_k = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_k, scatter_axis);
-        present_k = register_new_node<v3::ScatterUpdate>(present_k, new_idx, K, scatter_axis);
-        present_v = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_v, scatter_axis);
-        present_v = register_new_node<v3::ScatterUpdate>(present_v, new_idx, V, scatter_axis);
 
-        K = present_k;
-        V = present_v;
-        mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
+        if (static_single_token) {
+            // present = [survivors, new, zeros] left-aligned in the C buffer: the last kept = end_after - S
+            // resident rows, then the S new tokens.
+            const auto kept = register_new_node<v1::Subtract>(end_after, curr_seqlen_scalar);  // end_after - S
+            const auto survivor_start = register_new_node<v1::Subtract>(end_before, kept);
+            const auto kept_row =
+                register_new_node<v4::Range>(zero_without_shape, kept, one_without_shape, ov::element::i64);
+            const auto survivor_idx = register_new_node<v1::Add>(kept_row, survivor_start);
+            const auto survivor_k = register_new_node<v8::Gather>(past_key, survivor_idx, two);
+            const auto survivor_v = register_new_node<v8::Gather>(past_value, survivor_idx, two);
+            const auto kept_idx = kept_row;
+            const auto new_row = register_new_node<v4::Range>(zero_without_shape,
+                                                              curr_seqlen_scalar,
+                                                              one_without_shape,
+                                                              ov::element::i64);
+            const auto new_idx = register_new_node<v1::Add>(new_row, kept);
+
+            present_k = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_k, scatter_axis);
+            present_k = register_new_node<v3::ScatterUpdate>(present_k, new_idx, K, scatter_axis);
+            present_v = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_v, scatter_axis);
+            present_v = register_new_node<v3::ScatterUpdate>(present_v, new_idx, V, scatter_axis);
+
+            K = present_k;
+            V = present_v;
+            mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
+        } else {
+            // Staging (ORT parity): attend against a temp buffer of the end_before resident rows + S new
+            // tokens, then write only the surviving tail (last end_after rows) back into the capacity-C cache.
+            const auto end_before_1d = register_new_node<v0::Unsqueeze>(end_before, zero);
+            const auto resident_k = register_new_node<v8::Slice>(past_key, zero, end_before_1d, one, two);
+            const auto resident_v = register_new_node<v8::Slice>(past_value, zero, end_before_1d, one, two);
+            const auto temp_k = register_new_node<v0::Concat>(ov::OutputVector{resident_k, K}, 2);
+            const auto temp_v = register_new_node<v0::Concat>(ov::OutputVector{resident_v, V}, 2);
+
+            // tail = last end_after rows of the temp buffer, scattered into [0, end_after) of the C buffer.
+            const auto temp_len = register_new_node<v1::Add>(end_before, curr_seqlen_scalar);
+            const auto tail_start = register_new_node<v1::Subtract>(temp_len, end_after);
+            const auto tail_start_1d = register_new_node<v0::Unsqueeze>(tail_start, zero);
+            const auto temp_len_1d = register_new_node<v0::Unsqueeze>(temp_len, zero);
+            const auto tail_k = register_new_node<v8::Slice>(temp_k, tail_start_1d, temp_len_1d, one, two);
+            const auto tail_v = register_new_node<v8::Slice>(temp_v, tail_start_1d, temp_len_1d, one, two);
+            const auto present_row =
+                register_new_node<v4::Range>(zero_without_shape, end_after, one_without_shape, ov::element::i64);
+            present_k = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_k, scatter_axis);
+            present_v = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_v, scatter_axis);
+
+            // Attention runs on the temp buffer; only the returned present is the capacity-C tail.
+            K = temp_k;
+            V = temp_v;
+            mask_past_seqlen = register_new_node<v0::Unsqueeze>(end_before, zero);
+        }
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
         // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
@@ -342,7 +371,9 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     // reclaimed = gap * ceil((x - capacity) / gap), applied only once the cache has overflowed (x > capacity).
     const auto overflow = register_new_node<v1::Subtract>(seqlen_scalar, capacity_scalar);
     const auto ceil_num = register_new_node<v1::Subtract>(register_new_node<v1::Add>(overflow, gap), one_s);
-    const auto blocks = register_new_node<v1::Divide>(ceil_num, gap);  // integer (truncating) division
+    // Integer division. v1::Divide floors; on the overflowed branch (x > capacity, selected below) ceil_num
+    // is always >= 0, so floor and truncation coincide and this yields the intended ceil((x-capacity)/gap).
+    const auto blocks = register_new_node<v1::Divide>(ceil_num, gap);
     const auto reclaimed = register_new_node<v1::Multiply>(blocks, gap);
     const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
     const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
