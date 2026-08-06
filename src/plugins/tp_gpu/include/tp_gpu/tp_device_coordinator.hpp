@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -41,7 +43,12 @@ public:
     /// \param shared       Shared L0 context (driver + N devices + ze_context).
     /// \param world_size   Number of ranks (== shared->devices.size()).
     /// \param num_collectives  Number of distinct AllReduce points in the model.
-    TPDeviceCoordinator(TPL0SharedContextPtr shared, int world_size, int num_collectives);
+    /// \param collective_timeout  Upper bound on any single wait inside a
+    ///        collective, host- or device-side.  Zero means wait forever.
+    TPDeviceCoordinator(TPL0SharedContextPtr shared,
+                        int world_size,
+                        int num_collectives,
+                        std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000});
 
     TPDeviceCoordinator(const TPDeviceCoordinator&) = delete;
     TPDeviceCoordinator& operator=(const TPDeviceCoordinator&) = delete;
@@ -53,6 +60,16 @@ public:
 
     /// Returns true when initialization built kernels successfully on all ranks.
     bool is_ready() const { return m_ready; }
+
+    /// True once a collective has failed.  The coordinator is single-use after
+    /// that: the device queues may still hold unfinished work, so every later
+    /// call throws instead of running on top of unknown state.
+    bool is_aborted() const { return m_aborted.load(std::memory_order_acquire); }
+
+    /// Marks the group as failed, wakes every waiting rank and makes all
+    /// subsequent calls throw.  Safe to call from any rank; the first reason
+    /// wins.  Must not be called while holding a rendezvous mutex.
+    void abort_all(const std::string& reason);
 
     /// Coordinator-owned device-USM scratch accounting.  These allocations
     /// bypass the intel_gpu memory pool, so callers must account for them
@@ -232,10 +249,29 @@ private:
 
     void execute_plan(Plan& plan, ExecStats* stats = nullptr);
 
+    /// Timeout translated to the nanosecond argument L0 sync calls take.
+    /// Zero timeout maps to "no limit".
+    uint64_t timeout_ns() const;
+
+    /// zeCommandQueueSynchronize bounded by the collective timeout.  Throws on
+    /// expiry so a stuck queue surfaces as an error instead of a frozen process.
+    void sync_queue(ze_command_queue_handle_t queue, const char* what) const;
+
+    /// Throws if a previous collective already failed.
+    void throw_if_aborted() const;
+
+    /// Aborts the group and throws.  `timed_out` distinguishes "this rank ran
+    /// out of patience" from "somebody else already failed".
+    [[noreturn]] void fail_collective(bool timed_out, int collective_id, int rank, const char* stage);
+
     TPL0SharedContextPtr            m_shared;
     int                             m_world_size{0};
     int                             m_num_collectives{0};
     bool                            m_ready{false};
+    std::chrono::milliseconds       m_collective_timeout{5000};
+    std::atomic<bool>               m_aborted{false};
+    mutable std::mutex              m_abort_mutex;
+    std::string                     m_abort_reason;
     // Toggle between regular-cmdlist + queue-sync (false) and
     // immediate-cmdlist + counter-based event sync (true).  Driven by
     // env var TP_USE_IMMEDIATE.  Latched at construction time.

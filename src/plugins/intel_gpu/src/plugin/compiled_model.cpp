@@ -311,6 +311,31 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
     return m_graphs[n];
 }
 
+void CompiledModel::set_property(const ov::AnyMap& properties) {
+    // The only property accepted after compilation is the collective registry
+    // set: it is runtime state that cannot exist before the networks do, and it
+    // has to be settable on an imported model too.  Everything else still has
+    // to go through Core::compile_model.
+    for (const auto& [name, value] : properties) {
+        OPENVINO_ASSERT(name == ov::intel_gpu::collective_comm_registry_set.name(),
+                        "[GPU] It's not possible to set property of an already compiled model. Set property "
+                        "to Core::compile_model during compilation. Property: ",
+                        name);
+
+        const auto& registries = value.as<std::vector<CollectiveCommRegistryPtr>>();
+        OPENVINO_ASSERT(registries.size() >= m_graphs.size(),
+                        "[GPU] Got ",
+                        registries.size(),
+                        " collective registries for ",
+                        m_graphs.size(),
+                        " streams; one per stream is required");
+
+        for (size_t i = 0; i < m_graphs.size(); ++i) {
+            m_graphs[i]->get_network()->set_collective_comm_registry(registries[i]);
+        }
+    }
+}
+
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type{

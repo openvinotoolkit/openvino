@@ -583,4 +583,43 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
     }
 }
 
+// A collective only completes if every rank shows up.  These two cases cover
+// what happens when that does not hold: the group must fail loudly instead of
+// parking the calling threads forever.
+
+TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
+    Watchdog watchdog(30);
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{300});
+
+    // Only rank 0 calls, so the enter barrier can never be satisfied.  The
+    // buffers are never dereferenced because execution is not reached.
+    EXPECT_THROW(coord->allreduce(0, 0, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+    EXPECT_TRUE(coord->is_aborted());
+
+    // The device queues are left in an unknown state, so the coordinator stays
+    // failed and rejects further work immediately rather than after a timeout.
+    const auto before = std::chrono::steady_clock::now();
+    EXPECT_THROW(coord->allreduce(0, 0, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+    EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::milliseconds{300});
+}
+
+TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {
+    Watchdog watchdog(30);
+    auto shared = make_shared_ctx(2);
+    // No timeout: the only thing that can release the waiter is the abort.
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{0});
+
+    std::thread waiter([&] {
+        EXPECT_THROW(coord->allreduce(0, 1, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+    });
+
+    // Give the waiter time to park on the enter barrier before aborting.
+    std::this_thread::sleep_for(std::chrono::milliseconds{200});
+    coord->abort_all("test-initiated abort");
+
+    waiter.join();
+    EXPECT_TRUE(coord->is_aborted());
+}
+
 }  // namespace

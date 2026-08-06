@@ -82,6 +82,17 @@ output = request.get_output_tensor().data
 |------------------------------|-------------------------------|-------------------------------|-------------|
 | `TP_SIZE`     | `uint32_t`                    | `2`                           | Number of ranks. Must equal `len(DEVICE_IDS)` when both are set. |
 | `DEVICE_IDS`    | `std::vector<std::string>`    | `["GPU.0", "GPU.1", ...]`     | Explicit per-rank devices. |
+| `COMMUNICATION_TIMEOUT_MS` | `uint32_t`       | `5000`                        | Longest a rank waits inside a collective before the group is aborted. `0` waits forever (debugging only). |
+
+A collective needs all ranks to participate. If one rank never arrives or its
+device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
+a thrown error instead of a frozen process: the group is marked failed, all
+waiting ranks are released and each of them throws. The compiled model is not
+reusable afterwards — the device queues may still hold unfinished work — so
+every later inference on it fails immediately with the original reason.
+
+Raise the value for very large payloads on slow interconnects; lower it if you
+want a stuck rank reported sooner.
 
 Any additional properties are passed through to the underlying
 `intel_gpu` plugin used to compile each per-rank submodel. Common

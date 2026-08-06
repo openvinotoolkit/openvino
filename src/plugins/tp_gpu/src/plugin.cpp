@@ -13,12 +13,13 @@
 #include "graph_rewriter.hpp"
 #include "tp_l0_shared_context.hpp"
 #include "tp_gpu/properties.hpp"
-#include "tp_gpu/tp_coordination.hpp"
+#include "intel_gpu/runtime/collective_comm_registry.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/zero_api.hpp"
 
 namespace ov {
@@ -70,6 +71,18 @@ std::vector<std::string> get_device_names(const ov::AnyMap& config) {
     return device_names;
 }
 
+/// \brief Reads the collective timeout, in milliseconds.
+///
+/// Zero disables the bound entirely, which is only useful when stepping
+/// through a collective under a debugger.
+std::chrono::milliseconds get_collective_timeout(const ov::AnyMap& config) {
+    auto it = config.find(communication_timeout_ms.name());
+    if (it == config.end()) {
+        return std::chrono::milliseconds{5000};
+    }
+    return std::chrono::milliseconds{it->second.as<uint32_t>()};
+}
+
 /// \brief Drops the keys owned by this plugin.
 ///
 /// Whatever is left in the config is forwarded to the GPU plugin verbatim, and
@@ -77,6 +90,7 @@ std::vector<std::string> get_device_names(const ov::AnyMap& config) {
 void erase_tp_keys(ov::AnyMap& config) {
     config.erase(tp_size.name());
     config.erase(device_ids.name());
+    config.erase(communication_timeout_ms.name());
 }
 }  // namespace
 #define ZE_THROW_ON_ERROR(expr, what) ::ov::tp_gpu::ze_throw_on_error((expr), (what))
@@ -93,15 +107,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // ---- Extract TP configuration ----
     auto device_names = get_device_names(config);
     const auto tp_degree = static_cast<uint32_t>(device_names.size());
+    const auto collective_timeout = get_collective_timeout(config);
     erase_tp_keys(config);
 
     // ---- Build execution plan ----
     //
     // 1. Analyze the model to identify shardable MatMuls.
-    // 2. Create shared coordination object for cross-GPU AllReduce.
+    // 2. Create shared coordinator object for cross-GPU AllReduce.
     // 3. For each rank: shard weights, insert TPAllReduce ops, compile on the rank's GPU.
     //    The GPU plugin handles TPAllReduce as a CPU-fallback primitive that
-    //    synchronizes via the shared coordination object.
+    //    synchronizes via the shared coordinator object.
 
     // ---- Disable dynamic quantization for TP ----
     // DQ (DynamicQuantize) + oneDNN FC produces shape-dependent results:
@@ -150,8 +165,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                       << "), about " << imbalance_pct << "% load imbalance." << std::endl;
         }
     }
-
-    auto coordination = std::make_shared<TPCoordination>(tp_degree, num_collectives);
 
     // ---- Build a single L0 context spanning every rank's GPU ----
     //
@@ -225,17 +238,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     // Device-side AllReduce coordinator on top of the shared L0 context.
-    TPDeviceCoordinatorPtr device_coordinator;
+    TPDeviceCoordinatorPtr coordinator;
     if (num_collectives > 0) {
-        device_coordinator =
-            std::make_shared<TPDeviceCoordinator>(shared_l0_ctx, static_cast<int>(tp_degree), num_collectives);
-        coordination->set_device_coordinator(device_coordinator);
+        coordinator = std::make_shared<TPDeviceCoordinator>(shared_l0_ctx,
+                                                           static_cast<int>(tp_degree),
+                                                           num_collectives,
+                                                           collective_timeout);
     }
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(tp_degree);
 
     for (uint32_t rank = 0; rank < tp_degree; ++rank) {
-        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, tp_degree, coordination);
+        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, tp_degree);
 
         if (std::getenv("TP_PROF") != nullptr) {
             std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
@@ -245,11 +259,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         rank_compiled[rank] = get_core()->compile_model(rank_model, rank_ctx[rank], config);
     }
 
+    if (coordinator) {
+        // Hand the collective state over once the networks exist.  Doing it here
+        // rather than through compile_model properties keeps the graph free of
+        // runtime pointers and makes the same path work after import_model.
+        //
+        // One registry per stream worker, shared by every rank of that worker.
+        // Only a single worker exists until ov::num_streams is supported.
+        auto registry = std::make_shared<ov::intel_gpu::CollectiveCommRegistry>();
+        registry->set_group(0, coordinator);
+        std::vector<ov::intel_gpu::CollectiveCommRegistryPtr> registry_set{registry};
+
+        for (auto& compiled : rank_compiled) {
+            compiled->set_property({{ov::intel_gpu::collective_comm_registry_set.name(), registry_set}});
+        }
+    }
+
     return std::make_shared<CompiledModel>(model, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(device_names),
                                            std::move(shared_l0_ctx),
-                                           std::move(device_coordinator));
+                                           std::move(coordinator));
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -270,6 +300,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::tp_gpu::tp_size.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::tp_gpu::device_ids.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::tp_gpu::communication_timeout_ms.name(), ov::PropertyMutability::RW},
         };
     } else if (name == ov::device::full_name.name()) {
         return std::string("TP_GPU");
@@ -277,6 +308,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return std::vector<std::string>{};
     } else if (name == ov::internal::supported_properties.name()) {
         return std::vector<ov::PropertyName>{};
+    } else if (name == ov::tp_gpu::communication_timeout_ms.name()) {
+        auto it = m_config.find(name);
+        return it != m_config.end() ? it->second : ov::Any{uint32_t{5000}};
     } else if (name == ov::tp_gpu::tp_size.name() || name == ov::tp_gpu::device_ids.name()) {
         auto it = m_config.find(name);
         OPENVINO_ASSERT(it != m_config.end(), "[TP_GPU] Property ", name, " was not set");

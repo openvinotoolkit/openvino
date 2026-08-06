@@ -13,7 +13,7 @@
 #include <unordered_set>
 
 #include "tp_gpu/op/tp_all_reduce.hpp"
-#include "tp_gpu/tp_coordination.hpp"
+#include "tp_gpu/tp_device_coordinator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
@@ -900,8 +900,7 @@ void patch_reshape_constant(const std::shared_ptr<ov::Node>& reshape,
 std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov::Model>& model,
                                                   const ShardingPlan& plan,
                                                   uint32_t rank,
-                                                  uint32_t tp_degree,
-                                                  const std::shared_ptr<TPCoordination>& coordination) {
+                                                  uint32_t tp_degree) {
     OPENVINO_ASSERT(tp_degree >= 2, "[TP_GPU] tp_degree must be >= 2");
 
     // KV heads are the unit attention is split by, so they -- not the query
@@ -1272,7 +1271,7 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     //     between the MatMul output and its consumers, making the
     //     collective visible in the graph.  The GPU plugin executes
     //     TPAllReduce as an in-graph CPU primitive via the shared
-    //     TPCoordination object.
+    //     TPDeviceCoordinator object.
     // ------------------------------------------------------------------
     {
         uint32_t collective_id = 0;
@@ -1289,13 +1288,10 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
                 matmul->output(0),
                 /*group_id=*/0,
                 /*collective_id=*/collective_id++,
+                /*rank=*/rank,
                 /*world_size=*/tp_degree,
                 /*reduce_kind=*/"sum");
             ar->set_friendly_name("tp_allreduce/" + desc.matmul_name);
-
-            // Store coordination context in rt_info for the GPU plugin's op factory.
-            ar->get_rt_info()["tp_coordination"] = coordination;
-            ar->get_rt_info()["tp_rank"] = static_cast<int64_t>(rank);
 
             // Redirect all consumers of the MatMul to use the AllReduce output.
             auto targets = matmul->output(0).get_target_inputs();

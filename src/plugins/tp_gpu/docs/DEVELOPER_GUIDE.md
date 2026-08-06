@@ -240,9 +240,10 @@ are emitted by the current rewriter. If you wire one up:
    `clone_with_new_inputs`, `visit_attributes`. The four existing ops
    are good templates.
 4. Add an OCL primitive in
-   `src/plugins/intel_gpu/src/graph/impls/ocl/` that retrieves
-   `TPCoordination` from rt_info and dispatches to the appropriate
-   coordinator method.
+   `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:
+   carry `group_id` / `collective_id` / `rank` as attributes and resolve
+   the coordinator at execution time via
+   `instance.get_network().get_collective_comm_registry()->get_group(group_id)`.
 5. Register in `tp_*_impls.cpp` (priority OCL_static, OCL_dynamic, then
    any CPU fallback).
 
@@ -254,7 +255,8 @@ are emitted by the current rewriter. If you wire one up:
   `graph_rewriter.hpp`) stay in `src/`.
 - The shared L0 context type is internal — do not promote it to a
   public header. The intel_gpu impl reaches the `TPDeviceCoordinator`
-  through `TPCoordination`, never the L0 context directly.
+  through the network's `CollectiveCommRegistry`, never the L0 context
+  directly.
 
 ## Where Performance Lives
 

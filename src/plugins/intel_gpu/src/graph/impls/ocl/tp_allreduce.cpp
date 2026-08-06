@@ -9,7 +9,6 @@
 #include "tp_allreduce_inst.h"
 #include "registry/implementation_map.hpp"
 
-#include "tp_gpu/tp_coordination.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 
 namespace cldnn {
@@ -24,9 +23,9 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
     using parent = typed_primitive_impl<tp_allreduce>;
     using parent::parent;
 
+    uint32_t group_id = 0;
     uint32_t collective_id = 0;
     uint32_t rank = 0;
-    std::shared_ptr<ov::tp_gpu::TPCoordination> coordination;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::tp_allreduce_impl)
 
@@ -45,9 +44,9 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
     void set_node_params(const program_node& arg) override {
         OPENVINO_ASSERT(arg.is_type<tp_allreduce>(), "[GPU] Incorrect program_node type");
         const auto& prim = arg.as<tp_allreduce>().get_primitive();
+        group_id = prim->group_id;
         collective_id = prim->collective_id;
         rank = prim->rank;
-        coordination = prim->coordination;
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
@@ -67,8 +66,14 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         const size_t num_elements = input_layout.count();
         const auto etype = input_layout.data_type;
 
-        auto dc = coordination ? coordination->device_coordinator() : nullptr;
-        OPENVINO_ASSERT(dc != nullptr,
+        // The coordinator is runtime state of the network, injected by the
+        // tensor-parallel plugin after this model was compiled or imported.
+        const auto& registry = instance.get_network().get_collective_comm_registry();
+        OPENVINO_ASSERT(registry != nullptr,
+            "[GPU] tp_allreduce requires a collective registry; the tensor-parallel plugin must inject "
+            "one into the compiled model before inference");
+        const auto& coordinator = registry->get_group(group_id);
+        OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
 
         ov::element::Type ov_dtype;
@@ -82,7 +87,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
 
         void* in_dev  = input_mem_ptr->buffer_ptr();
         void* out_dev = output_mem_ptr->buffer_ptr();
-        dc->allreduce(static_cast<int>(collective_id),
+        coordinator->allreduce(static_cast<int>(collective_id),
                       static_cast<int>(rank),
                       in_dev, out_dev, num_elements, ov_dtype);
         return cpu::make_output_event(stream, instance.is_output());

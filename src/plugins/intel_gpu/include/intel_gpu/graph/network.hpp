@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
+#include "intel_gpu/runtime/collective_comm_registry.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 
 #include <map>
@@ -229,6 +230,16 @@ public:
 
     const ExecutionConfig& get_config() const { return _program->get_config(); }
 
+    /// Collective groups this network takes part in.  Injected by the
+    /// tensor-parallel plugin after compile or import, so that neither the
+    /// graph nor the primitives carry runtime-only pointers.
+    void set_collective_comm_registry(ov::intel_gpu::CollectiveCommRegistryPtr registry) {
+        _collective_comm_registry = std::move(registry);
+    }
+    const ov::intel_gpu::CollectiveCommRegistryPtr& get_collective_comm_registry() const {
+        return _collective_comm_registry;
+    }
+
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
@@ -279,6 +290,8 @@ private:
     output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
+
+    ov::intel_gpu::CollectiveCommRegistryPtr _collective_comm_registry;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);

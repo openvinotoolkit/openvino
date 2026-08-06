@@ -23,7 +23,7 @@ class CompiledModel;
 /// Execution: set user inputs on all ranks → launch all ranks in parallel →
 /// collect output from rank 0.
 /// AllReduce synchronization happens inside each GPU's inference pipeline
-/// via the TPAllReduce CPU primitive and shared TPCoordination object.
+/// via the TPAllReduce CPU primitive and shared TPDeviceCoordinator object.
 class InferRequest : public ov::ISyncInferRequest {
 public:
     explicit InferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);

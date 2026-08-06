@@ -21,11 +21,13 @@ public:
     /// \param data   The tensor to reduce
     /// \param group_id       Logical group identifier
     /// \param collective_id  Unique id for matching across ranks
+    /// \param rank           This rank's index within the group
     /// \param world_size     Number of participating ranks
     /// \param reduce_kind    "sum", "mean" (extensible)
     TPAllReduce(const Output<Node>& data,
                 uint32_t group_id,
                 uint32_t collective_id,
+                uint32_t rank,
                 uint32_t world_size,
                 const std::string& reduce_kind = "sum");
 
@@ -35,12 +37,14 @@ public:
 
     uint32_t get_group_id() const { return m_group_id; }
     uint32_t get_collective_id() const { return m_collective_id; }
+    uint32_t get_rank() const { return m_rank; }
     uint32_t get_world_size() const { return m_world_size; }
     const std::string& get_reduce_kind() const { return m_reduce_kind; }
 
 private:
     uint32_t m_group_id = 0;
     uint32_t m_collective_id = 0;
+    uint32_t m_rank = 0;
     uint32_t m_world_size = 1;
     std::string m_reduce_kind = "sum";
 };
