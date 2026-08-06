@@ -1347,7 +1347,7 @@ RoPEFusionCohere::RoPEFusionCohere() {
     auto x_odd = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
     auto x_even = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
 
-    auto neg_x_odd = pattern::wrap_type<v1::Multiply>({x_odd, -1.0f}, {{"auto_broadcast", "numpy"}});
+    auto neg_x_odd = pattern::wrap_type<v1::Multiply>({x_odd, -1.0f});
     // Accept both Unsqueeze(x, -1) and Reshape(x, shape) for the "add last dim" step.
     // In PagedAttention mode, SDPAToPagedAttention changes Q/K seq-length to 1, which causes
     // shape propagation to canonicalize Unsqueeze ops into Reshape ops with explicit shapes.
