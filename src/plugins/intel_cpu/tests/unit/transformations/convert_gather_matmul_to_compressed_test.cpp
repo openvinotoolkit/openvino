@@ -259,7 +259,6 @@ TEST_F(TransformationTestsF, ConvertBGMToCompressed_ParameterWeightsDynamicShape
         return std::make_shared<ov::Model>(ov::OutputVector{bgm}, ov::ParameterVector{input, weights, scale});
     };
 
-    // Conversion is skipped, so the reference graph is identical to the input graph.
+    // Conversion is skipped; TransformationTestsF auto-clones model_ref from model for the no-op check.
     model = build_model();
-    model_ref = build_model();
 }
