@@ -270,7 +270,7 @@ public:
         auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
             [](ov::Dimension d) { return d.get_length() > 1; });
         weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
-        auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+        const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
