@@ -139,7 +139,7 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    // Sub-byte types (i4/u4) are allowed but only for contiguous (non-ROI) copies
+    // Sub-byte types require contiguous (non-ROI) copies
     OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8 || roi_shape.empty(),
                     "[GPU] ROI copy is not supported for sub-byte element type: ", src->get_element_type());
 
@@ -217,7 +217,7 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
-    // Sub-byte types (i4/u4) don't support strided copy — use flat contiguous copy
+    // Sub-byte types use flat contiguous copy
     if (m_element_type.bitwidth() < 8) {
         const auto byte_size = get_byte_size();
         if (dst_remote_tensor != nullptr) {
@@ -267,7 +267,7 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
 
-    // Sub-byte types (i4/u4) don't support strided copy — use flat contiguous copy
+    // Sub-byte types use flat contiguous copy
     if (m_element_type.bitwidth() < 8) {
         const auto byte_size = get_byte_size();
         if (src_remote_tensor != nullptr) {
