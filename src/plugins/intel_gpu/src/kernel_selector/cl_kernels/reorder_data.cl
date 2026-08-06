@@ -251,7 +251,7 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
     #elif defined(UINT2_OUTPUT)
-        OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res);
+        OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res_tmp);
         int val_i32 = convert_int(val_char);
         val_i32 = clamp(val_i32, 0, 3);
         uint val_u32 = (uint)(val_i32 & 0x03);
