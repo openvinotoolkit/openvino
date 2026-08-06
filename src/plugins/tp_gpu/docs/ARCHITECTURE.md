@@ -32,8 +32,9 @@ device memory through a shared Level Zero context.
 │       row-parallel MatMul, validate the cloned graph.        │
 │    5. Compile each per-rank model on its GPU through the     │
 │       intel_gpu plugin under the shared L0 context.          │
-│    6. Construct TPCoordination + TPDeviceCoordinator and     │
-│       attach them to all ranks via rt_info on TPAllReduce.   │
+│    6. Construct the TPDeviceCoordinator, publish it in a    │
+│       CollectiveCommRegistry and inject that registry into   │
+│       every rank compiled model via set_property().          │
 └──────────────┬───────────────────────────────────────────────┘
                │
                ▼
@@ -57,10 +58,10 @@ device memory through a shared Level Zero context.
 │    1. Replicate user inputs across ranks.                    │
 │    2. Launch each rank in its own std::async thread.         │
 │    3. Each rank's graph executes locally; whenever it hits a │
-│       TPAllReduce node, the OCL impl in intel_gpu reaches    │
-│       through the rt_info-bound TPCoordination into the      │
-│       TPDeviceCoordinator and performs a synchronous,        │
-│       in-place cross-device sum on USM-device memory.        │
+│       TPAllReduce node, the OCL impl in intel_gpu resolves   │
+│       the coordinator from the network's registry by         │
+│       group_id and performs a synchronous, in-place          │
+│       cross-device sum on USM-device memory.                 │
 │    4. Both ranks return; rank 0's outputs are exposed to     │
 │       the user.                                              │
 └──────────────────────────────────────────────────────────────┘
@@ -133,17 +134,17 @@ scheme (e.g. Sequence Parallel / SP+TP).
 ```
 Plugin
   └── TPL0SharedContext              (shared ze_context_handle_t across N GPUs)
-  └── TPCoordination                 (one per CompiledModel; pinned in rt_info)
-        └── TPDeviceCoordinator      (owns per-rank L0 queues, cmdlists, modules)
-              └── Plan[]             (one per collective_id, cached & reused)
-        └── SimpleBarrier            (legacy CPU AllReduce path; unused with DC)
+  └── TPDeviceCoordinator            (owns per-rank L0 queues, cmdlists, modules)
+        └── Plan[]                   (one per collective_id, cached & reused)
   └── CompiledModel
-        └── rank_compiled[N]          (intel_gpu per-rank ICompiledModel)
+        └── rank_compiled[N]          (intel_gpu per-rank ICompiledModel;
+                                       each holds a CollectiveCommRegistry
+                                       injected through set_property())
   └── InferRequest
         └── m_rank_requests[N]        (per-rank IAsyncInferRequest)
                                       ↓ during infer()
                                   intel_gpu OCL tp_allreduce_impl
-                                      ↓
+                                      ↓ network registry lookup by group_id
                                 TPDeviceCoordinator::allreduce(...)
 ```
 
@@ -156,7 +157,6 @@ src/plugins/tp_gpu/
 ├── include/tp_gpu/
 │   ├── op/                                ← public op headers (registered in
 │   │                                        a private "tp_gpu")
-│   ├── tp_coordination.hpp                ← TPCoordination (rendezvous + DC slot)
 │   └── tp_device_coordinator.hpp          ← TPDeviceCoordinator public API
 ├── samples/
 │   ├── tp_benchmark/                      ← prefill+decode comparator vs GPU
@@ -289,9 +289,12 @@ The TP plugin contributes a single OCL primitive
 implements the in-graph `TPAllReduce` op. This impl:
 - Has `is_cpu() == false`, which forces intel_gpu to allocate inputs and
   outputs in `usm_device`. This is required for cross-PCIe peer copies.
-- During `execute()`, retrieves `TPCoordination` from the op's rt_info,
-  unwraps the device coordinator, and calls
+- During `execute()`, reads the immutable `group_id` / `collective_id` /
+  `rank` carried by the primitive, resolves the coordinator from the
+  owning network's `CollectiveCommRegistry` by `group_id`, and calls
   `dc->allreduce(collective_id, rank, in, out, n, dtype)` synchronously.
+  Because the primitive stores only PODs, it serializes cleanly and the
+  registry can be re-injected after `import_model`.
 
 Registration order (see `tp_allreduce_impls.cpp`): `OCL_static`,
 `OCL_dynamic`. There is no CPU fallback: the collective needs a shared
@@ -303,8 +306,8 @@ fails at `compile_model` rather than silently degrading.
 - `TPL0SharedContext` is owned by the `Plugin` instance and outlives all
   per-rank `CompiledModel`s. `~TPL0SharedContext` calls `zeContextDestroy`.
 - `TPDeviceCoordinator` is shared via `std::shared_ptr` between the
-  `Plugin`, the `TPCoordination`, and through rt_info every TPAllReduce
-  node — and therefore every per-rank intel_gpu graph.
+  `Plugin` and the `CollectiveCommRegistry` held by each per-rank
+  intel_gpu network.
 - `infer_request.cpp` launches one `std::async(std::launch::async)` per
   rank; the implicit thread pool of std::async is sufficient for the 2-
   to 4-GPU configurations that have been validated.

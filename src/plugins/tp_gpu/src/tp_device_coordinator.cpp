@@ -11,6 +11,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -247,13 +248,16 @@ std::vector<uint8_t> compile_via_ocl(ze_device_handle_t ze_dev,
 
 TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
                                          int world_size,
-                                         int num_collectives)
+                                         int num_collectives,
+                                         std::chrono::milliseconds collective_timeout)
     : m_shared(std::move(shared)),
       m_world_size(world_size),
-      m_num_collectives(num_collectives) {
+      m_num_collectives(num_collectives),
+      m_collective_timeout(collective_timeout) {
     OPENVINO_ASSERT(m_shared && m_shared->context && static_cast<int>(m_shared->devices.size()) == world_size,
                     "[TP][L0] coordinator requires a valid shared L0 context with ", world_size, " devices");
     OPENVINO_ASSERT(world_size >= 2, "[TP][L0] coordinator requires at least 2 ranks");
+    OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[TP][L0] collective timeout must not be negative");
 
     if (const char* v = std::getenv("TP_USE_IMMEDIATE")) {
         m_use_immediate = std::atoi(v) != 0;
@@ -453,10 +457,10 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     if (m_ready) {
         for (auto& rs : m_ranks) {
             if (rs.compute_queue) {
-                ov::zeCommandQueueSynchronize(rs.compute_queue, UINT64_MAX);
+                ov::zeCommandQueueSynchronize(rs.compute_queue, timeout_ns());
             }
             if (rs.copy_queue) {
-                ov::zeCommandQueueSynchronize(rs.copy_queue, UINT64_MAX);
+                ov::zeCommandQueueSynchronize(rs.copy_queue, timeout_ns());
             }
         }
     }
@@ -535,10 +539,10 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
         // keep the old one intact.
         for (auto& rs : m_ranks) {
             if (rs.compute_queue) {
-                ZE_THROW(ov::zeCommandQueueSynchronize(rs.compute_queue, UINT64_MAX));
+                sync_queue(rs.compute_queue, "scratch grow: compute queue drain");
             }
             if (rs.copy_queue) {
-                ZE_THROW(ov::zeCommandQueueSynchronize(rs.copy_queue, UINT64_MAX));
+                sync_queue(rs.copy_queue, "scratch grow: copy queue drain");
             }
         }
     } catch (...) {
@@ -743,10 +747,10 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     // fully drained before we wipe the recorded commands.
     for (auto& rs : m_ranks) {
         if (rs.compute_queue) {
-            ZE_THROW(ov::zeCommandQueueSynchronize(rs.compute_queue, UINT64_MAX));
+            sync_queue(rs.compute_queue, "re-record: compute queue drain");
         }
         if (rs.copy_queue) {
-            ZE_THROW(ov::zeCommandQueueSynchronize(rs.copy_queue, UINT64_MAX));
+            sync_queue(rs.copy_queue, "re-record: copy queue drain");
         }
         ZE_THROW(ov::zeCommandListReset(rs.compute_list));
         if (rs.copy_list) {
@@ -969,18 +973,20 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         }
         step("all appended; host-sync r0");
         auto ts1 = clk::now();
-        // 1-second timeout instead of UINT64_MAX so a deadlock on the
-        // immediate path surfaces as a thrown error rather than a freeze.
-        constexpr uint64_t kSyncTimeoutNs = 1'000'000'000ull;
-        ze_result_t s0 = ov::zeEventHostSynchronize(m_ranks[0].cb_event_done, kSyncTimeoutNs);
+        // Bounded wait instead of UINT64_MAX so a deadlock on the immediate
+        // path surfaces as a thrown error rather than a freeze.
+        const uint64_t sync_timeout_ns = timeout_ns();
+        ze_result_t s0 = ov::zeEventHostSynchronize(m_ranks[0].cb_event_done, sync_timeout_ns);
         if (s0 == ZE_RESULT_NOT_READY) {
-            OPENVINO_THROW("[TP][L0] immediate path: rank0 cb_event_done sync timeout (1s)");
+            OPENVINO_THROW("[TP][L0] immediate path: rank 0 cb_event_done did not signal within ",
+                           m_collective_timeout.count(), " ms");
         }
         ZE_THROW(s0);
         auto ts2 = clk::now();
-        ze_result_t s1 = ov::zeEventHostSynchronize(m_ranks[1].cb_event_done, kSyncTimeoutNs);
+        ze_result_t s1 = ov::zeEventHostSynchronize(m_ranks[1].cb_event_done, sync_timeout_ns);
         if (s1 == ZE_RESULT_NOT_READY) {
-            OPENVINO_THROW("[TP][L0] immediate path: rank1 cb_event_done sync timeout (1s)");
+            OPENVINO_THROW("[TP][L0] immediate path: rank 1 cb_event_done did not signal within ",
+                           m_collective_timeout.count(), " ms");
         }
         ZE_THROW(s1);
         auto ts3 = clk::now();
@@ -1041,9 +1047,9 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
                 m_ranks[r].compute_queue, 1, &m_ranks[r].compute_list, nullptr));
         }
         auto ts1 = clk::now();
-        ZE_THROW(ov::zeCommandQueueSynchronize(m_ranks[0].compute_queue, UINT64_MAX));
+        sync_queue(m_ranks[0].compute_queue, "allreduce: rank 0 queue");
         auto ts2 = clk::now();
-        ZE_THROW(ov::zeCommandQueueSynchronize(m_ranks[1].compute_queue, UINT64_MAX));
+        sync_queue(m_ranks[1].compute_queue, "allreduce: rank 1 queue");
         auto ts3 = clk::now();
         if (stats) {
             stats->submit = ts1 - ts0;
@@ -1101,9 +1107,93 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
     // Sync all queues.
     for (int r = 0; r < m_world_size; ++r) {
         if (dbg) std::cerr << "[TP][L0] execute: sync rank " << r << std::endl;
-        ZE_THROW(ov::zeCommandQueueSynchronize(m_ranks[r].compute_queue, UINT64_MAX));
+        sync_queue(m_ranks[r].compute_queue, "allreduce: rank queue");
     }
     trace("execute: done");
+}
+
+namespace {
+enum class WaitOutcome { ready, timed_out, aborted };
+
+/// Blocks until `ready()` holds, the group is aborted, or the timeout expires.
+/// A zero timeout means "wait forever" and is only reachable through explicit
+/// configuration.
+template <class Ready>
+WaitOutcome wait_for_condition(std::unique_lock<std::mutex>& lk,
+                               std::condition_variable& cv,
+                               std::chrono::milliseconds timeout,
+                               const std::atomic<bool>& aborted,
+                               Ready ready) {
+    const auto pred = [&] { return ready() || aborted.load(std::memory_order_acquire); };
+    if (timeout.count() == 0) {
+        cv.wait(lk, pred);
+    } else if (!cv.wait_for(lk, timeout, pred)) {
+        return WaitOutcome::timed_out;
+    }
+    // A rank that reached its goal is allowed to finish even if another rank
+    // aborted in the meantime; tearing down a completed round buys nothing.
+    return ready() ? WaitOutcome::ready : WaitOutcome::aborted;
+}
+}  // namespace
+
+uint64_t TPDeviceCoordinator::timeout_ns() const {
+    if (m_collective_timeout.count() == 0) {
+        return UINT64_MAX;
+    }
+    return static_cast<uint64_t>(m_collective_timeout.count()) * 1'000'000ull;
+}
+
+void TPDeviceCoordinator::sync_queue(ze_command_queue_handle_t queue, const char* what) const {
+    const ze_result_t r = ov::zeCommandQueueSynchronize(queue, timeout_ns());
+    if (r == ZE_RESULT_NOT_READY) {
+        OPENVINO_THROW("[TP][L0] ", what, " did not complete within ",
+                       m_collective_timeout.count(), " ms");
+    }
+    ZE_THROW(r);
+}
+
+void TPDeviceCoordinator::abort_all(const std::string& reason) {
+    {
+        std::lock_guard<std::mutex> lock(m_abort_mutex);
+        if (m_abort_reason.empty()) {
+            m_abort_reason = reason;
+        }
+    }
+    m_aborted.store(true, std::memory_order_release);
+
+    // Take each rendezvous lock before notifying: a rank that has just
+    // evaluated its predicate and is about to sleep would otherwise miss the
+    // wakeup and keep waiting for a group that no longer exists.
+    for (auto& rdz : m_rendezvous) {
+        if (!rdz) {
+            continue;
+        }
+        std::lock_guard<std::mutex> lock(rdz->mtx);
+        rdz->cv.notify_all();
+    }
+}
+
+void TPDeviceCoordinator::throw_if_aborted() const {
+    if (!m_aborted.load(std::memory_order_acquire)) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(m_abort_mutex);
+    OPENVINO_THROW("[TP][L0] collective group is no longer usable: ", m_abort_reason);
+}
+
+void TPDeviceCoordinator::fail_collective(bool timed_out, int collective_id, int rank, const char* stage) {
+    if (timed_out) {
+        std::ostringstream oss;
+        oss << "[TP][L0] rank " << rank << " timed out after " << m_collective_timeout.count()
+            << " ms at the " << stage << " of collective " << collective_id
+            << "; the group is aborted. Either another rank never reached this collective or its "
+               "device work never completed.";
+        abort_all(oss.str());
+    }
+    throw_if_aborted();
+    // throw_if_aborted always throws once m_aborted is set, which abort_all
+    // guarantees above.
+    OPENVINO_THROW("[TP][L0] collective ", collective_id, " failed on rank ", rank, " at the ", stage);
 }
 
 void TPDeviceCoordinator::allreduce(int collective_id,
@@ -1117,6 +1207,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                     "[TP][L0] collective_id out of range: ", collective_id);
     OPENVINO_ASSERT(rank >= 0 && rank < m_world_size,
                     "[TP][L0] rank out of range: ", rank);
+    throw_if_aborted();
 
     static const bool dbg = std::getenv("TP_DBG") != nullptr;
     auto trace = [&](const char* msg) {
@@ -1162,7 +1253,12 @@ void TPDeviceCoordinator::allreduce(int collective_id,
             rdz.enter_gen++;
             rdz.cv.notify_all();
         } else {
-            rdz.cv.wait(lk, [&] { return rdz.enter_gen != my_gen; });
+            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                    [&] { return rdz.enter_gen != my_gen; });
+            if (outcome != WaitOutcome::ready) {
+                lk.unlock();
+                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "enter barrier");
+            }
         }
     }
     trace("phase1: passed");
@@ -1170,6 +1266,21 @@ void TPDeviceCoordinator::allreduce(int collective_id,
 
     // Phase 2: rank 0 orchestrates; non-zero ranks wait for `done`.
     if (rank == 0) {
+        // Rank 0 owns the launch.  Every other rank is parked on `done`, so if
+        // anything below throws they would wait for a result that will never
+        // be produced.  Releasing them is the whole point of the guard.
+        struct AbortOnFailure {
+            TPDeviceCoordinator* self;
+            int collective_id;
+            bool armed{true};
+            ~AbortOnFailure() {
+                if (armed) {
+                    self->abort_all("[TP][L0] rank 0 failed while running collective " +
+                                    std::to_string(collective_id));
+                }
+            }
+        } abort_guard{this, collective_id};
+
         OPENVINO_ASSERT(rdz.n == n && rdz.dtype == dtype,
                         "[TP][L0] inconsistent (n,dtype) across ranks for collective ",
                         collective_id);
@@ -1241,11 +1352,17 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         t_copy_bytes   += es.copy_bytes;
 
         std::unique_lock<std::mutex> lk(rdz.mtx);
+        abort_guard.armed = false;
         rdz.done = true;
         rdz.cv.notify_all();
     } else {
         std::unique_lock<std::mutex> lk(rdz.mtx);
-        rdz.cv.wait(lk, [&] { return rdz.done; });
+        const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                [&] { return rdz.done; });
+        if (outcome != WaitOutcome::ready) {
+            lk.unlock();
+            fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "execute phase");
+        }
     }
     trace("phase2: passed");
     auto t2 = clk::now();
@@ -1263,7 +1380,12 @@ void TPDeviceCoordinator::allreduce(int collective_id,
             rdz.exit_gen++;
             rdz.cv.notify_all();
         } else {
-            rdz.cv.wait(lk, [&] { return rdz.exit_gen != my_gen; });
+            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                    [&] { return rdz.exit_gen != my_gen; });
+            if (outcome != WaitOutcome::ready) {
+                lk.unlock();
+                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "exit barrier");
+            }
         }
     }
     trace("phase3: passed (return)");

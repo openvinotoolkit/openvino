@@ -12,7 +12,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "tp_gpu/op/tp_all_reduce.hpp"
-#include "tp_gpu/tp_coordination.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp_gpu::tests {
@@ -29,11 +28,10 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const ov::Disc
 std::vector<std::shared_ptr<ov::Model>> rewrite_all_ranks(const std::shared_ptr<ov::Model>& model,
                                                           const ShardingPlan& plan,
                                                           uint32_t world_size) {
-    auto coordination = std::make_shared<TPCoordination>(world_size, GraphRewriter::count_collectives(plan));
     std::vector<std::shared_ptr<ov::Model>> per_rank;
     per_rank.reserve(world_size);
     for (uint32_t rank = 0; rank < world_size; ++rank)
-        per_rank.push_back(GraphRewriter::rewrite(model, plan, rank, world_size, coordination));
+        per_rank.push_back(GraphRewriter::rewrite(model, plan, rank, world_size));
     return per_rank;
 }
 
@@ -181,8 +179,7 @@ TEST_P(TPGraphRewriterSharding, LocalizesKvCacheVariables) {
     auto plan = GraphRewriter::analyze(model);
 
     for (uint32_t rank = 0; rank < world_size; ++rank) {
-        auto coordination = std::make_shared<TPCoordination>(world_size, GraphRewriter::count_collectives(plan));
-        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size, coordination);
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
 
         // Whole KV heads are handed out, so the expected count is the same one
         // the rewriter derives -- spread the remainder over the first ranks.
@@ -209,8 +206,7 @@ TEST_P(TPGraphRewriterSharding, LocalizesEveryKvCacheInitializer) {
 
     // Every ReadValue carries its own initializer chain; patching only the
     // first one leaves the rest claiming the original head count.
-    auto coordination = std::make_shared<TPCoordination>(world_size, GraphRewriter::count_collectives(plan));
-    auto rank_model = GraphRewriter::rewrite(model, plan, /*rank=*/0, world_size, coordination);
+    auto rank_model = GraphRewriter::rewrite(model, plan, /*rank=*/0, world_size);
 
     const int64_t expected = static_cast<int64_t>(config.num_kv_heads / world_size +
                                                   (config.num_kv_heads % world_size ? 1 : 0));

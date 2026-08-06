@@ -8,7 +8,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 
-#include "tp_gpu/tp_coordination.hpp"
 #include "tp_gpu/op/tp_all_reduce.hpp"
 
 namespace ov {
@@ -27,26 +26,13 @@ static void CreateTPAllReduceOp(ProgramBuilder& p,
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    // Read coordination context and rank from rt_info (stored by graph_rewriter).
-    const auto& rt = op->get_rt_info();
-
-    auto coord_it = rt.find("tp_coordination");
-    OPENVINO_ASSERT(coord_it != rt.end(),
-                    "[GPU] TPAllReduce '", op->get_friendly_name(),
-                    "' is missing tp_coordination in rt_info");
-    auto coordination = coord_it->second.as<std::shared_ptr<ov::tp_gpu::TPCoordination>>();
-
-    auto rank_it = rt.find("tp_rank");
-    OPENVINO_ASSERT(rank_it != rt.end(),
-                    "[GPU] TPAllReduce '", op->get_friendly_name(),
-                    "' is missing tp_rank in rt_info");
-    auto rank = static_cast<uint32_t>(rank_it->second.as<int64_t>());
-
+    // The op carries all the metadata the primitive needs; the coordinator that
+    // runs the group is resolved at execution time from the network's registry.
     auto prim = cldnn::tp_allreduce(layerName,
                                     inputs[0],
+                                    op->get_group_id(),
                                     op->get_collective_id(),
-                                    rank,
-                                    std::move(coordination));
+                                    op->get_rank());
 
     p.add_primitive(*op, prim);
 }

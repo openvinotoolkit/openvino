@@ -14,7 +14,7 @@
 namespace ov {
 namespace tp_gpu {
 
-class TPCoordination;
+class TPDeviceCoordinator;
 
 /// \brief Sharding plan produced by model analysis.
 ///
@@ -63,11 +63,13 @@ public:
 
     /// Clone the model and apply weight sharding for the given rank.
     /// Returns a new model with sharded weights and adjusted shapes.
+    ///
+    /// The result carries no runtime state: which coordinator runs a collective
+    /// is a property of the compiled model, not of the graph.
     static std::shared_ptr<ov::Model> rewrite(const std::shared_ptr<const ov::Model>& model,
                                               const ShardingPlan& plan,
                                               uint32_t rank,
-                                              uint32_t tp_degree,
-                                              const std::shared_ptr<TPCoordination>& coordination);
+                                              uint32_t tp_degree);
 
     /// Count how many AllReduce collectives will be created (= number of row-parallel linears).
     static int count_collectives(const ShardingPlan& plan);

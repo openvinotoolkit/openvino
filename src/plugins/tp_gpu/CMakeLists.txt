@@ -50,7 +50,10 @@ ov_add_plugin(NAME ${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_BINARY_DIR}/generated)
+            ${CMAKE_CURRENT_BINARY_DIR}/generated
+            # Internal GPU properties: the collective registry set is injected
+            # into the compiled rank models through ov::ICompiledModel::set_property.
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/include)
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
