@@ -30,8 +30,8 @@ public:
     //   5 cumulative_sequence_length [batch_size + 1], i32  (prefix-sum of new Q tokens per sequence)
     //   6 past_seqlens [batch_size], i32                    (cached length per sequence)
     //   7 block_table  [batch_size, max_blocks_per_sequence], i32
-    //   8 cos_cache    [max_total_seqlen, rotary_dim / 2]   (present only when do_rotary)
-    //   9 sin_cache    [max_total_seqlen, rotary_dim / 2]   (present only when do_rotary)
+    //   8 cos_cache    [max_total_seqlen, head_size / 2]    (present only when do_rotary; full-head rotary only)
+    //   9 sin_cache    [max_total_seqlen, head_size / 2]    (present only when do_rotary; full-head rotary only)
     // Outputs:
     //   0 output        [num_tokens, num_heads * head_size]
     //   1 key_cache_out   same shape/type as key_cache (in-place updated cache)

@@ -20,8 +20,10 @@ class TRANSFORMATIONS_API PagedAttentionDecomposition;
 // Decomposes the internal ov::op::internal::PagedAttention (the ONNX com.microsoft.PagedAttention op) into a
 // ScaledDotProductAttention-based subgraph that honors the ONNX cache-in -> cache-out contract, so a standalone
 // ONNX model runs on CPU/GPU. This is the "decompose by default" half of the design; a plugin/serving pipeline
-// can disable this pass (transformation_callback) to keep the op native. Single-sequence (batch_size == 1) for
-// now; multi-sequence varlen is added later.
+// can disable this pass (transformation_callback) to keep the op native. Two paths, both implemented: a lean
+// single-sequence fast path for a statically-known batch == 1, and a general variable-length path for a dynamic
+// or static batch > 1 (also correct for batch == 1). decompose() selects between them from the static shape of
+// the past_seqlens input.
 class ov::pass::PagedAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PagedAttentionDecomposition");
