@@ -81,6 +81,53 @@ void PagedAttention::validate_and_infer_types() {
                           q_type == element::f32 || q_type == element::f16 || q_type == element::bf16,
                           "PagedAttention supports the following query element types: {f32, f16, bf16}");
 
+    // Fail fast on the type/rank invariants the decomposition relies on, but only reject what is provably
+    // wrong from static info (dynamic ranks/types are left to run-time). key/value (1/2) and the caches (3/4)
+    // must match the query float type; the metadata inputs (5/6/7) are i32.
+    for (size_t i : {size_t{1}, size_t{2}, size_t{3}, size_t{4}}) {
+        const auto& t = get_input_element_type(i);
+        NODE_VALIDATION_CHECK(this,
+                              t.is_dynamic() || t == q_type,
+                              "PagedAttention: input ",
+                              i,
+                              " (key/value/key_cache/value_cache) must have the same element type as query (",
+                              q_type,
+                              "), got ",
+                              t);
+    }
+    for (size_t i : {size_t{5}, size_t{6}, size_t{7}}) {
+        const auto& t = get_input_element_type(i);
+        NODE_VALIDATION_CHECK(this,
+                              t.is_dynamic() || t == element::i32,
+                              "PagedAttention: input ",
+                              i,
+                              " (cumulative_sequence_length/past_seqlens/block_table) must be i32, got ",
+                              t);
+    }
+    // Expected ranks: query/key/value 2-D, key_cache/value_cache 4-D, block_table 2-D, cos/sin 2-D when present.
+    const auto check_rank = [this](size_t i, int64_t expected, const char* name) {
+        const auto& r = get_input_partial_shape(i).rank();
+        NODE_VALIDATION_CHECK(this,
+                              r.is_dynamic() || r.get_length() == expected,
+                              "PagedAttention: input ",
+                              i,
+                              " (",
+                              name,
+                              ") must be ",
+                              expected,
+                              "-D.");
+    };
+    check_rank(0, 2, "query");
+    check_rank(1, 2, "key");
+    check_rank(2, 2, "value");
+    check_rank(3, 4, "key_cache");
+    check_rank(4, 4, "value_cache");
+    check_rank(7, 2, "block_table");
+    if (input_size == 10) {
+        check_rank(8, 2, "cos_cache");
+        check_rank(9, 2, "sin_cache");
+    }
+
     NODE_VALIDATION_CHECK(this,
                           m_kv_num_heads > 0 && m_num_heads % m_kv_num_heads == 0,
                           "PagedAttention requires kv_num_heads > 0 and num_heads divisible by kv_num_heads, got "

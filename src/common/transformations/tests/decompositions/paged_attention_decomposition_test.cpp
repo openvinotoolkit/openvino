@@ -271,6 +271,55 @@ TEST(PagedAttentionOpValidation, allows_dynamic_rotary_width) {
     EXPECT_NO_THROW(make_pa_rotary_op(/*cos_last_dim*/ Dimension::dynamic()));
 }
 
+namespace {
+// Build the 8 valid inputs, then let the caller override one before constructing the op.
+OutputVector valid_pa_args() {
+    const auto f32 = element::f32;
+    return {
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, MAX_BLOCKS}),
+    };
+}
+std::shared_ptr<PagedAttention> pa_from(const OutputVector& args) {
+    return std::make_shared<PagedAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, 0.0f, -1, false, false);
+}
+}  // namespace
+
+TEST(PagedAttentionOpValidation, rejects_kv_type_mismatch) {
+    // key (input 1) must share the query float type.
+    auto args = valid_pa_args();
+    args[1] = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE});
+    OV_EXPECT_THROW(pa_from(args), ov::NodeValidationFailure, testing::HasSubstr("same element type as query"));
+}
+
+TEST(PagedAttentionOpValidation, rejects_metadata_not_i32) {
+    // past_seqlens (input 6) must be i32.
+    auto args = valid_pa_args();
+    args[6] = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    OV_EXPECT_THROW(pa_from(args), ov::NodeValidationFailure, testing::HasSubstr("must be i32"));
+}
+
+TEST(PagedAttentionOpValidation, rejects_wrong_cache_rank) {
+    // key_cache (input 3) must be 4-D.
+    auto args = valid_pa_args();
+    args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, HEAD_SIZE});
+    OV_EXPECT_THROW(pa_from(args), ov::NodeValidationFailure, testing::HasSubstr("must be 4-D"));
+}
+
+TEST(PagedAttentionOpValidation, allows_dynamic_input_types_and_ranks) {
+    // Dynamic element types / ranks cannot be checked from static info and must not be rejected.
+    auto args = valid_pa_args();
+    args[1] = std::make_shared<op::v0::Parameter>(element::dynamic, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE});
+    args[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    EXPECT_NO_THROW(pa_from(args));
+}
+
 TEST(PagedAttentionDecompositionRotary, decomposes_with_dynamic_cos_width) {
     // rotaryEmbedding derives the split lengths from ShapeOf(cos), not PartialShape::get_length(), so a
     // dynamic cos last dim must decompose without aborting the pass (the old static-length read would throw).
