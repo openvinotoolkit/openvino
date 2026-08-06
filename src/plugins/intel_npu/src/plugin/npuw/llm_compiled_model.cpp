@@ -1011,7 +1011,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
             mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
                     (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
-                     mask_info.window_size > max_prompt_len)
+                     mask_info.window_size >= max_prompt_len)
                 ? "YES"
                 : "NO";
     }

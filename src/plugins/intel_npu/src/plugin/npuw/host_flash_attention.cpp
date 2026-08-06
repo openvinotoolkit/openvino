@@ -627,7 +627,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // For the fused operation only the final tile uses a mask, regular tiles skip mask for performance if
     // enable_mask_skipping is true (depending on the model mask type).
     // For the non-fused operation all tiles require mask
-    const bool use_mask = !(!is_final_tile && fused_flash_attention && !enable_mask_skipping);
+    const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;

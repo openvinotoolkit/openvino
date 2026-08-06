@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "../llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "openvino/op/ops.hpp"
