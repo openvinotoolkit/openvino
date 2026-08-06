@@ -37,7 +37,7 @@
 namespace {
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
-    return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
+    return src_et != dst_et && (dst_et != ov::element::boolean || src_et != ov::element::u8);
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
@@ -206,7 +206,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
         // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
+            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
         }
     };
@@ -380,7 +380,7 @@ void SyncInferRequest::enqueue() {
     if (!m_output_memory_blocks.empty() && !input_host_ptrs.empty()) {
         auto network = m_graph->get_network();
         for (auto& [idx, block] : m_output_memory_blocks) {
-            if (block->rawPtr() && input_host_ptrs.count(block->rawPtr())) {
+            if ((block->rawPtr() != nullptr) && (input_host_ptrs.count(block->rawPtr()) != 0u)) {
                 block->nextMemory();
                 network->invalidate_ext_block_compute_nodes(m_output_names_map.at(idx));
                 GPU_DEBUG_TRACE_DETAIL << "Output block [" << idx << "]: input aliases output - switching to alternate buffer" << std::endl;
@@ -453,7 +453,7 @@ void SyncInferRequest::wait() {
 
     // wait for completion & collect outputs as requested by the model
     // for in_order_queue, it is enough to call finish only once
-    bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    bool do_sync_per_output = network.get_stream().get_queue_type() != QueueTypes::in_order;
     if (!do_sync_per_output) {
         auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
@@ -805,7 +805,7 @@ void SyncInferRequest::allocate_inputs() {
         GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         bool is_nv12_input = false;
-        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
             std::string mem_type = port.get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                      .as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {

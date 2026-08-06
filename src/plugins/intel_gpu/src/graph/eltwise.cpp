@@ -481,10 +481,7 @@ bool eltwise_node::need_align_for_numpy_broadcast(const layout& input) const {
     auto pshape_a_rank = get_input_pshape(0).size();
     auto pshape_b_rank = get_input_pshape(1).size();
     auto small_pshape_rank = (pshape_a_rank > pshape_b_rank) ? pshape_b_rank : pshape_a_rank;
-    if (pshape_a_rank != pshape_b_rank && small_pshape_rank > 0 &&
-        input.get_partial_shape().rank() == small_pshape_rank)
-        return true;
-
-    return false;
+    return pshape_a_rank != pshape_b_rank && small_pshape_rank > 0 &&
+        input.get_partial_shape().rank() == small_pshape_rank;
 }
 }  // namespace cldnn
