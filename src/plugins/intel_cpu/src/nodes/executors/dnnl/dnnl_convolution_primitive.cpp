@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "dnnl_postops_composer.h"
@@ -45,6 +44,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 #include "thread_pool_imp.hpp"
@@ -528,8 +528,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
 
     std::vector<DnnlPrimitiveAttrs> attributeVariants{legacyCompose};
 
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-        attrs.inputZeroPointsType == ZeroPointsType::PerTensor) {
+    if (ov::with_cpu_x86_avx512_core_amx() && attrs.inputZeroPointsType == ZeroPointsType::PerTensor) {
         DnnlPostOpsComposer legacyPostOpsOriginalZeroPoints(attrs.postOps,
                                                             context->getEngine(),
                                                             outputDims,
@@ -910,8 +909,8 @@ std::tuple<size_t, size_t, size_t, size_t> DnnlConvolutionPrimitive::getChannelP
 
 bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
     // Only apply this heuristic logic on FP32 IR. IC=1, OC=1 would disable brgconv on avx2.
-    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-                            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !config.attrs.isGraphQuantized;
+    const bool isAvx2FP32 =
+        !ov::with_cpu_x86_avx512_core() && ov::with_cpu_x86_avx2() && !config.attrs.isGraphQuantized;
 
     const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
@@ -920,15 +919,12 @@ bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
 
 bool DnnlConvolutionPrimitive::isBrgConvAvailable(const ConvConfig& config) {
     // When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
-    const bool isBrgConvAvailable =
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !isJitPlanarAvailable(config);
+    const bool isBrgConvAvailable = ov::with_cpu_x86_avx2() && !isJitPlanarAvailable(config);
 
     return isBrgConvAvailable;
 }
 
 bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
-    using impl::cpu::x64::mayiuse;
-
     // do not use in non-quantized networks until it is enforced externally
     if (!config.attrs.isGraphQuantized) {
         return false;
@@ -981,7 +977,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
     // if the activation field size is 1x1 the avx512 1x1 nspc convolution pollutes caches so that the layer after
     // the convolution performs slow
-    if (mayiuse(impl::cpu::x64::avx512_core) && is1x1) {
+    if (ov::with_cpu_x86_avx512_core() && is1x1) {
         auto end = inpDims.rbegin();
         std::advance(end, spatialRank);
         if (std::all_of(inpDims.rbegin(), end, [](size_t x) {
@@ -994,7 +990,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     unsigned thresholdNumChannels = 128U;  // for avx and below
     if (is1x1) {
         thresholdNumChannels = 2048U;
-    } else if (mayiuse(impl::cpu::x64::avx512_core)) {
+    } else if (ov::with_cpu_x86_avx512_core()) {
         thresholdNumChannels = 512U;
     }
 
@@ -1003,7 +999,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         return false;
     }
 
-    if (!mayiuse(impl::cpu::x64::avx)) {
+    if (!ov::with_cpu_x86_avx()) {
         // SSE41 nspc convolutions do not support ic and oc tails yet
         // the blocked implementation is faster than gemm
         if ((IC % 8) || (OC % 8)) {

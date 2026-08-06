@@ -856,4 +856,17 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, Gemma4MoEModelWithInputsEmbedsAndTokenTypeIdsCompilesWithChunkPrefill) {
+    RecordingFactory recorder;
+    auto model = ov::test::npuw::build_gemma4_moe_llm_test_model();
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(model,
+                                         {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "128"}},
+                                         recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+}
+
 }  // namespace

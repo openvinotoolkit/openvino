@@ -8,7 +8,7 @@ on:
         required: false
         default: true
   schedule:
-    # at 06:00 every Monday
+    # at 06:00 UTC every Monday
     - cron: '0 6 * * 1'
 
 permissions: read-all
@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     permissions:
-      contents: write       # delete stale branches via the git refs API
-      pull-requests: read    # list open PRs to know which branches are still in use
+      # The fine-grained PAT below carries the branch and pull request privileges.
+      contents: read
     steps:
       - name: Checkout cleanup script
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -39,7 +39,12 @@ jobs:
 
       - name: Cleanup stale dependabot branches
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The default GITHUB_TOKEN cannot be granted a ruleset bypass, and the
+          # "dependabot" ruleset restricts deletion of dependabot/* branches.
+          # This is a fine-grained PAT of sys-openvino-ci, scoped to this
+          # repository with contents:write and pull-requests:read. That account is
+          # a repository admin, a role the ruleset bypass list already covers.
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN }}
           # Real deletions happen only on the weekly schedule, or on a manual run
           # where the dry_run checkbox was explicitly unchecked. Every other case
           # (manual run with the box checked, or any other trigger) stays a dry run.

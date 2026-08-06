@@ -12,7 +12,9 @@
 #include <cstring>
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 namespace dnnl::utils {
 
@@ -133,6 +135,7 @@ unsigned get_cache_size(int level, bool per_core) {
     if (per_core) {
         return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
     }
+#if defined(OPENVINO_ARCH_X86_64)
     using namespace dnnl::impl::cpu::x64;
     if (cpu().getDataCacheLevels() == 0) {
         // this function can return stub values in case of unknown CPU type
@@ -144,6 +147,9 @@ unsigned get_cache_size(int level, bool per_core) {
         return cpu().getDataCacheSize(l);
     }
     return 0U;
+#else
+    return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+#endif
 }
 
 }  // namespace dnnl::utils

@@ -34,7 +34,7 @@ memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type
     return _engine->allocate_memory(layout, type, reset);
 }
 
-memory_pool::~memory_pool() {}
+memory_pool::~memory_pool() = default;
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const memory_restricter<uint32_t>& restrictions) {
