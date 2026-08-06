@@ -371,6 +371,48 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
             ushort8 k_raw[kq_key_blocks];
 #if IS_PAGED_ATTENTION && !IS_PREFILL
+    #if USE_2D_BLOCK_IO_K_PA
+            // Token-major K cache: a (block, kv_head) page is a
+            // [PAGED_ATTENTION_BLOCK_SIZE keys x HEAD_SIZE head dims] ROW-MAJOR tile -- exactly the
+            // [key, head] geometry the prefill branch below reads, just with the page as the surface
+            // origin and HEAD_SIZE (not ldk, which spans a whole page) as the pitch. So the same
+            // non-transform 16b builtin applies and lands the A operand as lane=head / elem=key,
+            // replacing the DPAS_ROWS-per-block per-key SIMD-1 scalar loads with one block message
+            // per 16-key group. Mirrors USE_2D_BLOCK_IO_V_PA in the S*V loop below.
+            //
+            // One read covers SUBGROUP_SIZE keys == one full page (kq_sg_tile_keys is 16 by default,
+            // but SDPA_OCL_KQ_TILE_KEYS can raise it to 32), so loop per 16-key group and take that
+            // group's page from the k_page[] lookup hoisted above -- index mb = kg * (SUBGROUP_SIZE /
+            // DPAS_ROWS), i.e. the first row-block of the group, since k_page is indexed per
+            // row-block. Each group is page-aligned: key_base is a multiple of kq_sg_tile_keys and
+            // k0 of kq_wg_tile_keys, both multiples of PAGED_ATTENTION_BLOCK_SIZE.
+            #pragma unroll
+            for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+                const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
+                const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
+                // Surface height is clamped to the keys this page actually holds (k - kg_key0, at
+                // most a full page): slots at or past k were never written by kv_cache_update, and a
+                // NaN pulled from there would survive the masked-out score as NaN. Rows past the
+                // height read as 0. A group entirely at/past k (height <= 0) is not a legal block
+                // read, so it is zero-filled instead -- reachable because the key loop is a full
+                // unroll over the WG tile and key_base can run past k on the final k0 iteration.
+                const int kp_rows = min((int)PAGED_ATTENTION_BLOCK_SIZE, k - kg_key0);
+                if (kp_rows > 0) {
+                    const global half *Kp =
+                        (const global half *)(K + (((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
+                                                   PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE));
+                    const int KP_w = d * (int)sizeof(half);
+                    const int KP_p = HEAD_SIZE * (int)sizeof(half);
+                    intel_sub_group_2d_block_read_16b_16r16x1c(
+                        (global void *)Kp, KP_w, kp_rows, KP_p,
+                        (int2)(db * DPAS_K, 0), (private ushort *)&k_raw[kg_mb]);
+                } else {
+                    #pragma unroll
+                    for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
+                        k_raw[kg_mb + mb] = (ushort8)0;
+                }
+            }
+    #else
             const int head = db * DPAS_K + lane;
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
@@ -389,6 +431,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     }
                 }
             }
+    #endif
 #elif USE_2D_BLOCK_IO_K_I8
             // int8 K via the 8-bit VNNI-transform read (same builtin as V). Reading K's row-major
             // [key, head] memory at (x=db*DPAS_K head-col, y=key_base) gives lane=head with each
