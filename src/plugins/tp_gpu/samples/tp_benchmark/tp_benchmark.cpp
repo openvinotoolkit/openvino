@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Minimal test: compare TP_GPU vs GPU inference on any stateful LLM.
+// Minimal benchmark: compare TP_GPU vs GPU inference on any stateful LLM.
 //
 // Usage:
-//   ./tp_test <model.xml> [tp_degree]
+//   ./tp_benchmark <model.xml> [tp_degree]
 //
 // Example:
-//   ./tp_test /path/to/TinyLlama-1.1B-int4/openvino_model.xml 2
+//   ./tp_benchmark /path/to/TinyLlama-1.1B-int4/openvino_model.xml 2
 
 #include <chrono>
 #include <cmath>
@@ -64,13 +64,13 @@ static bool state_shapes_enabled() {
 // timestamp.  Useful to visually correlate iter time spikes with driver-
 // side VRAM pressure without external tools (xpu-smi / nvtop).
 //
-// zes* symbols are loaded via dlopen at runtime so tp_test doesn't gain
+// zes* symbols are loaded via dlopen at runtime so tp_benchmark doesn't gain
 // a build-time Level Zero dependency; when the loader library isn't
 // present the probe silently does nothing.
 namespace vram_probe {
 
 // Minimal ABI mirror of the Level Zero Sysman entry points we need.
-// Kept local to avoid pulling <level_zero/zes_api.h> into tp_test's
+// Kept local to avoid pulling <level_zero/zes_api.h> into tp_benchmark's
 // include path.  Layout follows zes_api.h @ level-zero v1.14+.
 using ze_result_t = uint32_t;
 using zes_driver_handle_t = void*;

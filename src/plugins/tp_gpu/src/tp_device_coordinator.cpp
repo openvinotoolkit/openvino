@@ -854,6 +854,14 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         ZE_THROW(ov::zeCommandListAppendLaunchKernel(main_rs.compute_list,
                                                      main_kernel, &gc,
                                                      signal, 0, nullptr));
+        // Every accumulation but the first reads the result of the previous
+        // one from dst_main and writes back to it.  A command list created
+        // without ZE_COMMAND_LIST_FLAG_IN_ORDER gives no ordering between
+        // appended kernels, so without this barrier consecutive launches
+        // overlap and the sum loses the contributions still in flight.
+        if (w + 1 < W) {
+            ZE_THROW(ov::zeCommandListAppendBarrier(main_rs.compute_list, nullptr, 0, nullptr));
+        }
     }
 
     // --- Main scatter: copy result to each worker's out_ptr ---
