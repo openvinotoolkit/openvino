@@ -4,10 +4,11 @@
   "signature_hash": "85df26485ff568d8",
   "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
   "category": "Flaky Test",
-  "count": 15,
+  "count": 16,
   "first_seen": "2026-07-09T11:34:24Z",
-  "last_seen": "2026-08-04T10:56:58Z",
+  "last_seen": "2026-08-06T15:00:28Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31105749548",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30897513327",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30837137504",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30353712127",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/29568028549",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29564867992",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29502462489",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29498230226",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/29488629158"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/29498230226"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37258",
     "https://github.com/openvinotoolkit/openvino/pull/37218",
     "https://github.com/openvinotoolkit/openvino/pull/37035",
     "https://github.com/openvinotoolkit/openvino/pull/36937",
@@ -28,12 +29,10 @@
     "https://github.com/openvinotoolkit/openvino/pull/36933",
     "https://github.com/openvinotoolkit/openvino/pull/36884",
     "https://github.com/openvinotoolkit/openvino/pull/36917",
-    "https://github.com/openvinotoolkit/openvino/pull/36807",
-    "https://github.com/openvinotoolkit/openvino/pull/36806"
+    "https://github.com/openvinotoolkit/openvino/pull/36807"
   ],
   "recent_timestamps": [
-    "2026-08-04T10:56:58Z",
-    "2026-08-03T19:55:22Z"
+    "2026-08-06T15:00:28Z"
   ],
   "rerun_search_string": "electron.exe': Permission denied"
 }

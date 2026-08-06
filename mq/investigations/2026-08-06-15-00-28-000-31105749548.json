@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-15-00-28-000-31105749548",
+  "timestamp": "2026-08-06T15:00:28Z",
+  "run_id": "31105749548",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31105749548",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37258",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37258",
+  "author": "mryzhov",
+  "category": "Flaky Test",
+  "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    "JS API (22)"
+  ],
+  "key_errors": [
+    "rm: cannot remove 'electron.exe': Permission denied"
+  ],
+  "root_cause": "The Electron process remains locked by the OS when the cleanup step runs, preventing deletion of electron.exe and related DLLs. This is a well-known Windows-specific flaky failure caused by race conditions between process teardown and file system release. The failure is unrelated to PR #37258 changes (JS action dependency bumps)."
+}
