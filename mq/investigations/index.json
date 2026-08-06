@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 105,
+  "total": 106,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1032,6 +1032,17 @@
       "title": "GPU Windows build fails: illegal qualified name xe3p_35_10/xe3p_35_11/xe3p_unknown in moe_3gemm_gen_micro.cpp",
       "category": "Code Issue",
       "signature_hash": "f465d72627e4c847",
+      "pr_number": "35433"
+    },
+    {
+      "investigation_id": "2026-08-06-06-09-53-000-31074001938",
+      "run_id": "31074001938",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31074001938",
+      "workflow_name": "Manylinux 2_28",
+      "timestamp": "2026-08-06T06:09:53Z",
+      "title": "GPU plugin build fails: xe3p gpu_arch enum values not found in cldnn::gpu_arch",
+      "category": "Code Issue",
+      "signature_hash": "d7954cdb153f6615",
       "pr_number": "35433"
     }
   ]

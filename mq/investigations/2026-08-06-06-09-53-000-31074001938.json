@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-06-09-53-000-31074001938",
+  "timestamp": "2026-08-06T06:09:53Z",
+  "run_id": "31074001938",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31074001938",
+  "workflow_name": "Manylinux 2_28",
+  "pr_number": "35433",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35433",
+  "author": "riverlijunjie",
+  "category": "Code Issue",
+  "title": "GPU plugin build fails: xe3p gpu_arch enum values not found in cldnn::gpu_arch",
+  "signature": "is not a member of cldnn gpu_arch|Code Issue",
+  "signature_hash": "d7954cdb153f6615",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build",
+      "conclusion": "failure",
+      "symptom": "Compilation error: 'xe3p_35_10', 'xe3p_35_11', 'xe3p_unknown' not members of 'cldnn::gpu_arch' in moe_3gemm_gen_micro.cpp"
+    },
+    {
+      "name": "ci/gha_overall_status_manylinux_2_28",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to Build job failure"
+    }
+  ],
+  "key_errors": [
+    "/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/src/graph/impls/ocl_v2/moe/moe_3gemm_gen_micro.cpp:29:20: error: 'xe3p_35_10' is not a member of 'cldnn::gpu_arch'",
+    "/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/src/graph/impls/ocl_v2/moe/moe_3gemm_gen_micro.cpp:30:20: error: 'xe3p_35_11' is not a member of 'cldnn::gpu_arch'",
+    "/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/src/graph/impls/ocl_v2/moe/moe_3gemm_gen_micro.cpp:31:20: error: 'xe3p_unknown' is not a member of 'cldnn::gpu_arch'"
+  ],
+  "root_cause": "PR #35433 modifies moe_3gemm_gen_micro.cpp to add case branches for new GPU architecture enum values (xe3p_35_10, xe3p_35_11, xe3p_unknown) in cldnn::gpu_arch. However, these enum values are not yet defined in the cldnn::gpu_arch enum type visible in the manylinux_2_28 build environment. The PR likely depends on a companion change to the gpu_arch enum definition that has not yet landed, or the enum definition exists in a different branch/header not included in this build configuration.",
+  "reproduction_steps": "Build the intel_gpu plugin targeting manylinux 2_28 with PR #35433 applied and verify the cldnn::gpu_arch enum definition in the relevant header does not include xe3p_35_10, xe3p_35_11, or xe3p_unknown.",
+  "recommended_actions": [
+    "Add xe3p_35_10, xe3p_35_11, and xe3p_unknown to the cldnn::gpu_arch enum definition before this PR can build successfully.",
+    "Review whether this PR is missing a prerequisite change that defines the new enum values.",
+    "If the enum values are defined in another PR, ensure that PR merges first before re-queuing this one."
+  ],
+  "prevention_strategies": "When adding new enum values to cldnn::gpu_arch, ensure the enum definition header is updated atomically in the same PR as any code referencing the new values.",
+  "historical_context": "No prior pattern for this specific failure signature found in the investigation database."
+}

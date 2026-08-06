@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "is not a member of cldnn gpu_arch|Code Issue",
+  "signature_hash": "d7954cdb153f6615",
+  "title": "GPU plugin build fails: xe3p gpu_arch enum values not found in cldnn::gpu_arch",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-08-06T06:09:53Z",
+  "last_seen": "2026-08-06T06:09:53Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31074001938"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/35433"],
+  "recent_timestamps": ["2026-08-06T06:09:53Z"],
+  "rerun_search_string": null
+}
