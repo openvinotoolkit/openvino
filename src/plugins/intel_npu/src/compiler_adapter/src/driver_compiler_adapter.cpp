@@ -283,8 +283,7 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 
     if (!compilerOptionsStr.has_value()) {
         // Legacy path: compiler does not expose supported options list.
-        CompilerOptionsCache::setLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER,
-                                                       _zeroInitStruct->getCompilerVersion());
+        cacheSetLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER, _zeroInitStruct->getCompilerVersion());
         return std::nullopt;
     }
 
@@ -296,7 +295,7 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
         compilerOpts.push_back(option);
     }
 
-    CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+    cacheSetSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
     return compilerOpts;
 }
 
@@ -312,8 +311,7 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     if (!isOptionSupported.has_value()) {
-        CompilerOptionsCache::setLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER,
-                                                       _zeroInitStruct->getCompilerVersion());
+        cacheSetLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER, _zeroInitStruct->getCompilerVersion());
         return CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
                                                        optName,
                                                        optValue,
@@ -321,7 +319,7 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     }
     const bool supported = isOptionSupported.value();
     if (supported) {
-        CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
+        cacheAddSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
     }
 
     return supported;

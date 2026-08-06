@@ -303,7 +303,7 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     _compiler->get_supported_options(options);
     if (options.empty()) {
         _logger.warning("get_supported_options returned no options; returning an empty supported options vector.");
-        CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, std::vector<std::string>{});
+        cacheSetSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, std::vector<std::string>{});
         return std::vector<std::string>{};
     }
 
@@ -317,7 +317,7 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
         compilerOpts.push_back(option);
     }
 
-    CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, compilerOpts);
+    cacheSetSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, compilerOpts);
     return compilerOpts;
 }
 
@@ -331,7 +331,7 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
-        CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::PLUGIN, optname, optValue);
+        cacheAddSupportedOption(ov::intel_npu::CompilerType::PLUGIN, optname, optValue);
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),
                       hasValue ? value.c_str() : "null");
