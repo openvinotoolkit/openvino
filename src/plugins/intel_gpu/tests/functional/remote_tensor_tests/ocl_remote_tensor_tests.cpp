@@ -2997,7 +2997,7 @@ TEST(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
     ov::Core core;
     std::string target_device = ov::test::utils::DEVICE_GPU;
     const size_t float_size = sizeof(float);
-    const ov::Shape shape{16};
+    const ov::Shape shape{4096};
     const size_t element_count = ov::shape_size(shape);
     const size_t byte_size = element_count * float_size;
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
