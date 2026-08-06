@@ -1410,9 +1410,10 @@ RoPEFusionCohere::RoPEFusionCohere() {
                                neg_x_odd_unsq_unsqueeze,
                                neg_x_odd_unsq_reshape,
                                x_even_unsq_unsqueeze,
-                               x_even_unsq_reshape})
+                               x_even_unsq_reshape}) {
             if (pattern_map.count(np))
                 rt_from.push_back(pattern_map.at(np).get_node_shared_ptr());
+        }
         if (pattern_map.count(flatten_Reshape_dyn))
             rt_from.push_back(pattern_map.at(flatten_Reshape_dyn).get_node_shared_ptr());
         if (pattern_map.count(flatten_Reshape_zero))
