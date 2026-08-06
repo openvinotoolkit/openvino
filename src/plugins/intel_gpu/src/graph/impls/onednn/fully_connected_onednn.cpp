@@ -386,8 +386,7 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                // For transposed weights [N, K], IFM (K) is the last dimension.
-                // For non-transposed weights [K, N], IFM (K) is the second-to-last dimension.
+                // IFM (K) dimension position depends on weight layout orientation.
                 auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
                 auto ngroups = scale_layout.get_dim(ifm_dim_idx);
