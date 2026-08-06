@@ -1211,12 +1211,14 @@ private:
     size_t group_size = 0;
 
 public:
-    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem, const MemoryArgs& memory)
-        : lhsPackedMem(lhsPackedMem) {
+    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem, const MemoryArgs& memory) : lhsPackedMem(lhsPackedMem) {
         this->N = N;
         this->K = K;
         const auto scalesDims = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getDims();
-        OPENVINO_ASSERT(scalesDims.size() > 1, "Group quantization requires scales with at least two dimensions. Got ", scalesDims.size(), ".");
+        OPENVINO_ASSERT(scalesDims.size() > 1,
+                        "Group quantization requires scales with at least two dimensions. Got ",
+                        scalesDims.size(),
+                        ".");
         OPENVINO_ASSERT(scalesDims[1] != 0 && K % scalesDims[1] == 0, "Invalid scales shape for group quantization.");
         group_size = K / scalesDims[1];
         OPENVINO_ASSERT(group_size % 32 == 0, "Group size must be a multiple of 32. Got ", group_size);
@@ -1228,8 +1230,10 @@ public:
         OPENVINO_ASSERT(zeroPointDims == scalesDims, "Zero-point and scale tensors must have the same shape.");
         const auto zpPrec = rhsZeroPointsMem->getDescPtr()->getPrecision();
         OPENVINO_ASSERT(zpPrec == ov::element::u4 || zpPrec == ov::element::f32,
-                "INT4 asymmetric group KleidiAI kernel expects u4 or f32 "
-                "zero-points. Got ", zpPrec, ".");
+                        "INT4 asymmetric group KleidiAI kernel expects u4 or f32 "
+                        "zero-points. Got ",
+                        zpPrec,
+                        ".");
         this->BLOCK_SIZE = uKernelInterface.get_m_step();
         this->mr = uKernelInterface.get_mr();
         this->nr = uKernelInterface.get_nr();
@@ -1238,28 +1242,20 @@ public:
     }
 
     size_t get_rhsPackedSize() override {
-        return kai_get_rhs_packed_size_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(
-            N,
-            K,
-            nr,
-            kr,
-            group_size);
+        return kai_get_rhs_packed_size_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(N, K, nr, kr, group_size);
     }
 
     void packData(bool isTransposed,
-                MemoryCPtr weightsMemory,
-                MemoryPtr biasMem,
-                bool hasBias,
-                float* rhs_scales,
-                MemoryPtr rhsPackedMemory) override {
-        OPENVINO_ASSERT(rhs_scales != nullptr,
-                        "INT4 asymmetric group quantization requires scales.");
+                  MemoryCPtr weightsMemory,
+                  MemoryPtr biasMem,
+                  bool hasBias,
+                  float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        OPENVINO_ASSERT(rhs_scales != nullptr, "INT4 asymmetric group quantization requires scales.");
 
-        OPENVINO_ASSERT(!isTransposed,
-                        "ASYM qai4c32p path currently supports non-transposed NxK weights.");
+        OPENVINO_ASSERT(!isTransposed, "ASYM qai4c32p path currently supports non-transposed NxK weights.");
 
-        OPENVINO_ASSERT(rhsZeroPointsMem,
-                        "INT4 asymmetric group quantization requires zero-points.");
+        OPENVINO_ASSERT(rhsZeroPointsMem, "INT4 asymmetric group quantization requires zero-points.");
 
         rhsPackedMem = rhsPackedMemory;
 
@@ -1275,17 +1271,14 @@ public:
         for (size_t i = 0; i < weight_bytes; ++i) {
             const uint8_t b = rhs_qau4_s1s0[i];
 
-            rhs_qau4_s0s1[i] = static_cast<uint8_t>(
-                ((b & 0x0FU) << 4) |
-                ((b & 0xF0U) >> 4));
+            rhs_qau4_s0s1[i] = static_cast<uint8_t>(((b & 0x0FU) << 4) | ((b & 0xF0U) >> 4));
         }
 
         // Read a logical U4 value from OpenVINO's packed s1s0 storage.
         auto read_u4_s1s0 = [](const uint8_t* data, size_t index) -> uint8_t {
             const uint8_t b = data[index / 2];
 
-            return (index & 1U) ? ((b >> 4) & 0x0FU)
-                                : (b & 0x0FU);
+            return (index & 1U) ? ((b >> 4) & 0x0FU) : (b & 0x0FU);
         };
 
         const auto* zp_qau4_s1s0 = rhsZeroPointsMem->getDataAs<uint8_t>();
@@ -1293,32 +1286,29 @@ public:
         std::vector<float> zero_points_f32(num_zero_points);
 
         for (size_t i = 0; i < num_zero_points; ++i) {
-            const int32_t zp_signed =
-                static_cast<int32_t>(read_u4_s1s0(zp_qau4_s1s0, i)) - 8;
+            const int32_t zp_signed = static_cast<int32_t>(read_u4_s1s0(zp_qau4_s1s0, i)) - 8;
 
-            zero_points_f32[i] =
-                -static_cast<float>(zp_signed) * rhs_scales[i];
+            zero_points_f32[i] = -static_cast<float>(zp_signed) * rhs_scales[i];
         }
 
         kai_rhs_pack_nxk_qai4c32p_params params{};
         params.lhs_zero_point = 1;
         params.rhs_zero_point = 8;
 
-        kai_run_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(
-            1,
-            N,
-            K,
-            nr,
-            kr,
-            sr,
-            group_size,
-            rhs_qau4_s0s1.data(),
-            zero_points_f32.data(),
-            bias_ptr,
-            rhs_scales,
-            rhsPackedMem->getData(),
-            0,
-            &params);
+        kai_run_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(1,
+                                                                   N,
+                                                                   K,
+                                                                   nr,
+                                                                   kr,
+                                                                   sr,
+                                                                   group_size,
+                                                                   rhs_qau4_s0s1.data(),
+                                                                   zero_points_f32.data(),
+                                                                   bias_ptr,
+                                                                   rhs_scales,
+                                                                   rhsPackedMem->getData(),
+                                                                   0,
+                                                                   &params);
     }
     KernelInterface getuKernelInterface() override {
         return uKernelInterface;
@@ -1332,13 +1322,7 @@ public:
         const size_t m_blocks = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
         packedlhs_block_in_bytes =
-            kai_get_lhs_packed_size_lhs_quant_pack_qsi8d32pscalef32_f32_neon(
-                BLOCK_SIZE,
-                K,
-                group_size,
-                mr,
-                kr,
-                sr);
+            kai_get_lhs_packed_size_lhs_quant_pack_qsi8d32pscalef32_f32_neon(BLOCK_SIZE, K, group_size, mr, kr, sr);
 
         return m_blocks * packedlhs_block_in_bytes;
     }
@@ -1348,9 +1332,7 @@ public:
                  ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
-        const auto ukernel =
-            std::get<kai_matmul_clamp_f32_qsi8d32p_qai4c32p_ukernel>(
-                getuKernelInterface());
+        const auto ukernel = std::get<kai_matmul_clamp_f32_qsi8d32p_qai4c32p_ukernel>(getuKernelInterface());
 
         auto* lhs = srcMem->getDataAs<float>();
         auto* dst = dstMem->getDataAs<float>();
@@ -1364,8 +1346,7 @@ public:
         const size_t m_blocks = (M + m_step - 1) / m_step;
         const size_t n_blocks = (N + n_step - 1) / n_step;
 
-        const size_t lhs_packed_offset =
-            ukernel.get_lhs_packed_offset(0, K, group_size);
+        const size_t lhs_packed_offset = ukernel.get_lhs_packed_offset(0, K, group_size);
 
         const size_t lhs_stride = K * sizeof(float);
         const size_t dst_stride_row = N * sizeof(float);
@@ -1376,41 +1357,32 @@ public:
         cpu_parallel->parallel_for(m_blocks, [&](size_t m_blk) {
             const size_t m_iter = std::min(M - m_blk * m_step, m_step);
 
-            auto* lhs_packed_block =
-                lhs_packed + m_blk * packedlhs_block_in_bytes;
+            auto* lhs_packed_block = lhs_packed + m_blk * packedlhs_block_in_bytes;
 
-            kai_run_lhs_quant_pack_qsi8d32pscalef32_f32_neon(
-                m_iter,
-                K,
-                group_size,
-                mr,
-                kr,
-                sr,
-                0,
-                lhs + m_blk * m_step * K,
-                lhs_stride,
-                lhs_packed_block);
+            kai_run_lhs_quant_pack_qsi8d32pscalef32_f32_neon(m_iter,
+                                                             K,
+                                                             group_size,
+                                                             mr,
+                                                             kr,
+                                                             sr,
+                                                             0,
+                                                             lhs + m_blk * m_step * K,
+                                                             lhs_stride,
+                                                             lhs_packed_block);
 
             cpu_parallel->parallel_for(n_blocks, [&](size_t n_blk) {
                 const size_t n_start = n_blk * n_step;
                 const size_t n_iter = std::min(N - n_start, n_step);
 
-                const size_t rhs_packed_offset =
-                    ukernel.get_rhs_packed_offset(n_start, K, group_size);
+                const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K, group_size);
 
-                const size_t dst_offset =
-                    ukernel.get_dst_offset(m_blk * m_step,
-                                           n_start,
-                                           dst_stride_row);
+                const size_t dst_offset = ukernel.get_dst_offset(m_blk * m_step, n_start, dst_stride_row);
 
-                const auto* lhs_ptr =
-                    static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
+                const auto* lhs_ptr = static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
 
-                const auto* rhs_ptr =
-                    static_cast<const void*>(rhs_packed + rhs_packed_offset);
+                const auto* rhs_ptr = static_cast<const void*>(rhs_packed + rhs_packed_offset);
 
-                auto* dst_ptr =
-                    dst + dst_offset / sizeof(float);
+                auto* dst_ptr = dst + dst_offset / sizeof(float);
 
                 ukernel.run_matmul(m_iter,
                                    n_iter,
@@ -1428,7 +1400,7 @@ public:
     }
 };
 
-template<>
+template <>
 class uKernel<KAIKernelTag::I4_NEON_IMM_GROUP_ASYM> : public uKernelBase {
 private:
     static constexpr kai_matmul_clamp_f32_qsi8d32p_qai4c32p_ukernel uKernelInterface{
@@ -1450,12 +1422,14 @@ private:
     size_t group_size = 0;
 
 public:
-    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem, const MemoryArgs& memory)
-        : lhsPackedMem(lhsPackedMem) {
+    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem, const MemoryArgs& memory) : lhsPackedMem(lhsPackedMem) {
         this->N = N;
         this->K = K;
         const auto scalesDims = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getDims();
-        OPENVINO_ASSERT(scalesDims.size() > 1, "Group quantization requires scales with at least two dimensions. Got ", scalesDims.size(), ".");
+        OPENVINO_ASSERT(scalesDims.size() > 1,
+                        "Group quantization requires scales with at least two dimensions. Got ",
+                        scalesDims.size(),
+                        ".");
         OPENVINO_ASSERT(scalesDims[1] != 0 && K % scalesDims[1] == 0, "Invalid scales shape for group quantization.");
         group_size = K / scalesDims[1];
         OPENVINO_ASSERT(group_size % 32 == 0, "Group size must be a multiple of 32. Got ", group_size);
@@ -1467,8 +1441,10 @@ public:
         OPENVINO_ASSERT(zeroPointDims == scalesDims, "Zero-point and scale tensors must have the same shape.");
         const auto zpPrec = rhsZeroPointsMem->getDescPtr()->getPrecision();
         OPENVINO_ASSERT(zpPrec == ov::element::u4 || zpPrec == ov::element::f32,
-                "INT4 asymmetric group KleidiAI kernel expects u4 or f32 "
-                "zero-points. Got ", zpPrec, ".");
+                        "INT4 asymmetric group KleidiAI kernel expects u4 or f32 "
+                        "zero-points. Got ",
+                        zpPrec,
+                        ".");
         this->BLOCK_SIZE = uKernelInterface.get_m_step();
         this->mr = uKernelInterface.get_mr();
         this->nr = uKernelInterface.get_nr();
@@ -1477,28 +1453,20 @@ public:
     }
 
     size_t get_rhsPackedSize() override {
-        return kai_get_rhs_packed_size_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(
-            N,
-            K,
-            nr,
-            kr,
-            group_size);
+        return kai_get_rhs_packed_size_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(N, K, nr, kr, group_size);
     }
 
     void packData(bool isTransposed,
-                MemoryCPtr weightsMemory,
-                MemoryPtr biasMem,
-                bool hasBias,
-                float* rhs_scales,
-                MemoryPtr rhsPackedMemory) override {
-        OPENVINO_ASSERT(rhs_scales != nullptr,
-                        "INT4 asymmetric group quantization requires scales.");
+                  MemoryCPtr weightsMemory,
+                  MemoryPtr biasMem,
+                  bool hasBias,
+                  float* rhs_scales,
+                  MemoryPtr rhsPackedMemory) override {
+        OPENVINO_ASSERT(rhs_scales != nullptr, "INT4 asymmetric group quantization requires scales.");
 
-        OPENVINO_ASSERT(!isTransposed,
-                        "ASYM qai4c32p path currently supports non-transposed NxK weights.");
+        OPENVINO_ASSERT(!isTransposed, "ASYM qai4c32p path currently supports non-transposed NxK weights.");
 
-        OPENVINO_ASSERT(rhsZeroPointsMem,
-                        "INT4 asymmetric group quantization requires zero-points.");
+        OPENVINO_ASSERT(rhsZeroPointsMem, "INT4 asymmetric group quantization requires zero-points.");
 
         rhsPackedMem = rhsPackedMemory;
 
@@ -1514,17 +1482,14 @@ public:
         for (size_t i = 0; i < weight_bytes; ++i) {
             const uint8_t b = rhs_qau4_s1s0[i];
 
-            rhs_qau4_s0s1[i] = static_cast<uint8_t>(
-                ((b & 0x0FU) << 4) |
-                ((b & 0xF0U) >> 4));
+            rhs_qau4_s0s1[i] = static_cast<uint8_t>(((b & 0x0FU) << 4) | ((b & 0xF0U) >> 4));
         }
 
         // Read a logical U4 value from OpenVINO's packed s1s0 storage.
         auto read_u4_s1s0 = [](const uint8_t* data, size_t index) -> uint8_t {
             const uint8_t b = data[index / 2];
 
-            return (index & 1U) ? ((b >> 4) & 0x0FU)
-                                : (b & 0x0FU);
+            return (index & 1U) ? ((b >> 4) & 0x0FU) : (b & 0x0FU);
         };
 
         const auto* zp_qau4_s1s0 = rhsZeroPointsMem->getDataAs<uint8_t>();
@@ -1532,32 +1497,29 @@ public:
         std::vector<float> zero_points_f32(num_zero_points);
 
         for (size_t i = 0; i < num_zero_points; ++i) {
-            const int32_t zp_signed =
-                static_cast<int32_t>(read_u4_s1s0(zp_qau4_s1s0, i)) - 8;
+            const int32_t zp_signed = static_cast<int32_t>(read_u4_s1s0(zp_qau4_s1s0, i)) - 8;
 
-            zero_points_f32[i] =
-                -static_cast<float>(zp_signed) * rhs_scales[i];
+            zero_points_f32[i] = -static_cast<float>(zp_signed) * rhs_scales[i];
         }
 
         kai_rhs_pack_nxk_qai4c32p_params params{};
         params.lhs_zero_point = 1;
         params.rhs_zero_point = 8;
 
-        kai_run_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(
-            1,
-            N,
-            K,
-            nr,
-            kr,
-            sr,
-            group_size,
-            rhs_qau4_s0s1.data(),
-            zero_points_f32.data(),
-            bias_ptr,
-            rhs_scales,
-            rhsPackedMem->getData(),
-            0,
-            &params);
+        kai_run_rhs_pack_nxk_qai4c32p_qau4c32s0s1_f32_f32_f32_neon(1,
+                                                                   N,
+                                                                   K,
+                                                                   nr,
+                                                                   kr,
+                                                                   sr,
+                                                                   group_size,
+                                                                   rhs_qau4_s0s1.data(),
+                                                                   zero_points_f32.data(),
+                                                                   bias_ptr,
+                                                                   rhs_scales,
+                                                                   rhsPackedMem->getData(),
+                                                                   0,
+                                                                   &params);
     }
     KernelInterface getuKernelInterface() override {
         return uKernelInterface;
@@ -1571,13 +1533,7 @@ public:
         const size_t m_blocks = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
         packedlhs_block_in_bytes =
-            kai_get_lhs_packed_size_lhs_quant_pack_qsi8d32pscalef32_f32_neon(
-                BLOCK_SIZE,
-                K,
-                group_size,
-                mr,
-                kr,
-                sr);
+            kai_get_lhs_packed_size_lhs_quant_pack_qsi8d32pscalef32_f32_neon(BLOCK_SIZE, K, group_size, mr, kr, sr);
 
         return m_blocks * packedlhs_block_in_bytes;
     }
@@ -1587,9 +1543,7 @@ public:
                  ov::intel_cpu::Dim K,
                  ov::intel_cpu::MemoryPtr dstMem,
                  ov::intel_cpu::MemoryPtr srcMem) override {
-        const auto ukernel =
-            std::get<kai_matmul_clamp_f32_qsi8d32p_qai4c32p_ukernel>(
-                getuKernelInterface());
+        const auto ukernel = std::get<kai_matmul_clamp_f32_qsi8d32p_qai4c32p_ukernel>(getuKernelInterface());
 
         auto* lhs = srcMem->getDataAs<float>();
         auto* dst = dstMem->getDataAs<float>();
@@ -1603,8 +1557,7 @@ public:
         const size_t m_blocks = (M + m_step - 1) / m_step;
         const size_t n_blocks = (N + n_step - 1) / n_step;
 
-        const size_t lhs_packed_offset =
-            ukernel.get_lhs_packed_offset(0, K, group_size);
+        const size_t lhs_packed_offset = ukernel.get_lhs_packed_offset(0, K, group_size);
 
         const size_t lhs_stride = K * sizeof(float);
         const size_t dst_stride_row = N * sizeof(float);
@@ -1615,41 +1568,32 @@ public:
         cpu_parallel->parallel_for(m_blocks, [&](size_t m_blk) {
             const size_t m_iter = std::min(M - m_blk * m_step, m_step);
 
-            auto* lhs_packed_block =
-                lhs_packed + m_blk * packedlhs_block_in_bytes;
+            auto* lhs_packed_block = lhs_packed + m_blk * packedlhs_block_in_bytes;
 
-            kai_run_lhs_quant_pack_qsi8d32pscalef32_f32_neon(
-                m_iter,
-                K,
-                group_size,
-                mr,
-                kr,
-                sr,
-                0,
-                lhs + m_blk * m_step * K,
-                lhs_stride,
-                lhs_packed_block);
+            kai_run_lhs_quant_pack_qsi8d32pscalef32_f32_neon(m_iter,
+                                                             K,
+                                                             group_size,
+                                                             mr,
+                                                             kr,
+                                                             sr,
+                                                             0,
+                                                             lhs + m_blk * m_step * K,
+                                                             lhs_stride,
+                                                             lhs_packed_block);
 
             cpu_parallel->parallel_for(n_blocks, [&](size_t n_blk) {
                 const size_t n_start = n_blk * n_step;
                 const size_t n_iter = std::min(N - n_start, n_step);
 
-                const size_t rhs_packed_offset =
-                    ukernel.get_rhs_packed_offset(n_start, K, group_size);
+                const size_t rhs_packed_offset = ukernel.get_rhs_packed_offset(n_start, K, group_size);
 
-                const size_t dst_offset =
-                    ukernel.get_dst_offset(m_blk * m_step,
-                                           n_start,
-                                           dst_stride_row);
+                const size_t dst_offset = ukernel.get_dst_offset(m_blk * m_step, n_start, dst_stride_row);
 
-                const auto* lhs_ptr =
-                    static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
+                const auto* lhs_ptr = static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
 
-                const auto* rhs_ptr =
-                    static_cast<const void*>(rhs_packed + rhs_packed_offset);
+                const auto* rhs_ptr = static_cast<const void*>(rhs_packed + rhs_packed_offset);
 
-                auto* dst_ptr =
-                    dst + dst_offset / sizeof(float);
+                auto* dst_ptr = dst + dst_offset / sizeof(float);
 
                 ukernel.run_matmul(m_iter,
                                    n_iter,
