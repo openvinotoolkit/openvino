@@ -73,8 +73,8 @@ void GroupQueryAttention::validate_and_infer_types() {
             return "sin_cache";
         case GroupQueryAttentionInputs::POSITION_IDS:
             return "position_ids";
-        case GroupQueryAttentionInputs::ATTENTION_MASK:
-            return "attention_mask";
+        case GroupQueryAttentionInputs::ATTENTION_BIAS:
+            return "attention_bias";
         case GroupQueryAttentionInputs::HEAD_SINK:
             return "head_sink";
         case GroupQueryAttentionInputs::K_SCALE:
