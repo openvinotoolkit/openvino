@@ -161,15 +161,15 @@ struct fully_connected : public primitive_base<fully_connected> {
     input_info bias;
 
     bool compressed_weights = false;
-    input_info decompression_scale = {};
-    input_info decompression_zero_point = {};
+    input_info decompression_scale;
+    input_info decompression_zero_point;
     bool dynamic_quantized_activation = false;
     bool dynamic_quantized_activation_zp = false;
     bool dynamic_quantized_precomputed_reduction = false;
     input_info activation_scale = {"", 0};
     input_info activation_zero_point = {"", 0};
     input_info activation_precomputed_reduction = {"", 0};
-    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
+    std::optional<float> decompression_zero_point_scalar;
 
     /// @brief Primitive dimension size.
     size_t input_size = 2;

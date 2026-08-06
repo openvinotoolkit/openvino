@@ -81,6 +81,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -520,8 +521,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
             qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
             // 1. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
-                                                                                     TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
@@ -1190,7 +1190,13 @@ void Transformations::PostLpt() {
     }
 #endif  // OPENVINO_ARCH_X86_64
 
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
+    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+    [[maybe_unused]] const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    CPU_REGISTER_PASS_X64(postLPTPassManager,
+                          ov::pass::RMSFusion,
+                          false /* force_tail_convert */,
+                          enable_without_gamma);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
@@ -1204,6 +1210,11 @@ void Transformations::PostLpt() {
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
+    }
+    // Only bf16 needs the rope markup: under f16 the angle chain is already kept precise by
+    // ConvertPrecision, and marking it there regresses accuracy.
+    if (config.inferencePrecision == ov::element::bf16) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
