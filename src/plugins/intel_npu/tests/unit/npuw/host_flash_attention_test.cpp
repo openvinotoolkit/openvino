@@ -211,17 +211,81 @@ TEST(HostFlashAttentionFromTest, Fused_ContextSizeIsCorrect) {
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
 }
 
+namespace {
 // ============================================================================
-// Input / output shape checks
+// Build a model where V is pre-transposed (axis=3), simulating a model that
+// has been processed by OptimizeValueTensors.  V parameters are stored as
+// [B, H, head_dim, seq] and the V-Concat is along axis 3.
+// ============================================================================
+std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUERY_SIZE,
+                                                         size_t past_len = PAST_LEN,
+                                                         size_t num_heads = NUM_HEADS,
+                                                         size_t head_dim = HEAD_DIM) {
+    using namespace ov;
+    const Shape past_k_shape = {BATCH, num_heads, past_len, head_dim};  // K: normal layout
+    const Shape new_k_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape past_v_shape = {BATCH, num_heads, head_dim, past_len};  // V: pre-transposed
+    const Shape new_v_shape = {BATCH, num_heads, head_dim, query_size};
+    const Shape q_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape mask_shape = {BATCH, 1, query_size, past_len + query_size};
+
+    ParameterVector params;
+    ResultVector results;
+    auto make_param = [&](const std::string& name, const Shape& shape) {
+        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        params.push_back(p);
+        return p;
+    };
+
+    auto query = make_param("query.0", q_shape);
+    auto past_key = make_param("past_key_values.0.key", past_k_shape);
+    auto past_val = make_param("past_key_values.0.value", past_v_shape);
+    auto new_key = make_param("new_key.0", new_k_shape);
+    auto new_val = make_param("new_value.0", new_v_shape);
+    auto mask = make_param("mask.0", mask_shape);
+
+    auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
+    key_concat->set_friendly_name("concat_key.0");
+    // axis=3: concat along the last dim, which is the sequence dimension in transposed V layout
+    auto val_concat = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 3);
+    val_concat->set_friendly_name("concat_value.0");
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+    qk->set_friendly_name("matmul1.0");
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    add->set_friendly_name("add.0");
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    softmax->set_friendly_name("softmax.0");
+    // transpose_b=true: softmax[B,H,q,k] x V[B,H,head_dim,k]^T -> [B,H,q,head_dim]
+    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat->output(0), false, true);
+    matmul2->set_friendly_name("matmul2.0");
+
+    auto make_result = [&](const Output<Node>& out, const std::string& name) {
+        results.push_back(std::make_shared<op::v0::Result>(out));
+        results.back()->set_friendly_name(name);
+    };
+    make_result(key_concat->output(0), "present.0.key");
+    make_result(val_concat->output(0), "present.0.value");
+    make_result(matmul2->output(0), "attn_out.0");
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_model_transposed_v");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+}  // namespace
+
+// ============================================================================
+// Input / output shape checks — V NOT transposed (axis=2, the default)
 // Expected shapes (BATCH=1, NUM_HEADS=8, HEAD_DIM=64, QUERY_SIZE=16):
-//   past_acc  [1, 8, 16, 64]   past_max  [1, 8, 16, 1]   past_d  [1, 8, 16, 1]
-//   k_tile    [1, 8, 16, 64]   v_tile    [1, 8, 64, 16]  (V stored pre-transposed)
-//   q         [1, 8, 16, 64]   mask_tile [1, 1, 16, 16]
-//   regular tile outputs: acc [1,8,16,64]  maxx [1,8,16,1]  d [1,8,16,1]
-//   final tile output:    [1, QUERY_SIZE, NUM_HEADS*HEAD_DIM] = [1, 16, 512]
+//   past_acc  [1,8,16,64]  past_max [1,8,16,1]  past_d [1,8,16,1]
+//   k_tile    [1,8,16,64]  v_tile   [1,8,16,64]  (normal [B,H,tile,head_dim])
+//   q         [1,8,16,64]  mask_tile [1,1,16,16]
 // ============================================================================
 
-// Fused path — regular tile (6 inputs, no mask)
+// Fused path — regular tile (6 inputs, no mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, Fused_RegularTileInputShapes) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
@@ -231,13 +295,13 @@ TEST(HostFlashAttentionFromTest, Fused_RegularTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile  [B, kv_heads, tile, head_dim]
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile  [B, kv_heads, head_dim, tile]
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile  [B, kv_heads, tile, head_dim] (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
     };
     check_input_shapes(result->_tile_model, expected_inputs, "fused regular tile");
 }
 
-// Fused path — final tile (7 inputs, with mask)
+// Fused path — final tile (7 inputs, with mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, Fused_FinalTileInputShapes) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
@@ -247,14 +311,14 @@ TEST(HostFlashAttentionFromTest, Fused_FinalTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
         {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile [B, 1, seq, tile]
     };
     check_input_shapes(result->_final_tile_model, expected_inputs, "fused final tile");
 }
 
-// Non-fused path — regular tile (7 inputs, with mask)
+// Non-fused path — regular tile (7 inputs, with mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, NonFused_RegularTileInputShapes) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
@@ -263,10 +327,10 @@ TEST(HostFlashAttentionFromTest, NonFused_RegularTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
-        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile  [B, kv_heads, tile, head_dim]
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile  [B, kv_heads, head_dim, tile]
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
-        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile [B, 1, seq, tile]
+        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile
     };
     check_input_shapes(result->_tile_model, expected_inputs, "non-fused regular tile");
 }
@@ -305,4 +369,86 @@ TEST(HostFlashAttentionFromTest, NonFused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
     check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "non-fused final tile");
+}
+
+// ============================================================================
+// TransposedV suite — V pre-transposed (axis=3), simulating OptimizeValueTensors.
+// v_tile must be [B, H, head_dim, tile_size] (transposed storage layout).
+// ============================================================================
+
+// Sanity: the transposed-V model is parseable
+TEST(HostFlashAttentionTransposedVTest, FromReturnsValue) {
+    EXPECT_TRUE(ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true).has_value());
+}
+
+// v_seq_dim == 3 -> _v_seq_dim field stored correctly
+TEST(HostFlashAttentionTransposedVTest, VSeqDimIsThree) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_v_seq_dim, 3u);
+}
+
+// Contrast: non-transposed model has _v_seq_dim == 2
+TEST(HostFlashAttentionFromTest, VSeqDimIsTwoForNormalModel) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_v_seq_dim, 2u);
+}
+
+// Fused regular tile: v_tile in transposed layout [B, H, head_dim, tile]
+TEST(HostFlashAttentionTransposedVTest, Fused_RegularTileVTileIsTransposed) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile [B,H,head_dim,tile] — pre-transposed
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
+    };
+    check_input_shapes(result->_tile_model, expected, "transposed-V fused regular tile");
+}
+
+// Fused final tile: v_tile in transposed layout [B, H, head_dim, tile]
+TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileVTileIsTransposed) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile [B,H,head_dim,tile] — pre-transposed
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
+        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile
+    };
+    check_input_shapes(result->_final_tile_model, expected, "transposed-V fused final tile");
+}
+
+// Output shapes are independent of V layout
+TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileOutputShape) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    check_output_shapes(result->_final_tile_model,
+                        {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}},
+                        "transposed-V fused final tile");
+}
+
+TEST(HostFlashAttentionTransposedVTest, Fused_RegularTileOutputShapes) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},
+    };
+    check_output_shapes(result->_tile_model, expected, "transposed-V fused regular tile");
+}
+
+// Context size is derived from the transposed concat (axis=3, dim=3 of output)
+TEST(HostFlashAttentionTransposedVTest, ContextSizeIsCorrect) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
 }

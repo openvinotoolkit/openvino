@@ -107,7 +107,7 @@ std::string border_inst::to_string(border_node const& node) {
     border_info.add("pads_end", desc->pads_end);
     border_info.add("pad mode", desc->pad_mode);
     border_info.add("pad value", std::to_string(desc->pad_value));
-    border_info.add("negative_pad", std::to_string(desc->allow_negative_pad));
+    border_info.add("negative_pad", std::to_string(static_cast<int>(desc->allow_negative_pad)));
 
     node_info->add("border info", border_info);
 
