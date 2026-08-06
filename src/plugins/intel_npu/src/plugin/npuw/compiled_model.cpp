@@ -11,6 +11,7 @@
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "flux2_compiled_model.hpp"
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
@@ -24,7 +25,6 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
-#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
@@ -297,6 +297,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_flux2_key = ov::intel_npu::npuw::flux2::enabled.name();
     auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
@@ -307,7 +308,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+    if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
+    } else if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
@@ -365,14 +369,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
         // the attention isolation to work properly
         ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
-    }
-
-    if (cfg_get<::intel_npu::NPUW_PLAN>(properties).empty()) {
-        // Fold shape-compute chains into Constants before partitioning, but only on the
-        // online path (no NPUW_PLAN). When a plan is loaded, node identities must be left
-        // untouched so they still match the plan XML. Strict no-op unless the model has a
-        // VariadicSplit with a non-constant split_lengths (see the function's definition).
-        ov::npuw::patterns::util::foldShapeComputeChainsForConstAttrs(model);
     }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
