@@ -300,7 +300,6 @@ ov::OutputVector ov::pass::PagedAttentionDecomposition::decompose_varlen(
     const auto batch_p1 =
         register_new_node<v3::ShapeOf>(cumulative_sequence_length, ov::element::i32);  // [1] = batch+1
     const auto batch = register_new_node<v1::Subtract>(batch_p1, one_i32_s);           // [1]
-    const auto batch_s = register_new_node<v0::Squeeze>(batch);                        // scalar
     const auto cum_hi = register_new_node<v8::Slice>(cumulative_sequence_length,
                                                      one_i32_1,
                                                      batch_p1,
