@@ -307,7 +307,7 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
     auto ret = cldnn::engine::create(
-            cldnn::device_query::get_default_engine_type(), cldnn::device_query::get_default_runtime_type());
+            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type());
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});
@@ -417,6 +417,8 @@ std::vector<cldnn::data_types> generic_test::test_data_types() {
 
 double default_tolerance(data_types dt) {
     switch (dt) {
+    case data_types::bf16:
+        return 1e-2;
     case data_types::f16:
         return 1e-3;
     case data_types::f32:

@@ -293,6 +293,9 @@ OPENVINO_API
 bool replace_output_update_name(Output<Node> node, const Output<Node>& node_input);
 
 OPENVINO_API
+bool replace_outputs_update_name(OutputVector nodes, const OutputVector& node_inputs);
+
+OPENVINO_API
 bool replace_node_update_name(const std::shared_ptr<Node>& target, const std::shared_ptr<Node>& replacement);
 
 /// \brief Serialize given model into IR. The generated .xml and .bin files will be saved into provided paths.

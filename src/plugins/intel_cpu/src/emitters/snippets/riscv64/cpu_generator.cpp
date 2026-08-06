@@ -22,6 +22,7 @@
 #include "jit_kernel_emitter.hpp"
 #include "jit_loop_emitters.hpp"
 #include "jit_memory_emitters.hpp"
+#include "jit_reg_spill_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -90,6 +91,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
@@ -115,37 +117,6 @@
 #    include "emitters/snippets/riscv64/verbose.hpp"
 #    include "snippets/op/perf_count.hpp"
 #endif
-
-#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
-    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-         const auto& n = expr->get_node();                                                        \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     },                                                                                           \
-     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<ov::element::Type>> {         \
-         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-         if (gelu == nullptr) {                                                                   \
-             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-         }                                                                                        \
-         const auto approximationMode = gelu->get_approximation_mode();                           \
-         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-             return e_type_erf::get_supported_precisions(n);                                      \
-         }                                                                                        \
-         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
-             return e_type_tanh::get_supported_precisions(n);                                     \
-         }                                                                                        \
-         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
-     }}
 
 #define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
@@ -308,6 +279,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // loop control
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
     jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
+    jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_reg_spill_begin_emitter>();
+    jitters[snippets::op::RegSpillEnd::get_type_info_static()] = emitter_factory.from_expr<jit_reg_spill_end_emitter>();
 
     // service kernel entry points
     jitters[snippets::op::KernelStatic::get_type_info_static()] =

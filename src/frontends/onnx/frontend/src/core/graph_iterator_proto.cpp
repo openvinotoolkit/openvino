@@ -169,10 +169,56 @@ void collect_node_dependencies(const NodeProto& node, std::unordered_set<std::st
     }
 }
 
+/// \brief Check whether the graph nodes are already in topological order (same dependency definition and seeding as
+/// topological_sort_graph()).
+bool is_topologically_sorted(const GraphProto& graph) {
+    std::unordered_set<std::string> known_tensors;
+    for (const auto& input : graph.input()) {
+        known_tensors.insert(input.name());
+    }
+    for (const auto& init : graph.initializer()) {
+        known_tensors.insert(init.name());
+    }
+
+    for (const auto& node : graph.node()) {
+        // Common case: allocation-free scan of direct inputs - the lazy fast path.
+        for (const auto& input : node.input()) {
+            if (input.empty()) {
+                continue;
+            }
+            if (known_tensors.count(input) == 0) {
+                return false;
+            }
+        }
+        // Only control-flow nodes pay extra: their subgraphs capture outer-scope tensors not in node.input().
+        for (const auto& attr : node.attribute()) {
+            if (!attr.has_g()) {
+                continue;
+            }
+            std::unordered_set<std::string> external_refs;
+            collect_subgraph_external_refs(attr.g(), external_refs);
+            for (const auto& ref : external_refs) {
+                if (known_tensors.count(ref) == 0) {
+                    return false;
+                }
+            }
+        }
+        for (const auto& output_name : node.output()) {
+            known_tensors.insert(output_name);
+        }
+    }
+    return true;
+}
+
 /// \brief Topologically sort graph nodes, considering subgraph dependencies.
 void topological_sort_graph(GraphProto* graph) {
     const int num_nodes = graph->node_size();
     if (num_nodes == 0) {
+        return;
+    }
+
+    // Fast path: Skip building the full dependency graph if nodes are already in topological order.
+    if (is_topologically_sorted(*graph)) {
         return;
     }
 

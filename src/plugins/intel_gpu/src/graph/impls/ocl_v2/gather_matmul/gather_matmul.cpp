@@ -81,7 +81,7 @@ inline dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
 inline bool weights_need_onednn_grouped(const kernel_impl_params& params) {
     const auto& weights_layout = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT];
     const auto dt = weights_layout.data_type;
-    return !(dt == cldnn::data_types::u4 || dt == cldnn::data_types::i4);
+    return dt != cldnn::data_types::u4 && dt != cldnn::data_types::i4;
 }
 #endif
 

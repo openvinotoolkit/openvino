@@ -10,7 +10,6 @@
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -45,6 +44,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
@@ -58,6 +58,7 @@
 #    include <common/c_types_map.hpp>
 #    include <unordered_map>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
@@ -71,9 +72,11 @@ using namespace dnnl;
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define GET_OFF(field) offsetof(jit_interpolate_call_args, field)
 
@@ -1762,7 +1765,7 @@ inline VectorDims getBlockND(const VectorDims& shape) {
 
 template <typename T>
 T convertTo5D(const T& src, const std::vector<int>& dimMap, int initValue = 1) {
-    T dst(5, initValue);
+    T dst(5, static_cast<typename T::value_type>(initValue));
     for (size_t i = 0; i < dimMap.size(); ++i) {
         dst[dimMap[i]] = src[i];
     }
@@ -2174,7 +2177,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     }
 
 #if !defined(OV_CPU_WITH_ACL)
-    if (!mayiuse(cpu::x64::sse41)) {
+    if (!ov::with_cpu_x86_sse42()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
@@ -2274,19 +2277,19 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 #endif
 
         if (dataRank == 4) {
-            if (mayiuse(cpu::x64::avx512_core)) {
+            if (ov::with_cpu_x86_avx512_core()) {
                 if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx512, true);
                 } else {
                     pushDesc(LayoutType::nspc, jit_avx512, true);
                 }
-            } else if (mayiuse(cpu::x64::avx2)) {
+            } else if (ov::with_cpu_x86_avx2()) {
                 if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_avx2, true);
                 } else {
                     pushDesc(LayoutType::nspc, jit_avx2, true);
                 }
-            } else if (mayiuse(cpu::x64::sse41)) {
+            } else if (ov::with_cpu_x86_sse42()) {
                 if (interpAttrs.NCHWAsNHWC) {
                     pushDesc(LayoutType::ncsp, jit_sse42, true);
                 } else {
@@ -2311,12 +2314,12 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
-        if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear) {
+        if (!ov::with_cpu_x86_sse42() || interpAttrs.mode == InterpolateMode::linear) {
             pushDesc(LayoutType::ncsp, ref, false);
         } else {
             // blk and by_channel JIT kernel on sse41 or above machine
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
-                if (mayiuse(cpu::x64::avx512_core)) {
+                if (ov::with_cpu_x86_avx512_core()) {
                     if (interpAttrs.NCHWAsNHWC) {
                         pushDesc(LayoutType::ncsp, jit_avx512, false);
                     } else {
@@ -2325,7 +2328,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                     if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp16c, jit_avx512, false);
                     }
-                } else if (mayiuse(cpu::x64::avx2)) {
+                } else if (ov::with_cpu_x86_avx2()) {
                     if (interpAttrs.NCHWAsNHWC) {
                         pushDesc(LayoutType::ncsp, jit_avx2, false);
                     } else {
@@ -2350,7 +2353,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             // 1.ref on machine w/o avx2(no fuse)
             // 2.JIT kernel for avx2(gatherps is available).(with fuse)
             if (inputPrecision == ov::element::f32) {
-                if (mayiuse(cpu::x64::avx2)) {
+                if (ov::with_cpu_x86_avx2()) {
                     pushDesc(LayoutType::ncsp, jit_avx2, false);
                 } else {
                     pushDesc(LayoutType::ncsp, ref, false);
@@ -2537,15 +2540,15 @@ void Interpolate::prepareParams() {
         bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
                                       key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
                                       key.nodeAttrs.mode == InterpolateMode::cubic;
-        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41);
-        bool isAvx2AndF32 = mayiuse(cpu::x64::avx2) && key.nodeAttrs.inPrc == ov::element::f32;
+        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && ov::with_cpu_x86_sse42();
+        bool isAvx2AndF32 = ov::with_cpu_x86_avx2() && key.nodeAttrs.inPrc == ov::element::f32;
         bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
                             key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
         bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
         bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
         bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
-        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41)) {
+        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && ov::with_cpu_x86_sse42()) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -2734,7 +2737,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                     });
                 src_data = src_data_pad;
             } else if (interpAttrs.layout == InterpolateLayoutType::block) {
-                size_t blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+                size_t blkSize = ov::with_cpu_x86_avx512_core() ? 16 : 8;
                 size_t CB = div_up(srcDimPad5d[1], blkSize);
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
@@ -2819,7 +2822,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                 (*interpolateKernel)(&arg);
             });
         } else {  // for blk
-            int blk_size = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+            int blk_size = ov::with_cpu_x86_avx512_core() ? 16 : 8;
             int CB = div_up(C, blk_size);
             const uint8_t* in_ptr = in_ptr_ + (IW * IH * ID * CB * blk_size * b) * srcDataSize;
             uint8_t* out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
@@ -2963,7 +2966,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
 
     bool isByChannel = configured_for_layout == by_channel;
 
-    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    int blkSize = ov::with_cpu_x86_avx512_core() ? 16 : 8;
     int CB = isByChannel ? 1 : div_up(C, blkSize);
     int CGatherLen = isByChannel ? C : blkSize;
     int workAmount = isByChannel ? C : CB;
@@ -3029,7 +3032,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     auto* yOrigin = static_cast<int*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW]);
     auto* yFactor = reinterpret_cast<float*>(&auxTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
 
-    int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
+    int blkSize = ov::with_cpu_x86_avx512_core() ? 16 : 8;
     int CB = div_up(C, blkSize);
     int CSize = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize * CB;
     int CGatherLen = configured_for_layout == InterpolateLayoutType::by_channel ? C : blkSize;
@@ -3333,7 +3336,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
             weightPtr[4] = reinterpret_cast<float*>(&auxTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = mayiuse(cpu::x64::sse41) ? srcDataSize : 1;
+        int scale = ov::with_cpu_x86_sse42() ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
@@ -4552,9 +4555,9 @@ size_t Interpolate::getSpatialDimsNum(const std::vector<float>& scales) {
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
-    if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear ||
+    if (!ov::with_cpu_x86_sse42() || interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow ||
-        (none_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2))) {
+        (none_of(dataRank, 4U, 5U) && !ov::with_cpu_x86_avx2())) {
         return false;
     }
 

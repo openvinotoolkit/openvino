@@ -352,4 +352,224 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     broadcast_shape = broadcast_inst->get_impl_params()->get_output_layout().get_shape();
     ASSERT_EQ(broadcast_shape, ov::Shape{8});
 }
+
+TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_disables_micro_layout) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto qkv_mem_layout = layout{ov::PartialShape{9, 128}, data_types::f16, format::bfyx};
+    auto qkv_mem = engine.allocate_memory(qkv_mem_layout);
+    auto qkv_rnd = rg.generate_random_1d<ov::float16>(qkv_mem_layout.count(), 0, 10);
+    set_values(qkv_mem, qkv_rnd);
+
+    auto key_cache_mem_layout = layout{ov::PartialShape{2, 2, 64, 16}, data_types::f16, format::bfyx};
+    auto value_cache_mem_layout = layout{ov::PartialShape{2, 2, 16, 64}, data_types::f16, format::bfyx};
+    auto key_cache_mem = engine.allocate_memory(key_cache_mem_layout);
+    auto value_cache_mem = engine.allocate_memory(value_cache_mem_layout);
+    auto cache_rnd = rg.generate_random_1d<ov::float16>(key_cache_mem_layout.count(), 0, 10);
+    set_values(key_cache_mem, cache_rnd);
+    set_values(value_cache_mem, cache_rnd);
+
+    auto past_lens_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto past_lens_mem = engine.allocate_memory(past_lens_mem_layout);
+    set_values(past_lens_mem, {8});
+
+    auto subsequence_begins_mem_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto subsequence_begins_mem = engine.allocate_memory(subsequence_begins_mem_layout);
+    set_values(subsequence_begins_mem, {0, 9});
+
+    auto block_indices_mem_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto block_indices_mem = engine.allocate_memory(block_indices_mem_layout);
+    set_values(block_indices_mem, {0, 1});
+
+    auto block_indices_begins_mem_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto block_indices_begins_mem = engine.allocate_memory(block_indices_begins_mem_layout);
+    set_values(block_indices_begins_mem, {0, 2});
+
+    auto scale_mem_layout = layout{ov::PartialShape{1}, data_types::f16, format::bfyx};
+    auto scale_mem = engine.allocate_memory(scale_mem_layout);
+    set_values<ov::float16>(scale_mem, {1});
+
+    auto sliding_window_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto sliding_window_mem = engine.allocate_memory(sliding_window_mem_layout);
+    set_values(sliding_window_mem, {0});
+
+    auto alibi_mem_layout = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
+    auto alibi_mem = engine.allocate_memory(alibi_mem_layout);
+
+    auto max_context_len_mem_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto max_context_len_mem = engine.allocate_memory(max_context_len_mem_layout);
+    set_values(max_context_len_mem, {17});
+
+    auto score_aggregation_window_layout = layout{ov::PartialShape{0}, data_types::i32, format::bfyx};
+    auto score_aggregation_window_mem = engine.allocate_memory(score_aggregation_window_layout);
+
+    auto rotated_block_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto rotated_block_indices_mem = engine.allocate_memory(rotated_block_indices_layout);
+
+    auto rotation_deltas_layout = layout{ov::PartialShape{1, 1}, data_types::i32, format::bfyx};
+    auto rotation_deltas_mem = engine.allocate_memory(rotation_deltas_layout);
+
+    auto rotation_trig_lut_layout = layout{ov::PartialShape{1, 1}, data_types::f32, format::bfyx};
+    auto rotation_trig_lut_mem = engine.allocate_memory(rotation_trig_lut_layout);
+
+    auto xattention_threshold_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
+    auto xattention_threshold_mem = engine.allocate_memory(xattention_threshold_layout);
+
+    auto xattention_block_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto xattention_block_size_mem = engine.allocate_memory(xattention_block_size_layout);
+
+    auto xattention_stride_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto xattention_stride_mem = engine.allocate_memory(xattention_stride_layout);
+
+    auto sinks_layout = layout{ov::PartialShape{0, 0, 0, 0}, data_types::f32, format::bfyx};
+    auto sinks_mem = engine.allocate_memory(sinks_layout);
+
+    auto adaptive_rkv_start_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_start_size_mem = engine.allocate_memory(adaptive_rkv_start_size_layout);
+
+    auto adaptive_rkv_evictable_sizes_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_evictable_sizes_mem = engine.allocate_memory(adaptive_rkv_evictable_sizes_layout);
+
+    auto adaptive_rkv_diversity_block_set_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_layout);
+
+    auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
+
+    auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
+    set_values(token_type_ids_mem, {1});
+
+    auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::u8, format::bfyx};
+    auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
+    auto qq_bias_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
+    auto qq_bias_begins_mem = engine.allocate_memory(qq_bias_begins_layout);
+
+    auto query_layout = layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx};
+    auto key_layout = query_layout;
+    auto value_layout = query_layout;
+    auto key_cache_layout = layout{ov::PartialShape{-1, 2, 64, 16}, data_types::f16, format::bfyx};
+    auto value_cache_layout = layout{ov::PartialShape{-1, 2, 16, 64}, data_types::f16, format::bfyx};
+    auto dynamic_i32_layout = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};
+    auto past_lens_layout = dynamic_i32_layout;
+    auto subsequence_begins_layout = dynamic_i32_layout;
+    auto block_indices_layout = dynamic_i32_layout;
+    auto block_indices_begins_layout = dynamic_i32_layout;
+    auto score_aggregation_layout = dynamic_i32_layout;
+    auto token_type_ids_input_layout = dynamic_i32_layout;
+
+    std::vector<input_info> pa_inputs = {input_info("query"),
+                                         input_info("key"),
+                                         input_info("value"),
+                                         input_info("key_cache"),
+                                         input_info("value_cache"),
+                                         input_info("past_lens"),
+                                         input_info("subsequence_begins"),
+                                         input_info("block_indices"),
+                                         input_info("block_indices_begins"),
+                                         input_info("scale"),
+                                         input_info("sliding_window"),
+                                         input_info("alibi"),
+                                         input_info("max_context_len"),
+                                         input_info("score_aggregation_window"),
+                                         input_info("rotated_block_indices"),
+                                         input_info("rotation_deltas"),
+                                         input_info("rotation_trig_lut"),
+                                         input_info("xattention_threshold"),
+                                         input_info("xattention_block_size"),
+                                         input_info("xattention_stride"),
+                                         input_info("sinks"),
+                                         input_info("adaptive_rkv_start_size"),
+                                         input_info("adaptive_rkv_evictable_sizes"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices"),
+                                         input_info("adaptive_rkv_diversity_block_set_indices_begins"),
+                                         input_info("token_type_ids"),
+                                         input_info("qq_bias"),
+                                         input_info("qq_bias_begins")};
+
+    auto pa_prim = paged_attention("paged_attention", pa_inputs);
+    pa_prim.k_head_size = 64;
+    pa_prim.v_head_size = 64;
+    pa_prim.kv_heads_num = 2;
+    pa_prim.heads_num = 2;
+    pa_prim.scale_val = 1.f;
+    pa_prim.has_alibi = false;
+    pa_prim.num_outputs = 1;
+    pa_prim.has_rotated_blocks = false;
+    pa_prim.has_token_type_ids = true;
+    pa_prim.is_key_by_channel = true;
+
+    topology topology;
+    topology.add(input_layout("query", query_layout));
+    topology.add(input_layout("key", key_layout));
+    topology.add(input_layout("value", value_layout));
+    topology.add(input_layout("key_cache", key_cache_layout));
+    topology.add(input_layout("value_cache", value_cache_layout));
+    topology.add(input_layout("past_lens", past_lens_layout));
+    topology.add(input_layout("subsequence_begins", subsequence_begins_layout));
+    topology.add(input_layout("block_indices", block_indices_layout));
+    topology.add(input_layout("block_indices_begins", block_indices_begins_layout));
+    topology.add(input_layout("scale", scale_mem_layout));
+    topology.add(input_layout("sliding_window", sliding_window_mem_layout));
+    topology.add(input_layout("alibi", alibi_mem_layout));
+    topology.add(input_layout("max_context_len", max_context_len_mem_layout));
+    topology.add(input_layout("score_aggregation_window", score_aggregation_layout));
+    topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
+    topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
+    topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+    topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
+    topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
+    topology.add(input_layout("xattention_stride", xattention_stride_layout));
+    topology.add(input_layout("sinks", sinks_layout));
+    topology.add(input_layout("adaptive_rkv_start_size", adaptive_rkv_start_size_layout));
+    topology.add(input_layout("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_layout));
+    topology.add(input_layout("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_layout));
+    topology.add(input_layout("token_type_ids", token_type_ids_input_layout));
+    topology.add(input_layout("qq_bias", qq_bias_layout));
+    topology.add(input_layout("qq_bias_begins", qq_bias_begins_layout));
+    topology.add(pa_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"paged_attention", {format::any, "paged_attention_opt", impl_types::ocl}}}));
+    network network(engine, topology, config);
+
+    network.set_input_data("query", qkv_mem);
+    network.set_input_data("key", qkv_mem);
+    network.set_input_data("value", qkv_mem);
+    network.set_input_data("key_cache", key_cache_mem);
+    network.set_input_data("value_cache", value_cache_mem);
+    network.set_input_data("past_lens", past_lens_mem);
+    network.set_input_data("subsequence_begins", subsequence_begins_mem);
+    network.set_input_data("block_indices", block_indices_mem);
+    network.set_input_data("block_indices_begins", block_indices_begins_mem);
+    network.set_input_data("scale", scale_mem);
+    network.set_input_data("sliding_window", sliding_window_mem);
+    network.set_input_data("alibi", alibi_mem);
+    network.set_input_data("max_context_len", max_context_len_mem);
+    network.set_input_data("score_aggregation_window", score_aggregation_window_mem);
+    network.set_input_data("rotated_block_indices", rotated_block_indices_mem);
+    network.set_input_data("rotation_deltas", rotation_deltas_mem);
+    network.set_input_data("rotation_trig_lut", rotation_trig_lut_mem);
+    network.set_input_data("xattention_threshold", xattention_threshold_mem);
+    network.set_input_data("xattention_block_size", xattention_block_size_mem);
+    network.set_input_data("xattention_stride", xattention_stride_mem);
+    network.set_input_data("sinks", sinks_mem);
+    network.set_input_data("adaptive_rkv_start_size", adaptive_rkv_start_size_mem);
+    network.set_input_data("adaptive_rkv_evictable_sizes", adaptive_rkv_evictable_sizes_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices_begins", adaptive_rkv_diversity_block_set_indices_begins_mem);
+    network.set_input_data("adaptive_rkv_diversity_block_set_indices", adaptive_rkv_diversity_block_set_indices_mem);
+    network.set_input_data("token_type_ids", token_type_ids_mem);
+    network.set_input_data("qq_bias", qq_bias_mem);
+    network.set_input_data("qq_bias_begins", qq_bias_begins_mem);
+
+    OV_ASSERT_NO_THROW(network.execute());
+
+    auto pa_inst = network.get_primitive("paged_attention");
+    const auto& intermediate_mems = pa_inst->get_intermediates_memories();
+    ASSERT_EQ(intermediate_mems.size(), 7u);
+}
 }  // update_shape_test

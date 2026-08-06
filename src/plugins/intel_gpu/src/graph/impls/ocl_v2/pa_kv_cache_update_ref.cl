@@ -18,7 +18,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
                                     const uint sglid,
                                     const uint num_groups,
                                     INPUT0_TYPE* input_data) {
-    INPUT0_TYPE grp_max = 0.001;
+    INPUT0_TYPE grp_max = 0.004;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
 
@@ -31,7 +31,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     min_value = sub_group_reduce_min(min_value);
     max_value = sub_group_reduce_max(max_value);
 
-    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    // If the range of input data is zero, it is adjusted to the minimum value(0.004).
     #define ACCUMULATOR_TYPE float
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
 
@@ -126,8 +126,8 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
                                     const uint new_tokens_num,
                                     const uint sglid,
                                     const uint is_prefill_stage) {
-    int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
     int num_head_size_groups = is_prefill_stage ? NUM_HEAD_SIZE_GROUPS : NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * num_head_size_groups;
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
         const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
@@ -148,6 +148,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
             cache_data_vec_decompressed[token_pos_in_block + j] = new_token;
             max_value = fmax(max_value, new_token);
             min_value = fmin(min_value, new_token);
+
         }
         // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
@@ -167,7 +168,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         // requantize and store
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = max_value - min_value;
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.004) : (max_value - min_value);
             const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 // When the range is very small, expand the range to avoid zp overflow
@@ -204,13 +205,13 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
     // Column layout: [packed_tokens (8 bytes)] [scale (f16)] [zp (f16)] = 12 bytes
     // Byte t/2 in column h: lo nibble = token t, hi nibble = token t+1
     // Each lane (sglid) processes one head dim per iteration.
-    int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
     int num_head_size_groups;
     if (is_prefill_stage) {
         num_head_size_groups = NUM_HEAD_SIZE_GROUPS;
     } else {
         num_head_size_groups = NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
     }
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * num_head_size_groups;
 
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
@@ -245,7 +246,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         // Requantize and store with token-axis packing
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.004) : (max_value - min_value);
             const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 range += fmax(1.0f, min_range);
@@ -292,12 +293,10 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             key_in_offset_tmp += in_data_pitch;
         }
         #define ACCUMULATOR_TYPE float
-        ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+        ACCUMULATOR_TYPE range = max_value == min_value ? 0.004 : max_value - min_value;
         const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
-        if (range <= min_range) {
-            // When the range is very small, expand the range to avoid zp overflow
-            range += fmax(1.0f, min_range);
-        }
+        // When the range is very small, expand the range to avoid zp overflow
+        range += (range <= min_range ? fmax(1.0f, min_range) : 0.0f);
 
         #if IS_INT4_COMPRESSED
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range);

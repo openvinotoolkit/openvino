@@ -67,36 +67,18 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
 // and is not optimized concatenation then do not fuse buffers
 // TODO: we need add padding support for all optimized kernels to remove this condition
 auto available_pred = [](const program_node& input) {
-    if (!input.is_type<pooling>() && !input.is_type<convolution>() && !input.is_type<quantize>() &&
-        !input.is_type<activation>() && !input.is_type<deconvolution>() && !input.is_type<concatenation>() &&
-        !input.is_type<crop>() && !input.is_type<eltwise>() && !input.is_type<resample>() &&
-        !input.is_type<reorder>() && !(input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) &&
-        !input.is_type<strided_slice>())
-        return false;
-    return true;
-};
-
-// Primitives that read input by explicit tensor coordinate and therefore correctly skip
-// padding on the input side.
-auto reads_padded_input_safely = [](const program_node& user) {
-    if (user.can_be_optimized())
-        return false;
-    if (user.is_type<eltwise>()) {
-        auto broadcast_type = user.as<eltwise>().get_primitive()->broadcast_spec.m_type;
-        return broadcast_type == ov::op::AutoBroadcastType::NONE;
-    }
-    return user.is_type<convolution>()   ||
-           user.is_type<deconvolution>() ||
-           user.is_type<pooling>()       ||
-           user.is_type<activation>()    ||
-           user.is_type<quantize>();
+    return input.is_type<pooling>() || input.is_type<convolution>() || input.is_type<quantize>() ||
+        input.is_type<activation>() || input.is_type<deconvolution>() || input.is_type<concatenation>() ||
+        input.is_type<crop>() || input.is_type<eltwise>() || input.is_type<resample>() ||
+        input.is_type<reorder>() || (input.is_type<permute>() && !input.as<permute>().is_rotating_except_batch()) ||
+        input.is_type<strided_slice>();
 };
 
 bool concat_in_place_optimization::match(const program_node& concat_node,
                                          kernel_impl_params& concat_params,
                                          std::vector<kernel_impl_params>& pred_params,
                                          bool is_runtime) {
-    if (concat_node.is_output() || concat_params.fused_desc.size() > 0 || concat_node.is_in_shape_of_subgraph())
+    if (concat_node.is_output() || !concat_params.fused_desc.empty() || concat_node.is_in_shape_of_subgraph())
         return false;
     bool do_runtime_buffer_fusing = true;
     GPU_DEBUG_IF(concat_node.get_config().get_disable_runtime_buffer_fusing()) {
@@ -154,6 +136,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
         if (pred.first->is_output())
             return false;
+        // In-place concat forces offset padding on predecessor outputs, but shape-of subgraph
+        // nodes run on CPU impls that don't support padded output. Skip optimization for them.
+        if (pred.first->is_in_shape_of_subgraph())
+            return false;
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
@@ -164,16 +150,9 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         // TODO: handle optimized reshape
         if (pred.first->is_type<reshape>() && pred.first->can_be_optimized())
             return false;
-        // A predecessor with more than two users can still be fused if all non-concat
-        // users correctly handle a padded input buffer.
-        if (pred.first->get_users().size() > 2) {
-            for (const auto& user : pred.first->get_users()) {
-                if (user->is_type<concatenation>())
-                    continue;
-                if (!reads_padded_input_safely(*user))
-                    return false;
-            }
-        }
+        // TODO: Investigate if this condition is needed
+        if (pred.first->get_users().size() > 2)
+            return false;
 
        // Check that input isn't optimized out concatenation along different axis.
         if (pred.first->is_type<concatenation>() && pred.first->can_be_optimized()) {
@@ -259,7 +238,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    // Implicit concat for onednn only when use_usm and batch 1 on the batch axis.
+    // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
         const layout& concat_out_l = concat_params.get_output_layout();
@@ -269,11 +248,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             // Return true in build time, it will be checked again in runtime
             return true;
         } else {
-            // Block formats (b_fs_yx_fsv16 etc.) are not contiguous along the batch axis,
-            // so batch-axis (axis=0) concat with batch>1 cannot safely alias buffers.
-            // Feature-axis and other axes are fine — the 64-byte alignment check above is
-            // the correctness gate for those cases.
-            if (concat_axis_index == 0 && concat_out_l.batch() > 1)
+            if (concat_out_l.batch() > 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
@@ -317,7 +292,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         // set dynamic pad dims for shape agnostic kernel
         for (auto& dep_output_layout : preds_layouts) {
             padding::DynamicDimsMask info_dynamic_pad;
-            info_dynamic_pad[concat_axis] = 1;
+            info_dynamic_pad[concat_axis] = true;
             dep_output_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
         }
         return;
@@ -341,7 +316,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
     lower_padd[concat_axis] = concat_out_layout.data_padding._lower_size[concat_axis];
     upper_padd[concat_axis] = concat_out_layout.data_padding._upper_size[concat_axis];
     padding::DynamicDimsMask dyn_pad_dims;
-    dyn_pad_dims[concat_axis] = 1;
+    dyn_pad_dims[concat_axis] = true;
     concat_out_layout.data_padding = padding(lower_padd, upper_padd);
 
     upper_padd[concat_axis] += concat_out_layout.get_dims()[concat_axis];
@@ -388,10 +363,7 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
         node.get_users().front()->get_preferred_impl_type() == impl_types::onednn)
         return true;
 
-    if (node.is_in_place())
-        return true;
-
-    return false;
+    return node.is_in_place();
 }
 
 static bool is_optimizable_padding_for_crop(const crop_node& node,
@@ -445,17 +417,13 @@ bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layou
     const auto& crop_size = crop_layout.get_tensor();
     const auto& out_pad = crop_layout.data_padding;
 
-    if (format == format::bfyx && crop_size.batch[0] == input_layout.batch() &&
+    return format == format::bfyx && crop_size.batch[0] == input_layout.batch() &&
         crop_size.spatial[0] == input_layout.spatial(0) &&
         crop_size.spatial[1] == input_layout.spatial(1) && out_pad._lower_size[1] == 0 &&
         out_pad._upper_size[1] == 0 && out_pad._lower_size[0] == 0 &&
         out_pad._upper_size[0] == 0 && out_pad._lower_size[2] == 0 &&
         out_pad._lower_size[3] == 0 && out_pad._upper_size[2] == 0 &&
-        out_pad._upper_size[3] == 0) {
-        return true;
-    }
-
-    return false;
+        out_pad._upper_size[3] == 0;
 }
 
 bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const layout& crop_layout,
@@ -464,11 +432,7 @@ bool crop_in_place_optimization::can_crop_be_optimized_simple_data_format(const 
     const auto& in_padding = input_layout.data_padding;
     const auto& out_padding = crop_layout.data_padding;
 
-    if (format::is_simple_data_format(format) && !out_padding && !in_padding) {
-        return true;
-    }
-
-    return false;
+    return format::is_simple_data_format(format) && !out_padding && !in_padding;
 }
 
 static bool can_read_value_be_optimize(const read_value_node& node) {
@@ -536,11 +500,18 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph())
         return false;
 
+    // Treat crop as dynamic if its predecessor is dynamic, so that the
+    // dyn-only guards below match the runtime path. Skipped at runtime
+    // since the predecessor shape is already resolved there.
+    const bool dyn_aware = node.is_dynamic() ||
+                           (!is_runtime && !node.get_dependencies().empty() &&
+                            node.get_dependency(0).is_dynamic());
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
+        if (dyn_aware && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -555,15 +526,15 @@ bool crop_in_place_optimization::match(const program_node& node,
         // where the total size of tensor is not properly calculated and becomes 0
         // It causes issue for internal buffer allocation during runtime
         // TODO: Need to allow optimization for gemm user
-        if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
+        if (dyn_aware && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
+            if (dyn_aware && node.get_users().size() != 1)
                 return false;
             auto& reshape_node = user->as<reshape>();
             if (can_reshape_be_optimized(reshape_node) &&
-                (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
+                (!dyn_aware || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
@@ -594,19 +565,19 @@ bool crop_in_place_optimization::match(const program_node& node,
         (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
-    if (node.get_users().size() > 0) {
-        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && node.is_dynamic()) {
+    if (!node.get_users().empty()) {
+        GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && dyn_aware) {
             return false;
         }
 
         // optimization is available for cropping across depth(features) or batch
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
-        if ((!node.is_dynamic() || is_runtime) &&
+        if ((!dyn_aware || is_runtime) &&
             !is_optimizable_padding_for_crop(node, crop_layout, input_layout, crop_params.input_offsets[0]))
             return false;
-        if (!(((!node.is_dynamic() || is_runtime) && can_crop_be_optimized_along_feature(crop_layout, input_layout))
-            || can_crop_be_optimized_simple_data_format(crop_layout, input_layout)))
+        if (((dyn_aware && !is_runtime) || !can_crop_be_optimized_along_feature(crop_layout, input_layout))
+            && !can_crop_be_optimized_simple_data_format(crop_layout, input_layout))
             return false;
     } else {
         return false;
@@ -636,9 +607,11 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
     //  crop output buffer
     //  |_low_pad_|__data_size__|___|<-upper pad
     if (!node.is_dynamic() && can_crop_be_optimized_along_feature(crop_layout, input_layout)) {
+        std::pair<const program_node*, layout> user_info;
         update_in_place_crop_padding_along_feature(node,
                                                    crop_layout,
                                                    input_layout,
+                                                   user_info,
                                                    crop_params->input_offsets[0],
                                                    node.get_primitive()->axis,
                                                    false);
@@ -673,13 +646,14 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
 void crop_in_place_optimization::update_in_place_crop_padding_along_feature(const program_node& node,
                                                                             layout& crop_layout,
                                                                             layout& input_layout,
+                                                                            std::pair<const program_node*, layout>& user_info,
                                                                             const tensor offsets,
                                                                             size_t crop_axis,
                                                                             bool is_runtime) {
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         padding::DynamicDimsMask info_dynamic_pad;
-        info_dynamic_pad[crop_axis] = 1;
+        info_dynamic_pad[crop_axis] = true;
         crop_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
         return;
     }
@@ -711,8 +685,90 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
     // set padding
     if (is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
+
+        // Explicitly propagate the crop's feature-axis padding into the
+        // reshape output layout. reshape_inst::calc_output_layouts resets
+        // padding to empty for reshape_mode::base, so relying on a follow-up
+        // reshape_inst->update_shape() call would drop the padding silently.
+        if (user_info.first && user_info.first->is_type<reshape>()) {
+            const auto reshape_desc = user_info.first->as<reshape>().get_primitive();
+            const auto reshape_mode = reshape_desc->mode;
+            const auto reshape_ps = user_info.second.get_partial_shape();
+            const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
+            const auto crop_ps = crop_layout.get_partial_shape();
+            const auto crop_dim_val = crop_ps[crop_axis].get_length();
+
+            std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+            std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
+            padding::DynamicDimsMask reshape_dyn_pad_mask;
+
+            // TransposeSplitMatcher pattern: crop [L, 1, H, S(, ...)] cut on the
+            // feature axis (crop_axis == 1, crop_dim_val == 1) feeding a base-mode
+            // reshape that drops the size-1 feature dim ([L, H, S(, ...)]).
+            //
+            // With crop_dim_val == 1 the standard axis-mapping algorithm below
+            // (mirrored from update_in_place_crop_padding_simple_data_format)
+            // would place raw `k` on the reshape's last axis. That yields
+            // get_linear_offset() == k and get_pitches()[0] == pshape[-1] +
+            // pad, both of which are physically wrong for downstream CM/OCL
+            // kernels that read the layout via those standard APIs.
+            //
+            // The parent buffer per-token stride is F * H * S(...) and slice-k
+            // starts at k * H * S(...) inside it. To make the reshape output
+            // layout carry those exact numbers we place scaled padding on the
+            // reshape's dim 1 (bfyx feature position, which corresponds to
+            // pshape[1] == H after the squeeze):
+            //   _lower_size[1] = k       * H_size
+            //   _upper_size[1] = (F-1-k) * H_size
+            // yielding padded_dim[1] = F * H_size, therefore:
+            //   get_pitches()[0]    = padded_dim[1] * padded_dim[2] * ... = F * H * S(...)
+            //   get_linear_offset() = _lower_size[1] * pitch[1]          = k * H * S(...)
+            // Only inner-axis padding contributes to pitches[0], so this
+            // scaling cannot be represented on the L (batch) axis.
+            const bool is_axis1_size1_squeeze = reshape_mode == reshape::reshape_mode::base && crop_axis == 1 && crop_dim_val == 1 &&
+                                                reshape_ps.size() + 1 == crop_ps.size() && reshape_ps.size() >= 2 && reshape_ps[1].is_static();
+
+            if (is_axis1_size1_squeeze) {
+                const auto h_size = reshape_ps[1].get_length();
+                reshape_lower_sizes[1] = lower_sizes[crop_axis] * h_size;
+                reshape_upper_sizes[1] = upper_sizes[crop_axis] * h_size;
+                reshape_dyn_pad_mask[1] = true;
+            } else {
+                // Fallback: mirror update_in_place_crop_padding_simple_data_format
+                // axis-mapping so build-time (dyn mask) and runtime (mask +
+                // explicit sizes) paths pick the same reshape axis for patterns
+                // that do not need scaling.
+                size_t reshape_axis = crop_axis;
+                if (reshape_mode == reshape::reshape_mode::base) {
+                    reshape_axis = reshape_ps.size() - 1;
+                    ov::Dimension::value_type mul = 1;
+                    for (size_t i = reshape_ps.size(); i > 1; i--) {
+                        if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
+                            break;
+                        mul *= reshape_ps[i - 1].get_length();
+                        reshape_axis = i - 1;
+                    }
+                } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
+                    const auto& output_pattern = reshape_desc->output_pattern;
+                    for (size_t i = 0; i < output_pattern.size(); i++) {
+                        if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                            reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                        }
+                    }
+                }
+
+                OPENVINO_ASSERT(reshape_axis < output_rank,
+                                "[GPU] Calculated reshape_axis is out of range for along-feature crop propagation.");
+
+                reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
+                reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
+                reshape_dyn_pad_mask[reshape_axis] = true;
+            }
+
+            user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
+        }
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
     }
@@ -727,7 +783,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding._dynamic_dims_mask = dyn_pad_sizes;
 
         if (user_info.first && user_info.first->is_type<reshape>()) {
@@ -735,18 +791,43 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             auto reshape_mode = reshape_desc->mode;
             auto reshape_axis = crop_axis;
             if (reshape_mode == reshape::reshape_mode::base) {
-                if (crop_axis == 0 && !crop_layout.get_partial_shape()[0].is_dynamic() &&
-                    crop_layout.get_partial_shape()[0].get_length() == 1 &&
-                    !reshape_desc->output_pattern.empty() &&
-                    reshape_desc->output_pattern[0] != 0 && reshape_desc->output_pattern[0] != 1) {
+                const auto crop_ps = crop_layout.get_partial_shape();
+                const auto reshape_ps = user_info.second.get_partial_shape();
+
+                // TransposeSplitMatcher pattern: crop_axis == 1 with a unit
+                // slice feeding a base-mode reshape that drops the size-1
+                // feature dim ([L, 1, H, S(, ...)] -> [L, H, S(, ...)]).
+                //
+                // The runtime along-feature helper (see
+                // update_in_place_crop_padding_along_feature) places scaled
+                // padding on the reshape's dim 1 (H axis) so that
+                // get_linear_offset() == k * H * S(...) and get_pitches()[0]
+                // == F * H * S(...). Downstream OCL consumers (RoPE,
+                // eltwise, MVN, ...) JIT-compile against this build-time
+                // layout snapshot and bake in "read pad from shape_info slot
+                // for axis N" from the dyn-pad mask set here. If the
+                // build-time mask sits on a different axis than the runtime
+                // one, fill_shape_info_data writes 0 into the JIT-baked slot
+                // and consumers walk the wrong memory. Mirror the runtime
+                // helper's axis choice to keep build-time and runtime in
+                // sync.
+                const bool is_axis1_size1_squeeze = crop_axis == 1 && crop_ps[crop_axis].is_static() &&
+                                                    crop_ps[crop_axis].get_length() == 1 &&
+                                                    reshape_ps.size() + 1 == crop_ps.size() && reshape_ps.size() >= 2 &&
+                                                    reshape_ps[1].is_static();
+
+                if (is_axis1_size1_squeeze) {
+                    reshape_axis = 1;
+                } else if (crop_axis == 0 && !crop_ps[0].is_dynamic() && crop_ps[0].get_length() == 1 &&
+                           !reshape_desc->output_pattern.empty() && reshape_desc->output_pattern[0] != 0 &&
+                           reshape_desc->output_pattern[0] != 1) {
                     // The crop produces exactly batch=1 per slice and the reshape squeezes that dim.
                     // output_pattern[0] == -1 means the batch dim is absorbed (squeezed).
                     reshape_axis = 0;
                 } else {
                     ov::Dimension::value_type mul = 1;
-                    auto reshape_ps = user_info.second.get_partial_shape();
                     reshape_axis = reshape_ps.size() - 1;
-                    auto crop_dim_val = crop_layout.get_partial_shape()[crop_axis].get_length();
+                    auto crop_dim_val = crop_ps[crop_axis].get_length();
                     for (size_t i = reshape_ps.size(); i > 1; i--) {
                         if (reshape_ps[i - 1].is_dynamic() || mul == crop_dim_val)
                             break;
@@ -766,7 +847,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
             }
 
             auto reshape_dyn_pad_mask = padding::DynamicDimsMask();
-            reshape_dyn_pad_mask[reshape_axis] = 1;
+            reshape_dyn_pad_mask[reshape_axis] = true;
             user_info.second.data_padding._dynamic_dims_mask = reshape_dyn_pad_mask;
         }
         return true;
@@ -789,7 +870,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     if (is_runtime) {
         padding::DynamicDimsMask dyn_pad_sizes;
-        dyn_pad_sizes[crop_axis] = 1;
+        dyn_pad_sizes[crop_axis] = true;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, dyn_pad_sizes);
         if (user_info.first) {
             auto reshape_desc = user_info.first->as<reshape>().get_primitive();
@@ -813,7 +894,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                     const auto batch_stride_factor = reshape_ps[0].get_length();
                     reshape_lower_sizes[0] = lower_sizes[0] * batch_stride_factor;
                     reshape_upper_sizes[0] = upper_sizes[0] * batch_stride_factor;
-                    reshape_dyn_pad_mask[0] = 1;
+                    reshape_dyn_pad_mask[0] = true;
                 } else {
                     ov::Dimension::value_type divider = 1;
                     auto reshape_axis = reshape_ps.size();
@@ -838,7 +919,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                     reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                     reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                    reshape_dyn_pad_mask[reshape_axis] = 1;
+                    reshape_dyn_pad_mask[reshape_axis] = true;
 
                     if (reshape_lower_sizes[reshape_axis])
                         reshape_lower_sizes[reshape_axis] /= divider;
@@ -867,7 +948,7 @@ bool crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
                 reshape_upper_sizes[reshape_axis] = upper_sizes[crop_axis];
-                reshape_dyn_pad_mask[reshape_axis] = 1;
+                reshape_dyn_pad_mask[reshape_axis] = true;
 
                 user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, reshape_dyn_pad_mask);
             }
@@ -899,10 +980,7 @@ void prepare_buffer_fusing::run(program& p) {
             return true;
         }
 
-        if (is_dynamic || node->is_output() || node->has_fused_primitives() || node->is_in_shape_of_subgraph()) {
-            return false;
-        }
-        return true;
+        return !is_dynamic && !node->is_output() && !node->has_fused_primitives() && !node->is_in_shape_of_subgraph();
     };
 
     // [1] First try to optimize all concats
@@ -927,9 +1005,11 @@ void prepare_buffer_fusing::run(program& p) {
             auto crop_layout = node.get_output_layout();
             auto crop_params = node.get_kernel_impl_params();
             if (!node.is_dynamic() && crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                std::pair<const program_node*, layout> user_info;
                 crop_in_place_optimization::update_in_place_crop_padding_along_feature(node,
                                                                                        crop_layout,
                                                                                        pred_layout,
+                                                                                       user_info,
                                                                                        crop_params->input_offsets[0],
                                                                                        node.get_primitive()->axis,
                                                                                        false);
@@ -1035,7 +1115,7 @@ void prepare_buffer_fusing::run(program& p) {
                 // set dynamic pad dims for shape agnostic kernel
                 const auto& desc = node.get_primitive();
                 padding::DynamicDimsMask info_dynamic_pad;
-                info_dynamic_pad[concat_axis] = 1;
+                info_dynamic_pad[concat_axis] = true;
                 kv_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad;
                 node.set_output_layout(kv_out_layout);
                 node.can_share_buffer(false);
@@ -1052,7 +1132,7 @@ void prepare_buffer_fusing::run(program& p) {
 
                     const auto scales_zp_concat_axis = kv_cache_inst::get_scale_zp_sequence_axis();
                     padding::DynamicDimsMask info_dynamic_pad_scales;
-                    info_dynamic_pad_scales[scales_zp_concat_axis] = 1;
+                    info_dynamic_pad_scales[scales_zp_concat_axis] = true;
                     scales_out_layout.data_padding._dynamic_dims_mask = info_dynamic_pad_scales;
                     node.set_output_layout(scales_out_layout, true, kv_cache_output_idx);
 
@@ -1123,7 +1203,7 @@ void prepare_buffer_fusing::run(program& p) {
             }
 
             auto &input_layout = node.get_input_layout(0);
-            auto &output_layout = node.get_output_layout(0);
+            auto &output_layout = node.get_output_layout(false);
             if (!format::is_simple_data_format(input_layout.format) || input_layout.data_type != output_layout.data_type) {
                 return;
             }

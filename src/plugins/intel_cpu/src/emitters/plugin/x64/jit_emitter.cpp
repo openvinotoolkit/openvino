@@ -10,7 +10,6 @@
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <set>
 #include <vector>
@@ -192,8 +191,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
 
-    for (uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
-        h->push(Reg64(preserved_gpr_idx));
+    for (auto preserved_gpr_idx : preserved_gpr_idxs) {
+        h->push(Reg64(static_cast<int>(preserved_gpr_idx)));
     }
 
     if (!preserved_vec_idxs.empty()) {

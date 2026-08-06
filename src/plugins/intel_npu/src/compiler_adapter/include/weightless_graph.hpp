@@ -6,18 +6,26 @@
 
 #pragma once
 
+#include <unordered_map>
+
 #include "graph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 
+namespace ov {
+class ICore;
+}
+
 namespace intel_npu {
 
 /**
  * @brief Wrapper over multiple "ze_graph_handle_t" objects, one for each init/main schedule (weights separation).
- *
  * @details This class contains most implementation details for running the init schedules and setting the results as
  * inputs to the main one.
+ *
+ * @param weightsSource The source of weights for the weights separation pipeline. Should be either an `ov::Model` or a
+ * weights path along with the core object that may be used to parse the weights.
  */
 class WeightlessGraph final : public Graph {
 public:
@@ -29,7 +37,9 @@ public:
                     const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    std::shared_ptr<const ov::Model>&& model,
+                    std::variant<std::monostate,
+                                 std::shared_ptr<const ov::Model>,
+                                 std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false);
 
@@ -44,6 +54,8 @@ public:
      * compiled model.
      */
     void initialize_impl(const FilteredConfig& config) override;
+
+    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
@@ -106,7 +118,7 @@ private:
     std::vector<GraphDescriptor> _initsGraphDesc;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
-    std::shared_ptr<const ov::Model> _model;
+    std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> _constants;
 
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;

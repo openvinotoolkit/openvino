@@ -18,7 +18,7 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-
+#include "openvino/util/env_util.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
@@ -37,6 +37,7 @@
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "program_dump_graph.h"
+#include "to_string_utils.h"
 
 #include <algorithm>
 #include <string>
@@ -121,10 +122,10 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
-                std::string stage_suffix = "";
+                std::string stage_suffix;
                 if (key.cache_hit)
                     stage_suffix += " (cache_hit) ";
-                if (key.memalloc_info != "")
+                if (!key.memalloc_info.empty())
                     stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
@@ -586,7 +587,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
         ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
         if (!_reset_arguments &&
-            (prim->type() != cldnn::data::type_id() && !(prim->type() == cldnn::mutable_data::type_id() && prim->dependencies().empty()))) {
+            (prim->type() != cldnn::data::type_id() && (prim->type() != cldnn::mutable_data::type_id() || !prim->dependencies().empty()))) {
             prim->set_arguments();
         }
     }
@@ -611,7 +612,7 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
     if (node.is_type<input_layout>()) {
         for (const auto& user : node.get_users()) {
             const auto& lockable_input_ids = user->get_lockable_input_ids();
-            if (lockable_input_ids.count(user->get_dependency_index(node))) {
+            if (lockable_input_ids.count(user->get_dependency_index(node)) != 0u) {
                 return true;
             }
         }
@@ -623,6 +624,25 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
+    try {
+        auto it = _primitives.find(id);
+        if (it != _primitives.end()) {
+            auto* impl = it->second->get_impl();
+            auto kernel_name = impl ? impl->get_kernel_name() : "";
+            if (!kernel_name.empty()) {
+                if (_program != nullptr) {
+                    const auto& node = it->second->get_node();
+                    return kernel_name + "__" + dt_to_str(_program->get_inference_precision(node));
+                } else {
+                    return kernel_name;
+                }
+            }
+        }
+    } catch (...) { }
+
+    if (_program == nullptr)
+        return "undef";
+
     return _program->get_implementation_info(id);
 }
 
@@ -716,7 +736,7 @@ void network::build_exec_order() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_exec_order");
     if (!_is_dynamic) {
         for (auto& node : _program->get_processing_order()) {
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+            if (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty())) {
                 add_to_exec_order(node->id());
             }
         }
@@ -725,11 +745,11 @@ void network::build_exec_order() {
             return (node->is_dynamic() && node->is_type<concatenation>() && node->can_be_optimized());
         };
         auto is_allowed_pred_for_runtime_optimized_concat = [&](const program_node* node) {
-            return (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty()) &&
+            return (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty()) &&
                     node->get_users().size() == 1 && is_runtime_optimized_concat(node->get_users().front()));
         };
         for (auto& node : _program->get_processing_order()) {
-            if (!node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty())) {
+            if (!node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty())) {
                 if (is_allowed_pred_for_runtime_optimized_concat(node)) {
                     continue;
                 } else if (is_runtime_optimized_concat(node)) {
@@ -749,10 +769,7 @@ void network::build_exec_order() {
 
 bool network::contains_state(const std::string& variable_id) {
     auto it = _state_initializers.find(variable_id);
-    if (it != _state_initializers.end())
-        return true;
-    else
-        return false;
+    return it != _state_initializers.end();
 }
 
 memory& network::get_output_remote_memory(const primitive_id& id) const {
@@ -762,10 +779,7 @@ memory& network::get_output_remote_memory(const primitive_id& id) const {
 
 bool network::has_output_remote_memory_ptr(const primitive_id& id) const {
     auto it = _output_remote_mem_ptrs.find(id);
-    if (it != _output_remote_mem_ptrs.end())
-        return true;
-    else
-        return false;
+    return it != _output_remote_mem_ptrs.end();
 }
 
 void network::reset_output_remote_memory_ptrs() {
@@ -1169,7 +1183,9 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         && users.front()->is_type<reshape>()
         && users.front()->is_dynamic())
             return;
-
+    if (node.is_type<data>() && node.as<data>().get_primitive()->skip_device_transfer()) {
+        return;
+    }
     // Do not transfer memory if a user requires lockable memory.
     // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type
     if (node.need_lockable_memory())

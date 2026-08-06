@@ -123,8 +123,8 @@ private:
                        const VectorDims& roisnumStrides,
                        bool shared);
 
-    static const float* slice_class(int batch_idx,
-                                    int class_idx,
+    static const float* slice_class(size_t batch_idx,
+                                    size_t class_idx,
                                     const float* dataPtr,
                                     const VectorDims& dataStrides,
                                     bool is_boxes,

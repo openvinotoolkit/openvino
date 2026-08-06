@@ -4,6 +4,8 @@
 
 #ifdef OV_GPU_WITH_OCL_RT
 
+#include <algorithm>
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -12,6 +14,7 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/util/memory.hpp"
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -2947,4 +2950,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test
                                                               ov::element::Type_t::u16,
                                                               ov::element::Type_t::u32)),
                          OVRemoteTensorDataType_Test::getTestCaseName);
+
+TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    const size_t float_size = sizeof(float);
+    const ov::Shape shape{cacheline_size/float_size};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * sizeof(float);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    void* input_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+    void* output_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+
+    std::fill_n(static_cast<float*>(input_ptr), element_count, 2.0f);
+    std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
+
+    {
+        auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
+                                                     shape,
+                                                     ov::intel_gpu::VirtualAddressMemory(input_ptr));
+        auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
+                                                      shape,
+                                                      ov::intel_gpu::VirtualAddressMemory(output_ptr));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), remote_input_tensor);
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
+
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(input_ptr);
+    ov::util::aligned_free(output_ptr);
+}
+
 #endif  // OV_GPU_WITH_OCL_RT

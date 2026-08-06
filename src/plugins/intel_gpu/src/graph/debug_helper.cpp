@@ -280,6 +280,14 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e5m2)
+        dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e4m3)
+        dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f4e2m1)
+        dump<ov::float4_e2m1>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f8e8m0)
+        dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::boolean)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
@@ -310,10 +318,7 @@ bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iterati
     if (dump_iteration.empty())
         return true;
 
-    if (dump_iteration.find(iteration) == std::end(dump_iteration))
-        return false;
-
-    return true;
+    return dump_iteration.find(iteration) != std::end(dump_iteration);
 }
 
 std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) {
@@ -406,7 +411,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
             if (m_inst.is_input()) {
                 // Loading binary dumps for output tensors of input-layers : only one output exists or index(dstN) exists
                 auto dump_file = get_matched_from_filelist(files, "_dst0__");
-                OPENVINO_ASSERT((files.size() == 1 || dump_file.length() != 0), "Unexpected binary dump for input layer");
+                OPENVINO_ASSERT((files.size() == 1 || !dump_file.empty()), "Unexpected binary dump for input layer");
 
                 OPENVINO_ASSERT(files.size() == m_inst.outputs_memory_count(), "Mismatch dump file count");
 
@@ -416,7 +421,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                         std::string pattern = "_dst" + std::to_string(i) + "__";
                         dump_file = get_matched_from_filelist(files, pattern);
                     }
-                    OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_dst[N]__' for binary dump");
+                    OPENVINO_ASSERT((!dump_file.empty()), "Could not find expected pattern '_dst[N]__' for binary dump");
                     GPU_DEBUG_COUT << " Load binary dump : " << dump_file << " for " << layer_name << std::endl;
 
                     std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
@@ -430,11 +435,11 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                 }
             } else {
                 auto check_dst = get_matched_from_filelist(files, "_dst0__");
-                OPENVINO_ASSERT(check_dst.length() == 0, "Expected to load binaries for inputs of " + layer_name);
+                OPENVINO_ASSERT(check_dst.empty(), "Expected to load binaries for inputs of " + layer_name);
 
                 // Loading input tensors for any layer
                 auto dump_file = get_matched_from_filelist(files, "_src0__");
-                OPENVINO_ASSERT(dump_file.length() != 0, "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
+                OPENVINO_ASSERT(!dump_file.empty(), "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
 
                 for (size_t i = 0; i < m_inst.dependencies().size(); i++) {
                     auto dump_file = files[0];
@@ -442,11 +447,11 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
                         std::string pattern = "_src" + std::to_string(i) + "__";
                         dump_file = get_matched_from_filelist(files, pattern);
                     }
-                    if (dump_file.length() == 0) {
+                    if (dump_file.empty()) {
                         GPU_DEBUG_COUT  << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
                         continue;
                     }
-                    OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_src[N]__' for binary dump input");
+                    OPENVINO_ASSERT((!dump_file.empty()), "Could not find expected pattern '_src[N]__' for binary dump input");
                     GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                     std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
@@ -466,7 +471,7 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
     }
 
     // Dump input buffers of 'inst'
-    if (config.get_dump_tensors_path().length() > 0) {
+    if (!config.get_dump_tensors_path().empty()) {
         const std::string& layer_name = inst.id();
 
         if (is_target_iteration(m_iter, config.get_dump_iterations()) &&
@@ -548,7 +553,7 @@ NodeDebugHelper::~NodeDebugHelper() {
     }
 
     // Dump output buffers of 'inst'
-    if (config.get_dump_tensors_path().length() > 0) {
+    if (!config.get_dump_tensors_path().empty()) {
         const std::string layer_name = m_inst.id();
 
         if (is_target_iteration(m_iter, config.get_dump_iterations()) &&

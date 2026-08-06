@@ -41,9 +41,6 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     const uint xy = (int)get_global_id(0);
     const uint x = (xy * X_BLOCK_SIZE) % OUTPUT_SIZE_X;
     const uint y = (xy * X_BLOCK_SIZE) / OUTPUT_SIZE_X;
-    const uint spatial_base = xy * X_BLOCK_SIZE;
-    const uint input_spatial_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint full_spatial_block = (spatial_base + X_BLOCK_SIZE) <= input_spatial_size;
 
     const uint input_x = x;
     const uint input_y = y;
@@ -134,16 +131,11 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
                 __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
                 for (int i = 0; i < X_BLOCK_SIZE; i++)
                 {
-                    const uint spatial_idx = spatial_base + i;
-                    if (spatial_idx < input_spatial_size) {
-                        const uint xb = spatial_idx % INPUT0_SIZE_X;
-                        const uint yb = spatial_idx / INPUT0_SIZE_X;
-                        const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+                    const uint xb = (x + i) % INPUT0_SIZE_X;
+                    const uint yb = y + (x + i) / INPUT0_SIZE_X;
+                    const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
 
-                        src[i] = input[input_idx + sglid];
-                    } else {
-                        src[i] = UNIT_VAL_ZERO;
-                    }
+                    src[i] = input[input_idx + sglid];
                 }
 #else
                 src = input[input_offset + k * input_fs_pitch + sglid];
@@ -154,31 +146,14 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
         {
 #if PADDED_INPUT
 #if X_BLOCK_SIZE > 1
-            if (full_spatial_block) {
-                __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-                for (int i = 0; i < X_BLOCK_SIZE; i++)
-                {
-                    const uint xb = (x + i) % INPUT0_SIZE_X;
-                    const uint yb = y + (x + i) / INPUT0_SIZE_X;
-                    const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
+            __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
+            for (int i = 0; i < X_BLOCK_SIZE; i++)
+            {
+                const uint xb = (x + i) % INPUT0_SIZE_X;
+                const uint yb = y + (x + i) / INPUT0_SIZE_X;
+                const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
 
-                    src[i] = UNIT_BLOCK_READ(input, input_idx);
-                }
-            } else {
-                __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-                for (int i = 0; i < X_BLOCK_SIZE; i++)
-                {
-                    const uint spatial_idx = spatial_base + i;
-                    if (spatial_idx < input_spatial_size) {
-                        const uint xb = spatial_idx % INPUT0_SIZE_X;
-                        const uint yb = spatial_idx / INPUT0_SIZE_X;
-                        const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
-
-                        src[i] = UNIT_BLOCK_READ(input, input_idx);
-                    } else {
-                        src[i] = UNIT_VAL_ZERO;
-                    }
-                }
+                src[i] = UNIT_BLOCK_READ(input, input_idx);
             }
 #else
             src = UNIT_BLOCK_READ(input, input_offset + k * input_fs_pitch);
@@ -187,24 +162,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 #else // PADDED_INPUT
 
 #if X_BLOCK_SIZE > 1
-            if (full_spatial_block) {
-                src = UNIT_BLOCK_READ_VEC(input, input_offset + k * input_fs_pitch + input_y * input_y_pitch + input_x * input_x_pitch);
-            } else {
-                __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
-                for (int i = 0; i < X_BLOCK_SIZE; i++)
-                {
-                    const uint spatial_idx = spatial_base + i;
-                    if (spatial_idx < input_spatial_size) {
-                        const uint xb = spatial_idx % INPUT0_SIZE_X;
-                        const uint yb = spatial_idx / INPUT0_SIZE_X;
-                        const uint input_idx = input_offset + k * input_fs_pitch + yb * input_y_pitch + xb * input_x_pitch;
-
-                        src[i] = UNIT_BLOCK_READ(input, input_idx);
-                    } else {
-                        src[i] = UNIT_VAL_ZERO;
-                    }
-                }
-            }
+            src = UNIT_BLOCK_READ_VEC(input, input_offset + k * input_fs_pitch + input_y * input_y_pitch + input_x * input_x_pitch);
 #else
             src = UNIT_BLOCK_READ(input, input_offset + k * input_fs_pitch);
 #endif // X_BLOCK_SIZE > 1

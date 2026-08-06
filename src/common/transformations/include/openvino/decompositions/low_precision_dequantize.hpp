@@ -56,19 +56,26 @@ namespace decomposition {
 /// \param output_shape Optional shape constant. When provided a Reshape with
 ///                     special_zero=false is appended after the Multiply
 ///                     (skipped if the Multiply output already has that shape).
-ov::Output<ov::Node> TRANSFORMATIONS_API low_precision_dequantize(ov::pass::NodeRegistry& reg,
-                                                                  const ov::Output<ov::Node>& x,
-                                                                  const ov::Output<ov::Node>& scale,
-                                                                  const ov::Output<ov::Node>& zero_point = {},
-                                                                  const ov::Output<ov::Node>& output_shape = {});
+/// \param scale_decompression_precision Optional element type for the Convert node
+///                     that converts the quantized scale and zp to the output element type. If not provided, the
+///                     Convert node is omitted and the scale is used as-is.
+ov::Output<ov::Node> TRANSFORMATIONS_API
+low_precision_dequantize(ov::pass::NodeRegistry& reg,
+                         const ov::Output<ov::Node>& x,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::Output<ov::Node>& zero_point = {},
+                         const ov::Output<ov::Node>& output_shape = {},
+                         const ov::element::Type& decompression_precision = ov::element::dynamic);
 
 /// \brief Convenience overload for callers that do not need access to the
 ///        intermediate nodes. Internally allocates a NodeRegistry and
 ///        forwards to the registry-based overload.
-ov::Output<ov::Node> TRANSFORMATIONS_API low_precision_dequantize(const ov::Output<ov::Node>& x,
-                                                                  const ov::Output<ov::Node>& scale,
-                                                                  const ov::Output<ov::Node>& zero_point = {},
-                                                                  const ov::Output<ov::Node>& output_shape = {});
+ov::Output<ov::Node> TRANSFORMATIONS_API
+low_precision_dequantize(const ov::Output<ov::Node>& x,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::Output<ov::Node>& zero_point = {},
+                         const ov::Output<ov::Node>& output_shape = {},
+                         const ov::element::Type& decompression_precision = ov::element::dynamic);
 
 }  // namespace decomposition
 }  // namespace ov

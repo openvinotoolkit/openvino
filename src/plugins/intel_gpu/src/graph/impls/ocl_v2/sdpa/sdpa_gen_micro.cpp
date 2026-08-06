@@ -231,7 +231,7 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
 
 inline size_t micro_get_input_num(const kernel_impl_params& params, const sdpa_configuration& config) {
     auto data_inputs_num = config.input_num;
-    bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
+    bool is_paged_attention = params.is_type<paged_attention>();
     if (!is_paged_attention) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         data_inputs_num = get_data_inputs_num(*desc);
@@ -1151,6 +1151,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     } else {
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids && m_is_prefill) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
     }
 
     if (config.has_const_scale_val) {
@@ -1441,6 +1445,10 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
+        if (desc->has_token_type_ids && m_is_prefill) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
+
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
@@ -1544,7 +1552,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 }
 
 size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
-    OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+    OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
     const auto& gemms = kernel_data.micro_kernels;
     const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");
@@ -1603,9 +1611,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         config = choose_config_xehpg(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_paged_attention, is_prefill);
         break;
     }
-    case gpu_arch::xe_hpc:
-        config = choose_config_xehpc(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
-        break;
     case gpu_arch::xe2:
     case gpu_arch::xe3:
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);

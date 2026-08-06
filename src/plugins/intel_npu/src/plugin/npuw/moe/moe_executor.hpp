@@ -255,16 +255,17 @@ private:
     void run_expert_batch(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
 
     /**
-     * @brief Execute expert iterative mode inference
+     * @brief Execute expert iterative mode inference.
      *
-     * Processing mode: Iterate through experts, each processes multiple tokens
-     * Uses dynamic chunk sizing and accumulates outputs.
+     * Processing mode: Iterate through experts, each processes multiple tokens.
+     * CPU gather and NPU inference are overlapped via double-buffering:
+     * while NPU executes chunk k, CPU prepares (unpack + gather) chunk k+1.
+     * Router row parsing for expert k+1 is also interleaved inside the NPU
+     * execution window of expert k.
      *
      * @param idx Function call index
-     * @param real_idx Submodel index
-     * @param selected_experts List of selected expert IDs
      */
-    void run_expert_iterative(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts);
+    void run_expert_iterative(size_t idx);
 
     /**
      * @brief Execute batch experts inference (deprecated)
@@ -273,15 +274,6 @@ private:
     [[deprecated("Use run_expert_batch() instead")]]
     void run_batch_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
         run_expert_batch(idx, real_idx, selected_experts);
-    }
-
-    /**
-     * @brief Execute iterative experts inference (deprecated)
-     * @deprecated Use run_expert_iterative() instead
-     */
-    [[deprecated("Use run_expert_iterative() instead")]]
-    void run_iterative_experts(size_t idx, size_t real_idx, const std::vector<size_t>& selected_experts) {
-        run_expert_iterative(idx, real_idx, selected_experts);
     }
 
     // === Helper functions ===

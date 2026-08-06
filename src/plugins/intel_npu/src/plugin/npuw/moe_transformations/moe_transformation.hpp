@@ -247,18 +247,17 @@ struct MoEExperts {
         return _param_mapping;
     }
 
-    // Factory method to create MoEExperts from a model (for expert pattern only)
-    // router_model: Router model to extract actual K from TopK node (required)
+    // Factory method to create MoEExperts from a model (for expert pattern only).
+    // k_value: number of active experts (K from TopK in the Router, extracted during pattern matching).
     // iterative_chunk_size: Token chunk size for iterative mode processing (default: 128)
     static std::optional<MoEExperts> from(const std::shared_ptr<ov::Model>& model,
-                                          const std::shared_ptr<ov::Model>& router_model,
+                                          size_t k_value,
                                           size_t iterative_chunk_size);
 };
 
-// Factory method to create MoEDownstream from a model (for downstream pattern)
-// router_model: Router model to extract actual K from TopK node (required)
-std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model,
-                                                   const std::shared_ptr<ov::Model>& router_model);
+// Factory method to create MoEDownstream from a model (for downstream pattern).
+// k_value: number of active experts (K from TopK in the Router, extracted during pattern matching).
+std::optional<MoEDownstream> create_moe_downstream(const std::shared_ptr<ov::Model>& model, size_t k_value);
 
 }  // namespace function
 

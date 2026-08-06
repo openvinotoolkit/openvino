@@ -20,7 +20,7 @@ public:
     bool is_set(size_t idx) const {
         size_t storage_idx = idx >> 6;
         uint64_t mask = 1ULL << (idx & 0x3F);
-        return storage[storage_idx] & mask;
+        return (storage[storage_idx] & mask) != 0u;
     }
     void set(size_t idx) {
         size_t storage_idx = idx >> 6;

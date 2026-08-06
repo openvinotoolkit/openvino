@@ -236,7 +236,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     auto out_is_int8 = quantize_node.get_output_layout().data_type == data_types::i8;
     auto out_is_uint8 = quantize_node.get_output_layout().data_type == data_types::u8;
-    auto out_is_fp = !(out_is_int8 || out_is_uint8);
+    auto out_is_fp = !out_is_int8 && !out_is_uint8;
     bool need_clamp = levels != 256 || out_is_fp;
     bool need_min_clamp = need_clamp;
     bool need_max_clamp = need_clamp;
@@ -264,7 +264,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     quantize_inputs.push_back(out_scale_prim->id);
     quantize_inputs.push_back(out_shift_prim->id);
 
-    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
+    data_types out_dt = !primitive->output_data_types.empty() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
     auto new_quantize_prim = std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
     new_quantize_prim->origin_op_name = primitive->origin_op_name;
     new_quantize_prim->origin_op_type_name = primitive->origin_op_type_name;
@@ -419,7 +419,7 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
 
     auto &usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
-    if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
+    if (!usr->is_type<convolution>() || usr->get_input_layout(1).data_type != data_types::i8 ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
         (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
@@ -637,6 +637,10 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
     using ov::intel_gpu::ocl::MOE3GemmInputIndex;
     auto prim = node.get_primitive();
+    if (prim->_otd.lru_expert_num > 0) {
+        // OTD routed weights are backed by resident-size allocations; reorders would materialize full logical tensors.
+        return;
+    }
     const auto& cfg = prim->_config;
     // Routed-expert scales (gate/up/down); zp at +1 when has_zp.
     constexpr std::array<size_t, 3> routed_scale_indices{

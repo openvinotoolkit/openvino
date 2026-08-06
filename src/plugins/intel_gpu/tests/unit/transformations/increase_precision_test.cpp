@@ -509,6 +509,104 @@ TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideo_F) {
     test_IncreasePositionIdsLTXVideo(model, model_ref, manager, comparator, false);
 }
 
+// model2 topology: Sin/Cos → Gather(repeat_interleave) → Concat
+// Replaces the GatherND→Transpose chain used in model1.
+static void test_IncreasePositionIdsLTXVideoGather(std::shared_ptr<ov::Model>& model,
+                                                   std::shared_ptr<ov::Model>& model_ref,
+                                                   ov::pass::Manager& manager,
+                                                   FunctionsComparator& comparator,
+                                                   bool is_ltx_video) {
+    {
+        auto param_mul_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 64});
+        auto param_x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 64, 16});
+
+        // Upstream: Multiply → Add(Constant) → Transpose → Reshape
+        auto mul_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 64}, {3.14f});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(param_mul_in, mul_const);
+        auto add_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 64}, {1e-6f});
+        auto add = std::make_shared<ov::op::v1::Add>(multiply, add_const);
+        auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
+        auto transpose_up = std::make_shared<ov::op::v1::Transpose>(add, transpose_order);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, 64, 3});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose_up, reshape_shape, false);
+
+        // Sin path: Sin → Gather → Concat(Broadcast, Gather)
+        auto sin_node = std::make_shared<ov::op::v0::Sin>(reshape);
+        auto sin_gather_indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{64}, {0});
+        auto sin_gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        auto sin_gather = std::make_shared<ov::op::v8::Gather>(sin_node, sin_gather_indices, sin_gather_axis);
+        auto sin_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {0.0f});
+        auto sin_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_concat_other, sin_gather}, -1);
+
+        // Cos path: Cos → Gather → Concat(Broadcast, Gather)
+        auto cos_node = std::make_shared<ov::op::v0::Cos>(reshape);
+        auto cos_gather_indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{64}, {0});
+        auto cos_gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        auto cos_gather = std::make_shared<ov::op::v8::Gather>(cos_node, cos_gather_indices, cos_gather_axis);
+        auto cos_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {1.0f});
+        auto cos_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_concat_other, cos_gather}, -1);
+
+        ov::op::internal::RoPE::Config rope_config;
+        rope_config.is_ltx_video = is_ltx_video;
+        rope_config.rotary_ndims = 64;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{param_x, cos_concat, sin_concat}, rope_config);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{param_mul_in, param_x});
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    if (is_ltx_video) {
+        auto param_mul_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 64});
+        auto param_x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 64, 16});
+
+        // Upstream with f32 converts inserted by the pass
+        auto convert_mul_in = std::make_shared<ov::op::v0::Convert>(param_mul_in, ov::element::f32);
+        auto mul_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 64}, {3.14f});
+        auto convert_mul_const = std::make_shared<ov::op::v0::Convert>(mul_const, ov::element::f32);
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(convert_mul_in, convert_mul_const);
+        auto add_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 64}, {1e-6f});
+        auto convert_add_const = std::make_shared<ov::op::v0::Convert>(add_const, ov::element::f32);
+        auto add = std::make_shared<ov::op::v1::Add>(multiply, convert_add_const);
+        auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
+        auto transpose_up = std::make_shared<ov::op::v1::Transpose>(add, transpose_order);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, 64, 3});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose_up, reshape_shape, false);
+
+        // Sin path with Convert(f32→f16) after Sin
+        auto sin_node = std::make_shared<ov::op::v0::Sin>(reshape);
+        auto convert_sin = std::make_shared<ov::op::v0::Convert>(sin_node, ov::element::f16);
+        auto sin_gather_indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{64}, {0});
+        auto sin_gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        auto sin_gather = std::make_shared<ov::op::v8::Gather>(convert_sin, sin_gather_indices, sin_gather_axis);
+        auto sin_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {0.0f});
+        auto sin_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_concat_other, sin_gather}, -1);
+
+        // Cos path with Convert(f32→f16) after Cos
+        auto cos_node = std::make_shared<ov::op::v0::Cos>(reshape);
+        auto convert_cos = std::make_shared<ov::op::v0::Convert>(cos_node, ov::element::f16);
+        auto cos_gather_indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{64}, {0});
+        auto cos_gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {-1});
+        auto cos_gather = std::make_shared<ov::op::v8::Gather>(convert_cos, cos_gather_indices, cos_gather_axis);
+        auto cos_concat_other = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 64, 8}, {1.0f});
+        auto cos_concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_concat_other, cos_gather}, -1);
+
+        ov::op::internal::RoPE::Config rope_config;
+        rope_config.is_ltx_video = true;
+        rope_config.rotary_ndims = 64;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{param_x, cos_concat, sin_concat}, rope_config);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{param_mul_in, param_x});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideoGather_T) {
+    test_IncreasePositionIdsLTXVideoGather(model, model_ref, manager, comparator, true);
+}
+
+TEST_F(TransformationTestsF, IncreasePositionIdsLTXVideoGather_F) {
+    test_IncreasePositionIdsLTXVideoGather(model, model_ref, manager, comparator, false);
+}
+
 TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForQwen25VL) {
     {
         auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 3, -1, -1 });
@@ -983,4 +1081,86 @@ TEST(IncreasePrecisionTest, IncreaseRMSInputPrecisionForQwenVLMerger) {
     auto rms_user = rms_m->get_users()[0];
     EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(rms_user) != nullptr)
         << "rms_m output should feed into Convert node";
+}
+
+// Gemma4 pattern: MatMul → Convert(f16→f32) → Transpose → Concat → Sin/Cos → Unsqueeze → RoPE
+TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGemma4) {
+    {
+        // Gemma4 rotary embedding: position_ids path goes through Convert(i32→f16) then MatMul(f16)
+        // followed by Convert(f16→f32) → Transpose → Concat → Sin/Cos → Unsqueeze → RoPE
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        auto convert_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(convert_i32, unsqueeze_const);
+        auto convert_f16 = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f16);
+
+        // Broadcast frequency matrix (f16)
+        auto freq_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128, 1});
+        auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 128, 1});
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(freq_const, shape_const);
+
+        // MatMul in f16
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast, convert_f16);
+
+        // Convert after MatMul (f16→f32)
+        auto convert_after_matmul = std::make_shared<ov::op::v0::Convert>(matmul, ov::element::f32);
+
+        // Transpose
+        auto transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(convert_after_matmul, transpose_const);
+
+        // Concat → Sin/Cos
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, 2);
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        // Unsqueeze → RoPE
+        auto unsqueeze_const2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
+        auto cos_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(cos, unsqueeze_const2);
+        auto sin_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(sin, unsqueeze_const2);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{position_ids, rope_input});
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    {
+        // Expected: Convert_3 becomes i32→f32, Broadcast gets a Convert(f16→f32),
+        // MatMul executes in f32, Convert after MatMul is removed.
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        auto convert_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto unsqueeze_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1});
+        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(convert_i32, unsqueeze_const);
+        auto convert_f32 = std::make_shared<ov::op::v0::Convert>(unsqueeze, ov::element::f32);
+
+        // Broadcast frequency matrix (f16) + Convert to f32
+        auto freq_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128, 1});
+        auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 128, 1});
+        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(freq_const, shape_const);
+        auto broadcast_to_f32 = std::make_shared<ov::op::v0::Convert>(broadcast, ov::element::f32);
+
+        // MatMul in f32 (no Convert after)
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(broadcast_to_f32, convert_f32);
+
+        // Transpose (directly from MatMul, Convert removed)
+        auto transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{0, 2, 1});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(matmul, transpose_const);
+
+        // Concat → Sin/Cos
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{transpose, transpose}, 2);
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        // Unsqueeze → RoPE
+        auto unsqueeze_const2 = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
+        auto cos_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(cos, unsqueeze_const2);
+        auto sin_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(sin, unsqueeze_const2);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_unsqueeze, sin_unsqueeze}, ov::op::internal::RoPE::Config());
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{position_ids, rope_input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

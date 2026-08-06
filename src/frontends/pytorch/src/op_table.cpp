@@ -126,6 +126,7 @@ OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_getitem);
 OP_CONVERTER(translate_glu);
 OP_CONVERTER(translate_grid_sampler);
+OP_CONVERTER(translate_grouped_mm);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_gru);
 OP_CONVERTER(translate_hann_window);
@@ -150,6 +151,7 @@ OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_lerp);
 OP_CONVERTER(translate_linalg_cross);
+OP_CONVERTER(translate_linalg_det);
 OP_CONVERTER(translate_linalg_norm);
 OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
@@ -228,6 +230,7 @@ OP_CONVERTER(translate_randn_like);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
+OP_CONVERTER(translate_rrelu);
 OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_replication_pad_nd);
@@ -261,6 +264,7 @@ OP_CONVERTER(translate_stack);
 OP_CONVERTER(translate_std);
 OP_CONVERTER(translate_std_mean);
 OP_CONVERTER(translate_stft);
+OP_CONVERTER(translate_svd);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
@@ -370,6 +374,8 @@ OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
 OP_CONVERTER(translate_linear_bitnet);
+OP_CONVERTER(translate_linear_ct);
+OP_CONVERTER(translate_embedding_ct);
 OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
@@ -497,6 +503,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
         {"aten::cumsum", op::translate_cumsum},
+        {"aten::det", op::translate_linalg_det},
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
         {"aten::dim", op::translate_dim},
@@ -557,6 +564,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::gelu", op::translate_gelu},
         {"aten::glu", op::translate_glu},
         {"aten::grid_sampler", op::translate_grid_sampler},
+        {"aten::_grouped_mm", op::translate_grouped_mm},
         {"aten::group_norm", op::translate_group_norm},
         {"aten::gru", op::translate_gru},
         {"aten::greater", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
@@ -598,6 +606,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::lift_fresh", op::skip_node},
         {"aten::lift_fresh_copy", op::skip_node},
         {"aten::linalg_cross", op::translate_linalg_cross},
+        {"aten::linalg_det", op::translate_linalg_det},
         {"aten::linalg_inv", op::translate_inverse},
         {"aten::linalg_norm", op::translate_linalg_norm},
         {"aten::linalg_matrix_norm", op::translate_linalg_matrix_norm},
@@ -695,6 +704,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::relu", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Relu>, 1>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
+        {"aten::rrelu", op::translate_rrelu},
+        {"aten::rrelu_", op::inplace_op<op::translate_rrelu>},
         {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_1to1_match_2_inputs<opset10::Tile>},
         {"aten::repeat_interleave", op::translate_repeat_interleave},
@@ -758,6 +769,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
+        {"aten::svd", op::translate_svd},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::take_along_dim", op::translate_take_along_dim},
@@ -802,6 +814,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zeros_like", op::translate_zeros_like},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
+        {"ov_ext::ct_gemm", op::translate_linear_ct},
+        {"ov_ext::ct_embedding", op::translate_embedding_ct},
         {"ov_ext::gptq_gemm", op::translate_linear_gptq},
         {"ov_ext::bmm", op::translate_bmm_ext},
         {"ov_ext::embedding", op::translate_embedding_ext},
@@ -859,6 +873,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._embedding_bag_forward_only.default", op::translate_embedding_bag_fx},
         {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
          op::translate_fake_quantize_per_tensor_affine_fx},
+        {"aten._grouped_mm.default", op::translate_grouped_mm},
         {"aten._local_scalar_dense.default", op::skip_node},
         {"aten._log_softmax.default", op::translate_log_softmax_fx},
         {"aten.__lshift__.Tensor", op::translate_bitwise_left_shift},
@@ -1077,6 +1092,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
+        {"aten.rrelu.default", op::translate_rrelu},
+        {"aten.rrelu_.default", op::inplace_op<op::translate_rrelu>},
         {"aten.remainder.default", op::translate_remainder},
         {"aten.remainder.Scalar", op::translate_remainder},
         {"aten.remainder.Tensor", op::translate_remainder},
@@ -1180,6 +1197,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         // OpenVINO extension ops registered via torch.library for torch.export
         {"ov_ext.awq_gemm.default", op::translate_linear_awq},
         {"ov_ext.bit_linear.default", op::translate_linear_bitnet},
+        {"ov_ext.ct_gemm.default", op::translate_linear_ct},
+        {"ov_ext.ct_embedding.default", op::translate_embedding_ct},
         {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},

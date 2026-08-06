@@ -31,12 +31,13 @@ namespace test {
  *               Matmul(transpose_b = true)             Gather
 */
 
-using SharedMatmulAndGatherWeightsDecompressionParams = std::tuple<std::string,                 // target device
+using SharedMatmulAndGatherWeightsDecompressionParams = std::tuple<std::string,                        // target device
                                                                    GatherDecompressionShapeParams,
-                                                                   ElementType,                 // weights precision
-                                                                   ElementType,                 // decompression precision
-                                                                   bool,                        // decompression subtract
-                                                                   bool>;                       // use matmul decompression implementation
+                                                                   ElementType,                        // weights precision
+                                                                   ElementType,                        // decompression precision
+                                                                   ov::test::utils::DecompressionType, // multiply type
+                                                                   ov::test::utils::DecompressionType, // subtract type
+                                                                   bool>;                              // use matmul decompression implementation
 
 class SharedMatmulAndGatherWeightsDecompression : public testing::WithParamInterface<SharedMatmulAndGatherWeightsDecompressionParams>,
                                                   virtual public SubgraphBaseTest {
@@ -51,7 +52,8 @@ protected:
                                             const int group_size,
                                             const ov::element::Type data_precision,
                                             const ov::element::Type output_precision,
-                                            const bool add_subtract);
+                                            const ov::test::utils::DecompressionType decompression_multiply_type,
+                                            const ov::test::utils::DecompressionType decompression_subtract_type);
     void SetUp() override;
     void check_results();
 };

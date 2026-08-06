@@ -15,7 +15,7 @@ namespace {
 
 class MoeRouterSoftMaxTopK : public KernelGenerator {
 public:
-    MoeRouterSoftMaxTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "softmax_topk") {}
+    MoeRouterSoftMaxTopK() : KernelGenerator("moe_router_fused", "softmax_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -41,7 +41,7 @@ protected:
 
 class MoeRouterSigmoidBiasTopK : public KernelGenerator {
 public:
-    MoeRouterSigmoidBiasTopK() : KernelGenerator("moe_3gemm_swiglu_fuse", "sigmoid_bias_topk") {}
+    MoeRouterSigmoidBiasTopK() : KernelGenerator("moe_router_fused", "sigmoid_bias_topk") {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -151,3 +151,6 @@ std::unique_ptr<primitive_impl> MoeRouterFusedOpt::create_impl(const program_nod
 }
 
 }  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_router_fused)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeRouterFusedImpl)

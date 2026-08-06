@@ -23,7 +23,7 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
-        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::u8, ov::element::i8 };
+        static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {
             format::any,
             format::bfyx,

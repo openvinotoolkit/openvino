@@ -47,27 +47,39 @@ std::string memory_desc_to_string(const dnnl::memory::desc& desc) {
     return ss.str();
 }
 
+namespace {
 template <typename T>
-cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
-    auto engine = zp_memory->get_engine();
-    auto& stream = engine->get_service_stream();
-
-    auto zp_s32_layout = zp_memory->get_layout();
-    zp_s32_layout.data_type = data_types::i32;
-    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
-
+void copy_zp_data_to_s32(const memory::ptr& zp_memory, const memory::ptr& zp_s32_memory, stream& stream) {
     mem_lock<T, mem_lock_type::read> zp_data(zp_memory, stream);
     mem_lock<int32_t, mem_lock_type::write> zp_s32_data(zp_s32_memory, stream);
     for (size_t i = 0; i < zp_data.size(); i++) {
         zp_s32_data.data()[i] = static_cast<int32_t>(zp_data.data()[i]);
     }
+}
+}  // namespace
+
+cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
+    auto zp_s32_layout = zp_memory->get_layout();
+    const auto src_dtype = zp_s32_layout.data_type;
+    if (src_dtype == data_types::i32)
+        return zp_memory;
+    if (!data_type_traits::is_i8_u8(src_dtype))
+        return nullptr;
+
+    auto engine = zp_memory->get_engine();
+    auto& stream = engine->get_service_stream();
+
+    zp_s32_layout.data_type = data_types::i32;
+    auto zp_s32_memory = engine->allocate_memory(zp_s32_layout, false);
+
+    if (src_dtype == data_types::i8) {
+        copy_zp_data_to_s32<int8_t>(zp_memory, zp_s32_memory, stream);
+    } else {
+        copy_zp_data_to_s32<uint8_t>(zp_memory, zp_s32_memory, stream);
+    }
 
     return zp_s32_memory;
 }
-
-template cldnn::memory::ptr convert_zp_data_to_s32<int8_t>(const memory::ptr zp_memory);
-template cldnn::memory::ptr convert_zp_data_to_s32<uint8_t>(const memory::ptr zp_memory);
-template cldnn::memory::ptr convert_zp_data_to_s32<int32_t>(const memory::ptr zp_memory);
 
 cldnn::format default_fmt_for_dims(size_t dims, bool is_grouped) {
     switch (dims) {
@@ -142,6 +154,11 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
         case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
         case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
+        case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
+        case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
+        case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
         default: throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
     }
 }
@@ -254,9 +271,13 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     switch (desc.get_data_type()) {
         case dnnl::memory::data_type::s4:
         case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
             return offset / 2;
         case dnnl::memory::data_type::s8:
         case dnnl::memory::data_type::u8:
+        case dnnl::memory::data_type::f8_e4m3:
+        case dnnl::memory::data_type::f8_e5m2:
+        case dnnl::memory::data_type::e8m0:
             return offset;
         case dnnl::memory::data_type::f16:
         case dnnl::memory::data_type::bf16:
@@ -508,7 +529,7 @@ dnnl::memory::desc layout_to_memory_desc_strides(const cldnn::layout& l, dnnl::m
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked) {
-    OPENVINO_ASSERT(!(use_default_format && is_output_blocked), "[GPU] use_default_format and is_output_blocked are mutually exclusive.");
+    OPENVINO_ASSERT(!use_default_format || !is_output_blocked, "[GPU] use_default_format and is_output_blocked are mutually exclusive.");
 
     if (use_default_format) {
         return MemoryDescriptorBuilder(l, get_default_data_format(l)).build();

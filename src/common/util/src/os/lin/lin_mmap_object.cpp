@@ -2,22 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstring>
-#include <iostream>
-#include <sstream>
+#include <future>
+#include <mutex>
+#include <thread>
 #include <tuple>
 
-#include "openvino/util/common_util.hpp"
+#include "memory_prefetch.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov {
 namespace util {
@@ -104,6 +108,35 @@ class MapHolder final : public MappedMemory {
     size_t m_size = 0;
     uint64_t m_id = std::numeric_limits<uint64_t>::max();
     HandleHolder m_handle;
+    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
+    std::mutex m_pending_prefetch_mutex;
+    std::vector<std::future<void>> m_pending_prefetch;
+
+    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        // Reap already-finished futures so the vector doesn't grow without bound across repeated
+        // hint_prefetch_async() calls over this mapping's lifetime.
+        m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                m_pending_prefetch.end(),
+                                                [](std::future<void>& task) {
+                                                    return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
+                                                                                std::future_status::ready;
+                                                }),
+                                 m_pending_prefetch.end());
+        m_pending_prefetch.insert(m_pending_prefetch.end(),
+                                  std::make_move_iterator(tasks.begin()),
+                                  std::make_move_iterator(tasks.end()));
+    }
+
+    void wait_for_pending_prefetch() noexcept {
+        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+        for (auto& task : m_pending_prefetch) {
+            if (task.valid()) {
+                task.wait();
+            }
+        }
+        m_pending_prefetch.clear();
+    }
 
 public:
     MapHolder() = default;
@@ -151,6 +184,8 @@ public:
     }
 
     ~MapHolder() {
+        // Detached prefetch tasks may still be touching this mapping's pages; join them first.
+        wait_for_pending_prefetch();
         if (m_mapped_view != MAP_FAILED) {
             munmap(m_mapped_view, m_mapped_view_size);
         }
@@ -169,6 +204,26 @@ public:
             if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
+        }
+    }
+
+    void hint_prefetch(size_t offset, size_t size) override {
+        constexpr size_t one_mb = 1024 * 1024;
+        // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+        if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {
+            const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+            const auto aligned_size = util::align_size_up(region.m_length, util::get_system_page_size());
+            util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+        }
+    }
+
+    void hint_prefetch_async(size_t offset, size_t size) override {
+        if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
+            region.m_length > util::default_parallel_io_threshold) {
+            auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                                 region.m_length,
+                                                 util::prefetch_thread_count(region.m_length));
+            adopt_pending_prefetch(token.detach());
         }
     }
 };

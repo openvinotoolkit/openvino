@@ -13,7 +13,7 @@ class DeconvolutionKernel_imad_along_f_tile_bfx : public DeconvolutionKernelBase
 public:
     using Parent = DeconvolutionKernelBase;
     DeconvolutionKernel_imad_along_f_tile_bfx() : DeconvolutionKernelBase("deconvolution_gpu_imad_along_f_tile_bfx") {}
-    virtual ~DeconvolutionKernel_imad_along_f_tile_bfx() = default;
+    ~DeconvolutionKernel_imad_along_f_tile_bfx() override = default;
 
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
