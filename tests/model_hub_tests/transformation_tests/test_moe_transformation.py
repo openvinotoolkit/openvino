@@ -27,7 +27,7 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     also end up directly on a MatMul input after other transformations run).
 
     Returns:
-        int: Number of fused MoE layers detected
+        int: Number of experts detected in the fused MoE weight tensors
     """
     num_experts = None
     for op in ov_model.get_ordered_ops():

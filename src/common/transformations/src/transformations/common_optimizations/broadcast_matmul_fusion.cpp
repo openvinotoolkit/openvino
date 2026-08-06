@@ -72,13 +72,20 @@ BroadcastMatMulFusion::BroadcastMatMulFusion() {
     // shape_matches() with a named "...,M,N" group already rejects dynamic rank and rank < 2,
     // so has_static_rank() / rank_more_than(1) are not needed alongside it.
     auto data = pattern::any_input(pattern::shape_matches("DataBatches..., M, N"));
-    auto broadcast = pattern::wrap_type<ov::op::util::BroadcastBase>(
-        {data, pattern::any_input()},
-        pattern::shape_matches("BroadcastBatches..., M, N") && is_numpy_or_bidirectional_mode);
+    auto broadcast_shape_and_mode =
+        pattern::shape_matches("BroadcastBatches..., M, N") && is_numpy_or_bidirectional_mode;
+    // v1::Broadcast always carries a (possibly mocked) axes_mapping input, even in NUMPY mode,
+    // so both the 2-input and 3-input BroadcastBase forms need to be matched.
+    auto broadcast_without_axes_mapping =
+        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input()}, broadcast_shape_and_mode);
+    auto broadcast_with_axes_mapping =
+        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input(), pattern::any_input()},
+                                                        broadcast_shape_and_mode);
+    auto broadcast = broadcast_without_axes_mapping | broadcast_with_axes_mapping;
     auto other = pattern::any_input(pattern::has_static_rank() && pattern::rank_more_than(1));
     auto matmul_lhs = pattern::wrap_type<v0::MatMul>({broadcast, other});
     auto matmul_rhs = pattern::wrap_type<v0::MatMul>({other, broadcast});
-    auto matmul = std::make_shared<pattern::op::Or>(OutputVector{matmul_lhs, matmul_rhs});
+    auto matmul = matmul_lhs | matmul_rhs;
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

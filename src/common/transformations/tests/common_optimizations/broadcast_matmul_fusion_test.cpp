@@ -26,6 +26,7 @@ using namespace ov;
 namespace {
 
 namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 
@@ -205,4 +206,22 @@ TEST_F(BroadcastMatMulFusionTest, KeepsBroadcastWhenFixedExtentAndOtherDynamic) 
     auto broadcast = std::make_shared<v3::Broadcast>(data, target, op::BroadcastType::BIDIRECTIONAL);
     auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
     model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
+}
+
+TEST_F(BroadcastMatMulFusionTest, RemovesV1BroadcastWithAxesMapping) {
+    // v1::Broadcast in NUMPY mode always carries a 3rd (mocked) axes_mapping input, so the
+    // 3-input BroadcastBase form must be matched too, not just the 2-input v3::Broadcast one.
+    auto other = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, 8, 16});
+    auto data = make_const(Shape{1, 32, 8});
+    auto target = v0::Constant::create(element::i64, Shape{3}, {4, 32, 8});
+    auto axes_mapping = v0::Constant::create(element::i64, Shape{3}, {0, 1, 2});
+    auto broadcast = std::make_shared<v1::Broadcast>(data, target, axes_mapping, op::AutoBroadcastType::NUMPY);
+    auto matmul = std::make_shared<v0::MatMul>(broadcast, other);
+    model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul)}, ParameterVector{other});
+
+    auto other_ref = std::make_shared<v0::Parameter>(element::f32, PartialShape{4, 8, 16});
+    auto data_ref = make_const(Shape{1, 32, 8});
+    auto matmul_ref = std::make_shared<v0::MatMul>(data_ref, other_ref);
+    model_ref =
+        std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(matmul_ref)}, ParameterVector{other_ref});
 }
