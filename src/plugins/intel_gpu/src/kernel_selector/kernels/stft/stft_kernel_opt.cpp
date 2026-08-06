@@ -69,7 +69,7 @@ CommonDispatchData STFTKernelOpt::CalcLaunchConfig(const STFT_params& params) co
 }
 
 bool STFTKernelOpt::Validate(const Params& p) const {
-    if (STFTKernelBase::Validate(p) == false)
+    if (!STFTKernelBase::Validate(p))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const STFT_params&>(p);
