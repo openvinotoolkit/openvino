@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-05-35-09-000-31074001977",
+  "timestamp": "2026-08-06T05:35:09Z",
+  "run_id": "31074001977",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31074001977",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "35433",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35433",
+  "author": "riverlijunjie",
+  "category": "Code Issue",
+  "title": "GPU build fails: xe3p_35_10, xe3p_35_11, xe3p_unknown are not members of cldnn::gpu_arch",
+  "signature": "xe3p_35_10 is not a member of cldnn gpu_arch|Code Issue",
+  "signature_hash": "4e9e6226d4ac73f5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Compilation error: xe3p_35_10, xe3p_35_11, xe3p_unknown not members of cldnn::gpu_arch enum"
+    }
+  ],
+  "key_errors": [
+    "moe_3gemm_gen_micro.cpp:29:20: error: 'xe3p_35_10' is not a member of 'cldnn::gpu_arch'",
+    "moe_3gemm_gen_micro.cpp:30:20: error: 'xe3p_35_11' is not a member of 'cldnn::gpu_arch'",
+    "moe_3gemm_gen_micro.cpp:31:20: error: 'xe3p_unknown' is not a member of 'cldnn::gpu_arch'"
+  ],
+  "root_cause": "PR #35433 modified moe_3gemm_gen_micro.cpp to reference three new gpu_arch enum values (xe3p_35_10, xe3p_35_11, xe3p_unknown) in a switch statement, but failed to add these values to the cldnn::gpu_arch enum definition. The enum is defined elsewhere in the GPU plugin codebase and was not updated as part of this PR, causing a deterministic compilation failure.",
+  "reproduction_steps": "Build the GPU plugin targeting the modified file: cmake --build openvino_build -- openvino_intel_gpu_ocl_v2_obj",
+  "recommended_actions": [
+    "Add xe3p_35_10, xe3p_35_11, and xe3p_unknown to the cldnn::gpu_arch enum definition",
+    "Alternatively, remove the new case statements from moe_3gemm_gen_micro.cpp if those arch variants are not yet needed",
+    "Ensure the enum definition file and the usage file are updated in the same PR"
+  ],
+  "prevention_strategies": "When adding new GPU architecture enum values, always update both the enum definition and all switch statements that reference gpu_arch in the same PR. Consider adding a static_assert or compile-time check that catches missing enum values.",
+  "historical_context": "No prior occurrence of this specific failure pattern in the database."
+}
