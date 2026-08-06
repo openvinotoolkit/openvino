@@ -227,7 +227,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Sub-byte Parameter weights can't be transposed at runtime (permute kernel doesn't support them).
         // Use non-transposed FC layout instead; requires XMX for the oneDNN path.
-        bool is_parameter_compressed_weight = supports_immad &&
+        const bool is_parameter_compressed_weight = supports_immad &&
             is_compressed_weight &&
             !matmul->get_transpose_b() &&
             pattern_map.count(weights_param_m) != 0 &&
