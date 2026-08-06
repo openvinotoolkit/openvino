@@ -229,6 +229,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         // Use non-transposed FC layout instead; requires XMX for the oneDNN path.
         const bool is_parameter_compressed_weight = supports_immad &&
             is_compressed_weight &&
+            !transpose_node &&
             !matmul->get_transpose_b() &&
             pattern_map.count(weights_param_m) != 0 &&
             pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr &&

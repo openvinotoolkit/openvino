@@ -249,8 +249,8 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  param_weights,
                  dyn_quan_group_size,
                  abs_threshold_f16] = GetParam();
-    // Skip tests for 4-bit parameter weights because 4-bit transpose is not supported
-    if (param_weights && weights_precision != ov::element::u8) {
+    // Sub-byte parameter weights with transposed layout still need runtime transpose, which GPU can't do
+    if (param_weights && weights_precision.bitwidth() < 8 && transpose_weights) {
         GTEST_SKIP();
     }
     SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
