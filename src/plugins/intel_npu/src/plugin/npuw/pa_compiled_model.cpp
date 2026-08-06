@@ -5,9 +5,12 @@
 #include "pa_compiled_model.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
+#include <map>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "intel_npu/config/npuw.hpp"
@@ -36,6 +39,86 @@ std::vector<int64_t> as_i64_vec(const ov::SoPtr<ov::ITensor>& tensor) {
         OPENVINO_THROW("PA: unexpected element type ", tensor->get_element_type(), " for a control tensor");
     }
     return out;
+}
+
+// True when the model matches the plain flat-token LLM contract the chunked
+// path implements: the known control inputs only (embedding inputs, M-RoPE
+// position_ids, per-layer block tables etc. all run 1:1 on the dynamic model),
+// 1-D token streams, and a single logits output with static per-row geometry
+// so the result tensor can be allocated upfront and filled row by row.
+bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
+    static const std::unordered_set<std::string> known = {"input_ids",
+                                                          "position_ids",
+                                                          "past_lens",
+                                                          "subsequence_begins",
+                                                          "block_indices",
+                                                          "block_indices_begins",
+                                                          "max_context_len",
+                                                          "score_aggregation_window",
+                                                          "sampled_tokens_indices"};
+    std::unordered_set<std::string> seen;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        if (is_kv_cache_name(name)) {
+            continue;
+        }
+        if (known.count(name) == 0) {
+            return false;
+        }
+        seen.insert(name);
+    }
+    for (const char* required : {"input_ids", "position_ids", "block_indices", "sampled_tokens_indices"}) {
+        if (seen.count(required) == 0) {
+            return false;
+        }
+    }
+    for (const char* name : {"input_ids", "position_ids"}) {
+        const auto& rank = model->input(name).get_partial_shape().rank();
+        if (rank.is_dynamic() || rank.get_length() != 1) {
+            return false;
+        }
+    }
+    const auto& outputs = model->outputs();
+    if (outputs.size() != 1 || outputs.front().get_any_name() != "logits") {
+        return false;
+    }
+    const auto& lshape = outputs.front().get_partial_shape();
+    return lshape.rank().is_static() && lshape.rank().get_length() == 3 && lshape[1].is_static() &&
+           lshape[2].is_static();
+}
+
+std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
+                                                       std::size_t token_dim) {
+    // Only the token-driven inputs get a fixed size (both are 1-D, checked by
+    // is_chunkable_pa_model); the context stays dynamic.
+    auto derived = base_model->clone();
+    derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}},
+                      {"position_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}}});
+    derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(token_dim));
+    return derived;
+}
+
+std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_variants(
+    const std::shared_ptr<ov::Model>& base_model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const std::string& device,
+    const ov::AnyMap& inner_config) {
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
+    constexpr std::array<std::size_t, 3> kVariantTokenDims = {1024u, 128u, 1u};
+
+    for (const auto token_dim : kVariantTokenDims) {
+        auto derived = derive_pa_semi_static_model(base_model, token_dim);
+        auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
+        OPENVINO_ASSERT(compiled != nullptr,
+                        "PA semi-static derivation failed to compile token_dim=",
+                        token_dim,
+                        " on ",
+                        device);
+        LOG_INFO("PA: compiled semi-static variant token_dim=" << token_dim << " on " << device);
+        variants.emplace(token_dim, std::move(compiled));
+    }
+
+    return variants;
 }
 
 }  // anonymous namespace
@@ -103,7 +186,16 @@ ov::npuw::PACompiledModel::PreparedState ov::npuw::PACompiledModel::prepare(
     }
     model->validate_nodes_and_infer_types();
 
-    return PreparedState{model, std::move(compiled), std::move(device)};
+    // The semi-static variants only make sense for the plain flat-token LLM
+    // contract; anything else (VLM, M-RoPE, per-layer block tables, ...) runs
+    // 1:1 on the dynamic model, so don't spend compile time on variants.
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> semi_static_compiled;
+    if (is_chunkable_pa_model(model)) {
+        semi_static_compiled = compile_pa_semi_static_variants(model, plugin, device, inner_config);
+    } else {
+        LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
+    }
+    return PreparedState{model, std::move(compiled), std::move(semi_static_compiled), std::move(device)};
 }
 
 ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -114,7 +206,8 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
 ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::shared_ptr<const ov::IPlugin>& plugin)
     : ov::npuw::ICompiledModel(prepared.model, plugin),
       m_device(std::move(prepared.device)),
-      m_compiled_model(std::move(prepared.compiled)) {
+      m_compiled_model(std::move(prepared.compiled)),
+      m_semi_static_models(std::move(prepared.semi_static_compiled)) {
     // The device fixes the KV cache geometry at compile time; remember the
     // block size for validating block-table coverage per dispatch.
     for (const auto& input : m_compiled_model->inputs()) {
@@ -127,7 +220,8 @@ ov::npuw::PACompiledModel::PACompiledModel(PreparedState prepared, const std::sh
             break;
         }
     }
-    LOG_INFO("PA: KV block_size fixed by " << m_device << ": " << m_block_size);
+    LOG_INFO("PA: KV block_size fixed by " << m_device << ": " << m_block_size << "; " << m_semi_static_models.size()
+                                           << " semi-static variant(s)");
 }
 
 void ov::npuw::PACompiledModel::export_model(std::ostream&) const {

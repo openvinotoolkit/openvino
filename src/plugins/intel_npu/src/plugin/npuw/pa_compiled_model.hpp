@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -90,6 +91,7 @@ private:
     struct PreparedState {
         std::shared_ptr<ov::Model> model;
         ov::SoPtr<ov::ICompiledModel> compiled;
+        std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> semi_static_compiled;
         std::string device;
     };
     static PreparedState prepare(const std::shared_ptr<ov::Model>& model,
@@ -104,6 +106,10 @@ private:
 
     std::string m_device;
     ov::SoPtr<ov::ICompiledModel> m_compiled_model;
+    // Pre-compiled semi-static token-size variants keyed by fixed token dim
+    // (1024, 128, 1); consumed by the chunked dispatcher landing in the next
+    // change of this series.
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
 
     // KV cache block size as fixed by the device at compile time; 0 if the
     // compiled cache shape is still dynamic in that dimension.
