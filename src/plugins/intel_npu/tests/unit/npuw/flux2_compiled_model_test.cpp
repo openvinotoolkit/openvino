@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "flux2_compiled_model.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -9,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "flux2_compiled_model.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/parameter.hpp"
@@ -41,8 +42,7 @@ std::shared_ptr<ov::Model> make_model(const std::string& model_name,
 }
 
 bool ends_with(const std::string& value, const std::string& suffix) {
-    return value.size() >= suffix.size() &&
-           value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return value.size() >= suffix.size() && value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 struct CompileCall {
@@ -206,10 +206,10 @@ TEST_F(Flux2CompiledModelTest, TextEncoderDetectedFromInputIdsInput) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        make_model("submodel", ov::element::i64, ov::PartialShape{1, 16}, "input_ids"),
-                        {},
-                        recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(make_model("submodel", ov::element::i64, ov::PartialShape{1, 16}, "input_ids"),
+                                         {},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_EQ(recorder.only_call().props.at(kF16IC).as<std::string>(), "NO");
@@ -247,10 +247,10 @@ TEST_F(Flux2CompiledModelTest, UnknownModelGetsOnlyBaseDefaults) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::Flux2CompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model(
-                        make_model("submodel", ov::element::f32, ov::PartialShape{1, 16}, "sample"),
-                        {},
-                        recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(make_model("submodel", ov::element::f32, ov::PartialShape{1, 16}, "sample"),
+                                         {},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
@@ -295,10 +295,10 @@ TEST_F(Flux2CompiledModelTest, AppendsFlux2SuffixToInnerModelName) {
 
 TEST_F(Flux2CompiledModelTest, ExportWritesFlux2Indicators) {
     RecordingFactory recorder;
-    auto compiled = create_compiled_model(
-        make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
-        {},
-        recorder);
+    auto compiled =
+        create_compiled_model(make_model("flux_transformer", ov::element::f32, ov::PartialShape{1, 16}, "hidden"),
+                              {},
+                              recorder);
     ASSERT_NE(compiled, nullptr);
 
     std::ostringstream out;
