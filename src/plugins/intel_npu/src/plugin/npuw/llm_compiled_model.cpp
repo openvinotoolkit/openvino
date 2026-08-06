@@ -128,6 +128,90 @@ public:
     }
 };
 
+// Rewrites the LM head DQ chain so the heavy MatMul consumes raw u8/i8 weight and the
+// per-row (weight - zerop) * scale dequant is applied after it:
+//   logits = (x @ W^T) * s - sum(x, axis=-1) * (z * s)
+class MatMulFirstAsymVocab : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::MatMulFirstAsymVocab");
+    explicit MatMulFirstAsymVocab() {
+        auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+        auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+        auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
+        auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+        auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+        auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+        auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+        auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+        auto qmmi = opp::any_input();
+        auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+        auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            std::cout << "Matched MatMulFirstAsymVocab pattern" << std::endl;
+
+            auto matched_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            if (matched_qweight->get_element_type() != ov::element::u8 && matched_qweight->get_element_type() != ov::element::i8) {
+                return false;
+            }
+            if (matched_qweight->get_shape().size() != 2) {
+                return false;
+            }
+            std::cout << "here" << std::endl;
+            auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+            auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+            auto qcoeff_shape = matched_qcoeff->get_shape();
+            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(
+                node_to_output.at(qmm).get_node_shared_ptr());
+            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(
+                node_to_output.at(qres).get_node_shared_ptr());
+
+            if (qcoeff_shape.size() != 2 || qcoeff_shape[1] != 1 ||
+                matched_matmul->get_transpose_a() || !matched_matmul->get_transpose_b()) {
+                return false;
+            }
+
+            auto hidden = node_to_output.at(qmmi);
+            const auto vocab_size = static_cast<int64_t>(matched_qweight->get_shape()[0]);
+
+            // // (x @ W^T) with raw u8 weight cast to f32; compiler may fuse the Convert into MatMul.
+            auto w_f32 = std::make_shared<ov::op::v0::Convert>(matched_qweight, ov::element::f32);
+            auto new_matmul = std::make_shared<ov::op::v0::MatMul>(hidden, w_f32, false, true);
+
+            auto s_f32 = std::make_shared<ov::op::v0::Convert>(matched_qcoeff, ov::element::f32);
+            auto s_reshape = ov::op::v0::Constant::create(
+                ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
+            auto scale_reshaped = std::make_shared<ov::op::v1::Reshape>(s_f32, s_reshape, false);
+            auto scaled = std::make_shared<ov::op::v1::Multiply>(new_matmul, scale_reshaped);
+            scaled->set_friendly_name("scale_after_matmul");
+
+            auto z_f32 = std::make_shared<ov::op::v0::Convert>(matched_qzerop, ov::element::f32);
+            auto zp_scale = std::make_shared<ov::op::v1::Multiply>(z_f32, s_f32);
+            zp_scale->set_friendly_name("zero_point_scale");
+            auto zp_reshape = ov::op::v0::Constant::create(
+                ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
+            auto zp_reshaped = std::make_shared<ov::op::v1::Reshape>(zp_scale, zp_reshape, false);
+
+            auto reduce_axis = ov::op::v0::Constant::create(
+                ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+            auto sum_h = std::make_shared<ov::op::v1::ReduceSum>(hidden, reduce_axis, true);
+            sum_h->set_friendly_name("reduce_sum_h");
+            auto zp_correction = std::make_shared<ov::op::v1::Multiply>(sum_h, zp_reshaped);
+            zp_correction->set_friendly_name("zp_scale_after_matmul");
+
+            auto logits = std::make_shared<ov::op::v1::Subtract>(scaled, zp_correction);
+            logits->set_friendly_name("subtract_after_matmul");
+            // Preserve tensor names (e.g. "logits") from the old MatMul output so consumers keep working.
+            logits->output(0).set_names(matched_matmul->output(0).get_names());
+
+            matched_result->input(0).replace_source_output(logits->output(0));
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(qres, "MatMulFirstAsymVocab"), std::move(callback));
+    }
+};
+
 class CutLMHead : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
@@ -219,6 +303,14 @@ bool convert_vocab_to_i8(const std::shared_ptr<ov::Model>& model) {
     auto id_converted = rewr.run_on_model(model);
     model->validate_nodes_and_infer_types();
     return id_converted;
+}
+
+bool apply_matmul_first_vocab(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<MatMulFirstAsymVocab>();
+    auto ran = rewr.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+    return ran;
 }
 
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
@@ -910,6 +1002,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
     }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+    if (lm_head_model) {
+        
+        if (m_cfg.get<::intel_npu::NPUW_LLM_MATMUL_FIRST_VOCAB>()) {
+            NPUW_ASSERT(apply_matmul_first_vocab(lm_head_model));
+        }
+    }
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
