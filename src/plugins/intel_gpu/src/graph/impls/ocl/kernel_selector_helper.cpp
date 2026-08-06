@@ -242,6 +242,8 @@ bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::Ex
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
+        case cldnn::data_types::u2:
+            return kernel_selector::data_type::UINT2;
         case cldnn::data_types::i4:
             return kernel_selector::data_type::INT4;
         case cldnn::data_types::u4:
@@ -266,6 +268,8 @@ kernel_selector::data_type to_data_type(data_types dt) {
             return kernel_selector::data_type::F32;
         case cldnn::data_types::bf16:
             return kernel_selector::data_type::BF16;
+        case cldnn::data_types::f4e2m1:
+            return kernel_selector::data_type::F4E2M1;
         case cldnn::data_types::f8e4m3:
             return kernel_selector::data_type::F8E4M3;
         case cldnn::data_types::f8e5m2:
@@ -279,6 +283,8 @@ kernel_selector::data_type to_data_type(data_types dt) {
 
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
+        case kernel_selector::data_type::UINT2:
+            return cldnn::data_types::u2;
         case kernel_selector::data_type::INT4:
             return cldnn::data_types::i4;
         case kernel_selector::data_type::UINT4:
@@ -301,6 +307,8 @@ data_types from_data_type(kernel_selector::data_type dt) {
             return cldnn::data_types::f16;
         case kernel_selector::data_type::F32:
             return cldnn::data_types::f32;
+        case kernel_selector::data_type::F4E2M1:
+            return cldnn::data_types::f4e2m1;
         case kernel_selector::data_type::F8E4M3:
             return cldnn::data_types::f8e4m3;
         case kernel_selector::data_type::F8E5M2:
@@ -314,6 +322,8 @@ data_types from_data_type(kernel_selector::data_type dt) {
 
 kernel_selector::weights_type to_weights_type(data_types dt) {
     switch (dt) {
+        case cldnn::data_types::u2:
+            return kernel_selector::weights_type::UINT2;
         case cldnn::data_types::u4:
             return kernel_selector::weights_type::UINT4;
         case cldnn::data_types::i4:
@@ -330,6 +340,8 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
             return kernel_selector::weights_type::INT32;
         case cldnn::data_types::bf16:
             return kernel_selector::weights_type::BF16;
+        case cldnn::data_types::f4e2m1:
+            return kernel_selector::weights_type::F4E2M1;
         case cldnn::data_types::f8e4m3:
             return kernel_selector::weights_type::F8E4M3;
         case cldnn::data_types::f8e5m2:
@@ -343,6 +355,8 @@ kernel_selector::weights_type to_weights_type(data_types dt) {
 
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
+        case kernel_selector::weights_type::UINT2:
+            return data_types::u2;
         case kernel_selector::weights_type::INT4:
             return data_types::i4;
         case kernel_selector::weights_type::UINT4:
@@ -357,6 +371,8 @@ data_types from_weights_type(kernel_selector::weights_type dt) {
             return data_types::f32;
         case kernel_selector::weights_type::INT32:
             return data_types::i32;
+        case kernel_selector::weights_type::F4E2M1:
+            return data_types::f4e2m1;
         case kernel_selector::weights_type::F8E4M3:
             return data_types::f8e4m3;
         case kernel_selector::weights_type::F8E5M2:
@@ -981,7 +997,7 @@ kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
         elm.pitch = pitch;
         elm.pad.before = dynamic_pad_dims[tensor_index] ? 0 : lp;
         elm.pad.after = dynamic_pad_dims[tensor_index] ? 0 : up;
-        elm.pad.is_dynamic = dynamic_pad_dims[tensor_index];
+        elm.pad.is_dynamic = (dynamic_pad_dims[tensor_index] != 0);
         elm.is_dynamic = d.is_dynamic();
 
         pitch *= (reserved_in_mem_count + lp + up);

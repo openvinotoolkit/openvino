@@ -224,6 +224,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/fq_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/gelu7_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_normalization_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_query_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hsigmoid_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hswish_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/log_softmax_decomposition_test.cpp

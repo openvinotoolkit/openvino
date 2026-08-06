@@ -57,7 +57,7 @@ bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
-    if (params.inputs[0].X().v % 64)
+    if ((params.inputs[0].X().v % 64) != 0u)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     bool bFilterSize = (params.filterSize.x == 5 && params.filterSize.y == 5) ||

@@ -154,9 +154,7 @@ protected:
             size_t last_idx = transpose_order.size() - 1;
             if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1)
                 return false;
-            if (static_cast<size_t>(transpose_order[last_idx - 1]) != last_idx)
-                return false;
-            return true;
+            return static_cast<size_t>(transpose_order[last_idx - 1]) == last_idx;
         };
 
         auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
