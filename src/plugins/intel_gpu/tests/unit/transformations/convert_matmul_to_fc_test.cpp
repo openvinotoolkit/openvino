@@ -1093,7 +1093,7 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ParameterCompressedWe
         auto matmul = std::make_shared<ov::opset1::MatMul>(input, mul, false, false);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input, weights});
-        manager.register_pass<ConvertMatMulToFullyConnected>();
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
     }
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{128, 2048});
