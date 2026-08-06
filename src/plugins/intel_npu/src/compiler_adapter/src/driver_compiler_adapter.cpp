@@ -345,7 +345,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
         return {};
     }
 
-    CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+    cacheSetSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
     return compilerOpts;
 }
 
@@ -367,6 +367,7 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
         }
 
         return supported;
+    }
 
     // legacy path
     const auto& compilerVersion = _compilerProperties.compilerVersion;

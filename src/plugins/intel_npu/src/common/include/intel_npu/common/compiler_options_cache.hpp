@@ -10,14 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/common/npu.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
 
 class ICompilerAdapter;
-class DriverCompilerAdapter;
-class PluginCompilerAdapter;
 
 class CompilerOptionsCache final {
 public:
@@ -33,8 +30,6 @@ public:
 
 private:
     friend class ICompilerAdapter;
-    friend class DriverCompilerAdapter;
-    friend class PluginCompilerAdapter;
 
     static void addSupportedOption(const ov::intel_npu::CompilerType& compilerType,
                                    const std::string& optionName,
