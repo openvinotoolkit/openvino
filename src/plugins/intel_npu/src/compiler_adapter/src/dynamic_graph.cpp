@@ -20,28 +20,7 @@
 namespace intel_npu {
 
 namespace {
-
-uint32_t getCommandQueueOptions(const FilteredConfig& config,
-                                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
-    OPENVINO_ASSERT(zeroInitStruct != nullptr, "Failed to get command queue options without Level Zero init data");
-
-    uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        OPENVINO_ASSERT(zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
-                        "Turbo is not supported by the current driver");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-    }
-    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        OPENVINO_ASSERT(zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
-                        "Running inferences sequentially is not supported by the current driver");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-    }
-    return commandQueueOptions;
-}
-
-void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain,
-                                const FilteredConfig& config,
-                                const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct) {
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const FilteredConfig& config) {
     configChain.append(
         NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
         static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
@@ -52,7 +31,14 @@ void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain,
                                static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
         }
     }
-    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, getCommandQueueOptions(config, zeroInitStruct));
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueOptions);
 }
 
 }  // namespace
@@ -69,7 +55,7 @@ void DynamicGraph::create_execution_engine(const FilteredConfig& config) {
     const auto result = [&]() {
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             NpuVMRuntimeConfigChain runtimeConfig;
-            populateRuntimeConfigChain(runtimeConfig, config, _zeroInitStruct);
+            populateRuntimeConfigChain(runtimeConfig, config);
             return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
         }
         return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
@@ -382,12 +368,18 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     _logger.debug("Graph initialize without graph handle");
 
-    const uint32_t commandQueueOptions = getCommandQueueOptions(config, _zeroInitStruct);
-    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_TURBO) != 0) {
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
+                        "Turbo is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if ((commandQueueOptions & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0) {
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
+                        "Running inferences sequentially is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     {
