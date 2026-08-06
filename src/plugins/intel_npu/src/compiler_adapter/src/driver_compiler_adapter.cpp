@@ -350,8 +350,12 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
-                                                const std::optional<std::string>& optValue) const {
-    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER, optName, optValue)) {
+                                                const std::optional<std::string>& optValue,
+                                                const std::optional<uint32_t>& compilerSupportVersion) const {
+    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
+                                                optName,
+                                                optValue,
+                                                compilerSupportVersion)) {
         return true;
     }
 
@@ -363,7 +367,6 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
         }
 
         return supported;
-    }
 
     // legacy path
     const auto& compilerVersion = _compilerProperties.compilerVersion;

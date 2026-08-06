@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/common/compiler_options_cache.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"

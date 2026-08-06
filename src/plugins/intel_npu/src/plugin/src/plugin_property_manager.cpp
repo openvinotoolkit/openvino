@@ -61,7 +61,6 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     std::optional<std::vector<std::string>> compilerSupportList = getCompilerSupportedOptions(compilerType, backend);
     if (!compilerSupportList.has_value()) {
         logger.info("No compiler support options list received! Fallback to version-based option registration");
-        logger.debug("Legacy registration mode enabled");
     } else {
         const auto& supportedOptions = compilerSupportList.value();
         logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
@@ -93,7 +92,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     // Special cases
     // NPU_TURBO which might not be supported by compiler, but driver will still use it
     // if it exists in config = driver supports it
-    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // if compiler->is_option_supported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);

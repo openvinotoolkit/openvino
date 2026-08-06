@@ -57,9 +57,6 @@ private:
     static std::string buildOptionCacheKey(const std::string& optionName,
                                            const std::optional<std::string>& optionValue);
 
-    static bool isOptionCachedImpl(const CompilerTypeOptionsState& compilerOptionsState,
-                                   const std::string& optionCacheKey);
-
     static bool isOptionCachedInVector(const std::optional<std::vector<std::string>>& options,
                                        const std::string& optionCacheKey);
 

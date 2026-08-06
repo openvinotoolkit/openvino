@@ -322,7 +322,8 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
-                                                const std::optional<std::string>& optValue) const {
+                                                const std::optional<std::string>& optValue,
+                                                const std::optional<uint32_t>& /*compilerSupportVersion*/) const {
     if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::PLUGIN, optname, optValue)) {
         return true;
     }
