@@ -37,7 +37,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     bool has_transpose,
     bool grouped,
     bool batched_weights,
-    std::vector<std::shared_ptr<ov::Node>>& result_nodes) {
+    std::vector<std::shared_ptr<ov::Node>>& result_nodes,
+    bool enable_parameter_weights) {
     const size_t final_weights_rank = batched_weights ? 3 : 2;
     auto combine_groups = [has_transpose, grouped, final_weights_rank, &result_nodes](
                               std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
@@ -185,7 +186,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         }
     }
 
-    fc_input_zp = with_zero_point ? fc_input_zp : std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
+    if (!with_zero_point) {
+        // No zero-point: emit an empty placeholder Constant. Downstream ops detect "absent ZP"
+        // via element count() == 0, not the element type. With enable_parameter_weights use the
+        // weight element type instead of element::dynamic, which VCL (NPU) cannot handle.
+        const auto zp_et = enable_parameter_weights
+                               ? weights_block->get_anchor("weights", pattern_map).value().get_element_type()
+                               : ov::element::dynamic;
+        fc_input_zp = std::make_shared<v0::Constant>(zp_et, ov::Shape{0});
+    }
     ov::disable_constant_folding(fc_input_zp);
     result_nodes.push_back(fc_input_zp);
 
@@ -236,7 +245,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                                                                                           has_transpose,
                                                                                           grouped,
                                                                                           batched_weights,
-                                                                                          result_nodes);
+                                                                                          result_nodes,
+                                                                                          enable_parameter_weights);
 
         auto new_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(pattern_map.at(activation),
                                                                                    fc_input_b,
