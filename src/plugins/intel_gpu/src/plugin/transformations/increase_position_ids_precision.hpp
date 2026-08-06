@@ -38,7 +38,6 @@ public:
     IncreasePositionIdsPrecisionForGPTOSS();
 };
 
-
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul or Multiply operation),
  *        targeting to improve runtime rotary position embeddings calculation for FP16 models.
