@@ -826,7 +826,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionAppliesVTensorOptimizati
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
-    const auto* generate = recorder.find_suffix("_kv");
+    const auto* generate = recorder.find_contains("_kv");
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(generate, nullptr);
     EXPECT_TRUE(any_matmul_has_transpose_b(prefill->model));
