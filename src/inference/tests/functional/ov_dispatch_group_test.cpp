@@ -51,7 +51,7 @@ std::filesystem::path candidate_lib(const std::string& suffix) {
 class DispatchGroupTest : public ::testing::Test {
 protected:
     const std::string device = "FAKE";
-    std::filesystem::path xml_path{"test_dispatch_group_plugins.xml"};
+    std::filesystem::path xml_path{ov::test::utils::generateTestFilePrefix() + "_test_dispatch_group_plugins.xml"};
 
     void write_registry() {
         std::ofstream file(xml_path);
@@ -173,6 +173,30 @@ TEST_F(DispatchGroupTest, divergent_enumeration_non_shared_device) {
     EXPECT_EQ(group_devices(core), (std::vector<std::string>{device + ".0", device + ".1"}));
     EXPECT_EQ(resolved_tag(core, "0"), "A");  // shared device -> higher score (A)
     EXPECT_EQ(resolved_tag(core, "1"), "B");  // B-only device -> B
+}
+
+// cache_dir / cache_path are answered from core config, but for a dispatch group the plugin is
+// still resolved through the requested id's winner. A previous version queried the *default*
+// winner for these two names only, so an unknown id was silently served by the default device
+// instead of failing like every other property. Guard that per-id routing: an invalid id must
+// fail fast for cache_dir/cache_path too.
+TEST_F(DispatchGroupTest, cache_dir_and_cache_path_queries_route_by_id) {
+    // Two distinct physical devices with opposite winners: id 0 -> A, id 1 -> B.
+    script("0,aa," + std::to_string(PREFERRED) + ";1,bb," + std::to_string(SERVABLE),
+           "0,aa," + std::to_string(CAPABLE) + ";1,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    // Valid ids resolve their winner and answer without error.
+    OV_ASSERT_NO_THROW(std::ignore = core.get_property(device + ".0", ov::cache_dir.name()));
+    OV_ASSERT_NO_THROW(std::ignore = core.get_property(device + ".1", ov::cache_dir.name()));
+    OV_ASSERT_NO_THROW(std::ignore = core.get_property(device + ".1", ov::cache_path.name()));
+
+    // An unknown id must fail fast rather than silently fall back to the default winner.
+    OV_EXPECT_THROW(std::ignore = core.get_property(device + ".99", ov::cache_dir.name()), ov::Exception, ::testing::_);
+    OV_EXPECT_THROW(std::ignore = core.get_property(device + ".99", ov::cache_path.name()),
+                    ov::Exception,
+                    ::testing::_);
 }
 
 // --- unload / lifetime (design 6): resolved group instances tear down cleanly ---

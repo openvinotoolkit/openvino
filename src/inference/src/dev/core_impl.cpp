@@ -1560,9 +1560,10 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
         return get_property_for_core(name);
     } else if (name == ov::cache_dir.name()) {
         return util::path_to_string(
-            m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir);
+            m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name, parsed.m_config)).m_cache_dir);
     } else if (name == ov::cache_path.name()) {
-        return {m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name)).m_cache_dir};
+        return {
+            m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name, parsed.m_config)).m_cache_dir};
     }
     // Route by id so a per-device query (e.g. get_property("<device>.1", architecture)) is
     // answered by that device's winner; a bare-name query resolves to the default-device winner.

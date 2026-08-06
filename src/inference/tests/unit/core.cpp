@@ -53,7 +53,7 @@ TEST(CoreTests, Throw_on_register_plugins_twice) {
 namespace {
 // Writes `content` to a uniquely-named plugins.xml and returns its path.
 std::filesystem::path write_plugins_xml(const std::string& file_name, const std::string& content) {
-    std::filesystem::path plugins_xml = file_name;
+    std::filesystem::path plugins_xml = ov::test::utils::generateTestFilePrefix() + "_" + file_name;
     std::ofstream file(plugins_xml);
     file << content;
     file.flush();
