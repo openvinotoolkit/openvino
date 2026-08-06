@@ -67,14 +67,18 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 
     auto add = wrap_type<v1::Add>({mul, position_embed});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, shared_unsqueeze = std::shared_ptr<v0::Unsqueeze>()](
+                                             Matcher& m) mutable {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto matched = pattern_map.at(position_ids_pattern).get_node_shared_ptr();
         // position_ids is detached and the model derives positions internally: redirect the embedding to a
-        // rank-restored position_ids.
-        auto unsqueeze =
-            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-        replace_node(matched, unsqueeze);
+        // rank-restored position_ids. The rank-restoring Unsqueeze is shared across all matches to avoid
+        // duplicating an identical node for every occurrence of this pattern.
+        if (!shared_unsqueeze) {
+            shared_unsqueeze =
+                std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        }
+        replace_node(matched, shared_unsqueeze);
         return true;
     };
 
