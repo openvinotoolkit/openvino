@@ -1728,7 +1728,6 @@ public:
             if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
                 return false;
             }
-
         } else {
             return false;
         }
