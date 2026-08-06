@@ -4,13 +4,13 @@
 
 #include "reorder_prim.h"
 
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 
 #include "cache/multi_cache.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {

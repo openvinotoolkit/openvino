@@ -89,7 +89,7 @@ public:
             lhs.ensureValid();
             return lhs.operator Xbyak::RegExp() + rhs;
         }
-        template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
         friend Xbyak::RegExp operator+(const Reg& lhs, T rhs) {
             lhs.ensureValid();
             return lhs.operator Xbyak::RegExp() + rhs;

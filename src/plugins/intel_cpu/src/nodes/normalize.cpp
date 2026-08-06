@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include <common/primitive_hashing.hpp>
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_parallel.hpp"
 #include "cpu_types.h"

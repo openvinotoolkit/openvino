@@ -111,7 +111,7 @@ void MKernel::generate_2x2() {
 
     auto const_A_steps = 64;
 
-    align(64, false);
+    align(64, 0);
     L(loop_over_ktiles);
     {
         //                B: 1x2 tiles
@@ -260,7 +260,7 @@ void MKernel::generate_1x2() {
 
     auto const_A_steps = 64;
 
-    align(64, false);
+    align(64, 0);
     L(loop_over_ktiles);
     {
         //                B: 1x2 tiles
@@ -656,7 +656,7 @@ void ReduceAdd2bh::generate() {
 
         xor_(loop_i, loop_i);
 
-        align(64, false);
+        align(64, 0);
         L(loop_begin);
         {
             vmovups(zmm0, ptr[src0 + loop_i * 4]);
@@ -697,7 +697,7 @@ void ReduceAdd2bh::generate() {
 
         xor_(loop_i, loop_i);
 
-        align(64, false);
+        align(64, 0);
         L(loop_begin);
         {
             vmovups(zmm0, ptr[src0 + loop_i * 4]);

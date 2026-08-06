@@ -341,6 +341,7 @@ struct KVEntryContext {
     size_t norm_stride_pos = 0;
 };
 
+// NOLINTBEGIN(clang-analyzer-optin.performance.Padding)
 template <typename Q, typename RecordView>
 struct QKScorer {
     Q q;
@@ -365,6 +366,7 @@ struct QKScorer {
         }
     }
 };
+// NOLINTEND(clang-analyzer-optin.performance.Padding)
 
 template <typename Q, typename RecordView>
 QKScorer(Q, RecordView, KVEntryContext) -> QKScorer<Q, RecordView>;
