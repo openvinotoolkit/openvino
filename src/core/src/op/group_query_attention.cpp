@@ -231,13 +231,6 @@ void GroupQueryAttention::validate_and_infer_types() {
                               " and ",
                               m_v_quant_type);
         NODE_VALIDATION_CHECK(this,
-                              kv_cache_type.bitwidth() == static_cast<size_t>(m_kv_cache_bit_width),
-                              "GroupQueryAttention with quantized KV cache requires a past/present KV type "
-                              "with bitwidth matching kv_cache_bit_width (",
-                              m_kv_cache_bit_width,
-                              "), got: ",
-                              kv_cache_type);
-        NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == "PER_TENSOR" || m_k_quant_type == "PER_CHANNEL",
                               "GroupQueryAttention supports k/v quant types: {PER_TENSOR, PER_CHANNEL}, got: ",
                               m_k_quant_type);
