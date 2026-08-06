@@ -387,9 +387,9 @@ public:
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 // IFM (K) dimension position depends on weight layout orientation.
-                auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+                const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+                const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
+                const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
