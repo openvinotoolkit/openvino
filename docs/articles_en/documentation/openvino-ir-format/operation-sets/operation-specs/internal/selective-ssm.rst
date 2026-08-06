@@ -69,26 +69,18 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
        C = C.repeat_interleave(heads_per_group, dim=2)  # [batch_size, seq_len, num_heads, state_size]
 
        # Vectorized time discretization of A and B over the whole sequence.
-       dA = torch.exp(A * dt)          # [batch_size, seq_len, num_heads]
-       dtB = dt.unsqueeze(-1) * B      # [batch_size, seq_len, num_heads, state_size]
+       dA = torch.exp(A * dt).reshape(batch_size, seq_len, num_heads, 1, 1)
+       dB = dt.reshape(batch_size, seq_len, num_heads, 1) * B
+       # dBx shape - [batch_size, seq_len, num_heads, head_dim, state_size]
+       dBx = dB.reshape(batch_size, seq_len, num_heads, 1, -1) * x.reshape(batch_size, seq_len, num_heads, head_dim, 1)
+       C = C.reshape(batch_size, seq_len, num_heads, 1, -1)
 
-       output = torch.zeros(batch_size, seq_len, num_heads, head_dim).to(x)
        output_recurrent_state = recurrent_state
+       output = torch.zeros(batch_size, seq_len, num_heads, head_dim).to(x)
 
        for t in range(seq_len):
-           dA_t = dA[:, t]     # [batch_size, num_heads]
-           dtB_t = dtB[:, t]   # [batch_size, num_heads, state_size]
-           x_t = x[:, t]       # [batch_size, num_heads, head_dim]
-           C_t = C[:, t]       # [batch_size, num_heads, state_size]
-
-           # dBx_t = dtB_t outer x_t
-           dBx_t = dtB_t.unsqueeze(-2) * x_t.unsqueeze(-1)  # [batch_size, num_heads, head_dim, state_size]
-
-           # state_t = state_{t-1} * dA_t + dBx_t
-           output_recurrent_state = output_recurrent_state * dA_t.unsqueeze(-1).unsqueeze(-1) + dBx_t
-
-           # y_t = reduce_sum(state_t * C_t, axis=state_size) -> [batch_size, num_heads, head_dim]
-           output[:, t] = (output_recurrent_state * C_t.unsqueeze(-2)).sum(dim=-1)
+           output_recurrent_state = output_recurrent_state * dA[:, t] + dBx[:, t]
+           output[:, t] = (output_recurrent_state * C[:, t]).sum(dim=-1)
 
        return output, output_recurrent_state
 
