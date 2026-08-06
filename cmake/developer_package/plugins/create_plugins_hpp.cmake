@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# This script runs via `cmake -P`, which does not inherit the project's policy defaults;
-# enable the IN_LIST if() operator explicitly (used to dedup devices below).
-cmake_policy(SET CMP0057 NEW)
-
 foreach(var OV_DEVICE_MAPPING BUILD_SHARED_LIBS OV_PLUGINS_HPP_HEADER OV_PLUGINS_HPP_HEADER_IN)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is required, but not defined")
