@@ -81,6 +81,7 @@ public:
 
 protected:
     void SetUp() override {
+        _logGuard.emplace(ov::log::Level::ERR);
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
@@ -102,6 +103,7 @@ protected:
         if (blob) {
             ::operator delete(blob, std::align_val_t(::utils::STANDARD_PAGE_SIZE));
         }
+        _logGuard.reset();
     }
 
     void serializeIR() {
@@ -152,6 +154,7 @@ protected:
     std::string targetDevice;
     std::string blobPath;
     uint32_t zeGraphNpuExtVersion;
+    std::optional<utils::LoggerLevelGuard> _logGuard;
 };
 
 using ZeroGraphCompilationTests = ZeroGraphTest;
