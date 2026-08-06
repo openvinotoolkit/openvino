@@ -172,6 +172,83 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
 
+  LLM_Accuracy_CPU:
+    name: LLM accuracy CPU tests
+    needs: [ Docker, Build, Smart_CI ]
+    if: ${{ github.event_name != 'schedule' }}
+    timeout-minutes: 90
+    runs-on: aks-linux-4-cores-16gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      INSTALL_DIR: ${{ github.workspace }}/install
+      LLM_TEST_DIR: ${{ github.workspace }}/tests/llm
+      HF_HUB_CACHE: /mount/caches/huggingface
+      HUGGINGFACE_HUB_CACHE: /mount/caches/huggingface
+    steps:
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+            tests/llm
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Setup Python 3.12
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.12'
+          set-pip-install-path: 'false'
+          self-hosted-runner: true
+          use-pip-proxy: true
+
+      - name: Install OpenVINO Python wheel
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install LLM accuracy test requirements
+        run: |
+          python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
+          python3 -m pip install pytest-html
+
+      - name: LLM accuracy CPU tests
+        run: |
+          python3 -m pytest ${LLM_TEST_DIR}/accuracy_conformance.py \
+            -k CPU \
+            --tb native \
+            --log-level INFO \
+            --log-cli-level ERROR \
+            --junitxml=${LLM_TEST_DIR}/llm_accuracy.xml \
+            --html=${LLM_TEST_DIR}/llm_accuracy.html \
+            --self-contained-html
+
+      - name: Upload LLM accuracy test results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-llm-accuracy-cpu
+          path: |
+            ${{ env.LLM_TEST_DIR }}/llm_accuracy.xml
+            ${{ env.LLM_TEST_DIR }}/llm_accuracy.html
+          if-no-files-found: 'ignore'
+
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
     needs: [ Docker, Build, Smart_CI ]
@@ -267,7 +344,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
