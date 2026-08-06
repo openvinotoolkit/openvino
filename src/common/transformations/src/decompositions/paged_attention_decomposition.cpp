@@ -613,14 +613,18 @@ std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::rotaryEmbedding
     const auto cos_4d = register_new_node<v0::Unsqueeze>(cos, unsqueeze_axes);
     const auto sin_4d = register_new_node<v0::Unsqueeze>(sin, unsqueeze_axes);
 
+    // Rotary width per half = cos last dim (= head_size / 2). Derived from ShapeOf(cos) rather than
+    // PartialShape::get_length() so a dynamic cos last dim (or dynamic rank) does not abort the pass; it
+    // constant-folds to the same [half, half] i64 lengths when the dim is static.
+    const auto half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
+
     ov::Output<ov::Node> rope_input = input;
     std::shared_ptr<v3::ShapeOf> input_shape;
-    std::shared_ptr<ov::Node> dim_bns, half_head_size;
+    std::shared_ptr<ov::Node> dim_bns;
     std::shared_ptr<v0::Constant> perm_5d;
     if (interleaved) {
         input_shape = register_new_node<v3::ShapeOf>(input);
         dim_bns = get_dimensions(input_shape, {0, 1, 2});
-        half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
         perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
         const auto deinterleave_5d = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, half_head_size, two}, 0);
         const auto reshaped_5d = register_new_node<v1::Reshape>(input, deinterleave_5d, false);
@@ -628,12 +632,8 @@ std::shared_ptr<ov::Node> ov::pass::PagedAttentionDecomposition::rotaryEmbedding
         rope_input = register_new_node<v1::Reshape>(transposed_5d, input_shape, false);
     }
 
-    const auto& cos_partial_shape = cos.get_partial_shape();
-    const auto half_head_size_val =
-        static_cast<int64_t>(cos_partial_shape[cos_partial_shape.rank().get_length() - 1].get_length());
     const auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-    const auto split_lengths =
-        v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_head_size_val, half_head_size_val});
+    const auto split_lengths = register_new_node<v0::Concat>(ov::NodeVector{half_head_size, half_head_size}, 0);
     const auto in_split = register_new_node<v1::VariadicSplit>(rope_input, split_axis, split_lengths)->outputs();
     const auto first_half_mul_cos = register_new_node<v1::Multiply>(in_split[0], cos_4d);
     const auto second_half_mul_sin = register_new_node<v1::Multiply>(in_split[1], sin_4d);

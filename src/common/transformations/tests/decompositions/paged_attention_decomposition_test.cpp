@@ -153,6 +153,32 @@ std::shared_ptr<PagedAttention> make_pa_op(const Dimension& batch,
                                             /*rotary_interleaved*/ false);
 }
 
+// 10-input rotary PagedAttention op with a configurable cos/sin last dim, for exercising the rotary-width
+// validation and the dynamic-width decomposition path. cos_last_dim < 0 builds a dynamic width.
+std::shared_ptr<PagedAttention> make_pa_rotary_op(const Dimension& cos_last_dim) {
+    const auto f32 = element::f32;
+    OutputVector args{
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, KV_NUM_HEADS * HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{NUM_BLOCKS, BLOCK_SIZE, KV_NUM_HEADS, HEAD_SIZE}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1}),
+        std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, MAX_BLOCKS}),
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, cos_last_dim}),  // cos_cache
+        std::make_shared<op::v0::Parameter>(f32, PartialShape{-1, cos_last_dim}),  // sin_cache
+    };
+    return std::make_shared<PagedAttention>(args,
+                                            NUM_HEADS,
+                                            KV_NUM_HEADS,
+                                            /*scale*/ 0.0f,
+                                            /*softcap*/ 0.0f,
+                                            /*local_window_size*/ -1,
+                                            /*do_rotary*/ true,
+                                            /*rotary_interleaved*/ false);
+}
+
 }  // namespace
 
 class PagedAttentionDecompositionTest : public testing::TestWithParam<PaParams> {};
@@ -225,6 +251,43 @@ TEST(PagedAttentionOpValidation, allows_static_batch_greater_than_one) {
 TEST(PagedAttentionOpValidation, allows_dynamic_batch) {
     // A dynamic batch dimension is supported (variable-length path); it cannot be checked from shapes anyway.
     EXPECT_NO_THROW(make_pa_op(Dimension::dynamic(), NUM_HEADS, KV_NUM_HEADS, /*window*/ -1));
+}
+
+TEST(PagedAttentionOpValidation, rejects_partial_rotary) {
+    // Only full-head rotary is supported: cos_cache last dim must equal head_size / 2. A narrower cos
+    // (partial rotary, rotary_dim < head_size) is rejected with a clear message from the op itself.
+    OV_EXPECT_THROW(make_pa_rotary_op(/*cos_last_dim*/ HEAD_SIZE / 2 - 1),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("only full-head rotary is supported"));
+}
+
+TEST(PagedAttentionOpValidation, allows_full_rotary) {
+    // cos_cache last dim == head_size / 2 is full-head rotary and must be accepted.
+    EXPECT_NO_THROW(make_pa_rotary_op(/*cos_last_dim*/ HEAD_SIZE / 2));
+}
+
+TEST(PagedAttentionOpValidation, allows_dynamic_rotary_width) {
+    // A dynamic cos_cache last dim cannot be checked from shapes, so it must not be rejected at validation.
+    EXPECT_NO_THROW(make_pa_rotary_op(/*cos_last_dim*/ Dimension::dynamic()));
+}
+
+TEST(PagedAttentionDecompositionRotary, decomposes_with_dynamic_cos_width) {
+    // rotaryEmbedding derives the split lengths from ShapeOf(cos), not PartialShape::get_length(), so a
+    // dynamic cos last dim must decompose without aborting the pass (the old static-length read would throw).
+    auto op = make_pa_rotary_op(/*cos_last_dim*/ Dimension::dynamic());
+    ResultVector results;
+    for (size_t i = 0; i < op->get_output_size(); ++i)
+        results.push_back(std::make_shared<op::v0::Result>(op->output(i)));
+    ParameterVector params;
+    for (const auto& in : op->input_values())
+        params.push_back(ov::as_type_ptr<op::v0::Parameter>(in.get_node_shared_ptr()));
+    auto model = std::make_shared<Model>(results, params);
+
+    pass::Manager manager;
+    manager.register_pass<pass::PagedAttentionDecomposition>();
+    ASSERT_NO_THROW(manager.run_passes(model));
+    EXPECT_EQ(count_ops_of_type<PagedAttention>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<op::v13::ScaledDotProductAttention>(model), 1u);
 }
 
 // --- Decomposed constant values -------------------------------------------------------------------

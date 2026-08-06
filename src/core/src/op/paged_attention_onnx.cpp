@@ -49,6 +49,30 @@ void PagedAttention::validate_and_infer_types() {
                           "PagedAttention with do_rotary enabled requires cos_cache (input 8) and sin_cache "
                           "(input 9).");
 
+    // Only full-head rotary (rotary_dim == head_size) is supported: the decomposition splits the whole head
+    // into two halves sized by cos_cache's last dim (= rotary_dim / 2), so 2 * cos_last_dim must equal head_size.
+    // Partial rotary (rotary_dim < head_size, e.g. Phi/GPT-NeoX/GPT-J) is a tracked follow-up. Checked only when
+    // the shapes are statically known (head_size derives from query's hidden dim / num_heads); a dynamic hidden
+    // or cos width is left to run-time and does not reject the model here.
+    if (m_do_rotary && input_size == 10) {
+        const auto& q_ps = get_input_partial_shape(0);
+        const auto& cos_ps = get_input_partial_shape(8);
+        if (q_ps.rank().is_static() && q_ps.rank().get_length() == 2 && q_ps[1].is_static() && m_num_heads > 0 &&
+            q_ps[1].get_length() % m_num_heads == 0 && cos_ps.rank().is_static() && cos_ps.rank().get_length() == 2 &&
+            cos_ps[1].is_static()) {
+            const int64_t head_size = q_ps[1].get_length() / m_num_heads;
+            const int64_t rotary_dim = 2 * cos_ps[1].get_length();
+            NODE_VALIDATION_CHECK(this,
+                                  rotary_dim == head_size,
+                                  "PagedAttention: only full-head rotary is supported (cos_cache last dim must "
+                                  "equal head_size / 2); partial rotary is not implemented. Got head_size = ",
+                                  head_size,
+                                  ", rotary_dim (2 * cos_cache last dim) = ",
+                                  rotary_dim,
+                                  ".");
+        }
+    }
+
     // Query/activation is float; the attention math is computed in float precision. The ONNX spec constrains
     // the type to {f16, bf16}; f32 is additionally accepted for unit-test convenience (the decomposition math
     // is identical). This matches the ScaledDotProductAttention the op lowers to.
