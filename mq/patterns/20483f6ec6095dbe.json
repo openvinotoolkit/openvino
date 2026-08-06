@@ -2,13 +2,21 @@
   "schema_version": "1.0",
   "signature": "failed to resolve action download info service unavailable|Infrastructure",
   "signature_hash": "20483f6ec6095dbe",
-  "title": "Setup Python action fails to resolve download info - Service Unavailable",
+  "title": "Multiple jobs fail at 'Set up job' - GitHub Actions Service Unavailable",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-08-06T15:27:25Z",
-  "last_seen": "2026-08-06T15:27:25Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31112143407"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37189"],
-  "recent_timestamps": ["2026-08-06T15:27:25Z"],
+  "last_seen": "2026-08-06T22:24:27Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31115631719",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31112143407"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37189"
+  ],
+  "recent_timestamps": [
+    "2026-08-06T22:24:27Z",
+    "2026-08-06T15:27:25Z"
+  ],
   "rerun_search_string": "Failed to resolve action download info"
 }

@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-22-24-27-000-31115631719",
+  "timestamp": "2026-08-06T22:24:27Z",
+  "run_id": "31115631719",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31115631719",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37189",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37189",
+  "author": "aobolensk",
+  "category": "Infrastructure",
+  "title": "Multiple jobs fail at 'Set up job' - GitHub Actions Service Unavailable",
+  "signature": "failed to resolve action download info service unavailable|Infrastructure",
+  "signature_hash": "20483f6ec6095dbe",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conformance (API)",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "Python API tests / Python API tests",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "Python unit tests / Python unit tests",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "JAX Layer Tests / JAX Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "OpenVINO JS API (22)",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "OpenVINO JS API (21)",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "TensorFlow Models tests / TensorFlow Models tests",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "JAX/Flax Models tests / JAX/Flax Models tests",
+      "conclusion": "failure",
+      "symptom": "Set up job failed - Service Unavailable resolving action download"
+    },
+    {
+      "name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Setup Python 3.11 step failed - Service Unavailable"
+    },
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "The operation was canceled - timed out during test execution"
+    },
+    {
+      "name": "GPU_Stub",
+      "conclusion": "failure",
+      "symptom": "Job failed (likely dependency cascade)"
+    },
+    {
+      "name": "iGPU Tests (unit) / GPU",
+      "conclusion": "failure",
+      "symptom": "Job failed (likely dependency cascade)"
+    },
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "Job failed (likely dependency cascade)"
+    },
+    {
+      "name": "Keras 3 OpenVINO Backend Tests / Keras 3 OpenVINO Backend",
+      "conclusion": "failure",
+      "symptom": "Job failed (likely dependency cascade)"
+    },
+    {
+      "name": "iGPU RoPE Tests / GPU_RoPE",
+      "conclusion": "failure",
+      "symptom": "Job failed (likely dependency cascade)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "exit 1 - overall status check failed due to upstream failures"
+    }
+  ],
+  "key_errors": [
+    "2026-08-06T16:05:24.4752690Z Failed to resolve action download info. Error: Service Unavailable",
+    "2026-08-06T16:05:24.4838452Z Retrying in 22.214 seconds",
+    "2026-08-06T16:06:51.3074675Z Failed to resolve action download info. Error: Service Unavailable",
+    "2026-08-06T16:07:58.5835520Z ##[error]Service Unavailable",
+    "2026-08-06T16:07:58.5858675Z ##[error]Failed to resolve action download info.",
+    "2026-08-06T16:29:34.4700168Z ##[error]The operation was canceled."
+  ],
+  "root_cause": "GitHub Actions infrastructure experienced a Service Unavailable condition that prevented jobs from resolving and downloading required action repositories during the 'Set up job' phase. Multiple retries were attempted (retrying in ~22 seconds, ~47 seconds) before failing with HTTP 503. This is a transient GitHub Actions platform outage unrelated to the PR changes (which only touch RISC-V64 fill emitter files). The C++ unit tests job also hit a timeout/cancellation that appears secondary to the infrastructure issues delaying the overall pipeline.",
+  "reproduction_steps": "N/A - GitHub Actions platform outage, not reproducible locally.",
+  "recommended_actions": [
+    "Re-add PR #37189 to the merge queue - the failure is transient and unrelated to the PR changes.",
+    "Monitor GitHub Actions status page (githubstatus.com) for ongoing service disruptions.",
+    "If failures persist after re-queuing, check for any regression in action version pinning."
+  ],
+  "prevention_strategies": "No prevention possible for GitHub platform outages. Consider adding retry logic in workflows for action download failures.",
+  "historical_context": "This is the second occurrence of this exact Infrastructure pattern (signature 20483f6ec6095dbe) for this same PR. First occurrence was at 2026-08-06T15:27:25Z in run 31112143407."
+}

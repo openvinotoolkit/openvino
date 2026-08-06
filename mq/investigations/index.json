@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 109,
+  "total": 110,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1068,6 +1068,15 @@
       "run_id": "31112143407",
       "timestamp": "2026-08-06T15:27:25Z",
       "title": "Setup Python action fails to resolve download info - Service Unavailable",
+      "category": "Infrastructure",
+      "signature_hash": "20483f6ec6095dbe",
+      "pr_number": "37189"
+    },
+    {
+      "investigation_id": "2026-08-06-22-24-27-000-31115631719",
+      "run_id": "31115631719",
+      "timestamp": "2026-08-06T22:24:27Z",
+      "title": "Multiple jobs fail at 'Set up job' - GitHub Actions Service Unavailable",
       "category": "Infrastructure",
       "signature_hash": "20483f6ec6095dbe",
       "pr_number": "37189"
