@@ -176,9 +176,16 @@ KERNEL(pa_kv_cache_reorder)(
         const uint val_dst_base = OUTPUT1_OFFSET + dst_block * KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * phys_adjusted_v_head_size +
                       head_idx * PAGED_ATTENTION_BLOCK_SIZE * phys_adjusted_v_head_size;
         #if !IS_KV_COMPRESSED
+            // Token-major K makes head dims contiguous within a page (like the value copy below);
+            // d-major makes tokens contiguous. Page bases above are products and so unchanged.
             for (uint k = sglid; k < (uint)K_HEAD_SIZE; k += (uint)SUBGROUP_SIZE) {
+            #if IS_KEY_TOKEN_MAJOR
+                const uint src_off = key_src_base + src_slot * K_HEAD_SIZE + k;
+                const uint dst_off = key_dst_base + dst_slot * K_HEAD_SIZE + k;
+            #else
                 const uint src_off = key_src_base + k * PAGED_ATTENTION_BLOCK_SIZE + src_slot;
                 const uint dst_off = key_dst_base + k * PAGED_ATTENTION_BLOCK_SIZE + dst_slot;
+            #endif
                 key_cache[dst_off] = key_cache[src_off];
             }
 
