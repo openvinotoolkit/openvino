@@ -10,7 +10,7 @@ SelectiveSSM
 
 **Versioned name**: *SelectiveSSM*
 
-**Category**: *Sequence processing*
+**Category**: *Internal*
 
 **Short description**: *SelectiveSSM* (selective state-space model) represents the selective
 state-space recurrence used by Mamba2 mixers in hybrid Mamba2 models such as
