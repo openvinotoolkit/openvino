@@ -23,8 +23,8 @@ enum class GroupQueryAttentionInputs : int64_t {
     POSITION_IDS = 9,           // Position IDs (optional)
     ATTENTION_BIAS = 10,        // Attention bias (optional)
     HEAD_SINK = 11,             // Head sink (optional, required if smooth_softmax=1)
-    K_SCALE = 12,  // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
-    V_SCALE = 13,  // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
+    K_SCALE = 12,               // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
+    V_SCALE = 13,               // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
     // Positions 14-15 are reserved (QK-Norm, not supported)
 };
 
