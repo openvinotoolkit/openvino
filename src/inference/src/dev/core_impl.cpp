@@ -800,13 +800,16 @@ std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::st
 
     // No id given -> the default device ("0"), mirroring the plugin's m_default_device_id rule.
     const std::string target_id = device_id.empty() ? std::string("0") : device_id;
-    DispatchEntry* entry = &entries.front();  // fall back to the first canonical device
+    DispatchEntry* entry = nullptr;
     for (auto& e : entries) {
         if (e.canonical_id == target_id) {
             entry = &e;
             break;
         }
     }
+
+    if (!entry)
+        return std::nullopt;
 
     if (entry->winner_idx)
         return entry->winner_idx;
@@ -1586,6 +1589,8 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
         if (!erased) {
             OPENVINO_THROW("Device with \"", device_name, "\" name is not registered in the OpenVINO Runtime");
         }
+
+        m_dispatch_map.erase(device_name);
         reg_it->second.m_extensions.clear();
         return;
     }
