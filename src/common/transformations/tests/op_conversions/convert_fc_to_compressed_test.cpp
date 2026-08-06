@@ -261,3 +261,37 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterWeightsDynamicShapeSk
     model = build_model();
     model_ref = build_model();
 }
+
+// enable_parameter_weights=true with a dynamic-shape Parameter zero-point: weights and scale are
+// static, but combine_groups() cannot fold group dims of a dynamic zero-point and would otherwise
+// let a wrong-rank ZP flow into FullyConnectedCompressed. The guard must reject the match here.
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterZeroPointDynamicShapeSkipped) {
+    const size_t IC = 2048;
+    const size_t OC = 5;
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types,
+                                                                                     nullptr,
+                                                                                     /*convert_u4zp_to_u8=*/false,
+                                                                                     /*enable_parameter_weights=*/true);
+
+    const auto build_model = [&]() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{OC, IC});
+        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        // Dynamic-rank Parameter zero-point.
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape::dynamic());
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
+        auto wei_sub = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{OC, 1});
+        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_sub, scale);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_scale, bias);
+        return std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights, zp, scale});
+    };
+
+    // Conversion is skipped, so the reference graph is identical to the input graph.
+    model = build_model();
+    model_ref = build_model();
+}
