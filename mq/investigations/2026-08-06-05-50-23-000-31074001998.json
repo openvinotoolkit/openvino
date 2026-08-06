@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-06-05-50-23-000-31074001998",
+  "timestamp": "2026-08-06T05:50:23Z",
+  "run_id": "31074001998",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31074001998",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "pr_number": "35433",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/35433",
+  "author": "riverlijunjie",
+  "category": "Code Issue",
+  "title": "GPU Windows build fails: illegal qualified name xe3p_35_10/xe3p_35_11/xe3p_unknown in moe_3gemm_gen_micro.cpp",
+  "signature": "illegal qualified name in member declaration undeclared identifier xe3p|Code Issue",
+  "signature_hash": "f465d72627e4c847",
+  "confidence": "High",
+  "failed_jobs": ["Build / Build"],
+  "key_errors": [
+    "moe_3gemm_gen_micro.cpp(29): error C2838: 'xe3p_35_10': illegal qualified name in member declaration",
+    "moe_3gemm_gen_micro.cpp(30): error C2838: 'xe3p_35_11': illegal qualified name in member declaration",
+    "moe_3gemm_gen_micro.cpp(31): error C2838: 'xe3p_unknown': illegal qualified name in member declaration",
+    "moe_3gemm_gen_micro.cpp(29): error C2051: case expression not constant"
+  ],
+  "root_cause": "The PR #35433 modified src/plugins/intel_gpu/src/graph/impls/ocl_v2/moe/moe_3gemm_gen_micro.cpp and introduced xe3p_35_10, xe3p_35_11, xe3p_unknown identifiers that are undeclared on MSVC (Windows). These identifiers are GPU architecture enum values likely missing from a header or guard clause, causing MSVC to reject them with C2838 (illegal qualified name) and C2065 (undeclared identifier). The build is configured with -DCMAKE_COMPILE_WARNING_AS_ERROR=ON so the error is fatal.",
+  "reproduction_steps": "Build openvino on Windows with VS 2022 Debug configuration; the error is deterministic in the modified file.",
+  "recommended_actions": [
+    "Check that xe3p_35_10, xe3p_35_11, xe3p_unknown enum values are defined in the header included by moe_3gemm_gen_micro.cpp on Windows",
+    "Ensure any new GPU architecture enum values are guarded or available cross-platform",
+    "Fix the code and push a new commit to PR #35433"
+  ],
+  "prevention_strategies": "Run Windows CI locally or ensure cross-platform compilation checks cover new GPU arch enum additions.",
+  "historical_context": "No prior occurrences of this specific error pattern found."
+}

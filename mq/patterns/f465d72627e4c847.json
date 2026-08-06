@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "illegal qualified name in member declaration undeclared identifier xe3p|Code Issue",
+  "signature_hash": "f465d72627e4c847",
+  "title": "GPU Windows build fails: illegal qualified name xe3p identifiers in moe_3gemm_gen_micro.cpp",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-08-06T05:50:23Z",
+  "last_seen": "2026-08-06T05:50:23Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31074001998"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/35433"],
+  "recent_timestamps": ["2026-08-06T05:50:23Z"],
+  "rerun_search_string": null
+}
