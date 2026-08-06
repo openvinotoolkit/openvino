@@ -396,7 +396,11 @@ struct PagedAttentionManager {
         }
 
         auto num_blocks = block_indices.back() + 1;
-        auto key_cache_shape = ov::PartialShape{num_blocks, num_kv_heads, adjusted_head_size, adjusted_block_size};
+        // Token-major uncompressed K swaps the two innermost dims, matching the value cache.
+        const bool k_token_major = cldnn::paged_attention::k_token_major() && !kv_cache_compression;
+        auto key_cache_shape = k_token_major
+                                   ? ov::PartialShape{num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size}
+                                   : ov::PartialShape{num_blocks, num_kv_heads, adjusted_head_size, adjusted_block_size};
         auto key_cache_layout = cldnn::layout{key_cache_shape, key_cache_dt, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(key_cache_layout);
         for (int i = 0; i < static_cast<int>(subsequence_descs.size()); i++) {
@@ -558,14 +562,21 @@ struct PagedAttentionManager {
                                     }
                                 }
                             } else {
+                                // Both layouts have the same per-(block, head) page size, so only the
+                                // token / head-dim strides inside the page differ.
+                                const bool k_token_major = cldnn::paged_attention::k_token_major();
+                                const size_t token_stride = k_token_major ? k_head_size : 1;
+                                const size_t hidden_stride = k_token_major ? 1 : block_size;
                                 for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
                                     size_t input_token_offset = block_idx * block_size + token_idx;
                                     ov::float16* data_ptr =
                                         key_data[i].data() + input_token_offset * num_kv_heads * k_head_size + head_idx * k_head_size + k_head_size_idx;
 
-                                    // shape: [num_blocks, num_kv_heads, k_head_size, block_size]
+                                    // d-major:     [num_blocks, num_kv_heads, k_head_size, block_size]
+                                    // token-major: [num_blocks, num_kv_heads, block_size, k_head_size]
                                     size_t output_offset = (start_block_idx + block_idx) * num_kv_heads * k_head_size * block_size +
-                                                           head_idx * k_head_size * block_size + k_head_size_idx * block_size + token_idx;
+                                                           head_idx * k_head_size * block_size + k_head_size_idx * hidden_stride +
+                                                           token_idx * token_stride;
 
                                     set_values(test_stream, memory, data_ptr, 1, output_offset);
                                 }
@@ -1540,6 +1551,11 @@ public:
             // Uncompressed case: read as float16
             cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
 
+            // See get_key_cache_memory(): token-major swaps the in-page token / head-dim strides.
+            const bool k_token_major = cldnn::paged_attention::k_token_major();
+            const size_t token_stride = k_token_major ? pam.k_head_size : 1;
+            const size_t hidden_stride = k_token_major ? 1 : pam.block_size;
+
             for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                 const int physical_block = pam.block_indices[blocks_start + block_idx];
                 const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
@@ -1555,7 +1571,7 @@ public:
                             static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
 
                         for (int dim = 0; dim < pam.k_head_size; dim++) {
-                            const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
+                            const size_t cache_offset = cache_base + static_cast<size_t>(dim) * hidden_stride + token_offset * token_stride;
                             key_data[output_base + dim] = cache_ptr[cache_offset];
                         }
                     }
