@@ -283,7 +283,7 @@ void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
 
 ov::AnyMap get_baseline_common_config(const std::optional<NPUDesc>& npudesc) {
     ov::AnyMap config = {
-        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm"},
+        {"NPU_COMPILATION_MODE_PARAMS", "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm"},
         {"NPUW_DEVICES", "NPU"},
         {"NPU_USE_NPUW", "YES"},
         {"NPUW_FOLD", "YES"},
