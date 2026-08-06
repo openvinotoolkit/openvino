@@ -64,6 +64,14 @@ std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
     return core;
 }
 
+bool any_matmul_has_transpose_b(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ops();
+    return std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        return matmul != nullptr && matmul->get_transpose_b();
+    });
+}
+
 class LLMCompiledModelFactoryOptionsTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -805,6 +813,24 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoder
     EXPECT_GE(recorder.calls().size(), 2u);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionAppliesVTensorOptimization) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    const auto* generate = recorder.find_suffix("_kv");
+    ASSERT_NE(prefill, nullptr);
+    ASSERT_NE(generate, nullptr);
+    EXPECT_TRUE(any_matmul_has_transpose_b(prefill->model));
+    EXPECT_TRUE(any_matmul_has_transpose_b(generate->model));
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
