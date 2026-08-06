@@ -275,18 +275,6 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto multiclass_nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes_for_multiclass, class_wise_scores, attrs);
         multiclass_nms->set_friendly_name(nms->get_friendly_name() + "/MulticlassNms");
 
-        for (const auto& fp32_node : ov::NodeVector{boxes_f32,
-                                                    scores_f32,
-                                                    scores_2d,
-                                                    masked_score,
-                                                    class_wise_scores_nc,
-                                                    scores_transpose,
-                                                    class_wise_scores,
-                                                    boxes_for_multiclass,
-                                                    multiclass_nms}) {
-            ov::disable_conversion(fp32_node, ov::element::f16);
-        }
-
         auto valid_selected_indices = std::make_shared<ov::op::v8::Slice>(multiclass_nms->output(1),
                                                                           ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
                                                                           multiclass_nms->output(2),
