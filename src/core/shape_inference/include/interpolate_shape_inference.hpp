@@ -168,6 +168,24 @@ std::optional<TRes> get_axes(const Node* const op, size_t port, bool has_axes, s
         using TAxis = typename TRes::value_type;
         axes = std::move(get_input_const_data_as<TShape, TAxis, TRes>(op, port, ta));
         if (axes) {
+            const auto rank_i64 = static_cast<int64_t>(rank);
+            for (auto& axis : *axes) {
+                auto axis_i64 = static_cast<int64_t>(axis);
+                NODE_VALIDATION_CHECK(op,
+                                      axis_i64 >= -rank_i64 && axis_i64 < rank_i64,
+                                      "Axis ",
+                                      axis_i64,
+                                      " is out of valid range [",
+                                      -rank_i64,
+                                      ", ",
+                                      rank_i64 - 1,
+                                      "] for input rank ",
+                                      rank_i64);
+                if (axis_i64 < 0) {
+                    axis_i64 += rank_i64;
+                }
+                axis = static_cast<TAxis>(axis_i64);
+            }
             validate::axes_values(op, *axes, rank);
         }
     } else {
