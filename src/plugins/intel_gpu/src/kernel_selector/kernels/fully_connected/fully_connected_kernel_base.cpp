@@ -28,8 +28,6 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
         } else if (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4) {
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
-        } else if (params.weights.GetDType() == WeightsType::UINT2) {
-            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_UINT2", 1)});
         }
 
         const size_t scale_groups_num = params.decompression_scale.Feature().v;
@@ -187,9 +185,9 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
     }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
+        if (!IsFusedPrimitiveSupported(fused_op)) 
             DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+        
     }
 
     return true;
