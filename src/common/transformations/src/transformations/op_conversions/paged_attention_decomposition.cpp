@@ -4,10 +4,13 @@
 
 #include "transformations/op_conversions/paged_attention_decomposition.hpp"
 
+#include <limits>
 #include <memory>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"

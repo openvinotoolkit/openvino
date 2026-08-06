@@ -272,8 +272,8 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |NhwcMaxPool                                             |                        |1                               |                                |
 |com.microsoft           |PackedAttention                                         |                        |1                               |                                |
 |com.microsoft           |PackedMultiHeadAttention                                |                        |1                               |                                |
-|com.microsoft           |PagedAttention                                          |1                       |1                               |                                |
 |com.microsoft           |Pad                                                     |1                       |1                               |                                |
+|com.microsoft           |PagedAttention                                          |1                       |1                               |                                |
 |com.microsoft           |QAttention                                              |                        |1                               |                                |
 |com.microsoft           |QGemm                                                   |                        |1                               |                                |
 |com.microsoft           |QLinearAdd                                              |1                       |1                               |                                |
