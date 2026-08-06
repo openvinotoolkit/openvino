@@ -66,6 +66,13 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
 }
 
+// True when the K cache holds [block_size, k_head_size] pages (head_size innermost) rather than the
+// legacy [k_head_size, block_size]. Compressed caches are always d-major, so this mirrors exactly
+// the condition the cache shape was built with in transformations_pipeline.cpp.
+inline bool get_k_token_major(const RuntimeParams& params) {
+    return cldnn::paged_attention::k_token_major() && !get_kv_compressed(params);
+}
+
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
     return v_head_size / u4_elems_per_byte % subgroup_size == 0;
 }
@@ -481,6 +488,8 @@ public:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
+
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("SCALE_VAL", desc->scale_val.value());
@@ -1280,6 +1289,8 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
+
         return jit;
     }
 
@@ -1662,11 +1673,21 @@ public:
     // token_type_ids does not change the choice: micro and OCL kernels both support it.
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with micro SDPA
-        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && !can_use_gqa_multi_tokens_kernel(params, stage);
-        GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
-                               << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
-                               << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
-        return can_use_micro_sdpa;
+        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage) || can_use_gqa_multi_tokens_kernel(params, stage))
+            return false;
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
+            return false;
+        // sdpa_micro's MIXED variant reads the K cache d-major (problem_kq.A.layout = N, ldk =
+        // block_size, plus a K0 pointer pre-compensation for micro's Layout::N A-offset), so it
+        // cannot read a token-major cache. PREFILL is unaffected: it reads the contiguous KEY input,
+        // not the cache. Fall back to pa_multi_token for MIXED, which shares the (already
+        // token-major-aware) K load in paged_attention_opt.cl.
+        // NOTE: this means MIXED loses micro entirely once token-major becomes unconditional -- either
+        // sdpa_ocl becomes the MIXED default or sdpa_micro gets ported.
+        if (stage == PagedAttentionStage::MIXED && !use_ocl && get_k_token_major(params))
+            return false;
+        return true;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
