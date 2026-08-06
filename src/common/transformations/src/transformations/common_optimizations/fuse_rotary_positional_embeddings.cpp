@@ -1366,7 +1366,7 @@ RoPEFusionCohere::RoPEFusionCohere() {
     // Flatten the last two dims of `stack` back to head_size.  Two variants:
     //   (a) dynamic: Reshape(stack, Concat([ShapeOf(stack)[0:3], [-1]], axis=0))
     //   (b) static:  Reshape(stack, any,  special_zero=true)
-    auto ShapeOf_stack = pattern::wrap_type<v0::ShapeOf>({stack});
+    auto ShapeOf_stack = pattern::wrap_type<op_util::ShapeOfBase>({stack});
     auto flatten_Slice = op_util::NewGenSlice(ShapeOf_stack, 0, 3, 1, 0);
     auto flatten_Concat = pattern::wrap_type<v0::Concat>({flatten_Slice, {-1}}, {{"axis", 0}});
     auto flatten_Reshape_dyn = pattern::wrap_type<v1::Reshape>({stack, flatten_Concat});
