@@ -196,6 +196,7 @@ jobs:
       - name: Checkout
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
+        with:
           sparse-checkout: |
             .github/actions
             tests/llm
