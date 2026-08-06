@@ -281,6 +281,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/util/broadcast_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/convert_color_i420_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/convert_color_nv12_base.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/util/convert_color_to_nv12_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/deformable_convolution_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/detection_output_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/util/elementwise_args.cpp
