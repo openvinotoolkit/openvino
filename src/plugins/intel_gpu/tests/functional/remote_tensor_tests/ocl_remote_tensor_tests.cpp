@@ -2892,12 +2892,12 @@ TEST_P(RemoteTensorSubByte, smoke_CopyTo) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_copy_sub_byte,
                          RemoteTensorSubByte,
-                         ::testing::Combine(::testing::Values(ov::element::i4),
+                         ::testing::Combine(::testing::Values(ov::element::i4, ov::element::u2),
                                             ::testing::Values(RemoteTensorSharingType::PLUGIN_CL_TENSOR,
                                                               RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
                                                               RemoteTensorSharingType::PLUGIN_HOST_TENSOR),
-                                            ::testing::Values(ov::Shape{4, 16},    // even: 64 i4 = 32 bytes
-                                                              ov::Shape{3, 5})),   // odd: 15 i4 = 8 bytes, last nibble padded
+                                            ::testing::Values(ov::Shape{4, 16},
+                                                              ov::Shape{3, 5})),
                          RemoteTensorSubByte::getTestCaseName);
 
 TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {
