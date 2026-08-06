@@ -128,6 +128,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/floor_mod.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/function.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gather.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gather_elements.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/gather_nd.hpp
