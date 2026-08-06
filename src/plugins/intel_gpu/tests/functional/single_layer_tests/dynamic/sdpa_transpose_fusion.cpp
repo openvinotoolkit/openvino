@@ -19,8 +19,9 @@ using ov::test::InputShape;
 
 struct SDPATransposeFusionGPUTestParams {
     ov::element::Type netPrecision;
-    std::vector<InputShape> inputShapes;  // Q, K, V
+    std::vector<InputShape> inputShapes;  // Q, K, V (logical shapes)
     bool is_causal;
+    std::vector<std::vector<int64_t>> input_transpose_orders;  // per-input transpose (empty = identity)
     std::vector<int64_t> output_transpose_order;  // {0,2,1,3} or empty for no-transpose
     bool expect_transpose_removed;                // true if the pass should remove the Transpose
 };
@@ -46,6 +47,20 @@ std::string SDPATransposeFusionGPUTest::getTestCaseName(
         result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
     }
     result << "causal=" << p.is_causal << "_";
+    bool has_input_tp = !p.input_transpose_orders.empty() &&
+                        std::any_of(p.input_transpose_orders.begin(), p.input_transpose_orders.end(),
+                                    [](const std::vector<int64_t>& o) { return !o.empty(); });
+    if (has_input_tp) {
+        result << "input_transpose_";
+        for (const auto& o : p.input_transpose_orders) {
+            for (auto v : o)
+                result << v;
+            result << ".";
+        }
+        result << "_";
+    } else {
+        result << "no_input_transpose_";
+    }
     if (p.output_transpose_order.empty()) {
         result << "no_output_transpose_";
     } else {
@@ -63,7 +78,35 @@ void SDPATransposeFusionGPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_GPU;
     expect_transpose_removed = p.expect_transpose_removed;
 
-    init_input_shapes(p.inputShapes);
+    // Permute the declared input shapes to match the input Transpose ops, so the
+    // Parameters hold the physical (pre-transpose) layout while the SDPA consumes
+    // the logical [B,H,S,D] layout (mirrors scaled_dot_product_attention.cpp).
+    auto inputShapes = p.inputShapes;
+    auto transpose_pshape = [](InputShape& pshapes, const std::vector<int64_t>& order) {
+        auto transposed_pshape = ov::PartialShape::dynamic(pshapes.first.rank());
+        std::vector<ov::Shape> transposed_cshapes(pshapes.second);
+        auto& pshape = pshapes.first;
+        auto& cshape = pshapes.second;
+        for (size_t i = 0; i < order.size(); i++) {
+            transposed_pshape[i] = pshape[order[i]];
+            for (size_t j = 0; j < cshape.size(); j++) {
+                transposed_cshapes[j][i] = cshape[j][order[i]];
+            }
+        }
+        for (size_t i = 0; i < order.size(); i++) {
+            pshape[i] = transposed_pshape[i];
+            for (size_t j = 0; j < cshape.size(); j++) {
+                cshape[j][i] = transposed_cshapes[j][i];
+            }
+        }
+    };
+    if (!p.input_transpose_orders.empty()) {
+        for (size_t i = 0; i < p.input_transpose_orders.size() && i < inputShapes.size(); i++) {
+            if (!p.input_transpose_orders[i].empty())
+                transpose_pshape(inputShapes[i], p.input_transpose_orders[i]);
+        }
+    }
+    init_input_shapes(inputShapes);
 
     ov::ParameterVector inputParams;
     for (size_t i = 0; i < 3; i++) {
@@ -73,8 +116,26 @@ void SDPATransposeFusionGPUTest::SetUp() {
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
 
+    // Optionally transpose Q/K/V before the SDPA. These are fused into the internal
+    // op::SDPA input_transpose_order by TransposeSDPAMatcher (pattern 1), so the
+    // SDPA + output-Transpose fusion runs with non-identity input orders.
+    ov::OutputVector sdpa_inputs;
+    for (size_t i = 0; i < 3; i++) {
+        if (!p.input_transpose_orders.empty() && !p.input_transpose_orders[i].empty()) {
+            auto order_const = ov::op::v0::Constant::create(
+                ov::element::i64,
+                ov::Shape{p.input_transpose_orders[i].size()},
+                p.input_transpose_orders[i]);
+            auto in_tp = std::make_shared<ov::op::v1::Transpose>(inputParams[i], order_const);
+            in_tp->set_friendly_name("input_transpose_" + std::to_string(i));
+            sdpa_inputs.push_back(in_tp);
+        } else {
+            sdpa_inputs.push_back(inputParams[i]);
+        }
+    }
+
     auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(
-        inputParams[0], inputParams[1], inputParams[2], p.is_causal);
+        sdpa_inputs[0], sdpa_inputs[1], sdpa_inputs[2], p.is_causal);
     sdpa->set_friendly_name("sdpa");
 
     // Apply output Transpose if order is specified
@@ -179,12 +240,20 @@ INSTANTIATE_TEST_SUITE_P(
     SDPATransposeFusionGPUTest,
     testing::Values(
         // Small static: causal + output Transpose{0,2,1,3}
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false, {0, 2, 1, 3}, true},
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, true, {0, 2, 1, 3}, true},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false, {}, {0, 2, 1, 3}, true},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, true, {}, {0, 2, 1, 3}, true},
         // Large static: causal + output Transpose
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_large, true, {0, 2, 1, 3}, true},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_large, true, {}, {0, 2, 1, 3}, true},
         // Non-causal + output Transpose
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_non_causal, false, {0, 2, 1, 3}, true}
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_non_causal, false, {}, {0, 2, 1, 3}, true},
+        // Pattern-1 with non-identity QKV input orders
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false,
+                                         {{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}}, {0, 2, 1, 3}, true},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, true,
+                                         {{0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}}, {0, 2, 1, 3}, true},
+        // Mixed input orders (Q/K/V use different non-identity permutations)
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false,
+                                         {{0, 2, 1, 3}, {0, 1, 2, 3}, {0, 2, 1, 3}}, {0, 2, 1, 3}, true}
     ),
     SDPATransposeFusionGPUTest::getTestCaseName);
 
@@ -194,10 +263,10 @@ INSTANTIATE_TEST_SUITE_P(
     SDPATransposeFusion_Baseline,
     SDPATransposeFusionGPUTest,
     testing::Values(
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false, {}, false},
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, true, {}, false},
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_large, true, {}, false},
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_non_causal, false, {}, false}
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, false, {}, {}, false},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_small, true, {}, {}, false},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_large, true, {}, {}, false},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_non_causal, false, {}, {}, false}
     ),
     SDPATransposeFusionGPUTest::getTestCaseName);
 
@@ -208,11 +277,11 @@ INSTANTIATE_TEST_SUITE_P(
     SDPATransposeFusionGPUTest,
     testing::Values(
         // {0,3,1,2} — not the heads<->seq swap, must stay as standalone Transpose
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {0, 3, 1, 2}, false},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {}, {0, 3, 1, 2}, false},
         // {0,1,3,2} — head_size-moving, must stay
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {0, 1, 3, 2}, false},
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {}, {0, 1, 3, 2}, false},
         // {1,0,2,3} — batch-head swap, must stay
-        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {1, 0, 2, 3}, false}
+        SDPATransposeFusionGPUTestParams{ov::element::f16, static_4d_wrong_tp, false, {}, {1, 0, 2, 3}, false}
     ),
     SDPATransposeFusionGPUTest::getTestCaseName);
 

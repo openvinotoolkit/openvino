@@ -111,15 +111,16 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         // The kernel-side handling only supports this specific permutation;
         // enabling the flag for other non-identity orders would silently
         // corrupt outputs via wrong addressing.
+        // Note: for a rank-3 SDPA the order is 3D (e.g. {0,1,2}); extend it to 4D
+        // before comparing against the 4D identity/heads<->seq permutations.
         {
-            const auto& out_order = desc->output_transpose_order;
-            bool is_identity = (out_order == std::vector<int64_t>{0, 1, 2, 3});
-            bool is_heads_seq_swap = (out_order == std::vector<int64_t>{0, 2, 1, 3});
+            auto extended_out_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+            bool is_identity = (extended_out_order == std::vector<int64_t>{0, 1, 2, 3});
+            bool is_heads_seq_swap = (extended_out_order == std::vector<int64_t>{0, 2, 1, 3});
             OPENVINO_ASSERT(is_identity || is_heads_seq_swap,
                             "SDPA: unsupported output_transpose_order ",
                             " (only identity and {0,2,1,3} heads<->seq swap are supported)");
             if (is_heads_seq_swap) {
-                auto extended_out_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
                 jit.make("OUTPUT_TRANSPOSE_ORDER_PRESENT", 1);
                 jit.make("OUTPUT_TRANSPOSE_0", extended_out_order[0]);
                 jit.make("OUTPUT_TRANSPOSE_1", extended_out_order[1]);
