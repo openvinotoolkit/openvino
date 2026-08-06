@@ -36,6 +36,12 @@
     #error pa_sdpa_opt.cl
 #endif
 
+// The token-major K load is a fixed-width vload16 of one token's row (KEY_VEC_SIZE head dims),
+// so a subgroup size other than 16 would silently read the wrong number of head dims per step.
+#if IS_KEY_TOKEN_MAJOR && SUBGROUP_SIZE != 16
+    #error pa_sdpa_opt.cl: token-major K load assumes SUBGROUP_SIZE == 16
+#endif
+
 #if HEADS_PER_WI > 1
     #define GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(multiple_heads_idx, fixed_val) multiple_heads_idx
 #else
@@ -391,9 +397,27 @@ KERNEL(pa_sdpa_opt)(
     #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
+    #if IS_KEY_TOKEN_MAJOR
+                // Token-major page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]. The consumer
+                // below needs k_vals[i] on lane L to be K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i]
+                // (q_val is broadcast over head dims, and the score lands in lane == token). A block
+                // read would walk head dims across lanes -- the wrong axis -- so instead each lane
+                // loads its OWN token's row directly: the KEY_VEC_SIZE head dims a lane needs are
+                // contiguous there, so one per-lane vector load lands the operand already in the
+                // layout the mad below wants, with no transpose and no SLM staging. Same idiom the
+                // prefill Q load uses (sdpa_ocl.cl, vload16 at a lane-varying row).
+                // Reading the whole page unconditionally is safe for the same reason the d-major
+                // path relied on: rows past seq_len are inside the allocated page, and their scores
+                // are overwritten with SOFTMAX_ACCUMULATOR_VAL_MIN by the token_idx guard below.
+                // KEY_VEC_SIZE == SUBGROUP_SIZE == PAGED_ATTENTION_BLOCK_SIZE == 16 is enforced by
+                // the #error guards at the top of this file, which is what makes vload16 the right
+                // width here.
+                k_vals = vload16(0, key_cache + block_offset + sglid * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE);
+    #else
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
                 }
+    #endif
 #endif  // !IS_KV_COMPRESSED
 
 #if XE2_QK_MULTIPLICATION

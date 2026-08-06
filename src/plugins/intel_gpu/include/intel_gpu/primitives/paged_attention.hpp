@@ -6,6 +6,7 @@
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include <cstdlib>
 #include <vector>
 
 namespace cldnn {
@@ -46,6 +47,20 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
+
+    // Uncompressed K cache layout selector. Off => the legacy d-major
+    // [num_blocks, kv_heads, k_head_size, block_size]; on => token-major
+    // [num_blocks, kv_heads, block_size, k_head_size], matching the V cache and the
+    // XAttention K cache, so a cache page is the same geometry the prefill 2D block
+    // reads already use. Compressed (i8/u4) caches stay d-major either way.
+    // TODO: temporary staging switch, to be removed once token-major is unconditional.
+    static bool k_token_major() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("OV_GPU_PA_K_TOKEN_MAJOR");
+            return env != nullptr && env[0] == '1';
+        }();
+        return enabled;
+    }
 
     paged_attention() : primitive_base("", {}) {}
 

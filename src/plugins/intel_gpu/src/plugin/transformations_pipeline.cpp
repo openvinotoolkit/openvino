@@ -927,7 +927,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                // Token-major K (same dim order as V and as XAttention) is only wired up for an
+                // uncompressed cache: the compressed layouts inline scale/zp along the token axis,
+                // which assumes tokens are contiguous.
+                const bool k_token_major = cldnn::paged_attention::k_token_major() && kv_cache_precision.is_real();
+                kv_cache_config.keyCacheDimOrder = k_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
