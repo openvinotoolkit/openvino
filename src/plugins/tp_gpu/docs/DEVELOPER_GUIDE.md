@@ -77,13 +77,39 @@ Field semantics:
 
 ## Tests
 
-Two test binaries live under `tests/`.
+Automated suites live under `tests/`, hand-driven binaries under
+`samples/`.
 
-### `tp_test` — end-to-end comparator and prefill+decode driver
+### `ov_tp_gpu_unit_tests`
+
+Two groups in one binary:
+
+- Graph rewriter: structural analysis of a synthetic transformer block,
+  per-rank sharding for world sizes 2/3/4, collective insertion, bias,
+  KV-cache localization. Needs no GPU.
+- `TPDeviceCoordinator`: AllReduce correctness on f16/f32, plan caching
+  across shifting pointers and sizes, scratch growth, in-place operation,
+  wider worlds. Skips when fewer than two discrete GPUs are present.
+
+### `ov_tp_gpu_func_tests`
+
+Accuracy of the whole pipeline: compiles the same synthetic block on a
+single GPU and on TP_GPU, feeds both the same input and compares the
+outputs. Parametrized over world size {2, 3, 4} and inference precision
+{f16, f32}; the precision is pinned on both sides, because left alone the
+GPU picks f16 and one ULP there is the same magnitude as a real sharding
+error. Skips when the machine has too few GPUs.
+
+Both register with CTest under the `TP_GPU` label:
 
 ```bash
-cd build_release
-./bin/intel64/Release/tp_test \
+ctest -L TP_GPU
+```
+
+### `tp_benchmark` — end-to-end comparator and prefill+decode driver
+
+```bash
+./bin/intel64/Release/tp_benchmark \
     --model /path/to/openvino_model.xml \
     --prefill-len 1024 \
     --gen-len 16
@@ -105,20 +131,12 @@ Output includes:
 - One `[TP][PROF]` block per `TP_PROF` window if the env var is set.
 - Top-K logits comparison between TP and the single-GPU baseline.
 
-### `tp_coordinator_test` — focused unit tests for `TPDeviceCoordinator`
+### `tp_allreduce_l0` — raw peer-copy bandwidth
 
-Builds a synthetic two-rank coordinator with the shared L0 context and
-exercises:
-- AllReduce correctness on f16/f32, varying `n` from 1 element up to a
-  few MiB.
-- Plan caching (rebuild vs re-record vs reuse) across a sequence of
-  calls with shifting pointers and shrinking `n`.
-- Lifetime: repeated full destroy/build cycles to verify no L0 handles
-  leak across plan churn.
-
-The `samples/tp_allreduce_l0.cpp` binary is **not** a test — it is a
-standalone L0 reproducer used to measure raw PCIe peer-copy bandwidth
-without OpenVINO in the loop.
+A standalone Level Zero reproducer that measures cross-device bandwidth
+without OpenVINO in the loop. Useful for telling "the collective is slow"
+apart from "the link is slow". It compiles the plugin's own
+`src/kernels/allreduce_sum.cl`, so the two cannot drift apart.
 
 ## Debugging Recipes
 
@@ -205,8 +223,9 @@ that doesn't expose `layers.{N}.self_attn.q_proj` etc., extend
    - The KV-cache shape constant patch (search for `kv_init_patched`)
      looks for `Constant → Concat → Broadcast → ReadValue` — different
      state-init topologies need their own pattern.
-3. Add a focused test in `tp_test.cpp` or, preferably, a small synthetic
-   IR in `tests/` that exercises the new pattern.
+3. Add a case to `tests/unit/graph_rewriter_test.cpp`, extending
+   `BlockConfig` in `tests/common/tp_test_models.hpp` when the new
+   pattern needs a different synthetic block.
 
 ## Adding a New TP Op
 

@@ -159,12 +159,14 @@ src/plugins/tp_gpu/
 │   ├── tp_coordination.hpp                ← TPCoordination (rendezvous + DC slot)
 │   └── tp_device_coordinator.hpp          ← TPDeviceCoordinator public API
 ├── samples/
-│   ├── allreduce_sum.cl                   ← reduce kernel source
-│   ├── tp_allreduce_l0.cpp                ← standalone L0 reproducer / BW test
-│   └── embed_spv.cmake                    ← bakes the .cl into the plugin .so
+│   ├── tp_benchmark/                      ← prefill+decode comparator vs GPU
+│   └── tp_allreduce_l0/                   ← standalone L0 reproducer / BW test
+├── cmake/embed_kernels.cmake              ← bakes the .cl into the plugin
 ├── src/
 │   ├── op/                                ← TPAllReduce, TPReduceScatter,
 │   │                                        TPAllGather, TPBroadcast op classes
+│   ├── kernels/allreduce_sum.cl           ← reduce kernel source (single copy;
+│   │                                        the sample compiles this one too)
 │   ├── plugin.{hpp,cpp}                   ← IPlugin entry point; builds
 │   │                                        shared L0 context + DC
 │   ├── compiled_model.{hpp,cpp}           ← ICompiledModel
@@ -172,12 +174,17 @@ src/plugins/tp_gpu/
 │   ├── graph_rewriter.{hpp,cpp}           ← analyze + per-rank rewrite
 │   ├── tp_l0_shared_context.hpp           ← RAII for the shared ze_context
 │   ├── tp_device_coordinator.cpp          ← L0 plans, cmdlists, kernels, exec
-│   ├── tp_embedded_kernels.h              ← generated from allreduce_sum.cl
 │   └── version.cpp                        ← OV_DEFINE_PLUGIN_CREATE_FUNCTION
 └── tests/
-    ├── tp_test.cpp                        ← prefill+decode comparator vs GPU
-    └── tp_coordinator_test.cpp            ← unit tests for TPDeviceCoordinator
+    ├── common/tp_test_models.hpp          ← synthetic blocks, shared by suites
+    ├── unit/                              ← ov_tp_gpu_unit_tests: rewriter,
+    │                                        TPDeviceCoordinator
+    └── functional/                        ← ov_tp_gpu_func_tests: accuracy
+                                             against a single GPU
 ```
+
+`tp_embedded_kernels.h` is generated into the build tree from
+`src/kernels/allreduce_sum.cl`.
 
 ## TPDeviceCoordinator (Device-side AllReduce)
 
@@ -194,7 +201,7 @@ For every rank, the coordinator creates:
 - Optionally a copy queue + command list on a copy-only ordinal when
   `TP_COPY_ENGINE=1` is set (off by default — see "Tunables" below).
 - An `allreduce_sum_f16` and `allreduce_sum_f32` kernel compiled from
-  `samples/allreduce_sum.cl`. The kernel module is built via OpenCL
+  `src/kernels/allreduce_sum.cl`. The kernel module is built via OpenCL
   (`clBuildProgram`) on the device matched by UUID, then re-loaded into
   the shared L0 context as `ZE_MODULE_FORMAT_NATIVE`. This works around
   the lack of OCLC support in the L0 driver on the validated stack.
@@ -266,11 +273,14 @@ For world sizes greater than 2, the original funnel topology is retained:
   on rank 0's device.
 - Rank 0 waits on all `ev_recv[w]`, then folds the staging buffers into
   the running output via successive reduce kernel launches, signaling
-  `ev_reduce` on the last fold.
+  `ev_reduce` on the last fold.  Each fold reads and writes the same
+  output buffer, and the command list is not created in-order, so the
+  launches are separated by `zeCommandListAppendBarrier`.
 - Rank 0 scatters the result back to each worker's `out_ptr`.
 
-For TP=2 (the validated configuration) the symmetric path above is used
-instead — it removes one round trip per call.
+The funnel routes every contribution through rank 0, so its traffic grows
+as O(N).  For TP=2 the symmetric path above is used instead -- it removes
+one round trip per call.
 
 ## intel_gpu Integration
 
@@ -284,8 +294,9 @@ implements the in-graph `TPAllReduce` op. This impl:
   `dc->allreduce(collective_id, rank, in, out, n, dtype)` synchronously.
 
 Registration order (see `tp_allreduce_impls.cpp`): `OCL_static`,
-`OCL_dynamic`, `CPU_static`, `CPU_dynamic`. The CPU paths exist as a
-fallback when no shared L0 context is available.
+`OCL_dynamic`. There is no CPU fallback: the collective needs a shared
+L0 context spanning every rank's device, and without one the plugin
+fails at `compile_model` rather than silently degrading.
 
 ## Lifetime and Threading
 
@@ -316,18 +327,19 @@ fallback when no shared L0 context is available.
 - **Hardware**: 2× Intel Arc B580 (BMG) on PCIe 4.0 x8 each.
 - **Software**: Intel L0 driver (compute-runtime) with the
   `zexCounterBasedEventCreate2` extension available.
-- **Models**: Llama-architecture decoders with GQA (e.g. TinyLlama-1.1B,
-  Llama-3.2-1B/3B, Qwen2-7B). Models are required to expose
-  `layers.{N}.{self_attn|mlp}.{qkv,o,gate,up,down}_proj` MatMul names —
-  the rewriter is name-driven.
-- **TP degree**: 2 (production path). N>2 builds and runs but uses the
-  legacy funnel topology.
+- **Models**: decoders with GQA (e.g. TinyLlama-1.1B, Llama-3.1-8B,
+  Llama-3.2-1B/3B, Qwen3-8B). The rewriter finds the projections
+  structurally, anchored on the attention op, so layer naming does not
+  matter.
+- **TP degree**: 2, 3 and 4 are covered by `ov_tp_gpu_func_tests`.
+  N>2 uses the legacy funnel topology.
 
 ## Known Limitations
 
-- The graph rewriter recognizes Llama-style layer naming via regex.
-  Other architectures (Mistral, MPT, Falcon, GPT-J, …) need either a
-  matching naming convention or explicit pattern additions.
+- The rewriter anchors on `PagedAttentionExtension` or
+  `ScaledDotProductAttention` and requires the projections to be MatMuls
+  over constant-derived weights. Architectures that fuse QKV differently,
+  or feed a weight from a live parameter, are not recognized.
 - Dynamic quantization (`hint::dynamic_quantization_group_size > 0`) is
   force-disabled by `Plugin::compile_model`. The oneDNN i8×i4 BRGEMM
   kernel produces shape-dependent results that diverge between
