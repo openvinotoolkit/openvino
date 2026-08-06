@@ -14,6 +14,13 @@
 #include "intel_gpu/runtime/device_query.hpp"
 #include <memory>
 
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 namespace ov::intel_gpu {
 
 namespace {
@@ -24,6 +31,17 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     OPENVINO_ASSERT(itrHandle != params.end(), "[GPU] No parameter ", p.name(), " found in parameters map");
     ov::Any res = itrHandle->second;
     return res.as<Type>();
+}
+
+// Alignment required for a memory mapping offset: allocation granularity on Windows, page size elsewhere.
+size_t get_mmap_offset_alignment() {
+#ifdef _WIN32
+    SYSTEM_INFO sys_info;
+    GetSystemInfo(&sys_info);
+    return static_cast<size_t>(sys_info.dwAllocationGranularity);
+#else
+    return static_cast<size_t>(ov::util::get_system_page_size());
+#endif
 }
 
 ContextType get_default_context_type() {
@@ -286,6 +304,12 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
     const auto byte_size = ov::util::get_memory_size_safe(type, shape);
     OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
 
+    const auto alignment = get_mmap_offset_alignment();
+    OPENVINO_ASSERT(alignment != 0 && offset % alignment == 0,
+                    "[GPU] Offset ",
+                    offset,
+                    " must be a multiple of ",
+                    alignment);
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
     auto mapped_memory = ov::load_mmap_object(file_path, offset, *byte_size);

@@ -352,7 +352,9 @@ public:
      * so the file must not be modified until the returned tensor is destroyed.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param file_descriptor Descriptor with the path and offset(which must be multiple of page size) of the file containing tensor data
+     * @param file_descriptor Descriptor with the path and offset of the file containing tensor data.
+     * The offset must be a multiple of the system memory mapping alignment: the page size on Linux
+     * (typically 4 KiB) and the allocation granularity on Windows (typically 64 KiB).
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const FileDescriptor& file_descriptor) {
