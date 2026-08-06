@@ -9,6 +9,7 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +22,6 @@
 #include <utility>
 
 #include "common/primitive_attr.hpp"
-#include <common/primitive_hashing.hpp>
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
