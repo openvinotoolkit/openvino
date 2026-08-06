@@ -120,6 +120,9 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
         }
 
+        // Uncompressed K may be stored token-major; compressed layouts are always d-major.
+        jit.make("IS_KEY_TOKEN_MAJOR", (!is_kv_compressed && cldnn::paged_attention::k_token_major()) ? 1 : 0);
+
         jit.add(make_type_jit_constants("UNCOMPRESSED", is_kv_compressed ? cldnn::data_types::f16 : key_cache_dt));
         return jit;
     }
