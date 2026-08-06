@@ -16,73 +16,72 @@ bool isCompilerOptionSupported(ov::intel_npu::CompilerType compilerType,
                                const std::optional<std::string>& optionValue,
                                const ov::SoPtr<IEngineBackend>& engineBackend,
                                const std::optional<uint32_t>& compilerSupportVersion) {
-    try {
-        std::unique_ptr<ICompilerAdapter> compiler;
-        const auto getCompiler = [&]() -> ICompilerAdapter* {
-            if (compiler == nullptr) {
+    std::unique_ptr<ICompilerAdapter> compiler;
+    const auto getCompiler = [&]() -> ICompilerAdapter* {
+        if (compiler == nullptr) {
+            try {
                 compiler = CompilerAdapterFactory().getCompiler(engineBackend, compilerType, "");
+            } catch (...) {
+                return nullptr;
             }
-            return compiler.get();
-        };
-
-        // Resolve PREFER_PLUGIN to a concrete compiler type before cache lookup.
-        if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-            auto* compilerPtr = getCompiler();
-            if (compilerPtr == nullptr) {
-                return false;
-            }
-            return compilerPtr->is_option_supported(optionName, optionValue, compilerSupportVersion);
         }
+        return compiler.get();
+    };
 
-        if (CompilerOptionsCache::isOptionSupported(compilerType, optionName, optionValue, compilerSupportVersion)) {
-            return true;
-        }
-
+    // Resolve PREFER_PLUGIN to a concrete compiler type before cache lookup.
+    if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         auto* compilerPtr = getCompiler();
         if (compilerPtr == nullptr) {
             return false;
         }
-
         return compilerPtr->is_option_supported(optionName, optionValue);
-    } catch (...) {
+    }
+
+    if (CompilerOptionsCache::isOptionSupported(compilerType, optionName, optionValue, compilerSupportVersion)) {
+        return true;
+    }
+
+    auto* compilerPtr = getCompiler();
+    if (compilerPtr == nullptr) {
         return false;
     }
+
+    return compilerPtr->is_option_supported(optionName, optionValue);
 }
 
 std::optional<std::vector<std::string>> getCompilerSupportedOptions(ov::intel_npu::CompilerType compilerType,
                                                                     const ov::SoPtr<IEngineBackend>& engineBackend) {
-    try {
-        auto effectiveCompilerType = compilerType;
-        std::unique_ptr<ICompilerAdapter> compiler;
-        const auto getCompiler = [&]() -> ICompilerAdapter* {
-            if (compiler == nullptr) {
+    auto effectiveCompilerType = compilerType;
+    std::unique_ptr<ICompilerAdapter> compiler;
+    const auto getCompiler = [&]() -> ICompilerAdapter* {
+        if (compiler == nullptr) {
+            try {
                 compiler = CompilerAdapterFactory().getCompiler(engineBackend, effectiveCompilerType, "");
+            } catch (...) {
+                return nullptr;
             }
-            return compiler.get();
-        };
-
-        if (effectiveCompilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-            auto* compilerPtr = getCompiler();
-            if (compilerPtr == nullptr) {
-                return std::nullopt;
-            }
-
-            return compilerPtr->get_supported_options();
         }
+        return compiler.get();
+    };
 
-        if (auto cachedOptions = CompilerOptionsCache::getSupportedOptions(effectiveCompilerType);
-            cachedOptions.has_value()) {
-            return cachedOptions;
-        }
-
+    if (effectiveCompilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         auto* compilerPtr = getCompiler();
         if (compilerPtr == nullptr) {
             return std::nullopt;
         }
-
         return compilerPtr->get_supported_options();
-    } catch (...) {
+    }
+
+    if (auto cachedOptions = CompilerOptionsCache::getSupportedOptions(effectiveCompilerType);
+        cachedOptions.has_value()) {
+        return cachedOptions;
+    }
+
+    auto* compilerPtr = getCompiler();
+    if (compilerPtr == nullptr) {
         return std::nullopt;
     }
+
+    return compilerPtr->get_supported_options();
 }
 }  // namespace intel_npu
