@@ -33,7 +33,7 @@ public:
     void setKaiExecutorImplAsGatherMatmul();
     void set_gather_idx(const std::vector<std::pair<int32_t, int32_t>>& idxMap);
 
-    enum kernelLookup {
+    enum kernelLookup : std::uint16_t {
         WEIGHT_FP32 = 1,
         WEIGHT_INT8 = 1 << 2,
         WEIGHT_INT4 = 1 << 3,

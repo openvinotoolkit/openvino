@@ -53,11 +53,21 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 || weightDesc->getPrecision() == element::u4;
+    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 ||
+           weightDesc->getPrecision() == element::u4;
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
     VERIFY(hasArmISASupport(ArmISA::ASIMD), UNSUPPORTED_ISA);
+
+    // ASYM INT4 groupwise kernel is N×K only (no K×N variant); it cannot
+    // consume non-transposed weights, and scale/zero-point repacking for that
+    // layout isn't implemented. Reject so another executor is selected.
+    const auto& weiPrec = config.descs.at(ARG_WEI)->getPrecision();
+    if (weiPrec == element::u4 && config.attrs.weightsNonTransposed) {
+        return false;
+    }
+
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
@@ -72,9 +82,7 @@ bool MatMulKleidiAIExecutor::isGroupQuantizationEnabled(const MemoryArgs& memory
 
 bool MatMulKleidiAIExecutor::isAsymmetricQuantizationEnabled(const MemoryArgs& memory) {
     const auto zpIt = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS);
-    return zpIt != memory.end() &&
-           zpIt->second != nullptr &&
-           !zpIt->second->getDesc().empty();
+    return zpIt != memory.end() && zpIt->second != nullptr && !zpIt->second->getDesc().empty();
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
@@ -105,7 +113,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     const VectorDims wgtDims2D = reshapeDownToRank<2>(wgtDims);
     originalWeightsDesc = std::make_shared<CpuBlockedMemoryDesc>(originalWeightsDesc->getPrecision(), Shape{wgtDims2D});
     auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
-    
+
     kernelLookupKey = 0;
 
     const bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
@@ -118,8 +126,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         } else if (weightPrecision == element::i8) {
             kernelLookupKey |= kernelLookup::WEIGHT_INT8;
         } else {
-            OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported weight format by KleidiAI executor: ",
-                                            weightPrecision);
+            OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported weight format by KleidiAI executor: ", weightPrecision);
         }
 
         if (hasArmISASupport(ArmISA::I8MM)) {
@@ -130,10 +137,9 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
             OPENVINO_THROW_NOT_IMPLEMENTED("KleidiAI quantized kernels require Arm dotprod or i8mm support.");
         }
 
-        kernelLookupKey |= isGroupQuantizationEnabled(memory) ? kernelLookup::QUANT_GROUP
-                                                                : kernelLookup::QUANT_CHANNEL;
-        kernelLookupKey |= isAsymmetricQuantizationEnabled(memory) ? kernelLookup::QUANT_ASYMMETRIC
-                                                                    : kernelLookup::QUANT_SYMMETRIC;
+        kernelLookupKey |= isGroupQuantizationEnabled(memory) ? kernelLookup::QUANT_GROUP : kernelLookup::QUANT_CHANNEL;
+        kernelLookupKey |=
+            isAsymmetricQuantizationEnabled(memory) ? kernelLookup::QUANT_ASYMMETRIC : kernelLookup::QUANT_SYMMETRIC;
     }
 
     const auto createPackedMemory = [&](size_t size, const element::Type& precision) {
@@ -141,7 +147,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         rhsPackedMem = std::make_shared<Memory>(context->getEngine(), desc);
     };
 
-    const auto packQuantizedWeights = [&](bool isTransposed, MemoryCPtr weightsMemory) {
+    const auto packQuantizedWeights = [&](bool isTransposed, const MemoryCPtr& weightsMemory) {
         createPackedMemory(_kernel->get_rhsPackedSize(), i8);
         auto* rhsScales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
         std::vector<float> transposedScales;
@@ -177,40 +183,45 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     }
 
     case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_SYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(
-            N, K, lhsPackedMem, memory);
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
+                                                                                                     K,
+                                                                                                     lhsPackedMem,
+                                                                                                     memory);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
     case WEIGHT_INT4 | ISA_DOTPROD | QUANT_GROUP | QUANT_SYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP>>(
-            N, K, lhsPackedMem, memory);
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP>>(N,
+                                                                                                         K,
+                                                                                                         lhsPackedMem,
+                                                                                                         memory);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
     case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_ASYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP_ASYM>>(
-            N, K, lhsPackedMem, memory);
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP_ASYM>>(N,
+                                                                                                          K,
+                                                                                                          lhsPackedMem,
+                                                                                                          memory);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
     case WEIGHT_INT4 | ISA_DOTPROD | QUANT_GROUP | QUANT_ASYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP_ASYM>>(
-            N, K, lhsPackedMem, memory);
+        _kernel =
+            std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD_GROUP_ASYM>>(N,
+                                                                                                        K,
+                                                                                                        lhsPackedMem,
+                                                                                                        memory);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
     case WEIGHT_INT4 | ISA_I8MM | QUANT_CHANNEL | QUANT_SYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM>>(N,
-                                                                                              K,
-                                                                                              lhsPackedMem);
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM>>(N, K, lhsPackedMem);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
     case WEIGHT_INT4 | ISA_DOTPROD | QUANT_CHANNEL | QUANT_SYMMETRIC:
-        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD>>(N,
-                                                                                                  K,
-                                                                                                  lhsPackedMem);
+        _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_DOTPROD>>(N, K, lhsPackedMem);
         packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
         break;
 
@@ -218,11 +229,10 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     case WEIGHT_INT8 | ISA_I8MM | QUANT_CHANNEL | QUANT_SYMMETRIC: {
         const bool useI8MM = (kernelLookupKey & ISA_I8MM) != 0;
         if (useI8MM) {
-            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(
-                N, K, lhsPackedMem);
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N, K, lhsPackedMem);
         } else {
-            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_DOTPROD>>(
-                N, K, lhsPackedMem);
+            _kernel =
+                std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_DOTPROD>>(N, K, lhsPackedMem);
         }
 
         MemoryPtr weightsMemory = memory.at(ARG_WEI);
@@ -236,8 +246,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     }
 
     default:
-        OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported KleidiAI kernel configuration. Lookup key: ",
-                                       kernelLookupKey);
+        OPENVINO_THROW_NOT_IMPLEMENTED("Unsupported KleidiAI kernel configuration. Lookup key: ", kernelLookupKey);
     }
 
     scratchPad = context->getScratchPad();

@@ -200,33 +200,25 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 
         const auto scalesShape = op->input(WEIGHT_SCALES).get_shape();
         const bool isChannelWise = shape_size(scalesShape) == OC;
-        const bool hasValidGroupGeometry =
-            IC % G == 0 &&
-            IC / G >= 4 &&
-            OC != 1 &&
-            (IC / G) % 32 == 0;
+        const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
         const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
 
         if (!isChannelWise && !isGroupWise) {
             return false;
         }
 
-        const bool hasWeightZeroPoints =
-            op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
+        const bool hasWeightZeroPoints = op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                                         op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
 
         if (hasWeightZeroPoints) {
             const auto weightsType = op->input(WEIGHTS).get_element_type();
             const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
             // KleidiAI supports asymmetric INT4 only for group-wise u4.
-            if (weightsType != ov::element::u4 ||
-                zeroPointsType != ov::element::u4 ||
-                !isGroupWise) {
+            if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || !isGroupWise) {
                 return false;
             }
 
-            const auto zeroPointsShape =
-                op->input(WEIGHT_ZERO_POINTS).get_shape();
+            const auto zeroPointsShape = op->input(WEIGHT_ZERO_POINTS).get_shape();
 
             if (zeroPointsShape != scalesShape) {
                 return false;
