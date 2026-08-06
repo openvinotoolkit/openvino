@@ -295,7 +295,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                 }
             } else {
                 if (!matmul->get_transpose_b()) {
-                    if (can_reuse_transpose(fc_input_b)) {
+                    if (!is_parameter_compressed_weight && can_reuse_transpose(fc_input_b)) {
                         fc_input_b = transpose_node;
                     }
                 } else {
