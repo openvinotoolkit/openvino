@@ -230,7 +230,7 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulAsymm(Context::Ref ctx, Results to_keep, bool only_scale = false);
+    PreserveConstDictMatMulAsymm(Context::Ref ctx, Results to_keep);
 };
 
 class PreserveConstDictMatMulFP8 : public ov::pass::MatcherPass {

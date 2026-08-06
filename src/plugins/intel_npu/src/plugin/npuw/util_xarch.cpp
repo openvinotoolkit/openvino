@@ -1533,9 +1533,9 @@ void ov::npuw::util::XARCH::unpack_i8f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         for (std::size_t index = 0u; index < (total / stotal); index += VECSIZE) {
             const __m128i* pSrcV = reinterpret_cast<const __m128i*>(pSrc);
             __m128i* pDstV = reinterpret_cast<__m128i*>(pDst);
-            __m128i i8vec = _mm_loadl_epi64(pSrcV);      // load:    8 x i8  [ 64b of 128b]
+            __m128i i8vec = _mm_loadl_epi64(pSrcV);             // load:    8 x i8  [ 64b of 128b]
             __m128i f16vec = avx2_i8tof16(i8vec, f32zp, svec);  // convert & scale
-            _mm_store_si128(pDstV, f16vec);              // store:   8 x f16 [128b]
+            _mm_store_si128(pDstV, f16vec);                     // store:   8 x f16 [128b]
             pSrc += VECSIZE;
             pDst += VECSIZE;
         }  // index

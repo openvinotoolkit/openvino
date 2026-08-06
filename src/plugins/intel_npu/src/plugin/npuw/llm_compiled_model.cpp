@@ -92,36 +92,39 @@ public:
             auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto qcoeff_shape = std::static_pointer_cast<ov::op::v0::Constant>(matched_qcoeff)->get_shape();
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
+            auto matched_matmul =
+                std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
 
-            if (qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&
-                !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            if (qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() &&
+                matched_matmul->get_transpose_b()) {
                 auto matched_qweight_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qweight);
                 auto matched_qzerop_const = std::static_pointer_cast<ov::op::v0::Constant>(matched_qzerop);
 
                 auto reinterpret_u8_as_i8 = [](const std::shared_ptr<ov::op::v0::Constant>& src) {
                     OPENVINO_ASSERT(src->get_element_type() == ov::element::u8);
                     auto dst = std::make_shared<ov::op::v0::Constant>(
-                        ov::element::i8, src->get_shape(),
+                        ov::element::i8,
+                        src->get_shape(),
                         src->get_data_ptr(),
-                        src);                     // <-- 'so': source node kept alive => no dangling, no copy
+                        src);  // <-- 'so': source node kept alive => no dangling, no copy
                     dst->set_friendly_name(src->get_friendly_name());
-                    // FIXME: This copies weightless attribute to not preserve a constant as a new for weightless import.
-                    //        Thus, weightless import will be broken and need additional handling for I8 as U8 consts.
-                    ov::copy_runtime_info(src, dst);
+                    // FIXME: This copies weightless attribute to not preserve a constant as a new for weightless
+                    // import. NOTE: ov::copy_runtime_info(src, dst) doesn't lead to the desired behavior, failing the
+                    // LazyTensor to find Weightless attribute!
                     dst->get_rt_info() = src->get_rt_info();
                     return dst;
                 };
 
-                // To not mmap and allocate vocab memory here, its shifting will be deferred to the LazyTensor unpacking stage.
+                // To not mmap and allocate vocab memory here, its shifting will be deferred to the LazyTensor unpacking
+                // stage.
                 auto i8_qweight_constant = reinterpret_u8_as_i8(matched_qweight_const);
-                i8_qweight_constant->get_rt_info()["needs_shift"] = true;
+                // Inform partitioning, that this Const is special and needs to be unpacked with -128 shift applied.
+                i8_qweight_constant->get_rt_info()[ov::npuw::weights::op::Sub128::rt_key] = true;
                 ov::replace_node(matched_qweight_const, i8_qweight_constant);
-                matched_qweight.reset();
                 auto i8_qzerop_constant = reinterpret_u8_as_i8(matched_qzerop_const);
-                i8_qzerop_constant->get_rt_info()["needs_shift"] = true;
+                // Inform partitioning, that this Const is special and needs to be unpacked with -128 shift applied.
+                i8_qzerop_constant->get_rt_info()[ov::npuw::weights::op::Sub128::rt_key] = true;
                 ov::replace_node(matched_qzerop_const, i8_qzerop_constant);
-                matched_qzerop.reset();
                 return true;
             }
             return false;
@@ -151,26 +154,24 @@ public:
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
-            std::cout << "Matched MatMulFirstAsymVocab pattern" << std::endl;
-
             auto matched_qweight = node_to_output.at(qweight).get_node_shared_ptr();
-            if (matched_qweight->get_element_type() != ov::element::u8 && matched_qweight->get_element_type() != ov::element::i8) {
+            if (matched_qweight->get_element_type() != ov::element::u8 &&
+                matched_qweight->get_element_type() != ov::element::i8) {
                 return false;
             }
             if (matched_qweight->get_shape().size() != 2) {
                 return false;
             }
-            std::cout << "here" << std::endl;
             auto matched_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto qcoeff_shape = matched_qcoeff->get_shape();
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(
-                node_to_output.at(qmm).get_node_shared_ptr());
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(
-                node_to_output.at(qres).get_node_shared_ptr());
+            auto matched_matmul =
+                std::static_pointer_cast<ov::op::v0::MatMul>(node_to_output.at(qmm).get_node_shared_ptr());
+            auto matched_result =
+                std::static_pointer_cast<ov::op::v0::Result>(node_to_output.at(qres).get_node_shared_ptr());
 
-            if (qcoeff_shape.size() != 2 || qcoeff_shape[1] != 1 ||
-                matched_matmul->get_transpose_a() || !matched_matmul->get_transpose_b()) {
+            if (qcoeff_shape.size() != 2 || qcoeff_shape[1] != 1 || matched_matmul->get_transpose_a() ||
+                !matched_matmul->get_transpose_b()) {
                 return false;
             }
 
@@ -182,8 +183,8 @@ public:
             auto new_matmul = std::make_shared<ov::op::v0::MatMul>(hidden, w_f32, false, true);
 
             auto s_f32 = std::make_shared<ov::op::v0::Convert>(matched_qcoeff, ov::element::f32);
-            auto s_reshape = ov::op::v0::Constant::create(
-                ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
+            auto s_reshape =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
             auto scale_reshaped = std::make_shared<ov::op::v1::Reshape>(s_f32, s_reshape, false);
             auto scaled = std::make_shared<ov::op::v1::Multiply>(new_matmul, scale_reshaped);
             scaled->set_friendly_name("scale_after_matmul");
@@ -191,12 +192,11 @@ public:
             auto z_f32 = std::make_shared<ov::op::v0::Convert>(matched_qzerop, ov::element::f32);
             auto zp_scale = std::make_shared<ov::op::v1::Multiply>(z_f32, s_f32);
             zp_scale->set_friendly_name("zero_point_scale");
-            auto zp_reshape = ov::op::v0::Constant::create(
-                ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
+            auto zp_reshape =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 1, vocab_size});
             auto zp_reshaped = std::make_shared<ov::op::v1::Reshape>(zp_scale, zp_reshape, false);
 
-            auto reduce_axis = ov::op::v0::Constant::create(
-                ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
+            auto reduce_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
             auto sum_h = std::make_shared<ov::op::v1::ReduceSum>(hidden, reduce_axis, true);
             sum_h->set_friendly_name("reduce_sum_h");
             auto zp_correction = std::make_shared<ov::op::v1::Multiply>(sum_h, zp_reshaped);
@@ -878,8 +878,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Also make these maps for third: lm head model, in case it will be created:
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
-    auto vocab_as_i8_opt = get_option<bool>(other_props, std::string("NPUW_ASYM_I8_VOCAB_AS_INPUT"));
-    auto matmul_first_vocab_opt = get_option<bool>(other_props, std::string("NPUW_MATMUL_FIRST_VOCAB"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -1010,13 +1008,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    if (vocab_as_i8_opt.has_value() && vocab_as_i8_opt.value() == true) {
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_I8_VOCAB_AS_INPUT>()) {
         NPUW_ASSERT(convert_vocab_to_i8(kvcache_model));
     }
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
     if (lm_head_model) {
-        if (matmul_first_vocab_opt.has_value() && matmul_first_vocab_opt.value() == true) {
-            std::cout << "Here" << std::endl;
+        if (m_cfg.get<::intel_npu::NPUW_LLM_MATMUL_FIRST_VOCAB>()) {
             NPUW_ASSERT(apply_matmul_first_vocab(lm_head_model));
         }
     }
@@ -1399,6 +1396,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
+        auto vocab_as_input = get_option<bool>(other_props, std::string("NPUW_ASYM_VOCAB_AS_INPUT"));
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ASYM_I8_VOCAB_AS_INPUT>() ||
+            m_cfg.get<::intel_npu::NPUW_LLM_ASYM_VOCAB_AS_INPUT>()) {
+            lm_head_config["NPUW_HOST_GATHER"] = "NO";
+        }
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
     }
