@@ -224,6 +224,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                    commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr,
                                    _init_structs->getGraphDdiTable().getImpl(),
                                    _init_structs->getCommandQueueDdiTable().getImpl());
+        _runtime_config_command_queue_desc = commandQueueDesc;
+        _runtime_config_command_queue_desc_valid = true;
     } else {
         _logger.debug("DynamicPipeline: using v1.x VM runtime API");
         const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
@@ -342,29 +344,8 @@ void DynamicPipeline::push() {
 
     const auto useV2Api = use_npu_vm_runtime_v2_api(_apiVersion);
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
-    if (command_queue_version_changed && (!useV2Api || command_queue_desc.shared_common_queue())) {
-        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
-        if (_sync_output_with_fences && !useV2Api) {
-            for (size_t i = 0; i < _fences.size(); i++) {
-                _fences[i] = std::make_unique<Fence>(_command_queue);
-            }
-        }
-    }
-
-    const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
-    if (useV2Api) {
-        runtimeConfig = update_runtime_config(command_queue_desc);
-    }
-
-    const auto commandQueueHandle =
-        useV2Api && !command_queue_desc.shared_common_queue() ? nullptr : _command_queue->handle();
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-
-        auto& command_lists = _command_lists.at(i);
-        auto& dynamicArguments = command_lists->getArguments();
+    auto logDynamicArguments = [&](DynamicArguments& dynamicArguments) {
         if (_logger.level() >= ov::log::Level::DEBUG) {
             _logger.debug("push - inputs info for dynamic graph:");
             for (auto& memType : dynamicArguments._inputsMemRef) {
@@ -375,10 +356,55 @@ void DynamicPipeline::push() {
                 _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
+    };
 
-        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
-            execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
+    if (useV2Api) {
+        const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+        if (command_queue_version_changed && command_queue_desc.shared_common_queue()) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+        }
+
+        const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
+        if (_runtime_config_command_queue_desc_valid) {
+            runtimeConfig = update_runtime_config(_runtime_config_command_queue_desc, command_queue_desc);
         } else {
+            _runtime_config_command_queue_desc = command_queue_desc;
+            _runtime_config_command_queue_desc_valid = true;
+        }
+
+        const auto commandQueueHandle = command_queue_desc.shared_common_queue() ? _command_queue->handle() : nullptr;
+        for (size_t i = 0; i < _command_lists.size(); ++i) {
+            OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+
+            auto& command_lists = _command_lists.at(i);
+            auto& dynamicArguments = command_lists->getArguments();
+            logDynamicArguments(dynamicArguments);
+
+            execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
+        }
+
+        _runtime_config_command_queue_desc = command_queue_desc;
+        _runtime_config_command_queue_desc_valid = true;
+    } else {
+        const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+        if (command_queue_version_changed) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+
+            if (_sync_output_with_fences) {
+                for (size_t i = 0; i < _fences.size(); i++) {
+                    _fences[i] = std::make_unique<Fence>(_command_queue);
+                }
+            }
+        }
+
+        const auto commandQueueHandle = _command_queue->handle();
+        for (size_t i = 0; i < _command_lists.size(); ++i) {
+            OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+
+            auto& command_lists = _command_lists.at(i);
+            auto& dynamicArguments = command_lists->getArguments();
+            logDynamicArguments(dynamicArguments);
+
             ze_fence_handle_t fence = nullptr;
             ze_event_handle_t event = nullptr;
             if (_sync_output_with_fences) {
@@ -396,23 +422,24 @@ void DynamicPipeline::push() {
     _logger.debug("push - completed");
 }
 
-const npu_vm_runtime_config_desc_t* DynamicPipeline::update_runtime_config(const CommandQueueDesc& commandQueueDesc) {
-    const auto commandQueueKey = commandQueueDesc.key();
-    if (_runtime_config_valid && _runtime_config_key == commandQueueKey) {
-        return _runtimeConfigChain.head();
-    }
-
+const npu_vm_runtime_config_desc_t* DynamicPipeline::update_runtime_config(
+    const CommandQueueDesc& previousCommandQueueDesc,
+    const CommandQueueDesc& currentCommandQueueDesc) {
     _runtimeConfigChain.clear();
-    _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
-                               static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.priority()));
-    if (commandQueueDesc.workload().has_value()) {
-        _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
-                                   static_cast<npu_vm_runtime_config_value_t>(commandQueueDesc.workload().value()));
-    }
-    _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueDesc.options());
 
-    _runtime_config_key = commandQueueKey;
-    _runtime_config_valid = true;
+    if (previousCommandQueueDesc.priority() != currentCommandQueueDesc.priority()) {
+        _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+                                   static_cast<npu_vm_runtime_config_value_t>(currentCommandQueueDesc.priority()));
+    }
+    if (previousCommandQueueDesc.workload() != currentCommandQueueDesc.workload() &&
+        currentCommandQueueDesc.workload().has_value()) {
+        _runtimeConfigChain.append(
+            NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+            static_cast<npu_vm_runtime_config_value_t>(currentCommandQueueDesc.workload().value()));
+    }
+    if (previousCommandQueueDesc.options() != currentCommandQueueDesc.options()) {
+        _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, currentCommandQueueDesc.options());
+    }
     return _runtimeConfigChain.head();
 }
 
@@ -623,13 +650,11 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        ze_command_queue_handle_t commandQueue = nullptr;
         if (use_npu_vm_runtime_v2_api(_apiVersion)) {
             const auto commandQueueDesc = _graph->get_command_queue_desc();
             if (commandQueueDesc.shared_common_queue() && commandQueueDesc.key() != _command_queue->desc().key()) {
                 _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
             }
-            commandQueue = commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr;
         }
         params.executionContext =
             use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
