@@ -65,7 +65,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_reshape_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({weight_mult_m, ov::pass::pattern::any_input()});
     auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
+    auto conv1x1_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m}, ov::pass::pattern::rank_equals(4));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -343,9 +344,6 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             // final_out is NHWC (channel last), but Reshape does not reorder elements, so
             // consumer_reshape (built for the Convolution's NCHW output) needs NCHW input too.
             const auto& conv_out_pshape = conv1x1->get_output_partial_shape(0);
-            if (conv_out_pshape.rank() != 4) {
-                return false;
-            }
             std::shared_ptr<Node> reshape_input = final_out;
             // Skip the NCHW-restoring Transpose only when the spatial size H*W is statically 1: then
             // the NHWC [N, 1, 1, Cout] and NCHW [N, Cout, 1, 1] layouts have identical element order.
