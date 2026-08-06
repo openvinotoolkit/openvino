@@ -1536,6 +1536,20 @@ private:
     }
 
 public:
+    // Exposes the reference rotation so a test can build the expected post-rotation cache content.
+    void rotate_block_for_test(std::vector<ov::float16>& cache_data,
+                               const std::vector<int>& rotation_deltas,
+                               const std::vector<ov::float16>& rotation_trig_lut_mem,
+                               int rotated_block_idx,
+                               int subsequence_rotated_block_idx,
+                               int num_heads,
+                               int k_head_size,
+                               int block_size,
+                               bool per_block) {
+        rotate_block(cache_data, rotation_deltas, rotation_trig_lut_mem, rotated_block_idx, subsequence_rotated_block_idx,
+                     num_heads, k_head_size, block_size, per_block);
+    }
+
     std::vector<ov::float16> read_key_from_cache(cldnn::memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
         // Read key vectors from key_cache memory
         // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]

@@ -889,6 +889,7 @@ protected:
             }
         }
         jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
 
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
@@ -1155,6 +1156,8 @@ protected:
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
+
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
 
         return jit;
     }

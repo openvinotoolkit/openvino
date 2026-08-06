@@ -11,6 +11,19 @@
 #endif
 #define ACCUMULATOR_TYPE float
 
+// In-page K addressing: lane (sglid) walks tokens, the loop index walks head dims. The legacy
+// d-major page ([.., HEAD_SIZE, block_size]) makes tokens contiguous; token-major
+// ([.., block_size, HEAD_SIZE]) makes head dims contiguous. Only these two strides differ, so both
+// layouts share one code path. Compressed caches are always d-major (IS_KEY_TOKEN_MAJOR == 0), where
+// these collapse to the literals the code used before.
+#if IS_KEY_TOKEN_MAJOR
+    #define KEY_TOKEN_STRIDE  HEAD_SIZE
+    #define KEY_HIDDEN_STRIDE 1
+#else
+    #define KEY_TOKEN_STRIDE  1
+    #define KEY_HIDDEN_STRIDE PAGED_ATTENTION_BLOCK_SIZE
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, SUBGROUPS_PER_WG, 1)))
 KERNEL(pa_kv_cache_rotate)(
@@ -69,7 +82,7 @@ KERNEL(pa_kv_cache_rotate)(
     const uint token_coefficient_idx = per_token_rotation ? sglid : 0;
     const uint block_base_offset = rotated_block_indices[block_idx] * KV_HEADS_NUM * ADJUSTED_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
                                    head_idx * ADJUSTED_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-    const uint token_offset = block_base_offset + sglid;
+    const uint token_offset = block_base_offset + sglid * KEY_TOKEN_STRIDE;
 
 #if IS_KV_COMPRESSED
     #if IS_KEY_BY_CHANNEL
@@ -109,7 +122,7 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
         UNCOMPRESSED_TYPE comp_scale_second = comp_ptr_second[0];
         UNCOMPRESSED_TYPE comp_zp_second = comp_ptr_second[1];
     #else
-        const uint cache_offset = token_offset + i * PAGED_ATTENTION_BLOCK_SIZE;
+        const uint cache_offset = token_offset + i * KEY_HIDDEN_STRIDE;
     #endif
 
     #if IS_KV_COMPRESSED
@@ -118,11 +131,11 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
             UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset_second] - comp_zp_second) * comp_scale_second;
         #else
              UNCOMPRESSED_TYPE cache_value_first = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset] - comp_zp) * comp_scale;
-             UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] - comp_zp) * comp_scale;
+             UNCOMPRESSED_TYPE cache_value_second = TO_UNCOMPRESSED_TYPE(key_cache[cache_offset + (HEAD_SIZE / 2) * KEY_HIDDEN_STRIDE] - comp_zp) * comp_scale;
          #endif
     #else
          UNCOMPRESSED_TYPE cache_value_first = key_cache[cache_offset];
-         UNCOMPRESSED_TYPE cache_value_second = key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE];
+         UNCOMPRESSED_TYPE cache_value_second = key_cache[cache_offset + (HEAD_SIZE / 2) * KEY_HIDDEN_STRIDE];
     #endif
     
     INPUT2_TYPE rotation_value_cos = rotation_coefficients[i][token_coefficient_idx];
@@ -141,7 +154,7 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
         rotated_data[(i + (HEAD_SIZE / 2)) * PAGED_ATTENTION_BLOCK_SIZE + sglid] = new_cache_value_second;
     #else
         key_cache[cache_offset] = new_cache_value_first;
-        key_cache[cache_offset + (HEAD_SIZE / 2) * PAGED_ATTENTION_BLOCK_SIZE] = new_cache_value_second;
+        key_cache[cache_offset + (HEAD_SIZE / 2) * KEY_HIDDEN_STRIDE] = new_cache_value_second;
     #endif
 }
 
