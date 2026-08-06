@@ -3,6 +3,7 @@
 //
 
 #include "common.cl"
+#include "bf16_utils.cl"
 
 // Default formats use <prefix>_OFFSET for batching
 #define GET_DATA_INDEX(prefix, b, f, y, x)  \
