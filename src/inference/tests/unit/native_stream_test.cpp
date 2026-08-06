@@ -123,7 +123,7 @@ TEST_P(NativeStreamTestSizes, FullFileReadTest) {
     fill_pattern(expected);
     write_temp_file_impl(m_tmp_path, expected, k_prefix);
 
-    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)}; // CVS-192237
+    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)};  // CVS-192237
     ASSERT_NE(hg.handle, ov::invalid_handle);
     util::NativeStreamBuf buf(hg.handle,
                               k_prefix,
@@ -144,7 +144,7 @@ TEST_P(NativeStreamTestSizes, AlignedDestBufferFullFileReadTest) {
     fill_pattern(expected);
     write_temp_file_impl(m_tmp_path, expected, k_prefix);
 
-    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ )}; // CVS-192237
+    HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)};  // CVS-192237
     ASSERT_NE(hg.handle, ov::invalid_handle);
     util::NativeStreamBuf buf(hg.handle,
                               /*offset=*/k_prefix,
