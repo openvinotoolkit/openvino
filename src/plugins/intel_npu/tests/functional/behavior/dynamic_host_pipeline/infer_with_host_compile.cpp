@@ -40,6 +40,15 @@ const std::vector<ov::AnyMap> dynamicBatchConfigs = {
         {"NPU_COMPILER_TYPE", "PLUGIN"},
         {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
         {"NPU_CREATE_EXECUTOR", "0"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_COMPILATION_MODE", "HostCompile_Interpreter"},
+        {"NPU_CREATE_EXECUTOR", "0"},
         {"NPU_BATCH_MODE", "PLUGIN"},
     },
     {
@@ -55,10 +64,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                                             ::testing::ValuesIn(dynamicBatchModelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileDynamicBatchTests>);
 
-const std::vector<ov::AnyMap> defaultHostCompileconfigs = {{
-    {"NPU_COMPILER_TYPE", "PLUGIN"},
-    {"NPU_CREATE_EXECUTOR", "0"},
-}};
+const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+    },
+    {
+        {"NPU_COMPILER_TYPE", "PLUGIN"},
+        {"NPU_CREATE_EXECUTOR", "0"},
+        {"NPU_BATCH_MODE", "PLUGIN"},
+    },
+};
 
 const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
