@@ -65,6 +65,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/avg_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/batch_to_space.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/bgr_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/binary_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_and.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/bitwise_left_shift.cpp
@@ -217,6 +218,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/rnn_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/rnn_sequence.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/rgb_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/roi_align.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/roi_align_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/roi_pooling.cpp
