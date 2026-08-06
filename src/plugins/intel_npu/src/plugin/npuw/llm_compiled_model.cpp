@@ -274,6 +274,16 @@ std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_
     return std::nullopt;
 }
 
+void apply_model_sharing_context(ov::AnyMap& config,
+                                 const std::unique_ptr<ov::weight_sharing::Context>& shared_ctx_ptr) {
+    if (!shared_ctx_ptr) {
+        return;
+    }
+
+    config[ov::internal::model_sharing_context.name()] =
+        ov::internal::WeightSharingCtxPtr{std::make_shared<const ov::weight_sharing::Context>(*shared_ctx_ptr)};
+}
+
 void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     auto it = config.find("NPUW_WEIGHTS_BANK");
     if (it != config.end()) {
@@ -735,8 +745,15 @@ const ov::AnyMap& properties) {
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constant_to_share;
     size_t total_bytes_can_be_occupied_by_shared_constants = 0;
     size_t actual_bytes_occupied_by_constants = 0;
-    auto align_bytes = [kMinRelocateBytes](size_t bytes) {
-        return ((bytes + kMinRelocateBytes - 1) / kMinRelocateBytes) * kMinRelocateBytes;
+    static constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
+    auto align_bytes = [](size_t bytes, size_t alignment) {
+        return ((bytes + alignment - 1) / alignment) * alignment;
+    };
+    auto align_page_size = [kMinRelocateBytes, align_bytes] (size_t bytes) {
+        return align_bytes(bytes, kMinRelocateBytes);
+    };
+    auto align_single_weight_shared_source_max_size = [align_bytes] (size_t bytes) {
+        return align_bytes(bytes, single_weigh_shared_source_size_max);
     };
     for (const auto& op : model->get_ops()) {
         auto not_shared_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
@@ -749,7 +766,16 @@ const ov::AnyMap& properties) {
             continue;
         }
         // Align the constant's size to the page size to make shared memory allocation visible as a shared memory by NPU
-        const size_t bytes = align_bytes(not_shared_constant->get_byte_size());
+        const size_t bytes = align_page_size(not_shared_constant->get_byte_size());
+        LOG_DEBUG("Constant " << not_shared_constant->get_friendly_name() << " offset: " << total_bytes_can_be_occupied_by_shared_constants << ", size: " << bytes);
+        if (total_bytes_can_be_occupied_by_shared_constants % single_weigh_shared_source_size_max >
+            (total_bytes_can_be_occupied_by_shared_constants + bytes) % single_weigh_shared_source_size_max) {
+                LOG_DEBUG("Constant " << not_shared_constant->get_friendly_name() << " too big to fit, in a single source weight buffer: " <<single_weigh_shared_source_size_max 
+                          << ", current offset: " << total_bytes_can_be_occupied_by_shared_constants << ", constant size: " << bytes 
+                          << " and will be placed in a new source weight buffer.");
+                total_bytes_can_be_occupied_by_shared_constants = align_single_weight_shared_source_max_size(total_bytes_can_be_occupied_by_shared_constants);
+                total_bytes_can_be_occupied_by_shared_constants += bytes;
+        }
         total_bytes_can_be_occupied_by_shared_constants += bytes;
         actual_bytes_occupied_by_constants += not_shared_constant->get_byte_size();
         constant_to_share.push_back(not_shared_constant);
@@ -765,7 +791,7 @@ const ov::AnyMap& properties) {
     // This bank-buffer will act as a source for all shared constants, and each constant will be assigned a slice of this bank-buffer.
     // Due to the limitation on the NPU side, that it can perceive only page-aligned memory block having also page-aligned sizes
     // I align each constant's size to the page size, and if the sum of all constants' sizes exceeds 2GB, I will allocate multiple bank-buffers.
-    static constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
+
     static std::atomic<size_t> s_bank_id_counter{1};
     std::queue<std::shared_ptr<AlignedBuffer>> weight_shared_sources_pool;
     for (size_t bank_idx = 0; bank_idx < total_bytes_can_be_occupied_by_shared_constants; bank_idx += single_weigh_shared_source_size_max) {
@@ -786,7 +812,7 @@ const ov::AnyMap& properties) {
     size_t shared_bank_buffer_offset = 0;
     std::shared_ptr<AlignedBuffer> shared_buffer_pool;
     for (auto non_shared_constant : constant_to_share) {
-        size_t size_of_constant_aligned = align_bytes(non_shared_constant->get_byte_size());
+        size_t size_of_constant_aligned = align_page_size(non_shared_constant->get_byte_size());
         if (shared_bank_buffer_offset + size_of_constant_aligned > single_weigh_shared_source_size_max) {
             shared_bank_buffer_offset = 0;
         }
@@ -800,7 +826,6 @@ const ov::AnyMap& properties) {
         }
         
         const size_t bytes = non_shared_constant->get_byte_size();
-        LOG_DEBUG("Assigning shared buffer for weight" << non_shared_constant->get_friendly_name() << ", size: " << bytes);
         // Use the bank buffer's descriptor ID as the outer key so that
         // m_weight_registry[source_id][constant_id] and m_cache_sources[source_id]
         // refer to the same bank buffer and get_buffer() can locate the slice.
@@ -810,6 +835,9 @@ const ov::AnyMap& properties) {
             shared_buffer_pool->get_descriptor()->get_id(),  // source_id = bank buffer's stable ID
             shared_bank_buffer_offset,                       // constant_id = offset within this bank
             shared_buffer_pool);                             // back-reference to bank buffer
+        LOG_DEBUG("Assigning shared buffer for weight " << non_shared_constant->get_friendly_name() << ", cnst size: " << bytes
+                  << ", bank buffer size: " << shared_buffer_pool->size() << ", source ID: " << const_descriptor->get_id()
+                  << ", constant ID: " << const_descriptor->get_offset() << ", shared_bank_buffer_offset: " << shared_bank_buffer_offset);
         auto constant_shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(shared_buffer_pool->get_ptr<char>() + shared_bank_buffer_offset, bytes, shared_buffer_pool, const_descriptor);
         auto shared_constant =
             std::make_shared<ov::op::v0::Constant>(non_shared_constant->get_element_type(),
@@ -1205,6 +1233,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Generate a random weights bank name unique to this LLMCompiledModel object
     auto weights_bank_name = ov::npuw::util::generate_random_string();
     LOG_VERB("Generated a unique weights bank name: " << weights_bank_name);
+    apply_model_sharing_context(prefill_config, m_shared_ctx_ptr);
+    apply_model_sharing_context(generate_config, m_shared_ctx_ptr);
     apply_weights_bank_name(prefill_config, weights_bank_name);
     apply_weights_bank_name(generate_config, weights_bank_name);
 
@@ -1382,6 +1412,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
+        apply_model_sharing_context(lm_head_config, m_shared_ctx_ptr);
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
