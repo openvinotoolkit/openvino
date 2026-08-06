@@ -301,13 +301,25 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
-                                                const std::optional<std::string>& optValue) const {
-    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER, optName, optValue)) {
+                                                const std::optional<std::string>& optValue,
+                                                const std::optional<uint32_t>& compilerSupportVersion) const {
+    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
+                                                optName,
+                                                optValue,
+                                                compilerSupportVersion)) {
         return true;
     }
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
-    const bool supported = isOptionSupported.value_or(false);
+    if (!isOptionSupported.has_value()) {
+        CompilerOptionsCache::setLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER,
+                                                       _zeroInitStruct->getCompilerVersion());
+        return CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
+                                                       optName,
+                                                       optValue,
+                                                       compilerSupportVersion);
+    }
+    const bool supported = isOptionSupported.value();
     if (supported) {
         CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
     }

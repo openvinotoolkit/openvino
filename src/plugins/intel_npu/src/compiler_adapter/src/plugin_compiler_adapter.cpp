@@ -300,15 +300,10 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
     }
 
     std::vector<char> options;
-    if (!_compiler->get_supported_options(options)) {
-        // Legacy path: compiler does not expose supported options list.
-        CompilerOptionsCache::setLegacyCompilerVersion(ov::intel_npu::CompilerType::PLUGIN, _compiler->get_version());
-        _logger.warning("VCLCompilerImpl get_supported_options failed. Returning empty supported options.");
-        return std::nullopt;
-    }
-
+    _compiler->get_supported_options(options);
     if (options.empty()) {
         _logger.warning("get_supported_options returned no options; returning an empty supported options vector.");
+        CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, std::vector<std::string>{});
         return std::vector<std::string>{};
     }
 
@@ -327,7 +322,8 @@ std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_opt
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
-                                                const std::optional<std::string>& optValue) const {
+                                                const std::optional<std::string>& optValue,
+                                                const std::optional<uint32_t>& /*compilerSupportVersion*/) const {
     if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::PLUGIN, optname, optValue)) {
         return true;
     }

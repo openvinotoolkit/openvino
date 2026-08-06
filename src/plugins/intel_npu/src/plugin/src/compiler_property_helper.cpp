@@ -31,7 +31,7 @@ bool isCompilerOptionSupported(ov::intel_npu::CompilerType compilerType,
             if (compilerPtr == nullptr) {
                 return false;
             }
-            return compilerPtr->is_option_supported(optionName, optionValue);
+            return compilerPtr->is_option_supported(optionName, optionValue, compilerSupportVersion);
         }
 
         if (CompilerOptionsCache::isOptionSupported(compilerType, optionName, optionValue, compilerSupportVersion)) {
