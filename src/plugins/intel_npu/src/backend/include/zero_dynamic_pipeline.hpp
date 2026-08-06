@@ -176,14 +176,15 @@ private:
                                DynamicArguments& args,
                                ze_command_queue_handle_t commandQueue,
                                const npu_vm_runtime_config_desc_t* pConfig);
-    const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& commandQueueDesc);
+    const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
+                                                              const CommandQueueDesc& currentCommandQueueDesc);
 
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
     NpuVMRuntimeConfigChain _runtimeConfigChain;
-    uint64_t _runtime_config_key = 0;
-    bool _runtime_config_valid = false;
+    CommandQueueDesc _runtime_config_command_queue_desc;
+    bool _runtime_config_command_queue_desc_valid = false;
     std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
