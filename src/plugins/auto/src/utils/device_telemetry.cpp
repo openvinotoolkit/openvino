@@ -22,15 +22,15 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-// IPF path for the DTT gear-change notification (see intel-innersource
-// drivers.platform.ipf.ipf-prod IPF_EF/examples/client/SimpleApplication/SampleClientApp.cpp).
-constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnGearChanged";
+// IPF namespace/paths confirmed against the DttSampleEfApp sample (Demo.cpp / Constants.h) and
+// DTT team feedback. Note the registered event path ends in "OnEpoGearChanged", not
+// "OnGearChanged"; the event's own eventPath argument is delivered as the parent node
+// ("...Policy.EPO"), with the real event name/value inside the JSON payload instead.
+constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
+constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EPO.CurrentGear";
+constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
 
-// Probe-only callback: logs the raw event so we can inspect the payload shape. No parsing yet.
-void gear_changed_callback(const char* path, const char* event, void* context) {
-    (void)context;
-    LOG_INFO_TAG("TelemetryClient: received event from %s. Event data: %s", path, event);
-}
+void gear_changed_callback(const char* path, const char* event, void* context);
 
 // Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
@@ -43,7 +43,9 @@ public:
             return;
         }
         LOG_INFO_TAG("TelemetryClient: IPF ClientApi initialized successfully");
-        const ipf_err_t reg_status = IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, nullptr);
+        log_dtt_version();
+        log_current_gear();
+        const ipf_err_t reg_status = IpfRegisterEvent(m_handle, k_dtt_gear_changed_path, gear_changed_callback, this);
         if (reg_status != IpfError::IPF_ERR_OK) {
             LOG_WARNING_TAG("TelemetryClient: failed to register for %s: %s",
                             k_dtt_gear_changed_path,
@@ -112,24 +114,37 @@ public:
         if (m_handle == nullptr || !m_gear_event_registered) {
             return std::nullopt;
         }
-        // TODO: derive the real low-power state once the DTT event_data schema is confirmed;
-        // gear_changed_callback only logs for now, so this never becomes true yet.
+        // TODO: once the DTT team confirms which EPO gear value(s) mean low power mode,
+        // compare m_current_gear.load() against that threshold here instead of always
+        // returning the (currently never-set-true) placeholder below.
         return m_is_low_power_mode.load();
     }
 
+    // Records the latest EPO gear parsed from either the startup query or the
+    // OnEpoGearChanged event. Does not decide low-power mode yet; see is_low_power_mode().
+    void on_gear_changed(const std::string& gear_str) {
+        try {
+            m_current_gear = std::stoi(gear_str);
+        } catch (const std::exception&) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+        }
+    }
+
 private:
-    // Query IPF node data with the two-call buffer-size protocol.
-    std::string get_node(const char* path) {
+    using IpfQueryFn = ipf_err_t (*)(void*, const char*, char*, size_t*);
+
+    // Query IPF node/value data with the two-call buffer-size protocol.
+    std::string query_ipf_string(IpfQueryFn query_fn, const char* path) {
         size_t len = 0;
-        ipf_err_t status = IpfGetNode(m_handle, path, nullptr, &len);
+        ipf_err_t status = query_fn(m_handle, path, nullptr, &len);
         if (status != IpfError::IPF_ERR_BUFFERTOOSMALL || len == 0) {
-            LOG_WARNING_TAG("TelemetryClient: IpfGetNode(%s) size query failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s", path, ipf_ef_error_str(status));
             return {};
         }
         std::vector<char> buf(len);
-        status = IpfGetNode(m_handle, path, buf.data(), &len);
+        status = query_fn(m_handle, path, buf.data(), &len);
         if (status != IpfError::IPF_ERR_OK) {
-            LOG_WARNING_TAG("TelemetryClient: IpfGetNode(%s) failed: %s", path, ipf_ef_error_str(status));
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) failed: %s", path, ipf_ef_error_str(status));
             return {};
         }
         std::string result(buf.data(), len);
@@ -139,10 +154,71 @@ private:
         return result;
     }
 
+    std::string get_node(const char* path) {
+        return query_ipf_string(&IpfGetNode, path);
+    }
+
+    std::string get_value(const char* path) {
+        return query_ipf_string(&IpfGetValue, path);
+    }
+
+    // Best-effort one-shot reads; failures are already logged by query_ipf_string/get_value.
+    void log_dtt_version() {
+        const std::string json_str = get_value(k_dtt_version_path);
+        if (json_str.empty()) {
+            return;
+        }
+        try {
+            const auto parsed = nlohmann::json::parse(json_str);
+            const std::string version = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
+            LOG_INFO_TAG("TelemetryClient: DTT version = %s", version.c_str());
+        } catch (const nlohmann::json::exception& e) {
+            LOG_WARNING_TAG("TelemetryClient: failed to parse DTT version: %s", e.what());
+        }
+    }
+
+    void log_current_gear() {
+        const std::string json_str = get_value(k_dtt_current_gear_path);
+        if (json_str.empty()) {
+            return;
+        }
+        try {
+            const auto parsed = nlohmann::json::parse(json_str);
+            const std::string gear_str = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
+            LOG_INFO_TAG("TelemetryClient: current EPO gear = %s", gear_str.c_str());
+            on_gear_changed(gear_str);
+        } catch (const nlohmann::json::exception& e) {
+            LOG_WARNING_TAG("TelemetryClient: failed to parse current EPO gear: %s", e.what());
+        }
+    }
+
     void* m_handle = nullptr;
     bool m_gear_event_registered = false;
     std::atomic<bool> m_is_low_power_mode{false};
+    std::atomic<int> m_current_gear{-1};
 };
+
+// Parses the {"<EventName>": "<gear>"} payload confirmed by the DTT team (e.g.
+// {"OnEpoGearChanged": "2"}). The gear-to-low-power-mode mapping is not yet known, so this
+// only records/logs the raw gear value; see is_low_power_mode() for the pending TODO.
+void gear_changed_callback(const char* path, const char* event, void* context) {
+    LOG_INFO_TAG("TelemetryClient: received event from %s. Event data: %s", path, event);
+    try {
+        const auto data = nlohmann::json::parse(event);
+        if (data.empty()) {
+            return;
+        }
+        const auto event_name = data.begin().key();
+        const auto& event_value = data.begin().value();
+        const std::string gear_str = event_value.is_string() ? event_value.get<std::string>() : event_value.dump();
+        LOG_INFO_TAG("TelemetryClient: event name=%s, EPO gear=%s", event_name.c_str(), gear_str.c_str());
+        if (context != nullptr) {
+            static_cast<TelemetryClient::Impl*>(context)->on_gear_changed(gear_str);
+        }
+    } catch (const nlohmann::json::exception& e) {
+        LOG_WARNING_TAG("TelemetryClient: failed to parse gear-changed event data: %s", e.what());
+    }
+}
 
 TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
