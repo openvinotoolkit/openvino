@@ -266,12 +266,17 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
+        auto weight_shape = weights_layout.get_partial_shape();
+        auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
+            [](ov::Dimension d) { return d.get_length() > 1; });
+        weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
+        auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
         int grouped = (1 << prim->input_size) - 1;
-        auto ifm_dim_idx = prim->weights_transposed ? 1 : 0;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
