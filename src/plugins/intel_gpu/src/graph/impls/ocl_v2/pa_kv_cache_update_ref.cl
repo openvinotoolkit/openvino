@@ -8,6 +8,21 @@
 
 #define UINT4_RANGE 15
 
+// K cache element addressing within one (block, kv_head) page. The legacy layout is d-major
+// ([.., k_head_size, block_size]) so consecutive tokens are contiguous; token-major is
+// ([.., block_size, k_head_size]) so consecutive head dims are contiguous, matching the V cache.
+// The two differ only in which of the token / head-dim strides is 1, so expressing every
+// uncompressed K write in terms of this pair keeps a single code path for both layouts.
+// Compressed caches are always d-major (IS_KEY_TOKEN_MAJOR == 0), where these collapse to the
+// literal constants the code used before.
+#if IS_KEY_TOKEN_MAJOR
+    #define KEY_TOKEN_STRIDE  K_HEAD_SIZE
+    #define KEY_HIDDEN_STRIDE 1
+#else
+    #define KEY_TOKEN_STRIDE  1
+    #define KEY_HIDDEN_STRIDE PAGED_ATTENTION_BLOCK_SIZE
+#endif
+
 inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
                                     __global OUTPUT_TYPE* out_data,
@@ -401,7 +416,7 @@ KERNEL(pa_kv_cache_update)(
         #endif
         uint block_v_base_offset = block_idx * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE + head_idx * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
         // Key: head-major for both INT4 and INT8 BY_TOKEN (token pos = offset within stride)
-        uint key_out_offset = block_k_base_offset + current_token_pos_in_block;
+        uint key_out_offset = block_k_base_offset + current_token_pos_in_block * KEY_TOKEN_STRIDE;
 #if IS_INT4_COMPRESSED
         uint value_out_offset = block_v_base_offset + current_token_pos_in_block * phys_adjusted_v_head_size;
 #else
@@ -417,7 +432,7 @@ KERNEL(pa_kv_cache_update)(
             DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
             unroll_for (uint i = 0; i < READ_K_BLOCK_SIZE; i++) {
-                uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                 #if READ_K_BLOCK_SIZE == 1
                     key_cache_data[key_offset] = input_data;
                 #else
@@ -536,7 +551,7 @@ KERNEL(pa_kv_cache_update)(
                                     head_idx * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             uint key_out_offset = block_k_base_offset;
             const uint comp_k_offset = block_k_base_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
-            key_out_offset += token_start_pos_key;
+            key_out_offset += token_start_pos_key * KEY_TOKEN_STRIDE;
         #endif
 
         uint block_v_base_offset = block_indices[block_offset] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE +
@@ -634,7 +649,7 @@ KERNEL(pa_kv_cache_update)(
                     DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
                     unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                         key_cache_data[key_offset] = input_data[i];
                     }
                 }
@@ -647,7 +662,7 @@ KERNEL(pa_kv_cache_update)(
                     DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
                     unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                         key_cache_data[key_offset] = input_data[i];
                     }
                 }
@@ -660,7 +675,7 @@ KERNEL(pa_kv_cache_update)(
                     DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
                     unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                         key_cache_data[key_offset] = input_data[i];
                     }
                 }
@@ -673,7 +688,7 @@ KERNEL(pa_kv_cache_update)(
                     DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
                     unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                         key_cache_data[key_offset] = input_data;
                     }
                 }
@@ -755,7 +770,7 @@ KERNEL(pa_kv_cache_update)(
             }
             #endif // IS_KV_COMPRESSED
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
-                key_out_offset += 1;
+                key_out_offset += KEY_TOKEN_STRIDE;
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
 #if IS_INT4_COMPRESSED
                 value_out_offset += phys_adjusted_v_head_size;
@@ -845,7 +860,7 @@ KERNEL(pa_kv_cache_update)(
                     DATA_VEC input_data = BLOCK_READ(key_data, key_in_offset + head_idx_index);
 
                     unroll_for (uint i = 0; i < READ_BLOCK_SIZE; i++) {
-                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * PAGED_ATTENTION_BLOCK_SIZE;
+                        uint key_offset = key_out_offset + (head_idx_index + sglid + SUBGROUP_SIZE * i) * KEY_HIDDEN_STRIDE;
                         key_cache_data[key_offset] = input_data;
                     }
                 }
@@ -879,7 +894,7 @@ KERNEL(pa_kv_cache_update)(
                 }
             #endif // IS_KV_COMPRESSED
                 key_in_offset += (KV_HEADS_NUM * K_HEAD_SIZE + INPUT0_PAD_AFTER_FEATURE_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM);
-                key_out_offset += 1;
+                key_out_offset += KEY_TOKEN_STRIDE;
                 value_in_offset += (KV_HEADS_NUM * V_HEAD_SIZE + INPUT1_PAD_AFTER_FEATURE_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM);
 #if IS_INT4_COMPRESSED
                 value_out_offset += phys_adjusted_v_head_size;
