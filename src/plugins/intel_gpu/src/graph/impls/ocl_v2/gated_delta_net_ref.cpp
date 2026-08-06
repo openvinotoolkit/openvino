@@ -161,4 +161,5 @@ std::unique_ptr<primitive_impl> GatedDeltaNetRef::create_impl(const program_node
 
 }  // namespace ov::intel_gpu::ocl
 
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gated_delta_net)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::GatedDeltaNetRefImpl)

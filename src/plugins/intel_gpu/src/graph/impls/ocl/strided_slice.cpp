@@ -196,10 +196,7 @@ public:
                 // Check out of bounds values for Clamping
                 auto check_out_of_bounds = [&](int32_t value) -> bool {
                     auto size = out_shape[dim];
-                    if (value >= size || value < (size * -1))
-                        return true;
-                    else
-                        return false;
+                    return value >= size || value < (size * -1);
                 };
                 bool should_clamp_begin = check_out_of_bounds(begin);
                 bool should_clamp_end = check_out_of_bounds(end);
@@ -209,7 +206,7 @@ public:
                     begin += out_shape[dim];  // converted value can be negative if the original one was out of bounds
                 if (end < 0)
                     end += out_shape[dim];
-                bool is_stride_reverse = (stride < 0) ? true : false;
+                bool is_stride_reverse = stride < 0;
 
                 // Clamping
                 begin = std::min(std::max(begin, (int32_t)0), out_shape[dim]);
