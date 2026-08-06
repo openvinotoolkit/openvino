@@ -468,15 +468,14 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     const bool relaxedF16Acc = srcDesc->getPrecision() == ov::element::f16 &&
                                weiDesc->getPrecision() == ov::element::f16 &&
                                dstDesc->getPrecision() == ov::element::f16;
-#else
-    const bool relaxedF16Acc = false;
-#endif
-
     auto applyRelaxedF16Accumulation = [&relaxedF16Acc](auto& primitiveAttrs) {
         if (relaxedF16Acc) {
             primitiveAttrs.attr.set_accumulation_mode(dnnl::accumulation_mode::relaxed);
         }
     };
+#else
+    auto applyRelaxedF16Accumulation = [](auto&) {};
+#endif
 
     if (attrs.fcSemantic) {
         // use original post ops and zero points in case if used as FC executor
