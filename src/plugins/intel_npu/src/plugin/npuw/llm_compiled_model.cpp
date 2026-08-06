@@ -15,6 +15,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -1216,19 +1217,36 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_BLOCK();
 
             bool all_transformed = true;
-            auto apply_block_kv_transform =
-                [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
-                    ov::pass::Manager mgr(tag);
-                    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
-                    if (mgr.run_passes(model)) {
-                        LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
-                    } else {
-                        LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
-                        all_transformed = false;
+            auto apply_block_kv_transform = [&](std::shared_ptr<ov::Model>& model,
+                                                bool v_transposed,
+                                                const std::string& tag,
+                                                bool is_prefill = false) {
+                ov::pass::Manager mgr(tag);
+                mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
+                if (mgr.run_passes(model)) {
+                    LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                    // Duplicate shared KV broadcast chains so that each downstream
+                    // SDPA (e.g. Gemma-4 layers 15-33 reusing L13 KV) gets its own
+                    // independent Concat chain.  This makes TagSDPA/SDPADecomposed
+                    // able to isolate and convert each SDPA to HFA independently.
+                    // Currently restricted to prefill: HFA eliminates the Concat and
+                    // GQA eliminates the Broadcast, so duplicated chains carry zero
+                    // runtime cost.  Extending to the generate model requires first
+                    // confirming that the NPU compiler can optimize away the extra
+                    // Concat/Broadcast chains in the single-token-decode subgraph.
+                    if (is_prefill && ov::npuw::pass::DuplicateSharedKVConcat().run_on_model(model)) {
+                        LOG_INFO("DuplicateSharedKVConcat applied: " << tag);
                     }
-                };
+                } else {
+                    LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                    all_transformed = false;
+                }
+            };
 
-            apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+            apply_block_kv_transform(prefill_model,
+                                     m_kvcache_desc.v_tensors_transposed_pre,
+                                     "prefill",
+                                     /*is_prefill=*/true);
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
                 apply_block_kv_transform(generate_model_variants[i],
