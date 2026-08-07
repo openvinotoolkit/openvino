@@ -5,6 +5,7 @@
 set(TARGET_NAME "ie_samples_utils")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp" "*.h")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/affinity_utils.cpp")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL ${SOURCES})
