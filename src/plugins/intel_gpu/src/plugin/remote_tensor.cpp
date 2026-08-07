@@ -181,6 +181,10 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
     , m_va_mem(va_mem) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    // TODO: enable RemoteTensor for SYCL_RT once SYCL interop is wired up.
+    OPENVINO_THROW("[GPU] RemoteTensor is not supported with SYCL runtime yet");
+#endif
     update_hash();
     allocate();
 }

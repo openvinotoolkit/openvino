@@ -30,6 +30,7 @@
 #endif
 
 #include <cassert>
+#include <cstring>
 #include <sstream>
 #include <fstream>
 #include <set>
@@ -523,23 +524,26 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     ob << _cached_binaries.size();
 
-    auto is_zebin = [](const std::vector<unsigned char>& bin) {
+    // zebin (ELF format) or SPIR-V.
+    auto is_driver_agnostic = [](const std::vector<unsigned char>& bin) {
         constexpr uint32_t ELF_MAGIC = 0x464C457F;
+        constexpr uint32_t SPIRV_MAGIC = 0x07230203;
 
         if (bin.size() < sizeof(uint32_t)) {
             return false;
         }
-        auto magic = reinterpret_cast<const uint32_t*>(bin.data())[0];
-        return magic == ELF_MAGIC;
+        uint32_t magic;
+        std::memcpy(&magic, bin.data(), sizeof(magic));
+        return magic == ELF_MAGIC || magic == SPIRV_MAGIC;
     };
 
     for (auto& cached_binary : _cached_binaries) {
-        auto is_zebin_binary = is_zebin(cached_binary.first);
+        auto is_driver_agnostic_binary = is_driver_agnostic(cached_binary.first);
 
         ob << cached_binary.second;
         ob << cached_binary.first;
-        ob << is_zebin_binary;
-        if (!is_zebin_binary) {
+        ob << is_driver_agnostic_binary;
+        if (!is_driver_agnostic_binary) {
             auto driver_version = _device->get_info().driver_version;
             ob << driver_version;
         }
@@ -552,13 +556,13 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
     for (size_t i = 0; i < num_cached_binaries; ++i) {
-        bool is_zebin_binary = true;
+        bool is_driver_agnostic_binary = true;
 
         uint32_t id;
         ib >> id;
         ib >> precompiled_kernels[id];
-        ib >> is_zebin_binary;
-        if (!is_zebin_binary) {
+        ib >> is_driver_agnostic_binary;
+        if (!is_driver_agnostic_binary) {
             // Legacy patchtoken path
             std::string driver_version, current_driver_version;
             ib >> driver_version;

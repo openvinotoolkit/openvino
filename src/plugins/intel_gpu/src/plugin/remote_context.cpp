@@ -28,6 +28,10 @@ ContextType get_default_context_type() {
         return ContextType::ZE;
     #elif defined(OV_GPU_WITH_OCL_RT)
         return ContextType::OCL;
+    #elif defined(OV_GPU_WITH_SYCL_RT)
+        // TODO: return OCL or ZE ContextType according to the underlying SYCL backend.
+        // OCL is used as a placeholder for now.
+        return ContextType::OCL;
     #else
         #error "Expected OpenVINO GPU runtime macros to be defined"
     #endif
@@ -53,6 +57,10 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
 }
 
 RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    // TODO: enable shared RemoteContext for SYCL_RT once SYCL interop is wired up.
+    OPENVINO_THROW("[GPU] Shared RemoteContext is not supported with SYCL runtime yet");
+#endif
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
@@ -110,6 +118,11 @@ const cldnn::engine& RemoteContextImpl::get_engine() const {
 }
 
 void RemoteContextImpl::init_properties() {
+#ifdef OV_GPU_WITH_SYCL_RT
+    // TODO: populate SYCL-backed RemoteContext properties once SYCL interop is wired up.
+    // SYCL engine exposes no OCL/ZE user-context handles; leave properties empty (RemoteTensor is blocked separately).
+    return;
+#endif
     switch (m_type) {
     case ContextType::OCL:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::OCL));
