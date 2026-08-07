@@ -81,9 +81,8 @@ protected:
     }
 
     void TearDown() override {
-        if (!m_tmp_path.empty() && std::filesystem::exists(m_tmp_path)) {
-            std::filesystem::remove(m_tmp_path);
-        }
+        std::filesystem::remove(m_tmp_path);
+        
     }
 };
 
@@ -115,7 +114,7 @@ TEST_F(NativeStreamTest, ChunkedReads) {
 
 class NativeStreamTestSizes
     : public NativeStreamTest,
-      public ::testing::WithParamInterface<std::tuple</*payload*/ size_t, /*treshold*/ size_t, /*prefix*/ size_t>> {};
+      public ::testing::WithParamInterface<std::tuple</*payload*/ size_t, /*threshold*/ size_t, /*prefix*/ size_t>> {};
 
 TEST_P(NativeStreamTestSizes, FullFileReadTest) {
     const auto [k_payload, k_treshold, k_prefix] = GetParam();
