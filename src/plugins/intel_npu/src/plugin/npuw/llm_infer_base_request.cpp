@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "infer_request_utils.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 
 // NOTE: This is a basic method for updating KVCache after handling its part.
 //       It is not intended to work with model supporting Linear Cache.
@@ -30,22 +31,21 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
         }
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
-        auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
         //       than was sent to be processed
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
-        if (src_seq_len > num_tokens) {
-            auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
-        } else {
-            uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
-        }
+        // write_kv_slice_sliding() clamps against dst_tensor's own capacity, so this is
+        // also correct (and a no-op change in behavior) for non-SWA layers, where
+        // capacity always covers the whole context.
+        uu::write_kv_slice_sliding(dst_tensor,
+                                   src_tensor,
+                                   kv_dim,
+                                   kv_dim,
+                                   kvcache_desc.num_stored_tokens - num_tokens,
+                                   num_tokens);
     }
 }
 

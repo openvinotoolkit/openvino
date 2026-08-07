@@ -605,4 +605,27 @@ void log_detected_masks(const std::shared_ptr<ov::Model>& model) {
     }
 }
 
+std::map<size_t, int64_t> get_layer_mask_annotations(const std::shared_ptr<ov::Model>& model) {
+    std::map<size_t, int64_t> result;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa)
+            continue;
+
+        size_t layer_idx = 0;
+        if (!ov::npuw::util::try_parse_self_attn_layer_idx(sdpa->get_friendly_name(), layer_idx))
+            continue;
+
+        const auto& rt_info = sdpa->get_rt_info();
+        const auto it = rt_info.find(NPUW_SDPA_MASK_RT_KEY);
+        if (it == rt_info.end())
+            continue;  // Unknown - omitted from the map
+
+        result[layer_idx] = it->second.as<int64_t>();
+    }
+    return result;
+}
+
 }  // namespace ov::npuw
+
+

@@ -38,6 +38,12 @@ bool starts_with(const std::string& str, const std::string& prefix);
 
 std::string fmt(std::size_t number, std::size_t total);
 
+// Matches e.g. "...layers.5.self_attn..." -> layer index 5. Shared convention used to key
+// per-decoder-layer results (e.g. DetectAttentionMask's per-SDPA rt_info, consumed by
+// detect_causal_mask.cpp/get_layer_mask_annotations() and patch_sliding_window_kvcache.cpp)
+// by decoder layer index, parsed from a node's friendly_name.
+bool try_parse_self_attn_layer_idx(const std::string& text, size_t& out_idx);
+
 // Matches the three DynamicQuantize decomposition implementations declared in
 // kv_cache_compressed.hpp.
 enum class DynamicQuantDecomposeMode {

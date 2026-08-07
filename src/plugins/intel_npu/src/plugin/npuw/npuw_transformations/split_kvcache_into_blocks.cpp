@@ -70,9 +70,10 @@ ov::Shape make_block_shape(const ov::PartialShape& orig_shape, int64_t seq_dim, 
 
 }  // namespace
 
-SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool v_transposed)
+SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool v_transposed, std::vector<bool> layer_is_sliding)
     : m_block_size(block_size),
-      m_v_transposed(v_transposed) {}
+      m_v_transposed(v_transposed),
+      m_layer_is_sliding(std::move(layer_is_sliding)) {}
 
 bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
@@ -87,6 +88,17 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         const bool is_value = ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
         if (!is_key && !is_value) {
             continue;  // not a contiguous KV cache parameter
+        }
+
+        // Sliding Window Attention layers manage their own KV cache via a separate,
+        // orthogonal mechanism (see LLMInferRequest::copy_swa_kvcache()) and must be left
+        // as plain, unsplit parameters regardless of whether the rest of the model uses
+        // block-based or continuous KV cache.
+        const auto layer_idx_opt = is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(name)
+                                          : ov::npuw::util::isPastKeyValuesValueContiguous(name);
+        const size_t layer_idx = static_cast<size_t>(layer_idx_opt.value());
+        if (layer_idx < m_layer_is_sliding.size() && m_layer_is_sliding[layer_idx]) {
+            continue;  // SWA layer — skip, keep as a single contiguous parameter
         }
 
         // Shape must be 4D and fully static before we can proceed.

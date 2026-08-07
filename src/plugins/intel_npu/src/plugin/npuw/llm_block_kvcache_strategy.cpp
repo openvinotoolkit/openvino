@@ -870,6 +870,12 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 
         auto& layer_managers = it->second;
         auto& block_manager = is_key ? layer_managers.key_manager : layer_managers.value_manager;
+        if (!block_manager) {
+            // SWA layers are excluded from block splitting (see split_kvcache_into_blocks.hpp)
+            // and therefore never get a block manager here - they are updated separately via
+            // LLMInferRequest::update_swa_kvcache_for().
+            continue;
+        }
         const uint32_t kv_dim = (!is_key && v_transposed) ? 3u : kvcache_desc.dim;
 
         auto src_tensor = request->get_tensor(src_ports.at(output_name));

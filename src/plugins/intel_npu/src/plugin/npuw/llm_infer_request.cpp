@@ -9,6 +9,7 @@
 #include <regex>
 
 #include "infer_request_utils.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_continuous_kvcache_strategy.hpp"
@@ -351,7 +352,21 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
             if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
-                m_kvcache_past_names.push_back(name);
+                // SWA layers are always plain, unsplit past-KV parameters (never
+                // block-split, see SplitKVCacheIntoBlocks), so a contiguous-name match here
+                // reliably identifies them regardless of m_is_block_kv_cache. Block-split
+                // names (e.g. "..._block_0") never match isPastKeyValuesKeyContiguous/
+                // isPastKeyValuesValueContiguous and fall through to m_kvcache_past_names,
+                // same as today.
+                const auto layer_idx_opt = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
+                const auto layer_idx_val_opt = ov::npuw::util::isPastKeyValuesValueContiguous(name);
+                const auto layer_idx = layer_idx_opt.has_value() ? layer_idx_opt : layer_idx_val_opt;
+                if (layer_idx.has_value() && m_npuw_llm_compiled_model->is_swa_layer(
+                                                 static_cast<size_t>(layer_idx.value()))) {
+                    m_swa_past_names.push_back(name);
+                } else {
+                    m_kvcache_past_names.push_back(name);
+                }
                 break;
             }
             if (ov::npuw::util::starts_with_past_lincache(name)) {
@@ -446,6 +461,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         for (const auto& lincache_past_name : m_lincache_past_names) {
             auto lincache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(lincache_past_name));
             ov::npuw::util::fill_tensor_bytes(lincache_in_tensor, 0u);
+        }
+        for (const auto& swa_past_name : m_swa_past_names) {
+            auto swa_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(swa_past_name));
+            ov::npuw::util::fill_tensor_bytes(swa_in_tensor, 0u);
         }
     }
 
@@ -691,6 +710,13 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
         }
     }
 
+    // SWA layers are handled independently of the KV cache strategy (see m_swa_past_names).
+    for (const auto& input_name : m_swa_past_names) {
+        if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
+            uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name)), 0u);
+        }
+    }
+
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
     // Select the appropriate generate inference request variant based on prompt length
@@ -698,13 +724,25 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 }
 
 void ov::npuw::LLMInferRequest::copy_kvcache() {
+    copy_kvcache_for_names(m_kvcache_past_names);
+}
+
+void ov::npuw::LLMInferRequest::copy_swa_kvcache() {
+    // Written once (per new conversation) into the generate model's own fresh SWA buffer,
+    // which is subsequently kept in SlidingBufferLayout::Circular by update_swa_kvcache_for()
+    // (see its call site in infer_generate()) - use the same layout here for consistency.
+    copy_kvcache_for_names(m_swa_past_names, ov::npuw::util::SlidingBufferLayout::Circular);
+}
+
+void ov::npuw::LLMInferRequest::copy_kvcache_for_names(const std::vector<std::string>& past_names,
+                                                       ov::npuw::util::SlidingBufferLayout layout) {
     namespace uu = ov::npuw::util;
     LOG_DEBUG("Copying kv-cache from prefill to generate model.");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    ov::parallel_for(m_kvcache_past_names.size(), [&](size_t out_idx) {
-        const auto& input_name = m_kvcache_past_names[out_idx];
+    ov::parallel_for(past_names.size(), [&](size_t out_idx) {
+        const auto& input_name = past_names[out_idx];
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
         const auto& output_name = std::regex_replace(input_name, std::regex(layer_names::past_key_values), "present");
@@ -737,6 +775,18 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+
+                // For SWA layers, prefill_past_kv's OWN capacity (its shape at pre_kv_dim) is shrunk by
+                // PatchSlidingWindowKVCache to window_size, which can be SMALLER than the logical
+                // tokens_in_past_chunks count once the prompt spans enough chunks to saturate the window
+                // - slicing to the raw (unclamped) tokens_in_past_chunks would then read out of bounds.
+                // Per the KV buffer invariant, the tensor always holds exactly its min(total, capacity)
+                // MOST RECENT tokens, LEFT-aligned - so the valid prefix to read is [0, valid_past_chunks),
+                // which is already exactly that "most recent" prefix by construction (no extra math needed).
+                const auto pre_capacity = static_cast<uint32_t>(prefill_past_kv->get_shape()[pre_kv_dim]);
+                const uint32_t valid_past_chunks =
+                    std::min(static_cast<uint32_t>(tokens_in_past_chunks), pre_capacity);
+
                 ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
                 ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
                 if (m_past_kv_bound) {
@@ -747,49 +797,62 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                     NPUW_ASSERT(tmp_dense_kv_tensor._ptr &&
                                 "KV cache buffer allocation failed — check device availability and memory constraints");
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor, pre_kv_dim, 0u, valid_past_chunks);
                 } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
                 }
 
-                auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
-                                                                    gen_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
-
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                // prefill_past_kv_chunks may hold FEWER than tokens_in_past_chunks tokens for a saturated
+                // SWA layer (see above) - pass the full LOGICAL tokens_in_past_chunks as num_new_tokens
+                // regardless: write_kv_slice_sliding() re-clamps against the source tensor's own (possibly
+                // smaller) length internally and extracts its TAIL (most recent) portion, which is exactly
+                // correct since prefill_past_kv_chunks is itself already the most-recent-valid_past_chunks
+                // prefix.
+                uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                          prefill_past_kv_chunks,
+                                          gen_kv_dim,
+                                          pre_kv_dim,
+                                          0u,
+                                          static_cast<uint32_t>(tokens_in_past_chunks),
+                                          layout);
             }
 
-            // Copy part 2 KV results
+            // Copy part 2 KV results. prefill_out_tensor here is the LAST chunk's own "present" OUTPUT -
+            // a pure function of this forward call's own input length (prefill_chunk_size), computed fresh
+            // each call and NEVER shrunk by PatchSlidingWindowKVCache (only the "past" INPUT Parameter is
+            // shrunk for SWA layers) - so this slice bound is safe for SWA and non-SWA layers alike.
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
                                       pre_kv_dim,
                                       static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
                                       static_cast<uint32_t>(prefill_chunk_size));
 
-            auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                               gen_kv_dim,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks),
-                                                               kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
-        } else {
-            auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor,
+            // num_stored_tokens_before is the logical token count represented by part 1
+            // above; write_kv_slice_sliding re-derives the capacity-clamped valid count
+            // from it internally, consistently with what part 1 actually wrote.
+            uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                      prefill_present_kv_chunk,
+                                      gen_kv_dim,
                                       pre_kv_dim,
-                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                      kvcache_desc.max_prompt_size);
-
-            auto kvcache_in_slice =
-                uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
+                                      static_cast<uint32_t>(tokens_in_past_chunks),
+                                      static_cast<uint32_t>(m_tokens_in_present_chunk),
+                                      layout);
+        } else {
+            // prefill_out_tensor follows the "present/output" convention (right-aligned
+            // valid tail of length num_stored_tokens within the max_prompt_size buffer);
+            // this is the whole (non-chunked) prefill's own single-shot "present" output, a pure
+            // function of the model's own input_size (== max_prompt_size here) - like chunked
+            // prefill's part 2, it is NEVER shrunk by PatchSlidingWindowKVCache for SWA layers (only
+            // the "past" INPUT Parameter is), so no pre-slice/clamp is needed here: the tensor's own
+            // full shape at pre_kv_dim is always >= num_stored_tokens. write_kv_slice_sliding extracts
+            // the correct (capacity-clamped) tail itself.
+            uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                      prefill_out_tensor,
+                                      gen_kv_dim,
+                                      pre_kv_dim,
+                                      0u,
+                                      kvcache_desc.num_stored_tokens,
+                                      layout);
         }
     });
     LOG_DEBUG("Done.");
@@ -801,11 +864,32 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
     uint32_t num_tokens,
     bool v_transposed) {
+    update_kvcache_for_names(m_kvcache_past_names, request, in_ports, out_ports, num_tokens, v_transposed);
+}
+
+void ov::npuw::LLMInferRequest::update_swa_kvcache_for(
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t num_tokens,
+    bool v_transposed,
+    ov::npuw::util::SlidingBufferLayout layout) {
+    update_kvcache_for_names(m_swa_past_names, request, in_ports, out_ports, num_tokens, v_transposed, layout);
+}
+
+void ov::npuw::LLMInferRequest::update_kvcache_for_names(
+    const std::vector<std::string>& past_names,
+    std::shared_ptr<ov::IAsyncInferRequest> request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+    uint32_t num_tokens,
+    bool v_transposed,
+    ov::npuw::util::SlidingBufferLayout layout) {
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    for (std::size_t i = 0; i < m_kvcache_past_names.size(); ++i) {
-        const auto& input_name = m_kvcache_past_names[i];
+    for (std::size_t i = 0; i < past_names.size(); ++i) {
+        const auto& input_name = past_names[i];
         OPENVINO_ASSERT(in_ports.find(input_name) != in_ports.end(),
                         "There is no ",
                         input_name,
@@ -818,22 +902,22 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
 
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
-        auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
         //       than was sent to be processed
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
-        if (src_seq_len > num_tokens) {
-            auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
-        } else {
-            uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
-        }
+        // write_kv_slice_sliding() clamps against dst_tensor's own capacity, so this is
+        // also correct (and a no-op change in behavior) for non-SWA layers, where
+        // capacity always covers the whole context.
+        uu::write_kv_slice_sliding(dst_tensor,
+                                   src_tensor,
+                                   kv_dim,
+                                   kv_dim,
+                                   kvcache_desc.num_stored_tokens - num_tokens,
+                                   num_tokens,
+                                   layout);
     }
 }
 
@@ -855,6 +939,36 @@ void ov::npuw::LLMInferRequest::share_lincache_across_generate_variants() {
     }
     LOG_INFO("Shared " << m_lincache_past_names.size() << " lincache tensors across " << m_generate_requests.size()
                        << " generate variants");
+}
+
+void ov::npuw::LLMInferRequest::migrate_swa_kvcache_on_variant_switch(
+    std::shared_ptr<ov::IAsyncInferRequest> old_req,
+    const PortsMap& old_in_ports,
+    std::shared_ptr<ov::IAsyncInferRequest> new_req,
+    const PortsMap& new_in_ports) {
+    if (m_swa_past_names.empty()) {
+        return;
+    }
+    LOG_DEBUG("Migrating SWA kv-cache to new generate variant.");
+    for (const auto& name : m_swa_past_names) {
+        auto src = old_req->get_tensor(old_in_ports.at(name));
+        auto dst = new_req->get_tensor(new_in_ports.at(name));
+        // Every generate variant's SWA parameter has the same shape (PatchSlidingWindowKVCache
+        // shrinks it to min(window_size, kvcache_size), and in practice every pyramid
+        // variant's kvcache_size is already >= window_size) - so a whole-buffer byte copy is
+        // both correct and sufficient; no reshaping/repacking is needed, unlike the main KV
+        // cache's variant-switch migration (whose capacity genuinely differs per variant).
+        OPENVINO_ASSERT(src->get_shape() == dst->get_shape(),
+                        "SWA kv-cache migration: shape mismatch for ",
+                        name,
+                        " (",
+                        src->get_shape(),
+                        " vs ",
+                        dst->get_shape(),
+                        "). Every generate variant is expected to have an identically-shaped "
+                        "SWA buffer.");
+        src->copy_to(dst._ptr);
+    }
 }
 
 void ov::npuw::LLMInferRequest::copy_lincache(
@@ -918,6 +1032,9 @@ bool ov::npuw::LLMInferRequest::try_switch_to_larger_variant() {
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
     m_kvcache_strategy->on_generate_variant_switch(old_req, old_in_ports, m_kvcache_request, m_kvcache_in_ports);
+    // SWA layers: independently of the KV cache strategy in use, migrate their past-KV
+    // content to the newly-selected variant's own (separately-allocated) tensor.
+    migrate_swa_kvcache_on_variant_switch(old_req, old_in_ports, m_kvcache_request, m_kvcache_in_ports);
     return true;
 }
 
@@ -953,6 +1070,28 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
         // After KV cache compression, past KV inputs may be i8 precision, and
         // fill_tensor<ov::float16> would fail with a type mismatch error.
         ov::npuw::util::fill_tensor_bytes(chunk_prefill_kvcache_in_tensor, 0u);
+    }
+}
+
+void ov::npuw::LLMInferRequest::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                     const PortsMap& in_ports,
+                                                     uint32_t num_stored_tokens_before,
+                                                     uint32_t num_real_new_tokens,
+                                                     const int64_t* token_type_ids_real) {
+    // See the declaration's doc comment (llm_infer_request.hpp) and
+    // ov::npuw::util::fill_causal_sliding_mask()'s doc comment (infer_request_utils.hpp) for the
+    // full design. Every non-hybrid model has no such port, so this is a no-op there.
+    const auto it = in_ports.find(layer_names::sliding_window_attention_mask);
+    if (it == in_ports.end()) {
+        return;
+    }
+    auto mask_tensor = request->get_tensor(it->second);
+    ov::npuw::util::fill_causal_sliding_mask(mask_tensor,
+                                             num_stored_tokens_before,
+                                             num_real_new_tokens,
+                                             m_npuw_llm_compiled_model->m_swa_window_size);
+    if (token_type_ids_real != nullptr) {
+        ov::npuw::util::overlay_vision_bidirectional_mask(mask_tensor, token_type_ids_real, num_real_new_tokens);
     }
 }
 
@@ -1149,6 +1288,15 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
         });
 
+        const int64_t* chunk_token_type_ids_real =
+            has_token_type_ids
+                ? token_type_ids_in_tensor->data<int64_t>() + token_type_ids_in_tensor->get_size() - current_prompts_len
+                : nullptr;
+        fill_attention_masks(m_prefill_request,
+                             m_prefill_in_ports,
+                             kvcache_desc.num_stored_tokens,
+                             static_cast<uint32_t>(current_prompts_len),
+                             chunk_token_type_ids_real);
         m_llm_profile["1/prefill:3b.infer"].record([&]() {
             m_prefill_request->infer();
         });
@@ -1180,6 +1328,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             if (!is_last_chunk) {
                 // Attention mask and lincache update for intermediate chunks.
                 copy_lincache(m_prefill_request, m_prefill_request, m_prefill_out_ports, m_prefill_in_ports);
+                // SWA layers: persist this chunk's freshly computed KV into the (fixed,
+                // never-rebound) past-KV input buffer, independently of the KV cache
+                // strategy in use. Must stay LeftAligned: this buffer is later read back
+                // as a plain left-aligned source by copy_kvcache_for_names()'s
+                // chunked-prefill branch (see copy_swa_kvcache()).
+                update_swa_kvcache_for(m_prefill_request,
+                                       m_prefill_in_ports,
+                                       m_prefill_out_ports,
+                                       static_cast<uint32_t>(current_prompts_len),
+                                       kvcache_desc.v_tensors_transposed_pre,
+                                       ov::npuw::util::SlidingBufferLayout::LeftAligned);
 
                 std::copy_n(
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
@@ -1257,6 +1416,12 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         }
     });
 
+    const int64_t* whole_prefill_token_type_ids_real = token_type_ids ? token_type_ids->data<int64_t>() : nullptr;
+    fill_attention_masks(m_prefill_request,
+                         m_prefill_in_ports,
+                         m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens,
+                         static_cast<uint32_t>(attention_mask->get_size()),
+                         whole_prefill_token_type_ids_real);
     m_llm_profile["1/prefill:3b.infer"].record([&]() {
         m_prefill_request->infer();
     });
@@ -1479,6 +1644,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             if (kvcache_desc.num_stored_tokens > 0) {
                 m_kvcache_strategy->on_generate_kv_init();
                 copy_lincache(m_prefill_request, m_kvcache_request, m_prefill_out_ports, m_kvcache_in_ports);
+                // SWA layers: independently of the KV cache strategy in use, copy the
+                // accumulated prefill KV into the generate model's own past-KV buffer.
+                copy_swa_kvcache();
             }
 
             LOG_DEBUG("Prepare inputs.");
@@ -1551,6 +1719,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
+    fill_attention_masks(m_kvcache_request, m_kvcache_in_ports, kvcache_desc.num_stored_tokens, input_tokens_len);
     m_llm_profile["N/generate:2.infer"].record([&]() {
         m_kvcache_request->infer();
     });
@@ -1561,6 +1730,20 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 m_kvcache_strategy->on_generate_step_done(input_tokens_len);
+                // SWA layers: independently of the KV cache strategy in use, persist this
+                // step's new token KV into the (fixed, never-rebound) past-KV input buffer.
+                // Uses Circular layout: this buffer is only ever consumed by the compiled
+                // model itself (mask-based, permutation-invariant over visible KV columns)
+                // and by a raw whole-tensor copy on variant switch, so it never needs to be
+                // read back as a plain left-aligned source - Circular gives O(num_new_tokens)
+                // updates instead of LeftAligned's O(window_size) shift once the window
+                // saturates, which matters a lot since this runs on every decode step.
+                update_swa_kvcache_for(m_kvcache_request,
+                                      m_kvcache_in_ports,
+                                      m_kvcache_out_ports,
+                                      input_tokens_len,
+                                      kvcache_desc.v_tensors_transposed_gen,
+                                      ov::npuw::util::SlidingBufferLayout::Circular);
             }
         });
     };

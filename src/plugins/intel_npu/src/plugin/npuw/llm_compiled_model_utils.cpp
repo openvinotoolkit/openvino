@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -107,4 +108,71 @@ std::optional<uint32_t> ov::npuw::util::get_max_position_embeddings(const std::s
         }
     }
     return std::nullopt;
+}
+
+ov::npuw::util::SwaLayout ov::npuw::util::derive_swa_layout(const std::map<size_t, int64_t>& layer_mask_annotations) {
+    SwaLayout layout;
+
+    if (layer_mask_annotations.empty()) {
+        LOG_DEBUG("[SWA] No per-layer mask annotations found; Sliding Window Attention is disabled.");
+        return layout;
+    }
+
+    // Layers absent from the map (mask pattern not recognized by any matcher, i.e. Unknown) are
+    // treated as full-attention.
+    size_t num_layers = 0;
+    for (const auto& [layer_idx, encoded] : layer_mask_annotations) {
+        num_layers = std::max(num_layers, layer_idx + 1);
+    }
+
+    std::vector<bool> layer_is_sliding(num_layers, false);
+    int64_t detected_window = 0;
+    bool has_sliding = false;
+    bool has_full = false;
+    for (size_t layer_idx = 0; layer_idx < num_layers; ++layer_idx) {
+        const auto it = layer_mask_annotations.find(layer_idx);
+        if (it != layer_mask_annotations.end() && it->second >= 0) {
+            layer_is_sliding[layer_idx] = true;
+            has_sliding = true;
+            if (detected_window == 0) {
+                detected_window = it->second;
+            } else {
+                OPENVINO_ASSERT(detected_window == it->second,
+                                "NPUW SWA: inconsistent sliding-window sizes detected across layers (",
+                                detected_window,
+                                " vs ",
+                                it->second,
+                                "). Only a single, uniform window size is currently supported.");
+            }
+        } else {
+            has_full = true;
+        }
+    }
+
+    // Only enable the hybrid SWA pipeline for a genuine hybrid model: at least one sliding-window
+    // layer AND at least one full/causal-attention layer. A model where every layer is uniformly
+    // sliding (or uniformly full attention) doesn't need per-layer KV-cache window capping.
+    if (!has_sliding || !has_full) {
+        LOG_DEBUG("[SWA] Not a genuine hybrid model (has_sliding="
+                  << has_sliding << ", has_full=" << has_full << "); Sliding Window Attention support disabled.");
+        return layout;
+    }
+
+    layout.window_size = static_cast<uint32_t>(detected_window);
+    layout.layer_is_sliding = std::move(layer_is_sliding);
+
+    std::string pattern;
+    pattern.reserve(layout.layer_is_sliding.size());
+    size_t num_sliding = 0;
+    for (const bool is_sliding : layout.layer_is_sliding) {
+        pattern.push_back(is_sliding ? 'S' : 'F');
+        num_sliding += is_sliding ? 1 : 0;
+    }
+    LOG_INFO("[SWA] Sliding Window Attention is ENABLED: window_size=" << layout.window_size << ", "
+                                                                       << layout.layer_is_sliding.size()
+                                                                       << " layers total, " << num_sliding
+                                                                       << " sliding-window layer(s).");
+    LOG_DEBUG("[SWA] Layer pattern (S=sliding, F=full attention): " << pattern);
+
+    return layout;
 }

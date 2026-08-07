@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base_sync_infer_request.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_continuation.hpp"
 #include "llm_eagle3_extension.hpp"
@@ -52,6 +53,57 @@ protected:
                             const PortsMap& out_ports,
                             uint32_t num_tokens,
                             bool v_transposed) override;
+    // Sliding Window Attention (SWA) layers manage their own KV cache via this orthogonal,
+    // strategy-independent mechanism (see m_swa_past_names), regardless of whether the rest
+    // of the model uses block-based or continuous KV cache. Mirrors copy_kvcache()/
+    // update_kvcache_for() (same write_kv_slice_sliding()-based primitive), just scoped to
+    // m_swa_past_names instead of m_kvcache_past_names. Called unconditionally by this
+    // class's own orchestration, right alongside copy_lincache().
+    //
+    // Unlike the non-SWA path, the destination buffer's physical layout matters here for
+    // performance: the generate model's own SWA past-KV buffer is written every single
+    // decode step, so it always uses SlidingBufferLayout::Circular (O(num_new_tokens) per
+    // call, no data movement of existing content). The prefill model's own SWA past-KV
+    // buffer, however, is read back as a plain left-aligned source by
+    // copy_kvcache_for_names()'s chunked-prefill branch, so it must stay
+    // SlidingBufferLayout::LeftAligned. See call sites in infer_chunked_prefill()/
+    // infer_generate() for which layout each one passes.
+    void copy_swa_kvcache();
+    void update_swa_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
+                                const PortsMap& in_ports,
+                                const PortsMap& out_ports,
+                                uint32_t num_tokens,
+                                bool v_transposed,
+                                ov::npuw::util::SlidingBufferLayout layout);
+    // Shared implementation for copy_kvcache()/copy_swa_kvcache(), parameterized by which
+    // name list to act on and which physical layout to write the destination buffer with
+    // (see copy_swa_kvcache()'s doc comment above for why this matters).
+    void copy_kvcache_for_names(
+        const std::vector<std::string>& past_names,
+        ov::npuw::util::SlidingBufferLayout layout = ov::npuw::util::SlidingBufferLayout::LeftAligned);
+    // Shared implementation for update_kvcache_for()/update_swa_kvcache_for(), parameterized
+    // by which name list to act on and which physical layout to write the destination buffer
+    // with (see copy_swa_kvcache()'s doc comment above for why this matters).
+    void update_kvcache_for_names(
+        const std::vector<std::string>& past_names,
+        std::shared_ptr<ov::IAsyncInferRequest> request,
+        const PortsMap& in_ports,
+        const PortsMap& out_ports,
+        uint32_t num_tokens,
+        bool v_transposed,
+        ov::npuw::util::SlidingBufferLayout layout = ov::npuw::util::SlidingBufferLayout::LeftAligned);
+    // Migrates SWA past-KV content to the new variant's own (separately-allocated) tensor
+    // when switching generate variants mid-conversation. Unlike the main KV cache (which is
+    // explicitly shared/aliased across variants, see LLMContinuousKVCacheStrategy::
+    // on_initialize() Step 1), SWA tensors are plain per-model parameters with no such
+    // aliasing, so switching variants always needs an explicit copy. Assumes every variant's
+    // SWA parameter has identical shape (true today: PatchSlidingWindowKVCache shrinks it to
+    // min(window_size, kvcache_size), and every pyramid variant's kvcache_size is already
+    // >= window_size in practice). Called unconditionally, regardless of strategy.
+    void migrate_swa_kvcache_on_variant_switch(std::shared_ptr<ov::IAsyncInferRequest> old_req,
+                                               const PortsMap& old_in_ports,
+                                               std::shared_ptr<ov::IAsyncInferRequest> new_req,
+                                               const PortsMap& new_in_ports);
     void copy_lincache(std::shared_ptr<ov::IAsyncInferRequest> from_request,
                        std::shared_ptr<ov::IAsyncInferRequest> to_request,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
@@ -128,6 +180,24 @@ protected:
     // request, its port maps and the variant index together.
     void bind_generate_variant(int64_t prompt_length);
 
+    // For a genuine hybrid SWA model, `sliding_window_attention_mask` is a required model input
+    // (see npuw_transformations/patch_sliding_window_kvcache.hpp) whose real (additive f32,
+    // 0.0f=attend / lowest()=masked) content is derived here from this call's
+    // `num_stored_tokens_before`/`num_real_new_tokens` bookkeeping plus the mask tensor's own
+    // runtime shape - see `ov::npuw::util::fill_causal_sliding_mask()`'s doc comment (
+    // infer_request_utils.hpp) for the full derivation. When `token_type_ids_real` is non-null
+    // (VLM prefill only - the generate model has no token_type_ids port), also overlays extra
+    // bidirectional visibility for same-image vision tokens within THIS call's own current-chunk
+    // block (see `ov::npuw::util::overlay_vision_bidirectional_mask()`; cross-chunk images are out
+    // of scope). Must be called, for a given `request`/`in_ports`, right before that request's
+    // `infer()` call. No-op (and free) for every non-hybrid model, since the port is simply absent
+    // from `in_ports` there.
+    void fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                              const PortsMap& in_ports,
+                              uint32_t num_stored_tokens_before,
+                              uint32_t num_real_new_tokens,
+                              const int64_t* token_type_ids_real = nullptr);
+
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
 
@@ -164,6 +234,11 @@ protected:
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
+    // Names of Sliding Window Attention (SWA) layers' past-KV parameters. Populated
+    // independently of m_is_block_kv_cache: SWA layers are always plain, unsplit
+    // parameters (see npuw_transformations/split_kvcache_into_blocks.hpp), so this list is
+    // disjoint from m_kvcache_past_names even when block-based KV cache is enabled.
+    std::vector<std::string> m_swa_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
