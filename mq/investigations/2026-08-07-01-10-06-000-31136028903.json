@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-01-10-06-000-31136028903",
+  "timestamp": "2026-08-07T01:10:06Z",
+  "run_id": "31136028903",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31136028903",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37181",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37181",
+  "author": "v-Golubev",
+  "category": "Infrastructure",
+  "title": "Windows VS 2022 CMake configure step fails transiently on AKS runner",
+  "signature": "CMake configure step failed on Windows VS2022 build runner|Infrastructure",
+  "signature_hash": "e96b5a03078ae1df",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure step failed (step 13), all downstream build/test steps skipped"
+    }
+  ],
+  "key_errors": [
+    "Step 13 'CMake configure' \u2014 conclusion: failure; all downstream steps skipped (no build artifacts produced)"
+  ],
+  "root_cause": "The CMake configure step failed on the Windows AKS runner (aks-win-16-cores-32gb-build). This is the same transient runner/infrastructure failure pattern recorded previously (run 30929282397). The run was already automatically re-attempted (run_attempt=2) and is currently in progress. The PR changes are confined to C++ transformation source and test files; no CMake/build-system files were modified.",
+  "reproduction_steps": "N/A \u2014 transient AKS runner-level failure not reproducible locally",
+  "recommended_actions": [
+    "Wait for the in-progress attempt 2 to complete.",
+    "If attempt 2 also fails at CMake configure, manually re-queue the PR \u2014 the failure is unrelated to PR code changes."
+  ],
+  "prevention_strategies": "No code-level prevention possible. Monitor AKS runner pool health for repeated CMake configure failures on Windows builders.",
+  "historical_context": "Same 'CMake configure step failed on Windows VS2022 build runner|Infrastructure' pattern seen in run 30929282397 (PR #35941) on 2026-08-04."
+}
