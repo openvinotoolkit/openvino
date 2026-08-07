@@ -44,6 +44,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT4);
     k.EnableInputDataType(Datatype::INT4);
     k.EnableInputDataType(Datatype::F8E4M3);
+    k.EnableInputDataType(Datatype::UINT2);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
@@ -287,6 +288,8 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
         } else if (params.inputs[0].GetDType() == Datatype::INT4 || params.inputs[0].GetDType() == Datatype::UINT4) {
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
+        } else if (params.inputs[0].GetDType() == Datatype::UINT2) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT2", 1)});
         }
 
         auto wt = params.inputs[0].GetDType();
@@ -294,6 +297,10 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
             jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
         } else if (wt == Datatype::INT4) {
             jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
+        } else if (wt == Datatype::UINT2) {
+            // Distinct macro name from INT4_PACKED_TYPE: the u2 unpack helpers live in int2_utils.cl,
+            // and the packed type is uint2x4_t (4 values/byte) rather than a 2-values/byte int4x2_t.
+            jit.Merge(make_sub_byte_packed_type_jit_constant("UINT2_PACKED_TYPE", WeightsType::UINT2, 4));
         }
 
         const size_t scale_groups_num = params.decompression_scale.LogicalSize();

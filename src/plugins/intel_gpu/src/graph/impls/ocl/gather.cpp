@@ -210,6 +210,7 @@ attach_gather_impl::attach_gather_impl() {
                       data_types::u8,
                       data_types::i4,
                       data_types::u4,
+                      data_types::u2,
                       data_types::i32,
                       data_types::f8e4m3};
 
@@ -255,6 +256,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i4, format::bfyx),
         std::make_tuple(data_types::u4, format::bfyx),
+        std::make_tuple(data_types::u2, format::bfyx),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
