@@ -246,7 +246,7 @@ JitConstants make_uint4_kv_cache_jit_constants(const kernel_impl_params& params)
     ov::intel_gpu::JitConstants jit;
     const auto desc = params.typed_desc<paged_attention>();
     const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
+    const auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
 
     if (data_type_traits::is_i4_u4(kv_cache_dt)) {
         const auto scales_zp_size = get_element_size(kv_dt) * 2;  // fp16 scale + fp16 zp = 4 bytes
@@ -310,7 +310,7 @@ public:
 
         const auto is_key_by_channel = desc->is_key_by_channel;
         if (is_kv_compressed) {
-            auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
+            const auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
@@ -487,7 +487,7 @@ public:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -528,7 +528,7 @@ public:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -587,7 +587,7 @@ public:
             scalars.resize(1);
 
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -756,7 +756,7 @@ public:
             scalars.resize(1);
 
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -812,7 +812,7 @@ public:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
             const auto subsequences_number = static_cast<size_t>(past_lens.get_partial_shape()[0].get_length());
@@ -1061,7 +1061,7 @@ protected:
             scalars.resize(1);
 
             const auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const auto is_prefill = rtp->stage == PagedAttentionStage::PREFILL || rtp->stage == PagedAttentionStage::MIXED;
             auto heads_number = desc->kv_heads_num;
@@ -1299,7 +1299,7 @@ public:
             auto& wgs = kd.params.workGroups;
             auto& scalars = kd.params.scalars;
             auto desc = params.typed_desc<paged_attention>();
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
 
@@ -1376,7 +1376,7 @@ public:
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
             return !pa_sdpa_micro->kd.micro_kernels.empty();
-        else if (stage == PagedAttentionStage::MIXED)
+        if (stage == PagedAttentionStage::MIXED)
             return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
         return false;
     }
@@ -1450,7 +1450,7 @@ public:
         if (use_micro_sdpa) {
             if (stage == PagedAttentionStage::PREFILL)
                 return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            else if (stage == PagedAttentionStage::MIXED)
+            if (stage == PagedAttentionStage::MIXED)
                 return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
         }
         return default_block_size;
@@ -1468,7 +1468,7 @@ public:
         if (m_rt_params == nullptr) {
             m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
         }
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         const auto& desc = params.typed_desc<paged_attention>();
 
         auto stage = get_paged_attention_stage(params);
@@ -1530,7 +1530,7 @@ public:
 
         update_stages_flags(instance);
         kernel_dump_info.clear_entries();
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
         std::vector<event::ptr> res_event = events;
@@ -1658,7 +1658,7 @@ public:
         auto stage = PagedAttentionStage::UNKNOWN;
         size_t partition_size = 256;
         size_t num_of_partitions = 1;
-        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
             stage = rt_params->stage;
             partition_size = rt_params->partition_size;
@@ -1925,7 +1925,7 @@ public:
                             ", micro_sdpa=",
                             use_micro_sdpa);
 
-            auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
+            const auto& sequential_gws_subseq_mapping_mem = intermediates_memories[sequential_gws_subseq_mapping_idx];
             sequential_gws_subseq_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(sequential_gws_subseq_mapping_mem, stream));
         }
 
@@ -1938,7 +1938,7 @@ public:
                             intermediates_memories.size(),
                             ", mixed_stage_index=",
                             required_mixed_stage_index());
-            auto& memory = intermediates_memories[memory_idx];
+            const auto& memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
 

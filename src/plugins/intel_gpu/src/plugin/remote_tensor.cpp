@@ -448,7 +448,7 @@ bool RemoteTensorImpl::is_surface() const noexcept {
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     return engine->reinterpret_buffer(*m_memory_object, m_layout);
 }
 
@@ -461,7 +461,7 @@ void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();
     m_shape = m_layout.get_shape();
 

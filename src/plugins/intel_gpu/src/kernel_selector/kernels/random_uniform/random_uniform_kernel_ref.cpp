@@ -115,7 +115,7 @@ bool RandomUniformKernelRef::Validate(const Params &params) const {
 
     // output shape, min value, max value
     constexpr uint32_t number_of_inputs = 3;
-    auto &randomUniformParams = dynamic_cast<const random_uniform_params &>(params);
+    const auto& randomUniformParams = dynamic_cast<const random_uniform_params&>(params);
     if (randomUniformParams.inputs.size() != number_of_inputs) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
