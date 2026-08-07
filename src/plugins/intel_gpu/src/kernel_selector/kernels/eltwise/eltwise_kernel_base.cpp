@@ -204,8 +204,8 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             op = "const ACCUMULATOR_TYPE tmp" + op_num_str + " = ";
         }
 
-        input0_str = cast_type + "(INPUT_" + op_num_str + "_0)";
-        input1_str = cast_type + "(INPUT_" + op_num_str + "_1)";
+        input0_str = cast_type + "INPUT_" + op_num_str + "_0";
+        input1_str = cast_type + "INPUT_" + op_num_str + "_1";
 
         if (ew.mode == EltwiseMode::ADD) {
             std::vector<std::string> coeff_strings(ew.inputs.size(), "");
