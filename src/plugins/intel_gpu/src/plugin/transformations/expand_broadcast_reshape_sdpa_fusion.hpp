@@ -11,7 +11,7 @@ namespace ov::intel_gpu {
 class ExpandBroadcastReshapeSDPAFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ExpandBroadcastReshapeSDPAFusion");
-   ExpandBroadcastReshapeSDPAFusion();
+    ExpandBroadcastReshapeSDPAFusion();
 };
 
 }   // namespace ov::intel_gpu
