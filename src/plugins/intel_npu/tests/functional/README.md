@@ -4,6 +4,21 @@ Test binary `ov_npu_func_tests` is built with GTest framework and includes test 
 for other OpenVINO plugins as well as test instances specific for this plugin.
 `ov_npu_func_tests --help` will show the usage.
 
+## Command line arguments
+
+`ov_npu_func_tests` accepts the following command line arguments (alongside the standard GTest flags):
+
+* `--driver_type={pv|release|latest}` - declares which driver flavour the tests are running against. It does not detect the driver; it only records what the caller states, so skip rules and in-test guards can react to it. When omitted, it defaults to `latest`. An unrecognised value is ignored with a warning and the default is kept.
+
+The declared driver type feeds two mechanisms:
+* the `<driver_type>` skip rule in the skip config file (see below);
+* the in-code skip macros in [`common/npu_driver_aware_test.hpp`](./common/npu_driver_aware_test.hpp):
+  * `NPU_SKIP_IF_DRIVER_TYPE_IS(type, reason)` - `GTEST_SKIP()` when the declared driver type matches `type`;
+  * `NPU_SKIP_UNLESS_DRIVER_TYPE_IS(type, reason)` - `GTEST_SKIP()` when it does not match `type`;
+  * `ov::test::behavior::isDriverType(DriverType::type)` - predicate for branching inside a test.
+
+  `type` is one of `PV`, `RELEASE`, `LATEST`. Because the default is `LATEST`, a test guarded by `NPU_SKIP_IF_DRIVER_TYPE_IS(LATEST, ...)` is skipped even when no `--driver_type` argument is passed.
+
 ## Environment variables
 
 The following environment variables can be set up for the run of test binary `ov_npu_func_tests`. Values for boolean variables are specified as `1` or `0`.
@@ -39,7 +54,9 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
             <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
-            <driver_version>9999</driver_version>
+            <driver_version>9999</driver_version> (exact build number, safe only for PV drivers)
+            <driver_type>PV</driver_type> (driver type from --driver_type CLI arg: PV | RELEASE | LATEST)
+            <driver_type>!LATEST</driver_type> (negate: applies on PV and RELEASE)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -52,9 +69,9 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
 </skip_configs>
 ```
 
-Skip filters can be enabled/disabled according to rules defining the device, backend, driver version or operating system, depending on where tests are supposed to run.
+Skip filters can be enabled/disabled according to rules defining the device, backend, driver version, driver type or operating system, depending on where tests are supposed to run.
 Rules are optional, multiple rules can be chained together. Users can negate a rule by using "!".
-When determining if a skip filter is active, rules across different categories (backend, device, driver_version, operating_system) are combined using an AND operation. While multiple entries of the same category will be evaluated using the OR operation.
+When determining if a skip filter is active, rules across different categories (backend, device, driver_version, driver_type, operating_system) are combined using an AND operation. While multiple entries of the same category will be evaluated using the OR operation.
 
 ## Folder structure
 
