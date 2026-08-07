@@ -412,6 +412,132 @@ TEST_F(SplitKVCacheIntoBlocksTest, WithConvertNode) {
     EXPECT_TRUE(found_concat);
 }
 
+TEST_F(SplitKVCacheIntoBlocksTest, NegativeConcatAxis) {
+    // Test: Concat with negative axis (-2) must be normalized to the correct positive axis.
+    // Shape [1, 8, 64, 256] with axis=-2 means axis=2 (sequence dim).
+    const uint32_t block_size = 16;
+    const ov::Shape orig_shape{1, 8, 64, 256};
+    const uint32_t expected_blocks = 64 / block_size;  // 4 blocks
+
+    // Build model manually because the helper indexes new_token_shape with positive axis.
+    auto kv_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, orig_shape);
+    kv_param->set_friendly_name("past_key_values.0.key");
+
+    ov::Shape new_token_shape{1, 8, 1, 256};  // axis=2 gets size 1
+    auto new_token = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, new_token_shape);
+    new_token->set_friendly_name("new_token");
+
+    // Create Concat with NEGATIVE axis -2
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{kv_param, new_token}, -2);
+
+    auto result = std::make_shared<ov::op::v0::Result>(concat);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{kv_param, new_token});
+
+    // Apply transformation
+    ov::pass::Manager manager;
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.run_passes(model);
+
+    // Verify: Should have expected_blocks + 1 parameters (blocks + new_token)
+    EXPECT_EQ(model->get_parameters().size(), expected_blocks + 1);
+
+    // Verify: Each block parameter has correct shape [1, 8, 16, 256]
+    // The sequence axis (normalized to 2) holds the block_size.
+    uint32_t block_count = 0;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("_block_") != std::string::npos) {
+            block_count++;
+            auto block_shape = param->get_shape();
+            EXPECT_EQ(block_shape[0], 1);
+            EXPECT_EQ(block_shape[1], 8);
+            EXPECT_EQ(block_shape[2], block_size);  // normalized axis=2
+            EXPECT_EQ(block_shape[3], 256);
+        }
+    }
+    EXPECT_EQ(block_count, expected_blocks);
+
+    // Verify: New concat uses the normalized positive axis (2)
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::v0::Concat>(op)) {
+            auto c = ov::as_type_ptr<ov::op::v0::Concat>(op);
+            EXPECT_EQ(c->get_axis(), 2);
+            EXPECT_EQ(c->get_input_size(), expected_blocks + 1);
+        }
+    }
+}
+
+TEST_F(SplitKVCacheIntoBlocksTest, MixedConcatAxesAcrossLayers) {
+    // Test: Gemma4-like model where V tensors have DIFFERENT concat axes per layer.
+    // Layer 0 (full_attention):   V shape [1, 1, 64, 512], concat axis=2 (NOT transposed)
+    // Layer 1 (sliding_window):   V shape [1, 8, 256, 64], concat axis=3 (transposed)
+    // The fix uses concat->get_axis() per-layer instead of a global v_transposed flag.
+    const uint32_t block_size = 16;
+
+    // --- Layer 0: V not transposed, seq on axis=2 ---
+    auto val0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 64, 512});
+    val0->set_friendly_name("past_key_values.0.value");
+    auto new_v0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 512});
+    auto concat_v0 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{val0, new_v0}, 2);
+
+    // --- Layer 1: V transposed, seq on axis=3 ---
+    auto val1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256, 64});
+    val1->set_friendly_name("past_key_values.1.value");
+    auto new_v1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256, 1});
+    auto concat_v1 = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{val1, new_v1}, 3);
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(concat_v0),
+                                                              std::make_shared<ov::op::v0::Result>(concat_v1)},
+                                             ov::ParameterVector{val0, val1, new_v0, new_v1});
+
+    const uint32_t expected_blocks_l0 = 64 / block_size;  // 4 blocks
+    const uint32_t expected_blocks_l1 = 64 / block_size;  // 4 blocks
+
+    // Apply transformation
+    ov::pass::Manager manager;
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.run_passes(model);
+
+    // Verify: total params = blocks_l0 + blocks_l1 + 2 new_token params
+    EXPECT_EQ(model->get_parameters().size(), expected_blocks_l0 + expected_blocks_l1 + 2);
+
+    // Verify: Layer 0 blocks have shape [1, 1, block_size, 512] (seq on axis=2)
+    // Verify: Layer 1 blocks have shape [1, 8, 256, block_size] (seq on axis=3)
+    size_t layer0_blocks = 0, layer1_blocks = 0;
+    for (const auto& param : model->get_parameters()) {
+        const auto& name = param->get_friendly_name();
+        if (name.find("_block_") == std::string::npos)
+            continue;
+        const auto& s = param->get_shape();
+        if (name.find("past_key_values.0") != std::string::npos) {
+            layer0_blocks++;
+            EXPECT_EQ(s[0], 1u);
+            EXPECT_EQ(s[1], 1u) << "Layer 0: 1 KV head";
+            EXPECT_EQ(s[2], block_size) << "Layer 0: seq on axis=2";
+            EXPECT_EQ(s[3], 512u) << "Layer 0: head_dim=512";
+        } else if (name.find("past_key_values.1") != std::string::npos) {
+            layer1_blocks++;
+            EXPECT_EQ(s[0], 1u);
+            EXPECT_EQ(s[1], 8u) << "Layer 1: 8 KV heads";
+            EXPECT_EQ(s[2], 256u) << "Layer 1: head_dim=256 (transposed)";
+            EXPECT_EQ(s[3], block_size) << "Layer 1: seq on axis=3";
+        }
+    }
+    EXPECT_EQ(layer0_blocks, expected_blocks_l0);
+    EXPECT_EQ(layer1_blocks, expected_blocks_l1);
+
+    // Verify: Each Concat preserved its own axis
+    size_t concat_count = 0;
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<ov::op::v0::Concat>(op)) {
+            auto c = ov::as_type_ptr<ov::op::v0::Concat>(op);
+            concat_count++;
+            // One concat should have axis=2, the other axis=3
+            EXPECT_TRUE(c->get_axis() == 2 || c->get_axis() == 3);
+        }
+    }
+    EXPECT_EQ(concat_count, 2u);
+}
+
 TEST_F(SplitKVCacheIntoBlocksTest, HeterogeneousKVShapesAcrossLayers) {
     // Test: MoE model with two KV layer groups that have different shapes.
     // Layer 0: [1, 8, 512, 256]  (8 heads, head_dim=256)

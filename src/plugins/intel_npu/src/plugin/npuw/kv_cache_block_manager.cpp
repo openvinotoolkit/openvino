@@ -39,6 +39,15 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                     " does not have block_size=",
                     block_size,
                     " in sequence dimension (expected at dim 2 or 3)");
+    if (base_shape[2] == block_size && base_shape[3] != block_size) {
+        seq_dim_ = 2u;
+    } else if (base_shape[3] == block_size && base_shape[2] != block_size) {
+        seq_dim_ = 3u;
+    } else {
+        // Ambiguous: both dims equal block_size (e.g. head_dim == block_size).
+        // Default to dim 2 (non-transposed layout).
+        seq_dim_ = 2u;
+    }
 
     // Initialize block pool (tensors allocated on-demand, not here)
     blocks_.reserve(max_blocks);

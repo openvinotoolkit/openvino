@@ -162,6 +162,13 @@ public:
         return static_cast<uint32_t>(free_block_ids_.size());
     }
 
+    /**
+     * @brief Get the sequence dimension index in the block shape
+     */
+    uint32_t get_seq_dim() const {
+        return seq_dim_;
+    }
+
 private:
     /**
      * @brief Represents a single block of KV cache memory
@@ -174,6 +181,7 @@ private:
 
     uint32_t block_size_;                  ///< Number of tokens per block
     uint32_t max_blocks_;                  ///< Maximum blocks in pool
+    uint32_t seq_dim_;                     ///< Sequence dimension index (2 or 3)
     std::vector<Block> blocks_;            ///< All blocks (free + allocated)
     std::stack<uint32_t> free_block_ids_;  ///< Stack of free block IDs (LIFO for better reuse)
 

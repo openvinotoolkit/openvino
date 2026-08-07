@@ -395,4 +395,26 @@ TEST_F(KVCacheBlockManagerTest, NumFreeBlocks) {
     EXPECT_EQ(manager->num_free_blocks(), 0u);
 }
 
+TEST_F(KVCacheBlockManagerTest, SeqDimDetection_Dim2) {
+    // base_shape = [1, 32, block_size, 128] → seq is at dim 2
+    EXPECT_EQ(manager->get_seq_dim(), 2u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDimDetection_Dim3) {
+    // Transposed V layout: [1, 8, 256, block_size] → seq is at dim 3
+    uint32_t block_size = 512;
+    ov::Shape transposed_shape{1, 8, 256, block_size};
+    KVCacheBlockManager mgr(block_size, 4, transposed_shape, ov::element::f16, "CPU", nullptr);
+    EXPECT_EQ(mgr.get_seq_dim(), 3u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDimDetection_Ambiguous) {
+    // Ambiguous case: both dim 2 and dim 3 equal block_size (head_dim == block_size).
+    // Should default to dim 2 (non-transposed layout).
+    uint32_t block_size = 256;
+    ov::Shape ambiguous_shape{1, 8, block_size, block_size};
+    KVCacheBlockManager mgr(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr);
+    EXPECT_EQ(mgr.get_seq_dim(), 2u);
+}
+
 }  // namespace

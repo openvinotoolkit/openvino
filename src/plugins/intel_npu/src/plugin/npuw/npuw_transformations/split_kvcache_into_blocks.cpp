@@ -124,8 +124,12 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
             continue;
         }
 
-        // Pre-compute the concat axis (sequence dimension) once.
-        const int64_t concat_axis = (is_key || (is_value && !m_v_transposed)) ? 2 : 3;
+        // Use the axis from the existing Concat — it already reflects the correct
+        // sequence dimension for this specific layer (handles mixed transposed/non-transposed V).
+        // Normalize negative axis (e.g. -2 → 2 for 4D tensors).
+        const int64_t raw_axis = concat->get_axis();
+        const int64_t rank = static_cast<int64_t>(orig_shape.rank().get_length());
+        const int64_t concat_axis = (raw_axis < 0) ? raw_axis + rank : raw_axis;
 
         params_to_transform.push_back({param, concat, present_kv_input, convert_node, is_key, is_value, concat_axis});
     }
