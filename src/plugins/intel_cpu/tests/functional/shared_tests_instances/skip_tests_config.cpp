@@ -690,6 +690,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
         if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
             patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
+            patterns.emplace_back(std::regex(R"(.*Conv1x1WeightCompressedToMatmul.*)"));
         }
         // Accuracy issue in case of odd K
         patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed_CornerCases.*WET=i4.*)"));
