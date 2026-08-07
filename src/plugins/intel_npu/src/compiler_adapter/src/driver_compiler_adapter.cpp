@@ -5,6 +5,7 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -320,7 +321,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     if (compilerOptionsStr.has_value()) {
         if (compilerOptionsStr->empty()) {
             _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
-            return std::vector<std::string>{""};
+            return {};
         }
 
         // vectorize string
@@ -341,7 +342,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     }
 
     if (compilerOpts.empty()) {
-        return std::vector<std::string>{""};
+        return {};
     }
     return compilerOpts;
 }
