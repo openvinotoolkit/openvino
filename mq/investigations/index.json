@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 113,
+  "total": 114,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1107,6 +1107,15 @@
       "category": "Code Issue",
       "signature_hash": "4975bf8755e5f7c4",
       "pr_number": "36921"
+    },
+    {
+      "investigation_id": "2026-08-07-14-19-30-000-31183760448",
+      "run_id": "31183760448",
+      "timestamp": "2026-08-07T14:19:30Z",
+      "title": "smoke_Conv1x1WeightCompressedToMatmul fails with numerical mismatch on ARM64 CPU",
+      "category": "Code Issue",
+      "signature_hash": "c35119874bc44dbb",
+      "pr_number": "36745"
     }
   ]
 }

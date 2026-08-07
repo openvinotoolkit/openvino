@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "COMPARATION FAILED abs threshold incorrect elem counter among shapes|Code Issue",
+  "signature_hash": "c35119874bc44dbb",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul fails with numerical mismatch on ARM64 CPU",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-08-07T14:19:30Z",
+  "last_seen": "2026-08-07T14:19:30Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31183760448"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36745"
+  ],
+  "recent_timestamps": [
+    "2026-08-07T14:19:30Z"
+  ],
+  "rerun_search_string": null
+}

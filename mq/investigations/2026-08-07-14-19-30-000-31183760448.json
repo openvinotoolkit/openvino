@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-14-19-30-000-31183760448",
+  "timestamp": "2026-08-07T14:19:30Z",
+  "run_id": "31183760448",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31183760448",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36745",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36745",
+  "author": "yangwang201911",
+  "category": "Code Issue",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul fails with numerical mismatch on ARM64 CPU",
+  "signature": "COMPARATION FAILED abs threshold incorrect elem counter among shapes|Code Issue",
+  "signature_hash": "c35119874bc44dbb",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_Conv1x1WeightCompressedToMatmul_TransposeInput COMPARATION FAILED, all 128 elements wrong (expected ~12.2, got ~2332.9)"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference/IS=[?.1.1.128]_([1.1.1.128].[3.1.1.128])_Cout=128_in=Transpose_out=Transpose_actPrec=f32_wPrec=i4_device=CPU",
+    "Tensor: [1,1,1,128] Mismatch: [128/128] Print: [0/128]",
+    "Coordinate with max diff: [0,0,0,103] Expected: 12.2144 Actual: 2332.88 Diff: 2320.66 abs_threshold: 0.172144",
+    "[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.050000 rel_threshold: 0.010000 incorrect elem counter: 128 among 128 shapes."
+  ],
+  "root_cause": "The CPU functional test smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference failed numerical comparison on ARM64 with i4 weights (all 128 output elements are wrong). The PR (#36745) only changes the AUTO plugin and IPF third-party library and does not touch the CPU Conv1x1WeightCompressedToMatmul transformation. This is a pre-existing or environment-specific accuracy issue in the ARM64 CPU backend for the Conv1x1-to-MatMul transformation with i4 compressed weights and Transpose input/output.",
+  "reproduction_steps": "Build OpenVINO for ARM64 and run: ./ov_cpu_func_tests --gtest_filter=*smoke_Conv1x1WeightCompressedToMatmul_TransposeInput*wPrec=i4*",
+  "recommended_actions": [
+    "Investigate whether this test consistently fails on ARM64 for the Conv1x1WeightCompressedToMatmul transformation with i4 weights independently of this PR.",
+    "Check if the test was already failing on master before PR #36745 was enqueued.",
+    "If pre-existing, disable/track the failing test separately and re-queue PR #36745.",
+    "If regression caused by this PR, investigate how AUTO plugin or IPF changes could indirectly affect CPU plugin numerical behavior (unlikely but worth checking)."
+  ],
+  "prevention_strategies": "Ensure ARM64 CPU functional tests run on PRs that introduce new transformations or weight-compression logic. Add explicit ARM64 CI coverage for Conv1x1WeightCompressedToMatmul test class.",
+  "historical_context": "First occurrence of this specific test/signature in the CI Doctor MQ database."
+}
