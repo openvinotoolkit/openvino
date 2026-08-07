@@ -46,8 +46,6 @@ Broader LLM model support and more model compression techniques
 
 * OpenVINO™ GenAI extends the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to deliver additional token-generation speedups on CPUs, GPUs, and NPUs.
 
-* Added GroupedMatMul to accelerate native execution of Mixture-of-Experts (MoE) models, enabling faster support for new MoE architectures and improving their out-of-the-box performance.
-
 * Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
 * Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding low-precision inference options for production deployments.
@@ -62,8 +60,6 @@ More portability and performance to run AI at the edge, in the cloud or locally
 * MoE offloading to disk enabled, allowing 30B MoE models like Qwen3-30B-A3B to run even on devices with 16 GB of memory while maintaining acceptable tokens-per-second (TPS) generation rates.
 
 * OpenVINO™ Model Server simplifies model deployment and unifies REST API endpoints, reducing command complexity while providing standard v1/chat/completions support for easier integration with other serving frameworks.
-
-* OpenVINO™ Model Server adds support for audio models, including Kokoro TTS and Qwen3-ASR, enabling speech generation and transcription workflows.
 
 * OpenVINO™ Model Server further improves stability, performance, and accuracy for LLMs such as Qwen3.5/3.6 with linear attention and extends tool-parser support to MiniCPM5-1B and LFM2.5, improving accuracy and reliability.
 
