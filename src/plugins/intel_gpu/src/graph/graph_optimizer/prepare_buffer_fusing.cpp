@@ -740,7 +740,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
                 // axis-mapping so build-time (dyn mask) and runtime (mask +
                 // explicit sizes) paths pick the same reshape axis for patterns
                 // that do not need scaling.
-                size_t reshape_axis = crop_axis;
+                int64_t reshape_axis = static_cast<int64_t>(crop_axis);
                 if (reshape_mode == reshape::reshape_mode::base) {
                     reshape_axis = reshape_ps.size() - 1;
                     ov::Dimension::value_type mul = 1;
@@ -753,13 +753,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
                 } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
                     const auto& output_pattern = reshape_desc->output_pattern;
                     for (size_t i = 0; i < output_pattern.size(); i++) {
-                        if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                        if (output_pattern[i] <= reshape_axis) {
                             reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
                         }
                     }
                 }
 
-                OPENVINO_ASSERT(reshape_axis < output_rank,
+                OPENVINO_ASSERT(reshape_axis >= 0 && static_cast<size_t>(reshape_axis) < output_rank,
                                 "[GPU] Calculated reshape_axis is out of range for along-feature crop propagation.");
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
