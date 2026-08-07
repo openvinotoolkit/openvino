@@ -40,6 +40,25 @@ size_t PickTileSize(const permute_params& params) {
     return is_one_byte_type ? pick_tile(kOneByteTileCandidates) : pick_tile(kTileCandidates);
 }
 
+// Tile plan: an exact tile (branch-free fast path) when X and Y are both
+// divisible by a candidate tile size, otherwise a WG_DIM tile with per-tile
+// remainder handling so arbitrary X/Y (e.g. head_size 72) are still supported.
+struct TilePlan {
+    size_t tile = 0;
+    bool remainder = false;
+};
+
+TilePlan PlanTile(const permute_params& params) {
+    const size_t exact = PickTileSize(params);
+    if (exact != 0)
+        return {exact, false};
+    // Fall back to a WG_DIM-sized tile and guard the ragged edges. This keeps
+    // coalesced loads/stores and SLM transposition for shapes whose X/Y are
+    // not tile-aligned, which would otherwise drop to the scalar reference
+    // permute (e.g. {0,1,3,2} with Y=72).
+    return {kWgDim, true};
+}
+
 bool IsXYSwapOrder(const std::vector<uint16_t>& order) {
     // 4D only, last two dims swapped, others identity.
     // cldnn order produced from IE {0,1,3,2} is also {0,1,3,2} for 4D inputs.
@@ -74,11 +93,13 @@ ParamsKey PermuteKernel_xy_swap::GetSupportedKey() const {
 JitConstants PermuteKernel_xy_swap::GetJitConstants(const permute_params& params,
                                                     const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
-    const size_t tile_size = PickTileSize(params);
+    const TilePlan plan = PlanTile(params);
+    const size_t tile_size = plan.tile;
     const size_t elems_per_dim = tile_size / kWgDim;
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("WG_DIM", kWgDim));
     jit.AddConstant(MakeJitConstant("ELEMS_PER_DIM", elems_per_dim));
+    jit.AddConstant(MakeJitConstant("REMAINDER", plan.remainder ? 1 : 0));
 
     if (!params.fused_ops.empty()) {
         // Output layout indices for fused ops (bfyx in IE naming).
@@ -92,11 +113,14 @@ JitConstants PermuteKernel_xy_swap::GetJitConstants(const permute_params& params
 CommonDispatchData PermuteKernel_xy_swap::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
     const auto& in = params.inputs[0];
-    const size_t tile_size = PickTileSize(params);
-    const size_t elems_per_dim = tile_size / kWgDim;
+    const TilePlan plan = PlanTile(params);
+    const size_t tile_size = plan.tile;
     // One WG covers a TILE_SIZE x TILE_SIZE block; with WG = WG_DIM x WG_DIM,
-    // each WI does ELEMS_PER_DIM^2 work, so GWS shrinks accordingly.
-    dispatchData.gws = {in.X().v / elems_per_dim, in.Y().v / elems_per_dim, in.Batch().v * in.Feature().v};
+    // each WI does ELEMS_PER_DIM^2 work, so GWS shrinks accordingly. Round the
+    // number of tiles up so ragged edges (REMAINDER path) are still covered.
+    const size_t x_tiles = CeilDiv(in.X().v, tile_size);
+    const size_t y_tiles = CeilDiv(in.Y().v, tile_size);
+    dispatchData.gws = {x_tiles * kWgDim, y_tiles * kWgDim, in.Batch().v * in.Feature().v};
     dispatchData.lws = {kWgDim, kWgDim, 1};
     return dispatchData;
 }
@@ -125,10 +149,8 @@ bool PermuteKernel_xy_swap::Validate(const Params& p) const {
         params.outputs[0].PitchesDifferFromLogicalDims()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    // Require X and Y to be tile-aligned for at least one supported tile size.
-    if (PickTileSize(params) == 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
+    // A WG_DIM tile with remainder handling covers any X/Y, so no divisibility
+    // requirement remains; PlanTile always yields a usable tile.
 
     return true;
 }
