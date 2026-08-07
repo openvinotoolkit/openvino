@@ -1,6 +1,6 @@
 ---
 name: ov-update-pytorch-version
-description: Upgrade the PyTorch version used by OpenVINO tests (torch / torchvision / torchaudio) and resolve fallout — missing operator translators, new functionalized `*_copy` aten ops, decomposition changes, FX-only tests failing in TorchScript mode, and accuracy regressions caused by stricter typing. Use when the user asks to "bump torch", "update pytorch to X.Y", "upgrade torch tests", or when pytorch_tests / model_hub pytorch tests fail after a torch version change. Do not use for: enabling a single new PyTorch operator unrelated to a version bump, GenAI / Optimum upgrades, or plugin-level numerical bugs unrelated to the frontend.
+description: Upgrade the PyTorch version used by OpenVINO tests (torch / torchvision / torchaudio) and resolve fallout — missing operator translators, new functionalized `*_copy` aten ops, decomposition changes, FX-only tests failing in TorchScript mode, and accuracy regressions caused by stricter typing. Use when the user asks to "bump torch", "update pytorch to X.Y", "upgrade torch tests", or when pytorch_tests / model_hub pytorch tests fail after a torch version change. Do not use for enabling a single new PyTorch operator unrelated to a version bump, GenAI / Optimum upgrades, or plugin-level numerical bugs unrelated to the frontend.
 ---
 
 # Update PyTorch Version in OpenVINO
