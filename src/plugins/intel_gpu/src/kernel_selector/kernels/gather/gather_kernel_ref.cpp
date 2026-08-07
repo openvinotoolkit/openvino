@@ -36,6 +36,7 @@ static size_t GetGatherChannelIndex(const gather_params& params) {
 ParamsKey GatherKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::UINT8);
@@ -44,6 +45,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT4);
 
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
@@ -271,7 +273,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         idx_order = GetOrder(params.outputs[0].GetDims().size());
-        FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
+        FusedOpsConfiguration conf = { "", idx_order, "val", params.compressed ? params.outputs[0].GetDType() : params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
