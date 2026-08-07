@@ -56,29 +56,13 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                        const intel_npu::Logger& logger) {
     using namespace intel_npu;
-
-    bool legacy = false;
-    std::optional<std::vector<std::string>> compilerSupportList{};
-    uint32_t compilerVersion = 0;
-
     OPENVINO_ASSERT(compiler != nullptr, "Compiler must be present to filter properties by compiler support");
 
-    compilerVersion = compiler->get_version();
-    compilerSupportList = compiler->get_supported_options();
-
-    if (!compilerSupportList.has_value()) {
-        logger.info("No compiler support options list received! Fallback to version-based option registration");
-        legacy = true;
-    }
-
-    logger.debug("Compiler version: %u", compilerVersion);
-    logger.debug("Legacy registration: %s", legacy ? "true" : "false");
-    if (!legacy) {
-        const auto& supportedOptions = compilerSupportList.value();
-        logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
-        for (const auto& str : supportedOptions) {
-            logger.debug("    %s ", str.c_str());
-        }
+    std::optional<std::vector<std::string>> compilerSupportList = compiler->get_supported_options();
+    const auto& supportedOptions = compilerSupportList.value();
+    logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
+    for (const auto& str : supportedOptions) {
+        logger.debug("    %s ", str.c_str());
     }
 
     config.walkEnables([&](const std::string& key) {
@@ -87,27 +71,18 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
         if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
-            if (legacy) {
-                // Compiler or common option in Legacy mode? Checking its supported version
-                if (compilerVersion >= opt.compilerSupportVersion()) {
-                    isEnabled = true;
-                }
+            const auto& supportedOptions = compilerSupportList.value();
+            auto it = std::find(supportedOptions.begin(), supportedOptions.end(), key);
+            if (it != supportedOptions.end()) {
+                isEnabled = true;
             } else {
-                // We have compiler, we are not in legacy mode = we have a valid list of supported options
-                // Searching in the list
-                const auto& supportedOptions = compilerSupportList.value();
-                auto it = std::find(supportedOptions.begin(), supportedOptions.end(), key);
-                if (it != supportedOptions.end()) {
-                    isEnabled = true;
+                // Not found in the supported options list.
+                if (compiler != nullptr) {
+                    // Checking if it is a private option?
+                    isEnabled = compiler->is_option_supported(key);
                 } else {
-                    // Not found in the supported options list.
-                    if (compiler != nullptr) {
-                        // Checking if it is a private option?
-                        isEnabled = compiler->is_option_supported(key);
-                    } else {
-                        // Not in the list and not a private option = disabling
-                        isEnabled = false;
-                    }
+                    // Not in the list and not a private option = disabling
+                    isEnabled = false;
                 }
             }
 

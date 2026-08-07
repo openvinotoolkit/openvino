@@ -29,7 +29,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
 
-    std::optional<std::vector<std::string>> get_supported_options() const override;
+    std::vector<std::string> get_supported_options() const override;
 
     bool is_option_supported(const std::string& optName,
                              const std::optional<std::string>& optValue = std::nullopt) const override;
@@ -37,10 +37,6 @@ public:
     uint32_t get_version() const override;
 
 private:
-    bool isCompilerOptionSupported(const FilteredConfig& config,
-                                   const ze_graph_compiler_version_info_t& compilerVersion,
-                                   const std::string& optionName) const;
-
     // Fetches the runtime requirements of a compiled graph from the
     // driver via zeDeviceGetRuntimeRequirements. Returns std::nullopt when the driver does not
     // implement the extension, the handle is null, or the query fails.
