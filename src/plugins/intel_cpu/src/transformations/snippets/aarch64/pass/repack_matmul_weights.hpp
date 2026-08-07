@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -25,16 +26,21 @@ public:
     OPENVINO_MODEL_PASS_RTTI("RepackMatMulWeights");
     RepackMatMulWeights(GraphContext::CPtr context,
                         ov::intel_cpu::InputRepackerMap& input_repackers,
-                        std::vector<MemoryPtr>& src_mem_ptrs)
-        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context), input_repackers, src_mem_ptrs) {}
+                        std::vector<MemoryPtr>& src_mem_ptrs,
+                        std::set<size_t> compile_time_repacking_idxs)
+        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context), input_repackers, src_mem_ptrs),
+          m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
 
 private:
     [[nodiscard]] std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                               const MatMulWeightsSource& source,
                                                               const MemoryPtr& orig_src_mem_ptr) override;
-    [[nodiscard]] bool supports_runtime_repacking() const override {
-        return false;
+    [[nodiscard]] bool should_repack(size_t input_idx,
+                                     [[maybe_unused]] const std::shared_ptr<ov::Node>& consumer) const override {
+        return m_compile_time_repacking_idxs.count(input_idx) > 0;
     }
+
+    std::set<size_t> m_compile_time_repacking_idxs;
 };
 
 }  // namespace ov::intel_cpu::pass::aarch64

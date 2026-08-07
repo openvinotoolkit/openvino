@@ -63,6 +63,10 @@ protected:
     [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
                                                                       const MatMulWeightsSource& source,
                                                                       const MemoryPtr& orig_src_mem_ptr) = 0;
+    [[nodiscard]] virtual bool should_repack([[maybe_unused]] size_t input_idx,
+                                             [[maybe_unused]] const std::shared_ptr<ov::Node>& consumer) const {
+        return true;
+    }
     [[nodiscard]] virtual bool supports_runtime_repacking() const {
         return true;
     }
