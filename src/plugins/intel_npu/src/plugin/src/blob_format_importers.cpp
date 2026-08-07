@@ -537,10 +537,14 @@ std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob
         return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
-    size_t magic_bytes_size = MAGIC_BYTES.size();
-    std::string_view blob_magic_bytes(
-        npu_formatted_blob.data<const char>() + npu_formatted_blob.get_byte_size() - magic_bytes_size,
-        magic_bytes_size);
+    const size_t input_size = npu_formatted_blob.get_byte_size();
+    OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
+
+    const size_t magic_bytes_size = MAGIC_BYTES.size();
+    OPENVINO_ASSERT(input_size >= magic_bytes_size, BLOB_SIZE_SMALLER_THAN_MAGIC);
+
+    std::string_view blob_magic_bytes(npu_formatted_blob.data<const char>() + input_size - magic_bytes_size,
+                                      magic_bytes_size);
 
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 
