@@ -255,7 +255,7 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
+        if (first_pshape[i] != 1 && (first_to_second_only || second_pshape[i] != 1) && first_pshape[i] != second_pshape[i]) {
             return false;
         }
     }

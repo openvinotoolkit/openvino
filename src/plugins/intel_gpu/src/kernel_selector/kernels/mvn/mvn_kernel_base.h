@@ -38,7 +38,7 @@ struct mvn_params : public base_params {
 class MVNKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    ~MVNKernelBase() override {}
+    ~MVNKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t itemsNum;

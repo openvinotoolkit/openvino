@@ -80,7 +80,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     custom_gpu_primitive_impl()
- {}
+ = default;
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
     : parent(other.get_kernel_name())
