@@ -344,7 +344,11 @@ def constant(
     :param name: Optional name for output node.
     :return: The Constant node initialized with provided data.
     """
-    if value is None or (isinstance(value, np.ndarray) and value.size == 0):
+    if (
+        value is None
+        or (isinstance(value, np.ndarray) and value.size == 0)
+        or (isinstance(value, (list, tuple)) and len(value) == 0)
+    ):
         raise ValueError("Cannot create an empty Constant. Please provide valid data.")
     return make_constant_node(value, dtype)
 
