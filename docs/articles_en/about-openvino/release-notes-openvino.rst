@@ -48,7 +48,7 @@ Broader LLM model support and more model compression techniques
 
 * Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
-* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding low precision inference options for production deployments.
+* Neural Network Compression Framework (NNCF) now supports FP8 quantization for ONNX models, helping developers realize FP8 performance, accuracy, and memory gains while expanding low-precision inference options for production deployments.
 
 * OpenVINO™ GenAI now supports three additional pipelines: Omni for multimodal workloads, ASR for speech recognition, and Embedding for multimodal embedding generation.
 
