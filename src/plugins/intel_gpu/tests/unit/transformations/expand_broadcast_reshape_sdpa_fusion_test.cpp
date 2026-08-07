@@ -24,6 +24,8 @@
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 
 #include <memory>
+#include <openvino/op/variadic_split.hpp>
+#include <openvino/op/scatter_update.hpp>
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -364,7 +366,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion7) {
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(inputs, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_key_input_1, rope_key_input_2, cos, sin, pre_reshape_value_input_1, pre_reshape_value_input_2});
-        manager.register_pass<UnsqueezeBroadcastReshapeSDPAFusion>();
+        manager.register_pass<ExpandBroadcastReshapeSDPAFusion>();
     }
     {
         model_ref = model->clone();
@@ -439,7 +441,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion9) {
 
     // GQA 16x Broadcast Logic (32 Q heads, 2 KV heads)
     std::vector<int32_t> shape_5d_val = {-1, 1, 2, 1, 128};
-    std::vector<int32_t> target_shape_bc = {1, 1, 1, 16, 1};  // Broadcast by 16x
+    std::vector<int32_t> target_shape_bc = {1, 1, 1, 16, 1}; // Broadcast by 16x
     std::vector<int32_t> pattern_4d = {0, 0, 32, 128};
     const bool is_causal = true;
 
@@ -466,7 +468,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion9) {
         auto v_4d = std::make_shared<ov::op::v1::Reshape>(v_bc, v_shape_4d, true);
 
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-            ov::OutputVector{ input_q, k_4d, v_4d }, is_causal, in0_order, in1_order, in2_order, out_order);
+            ov::OutputVector{input_q, k_4d, v_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, v_input});
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
@@ -487,7 +489,7 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion9) {
         auto v_ref_4d = std::make_shared<ov::op::v1::Reshape>(input_v, v_ref_shape_4d, true);
 
         auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
-            ov::OutputVector{ input_q, k_ref_4d, v_ref_4d }, is_causal, in0_order, in1_order, in2_order, out_order);
+            ov::OutputVector{input_q, k_ref_4d, v_ref_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, rope_input, cos, sin, v_input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
