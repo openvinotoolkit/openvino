@@ -184,8 +184,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
                                           (tuning_data.feature_block_size / inFeaturesPerGroup > 1) &&
                                           (outFeaturesPerGroup != 1) &&
                                           (inFeaturesPerGroup != 1);
-        auto grouped = inFeaturesPerGroup % tuning_data.sub_group_size == 0 &&
-                       (outFeaturesPerGroup % tuning_data.sub_group_size == 0 || tuning_data.sub_group_size % outFeaturesPerGroup == 0);
+        auto grouped = inFeaturesPerGroup % tuning_data.sub_group_size == 0 && outFeaturesPerGroup % tuning_data.sub_group_size == 0;
 
         if (!multipleGroupsInputPreload && !grouped)
             DO_NOT_USE_THIS_KERNEL(p.layerID);
