@@ -214,5 +214,27 @@ TEST(type_prop, group_query_attention_kv_cache_mismatched_quant_types) {
         HasSubstr("matching k_quant_type and v_quant_type"));
 }
 
+TEST(type_prop, group_query_attention_kv_cache_mismatched_past_types) {
+    auto args = make_valid_gqa_quant_args(element::i8, 8);
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] =
+        std::make_shared<op::v0::Parameter>(element::u8, PartialShape{1, 2, 5, 8});
+
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, "PER_TENSOR", "PER_TENSOR"),
+        ov::NodeValidationFailure,
+        HasSubstr("past_key and past_value element types to match"));
+}
+
+TEST(type_prop, group_query_attention_quantized_kv_requires_quantized_cache_type) {
+    const auto args = make_valid_gqa_quant_args(element::f32, 8);
+
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, "PER_TENSOR", "PER_TENSOR"),
+        ov::NodeValidationFailure,
+        HasSubstr("quantized KV cache element type"));
+}
+
 }  // namespace testing
 }  // namespace ov

@@ -218,7 +218,20 @@ void GroupQueryAttention::validate_and_infer_types() {
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
     const auto& kv_cache_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
+    const auto& past_value_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_VALUE));
+    NODE_VALIDATION_CHECK(this,
+                          kv_cache_type.compatible(past_value_type),
+                          "GroupQueryAttention expects past_key and past_value element types to match, got ",
+                          kv_cache_type,
+                          " and ",
+                          past_value_type);
     if (is_kv_quantized()) {
+        NODE_VALIDATION_CHECK(
+            this,
+            kv_cache_type == element::i8 || kv_cache_type == element::u8 || kv_cache_type == element::f8e4m3,
+            "GroupQueryAttention expects quantized KV cache element type to be one of ",
+            "{i8, u8, f8e4m3}, got ",
+            kv_cache_type);
         // Quantized KV cache: i8 (8-bit), u8 (4-bit values packed two per byte), or f8e4m3 (8-bit float).
         NODE_VALIDATION_CHECK(this,
                               m_kv_cache_bit_width == 8 || m_kv_cache_bit_width == 4,
