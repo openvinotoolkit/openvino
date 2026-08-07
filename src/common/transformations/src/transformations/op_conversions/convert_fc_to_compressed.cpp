@@ -244,17 +244,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
-        // With enable_parameter_weights, weights/scale/zero-point may be Parameters with dynamic
-        // shapes. process_compressed_weights()/combine_groups() need static shapes to fold group
-        // dims; a dynamic zero-point would otherwise pass through with the wrong rank, so reject it
-        // here alongside weights and scale.
+        // Weights/scale are static here: constants always are, and CompressedWeightsBlock requires
+        // static shapes for the parameter-weights case (has_static_shape predicate).
         const auto& weights_pshape = fc->get_input_partial_shape(1);
         const auto& scale_pshape = weights_block->get_anchor("mul_const", pattern_map).value().get_partial_shape();
-        const auto zp_anchor = weights_block->get_anchor("sub_const", pattern_map);
-        if (weights_pshape.is_dynamic() || scale_pshape.is_dynamic() ||
-            (zp_anchor && zp_anchor->get_partial_shape().is_dynamic())) {
-            return false;
-        }
         const auto weights_shape = weights_pshape.to_shape();
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
         const auto scale_shape = scale_pshape.to_shape();
