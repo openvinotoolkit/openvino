@@ -267,6 +267,17 @@ For more details, see the code snippets below:
             The ``shape`` and ``element type`` must describe the same memory layout as the external buffer.
             The handle must remain valid for the whole lifetime of the created remote tensor.
 
+         .. tab-item:: file
+            :sync: file
+
+            Use this overload to wrap tensor data stored in a file. The plugin memory-maps the file
+            and keeps the mapping alive for the whole lifetime of the created remote tensor, so the
+            file must not be modified until the tensor is destroyed.
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_file]
+
          .. tab-item:: biplanar NV12 surface
             :sync: biplanar-nv12-surface
 

@@ -170,7 +170,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    cldnn::shared_surface surf,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
-                                   ov::intel_gpu::VirtualAddressMemory va_mem)
+                                   ov::intel_gpu::VirtualAddressMemory va_mem,
+                                   std::shared_ptr<ov::MappedMemory> mapped_memory)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -180,7 +181,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_surf(surf)
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
-    , m_va_mem(va_mem) {
+    , m_va_mem(va_mem)
+    , m_mapped_memory(std::move(mapped_memory)) {
     update_hash();
     allocate();
 }
@@ -373,10 +375,19 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
-                                        cldnn::allocation_type::cl_mem,
-                                        m_layout);
+        const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
+        if (m_mapped_memory) {
+            // The plugin owns the mapping (file-mmap case), so the buffer is imported as read-only.
+            m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout);
+        } else {
+            m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
+                                            buffer_size,
+                                            cldnn::allocation_type::cl_mem,
+                                            m_layout);
+        }
         break;
     }
 #ifdef _WIN32
@@ -424,7 +435,9 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-    return is_shared();
+    // Memory mapped by the plugin is released together with this tensor, so the cached memory object
+    // (created with CL_MEM_USE_HOST_PTR) would outlive the host pointer it wraps.
+    return is_shared() && !m_mapped_memory;
 }
 
 void RemoteTensorImpl::update_hash() {

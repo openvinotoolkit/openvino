@@ -10,6 +10,8 @@
  */
 #pragma once
 
+#include <filesystem>
+
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
@@ -119,6 +121,7 @@ enum class SharedMemType {
     BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
                              //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
     CPU_VA = 8,              //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin
+    MMAPED_FILE = 9,         //!< Memory-mapped file buffer read and wrapped by the plugin
 };
 
 /**
@@ -151,6 +154,8 @@ inline std::ostream& operator<<(std::ostream& os, const SharedMemType& share_mem
         return os << "DX_BUFFER";
     case SharedMemType::BUFFER_FROM_HANDLE:
         return os << "BUFFER_FROM_HANDLE";
+    case SharedMemType::MMAPED_FILE:
+        return os << "MMAPED_FILE";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
@@ -177,6 +182,8 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
         share_mem_type = SharedMemType::DX_BUFFER;
     } else if (str == "BUFFER_FROM_HANDLE") {
         share_mem_type = SharedMemType::BUFFER_FROM_HANDLE;
+    } else if (str == "MMAPED_FILE") {
+        share_mem_type = SharedMemType::MMAPED_FILE;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
@@ -260,5 +267,29 @@ struct VirtualAddressMemory {
     void* ptr = nullptr;
     int64_t size = -1;  ///< Buffer size in bytes; -1 means "derive from tensor shape"
 };
+
+/**
+ * @brief File descriptor for wrapping tensor data memory-mapped from a file as a GPU plugin tensor.
+ * The plugin memory-maps the file and keeps the mapping alive for the whole tensor lifetime,
+ * so the file must not be modified until the returned tensor is destroyed.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+struct FileDescriptor {  // need to be merged with ov::intel_npu::FileDescriptor in future
+    explicit FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
+        : path(file_path),
+          offset(offset_in_bytes) {
+        OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
+    }
+
+    std::filesystem::path path;  ///< File path
+    std::size_t offset = 0;      ///< Offset in bytes to read from the file
+};
+
+/**
+ * @brief This key identifies the file descriptor
+ * in a memory-mapped tensor parameter map.
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+static constexpr Property<FileDescriptor> file_descriptor{"FILE_DESCRIPTOR"};
 }  // namespace intel_gpu
 }  // namespace ov
