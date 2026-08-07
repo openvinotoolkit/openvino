@@ -292,19 +292,19 @@ uint32_t PluginCompilerAdapter::get_version() const {
     return _compiler->get_version();
 }
 
-std::optional<std::vector<std::string>> PluginCompilerAdapter::get_supported_options() const {
+std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     std::vector<char> options;
-    if (!_compiler->get_supported_options(options)) {
-        _logger.warning("VCLCompilerImpl get_supported_options failed. Returning empty supported options.");
-        return std::nullopt;
+    _compiler->get_supported_options(options);
+    size_t optionsSize = options.size();
+    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
+        --optionsSize;
+    }
+    if (optionsSize == 0) {
+        _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
+        return {};
     }
 
-    if (options.empty()) {
-        _logger.warning("get_supported_options returned no options; returning an empty supported options vector.");
-        return std::vector<std::string>{};
-    }
-
-    std::string compilerOptionsStr(options.data(), options.size());
+    std::string compilerOptionsStr(options.data(), optionsSize);
     _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
     // vectorize string
     std::istringstream suppstream(compilerOptionsStr);
