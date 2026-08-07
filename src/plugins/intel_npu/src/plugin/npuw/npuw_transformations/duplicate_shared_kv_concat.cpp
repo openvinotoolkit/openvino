@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <vector>
 
 #include "../logging.hpp"
 #include "../util.hpp"
