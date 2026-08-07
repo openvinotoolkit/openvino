@@ -183,6 +183,7 @@ TEST(TransformationTests, DisableBF16CompCumSumSinGen_Positive) {
         {name_scale_mul, true},
         {name_interp_after, true},
         {name_transpose_after_interp, true},
+        {name_sin, true},
     };
     run_test(model, expected_status);
 }
@@ -198,6 +199,7 @@ TEST(TransformationTests, DisableBF16CompCumSumSinGen_MissingScaleMultiply_NoOp)
         {name_transpose_after_mul, false},
         {name_interp_after, false},
         {name_transpose_after_interp, false},
+        {name_sin, false},
     };
     run_test(model, expected_status);
 }

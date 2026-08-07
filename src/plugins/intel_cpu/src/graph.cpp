@@ -2097,7 +2097,10 @@ void Graph::EnforceInferencePrecision() const {
             if (!node->isBF16ConversionDisabled()) {
                 continue;
             }
-            nodesToSkip.insert(node);
+            const auto inserted = nodesToSkip.insert(node);
+            if (!inserted.second) {
+                continue;
+            }
             backwardSkipSearch(node, nodesToSkip);
             forwardSkipSearch(node, nodesToSkip);
         }
