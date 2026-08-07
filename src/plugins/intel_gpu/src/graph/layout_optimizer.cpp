@@ -47,6 +47,12 @@
 #include "lstm_seq_inst.h"
 #include "group_normalization_inst.h"
 #include "to_string_utils.h"
+#include "activation_inst.h"
+#include "intel_gpu/plugin/common_utils.hpp"
+// For the shape bounds shared with convolution_1d_small_ic_gemm_opt(), so the
+// graph-side gate and the kernel's Validate() cannot drift apart.
+#include "convolution/convolution_kernel_1d_small_ic_gemm.h"
+#include <tuple>
 #include <vector>
 #include <memory>
 #include <utility>
@@ -806,6 +812,97 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_
     return (int8_sup || fp16_ver || fp32_ver) && correct_feature && correct_batch && single_group;
 }
 
+// Whether every fused op on this node would reach the kernel through
+// convolution_params::activations rather than fused_ops. Kernels declaring no
+// supported fused ops - ConvolutionKernel_1d_small_ic_gemm among them - still handle
+// those, since they apply params.activations in their epilogue.
+//
+// Mirrors use_legacy_fused_ops() in impls/ocl/kernel_selector_helper.cpp, minus
+// its plain-format test (this runs while deciding whether to make the format plain,
+// so asking whether it already is would be circular) and its legacy_fusion_list
+// test (convolution is in that list).
+static bool can_use_legacy_activations_only(const program_node& node) {
+    const auto& fused = node.get_fused_primitives();
+    if (fused.empty())
+        return true;
+    if (fused.size() != 1)
+        return false;
+    return fused[0].is_type<activation>() && fused[0].deps.empty();
+}
+
+bool layout_optimizer::convolution_1d_small_ic_gemm_opt(const layout& input_layout,
+                                                        const layout& output_layout,
+                                                        const layout& weights_layout,
+                                                        std::shared_ptr<const convolution> conv) {
+    // Mirrors ConvolutionKernel_1d_small_ic_gemm::Validate(), and must agree with
+    // it: returning true for a node the kernel then rejects leaves it on a slower
+    // planar kernel than the blocked one it came from - worse than not diverting it.
+    //
+    // The shape bounds are read off the kernel class so widening its gate widens
+    // this one too. The remaining conditions cannot be shared that way: they are the
+    // same checks over cldnn::layout instead of convolution_params, which the ocl
+    // impl has not built yet at this point.
+    using kernel_selector::ConvolutionKernel_1d_small_ic_gemm;
+    constexpr auto max_input_features = static_cast<int64_t>(ConvolutionKernel_1d_small_ic_gemm::max_input_features);
+    constexpr auto min_taps = static_cast<int64_t>(ConvolutionKernel_1d_small_ic_gemm::min_taps);
+
+    if (conv->groups != 1 || conv->transposed || conv->deformable_mode)
+        return false;
+
+    if (input_layout.is_dynamic() || output_layout.is_dynamic() || weights_layout.is_dynamic())
+        return false;
+
+    // 4D only: the kernel handles a single spatial axis, mapped onto X or Y.
+    if (input_layout.get_rank() != 4 || output_layout.get_rank() != 4)
+        return false;
+    if (weights_layout.spatial(2) != 1)
+        return false;
+
+    if (input_layout.feature() > max_input_features)
+        return false;
+
+    // Only the dtypes the kernel declares in its ParamsKey.
+    const auto supported_dts = {data_types::f16, data_types::f32, data_types::u8, data_types::i8};
+    if (!one_of(input_layout.data_type, supported_dts) || !one_of(output_layout.data_type, supported_dts) ||
+        !one_of(weights_layout.data_type, supported_dts))
+        return false;
+
+    // The long axis is whichever spatial axis carries the taps; the kernel
+    // collapses the other away entirely, so it must be degenerate everywhere,
+    // paddings included.
+    //
+    // This picks the same physical axis as the kernel's long_axis_is_x(), but the
+    // booleans are not comparable: the kernel sees params after
+    // convolution_impl::get_kernel_params swapped X and Y, so for a 1D convolution
+    // along Y it reads true where this reads false. Each only selects which axis to
+    // look at within its own frame.
+    const bool long_axis_is_x = weights_layout.spatial(0) >= weights_layout.spatial(1);
+    const size_t long_idx = long_axis_is_x ? 0 : 1;
+    const size_t short_idx = long_axis_is_x ? 1 : 0;
+
+    if (weights_layout.spatial(long_idx) < min_taps)
+        return false;
+
+    if (weights_layout.spatial(short_idx) != 1 || input_layout.spatial(short_idx) != 1 ||
+        output_layout.spatial(short_idx) != 1)
+        return false;
+
+    // padding_begin/_end are in ov order, so use the same get_xyz() the ocl impl
+    // uses to fill convolution_params. For a 1D convolution it puts the single
+    // spatial value on Y and leaves X at the default, matching how such a shape
+    // lands in a bfyx tensor.
+    uint32_t pad_begin[3] = {};
+    uint32_t pad_end[3] = {};
+    std::tie(pad_begin[0], pad_begin[1], pad_begin[2]) =
+        ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(conv->padding_begin, 0);
+    std::tie(pad_end[0], pad_end[1], pad_end[2]) =
+        ov::intel_gpu::get_xyz<ov::CoordinateDiff, uint32_t>(conv->padding_end, 0);
+    if (pad_begin[short_idx] != 0 || pad_end[short_idx] != 0 || pad_begin[2] != 0 || pad_end[2] != 0)
+        return false;
+
+    return true;
+}
+
 bool layout_optimizer::convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                                      const layout& output_layout,
                                                      const layout& weights_layout,
@@ -1142,6 +1239,17 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 expected_format = cldnn::format::b_fs_yx_fsv32;
             else
                 expected_format = cldnn::format::b_fs_zyx_fsv32;
+        } else if (convolution_1d_small_ic_gemm_opt(input_layout, output_layout, weights_layout, prim) &&
+                   can_use_legacy_activations_only(node)) {
+            // Planar, so ConvolutionKernel_1d_small_ic_gemm can run this as an
+            // implicit GEMM. Every blocked format below pads the feature dimension
+            // up to its block size, wasting 15 of every 16 MACs at IC == 1.
+            //
+            // After the onednn branches on purpose: a node onednn will implement
+            // anyway gains nothing from a planar layout and would only pay for a
+            // reorder. Those are the nodes whose format is already set through
+            // get_preferred_output_fmt above, plus the int8 case just before this.
+            expected_format = cldnn::format::bfyx;
         } else if (i8_u8_input) {
             if (((_optimization_attributes.b_fs_yx_fsv16_network != 0) &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
