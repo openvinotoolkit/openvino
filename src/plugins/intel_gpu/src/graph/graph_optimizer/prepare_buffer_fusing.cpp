@@ -759,7 +759,7 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
                     }
                 }
 
-                OPENVINO_ASSERT(reshape_axis < output_rank,
+                OPENVINO_ASSERT(reshape_axis >= 0 && static_cast<size_t>(reshape_axis) < output_rank,
                                 "[GPU] Calculated reshape_axis is out of range for along-feature crop propagation.");
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
