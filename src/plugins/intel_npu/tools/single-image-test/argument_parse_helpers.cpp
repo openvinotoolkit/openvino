@@ -106,6 +106,15 @@ DEFINE_string(nrmse_prefill_seq_len_size, "",
         "is compared.");
 DEFINE_string(l2norm_threshold, std::to_string(metric_defaults::l2norm_threshold),
         "Threshold for 'l2norm' mode. Can be a single value or per-layer: 'layer1:1.0;layer2:2.0'");
+DEFINE_string(l2norm_dequant_scale, "",
+        "Optional. Dequantization scale factor applied to the inference output tensor(s) before the "
+        "'l2norm' comparison is performed: dequantized = (quantized - zero_point) * scale. Can be a single "
+        "global value applied to all outputs, or per-output: 'output1:0.00392;output2:0.01'. If not set, "
+        "dequantization is skipped and outputs are compared as-is. The reference tensor is never modified.");
+DEFINE_string(l2norm_dequant_zp, "",
+        "Optional. Dequantization zero point used together with --l2norm_dequant_scale for 'l2norm' mode. "
+        "Can be a single global value or per-output: 'output1:128;output2:0'. Defaults to 0 for any output "
+        "without an explicit value. Has no effect unless --l2norm_dequant_scale is set.");
 DEFINE_string(overlap_threshold, std::to_string(metric_defaults::overlap_threshold),
         "IoU threshold for 'map' mode (detection matching). " \
         "Can be a single value or per-layer: 'layer1:0.5;layer2:0.6'");
@@ -206,6 +215,11 @@ void utils::parseCommandLine(int argc, char* argv[]) {
             }
         } else if (strEq(FLAGS_mode, "l2norm")) {
             std::cout << "    Threshold:        " << FLAGS_l2norm_threshold << std::endl;
+            if (!FLAGS_l2norm_dequant_scale.empty()) {
+                std::cout << "    Dequant scale:      " << FLAGS_l2norm_dequant_scale << std::endl;
+                std::cout << "    Dequant zero point: "
+                          << (FLAGS_l2norm_dequant_zp.empty() ? "0" : FLAGS_l2norm_dequant_zp) << std::endl;
+            }
         }
     }
     std::cout << "    Log level:                        " << FLAGS_log_level << std::endl;
@@ -291,4 +305,28 @@ double utils::getValueForLayer(const PerLayerValueMap& valueMap, const std::stri
 
     // Should never be reached for properly initialised maps.
     return 0.0;
+}
+
+/**
+ * @brief Checks whether a per-layer value map represents a single global value that applies to every
+ *        layer (as opposed to an explicit per-layer specification with a wildcard fallback default).
+ * @param valueMap Map produced by parsePerLayerValues
+ * @return true if the map only contains the wildcard entry
+ */
+bool utils::isGlobalValue(const PerLayerValueMap& valueMap) {
+    return valueMap.size() == 1 && valueMap.count("*") != 0;
+}
+
+/**
+ * @brief Get the explicit value set for a specific layer, ignoring the wildcard fallback.
+ * @param valueMap Map of layer name to value (as produced by parsePerLayerValues)
+ * @param layerName Name of the layer
+ * @return The explicitly configured value for the layer, or std::nullopt if the layer has no explicit entry
+ */
+std::optional<double> utils::getExplicitValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName) {
+    auto it = valueMap.find(layerName);
+    if (it != valueMap.end()) {
+        return it->second;
+    }
+    return std::nullopt;
 }
