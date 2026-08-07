@@ -1745,8 +1745,9 @@ DQUnpackDictMatMulCWu::DQUnpackDictMatMulCWu(Context::Ref ctx) {
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
-            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        if ((ov::element::u8 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
             auto new_wi = ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16);
@@ -1977,7 +1978,9 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         // Pre-transposed layout: weight [IC, OC], scale [1, OC], transpose_b=false
         const bool pretransposed_layout = qcoeff_shape.size() == 2 && qcoeff_shape[0] == 1 &&
                                           !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
-        if (ov::element::u8 == matched_qweight->get_element_type() && (standard_layout || pretransposed_layout)) {
+        if ((ov::element::u8 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type()) &&
+            (standard_layout || pretransposed_layout)) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
