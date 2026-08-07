@@ -49,6 +49,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/redirect_new_kv_to_output.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/remove_empty_kv_inputs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/remove_empty_kv_inputs.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_flash_attention.cpp
