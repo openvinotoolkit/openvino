@@ -106,6 +106,17 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         input_ids_node->set_partial_shape(PartialShape{-1, -1});
     }
 
+    // In PA mode batch and seq dims are merged. Fix per_layer_inputs (PLE) to match:
+    // [batch, seq, ...] -> [total_tokens, 1, ...] since Unsqueeze inserts seq=1 on the main path.
+    if (auto pli = get_parameter(model, "per_layer_inputs")) {
+        auto ps = pli->get_partial_shape();
+        if (ps.rank().is_static() && ps.rank().get_length() == 4) {
+            ps[1] = 1;
+            pli->set_partial_shape(ps);
+            pli->validate_and_infer_types();
+        }
+    }
+
     auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
     auto processed_input_ids =
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
