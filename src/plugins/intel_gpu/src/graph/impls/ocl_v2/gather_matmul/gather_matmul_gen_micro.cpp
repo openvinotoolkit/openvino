@@ -49,7 +49,7 @@ static size_t get_subgroup_size(gpu_arch arch) {
 gathermatmul_config GatherMatmulMicroGenerator::get_config(const kernel_impl_params& params) {
     gathermatmul_config cfg;
     auto desc = params.typed_desc<gather_matmul>();
-    std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+    std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u2, data_types::u8, data_types::i8};
     cfg.has_bias = desc->has_bias;
 
     if (std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {

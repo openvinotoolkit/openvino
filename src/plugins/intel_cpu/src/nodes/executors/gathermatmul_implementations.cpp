@@ -67,10 +67,10 @@ static const TypeMapping dnnlGatherMatmulTypeMapping {
     // compresses float weights which do not match input data precision
     {{_f32, _half_float, _any, _any},                           {bypass(), bypass(), use<0>(), use<0>()}},
     // compressed int weights with float activations
-    {{_f32,  _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},                {bypass(), bypass(), use<0>(), use<0>()},
+    {{_f32,  _u8 | _i8 | _u4 | _i4 | _u2, _any, _any},          {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_bf16, _u8 | _i8 | _u4 | _i4 | _u2, _any, _any},          {bypass(), bypass(), use<0>(), use<0>()},
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()},
-    {{_bf16, _u8 | _i8 | _u4 | _i4, _any, _any},                {just<f32>(), bypass(), just<f32>(), just<f32>()}},
+    {{_bf16, _u8 | _i8 | _u4 | _i4 | _u2, _any, _any},          {just<f32>(), bypass(), just<f32>(), just<f32>()}},
     // fallback
     {{_any,  _any, _any, _any},                                 {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
 };

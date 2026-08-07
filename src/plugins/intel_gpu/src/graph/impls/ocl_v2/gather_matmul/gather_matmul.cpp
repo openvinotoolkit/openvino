@@ -8,6 +8,7 @@
 #include "gathermatmul_gather_gen.hpp"
 #include "gathermatmul_batched_gemm_gen.hpp"
 #include "gathermatmul_scatter_gen.hpp"
+#include "gathermatmul_u2_ref_gen.hpp"
 // clang-format on
 
 #include "../primitive_ocl_base.hpp"
@@ -83,6 +84,12 @@ inline bool weights_need_onednn_grouped(const kernel_impl_params& params) {
     const auto dt = weights_layout.data_type;
     return dt != cldnn::data_types::u4 && dt != cldnn::data_types::i4;
 }
+
+// u2 (2-bit) weights: neither gemmstone micro-kernels nor oneDNN support u2, so the whole
+// op is served by the dedicated reference OCL kernel (GatherMatmulU2RefGenerator).
+inline bool weights_are_u2(const kernel_impl_params& params) {
+    return params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT].data_type == cldnn::data_types::u2;
+}
 #endif
 
 enum GatherMatmulInternalBufferIdx {
@@ -117,6 +124,9 @@ public:
     // Onednn-grouped prefill stages (sort packs expert-major; scatter unpacks).
     Stage::Ptr onednn_sort = make_stage<GatherMatmulOnednnSortGenerator>();
     Stage::Ptr onednn_scatter = make_stage<GatherMatmulScatterGenerator>();
+
+    // u2 reference stage (correctness-first; no micro/oneDNN u2 support).
+    Stage::Ptr u2_ref = make_stage<GatherMatmulU2RefGenerator>();
 #endif
 
     explicit GatherMatmulOCLImpl() : PrimitiveImplOCL(GatherMatmulImpl::get_type_info_static()) {
@@ -130,26 +140,31 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "GatherMatmul create stages for dynamic = " << params.is_dynamic() << "\n";
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        // Non-u4/i4 weights have no functional OCL path; force onednn-grouped.
-        const bool need_onednn_for_weights = weights_need_onednn_grouped(params);
-        if (need_onednn_for_weights) {
-            _use_onednn_grouped = true;
-        }
+        if (weights_are_u2(params)) {
+            // u2 weights: the reference OCL kernel is the only functional path.
+            add_stage(u2_ref, params);
+        } else {
+            // Non-u4/i4 weights have no functional OCL path; force onednn-grouped.
+            const bool need_onednn_for_weights = weights_need_onednn_grouped(params);
+            if (need_onednn_for_weights) {
+                _use_onednn_grouped = true;
+            }
 
-        GPU_DEBUG_TRACE_DETAIL << "GatherMatmul :: use_onednn_grouped=" << _use_onednn_grouped << " need_onednn_for_weights=" << need_onednn_for_weights
-                               << std::endl;
+            GPU_DEBUG_TRACE_DETAIL << "GatherMatmul :: use_onednn_grouped=" << _use_onednn_grouped
+                                   << " need_onednn_for_weights=" << need_onednn_for_weights << std::endl;
 
-        add_stage(regular_micro_multi_tokens, params);
-        add_stage(regular_micro_single_token, params);
+            add_stage(regular_micro_multi_tokens, params);
+            add_stage(regular_micro_single_token, params);
 
-        // Always registered: serve as fallback when onednn declines (e.g. fused swiglu).
-        add_stage(batched_sort, params);
-        add_stage(batched_gather, params);
-        add_stage(batched_gemm, params);
+            // Always registered: serve as fallback when onednn declines (e.g. fused swiglu).
+            add_stage(batched_sort, params);
+            add_stage(batched_gather, params);
+            add_stage(batched_gemm, params);
 
-        if (_use_onednn_grouped) {
-            add_stage(onednn_sort, params);
-            add_stage(onednn_scatter, params);
+            if (_use_onednn_grouped) {
+                add_stage(onednn_sort, params);
+                add_stage(onednn_scatter, params);
+            }
         }
 #endif
     }
@@ -160,6 +175,12 @@ public:
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         std::vector<BufferDescriptor> descs;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // The u2 reference kernel writes the output directly and needs no internal buffers.
+        if (weights_are_u2(params)) {
+            return descs;
+        }
+#endif
 
         const auto& input_shape = params.input_layouts[gather_matmul::BGMInputIdx::INPUT].get_shape();
         const auto& weight_shape = params.input_layouts[gather_matmul::BGMInputIdx::WEIGHT].get_shape();
@@ -225,6 +246,14 @@ public:
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& params = *instance.get_impl_params();
+
+        // u2 weights: reference OCL kernel is the only functional path (all token counts).
+        if (weights_are_u2(params) && has_stage(u2_ref)) {
+            GPU_DEBUG_TRACE_DETAIL << "GatherMatmul Execute u2 reference kernel" << std::endl;
+            update_rt_params(instance);
+            return execute_stage(events, instance, u2_ref);
+        }
+
         bool is_prefill = is_prefill_stage(params);
         update_rt_params(instance);
         auto* rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());

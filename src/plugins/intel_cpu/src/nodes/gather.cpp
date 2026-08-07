@@ -189,8 +189,8 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
     }
     if (compressed) {
-        // gatherCompressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
-        if (none_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
+        // gatherCompressed support input precision (u2/u4/i4/u8/i8) to output precision (f16/bf16/f32).
+        if (none_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4, ov::element::u2)) {
             dataPrecision = ov::element::f32;
         }
 
@@ -764,6 +764,96 @@ void Gather::execCompressed4Bit() {
     });
 }
 
+template <typename OUT_TYPE>
+void Gather::execCompressed2Bit() {
+    const auto& cpu_parallel = context->getCpuParallel();
+    const auto* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const auto* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    auto* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
+
+    // u2 packing: 4 values per byte, LSB-first
+    const auto get_u2 = [](const uint8_t& val, size_t slot) -> int8_t {
+        return static_cast<int8_t>((val >> (slot * 2)) & 0x3);
+    };
+
+    // zp/scale
+    float const_zp = 0;
+    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
+    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
+
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSize;
+    cpu_parallel->parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+        int ii = srcIndices[b * specIndicesSize + j];
+        if (ii < 0) {
+            if (reverseIndexing) {
+                ii += axisDim;
+            } else {
+                ii = axisDim;
+            }
+        }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
+        if (idx < static_cast<size_t>(axisDim)) {
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+
+                OUT_TYPE* pdst = &dstData[dstIdx];
+
+                size_t p = srcIdx;
+                size_t dst_idx = 0;
+
+                // heuristic:
+                // ((isAxisInputConst && axis == 0) && (cond1 || cond2)) take >99% probability
+                bool processed = false;
+                if (isAxisInputConst && axis == 0) {
+                    bool cond1 = have_zp && zp_group_size == scale_group_size;
+                    bool cond2 = (!have_zp) || have_scalar_zp;
+                    bool cond3 = have_scalar_scale && cond2;
+                    if (cond3) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p++) {
+                            auto val = srcData[p >> 2];
+                            pdst[dst_idx] = static_cast<OUT_TYPE>((get_u2(val, p % 4) - zp[0]) * scale[0]);
+                            dst_idx++;
+                        }
+                    } else if (cond1 || cond2) {
+                        processed = true;
+                        for (; p < srcIdx + afterAxisSize; p += scale_group_size) {
+                            const auto& cur_scale = scale[p / scale_group_size];
+                            const auto& cur_zp = cond2 ? zp[0] : zp[p / zp_group_size];
+                            for (size_t g = p; g < p + scale_group_size; g++) {
+                                auto val = srcData[g >> 2];
+                                pdst[dst_idx] = static_cast<OUT_TYPE>((get_u2(val, g % 4) - cur_zp) * cur_scale);
+                                dst_idx++;
+                            }
+                        }
+                    }
+                }
+
+                // Reference
+                if (!processed) {
+                    for (; p < srcIdx + afterAxisSize; p++) {
+                        auto val = srcData[p >> 2];
+                        const size_t scale_offset = p / scale_group_size;
+                        auto cur_zp = have_zp ? zp[p / zp_group_size] : 0;
+                        pdst[dst_idx] = static_cast<OUT_TYPE>((get_u2(val, p % 4) - cur_zp) * scale[scale_offset]);
+                        dst_idx++;
+                    }
+                }
+            }
+        } else {
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
+                for (size_t p = 0; p < afterAxisSize; p++) {
+                    dstData[dstIdx] = 0;
+                }
+            }
+        }
+    });
+}
+
 template <typename OUT_TYPE, typename IN_TYPE>
 void Gather::execCompressed8Bit() {
     const auto& cpu_parallel = context->getCpuParallel();
@@ -880,6 +970,8 @@ struct ExecCompressedDispatcher {
     void operator()(ExecCompressedContext& ctx) {
         if (ctx.inType.bitwidth() == 8) {
             ExecCompressed8Bit_dispatch(ctx);
+        } else if (ctx.inType == ov::element::u2) {
+            ctx.node->execCompressed2Bit<OUT_PRECISION>();
         } else {
             ExecCompressed4Bit_dispatch(ctx);
         }

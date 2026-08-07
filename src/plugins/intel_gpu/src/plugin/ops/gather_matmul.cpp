@@ -45,9 +45,15 @@ static void CreateGatherMatmulCompressedOp(ProgramBuilder& p, const std::shared_
                     a_shape);
     const int32_t n_activated_experts = static_cast<int32_t>(a_shape[0].get_length());
 
-    // Placeholder inputs have shape_size <= 1.
+    // Placeholder inputs (absent bias/zp) are empty constants with shape_size == 0.
     const bool has_bias = ov::shape_size(op->get_input_shape(3)) > 1;
-    const bool has_zp = ov::shape_size(op->get_input_shape(5)) > 1;
+    const size_t zp_elems = ov::shape_size(op->get_input_shape(5));
+    // A scalar (per-tensor) zp has exactly 1 element and is a real zero point, not a
+    // placeholder. Only the u2 reference path consumes scalar zps today; for other
+    // weight dtypes keep the previous "treat as absent" behavior so their per-group
+    // zp indexing is not disturbed.
+    const bool weights_u2 = op->get_input_element_type(1) == ov::element::u2;
+    const bool has_zp = zp_elems > 1 || (weights_u2 && zp_elems == 1);
 
     const std::string layerName = layer_type_name_ID(op);
     const cldnn::gather_matmul bgm(layerName, inputs, has_bias, has_zp, n_activated_experts);

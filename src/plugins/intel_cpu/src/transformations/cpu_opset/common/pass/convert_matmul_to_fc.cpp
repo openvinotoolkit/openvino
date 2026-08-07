@@ -98,7 +98,12 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
             auto const_shape = const_node->get_shape();
             auto const_dtype = const_node->get_element_type();
-            return (any_of(const_dtype, ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8) &&
+            return (any_of(const_dtype,
+                           ov::element::u4,
+                           ov::element::i4,
+                           ov::element::u8,
+                           ov::element::i8,
+                           ov::element::u2) &&
                     (const_shape.size() == 3 && const_shape[0] > 1));
         };
 
