@@ -557,9 +557,9 @@ bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
-    _logger.debug("Importing a compiled model from the given stream");
-
     update_log_level(properties);
+
+    _logger.debug("Importing a compiled model from the given stream");
 
     if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
         _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
@@ -597,9 +597,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
-    _logger.debug("Importing a compiled model from the given tensor");
-
     update_log_level(properties);
+
+    _logger.debug("Importing a compiled model from the given tensor");
 
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};

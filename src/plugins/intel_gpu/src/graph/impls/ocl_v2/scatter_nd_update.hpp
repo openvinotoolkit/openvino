@@ -43,11 +43,7 @@ struct ScatterNDUpdate : public ImplementationManager {
             return false;
         }
 
-        if (!fused_ops_are_one_of<eltwise, activation, quantize>(node.get_fused_primitives())) {
-            return false;
-        }
-
-        return true;
+        return fused_ops_are_one_of<eltwise, activation, quantize>(node.get_fused_primitives());
     }
 };
 
