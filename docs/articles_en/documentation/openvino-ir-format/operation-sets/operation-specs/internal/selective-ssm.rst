@@ -134,7 +134,7 @@ PyTorch-equivalent code illustrates the full (grouped) computation:
 
 **Types**
 
-* *T*: any supported floating-point type.
+* *T*: any floating-point type.
 
 
 **Example**
