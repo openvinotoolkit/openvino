@@ -357,6 +357,29 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     };
 
+    // Select HostCompile automatically for supported dynamic models.
+    if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
+        !(localConfig.has<DYNAMIC_SHAPE_TO_STATIC>() && localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        const auto isDynamicHostCompilePort = [](const auto& port) {
+            const auto& shape = port.get_partial_shape();
+            return shape.is_dynamic() && shape.rank().get_length() == 4 && shape[0].is_static();
+        };
+
+        const auto& modelInputs = model->inputs();
+        const auto& modelOutputs = model->outputs();
+        const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
+        const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+        if (inputsDynamic && outputsDynamic) {
+            _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+                         "for fully-dynamic model (inputs and outputs both dynamic)");
+            localConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+        }
+    }
+
+    const bool useDynamicGraphForDynamicModel =
+        model->is_dynamic() && compilerType == ov::intel_npu::CompilerType::PLUGIN &&
+        localConfig.has<COMPILATION_MODE>() && localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
+
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
     std::shared_ptr<ov::Model> batchedModel;
@@ -370,18 +393,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             updateBatchMode(ov::intel_npu::BatchMode::AUTO);
         }
 
-        // Handle models with variables (states)
-        if (!model->get_variables().empty()) {
-            if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
-                OPENVINO_THROW(
-                    "This model contains states, thus it is not supported when handling batching on the plugin");
-            }
+        if (useDynamicGraphForDynamicModel) {
+            _logger.info("HostCompile compilation bypasses plugin-side batch handling.");
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+        } else {
+            // Handle models with variables (states)
+            if (!model->get_variables().empty()) {
+                if (localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
+                    OPENVINO_THROW(
+                        "This model contains states, thus it is not supported when handling batching on the plugin");
+                }
+                updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
+            }
+            shouldHandleBatching = true;
         }
-        shouldHandleBatching = true;
     } else {
         // If the model contains states, it is not supported when handling batching on the plugin
-        shouldHandleBatching = model->get_variables().empty();
+        shouldHandleBatching = !useDynamicGraphForDynamicModel && model->get_variables().empty();
     }
 
     if (shouldHandleBatching) {
@@ -494,7 +522,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value() && successfullyDebatched) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
-        if (batch > 0) {
+        if (batch > 0 && !graph->is_dynamic()) {
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
         }
