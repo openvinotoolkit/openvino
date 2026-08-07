@@ -40,34 +40,10 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     std::vector<std::shared_ptr<ov::Node>>& result_nodes,
     bool enable_parameter_weights) {
     const size_t final_weights_rank = batched_weights ? 3 : 2;
-    auto combine_groups = [has_transpose, grouped, final_weights_rank, &result_nodes](
-                              std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-        auto constant = ov::as_type_ptr<v0::Constant>(node);
-        if (!constant) {
-            // Non-Constant (e.g. Parameter): insert runtime Reshape to fold group dims
-            const auto& ps = node->get_output_partial_shape(0);
-            if (!ps.is_static() || static_cast<size_t>(ps.rank().get_length()) <= final_weights_rank) {
-                return node;
-            }
-            OPENVINO_ASSERT(static_cast<size_t>(ps.rank().get_length()) == final_weights_rank + 1,
-                            "Unexpected rank for grouped Parameter in combine_groups");
-            ov::Shape current_shape = ps.to_shape();
-            ov::Shape new_shape(current_shape.begin(), current_shape.begin() + final_weights_rank);
-            if (has_transpose || !grouped) {
-                new_shape[new_shape.size() - 2] =
-                    current_shape[current_shape.size() - 3] * current_shape[current_shape.size() - 2];
-                new_shape[new_shape.size() - 1] = current_shape[current_shape.size() - 1];
-            } else {
-                new_shape[new_shape.size() - 2] = current_shape[current_shape.size() - 3];
-                new_shape[new_shape.size() - 1] =
-                    current_shape[current_shape.size() - 2] * current_shape[current_shape.size() - 1];
-            }
-            auto shape_const = v0::Constant::create(ov::element::i64, {new_shape.size()}, new_shape);
-            auto reshape = std::make_shared<ov::op::v1::Reshape>(node, shape_const, false);
-            result_nodes.push_back(shape_const);
-            result_nodes.push_back(reshape);
-            return reshape;
-        }
+
+    // Constant weights/params: fold the group dims by materializing a reshaped Constant.
+    auto combine_groups_constant = [has_transpose, grouped, final_weights_rank](
+                                       const std::shared_ptr<v0::Constant>& constant) -> std::shared_ptr<ov::Node> {
         const auto& current_shape = constant->get_shape();
         if (current_shape.size() <= final_weights_rank) {
             return constant;
@@ -103,9 +79,54 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         return new_constant;
     };
 
-    auto convert_u4const_to_u8 = [convert_u4zp_to_u8](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+    // Parameter weights/params: shapes are only known at runtime, so fold the group dims with a
+    // Reshape instead of materializing a Constant.
+    auto combine_groups_params = [has_transpose, grouped, final_weights_rank, &result_nodes](
+                                     const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        const auto& ps = node->get_output_partial_shape(0);
+        // The matcher callback already rejects dynamic weights/scale/zero-point shapes, so a
+        // Parameter reaching this point must be static.
+        OPENVINO_ASSERT(ps.is_static(), "Parameter input must have a static shape in combine_groups");
+        if (ps.size() <= final_weights_rank) {
+            // Not grouped: no group dim to fold.
+            return node;
+        }
+        OPENVINO_ASSERT(ps.size() == final_weights_rank + 1, "Unexpected rank for grouped Parameter in combine_groups");
+        ov::Shape current_shape = ps.to_shape();
+        ov::Shape new_shape(current_shape.begin(), current_shape.begin() + final_weights_rank);
+        if (has_transpose || !grouped) {
+            new_shape[new_shape.size() - 2] =
+                current_shape[current_shape.size() - 3] * current_shape[current_shape.size() - 2];
+            new_shape[new_shape.size() - 1] = current_shape[current_shape.size() - 1];
+        } else {
+            new_shape[new_shape.size() - 2] = current_shape[current_shape.size() - 3];
+            new_shape[new_shape.size() - 1] =
+                current_shape[current_shape.size() - 2] * current_shape[current_shape.size() - 1];
+        }
+        auto shape_const = v0::Constant::create(ov::element::i64, {new_shape.size()}, new_shape);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(node, shape_const, false);
+        result_nodes.push_back(shape_const);
+        result_nodes.push_back(reshape);
+        return reshape;
+    };
+
+    // Without parameter weights every input is a Constant. With parameter weights an input may be
+    // a Parameter (dynamic shapes -> runtime Reshape) or still a Constant (fold at build time).
+    auto combine_groups = [&combine_groups_constant, &combine_groups_params, enable_parameter_weights](
+                              const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
         auto constant = ov::as_type_ptr<v0::Constant>(node);
-        if (!constant || constant->get_element_type() != ov::element::u4 || !convert_u4zp_to_u8)
+        if (!enable_parameter_weights || constant) {
+            return combine_groups_constant(constant);
+        }
+        return combine_groups_params(node);
+    };
+
+    auto convert_u4const_to_u8 =
+        [convert_u4zp_to_u8, enable_parameter_weights](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+        // Without parameter weights the zero-point must be a Constant; a non-constant here is unexpected.
+        OPENVINO_ASSERT(enable_parameter_weights || ov::as_type_ptr<v0::Constant>(node),
+                        "A non-constant zero-point is only expected when parameter weights are enabled");
+        if (node->get_output_element_type(0) != ov::element::u4 || !convert_u4zp_to_u8)
             return node;
         return std::make_shared<v0::Convert>(node, ov::element::u8);
     };
