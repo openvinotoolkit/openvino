@@ -6,6 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+#include <string>
+#include <vector>
+
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
