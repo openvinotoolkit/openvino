@@ -184,6 +184,7 @@ jobs:
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
+            -DENABLE_SAMPLES=ON \
             -DENABLE_OV_GGUF_FRONTEND=ON \
             -DENABLE_WHEEL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
@@ -218,10 +219,9 @@ jobs:
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
-      - name: Build OpenVINO C++/C samples
-        run: |
-          ${{ env.INSTALL_DIR }}/samples/cpp/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
-          ${{ env.INSTALL_DIR }}/samples/c/build_samples.sh -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=samples_bin -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
