@@ -1199,16 +1199,30 @@ void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
         }
     }
 
-    OPENVINO_ASSERT(is_dynamic || port_partial_shape == tensor_shape,
-                    "The ",
-                    tensor_type,
-                    " tensor size is not equal to the model ",
-                    tensor_type,
-                    " type: got ",
-                    tensor_shape,
-                    " expecting ",
-                    port_partial_shape,
-                    ".");
+    if (!is_dynamic && port_partial_shape != tensor_shape) {
+        // Allow shapes that differ only by unit (size=1) dimensions, e.g.
+        // [1,128,1,256] vs [128,1,256].  The underlying data layout is identical.
+        auto squeeze = [](const ov::Shape& s) {
+            ov::Shape r;
+            std::copy_if(s.begin(), s.end(), std::back_inserter(r), [](size_t d) { return d != 1; });
+            return r;
+        };
+        OPENVINO_ASSERT(squeeze(port_partial_shape.get_shape()) == squeeze(tensor_shape),
+                        "The ",
+                        tensor_type,
+                        " tensor size is not equal to the model ",
+                        tensor_type,
+                        " type: got ",
+                        tensor_shape,
+                        " expecting ",
+                        port_partial_shape,
+                        ".");
+        _logger.warning("The %s tensor shape %s does not match the model port shape %s, "
+                        "but shapes are squeeze/unsqueeze compatible. Allowing unit-dim mismatch.",
+                        std::string(tensor_type).c_str(),
+                        ov::PartialShape(tensor_shape).to_string().c_str(),
+                        port_partial_shape.to_string().c_str());
+    }
     OPENVINO_ASSERT(
         std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) || tensor->data() != nullptr || is_dynamic,
         "Tensor data equal nullptr!");
