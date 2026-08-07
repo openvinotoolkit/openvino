@@ -17,7 +17,11 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 ov::element::Type get_accumulator_type(const kernel_impl_params& params) {
-    return params.get_input_layout(0).data_type;
+    auto input_dt = params.get_input_layout(0).data_type;
+    // Use f32 accumulator for bf16 inputs to maintain precision
+    if (input_dt == ov::element::bf16)
+        return ov::element::f32;
+    return input_dt;
 }
 
 class SDPARefGenerator : public SDPABase {
@@ -149,15 +153,16 @@ public:
 
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         const auto& q_l = params.input_layouts[0];
+        const auto acc_type = get_accumulator_type(params);
         if (!params.is_dynamic()) {
             const auto& k_l = params.input_layouts[1];
 
             const auto& q_shape = q_l.get_shape();
             const auto& k_shape = k_l.get_shape();
             const size_t buf_size = q_l.count() / q_shape[desc->input_q_transpose_order[3]] * k_shape[desc->input_k_transpose_order[2]];
-            internal_buffers.emplace_back(buf_size, q_l.data_type);
+            internal_buffers.emplace_back(buf_size, acc_type);
         } else {
-            internal_buffers.emplace_back(1, q_l.data_type);
+            internal_buffers.emplace_back(1, acc_type);
         }
 
         return internal_buffers;
