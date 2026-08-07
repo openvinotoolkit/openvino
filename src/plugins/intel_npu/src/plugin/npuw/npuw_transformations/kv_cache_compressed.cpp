@@ -5,6 +5,7 @@
 #include "kv_cache_compressed.hpp"
 
 #include <limits>
+#include <optional>
 
 #include "../util.hpp"
 #include "openvino/op/add.hpp"
@@ -170,6 +171,45 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
     }
 
     return {convertOutput->output(0), scaleOutput->output(0), convertZp->output(0)};
+}
+
+std::shared_ptr<ov::Node> create_dynamic_dequantize(const ov::Output<ov::Node>& input,
+                                                    const ov::Output<ov::Node>& scale,
+                                                    const std::optional<ov::Output<ov::Node>>& zero_point,
+                                                    const std::string& name_prefix) {
+    auto make_name = [&name_prefix](const std::string& suffix) {
+        return name_prefix + "/" + suffix;
+    };
+
+    ov::Output<ov::Node> fp_input = input;
+    if (input.get_element_type() == ov::element::f32) {
+        fp_input = input;
+    } else {
+        auto converted_input = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+        converted_input->set_friendly_name(make_name("input_convert"));
+        fp_input = converted_input->output(0);
+    }
+
+    ov::Output<ov::Node> shifted_input = fp_input;
+    if (zero_point.has_value()) {
+        ov::Output<ov::Node> fp_zero_point = zero_point.value();
+        if (fp_zero_point.get_element_type() == ov::element::f32) {
+            fp_zero_point = zero_point.value();
+        } else {
+            auto converted_zero_point = std::make_shared<ov::op::v0::Convert>(zero_point.value(), ov::element::f32);
+            converted_zero_point->set_friendly_name(make_name("zp_convert"));
+            fp_zero_point = converted_zero_point->output(0);
+        }
+
+        auto subtracted_zero_point = std::make_shared<ov::op::v1::Subtract>(fp_input, fp_zero_point);
+        subtracted_zero_point->set_friendly_name(make_name("zp_sub"));
+        shifted_input = subtracted_zero_point->output(0);
+    }
+
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(shifted_input, scale);
+    dequantized->set_friendly_name(make_name("scale"));
+
+    return dequantized;
 }
 
 }  // anonymous namespace
@@ -448,14 +488,12 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         return base_name + std::string("/") + std::to_string(pattern_index);
     };
 
-    // Shared lambda: create DynamicQuantize node on a given input, expose scale/zp as Results.
-    // Returns the DynamicQuantize node so caller can wire its output(0) as needed.
-    auto create_dynamic_quantize =
-        [&make_name, &create_result_with_name](
+    // Shared lambda: create DynamicQuantize node on a given input without exposing extra model outputs.
+    auto create_dynamic_quantize_node =
+        [&make_name](
             const ov::Output<ov::Node>& dq_input,
-            bool is_key,
+            const std::string& tensor_name,
             const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
-        const std::string kv_name = cacheName(is_key);
         const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
         const auto storage_types = ov::npuw::util::resolve_dynamic_quant_storage_types(
             ov::npuw::util::DynamicQuantDecomposeMode::HandcraftedSymmetricI8,
@@ -477,8 +515,22 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
             dq_config.zp_dt = storage_types.zero_point_type;
         }
 
-        auto kv_dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, dq_config);
-        kv_dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + kv_name);
+        auto dyn_quant = std::make_shared<ov::op::internal::DynamicQuantize>(dq_input, dq_config);
+        dyn_quant->set_friendly_name(make_name("DynamicQuantize") + "/" + tensor_name);
+
+        return dyn_quant;
+    };
+
+    // Shared lambda: create DynamicQuantize node on a given input and expose scale/zp as Results.
+    // Returns the DynamicQuantize node so caller can wire its output(0) as needed.
+    auto create_dynamic_quantize_result =
+        [&make_name, &create_result_with_name, &create_dynamic_quantize_node](
+            const ov::Output<ov::Node>& dq_input,
+            bool is_key,
+            const KVCacheCompressionConfig& cfg) -> std::shared_ptr<ov::op::internal::DynamicQuantize> {
+        const std::string kv_name = cacheName(is_key);
+        const bool is_asym = cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric;
+        auto kv_dyn_quant = create_dynamic_quantize_node(dq_input, kv_name, cfg);
 
         create_result_with_name(kv_dyn_quant->output(1),
                                 make_name("DynamicQuantize") + "/" + g_present_name + "/" + kv_name + "/scale");
@@ -493,7 +545,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
 
     // helper to recreate dequantization nodes - TODO: probably better to insert Dequantize Node, than decompose it or
     // not.
-    auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name](
+    auto create_dequant_nodes = [&create_parameter_with_name, &clear_embedding_index, &make_name](
                                     std::shared_ptr<ov::Node> start_node,
                                     std::shared_ptr<ov::Node> concat_node,
                                     bool isKey,
@@ -524,30 +576,20 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         LOG_INFO("Found Dequantize for " << node_name << " insertion point after: " << start_node->get_name()
                                          << ") shape: " << start_node->get_shape());
 
-        // reconstruct k and v caches intgeres values  to matmul using one of Dequantize approach
-        // use zp on quant/dequant only in case od assym
-        std::shared_ptr<ov::Node> fp_subtracted_zp = start_node;
-        if (is_asym) {
-            //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
-            auto zp = create_parameter_with_name(storage_types.zero_point_type,
-                                                 clear_embedding_index(start_node, isKey),
-                                                 make_dq_param_name("zp"));
-
-            // this probably to be optimized by compiler - but for now we need it to avoid types mismatch
-            auto converted_zp = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f32);
-            converted_zp->set_friendly_name(make_dq_name("zp_convert"));
-
-            fp_subtracted_zp = std::make_shared<ov::op::v1::Subtract>(start_node, converted_zp);
-            fp_subtracted_zp->set_friendly_name(make_dq_name("zp_sub"));
+        // reconstruct k and v caches integer values before matmul from quantized tensor + scale/zp
+        std::optional<ov::Output<ov::Node>> zp;
+        if (cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
+            zp = create_parameter_with_name(storage_types.zero_point_type,
+                                            clear_embedding_index(start_node, isKey),
+                                            make_dq_param_name("zp"))
+                     ->output(0);
         }
 
-        // Multiply by scale
         auto fp_scale = create_parameter_with_name(ov::element::f32,
-                                                   clear_embedding_index(fp_subtracted_zp, isKey),
+                                                   clear_embedding_index(start_node, isKey),
                                                    make_dq_param_name("scale"));
 
-        auto dequantized = std::make_shared<ov::op::v1::Multiply>(fp_subtracted_zp, fp_scale);
-        dequantized->set_friendly_name(make_dq_name("scale"));
+        auto dequantized = create_dynamic_dequantize(start_node->output(0), fp_scale->output(0), zp, make_dq_name("dq"));
 
         // Rewire only the matched concat input and leave unrelated consumers intact.
         for (auto&& concat_consumer : concat_consumers) {
@@ -575,6 +617,26 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                              pattern_nodes.past_value_concat_node,
                              false,
                              params.value);
+
+        if (params.quantize_q && pattern_nodes.matmul1_node) {
+            const auto& q_cfg = params.key;
+            auto q_dyn_quant =
+                create_dynamic_quantize_node(pattern_nodes.matmul1_node->input_value(0), "query", q_cfg);
+            std::optional<ov::Output<ov::Node>> q_zp;
+            if (q_cfg.quantization_type == KVCacheCompressionConfig::QuantizationType::Asymmetric) {
+                q_zp = q_dyn_quant->output(2);
+            }
+
+            auto q_dequantized = create_dynamic_dequantize(q_dyn_quant->output(0),
+                                                           q_dyn_quant->output(1),
+                                                           q_zp,
+                                                           make_name("DynamicQuantize") + "/query/dq");
+            pattern_nodes.matmul1_node->input(0).replace_source_output(q_dequantized);
+        } else if (!params.quantize_q && pattern_nodes.matmul1_node) {
+            LOG_DEBUG("Skipping query tensor quantization for pattern " << pattern_index
+                                                                         << " (NPUW_QUANTIZE_Q=NO)");
+        }
+
 
         pattern_index++;
     }
@@ -619,7 +681,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         }
 
         const auto& cfg = is_key.has_value() ? params.key : params.value;
-        auto kv_dyn_quant = create_dynamic_quantize(dq_input_value, is_key.has_value(), cfg);
+        auto kv_dyn_quant = create_dynamic_quantize_result(dq_input_value, is_key.has_value(), cfg);
 
         kv_result->input(0).replace_source_output(kv_dyn_quant->output(0));
 
