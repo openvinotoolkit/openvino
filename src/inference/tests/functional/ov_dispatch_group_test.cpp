@@ -282,6 +282,21 @@ TEST_F(DispatchGroupTest, set_property_translates_id_for_group_winner) {
     EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
 }
 
+// An id-qualified set_property issued before that id was ever resolved must still resolve and
+// translate: previously it fell back to "every live group instance" carrying the canonical id,
+// so resolving GPU.0 first and then setting GPU.1 misconfigured GPU.0's winner.
+TEST_F(DispatchGroupTest, set_property_for_unresolved_id_targets_only_that_winner) {
+    script("0,aa," + std::to_string(PREFERRED), "7,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "0"), "A");  // only canonical "0" resolved so far
+    core.set_property(device + ".1", {{"MOCK_PROP", "FOR_B_ONLY"}});
+    // A (canonical "0") must not have been touched; B gets it with its own id "7".
+    EXPECT_TRUE(core.get_property(device + ".0", "MOCK_PROP").empty());
+    EXPECT_EQ(core.get_property(device + ".1", "MOCK_PROP").as<std::string>(), "FOR_B_ONLY");
+    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
+}
+
 // --- register_plugin runtime API forms a dispatch group ---
 
 // A second register_plugin for the same device name now appends a candidate (no opt-in flag),

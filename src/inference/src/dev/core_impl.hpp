@@ -293,6 +293,12 @@ private:
                                              size_t winner_idx,
                                              ov::AnyMap& config) const;
 
+    // The id winner_idx uses internally for canonical_id, or nullopt if it does not serve that
+    // device. Caller holds the mutex.
+    std::optional<std::string> dispatch_internal_id_unsafe(const std::string& device_name,
+                                                           const std::string& canonical_id,
+                                                           size_t winner_idx) const;
+
     // Canonical merged device ids ("0","1",...) for a dispatch group, built from m_dispatch_map
     // (each physical device once). Empty for a non-group name. Builds the map on first use.
     std::vector<std::string> dispatch_group_device_ids(const std::string& device_name) const;
