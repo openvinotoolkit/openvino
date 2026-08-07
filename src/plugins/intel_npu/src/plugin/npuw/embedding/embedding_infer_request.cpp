@@ -153,8 +153,7 @@ void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITenso
         update_kvcache_for(m_prefill_request,
                            m_prefill_in_ports,
                            m_prefill_out_ports,
-                           static_cast<uint32_t>(current_prompts_len),
-                           kvcache_desc.v_tensors_transposed_pre);
+                           static_cast<uint32_t>(current_prompts_len));
 
         // Update attention mask for the next iteration
         std::copy_n(m_attn_mask_in_tensor->data<int64_t>() + m_attn_mask_in_tensor->get_size() - current_prompts_len,

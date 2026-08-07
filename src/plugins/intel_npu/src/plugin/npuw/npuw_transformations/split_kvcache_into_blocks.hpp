@@ -4,11 +4,20 @@
 
 #pragma once
 
+#include <memory>
+#include <utility>
+
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace npuw {
 namespace pass {
+
+// Walk a parameter's consumers to find the Concat it feeds (directly or via Convert).
+std::pair<std::shared_ptr<ov::op::v0::Concat>, std::shared_ptr<ov::Node>> find_concat_for_param(
+    const std::shared_ptr<ov::op::v0::Parameter>& param);
 
 /**
  * @brief Transformation pass to split KV cache access into block-based pattern
@@ -54,18 +63,16 @@ public:
      * @brief Construct transformation with block configuration
      *
      * @param block_size Number of tokens per block (default: 1024 for efficiency)
-     * @param v_transposed Whether V tensor is transposed (true: [B,H,D,S], false: [B,H,S,D])
      *
      * The number of blocks is automatically calculated from the original past_key shape.
      * If the sequence length is not evenly divisible by block_size, a tail block is created.
      */
-    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024, bool v_transposed = true);
+    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
     uint32_t m_block_size;
-    bool m_v_transposed;
 };
 
 }  // namespace pass

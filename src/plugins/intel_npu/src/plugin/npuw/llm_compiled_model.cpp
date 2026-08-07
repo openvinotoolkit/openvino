@@ -1241,6 +1241,26 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Extract per-parameter KV sequence dimensions from Concat axes in the prefill model.
+    // This is done unconditionally (before any block/continuous decision) so that both
+    // paths can look up seq_dim by parameter name without runtime heuristics.
+    for (const auto& param : prefill_model->get_parameters()) {
+        const auto& name = param->get_friendly_name();
+        auto key_layer = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
+        auto value_layer = ov::npuw::util::isPastKeyValuesValueContiguous(name);
+        if (!key_layer && !value_layer) {
+            continue;
+        }
+        auto [concat, _] = ov::npuw::pass::find_concat_for_param(param);
+        if (!concat) {
+            continue;
+        }
+        const int64_t raw_axis = concat->get_axis();
+        const int64_t rank = static_cast<int64_t>(param->get_partial_shape().rank().get_length());
+        const uint32_t axis = static_cast<uint32_t>((raw_axis < 0) ? raw_axis + rank : raw_axis);
+        m_kvcache_desc.kv_seq_dims[name] = axis;
+    }
+
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
@@ -1255,24 +1275,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_BLOCK();
 
             bool all_transformed = true;
-            auto apply_block_kv_transform =
-                [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
-                    ov::pass::Manager mgr(tag);
-                    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
-                    if (mgr.run_passes(model)) {
-                        LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
-                    } else {
-                        LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
-                        all_transformed = false;
-                    }
-                };
+            auto apply_block_kv_transform = [&](std::shared_ptr<ov::Model>& model, const std::string& tag) {
+                ov::npuw::pass::SplitKVCacheIntoBlocks pass(block_size);
+                if (pass.run_on_model(model)) {
+                    LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                } else {
+                    LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                    all_transformed = false;
+                }
+                return pass;
+            };
 
-            apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+            auto prefill_pass = apply_block_kv_transform(prefill_model, "prefill");
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-                apply_block_kv_transform(generate_model_variants[i],
-                                         m_kvcache_desc.v_tensors_transposed_gen,
-                                         "generate_" + std::to_string(i));
+                apply_block_kv_transform(generate_model_variants[i], "generate_" + std::to_string(i));
             }
 
             if (!all_transformed) {

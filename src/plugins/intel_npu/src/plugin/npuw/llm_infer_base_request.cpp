@@ -14,10 +14,10 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
     std::shared_ptr<ov::IAsyncInferRequest> request,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
     const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
-    uint32_t num_tokens,
-    bool v_transposed) {
+    uint32_t num_tokens) {
     namespace uu = ov::npuw::util;
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto& kv_seq_dims = kvcache_desc.kv_seq_dims;
     auto& compiled = request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
@@ -29,7 +29,9 @@ void ov::npuw::LLMInferBaseRequest::update_kvcache_for(
             continue;
         }
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        auto it = kv_seq_dims.find(input_name);
+        OPENVINO_ASSERT(it != kv_seq_dims.end(), "KV seq dim not found for parameter: ", input_name);
+        const uint32_t kv_dim = it->second;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,

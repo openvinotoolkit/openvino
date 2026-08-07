@@ -52,8 +52,7 @@ protected:
     virtual void update_kvcache_for(std::shared_ptr<ov::IAsyncInferRequest> request,
                                     const PortsMap& in_ports,
                                     const PortsMap& out_ports,
-                                    uint32_t num_tokens,
-                                    bool v_transposed);
+                                    uint32_t num_tokens);
     void init_tensor(const ov::Output<const ov::Node>& port);
     void init_ports();
 

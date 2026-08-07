@@ -82,12 +82,10 @@ void LLMContinuousKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompt
     if (is_last) {
         return;
     }
-    const bool v_transposed = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_pre;
     m_req.update_kvcache_for(m_req.m_prefill_request,
                              m_req.m_prefill_in_ports,
                              m_req.m_prefill_out_ports,
-                             current_prompts_len,
-                             v_transposed);
+                             current_prompts_len);
 }
 
 // on_generate_kv_init: copy the full accumulated prefill KV into the generate
@@ -140,12 +138,10 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
 // on_generate_step_done: persist the new token's KV output into the past KV input buffer
 // so the next generate step sees the updated context.
 void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
-    const bool v_transposed = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_gen;
     m_req.update_kvcache_for(m_req.m_kvcache_request,
                              m_req.m_kvcache_in_ports,
                              m_req.m_kvcache_out_ports,
-                             input_tokens_len,
-                             v_transposed);
+                             input_tokens_len);
 }
 
 }  // namespace npuw

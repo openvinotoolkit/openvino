@@ -5,6 +5,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -47,6 +49,9 @@ public:
         uint32_t max_generation_token_len = 0u;
         bool v_tensors_transposed_pre = false;  // prefill
         bool v_tensors_transposed_gen = false;  // generate
+        // Per-parameter KV cache sequence dimension.
+        // Key: past_key_values parameter name. Value: seq_dim index (from Concat axis).
+        std::unordered_map<std::string, uint32_t> kv_seq_dims;
     };
 
     // Factory type for creating sub-compiled-models (prefill / generate / lm_head).
@@ -120,6 +125,7 @@ private:
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
     bool m_is_block_kv_cache = false;
+
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.

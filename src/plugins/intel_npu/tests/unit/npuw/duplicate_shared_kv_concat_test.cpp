@@ -202,7 +202,7 @@ TEST_F(DuplicateSharedKVConcatTest, Integration_SplitThenDuplicate) {
 
     // Step 1: seq=32 → block_0 + block_1 + current_k (3 params, 1 Concat, fan-out unchanged).
     ov::pass::Manager mgr;
-    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(/*block_size=*/16u, /*v_transposed=*/false);
+    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(/*block_size=*/16u);
     EXPECT_TRUE(mgr.run_passes(model));
     EXPECT_EQ(model->get_parameters().size(), 3u);
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);

@@ -10,7 +10,6 @@
 #include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
@@ -19,22 +18,6 @@ namespace ov {
 namespace npuw {
 namespace pass {
 
-namespace {
-
-// Information collected in the scan phase; all fields are pre-computed so the
-// transform phase never needs to re-query the parameter name.
-struct KVCacheTransformInfo {
-    std::shared_ptr<ov::op::v0::Parameter> param;
-    std::shared_ptr<ov::op::v0::Concat> concat;
-    ov::Output<ov::Node> present_kv_input;
-    std::shared_ptr<ov::Node> convert_node;  // nullptr when Parameter→Concat directly
-    bool is_key;                             // true = K tensor
-    bool is_value;                           // true = V tensor
-    int64_t concat_axis;                     // sequence dimension index in the concat
-};
-
-// Walk a parameter's consumers to find the Concat it feeds (directly or via Convert).
-// Returns {concat, convert_node}; concat is nullptr if the pattern is not found.
 std::pair<std::shared_ptr<ov::op::v0::Concat>, std::shared_ptr<ov::Node>> find_concat_for_param(
     const std::shared_ptr<ov::op::v0::Parameter>& param) {
     for (const auto& output : param->outputs()) {
@@ -58,6 +41,19 @@ std::pair<std::shared_ptr<ov::op::v0::Concat>, std::shared_ptr<ov::Node>> find_c
     return {nullptr, nullptr};
 }
 
+namespace {
+
+// Information collected in the scan phase, all fields are pre-computed
+struct KVCacheTransformInfo {
+    std::shared_ptr<ov::op::v0::Parameter> param;
+    std::shared_ptr<ov::op::v0::Concat> concat;
+    ov::Output<ov::Node> present_kv_input;
+    std::shared_ptr<ov::Node> convert_node;  // nullptr when Parameter→Concat directly
+    bool is_key;                             // true = K tensor
+    bool is_value;                           // true = V tensor
+    int64_t concat_axis;                     // sequence dimension index in the concat
+};
+
 // Build a 4D block shape.  seq_dim is the axis holding the sequence (2 or 3);
 // all other dims are copied from orig_shape.
 ov::Shape make_block_shape(const ov::PartialShape& orig_shape, int64_t seq_dim, size_t seq_size) {
@@ -70,9 +66,7 @@ ov::Shape make_block_shape(const ov::PartialShape& orig_shape, int64_t seq_dim, 
 
 }  // namespace
 
-SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool v_transposed)
-    : m_block_size(block_size),
-      m_v_transposed(v_transposed) {}
+SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size) : m_block_size(block_size) {}
 
 bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
@@ -83,11 +77,14 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
     for (const auto& param : model->get_parameters()) {
         const std::string& name = param->get_friendly_name();
 
-        const bool is_key = ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value();
-        const bool is_value = ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
+        auto key_layer = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
+        auto value_layer = ov::npuw::util::isPastKeyValuesValueContiguous(name);
+        const bool is_key = key_layer.has_value();
+        const bool is_value = value_layer.has_value();
         if (!is_key && !is_value) {
             continue;  // not a contiguous KV cache parameter
         }
+        LOG_DEBUG("SplitKVCacheIntoBlocks: found " << (is_key ? "key" : "value") << " param '" << name << "'");
 
         // Shape must be 4D and fully static before we can proceed.
         const auto& orig_shape = param->get_partial_shape();
@@ -124,8 +121,12 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
             continue;
         }
 
-        // Pre-compute the concat axis (sequence dimension) once.
-        const int64_t concat_axis = (is_key || (is_value && !m_v_transposed)) ? 2 : 3;
+        // Use the axis from the existing Concat — it already reflects the correct
+        // sequence dimension for this specific layer (handles mixed transposed/non-transposed V).
+        // Normalize negative axis (e.g. -2 → 2 for 4D tensors).
+        const int64_t raw_axis = concat->get_axis();
+        const int64_t rank = static_cast<int64_t>(orig_shape.rank().get_length());
+        const int64_t concat_axis = (raw_axis < 0) ? raw_axis + rank : raw_axis;
 
         params_to_transform.push_back({param, concat, present_kv_input, convert_node, is_key, is_value, concat_axis});
     }
