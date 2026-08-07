@@ -77,7 +77,8 @@ TEST(NPUWContinuation, SubChunkHistoryGrantsZeroAndArmsReset) {
     auto c = make_after_prefill(1000u);
     EXPECT_EQ(c.propose(1000), 0u);
     // A zero keep is a full reset, not a continuation with an empty prefix.
-    EXPECT_EQ(c.stage(), Stage::RESET_PENDING);
+    EXPECT_EQ(c.stage(), Stage::PENDING);
+    EXPECT_EQ(c.pending(), 0u);
     EXPECT_EQ(c.query(), 0);
 }
 
@@ -122,7 +123,6 @@ TEST(NPUWContinuation, QueryReturnsGrantWhilePending) {
 TEST(NPUWContinuation, PublishingLiveCountDoesNotReArmCommand) {
     auto c = make_after_prefill(2048u);
     c.propose(2048);
-    c.begin_active();
     c.commit_prefill(2500u);
     // After the commit there is no pending command, only the published count.
     EXPECT_EQ(c.stage(), Stage::IDLE);
@@ -151,22 +151,21 @@ TEST(NPUWContinuation, PreflightAbortRequiresAPendingKeep) {
     auto reset_pending = make_after_prefill(3000u);
     reset_pending.request_reset();
     EXPECT_THROW(reset_pending.abort_preflight(), ov::Exception);
-    EXPECT_EQ(reset_pending.stage(), Stage::RESET_PENDING);
+    EXPECT_EQ(reset_pending.stage(), Stage::PENDING);
+    EXPECT_EQ(reset_pending.pending(), 0u);
 
     auto poisoned = make_after_prefill(3000u);
     poisoned.propose(3000);
-    poisoned.begin_active();
-    poisoned.fail_active();
+    poisoned.poison();
     EXPECT_THROW(poisoned.abort_preflight(), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::RESET_REQUIRED);
+    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
 }
 
-TEST(NPUWContinuation, FailureAfterActivePoisonsTheRequest) {
+TEST(NPUWContinuation, FailureDuringInferencePoisonsTheRequest) {
     auto c = make_after_prefill(3000u);
     c.propose(3000);
-    c.begin_active();
-    c.fail_active();
-    EXPECT_EQ(c.stage(), Stage::RESET_REQUIRED);
+    c.poison();
+    EXPECT_EQ(c.stage(), Stage::POISONED);
     EXPECT_EQ(c.query(), 0);
     // Poisoned requests reject inference until reset() is called.
     EXPECT_THROW(c.pending(), ov::Exception);
@@ -175,14 +174,14 @@ TEST(NPUWContinuation, FailureAfterActivePoisonsTheRequest) {
 TEST(NPUWContinuation, ResetRecoversAPoisonedRequest) {
     auto c = make_after_prefill(3000u);
     c.propose(3000);
-    c.begin_active();
-    c.fail_active();
+    c.poison();
     c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::RESET_PENDING);
+    EXPECT_EQ(c.stage(), Stage::PENDING);
     EXPECT_EQ(c.pending(), 0u);
     // Idempotent while already pending.
     c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::RESET_PENDING);
+    EXPECT_EQ(c.stage(), Stage::PENDING);
+    EXPECT_EQ(c.pending(), 0u);
 }
 
 TEST(NPUWContinuation, ResetDiscardsAPendingKeep) {
@@ -196,34 +195,26 @@ TEST(NPUWContinuation, ResetDiscardsAPendingKeep) {
 TEST(NPUWContinuation, CommitAfterResetPrefillReturnsToIdle) {
     auto c = make_after_prefill(2048u);
     c.request_reset();
-    c.begin_active();
     c.commit_prefill(500u);
     EXPECT_EQ(c.stage(), Stage::IDLE);
     EXPECT_EQ(c.query(), 500);
     EXPECT_EQ(c.watermark(), 500u);
 }
 
-TEST(NPUWContinuation, BeginActiveWithoutCommandThrows) {
-    auto c = make_after_prefill(2048u);
-    EXPECT_THROW(c.begin_active(), ov::Exception);
-}
-
 TEST(NPUWContinuation, CommitAndPublishRejectInvalidStates) {
-    // A commit must never clear the poisoning that only reset() owns, and a
-    // publish is only legal while idle.
+    // A commit must never clear the poisoning that only reset() owns.
     auto poisoned = make_after_prefill(3000u);
     poisoned.propose(3000);
-    poisoned.begin_active();
-    poisoned.fail_active();
+    poisoned.poison();
     EXPECT_THROW(poisoned.commit_prefill(3000u), ov::Exception);
     EXPECT_THROW(poisoned.publish_generate(3000u), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::RESET_REQUIRED);
+    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
 
-    // Committing or publishing with a command still pending skips begin_active()
-    // and is a sequencing error.
+    // Generate only runs when no command is pending, so a publish with an armed
+    // command is a sequencing error. A commit from PENDING is the ordinary
+    // transaction commit and stays legal.
     auto armed = make_after_prefill(3000u);
     armed.propose(3000);
-    EXPECT_THROW(armed.commit_prefill(3000u), ov::Exception);
     EXPECT_THROW(armed.publish_generate(3100u), ov::Exception);
     EXPECT_EQ(armed.stage(), Stage::PENDING);
     EXPECT_EQ(armed.pending(), 2048u);
