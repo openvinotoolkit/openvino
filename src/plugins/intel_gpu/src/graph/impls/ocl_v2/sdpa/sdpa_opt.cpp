@@ -178,6 +178,10 @@ public:
 };
 
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
+#ifdef OV_GPU_WITH_ZE_RT
+    std::cout << "Level Zero: not supporting SDPA" << std::endl;
+    return false;
+#endif
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
