@@ -12,6 +12,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/sequence_at.hpp"
+#include "openvino/frontend/sequence_dynamic_unit_split.hpp"
 #include "openvino/frontend/sequence_erase.hpp"
 #include "openvino/frontend/sequence_insert.hpp"
 #include "openvino/frontend/sequence_length.hpp"
@@ -539,6 +540,114 @@ bool lower_sequence_length(const std::shared_ptr<ov::frontend::SequenceLength>& 
     return true;
 }
 
+// Recognizes the idiom: a SplitToSequence with a dynamic (runtime-only) chunk count,
+// where every chunk is statically known to be length 1 (ai_onnx::split_to_sequence's
+// SequenceDynamicUnitSplit marker), captured as a Loop's invariant input and read
+// solely via SequenceAt(seq, position) where 'position' is that same Loop's own
+// iteration-number special body port. Lowers such reads directly to
+// Gather(data, position, axis) on the original (pre-split) tensor, so a statically
+// sized split never needs to be materialized at all.
+//
+// Conservative by design: a captured sequence is only rewritten when every consumer
+// of its body Parameter is a SequenceAt matching this exact idiom. Anything else
+// (SequenceLength, a differently-indexed SequenceAt, ...) is left untouched, so it is
+// reported by the universal unconverted-ops diagnostic instead of silently mismatching
+// SplitToSequence's keepdims-1 slice semantics.
+bool lower_dynamic_unit_split_loop_idiom(const std::shared_ptr<ov::Model>& model) {
+    bool changed = false;
+    for_each_model_postorder(model, [&changed](const std::shared_ptr<ov::Model>& m) {
+        for (const auto& node : m->get_ordered_ops()) {
+            auto loop = ov::as_type_ptr<v5::Loop>(node);
+            if (!loop) {
+                continue;
+            }
+            auto body = loop->get_function();
+            if (!body) {
+                continue;
+            }
+            const auto special_ports = loop->get_special_body_ports();
+            if (special_ports.current_iteration_input_idx < 0 ||
+                static_cast<size_t>(special_ports.current_iteration_input_idx) >= body->get_parameters().size()) {
+                continue;
+            }
+            const auto& iter_param =
+                body->get_parameters()[static_cast<size_t>(special_ports.current_iteration_input_idx)];
+
+            // Snapshot descriptors: rewiring below must not affect this iteration.
+            const auto descriptors = loop->get_input_descriptions();
+            for (const auto& d : descriptors) {
+                auto inv = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::InvariantInputDescription>(d);
+                if (!inv || inv->m_body_parameter_index >= body->get_parameters().size()) {
+                    continue;
+                }
+                auto outer_src = unwrap_identity(loop->input_value(inv->m_input_index));
+                auto split_marker =
+                    ov::as_type_ptr<ov::frontend::SequenceDynamicUnitSplit>(outer_src.get_node_shared_ptr());
+                if (!split_marker) {
+                    // ai_onnx::split_to_sequence() always wraps its result in an outer
+                    // SequenceMark; unwrap that one-element wrapper too.
+                    if (auto mark = ov::as_type_ptr<ov::frontend::SequenceMark>(outer_src.get_node_shared_ptr())) {
+                        if (mark->size() == 1) {
+                            split_marker = ov::as_type_ptr<ov::frontend::SequenceDynamicUnitSplit>(
+                                unwrap_identity(mark->get_element(0)).get_node_shared_ptr());
+                        }
+                    }
+                }
+                if (!split_marker) {
+                    continue;
+                }
+
+                auto body_param = body->get_parameters()[inv->m_body_parameter_index];
+
+                // Require every consumer of body_param to be a SequenceAt indexed by
+                // this Loop's own iteration variable; otherwise leave it untouched.
+                std::vector<ov::frontend::SequenceAt*> matches;
+                bool all_match = true;
+                for (const auto& tin : body_param->output(0).get_target_inputs()) {
+                    auto at = ov::as_type<ov::frontend::SequenceAt>(tin.get_node());
+                    if (!at) {
+                        all_match = false;
+                        break;
+                    }
+                    auto pos_src = at->input_value(1);
+                    while (auto conv = ov::as_type_ptr<v0::Convert>(pos_src.get_node_shared_ptr())) {
+                        pos_src = conv->input_value(0);
+                    }
+                    if (pos_src.get_node_shared_ptr() != iter_param) {
+                        all_match = false;
+                        break;
+                    }
+                    matches.push_back(at);
+                }
+                if (!all_match || matches.empty()) {
+                    continue;
+                }
+
+                // Rebind the invariant input to the original (pre-split) tensor, then
+                // replace each matching SequenceAt with a keepdims-1 Gather.
+                loop->input(inv->m_input_index).replace_source_output(split_marker->get_data());
+                const auto axis = split_marker->get_axis();
+                for (auto* at : matches) {
+                    auto indices = at->input_value(1);
+                    if (indices.get_element_type() != ov::element::i64) {
+                        indices = std::make_shared<v0::Convert>(indices, ov::element::i64);
+                    }
+                    const auto idx_rank = indices.get_partial_shape().rank();
+                    if (idx_rank.is_static() && idx_rank.get_length() == 0) {
+                        auto unsqueeze_axes = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+                        indices = std::make_shared<v0::Unsqueeze>(indices, unsqueeze_axes);
+                    }
+                    auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
+                    auto gather = std::make_shared<ov::op::v8::Gather>(body_param, indices, axis_const);
+                    at->output(0).replace(gather->output(0));
+                }
+                changed = true;
+            }
+        }
+    });
+    return changed;
+}
+
 void finalize_lowering(const std::shared_ptr<ov::Model>& model) {
     disconnect_dead_sequence_back_edges(model);
     disconnect_dead_sequence_helpers(model);
@@ -558,9 +667,15 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
     if (!sal_detail::model_has_sequence_reader(model)) {
         return false;
     }
+
+    // Handle the dynamic-unit-split-indexed-by-Loop-iteration-variable idiom first: it
+    // is resolved independently of SlotResolver's static-length slot machinery, and
+    // doing it first lets the (now dead) SequenceDynamicUnitSplit / SequenceAt nodes
+    // drop out of the ordered ops before the generic resolver runs.
+    bool overall_changed = sal_detail::lower_dynamic_unit_split_loop_idiom(model);
+
     sal_detail::SlotResolver resolver(model);
 
-    bool overall_changed = false;
     bool iter_changed = true;
     while (iter_changed) {
         std::vector<std::shared_ptr<ov::Node>> helpers;
