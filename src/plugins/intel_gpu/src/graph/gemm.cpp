@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <algorithm>
+#include <type_traits>
 
 #include "intel_gpu/op/gemm.hpp"
 
@@ -124,9 +125,21 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
     op.set_transpose_a(false);
     op.set_transpose_b(false);
 
+    auto get_ranked_shape = [](const layout& input_layout, size_t rank) {
+        auto shape = input_layout.get<ShapeType>();
+        if (shape.rank().is_static() && shape.size() > rank && rank <= 4) {
+            if constexpr (std::is_same_v<ShapeType, ov::PartialShape>) {
+                return ShapeType(std::vector<ov::Dimension>(shape.begin(), shape.begin() + rank));
+            } else {
+                return ShapeType(shape.begin(), shape.begin() + rank);
+            }
+        }
+        return shape;
+    };
+
     std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        input1_layout.get<ShapeType>()
+        get_ranked_shape(input0_layout, prim->input_rank),
+        get_ranked_shape(input1_layout, prim->weight_rank)
     };
 
     std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
