@@ -23,6 +23,7 @@
 
 #ifdef __NV_CL_C_VERSION
 
+// sycl_device.cpp keeps this buffer out of max_local_mem_size (nvidia_reserved_local_mem_size): update both together.
 __asm__(".shared .align 4 .b8 ov_nv_wg_collective_smem[128];");
 
 static inline uint ov_nv_wg_smem_base(void){

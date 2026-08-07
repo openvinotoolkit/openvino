@@ -302,6 +302,15 @@ memory_capabilities init_memory_caps(const ::sycl::device& device, const device_
 }
 
 #ifdef OV_GPU_VENDOR_NVIDIA
+// Shared memory the NVIDIA OpenCL kernels use beyond their own __local arrays, kept out of max_local_mem_size so
+// that kernels sizing __local arrays from it stay within CUDA's 48 KB static shared memory limit:
+// - ov_nv_wg_collective_smem in nvidia/compat_wg.cl: 128 bytes (one float per warp of a 1024-wide work-group)
+// - wg_local_store, which the OpenCL runtime's work-group collectives use: 8 bytes
+// - ptxas adds as many bytes as the largest alignment of the kernel's shared variables (32 for a float8 array):
+//   up to 128 (double16, long16), but 64 at most in the current kernels (int16)
+// The worst case is thus 128 + 8 + 128 = 264 bytes, but the current kernels need 200 at most, so 256 is enough.
+constexpr uint64_t nvidia_reserved_local_mem_size = 256;
+
 // Finds the OpenCL device that is the same GPU as the SYCL device: the same vendor and UUID. An unknown (all-zero)
 // UUID matches nothing. Returns nullptr when there is no match, which does not keep the SYCL device from being
 // created: the kernel builder reports it once an OpenCL kernel is built.
@@ -344,8 +353,11 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
         if (_ocl_device) {
             // Use the OpenCL runtime's local memory size (48 KB): kernels size static __local arrays from it, and
             // CUDA caps static shared memory at 48 KB, whereas SYCL reports the opt-in limit for dynamic shared
-            // memory (163 KB on A100).
-            _info.max_local_mem_size = _ocl_device->get_info().max_local_mem_size;
+            // memory (163 KB on A100). The static shared memory the kernels use beyond their own __local arrays
+            // (nvidia_reserved_local_mem_size) is kept out of it.
+            const auto ocl_local_mem_size = _ocl_device->get_info().max_local_mem_size;
+            _info.max_local_mem_size = ocl_local_mem_size > nvidia_reserved_local_mem_size ?
+                                       ocl_local_mem_size - nvidia_reserved_local_mem_size : 0;
         }
     }
 #endif
