@@ -804,11 +804,12 @@ const ov::AnyMap& properties) {
     std::queue<std::shared_ptr<AlignedBuffer>> weight_shared_sources_pool;
     for (size_t bank_idx = 0; bank_idx < total_bytes_can_be_occupied_by_shared_constants; bank_idx += single_weigh_shared_source_size_max) {
         size_t bank_size = std::min(single_weigh_shared_source_size_max, total_bytes_can_be_occupied_by_shared_constants - bank_idx);
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocating source buffer for weight bank " 
-                 << s_bank_id_counter.load(std::memory_order_relaxed) 
-                 << ", size: " << bank_size);
         auto raw = std::make_shared<AlignedBuffer>(bank_size, kMinRelocateBytes);
         const size_t bank_id = s_bank_id_counter.fetch_add(1, std::memory_order_relaxed);
+        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocating source buffer for weight bank "
+                 << bank_id
+                 << ", ptr: " << static_cast<void*>(raw->get_ptr<char>())
+                 << ", size: " << bank_size);
         weight_shared_sources_pool.push(
             std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
                 raw->get_ptr<char>(), raw->size(), raw,
@@ -819,6 +820,7 @@ const ov::AnyMap& properties) {
              << ", total size: " << total_bytes_can_be_occupied_by_shared_constants);
     size_t shared_bank_buffer_offset = 0;
     std::shared_ptr<AlignedBuffer> shared_buffer_pool;
+    m_shared_weight_sources.clear();
     for (auto non_shared_constant : constant_to_share) {
         size_t size_of_constant_aligned = align_page_size(non_shared_constant->get_byte_size());
         if (shared_bank_buffer_offset + size_of_constant_aligned > single_weigh_shared_source_size_max) {
@@ -831,6 +833,11 @@ const ov::AnyMap& properties) {
             // Pre-register this bank as a cache source now that it has a valid descriptor ID.
             // All constants sliced from this bank will use the same source_id as the outer key.
             ov::weight_sharing::set_weight_source(*m_shared_ctx_ptr, shared_buffer_pool);
+
+            LOG_INFO("[NPUW] SHARED_WEIGHTS: registering shared weight source buffer, ptr: " << static_cast<void*>(shared_buffer_pool->get_ptr<char>())
+                      << ", size: " << shared_buffer_pool->size()
+                      << ", source ID: " << shared_buffer_pool->get_descriptor()->get_id());            //remember the bank into long-live storage to avoid its destruction before the model is destroyed
+            m_shared_weight_sources.push_back(shared_buffer_pool);
         }
         
         const size_t bytes = non_shared_constant->get_byte_size();
@@ -847,6 +854,9 @@ const ov::AnyMap& properties) {
                   << ", bank buffer size: " << shared_buffer_pool->size() << ", source ID: " << const_descriptor->get_id()
                   << ", constant ID: " << const_descriptor->get_offset() << ", shared_bank_buffer_offset: " << shared_bank_buffer_offset);
         auto constant_shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(shared_buffer_pool->get_ptr<char>() + shared_bank_buffer_offset, bytes, shared_buffer_pool, const_descriptor);
+        LOG_DEBUG("Shared buffer for weight " << non_shared_constant->get_friendly_name() << ", ptr: " << static_cast<void*>(constant_shared_buffer->get_ptr<char>())
+                  << ", size: " << constant_shared_buffer->size() << ", source ID: " << constant_shared_buffer->get_descriptor()->get_id()
+                  << ", constant ID: " << constant_shared_buffer->get_descriptor()->get_offset());
         auto shared_constant =
             std::make_shared<ov::op::v0::Constant>(non_shared_constant->get_element_type(),
                                                    non_shared_constant->get_shape(), constant_shared_buffer);
@@ -863,6 +873,14 @@ const ov::AnyMap& properties) {
             ov::copy_weightless_cache_attr(non_shared_constant, shared_constant);
         }
         ov::replace_node(non_shared_constant, shared_constant);
+        // The bank now owns an authoritative copy of these bytes, so the original weight pages are
+        // dead weight. For an IR loaded from disk the source is a SharedBuffer<MappedMemory>
+        // (ir/src/frontend.cpp), whose hint_evict() unmaps the backing view, and the process gives
+        // the pages back. Without this the peak holds the .bin mapping and the bank at once, which
+        // is the whole weight body twice. convert_precision.cpp:1380 uses the same call in the same
+        // position: replace the node, then evict the node it replaced.
+        // Opt-out only, because an evicted range faults back in on demand and cannot lose data.
+        ov::weight_sharing::Extension::hint_evict(*non_shared_constant);
 
         shared_bank_buffer_offset += size_of_constant_aligned;
 
