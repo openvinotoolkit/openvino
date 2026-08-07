@@ -5,6 +5,7 @@
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -538,7 +539,13 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     } else if (m_tensor_place != nullptr) {
         auto elemnt_type = m_tensor_place->get_element_type();
 
-        if (!m_tensor_place->is_const_data_reusable() || elemnt_type == ov::element::string) {
+        // Zero-copy aliasing is only valid for raw_data: its declared size is a byte count and its
+        // layout already matches OV's storage format. Type-specific fields (e.g. int32_data) store
+        // an element count instead and may need narrowing conversion, so they must always be copied.
+        // It also requires an owner to keep the aliased buffer alive (see TensorMetaInfo::m_data_owner);
+        // without one the data must be copied, otherwise the Constant would outlive the source memory.
+        if (!m_tensor_place->is_const_data_reusable() || elemnt_type == ov::element::string ||
+            !m_tensor_place->is_raw() || m_tensor_place->get_data_owner() == nullptr) {
             switch (elemnt_type) {
             case ov::element::f32:
             case ov::element::f64:
@@ -592,8 +599,14 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             }
         } else {
             const void* data_ptr = m_tensor_place->get_data();
-            auto constant_buffer = std::make_shared<const void*>(data_ptr);
-            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, data_ptr, constant_buffer);
+            // Alias the existing memory instead of copying it. When the tensor place tracks an owner
+            // (for example, an initializer's raw bytes detached from the parsed ONNX model), that
+            // owner is kept alive for the buffer's lifetime so the aliased pointer stays valid.
+            auto constant_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<void>>>(
+                const_cast<char*>(static_cast<const char*>(data_ptr)),
+                m_tensor_place->get_data_size(),
+                m_tensor_place->get_data_owner());
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, constant_buffer);
         }
     } else {
         FRONT_END_THROW("Tensor shape doesn't match data size");

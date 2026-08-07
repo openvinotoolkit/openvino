@@ -447,6 +447,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         if (tensor_info->has_raw_data()) {
             tensor_meta_info.m_tensor_data = reinterpret_cast<const uint8_t*>(tensor_info->raw_data().data());
             tensor_meta_info.m_tensor_data_size = tensor_info->raw_data().size();
+            // The raw bytes live inside the parsed model, which the iterator owns. Pin that owner so
+            // the bytes can be aliased into a Constant (zero-copy) without outliving their storage;
+            // the model isn't mutated, so this is safe to run more than once for the same tensor.
+            tensor_meta_info.m_data_owner = graph_iterator->get_model();
             tensor_meta_info.m_is_raw = true;
         } else {
             const auto assign_numeric_data = [&](const auto& container) {
