@@ -15,7 +15,8 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                                          const ov::Shape& base_shape,
                                          ov::element::Type elem_type,
                                          const std::string& device,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         std::optional<uint32_t> seq_dim)
     : block_size_(block_size),
       max_blocks_(max_blocks),
       element_type_(elem_type),
@@ -47,6 +48,22 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
         // Ambiguous: both dims equal block_size (e.g. head_dim == block_size).
         // Default to dim 2 (non-transposed layout).
         seq_dim_ = 2u;
+    }
+
+    // Explicit seq_dim (carried from SplitKVCacheIntoBlocks concat axis) is ground truth
+    // and overrides shape-based inference, resolving the ambiguous head_dim==block_size case.
+    if (seq_dim.has_value()) {
+        OPENVINO_ASSERT(*seq_dim == 2u || *seq_dim == 3u,
+                        "KVCacheBlockManager: explicit seq_dim must be 2 or 3, got ",
+                        *seq_dim);
+        OPENVINO_ASSERT(base_shape[*seq_dim] == block_size,
+                        "KVCacheBlockManager: base_shape ",
+                        base_shape,
+                        " does not have block_size=",
+                        block_size,
+                        " at explicit seq_dim=",
+                        *seq_dim);
+        seq_dim_ = *seq_dim;
     }
 
     // Initialize block pool (tensors allocated on-demand, not here)

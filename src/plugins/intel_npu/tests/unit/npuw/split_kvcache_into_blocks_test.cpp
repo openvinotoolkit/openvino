@@ -538,6 +538,38 @@ TEST_F(SplitKVCacheIntoBlocksTest, MixedConcatAxesAcrossLayers) {
     EXPECT_EQ(concat_count, 2u);
 }
 
+TEST_F(SplitKVCacheIntoBlocksTest, BlockParamsCarrySeqAxisRtInfo) {
+    // The transform must stamp each block param with the ground-truth sequence axis
+    // (rt_info "npuw_kv_seq_axis") so the runtime block manager can resolve the
+    // head_dim == block_size ambiguity without re-inferring from shape.
+    const uint32_t block_size = 16;
+
+    // Transposed-V layer: seq on axis=3.
+    auto val = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256, 64});
+    val->set_friendly_name("past_key_values.1.value");
+    auto new_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256, 1});
+    auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{val, new_v}, 3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(concat_v)},
+                                             ov::ParameterVector{val, new_v});
+
+    ov::pass::Manager manager;
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.run_passes(model);
+
+    size_t stamped_blocks = 0;
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("_block_") == std::string::npos) {
+            continue;
+        }
+        const auto& rt = param->get_rt_info();
+        auto it = rt.find("npuw_kv_seq_axis");
+        ASSERT_NE(it, rt.end()) << "block param missing npuw_kv_seq_axis rt_info";
+        EXPECT_EQ(it->second.as<int64_t>(), 3) << "transposed-V seq axis must be 3";
+        ++stamped_blocks;
+    }
+    EXPECT_EQ(stamped_blocks, 64u / block_size);
+}
+
 TEST_F(SplitKVCacheIntoBlocksTest, HeterogeneousKVShapesAcrossLayers) {
     // Test: MoE model with two KV layer groups that have different shapes.
     // Layer 0: [1, 8, 512, 256]  (8 heads, head_dim=256)

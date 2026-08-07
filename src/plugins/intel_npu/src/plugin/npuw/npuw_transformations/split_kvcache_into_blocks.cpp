@@ -201,6 +201,13 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         }
         copy_runtime_info({param, concat}, new_nodes);
 
+        // Carry the ground-truth sequence axis on each block param so the runtime block
+        // manager does not have to re-infer it from shape (ambiguous when head_dim ==
+        // block_size). Set after copy_runtime_info so it is not clobbered.
+        for (const auto& p : new_params) {
+            p->get_rt_info()["npuw_kv_seq_axis"] = info.concat_axis;
+        }
+
         concat->output(0).replace(new_concat->output(0));
         model->remove_parameter(param);
 

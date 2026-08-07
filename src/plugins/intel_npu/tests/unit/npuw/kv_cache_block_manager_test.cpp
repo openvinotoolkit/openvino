@@ -410,11 +410,29 @@ TEST(KVCacheBlockManagerSeqDimTest, SeqDimDetection_Dim3) {
 
 TEST(KVCacheBlockManagerSeqDimTest, SeqDimDetection_Ambiguous) {
     // Ambiguous case: both dim 2 and dim 3 equal block_size (head_dim == block_size).
-    // Should default to dim 2 (non-transposed layout).
+    // With no explicit axis the manager falls back to dim 2 (non-transposed layout).
     uint32_t block_size = 256;
     ov::Shape ambiguous_shape{1, 8, block_size, block_size};
     KVCacheBlockManager mgr(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr);
     EXPECT_EQ(mgr.get_seq_dim(), 2u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, ExplicitSeqDim_OverridesAmbiguousShape) {
+    // Ground-truth axis from SplitKVCacheIntoBlocks resolves the head_dim==block_size
+    // ambiguity: a transposed-V layer must report dim 3 even though shape alone is ambiguous.
+    uint32_t block_size = 256;
+    ov::Shape ambiguous_shape{1, 8, block_size, block_size};
+    KVCacheBlockManager mgr3(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr, 3u);
+    EXPECT_EQ(mgr3.get_seq_dim(), 3u);
+    KVCacheBlockManager mgr2(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr, 2u);
+    EXPECT_EQ(mgr2.get_seq_dim(), 2u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, ExplicitSeqDim_MismatchThrows) {
+    // Explicit axis must actually carry block_size; otherwise the invariant is violated.
+    uint32_t block_size = 512;
+    ov::Shape shape{1, 8, 256, block_size};  // seq at dim 3, dim 2 = 256
+    EXPECT_ANY_THROW(KVCacheBlockManager(block_size, 4, shape, ov::element::f16, "CPU", nullptr, 2u));
 }
 
 }  // namespace
