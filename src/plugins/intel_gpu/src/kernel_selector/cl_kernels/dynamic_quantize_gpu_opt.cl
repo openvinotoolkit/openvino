@@ -214,15 +214,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
         val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (blockid * block_size)));
     } else {
         // Initialize with zero for skipped blocks  
-        #if VEC_SIZE == 1
-            val = 0.0h;
-        #elif VEC_SIZE == 2
-            val = (half2)(0.0h, 0.0h);
-        #elif VEC_SIZE == 4
-            val = (half4)(0.0h, 0.0h, 0.0h, 0.0h);
-        #elif VEC_SIZE == 8
-            val = (half8)(0.0h, 0.0h, 0.0h, 0.0h, 0.0h, 0.0h, 0.0h, 0.0h);
-        #endif
+        val = (MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE))(0);
     }
 
 #if ASYMMETRIC_QUANTIZATION
