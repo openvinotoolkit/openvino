@@ -674,11 +674,15 @@ std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisio
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
 jit_minimum_emitter::jit_minimum_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
                                          ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_minimum_emitter::get_inputs_num() const {
     return 2;
@@ -718,19 +722,62 @@ void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
     };
 
-    if (isa == x64::sse41) {
+    const auto emit_min = [&]() {
+        if (isa != x64::sse41) {
+            uni_vmin(vmm_dst, vmm_src0, vmm_src1);
+            return;
+        }
+
         if (vmm_src0.getIdx() != vmm_dst.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src0);
         }
         uni_vmin(vmm_dst, vmm_dst, vmm_src1);
+    };
+
+    if (exec_prc_ == ov::element::f32) {
+        if (isa == x64::avx512_core) {
+            auto vmm_src0_orig = Vmm(aux_vec_idxs[0]);
+            auto vmm_src1_orig = Vmm(aux_vec_idxs[1]);
+            h->uni_vmovups(vmm_src0_orig, vmm_src0);
+            h->uni_vmovups(vmm_src1_orig, vmm_src1);
+            emit_min();
+            h->vcmpps(k_mask, vmm_src0_orig, vmm_src0_orig, _cmp_neq_uq);
+            h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("qnan"));
+            h->vcmpps(k_mask, vmm_src1_orig, vmm_src1_orig, _cmp_neq_uq);
+            h->vblendmps(vmm_dst | k_mask, vmm_dst, table_val("qnan"));
+        } else {
+            auto vmm_mask = Vmm(aux_vec_idxs[0]);
+            auto vmm_src0_orig = Vmm(aux_vec_idxs[1]);
+            auto vmm_src1_orig = Vmm(aux_vec_idxs[2]);
+            h->uni_vmovups(vmm_src0_orig, vmm_src0);
+            h->uni_vmovups(vmm_src1_orig, vmm_src1);
+            emit_min();
+            h->uni_vcmpps(vmm_mask, vmm_src0_orig, vmm_src0_orig, _cmp_neq_uq);
+            h->uni_vblendvps(vmm_dst, vmm_dst, table_val("qnan"), vmm_mask);
+            h->uni_vcmpps(vmm_mask, vmm_src1_orig, vmm_src1_orig, _cmp_neq_uq);
+            h->uni_vblendvps(vmm_dst, vmm_dst, table_val("qnan"), vmm_mask);
+        }
     } else {
-        uni_vmin(vmm_dst, vmm_src0, vmm_src1);
+        emit_min();
     }
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
+}
+
+void jit_minimum_emitter::register_table_entries() {
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("qnan", 0x7FC00000, true);
+    }
+}
+
+size_t jit_minimum_emitter::aux_vecs_count() const {
+    if (exec_prc_ != ov::element::f32) {
+        return 0;
+    }
+    return host_isa_ == x64::avx512_core ? 2 : 3;
 }
 
 /// SQUARED_DIFFERENCE ///
