@@ -10,11 +10,14 @@
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
+#include "core/tensor.hpp"
 #include "exceptions.hpp"
+#include "input_model.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/identity.hpp"
@@ -53,14 +56,70 @@ bool is_termination_condition_always_true(const ov::Node* cond_in, const ov::Nod
 
 using ParameterPtr = std::shared_ptr<ov::op::v0::Parameter>;
 using InvariantInput = std::pair<ParameterPtr, ov::Output<ov::Node>>;
+
+ov::Output<ov::Node> resolve_invariant_input_from_parent_model(TranslateSession* translate_session,
+                                                               const std::string& tensor_name) {
+    const auto input_model = std::dynamic_pointer_cast<unify::InputModel>(translate_session->get_input_model());
+    if (!input_model) {
+        return {};
+    }
+
+    const auto tensor_place_base = input_model->get_place_by_tensor_name(tensor_name);
+    const auto tensor_place = std::dynamic_pointer_cast<TensorONNXPlace>(tensor_place_base);
+    if (!tensor_place) {
+        return {};
+    }
+
+    if (tensor_place->get_data_location() != nullptr || tensor_place->get_data() != nullptr) {
+        return Tensor(tensor_place).get_ov_constant();
+    }
+    if (tensor_place->is_input()) {
+        auto param = std::make_shared<v0::Parameter>(tensor_place->get_element_type(), tensor_place->get_partial_shape());
+        const auto& names = tensor_place->get_names();
+        if (!names.empty()) {
+            param->set_friendly_name(names.front());
+            param->output(0).set_names({names.begin(), names.end()});
+        }
+        return param;
+    }
+    return {};
+}
+
+ov::Output<ov::Node> resolve_named_input(TranslateSession* translate_session, const std::string& name) {
+    if (name.empty()) {
+        return {};
+    }
+    auto known_input = translate_session->lookup_tensor(name);
+    if (known_input.get_node() == nullptr) {
+        known_input = resolve_invariant_input_from_parent_model(translate_session, name);
+    }
+    return known_input;
+}
+
+ov::Output<ov::Node> resolve_invariant_input(TranslateSession* translate_session,
+                                             const ParameterPtr& param,
+                                             const std::string& alias_name = {}) {
+    for (const auto& name : param->output(0).get_names()) {
+        auto known_input = resolve_named_input(translate_session, name);
+        if (known_input.get_node() != nullptr) {
+            return known_input;
+        }
+    }
+    if (auto known_input = resolve_named_input(translate_session, param->get_friendly_name()); known_input.get_node() != nullptr) {
+        return known_input;
+    }
+    return resolve_named_input(translate_session, alias_name);
+}
+
 /// \brief Splits loop body parameters into canonical (iteration/condition/state) and invariants.
 ///
-/// Parameters that match tensors already defined in the parent translate session are classified as
-/// invariant inputs so that they can be wired via Loop::set_invariant_input, while the rest remain
-/// canonical parameters that participate in Loop body state.
+/// Per the ONNX spec, body input ordering is fixed: iteration(0), condition(1), state_vars(2..N+1).
+/// TranslateSession guarantees params[0..K-1] correspond to declared ONNX body inputs in order,
+/// so a positional cut at required_canonical_inputs is both correct and robust.
 std::pair<ov::ParameterVector, std::vector<InvariantInput>> partition_body_parameters(
     const ov::frontend::onnx::Node& node,
-    const ov::ParameterVector& params) {
+    const ov::ParameterVector& params,
+    const size_t required_canonical_inputs) {
     ov::ParameterVector canonical;
     canonical.reserve(params.size());
     std::vector<InvariantInput> invariants;
@@ -69,22 +128,32 @@ std::pair<ov::ParameterVector, std::vector<InvariantInput>> partition_body_param
     const auto translate_session = node.get_translate_session();
     FRONT_END_OP_CONVERSION_CHECK(translate_session != nullptr,
                                   "Translate session is required to partition Loop body parameters");
-    for (const auto& param : params) {
-        ov::Output<ov::Node> known_input;
-        // First try to look up by output names
-        const auto& names = param->output(0).get_names();
-        for (const auto& name : names) {
-            known_input = translate_session->lookup_tensor(name);
-            if (known_input.get_node() != nullptr) {
-                break;
-            }
+
+    std::vector<std::string> decoder_input_names;
+    const auto graph_iterator = node.get_attribute_any("body").as<const ov::frontend::onnx::GraphIterator::Ptr>();
+    if (graph_iterator != nullptr) {
+        graph_iterator->reset();
+        const auto parent_model = std::dynamic_pointer_cast<unify::InputModel>(translate_session->get_input_model());
+        FRONT_END_OP_CONVERSION_CHECK(parent_model != nullptr,
+                                      "Parent model is expected to be of onnx InputModel type.");
+        const auto body_input_model = std::make_shared<unify::InputModel>(graph_iterator, parent_model);
+        for (const auto& input : body_input_model->get_inputs()) {
+            const auto tensor_place = std::dynamic_pointer_cast<TensorONNXPlace>(input);
+            FRONT_END_OP_CONVERSION_CHECK(tensor_place != nullptr,
+                                          "Loop body inputs are expected to be ONNX tensor places");
+            const auto& names = tensor_place->get_names();
+            decoder_input_names.push_back(names.empty() ? std::string{} : names.front());
         }
-        // If not found by output names, try to look up by friendly name.
-        // This handles the case where Model validation adds suffixes to tensor names
-        // but the friendly name remains unchanged.
-        if (known_input.get_node() == nullptr) {
-            known_input = translate_session->lookup_tensor(param->get_friendly_name());
+    }
+
+    for (size_t index = 0; index < params.size(); ++index) {
+        const auto& param = params[index];
+        if (index < required_canonical_inputs) {
+            canonical.push_back(param);
+            continue;
         }
+        const std::string alias_name = index < decoder_input_names.size() ? decoder_input_names[index] : std::string{};
+        auto known_input = resolve_invariant_input(translate_session, param, alias_name);
         if (known_input.get_node() != nullptr) {
             invariants.emplace_back(param, known_input);
         } else {
@@ -276,7 +345,9 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     }
     auto body_inputs = body_graph->get_parameters();
 
-    auto [canonical_inputs, invariant_inputs] = partition_body_parameters(node, body_inputs);
+    const size_t required_canonical_inputs = control_inputs_count + loop_carried_dependencies.size();
+    auto [canonical_inputs, invariant_inputs] =
+        partition_body_parameters(node, body_inputs, required_canonical_inputs);
 
     // Filter out body outputs that are just passthrough of invariant parameters.
     // These can occur when the body model was translated with extra outputs for
@@ -379,6 +450,12 @@ ov::OutputVector loop(const ov::frontend::onnx::Node& node) {
     for (size_t i = 0; i < mapped; i++) {
         state_parameters[i]->set_element_type(loop_carried_dependencies[i].get_element_type());
         state_parameters[i]->set_partial_shape(loop_carried_dependencies[i].get_partial_shape());
+    }
+    for (const auto& [param, value] : invariant_inputs) {
+        if (value.get_node() != nullptr) {
+            param->set_element_type(value.get_element_type());
+            param->set_partial_shape(value.get_partial_shape());
+        }
     }
 
     CHECK_VALID_NODE(node,
