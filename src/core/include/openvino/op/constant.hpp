@@ -133,6 +133,9 @@ public:
     // Don't constant fold a constant; it would make a copy
     bool can_constant_fold(const OutputVector& inputs_values) const override;
 
+    /// \brief Returns whether the data buffer is owned externally
+    bool has_external_buffer() const;
+
     /// \brief Returns the value of the constant node as a Shape object
     ///        Can only be used on element::i64 nodes and interprets
     ///        negative values as zeros.
