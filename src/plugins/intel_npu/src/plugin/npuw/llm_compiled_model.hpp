@@ -32,11 +32,6 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
 public:
     static constexpr const char* output_embeds = "npuw_output_embed";
 
-    // Read-only compiled-model property advertising continuous-prefill support.
-    // GenAI probes this by name; it must NOT be inferred from the presence of
-    // npuw_stored_tokens_state in query_state(), which every plugin build publishes.
-    static constexpr const char* continuous_prefill_supported_name = "NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED";
-
     static constexpr uint32_t whisper_batch_dim = 0u;
     static constexpr uint32_t whisper_seq_len_dim = 2u;
     static constexpr uint32_t whisper_max_prompt_size = 4u;

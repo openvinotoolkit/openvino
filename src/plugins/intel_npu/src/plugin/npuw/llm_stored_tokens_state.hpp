@@ -63,7 +63,7 @@ public:
         m_coordinator->propose(new_state->data<int64_t>()[0]);
     }
 
-    // Returns a copy of state to prevent external modfication.
+    // Returns a copy of state to prevent external modification.
     ov::SoPtr<ov::ITensor> get_state() const override {
         auto result = ov::Tensor(ov::element::i64, ov::Shape{1});
         result.data<int64_t>()[0] = has_continuation() ? m_coordinator->query() : m_state->data<int64_t>()[0];

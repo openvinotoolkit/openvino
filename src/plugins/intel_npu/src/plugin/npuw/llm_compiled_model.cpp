@@ -1234,6 +1234,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     implement_properties();
+
+    if (m_enable_continuous_prefill && !compute_continuous_prefill_supported()) {
+        LOG_WARN("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set, but continuous prefill is not "
+                 "supported for this compiled model. NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED "
+                 "reports false and full-history behaviour stays in effect.");
+    }
+
     LOG_DEBUG("Done");
 }
 
@@ -1634,24 +1641,25 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation
     }
-    if (!m_prefill_compiled) {
-        return false;  // capability requires a compiled prefill model
-    }
+    OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
     const auto& prefill_inputs = m_prefill_compiled->inputs();
     for (const auto& input : prefill_inputs) {
-        const auto& name = input.get_any_name();
-        if (ov::npuw::util::starts_with_past_lincache(name)) {
-            return false;  // linear/hybrid state has no generate->prefill path
-        }
-        if (ov::npuw::util::matchLoRAMatMulAString(name) || ov::npuw::util::matchLoRAMatMulBString(name) ||
-            ov::npuw::util::matchLoRAMatMulAlphaString(name)) {
-            return false;  // adapter change is only detected after the caller sliced
-        }
-        if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
-            return false;  // VLM is out of scope in v1
-        }
-        if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
-            return false;  // token type ids are not routed through a continued prefill
+        // A port can carry several names, so every one of them must clear the
+        // exclusions; get_any_name() could return one that hides a match.
+        for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_lincache(name)) {
+                return false;  // linear/hybrid state has no generate->prefill path
+            }
+            if (ov::npuw::util::matchLoRAMatMulAString(name) || ov::npuw::util::matchLoRAMatMulBString(name) ||
+                ov::npuw::util::matchLoRAMatMulAlphaString(name)) {
+                return false;  // adapter change is only detected after the caller sliced
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
+                return false;  // VLM is out of scope in v1
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
+                return false;  // token type ids are not routed through a continued prefill
+            }
         }
     }
     // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
@@ -1681,7 +1689,7 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
         OPENVINO_THROW(name, " is write-only option!");
     }
 
-    if (name == continuous_prefill_supported_name) {
+    if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
         return compute_continuous_prefill_supported();
     }
 

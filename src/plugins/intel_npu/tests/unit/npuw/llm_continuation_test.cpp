@@ -126,8 +126,7 @@ TEST(NPUWContinuation, PublishingLiveCountDoesNotReArmCommand) {
     c.commit_prefill(2500u);
     // After the commit there is no pending command, only the published count.
     EXPECT_EQ(c.stage(), Stage::IDLE);
-    EXPECT_FALSE(c.command().is_keep());
-    EXPECT_FALSE(c.command().is_reset());
+    EXPECT_FALSE(c.pending().has_value());
     EXPECT_EQ(c.query(), 2500);
 }
 
@@ -139,7 +138,7 @@ TEST(NPUWContinuation, PreflightAbortConsumesCommandAndKeepsCounters) {
     c.abort_preflight();
     EXPECT_EQ(c.stage(), Stage::IDLE);
     EXPECT_EQ(c.query(), 3020);
-    EXPECT_FALSE(c.command().is_keep());
+    EXPECT_FALSE(c.pending().has_value());
 }
 
 TEST(NPUWContinuation, PreflightAbortRequiresAPendingKeep) {
@@ -170,7 +169,7 @@ TEST(NPUWContinuation, FailureAfterActivePoisonsTheRequest) {
     EXPECT_EQ(c.stage(), Stage::RESET_REQUIRED);
     EXPECT_EQ(c.query(), 0);
     // Poisoned requests reject inference until reset() is called.
-    EXPECT_THROW(c.command(), ov::Exception);
+    EXPECT_THROW(c.pending(), ov::Exception);
 }
 
 TEST(NPUWContinuation, ResetRecoversAPoisonedRequest) {
@@ -180,7 +179,7 @@ TEST(NPUWContinuation, ResetRecoversAPoisonedRequest) {
     c.fail_active();
     c.request_reset();
     EXPECT_EQ(c.stage(), Stage::RESET_PENDING);
-    EXPECT_TRUE(c.command().is_reset());
+    EXPECT_EQ(c.pending(), 0u);
     // Idempotent while already pending.
     c.request_reset();
     EXPECT_EQ(c.stage(), Stage::RESET_PENDING);
@@ -190,7 +189,7 @@ TEST(NPUWContinuation, ResetDiscardsAPendingKeep) {
     auto c = make_after_prefill(3000u);
     c.propose(3000);
     c.request_reset();
-    EXPECT_TRUE(c.command().is_reset());
+    EXPECT_EQ(c.pending(), 0u);
     EXPECT_EQ(c.query(), 0);
 }
 
@@ -207,6 +206,27 @@ TEST(NPUWContinuation, CommitAfterResetPrefillReturnsToIdle) {
 TEST(NPUWContinuation, BeginActiveWithoutCommandThrows) {
     auto c = make_after_prefill(2048u);
     EXPECT_THROW(c.begin_active(), ov::Exception);
+}
+
+TEST(NPUWContinuation, CommitAndPublishRejectInvalidStates) {
+    // A commit must never clear the poisoning that only reset() owns, and a
+    // publish is only legal while idle.
+    auto poisoned = make_after_prefill(3000u);
+    poisoned.propose(3000);
+    poisoned.begin_active();
+    poisoned.fail_active();
+    EXPECT_THROW(poisoned.commit_prefill(3000u), ov::Exception);
+    EXPECT_THROW(poisoned.publish_generate(3000u), ov::Exception);
+    EXPECT_EQ(poisoned.stage(), Stage::RESET_REQUIRED);
+
+    // Committing or publishing with a command still pending skips begin_active()
+    // and is a sequencing error.
+    auto armed = make_after_prefill(3000u);
+    armed.propose(3000);
+    EXPECT_THROW(armed.commit_prefill(3000u), ov::Exception);
+    EXPECT_THROW(armed.publish_generate(3100u), ov::Exception);
+    EXPECT_EQ(armed.stage(), Stage::PENDING);
+    EXPECT_EQ(armed.pending(), 2048u);
 }
 
 // Watermark accounting.
@@ -234,8 +254,7 @@ TEST(NPUWContinuation, SpeculativeTrimClampsWatermarkDown) {
 TEST(NPUWContinuation, DisabledCoordinatorReportsNoCommand) {
     ContinuationCoordinator c;
     EXPECT_FALSE(c.enabled());
-    EXPECT_FALSE(c.command().is_keep());
-    EXPECT_FALSE(c.command().is_reset());
+    EXPECT_FALSE(c.pending().has_value());
     EXPECT_THROW(c.propose(0), ov::Exception);
 }
 
