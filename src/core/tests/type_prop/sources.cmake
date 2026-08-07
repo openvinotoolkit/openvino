@@ -137,6 +137,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/prelu.cpp
@@ -180,6 +181,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/search_sorted.cpp
     ${CMAKE_CURRENT_LIST_DIR}/segment_max.cpp
     ${CMAKE_CURRENT_LIST_DIR}/select.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/selu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_of.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shuffle_channels.cpp
