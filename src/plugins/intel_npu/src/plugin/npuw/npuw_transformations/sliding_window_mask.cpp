@@ -135,6 +135,16 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
     LOG_INFO(std::string(log_prefix) + " sliding window attention mask pattern found and patched.");
 }
 
+// True only for a single-element constant holding zero.
+bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+    if (!constant || ov::shape_size(constant->get_shape()) != 1u) {
+        return false;
+    }
+    const auto values = constant->cast_vector<int64_t>();
+    return !values.empty() && values.front() == 0;
+}
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -593,6 +603,15 @@ public:
 
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
+
+            // Only cache_position[0] equals past_kv_len. Any other element of the range is
+            // a different value, and rewriting the mask around it would silently shift the
+            // window, so leave such a subgraph alone.
+            auto matched_select = node_to_output.at(past_kv_len_select).get_node_shared_ptr();
+            if (!is_zero_scalar_constant(matched_select->input_value(1)) ||
+                !is_zero_scalar_constant(matched_select->input_value(2))) {
+                return false;
+            }
 
             // Extract matched nodes from pattern
             auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
