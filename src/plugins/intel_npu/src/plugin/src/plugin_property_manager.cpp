@@ -58,8 +58,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     using namespace intel_npu;
     OPENVINO_ASSERT(compiler != nullptr, "Compiler must be present to filter properties by compiler support");
 
-    std::optional<std::vector<std::string>> compilerSupportList = compiler->get_supported_options();
-    const auto& supportedOptions = compilerSupportList.value();
+    const auto& supportedOptions = compiler->get_supported_options();
     logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
     for (const auto& str : supportedOptions) {
         logger.debug("    %s ", str.c_str());
@@ -69,10 +68,8 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
         bool isEnabled = false;
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
-        if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
-            const auto& supportedOptions = compilerSupportList.value();
-            auto it = std::find(supportedOptions.begin(), supportedOptions.end(), key);
-            if (it != supportedOptions.end()) {
+        if (config.getOpt(key).mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
+            if (std::find(supportedOptions.begin(), supportedOptions.end(), key) != supportedOptions.end()) {
                 isEnabled = true;
             } else {
                 // Not found in the supported options list.
