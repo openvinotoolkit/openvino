@@ -91,8 +91,8 @@ inline size_t GemmKernelMMADslmInt8::GetMmadOperationsNumber(const GemmTuningDat
 }
 
 inline bool GemmKernelMMADslmInt8::HasLeftovers(const GemmTuningData& tuning_data) const {
-    return tuning_data.size_m % tuning_data.slm_tile_size || tuning_data.size_n % tuning_data.slm_tile_size ||
-           tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor);
+    return ((tuning_data.size_m % tuning_data.slm_tile_size) != 0u) || ((tuning_data.size_n % tuning_data.slm_tile_size) != 0u) ||
+           ((tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor)) != 0u);
 }
 
 GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::SetTuningParams(const gemm_params& params) const {

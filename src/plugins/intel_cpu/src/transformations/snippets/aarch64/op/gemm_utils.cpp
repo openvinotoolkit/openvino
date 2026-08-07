@@ -18,8 +18,6 @@
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.hpp"
 
-using namespace ov::snippets::utils;
-
 namespace ov::intel_cpu::aarch64::gemm_utils::repacking {
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& gemm_expr) {
     OPENVINO_ASSERT(ov::is_type<GemmCPU>(gemm_expr->get_node()),
@@ -37,29 +35,6 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
         }
     }
     return nullptr;
-}
-
-size_t get_inner_n_block(const ov::element::Type& precision) {
-    if (precision == element::f32) {
-        return 8;
-    }
-    if (precision == element::f16) {
-        return 16;
-    }
-    if (precision == element::i8) {
-        return 4;
-    }
-    OPENVINO_THROW("Unsupported precision for aarch64 GEMM inner N block: ", precision.get_type_name());
-}
-
-size_t get_k_pad_size(const ov::element::Type& precision) {
-    if (precision == element::f32 || precision == element::f16) {
-        return 1;
-    }
-    if (precision == element::i8) {
-        return 32;
-    }
-    OPENVINO_THROW("Unsupported precision for aarch64 GEMM K pad size: ", precision.get_type_name());
 }
 
 size_t get_rhs_packed_offset(const ov::element::Type& precision, size_t n_idx, size_t K) {

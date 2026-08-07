@@ -87,7 +87,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
 
-        bool leftovers = m_size % tuning_data.tile_m_size || k_size % tuning_data.tile_k_size || n_size % tuning_data.tile_n_size;
+        bool leftovers = ((m_size % tuning_data.tile_m_size) != 0u) || ((k_size % tuning_data.tile_k_size) != 0u) || ((n_size % tuning_data.tile_n_size) != 0u);
 
         if (leftovers || total_batches > 1 || params.transpose_input0 || params.transpose_input1 || !IsSIMDSizeSupported(params.engineInfo, 8)) {
             tuning_data.simd_size = 16;
@@ -527,13 +527,13 @@ void GemmKernelTiledOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
             bool not_divisible_k = ((k_size % tuning_data.tile_k_size) != 0);
             bool not_divisible_n = ((n_size % tuning_data.tile_n_size) != 0);
             size_t execute_kernel_idx = 0;
-            if (not_divisible_k == false && not_divisible_n == false) {
+            if (!not_divisible_k && !not_divisible_n) {
                 execute_kernel_idx = 0;
-            } else if (not_divisible_k == false && not_divisible_n == true) {
+            } else if (!not_divisible_k && not_divisible_n) {
                 execute_kernel_idx = 1;
-            } else if (not_divisible_k == true && not_divisible_n == false) {
+            } else if (not_divisible_k && !not_divisible_n) {
                 execute_kernel_idx = 2;
-            } else if (not_divisible_k == true && not_divisible_n == true) {
+            } else if (not_divisible_k && not_divisible_n) {
                 execute_kernel_idx = 3;
             }
 

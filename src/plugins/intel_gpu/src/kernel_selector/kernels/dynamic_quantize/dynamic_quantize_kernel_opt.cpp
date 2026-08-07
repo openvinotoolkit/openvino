@@ -47,21 +47,25 @@ static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params
 }
 
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
-    if (params.group_sizes.back() <= 64)
-        return DynQuanMode::SMALL_GS;
-    else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
+    auto gs = params.group_sizes.back();
+    if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    else
+    } else if (gs > simd * 2) {
         return DynQuanMode::LARGE_GS;
+    } else {
+        return DynQuanMode::SMALL_GS;
+    }
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
+    auto gs = params.group_sizes.back();
+    size_t max_vec_size = (gs != std::numeric_limits<uint64_t>::max()) ? gs / simd : 8;
 
     for (auto block_size : block_sizes) {
-        if ((f / simd) % block_size == 0) {
+        if (static_cast<size_t>(block_size) <= max_vec_size && (f / simd) % block_size == 0) {
             return block_size;
         }
     }
@@ -74,6 +78,7 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -100,12 +105,14 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+    jit.AddConstant(MakeJitConstant("BLOCKS_PER_GROUP", params.group_sizes.back() / simd / vec_size));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZAION_IMPL_MODE", static_cast<int>(mode)));
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
