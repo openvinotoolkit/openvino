@@ -415,7 +415,31 @@ inline uint get_os_zyxi_osv16_index(uint o, uint i, uint z, uint y, uint x, uint
         ((o) / (sub_group_size))*(CAT(prefix, _OFM_PITCH)/2)             \
     )
 
+#define GET_FILTER_OS_IYX_OSV_INDEX_INT2_PACKED(prefix, o, i, y, x, sub_group_size) \
+    CAT(prefix, _OFFSET) +                                               \
+    ((o) % (sub_group_size)) +                                           \
+    (sub_group_size)*(                                                   \
+        (x)*CAT(prefix, _X_PITCH) +                                      \
+        (y)*CAT(prefix, _Y_PITCH) +                                      \
+        (i)*CAT(prefix, _IFM_PITCH) +                                    \
+        ((o) / (sub_group_size))*(CAT(prefix, _OFM_PITCH)/4)             \
+    )
+
 #define GET_FILTER_OS_IS_YX_OSV_ISV_INDEX_INT4_PACKED(prefix, o, i, y, x, sub_group_size) \
+    CAT(prefix, _OFFSET) +                                               \
+    ((o) % (sub_group_size)) +                                           \
+    (sub_group_size)*(                                                   \
+        (x)*CAT(prefix, _X_PITCH) +                                      \
+        (y)*CAT(prefix, _Y_PITCH) +                                      \
+        (i)*CAT(prefix, _IFM_PITCH) +                                    \
+        ((o) / (sub_group_size))*(CAT(prefix, _OFM_PITCH)/2)                 \
+    )
+
+// os_is_yx_osv64_isv2 with 2-bit packed weights (4 values per byte): a 64-OFM block is a
+// sequence of 32-byte k-pair lines. Each byte packs 2 consecutive k values of two output
+// features 16 apart, so one line covers all 64 output features in 32 bytes and the OFM-block
+// stride is sub_group_size * (OFM_PITCH / 2) bytes (sub_group_size == 32 byte-positions).
+#define GET_FILTER_OS_IS_YX_OSV_ISV_INDEX_INT2_PACKED(prefix, o, i, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                               \
     ((o) % (sub_group_size)) +                                           \
     (sub_group_size)*(                                                   \

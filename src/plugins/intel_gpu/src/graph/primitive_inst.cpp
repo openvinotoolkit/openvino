@@ -1297,7 +1297,7 @@ bool primitive_inst::use_async_compilation() {
                                               std::multiplies<size_t>());
 
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
-            if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1)
+            if (one_of(weights_dt, {data_types::i4, data_types::u4, data_types::u2}) && batch_size != 1)
                 compile_fc_impls = false;
         } else {
             auto input_dt = fc_node.input().get_output_layout().data_type;
