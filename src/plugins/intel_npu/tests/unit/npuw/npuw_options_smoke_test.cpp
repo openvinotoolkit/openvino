@@ -157,6 +157,7 @@ std::vector<Case> make_cases() {
             "NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS",
             "32",
             uint64_t{32}),
+        bool_case<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES", true),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_HINT>("NPUW_LLM_PREFILL_HINT", "STATIC", "STATIC"),
         enum_case<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>("NPUW_LLM_PREFILL_ATTENTION_HINT",
                                                                 "DYNAMIC",

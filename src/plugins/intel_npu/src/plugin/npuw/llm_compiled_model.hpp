@@ -134,6 +134,13 @@ private:
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
 
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
+
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 

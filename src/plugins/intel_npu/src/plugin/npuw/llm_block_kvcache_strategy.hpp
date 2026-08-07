@@ -122,6 +122,12 @@ public:
                                     const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
 
+    // Continuous prefill. Blocks need no KV movement, so the plan validates that the
+    // retained prefix is fully covered by allocated blocks and the apply truncates the
+    // block pool to it, releasing all suffix bindings.
+    std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) override;
+    void apply_continued_prefill(ContinuedPrefillPlan& plan) override;
+
 private:
     // -------------------------------------------------------------------------
     // Private helper structs (used only during initialize())
