@@ -426,14 +426,14 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     return initMainTensors;
 }
 
-ov::Tensor VCLCompilerImpl::compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                               const FilteredConfig& config,
-                                               size_t callNumber) const {
+std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
+    const std::shared_ptr<ov::Model>& model,
+    const FilteredConfig& config,
+    size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
     updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber)}});
-    // The compatibility descriptor is not supported in this case
-    return compile(model, updatedConfig, true).first;
+    return compile(model, updatedConfig, true);
 }
 
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,

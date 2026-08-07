@@ -41,6 +41,7 @@ public:
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
                     const bool blobIsPersistent = false);
 
     /**
