@@ -173,10 +173,10 @@ ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_
     return ov_status_e::OK;
 }
 
-OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_scale_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                                    const float* values,
-                                                    const int32_t value_size) {
+ov_status_e ov_preprocess_preprocess_steps_scale_multi_channels(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    const float* values,
+    const int32_t value_size) {
     if (!preprocess_input_process_steps || !values || value_size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -202,10 +202,10 @@ ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t
     return ov_status_e::OK;
 }
 
-OPENVINO_C_API(ov_status_e)
-ov_preprocess_preprocess_steps_mean_multi_channels(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
-                                                   const float* values,
-                                                   const int32_t value_size) {
+ov_status_e ov_preprocess_preprocess_steps_mean_multi_channels(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    const float* values,
+    const int32_t value_size) {
     if (!preprocess_input_process_steps || !values || value_size <= 0) {
         return ov_status_e::INVALID_C_PARAM;
     }
@@ -321,6 +321,29 @@ ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subname(
                 names.emplace_back(_value);
             }
             va_end(args_ptr);
+        }
+
+        preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subname_v2(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    const char** sub_names) {
+    if (!preprocess_input_tensor_info) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<std::string> names = {};
+        if (sub_names_size > 0) {
+            for (size_t i = 0; i < sub_names_size; i++) {
+                names.emplace_back(sub_names[i]);
+            }
         }
 
         preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);

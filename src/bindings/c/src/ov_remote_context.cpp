@@ -75,6 +75,26 @@ ov_status_e ov_core_create_context(const ov_core_t* core,
     return ov_status_e::OK;
 }
 
+ov_status_e ov_core_create_context_v2(const ov_core_t* core,
+                                      const char* device_name,
+                                      const ov_property_t* property,
+                                      ov_remote_context_t** context) {
+    if (!core || !device_name || !context) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        std::string dev_name = device_name;
+        ov::RemoteContext object = core->object->create_context(dev_name, property->object);
+
+        std::unique_ptr<ov_remote_context> _context(new ov_remote_context);
+        _context->object = std::make_shared<ov::RemoteContext>(std::move(object));
+        *context = _context.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_remote_context_create_tensor(const ov_remote_context_t* context,
                                             const ov_element_type_e type,
                                             const ov_shape_t shape,
@@ -97,6 +117,29 @@ ov_status_e ov_remote_context_create_tensor(const ov_remote_context_t* context,
         std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
         auto tmp_type = get_element_type(type);
         ov::RemoteTensor object = context->object->create_tensor(tmp_type, tmp_shape, property);
+
+        std::unique_ptr<ov_tensor> _remote_tensor(new ov_tensor);
+        _remote_tensor->object = std::make_shared<ov::RemoteTensor>(std::move(object));
+        *remote_tensor = _remote_tensor.release();
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_remote_context_create_tensor_v2(const ov_remote_context_t* context,
+                                               const ov_element_type_e type,
+                                               const ov_shape_t shape,
+                                               const ov_property_t* property,
+                                               ov_tensor_t** remote_tensor) {
+    if (!context || !shape.dims || !remote_tensor) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+
+    try {
+        ov::Shape tmp_shape;
+        std::copy_n(shape.dims, shape.rank, std::back_inserter(tmp_shape));
+        auto tmp_type = get_element_type(type);
+        ov::RemoteTensor object = context->object->create_tensor(tmp_type, tmp_shape, property->object);
 
         std::unique_ptr<ov_tensor> _remote_tensor(new ov_tensor);
         _remote_tensor->object = std::make_shared<ov::RemoteTensor>(std::move(object));
