@@ -178,9 +178,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #ifdef KV_COMPRESSED
         , const global KEY_ATTR_SCALES_DATA_T *K_scales
+#if KEY_ZERO_POINTS
         , const global KEY_ATTR_ZP_DATA_T *K_zp
+#endif
         , const global VAL_ATTR_SCALES_DATA_T *V_scales
+#if VAL_ZERO_POINTS
         , const global VAL_ATTR_ZP_DATA_T *V_zp
+#endif
 #endif
         ) {
 #if IS_PAGED_ATTENTION
