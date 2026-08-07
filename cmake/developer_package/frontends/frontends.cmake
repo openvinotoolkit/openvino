@@ -223,7 +223,10 @@ macro(ov_add_frontend)
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
                 $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
-                ${frontend_root_dir}/src
+                ${frontend_root_dir}/src)
+
+    # Add binary dir as SYSTEM so generated protobuf headers don't trigger warnings
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
@@ -247,16 +250,83 @@ macro(ov_add_frontend)
         if(OV_FRONTEND_PROTOBUF_LITE)
             set(protobuf_target_name libprotobuf-lite)
             set(protobuf_install_name "protobuf_lite_installed")
+            set(protobuf_dependencies 
+                absl::absl_check
+                absl::absl_log
+                absl::base
+                absl::bits
+                absl::core_headers
+                absl::debugging
+                absl::die_if_null
+                absl::dynamic_annotations
+                absl::endian
+                absl::fixed_array
+                absl::inlined_vector
+                absl::log_severity
+                absl::memory
+                absl::raw_logging_internal
+                absl::span
+                absl::strings
+                absl::synchronization
+                absl::type_traits
+                absl::utility
+            )
         else()
             set(protobuf_target_name libprotobuf)
             set(protobuf_install_name "protobuf_installed")
+            set(protobuf_dependencies 
+                absl::absl_check
+                absl::absl_log
+                absl::algorithm
+                absl::base
+                absl::bind_front
+                absl::bits
+                absl::btree
+                absl::cleanup
+                absl::cord
+                absl::core_headers
+                absl::debugging
+                absl::die_if_null
+                absl::dynamic_annotations
+                absl::flags
+                absl::flat_hash_map
+                absl::flat_hash_set
+                absl::function_ref
+                absl::hash
+                absl::layout
+                absl::log_initialize
+                absl::log_globals
+                absl::log_severity
+                absl::memory
+                absl::node_hash_map
+                absl::node_hash_set
+                absl::optional
+                absl::span
+                absl::status
+                absl::statusor
+                absl::strings
+                absl::synchronization
+                absl::time
+                absl::type_traits
+                absl::utility
+                absl::variant
+            )
         endif()
+
         if(ENABLE_SYSTEM_PROTOBUF)
             # use imported target name with namespace
             set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+
+        # GCC emits -Warray-bounds / -Wstringop-overflow even from SYSTEM includes
+        # when instantiating header-only abseil code inside frontend translation units.
+        # With -Werror these become hard errors; downgrade to warnings here.
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            target_compile_options(${TARGET_NAME} PRIVATE
+                -Wno-error=array-bounds -Wno-error=stringop-overflow)
+        endif()
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -269,7 +339,14 @@ macro(ov_add_frontend)
                 # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
                 # no needs to install protobuf
             else()
-                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                # Install protobuf and ALL of its non-imported transitive deps (including
+                # internal abseil targets like absl_log_internal_check_impl).  A shallow
+                # ov_install_static_lib loop over the public protobuf_dependencies list is
+                # insufficient because each public absl target itself depends on many internal
+                # ones that must also be present in OpenVINOTargets for consumers to link.
+                set(_ov_protobuf_roots ${protobuf_target_name} ${protobuf_dependencies})
+                ov_install_static_deps(_ov_protobuf_roots ${OV_CPACK_COMP_CORE})
+                unset(_ov_protobuf_roots)
                 set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
             endif()
         endif()
