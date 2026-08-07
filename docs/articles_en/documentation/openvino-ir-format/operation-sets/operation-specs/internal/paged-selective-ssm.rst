@@ -178,3 +178,64 @@ Cases for reading and updating blocks:
 
 * *T*: any floating-point type.
 * *T_IND*: ``int32`` or ``int64``.
+
+
+**Example**
+
+.. code-block:: xml
+   :force:
+
+   <layer ... type="PagedSelectiveSSM" ...>
+       <input>
+           <port id="0"> <!-- `A` -->
+               <dim>8</dim>
+           </port>
+           <port id="1"> <!-- `dt` -->
+               <dim>6</dim>
+               <dim>8</dim>
+           </port>
+           <port id="2"> <!-- `B` -->
+               <dim>6</dim>
+               <dim>2</dim>
+               <dim>128</dim>
+           </port>
+           <port id="3"> <!-- `x` -->
+               <dim>6</dim>
+               <dim>8</dim>
+               <dim>64</dim>
+           </port>
+           <port id="4"> <!-- `C` -->
+               <dim>6</dim>
+               <dim>2</dim>
+               <dim>128</dim>
+           </port>
+           <port id="5"> <!-- `recurrent_state_table` -->
+               <dim>5</dim>
+               <dim>8</dim>
+               <dim>64</dim>
+               <dim>128</dim>
+           </port>
+           <port id="6"> <!-- `subsequence_begins` -->
+               <dim>3</dim>
+           </port>
+           <port id="7"> <!-- `la_block_indices` -->
+               <dim>5</dim>
+           </port>
+           <port id="8"> <!-- `la_block_indices_begins` -->
+               <dim>3</dim>
+           </port>
+           <port id="9"> <!-- `num_processed_tokens` -->
+               <dim>2</dim>
+           </port>
+           <port id="10"> <!-- `cache_interval` -->
+               <dim>2</dim>
+           </port>
+       </input>
+       <output>
+           <port id="11"> <!-- `output` -->
+               <dim>6</dim>
+               <dim>8</dim>
+               <dim>64</dim>
+           </port>
+       </output>
+   </layer>
