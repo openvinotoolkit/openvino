@@ -28,14 +28,16 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
     const std::vector<ov::element::Type>& supported_activation_types,
     const std::vector<ov::element::Type>& supported_weights_types,
     const SupportsPredicate& supports_config,
-    bool convert_u4zp_to_u8) {
+    bool convert_u4zp_to_u8,
+    bool enable_parameter_weights) {
     using namespace ov::pass::pattern;
     using ov::op::internal::GatherMatmul;
     using ov::op::internal::GatherMatmulCompressed;
 
     auto activation = any_input(type_matches_any(supported_activation_types));
-    auto weights_block =
-        std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types, std::set<size_t>{3});
+    auto weights_block = std::make_shared<ov::pass::pattern::op::CompressedWeightsBlock>(supported_weights_types,
+                                                                                         std::set<size_t>{3},
+                                                                                         enable_parameter_weights);
     auto indices = any_input();
     auto bias = any_input();
     auto gather_matmul = wrap_type<GatherMatmul>({activation, weights_block, indices, bias});
@@ -48,20 +50,26 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
         }
 
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
-        const auto& weights_shape = bgm->get_input_shape(1);
+        // Weights/scale are static here: constants always are, and CompressedWeightsBlock requires
+        // static shapes for the parameter-weights case (has_static_shape predicate).
+        const auto& weights_pshape = bgm->get_input_partial_shape(1);
+        const auto& scale_pshape = weights_block->get_anchor("mul_const", pattern_map).value().get_partial_shape();
+        const auto weights_shape = weights_pshape.to_shape();
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
-        auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
+        const auto scale_shape = scale_pshape.to_shape();
         bool grouped = scale_shape.size() == weights_shape.size() + 1;
 
         ov::NodeVector result_nodes;
         const auto [bgm_input_b, bgm_input_scale, bgm_input_zp] =
-            ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(weights_block,
-                                                                                                  pattern_map,
-                                                                                                  convert_u4zp_to_u8,
-                                                                                                  has_transpose,
-                                                                                                  grouped,
-                                                                                                  batched_weights,
-                                                                                                  result_nodes);
+            ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
+                weights_block,
+                pattern_map,
+                convert_u4zp_to_u8,
+                has_transpose,
+                grouped,
+                batched_weights,
+                result_nodes,
+                enable_parameter_weights);
 
         auto new_bgm = std::make_shared<GatherMatmulCompressed>(pattern_map.at(activation),
                                                                 bgm_input_b,
