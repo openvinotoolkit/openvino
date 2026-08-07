@@ -46,6 +46,10 @@ Use the following cmake option to enable debug capabilities:
   When to use: slow inference — displays per-node timing summary when the model is destructed.
   Example: `OV_CPU_SUMMARY_PERF=1`
 
+* [Max ISA cap](max_isa.md)
+  When to use: reproduce lower-ISA behavior on higher-ISA hardware — caps runtime ISA dispatch for OV kernels and oneDNN. Both `OV_CPU_MAX_ISA` and `ONEDNN_MAX_CPU_ISA` must be set to the same value.
+  Example: `OV_CPU_MAX_ISA=AVX2 ONEDNN_MAX_CPU_ISA=AVX2`
+
 * Memory statistics
   When to use:
   - high memory usage or just memory profiling — dumps memory usage statistics per compiled model.
