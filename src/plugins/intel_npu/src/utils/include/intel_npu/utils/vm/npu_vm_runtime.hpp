@@ -72,7 +72,8 @@ extern "C" {
 typedef enum _npu_vm_runtime_version_t {
     NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),           ///< version 1.0
     NPU_VM_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),           ///< version 1.1
-    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_1,  ///< latest known version
+    NPU_VM_RUNTIME_VERSION_1_2 = ZE_MAKE_VERSION(1, 2),           ///< version 1.2
+    NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_1_2,  ///< latest known version
     NPU_VM_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
 } npu_vm_runtime_version_t;
 
@@ -257,6 +258,93 @@ typedef struct _npu_vm_runtime_predict_output_shape_params_t2 {
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape2(
     npu_vm_runtime_handle_t hRuntime,                       ///< [in] handle of VM runtime object
     npu_vm_runtime_predict_output_shape_params_t2* pParams  ///< [in] pointer to predict output shape parameters
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Version 1.2
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Runtime properties
+///////////////////////////////////////////////////////////////////////////////
+/// @brief command list type
+typedef enum _npu_vm_command_list_type_t {
+    NPU_VM_RUNTIME_COMMAND_LIST_TYPE_DEFAULT = 0,
+    NPU_VM_RUNTIME_COMMAND_LIST_TYPE_IMMEDIATE = 0x1
+} npu_vm_command_list_type_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Host sync type
+typedef enum _npu_vm_host_sync_type_t {
+    NPU_VM_RUNTIME_HOST_SYNC_TYPE_FENCE_OR_EVENT = 0,
+    NPU_VM_RUNTIME_HOST_SYNC_TYPE_FENCE = 0x1,
+    NPU_VM_RUNTIME_HOST_SYNC_TYPE_EVENT = 0x2,
+    NPU_VM_RUNTIME_HOST_SYNC_TYPE_COUNTER_BASED_EVENT = 0x4
+} npu_vm_host_sync_type_t;
+
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Runtime execution properties
+typedef struct _npu_vm_runtime_execution_properties_t {
+    npu_vm_command_list_type_t commandListType;
+    npu_vm_host_sync_type_t hostSyncType;
+} npu_vm_runtime_execution_properties_t;
+
+///////////////////////////////////////////////////////////////////////////////
+typedef ze_result_t (*npu_vm_runtime_create_command_list_func_t)(
+                                    ze_context_handle_t context,
+                                    ze_device_handle_t device,
+                                    uint32_t cmdQueueGroupOrdinal,
+                                    ze_command_list_handle_t* commandList);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Creation params
+typedef struct _npu_vm_runtime_creation_params_t {
+    ze_context_handle_t ctx;
+    ze_device_handle_t device;
+    ze_graph_dditable_ext_t* graphDdiTableExt;
+    npu_vm_runtime_create_command_list_func_t createCommandListFunc;
+    bool commandQueueShared;
+} npu_vm_runtime_creation_params_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Init VM runtime instance and return handle
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
+    const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
+    const npu_vm_runtime_creation_params_t* pCreationParams,  ///< [in] pointer to creation parameters
+    npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
+    npu_vm_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
+);
+
+///////////////////////////////////////////////////////////////////////////////
+typedef struct _npu_vm_runtime_execute_params2_t {
+    npu_vm_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+    npu_vm_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+    ze_context_handle_t ctx;
+    ze_device_handle_t device;
+    ze_graph_dditable_ext_t* graphDdiTableExt;
+    ze_command_list_handle_t* commandLists;
+    uint64_t numCommandLists;
+    ze_command_queue_handle_t commandQueue;
+    ze_fence_handle_t inferenceFence;
+    ze_event_handle_t event;
+    npu_vm_runtime_execution_context_handle_t executionContext;
+    npu_vm_host_sync_type_t hostSyncType;
+} npu_vm_runtime_execute_params2_t;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Execute VM runtime with params
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeExecute2(
+    npu_vm_runtime_handle_t hRuntime,         ///< [in] handle of VM runtime object
+    npu_vm_runtime_execute_params2_t* pParams  ///< [in] pointer to execution parameters
+);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Returns execution properties of the runtime
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetExecutionProperties(
+    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
+    npu_vm_runtime_execution_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
 
 #if defined(__cplusplus)
