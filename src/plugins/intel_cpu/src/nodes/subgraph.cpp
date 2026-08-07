@@ -57,15 +57,28 @@
 #    include "cache/cache_entry.h"
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "openvino/op/add.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "snippets/op/buffer.hpp"
+#    include "snippets/op/kernel.hpp"
+#    include "snippets/op/load.hpp"
+#    include "snippets/op/rank_normalization.hpp"
+#    include "snippets/op/reg_spill.hpp"
+#    include "snippets/op/reorder.hpp"
+#    include "snippets/op/reshape.hpp"
+#    include "snippets/op/result.hpp"
+#    include "snippets/op/store.hpp"
+#    include "snippets/op/vector_buffer.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/eliminate_gemm_copy_b.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #    include "transformations/snippets/aarch64/pass/repack_matmul_weights.hpp"
+#    include "transformations/snippets/common/op/load_convert.hpp"
+#    include "transformations/snippets/common/op/store_convert.hpp"
 #elif defined(OPENVINO_ARCH_RISCV64)
 #    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
@@ -222,7 +235,17 @@ static _ov_dnnl_cpu_isa getHostIsa() {
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
                                                                             : dnnl::impl::cpu::x64::avx2;
 #elif defined(OPENVINO_ARCH_ARM64)
-    return dnnl::impl::cpu::aarch64::asimd;
+    namespace aarch64 = dnnl::impl::cpu::aarch64;
+    if (aarch64::mayiuse(aarch64::sve_512)) {
+        return aarch64::sve_512;
+    }
+    if (aarch64::mayiuse(aarch64::sve_256)) {
+        return aarch64::sve_256;
+    }
+    if (aarch64::mayiuse(aarch64::sve_128)) {
+        return aarch64::sve_128;
+    }
+    return aarch64::asimd;
 #elif defined(OPENVINO_ARCH_RISCV64)
     OPENVINO_ASSERT(ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv),
                     "RISC-V Subgraph code generation requires vector ISA support");
@@ -231,6 +254,25 @@ static _ov_dnnl_cpu_isa getHostIsa() {
     OPENVINO_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 }
+
+#if defined(OPENVINO_ARCH_ARM64)
+static impl_desc_type getImplType(dnnl::impl::cpu::aarch64::cpu_isa_t isa) {
+    using namespace dnnl::impl::cpu::aarch64;
+
+    switch (isa) {
+    case sve_512:
+        return impl_desc_type::jit_sve512;
+    case sve_256:
+        return impl_desc_type::jit_sve256;
+    case sve_128:
+        return impl_desc_type::jit_sve128;
+    case asimd:
+        return impl_desc_type::jit_asimd;
+    default:
+        return impl_desc_type::unknown;
+    }
+}
+#endif
 
 Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, SnippetShapeInferFactory(op)),
@@ -398,9 +440,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
         impl_desc_type impl_type = impl_desc_type::unknown;
 #if defined(OPENVINO_ARCH_ARM64)
-        if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
-            impl_type = impl_desc_type::jit_asimd;
-        }
+        impl_type = getImplType(host_isa);
 #elif defined(OPENVINO_ARCH_RISCV64)
         if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
             impl_type = impl_desc_type::jit_gv;
@@ -878,6 +918,16 @@ void Subgraph::optimizeIR() {
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work
     // amount) needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts
     // in domain optimization.
+#if defined(OPENVINO_ARCH_ARM64)
+    const auto target_machine =
+        std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(subgraph->get_generator()->get_target_machine());
+    if (target_machine && !target_machine->supports_current_isa(subgraph->body_ptr())) {
+        host_isa = dnnl::impl::cpu::aarch64::asimd;
+        subgraph->set_generator(std::make_shared<aarch64::CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
+        getSelectedPrimitiveDescriptor()->setImplementationType(getImplType(host_isa));
+    }
+#endif
+
     subgraph->control_flow_transformations(static_cast<size_t>(parallel_get_max_threads()),
                                            256,
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
