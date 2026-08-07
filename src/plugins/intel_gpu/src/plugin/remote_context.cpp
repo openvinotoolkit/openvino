@@ -9,6 +9,8 @@
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "runtime/ocl/offline_engine.hpp"
+#include <iostream>
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -289,9 +291,16 @@ void RemoteContextImpl::initialize() {
     std::call_once(m_initialize_flag, [this]() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
-        m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(
-            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        if (dynamic_cast<cldnn::ocl::offline_device*>(m_device.get())) {
+            // HW-free offline compile-only context: build a stub engine (no cl::Context / device init).
+            // Self-identified by the device type, so no env dependency. See offline_engine.
+            m_engine = std::make_shared<cldnn::ocl::offline_engine>(m_device);
+            std::cerr << "[GPU offline] RemoteContext uses stub offline_engine (no cl::Context)" << std::endl;
+        } else {
+            m_device->initialize();  // Initialize associated device before use
+            m_engine = cldnn::engine::create(
+                cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        }
 
         init_properties();
 

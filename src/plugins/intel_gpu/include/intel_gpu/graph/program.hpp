@@ -294,6 +294,11 @@ public:
     void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
               std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
 
+    // Runs the propagate_constants pass on an already-loaded (deserialized) program. Used on the
+    // import path for blobs produced by offline compile-only, which skip constant folding at compile
+    // time (no GPU there); folding is deferred to import where a real GPU is present.
+    void run_import_time_constant_folding();
+
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }
