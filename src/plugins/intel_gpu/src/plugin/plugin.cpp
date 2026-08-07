@@ -41,6 +41,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -676,6 +677,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         }
     } else if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
+    } else if (name == ov::intel_gpu::runtime_type) {
+        return decltype(ov::intel_gpu::runtime_type)::value_type {std::string(cldnn::get_runtime_cache_tag())};
     } else if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
     } else if (name == ov::intel_gpu::device_id) {
@@ -727,6 +730,8 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        // Partition the model cache per runtime: OCL and ZE blobs must never alias.
+        ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
     };
 
     return caching_properties;
@@ -1033,5 +1038,82 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
 }  // namespace ov::intel_gpu
 
+namespace {
+
+// Append the raw bytes of a trivially-copyable value to a byte buffer.
+template <typename T>
+void append_bytes(std::vector<uint8_t>& out, const T& value) {
+    const auto* bytes = reinterpret_cast<const uint8_t*>(&value);
+    out.insert(out.end(), bytes, bytes + sizeof(T));
+}
+
+// Opaque cross-runtime identity: a fixed-width byte layout over fields present and
+// identically-valued in both the OCL and ZE stacks - PCI-BDF + vendor id + sub-device
+// index. UUID is deliberately EXCLUDED (ZE always sets it, legacy OCL zero-fills it, so
+// it would differ for the same device and split the merge). Core compares by == only.
+std::vector<uint8_t> make_fingerprint(const cldnn::device_info& info) {
+    std::vector<uint8_t> fp;
+    append_bytes(fp, info.pci_info.pci_domain);
+    append_bytes(fp, info.pci_info.pci_bus);
+    append_bytes(fp, info.pci_info.pci_device);
+    append_bytes(fp, info.pci_info.pci_function);
+    append_bytes(fp, info.vendor_id);
+    append_bytes(fp, info.sub_device_idx);
+    return fp;
+}
+
+void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
+    try {
+        // Debug override OV_GPU_RUNTIME=OCL|ZE (only what a group ships; anything else, e.g. SYCL,
+        // is ignored - it would drop every candidate's Intel devices and hide the device entirely).
+        static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
+        const bool has_override = forced == "OCL" || forced == "ZE";
+        const bool is_this_runtime = std::string_view(forced) == cldnn::get_runtime_cache_tag();
+
+        for (const auto& d : cldnn::lightweight_enumerate()) {
+            const auto& info = d.info;
+            ov::EnumeratedDevice e;
+            e.internal_id = d.map_id;
+            e.fingerprint = make_fingerprint(info);
+
+            const bool intel = (info.vendor_id == cldnn::INTEL_VENDOR_ID);
+            // Perf tier from gfx_ver.major (Xe2+ == 20: BMG/LNL 20.x, PTL 30.x), NOT from
+            // gpu_arch, which is unknown in this no-oneDNN probe build (device_ops_table).
+            const bool xe2_plus = intel && info.gfx_ver.major >= 20;
+
+#if defined(OV_GPU_WITH_ZE_RT)
+            // Level Zero is Intel-only. ZE is PREFERRED only when perf-ideal (Xe2+) AND
+            // the real ZE<->OCL interop capability is present (supports_leo, read without
+            // engine init); otherwise it yields to the interop-safe OCL build.
+            e.score = !intel                            ? ov::PROBE_SCORE_INCOMPATIBLE
+                      : (xe2_plus && info.supports_leo) ? ov::PROBE_SCORE_PREFERRED
+                                                        : ov::PROBE_SCORE_SERVABLE;
+#elif defined(OV_GPU_WITH_OCL_RT)
+            // OCL serves interop natively (no LEO concept). CAPABLE on Xe2+ so it wins
+            // when ZE lacks LEO (ZE=SERVABLE) but loses when ZE has it (ZE=PREFERRED).
+            e.score = !intel     ? ov::PROBE_SCORE_SERVABLE
+                      : !xe2_plus ? ov::PROBE_SCORE_PREFERRED
+                                  : ov::PROBE_SCORE_CAPABLE;
+#else
+            e.score = ov::PROBE_SCORE_SERVABLE;
+#endif
+            // Override affects only Intel devices (the runtimes' shared, contended set); a
+            // non-Intel GPU keeps its OCL score so it stays served regardless of the override.
+            if (has_override && intel && e.score != ov::PROBE_SCORE_INCOMPATIBLE) {
+                e.score = is_this_runtime ? ov::PROBE_SCORE_PREFERRED : ov::PROBE_SCORE_INCOMPATIBLE;
+            }
+            out.push_back(std::move(e));
+        }
+    } catch (...) {
+        out.clear();  // Any failure -> "I serve nothing"; the probe never throws.
+    }
+}
+
+}  // namespace
+
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
+
+// Real implementation of the plugin-ABI enumeration probe (the GPU plugin participates
+// in device-name dispatch); mirrors the stub every other plugin exports.
+OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_dispatch_devices)

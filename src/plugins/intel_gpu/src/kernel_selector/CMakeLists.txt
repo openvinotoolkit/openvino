@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_kernels")
+set(TARGET_NAME "openvino_intel_gpu_kernels${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -67,11 +70,11 @@ target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 if (ENABLE_ONEDNN_FOR_GPU)
-    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
+    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE OpenCL::OpenCL openvino::runtime::dev)
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -91,7 +94,7 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_RT STREQUAL "SYCL")
   # Some sources include oneDNN headers that require SYCL backend support.
   # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
   add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)

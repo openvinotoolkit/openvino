@@ -310,8 +310,7 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parse_device_name_into_config(device_name, params);
-        auto remoteContext = _impl->get_plugin(parsed.m_device_name).create_context(parsed.m_config);
+        auto remoteContext = _impl->create_context(device_name, params);
         return {remoteContext._ptr, remoteContext._so};
     });
 }
@@ -323,8 +322,7 @@ RemoteContext Core::get_default_context(const std::string& device_name) {
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support default remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parse_device_name_into_config(device_name, AnyMap{});
-        auto remoteContext = _impl->get_plugin(parsed.m_device_name).get_default_context(parsed.m_config);
+        auto remoteContext = _impl->get_default_context(device_name);
         return {remoteContext._ptr, remoteContext._so};
     });
 }

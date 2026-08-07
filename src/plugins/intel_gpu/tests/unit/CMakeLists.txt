@@ -99,7 +99,14 @@ add_executable(${TARGET_NAME} ${SOURCES_ALL})
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER="")
 
 ov_set_threading_interface_for(${TARGET_NAME})
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+# The unit tests link one runtime's static stack. In a COMBINED build that is the ZE twin
+# (its targets carry the unsuffixed names linked below); otherwise it is the single RT.
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    set(OV_GPU_TESTS_RT "ZE")
+else()
+    set(OV_GPU_TESTS_RT "${GPU_RT_TYPE}")
+endif()
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_TESTS_RT})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

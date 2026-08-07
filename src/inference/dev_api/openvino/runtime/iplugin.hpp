@@ -9,8 +9,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -291,6 +294,53 @@ using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
  */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
 
+/**
+ * @brief A score describing how well a plugin library can serve a physical device
+ * during device-name dispatch. Higher wins; 0 means "cannot serve" and is excluded.
+ * @ingroup ov_dev_api_plugin_api
+ */
+using DeviceCompatibilityScore = int32_t;
+
+/// Vendor/tier mismatch: the library cannot serve this device. Never selected.
+constexpr DeviceCompatibilityScore PROBE_SCORE_INCOMPATIBLE = 0;
+/// Can run, but not preferred (fallback tier).
+constexpr DeviceCompatibilityScore PROBE_SCORE_SERVABLE = 1;
+/// Can run well and satisfies a hard requirement the peer library may not.
+constexpr DeviceCompatibilityScore PROBE_SCORE_CAPABLE = 50;
+/// Ideal runtime for this device.
+constexpr DeviceCompatibilityScore PROBE_SCORE_PREFERRED = 100;
+
+/**
+ * @brief One physical device a plugin library reports it can serve, during
+ * device-name dispatch. Produced by the enumeration probe (@ref EnumerateDevicesFunc),
+ * consumed by ov::Core to reconcile candidate libraries for a shared device name.
+ * @ingroup ov_dev_api_plugin_api
+ */
+struct EnumeratedDevice {
+    /// The device id THIS library uses internally (".N"); may differ across libraries.
+    std::string internal_id;
+    /// Opaque cross-library identity token. Core compares it by equality only, never
+    /// interprets it. Two libraries that build it over the same fields yield equal
+    /// bytes for the same physical device.
+    std::vector<uint8_t> fingerprint;
+    /// How well this library serves the device (see PROBE_SCORE_* constants).
+    DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
+};
+
+/**
+ * @private
+ * @brief Signature of the enumeration probe. Enumerates every device this library can
+ * serve, cheaply (a driver device query at most) and WITHOUT constructing the plugin
+ * engine. noexcept, idempotent, no observable per-call side effect. If the library can
+ * serve nothing (no driver), it clears the output vector and returns.
+ */
+using EnumerateDevicesFunc = void(std::vector<EnumeratedDevice>& /*out*/) noexcept;
+
+/**
+ * @private
+ */
+constexpr static const auto enumerate_devices_function = "ov_enumerate_dispatch_devices";
+
 }  // namespace ov
 
 /**
@@ -307,4 +357,35 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
         } catch (const std::exception& ex) {                                                             \
             OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
+    }
+
+/**
+ * @def OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_fn)
+ * @brief Defines the exported `ov_enumerate_dispatch_devices` device-dispatch probe by
+ * forwarding to @p enumerate_fn (a callable with the ov::EnumerateDevicesFunc signature).
+ * Used by plugins that participate in device-name dispatch (e.g. the GPU plugin).
+ * The symbol is resolved and called by ov::Core BEFORE the plugin engine is constructed,
+ * so @p enumerate_fn must not build an engine/context. See ov::EnumerateDevicesFunc.
+ * @ingroup ov_dev_api_plugin_api
+ */
+#define OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_fn)                                            \
+    OPENVINO_PLUGIN_API void ov_enumerate_dispatch_devices(                                          \
+        ::std::vector<::ov::EnumeratedDevice>& devices) noexcept;                                    \
+    void ov_enumerate_dispatch_devices(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {    \
+        (enumerate_fn)(devices);                                                                     \
+    }
+
+/**
+ * @def OV_DEFINE_PLUGIN_ENUMERATE_STUB()
+ * @brief Defines the exported `ov_enumerate_dispatch_devices` probe as a no-op that reports
+ * no devices. Used by every plugin that does NOT participate in device-name dispatch, so the
+ * symbol is uniformly present across the plugin ABI. ov::Core never calls it for a
+ * single-candidate device name, so a stubbed plugin keeps exactly today's behavior.
+ * @ingroup ov_dev_api_plugin_api
+ */
+#define OV_DEFINE_PLUGIN_ENUMERATE_STUB()                                                            \
+    OPENVINO_PLUGIN_API void ov_enumerate_dispatch_devices(                                          \
+        ::std::vector<::ov::EnumeratedDevice>& devices) noexcept;                                    \
+    void ov_enumerate_dispatch_devices(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {    \
+        devices.clear();                                                                             \
     }

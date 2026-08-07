@@ -37,7 +37,14 @@ ov_add_test_target(
             OV GPU
 )
 
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+# Functional tests load the plugin dynamically; OV_GPU_WITH_*_RT only selects which remote-tensor
+# interop tests compile. COMBINED ships both runtimes, so compile both sets; single-RT its own.
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1 OV_GPU_WITH_OCL_RT=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin_ocl)
+else()
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
+endif()
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
