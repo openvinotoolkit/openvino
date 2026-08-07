@@ -42,6 +42,12 @@ JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params
 
     jit.AddConstant(MakeJitConstant("OP_SEED", params.op_seed));
     jit.AddConstant(MakeJitConstant("OUTPUT_STEP", getStep(params)));
+
+    if (params.outputs[0].GetDType() == Datatype::BF16) {
+        jit.AddConstant(MakeJitConstant("OUTPUT_TYPE_NAME", "bf16"));
+    } else {
+        jit.AddConstant(MakeJitConstant("OUTPUT_TYPE_NAME", "OUTPUT_TYPE"));
+    }
     return jit;
 }
 
@@ -78,12 +84,14 @@ ParamsKey RandomUniformKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
 
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bfyx);

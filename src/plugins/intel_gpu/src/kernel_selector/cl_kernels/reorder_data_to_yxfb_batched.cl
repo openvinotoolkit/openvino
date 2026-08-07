@@ -6,6 +6,7 @@
 #include "include/batch_headers/fetch_data.cl"
 
 
+
 inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint* b, uint* f, uint* x, uint* y)
 {
     uint tmp_data_idx = data_idx / INPUT0_BATCH_NUM;
@@ -48,21 +49,21 @@ KERNEL (reorder_data_to_yxfb_batched)(
         const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
 
     #if defined MEAN_SUBTRACT_INSIDE_PARAMS
-        float res = TO_MEAN_TYPE(LOAD_(input_idx));
+        float res = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
         res = MEAN_OP(res, VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE]);
     #elif defined MEAN_SUBTRACT_IN_BUFFER
     #if defined MEAN_PER_FEATURE
-        MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(LOAD_(input_idx));
+        MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
         res = MEAN_OP(res, DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[f]));
     #else
-        MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(LOAD_(input_idx));
+        MEAN_SUBTRACT_COMPUTE_TYPE res = TO_MEAN_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
         uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, y,x);
         res = MEAN_OP(res, DECODE_MEAN_SUBTRACT_COMPUTE_TYPE(mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])]));
     #endif
     #else
-        CALC_TYPE res = TO_CALC_TYPE(LOAD_(input_idx));
+        CALC_TYPE res = TO_CALC_TYPE(DECODE_INPUT_REORDER_COMPUTE_TYPE(input[input_idx]));
     #endif
 
-        STORE_(output_idx, res);
+        output[output_idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_COMPUTE_TYPE(res), ACTIVATION_PARAMS_TYPED));
     }
 }
