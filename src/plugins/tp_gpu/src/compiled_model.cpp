@@ -6,6 +6,7 @@
 
 #include "infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "tp_blob.hpp"
 
 namespace ov {
 namespace tp_gpu {
@@ -15,20 +16,70 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                              std::vector<std::string>&& device_names,
                              TPL0SharedContextPtr shared_l0_ctx,
-                             TPDeviceCoordinatorPtr device_coordinator)
+                             TPDeviceCoordinatorPtr device_coordinator,
+                             bool loaded_from_cache)
     : ov::ICompiledModel(model, plugin),
       m_shared_l0_ctx(std::move(shared_l0_ctx)),
       m_device_coordinator(std::move(device_coordinator)),
       m_rank_compiled(std::move(rank_compiled)),
-      m_device_names(std::move(device_names)) {}
+      m_device_names(std::move(device_names)),
+      m_loaded_from_cache(loaded_from_cache) {
+    OPENVINO_ASSERT(!m_rank_compiled.empty(), "[TP_GPU] compiled model has no ranks");
+    OPENVINO_ASSERT(m_rank_compiled.size() == m_device_names.size(),
+                    "[TP_GPU] ", m_rank_compiled.size(), " rank models against ",
+                    m_device_names.size(), " device names");
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
+    // Restored from a blob: no IR was available to derive ports from. The
+    // rank models keep the user model's parameters untouched -- sharding only
+    // rewrites what happens between them -- so rank 0 describes the same
+    // interface, in the same order.
+    const auto& own = ov::ICompiledModel::inputs();
+    return own.empty() ? m_rank_compiled.front()->inputs() : own;
+}
+
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
+    const auto& own = ov::ICompiledModel::outputs();
+    return own.empty() ? m_rank_compiled.front()->outputs() : own;
+}
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
     return std::make_shared<InferRequest>(
         std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
-void CompiledModel::export_model(std::ostream&) const {
-    OPENVINO_NOT_IMPLEMENTED;
+void CompiledModel::export_model(std::ostream& stream) const {
+    stream.write(tp_blob::magic, sizeof(tp_blob::magic));
+    tp_blob::write_trivial<uint32_t>(stream, tp_blob::version);
+    tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_rank_compiled.size()));
+    tp_blob::write_trivial<uint32_t>(
+        stream,
+        static_cast<uint32_t>(m_device_coordinator ? m_device_coordinator->num_collectives() : 0));
+
+    for (const auto& name : m_device_names) {
+        tp_blob::write_string(stream, name);
+    }
+
+    for (const auto& rank : m_rank_compiled) {
+        // The rank blob length is only known once the GPU plugin has written
+        // it, so reserve the slot and patch it afterwards. Import needs the
+        // length to find the next rank instead of trusting the GPU reader to
+        // stop exactly on the blob boundary.
+        const auto length_pos = stream.tellp();
+        OPENVINO_ASSERT(length_pos != std::ostream::pos_type(-1),
+                        "[TP_GPU] export_model needs a seekable stream to record per-rank blob sizes");
+        tp_blob::write_trivial<uint64_t>(stream, uint64_t{0});
+
+        const auto blob_start = stream.tellp();
+        rank->export_model(stream);
+        const auto blob_end = stream.tellp();
+
+        stream.seekp(length_pos);
+        tp_blob::write_trivial<uint64_t>(stream, static_cast<uint64_t>(blob_end - blob_start));
+        stream.seekp(blob_end);
+        OPENVINO_ASSERT(stream.good(), "[TP_GPU] export_model failed while writing rank blobs");
+    }
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
@@ -45,7 +96,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties.name()) {
         return std::vector<ov::PropertyName>{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
         };
+    } else if (name == ov::loaded_from_cache.name()) {
+        return m_loaded_from_cache;
     }
     OPENVINO_THROW("[TP_GPU] Unsupported compiled model property: ", name);
 }

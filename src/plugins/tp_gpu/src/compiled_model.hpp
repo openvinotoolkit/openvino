@@ -18,12 +18,20 @@ namespace tp_gpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
+    /// \param model  The user model.  Null when the compiled model was
+    ///        restored from a blob: there is no IR at that point, and
+    ///        `inputs()`/`outputs()` fall back to rank 0 instead.
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                   std::vector<std::string>&& device_names,
                   TPL0SharedContextPtr shared_l0_ctx = nullptr,
-                  TPDeviceCoordinatorPtr device_coordinator = nullptr);
+                  TPDeviceCoordinatorPtr device_coordinator = nullptr,
+                  bool loaded_from_cache = false);
+
+    const std::vector<ov::Output<const ov::Node>>& inputs() const override;
+
+    const std::vector<ov::Output<const ov::Node>>& outputs() const override;
 
     void export_model(std::ostream& model) const override;
 
@@ -55,6 +63,7 @@ private:
     TPDeviceCoordinatorPtr m_device_coordinator;
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
+    bool m_loaded_from_cache{false};
     mutable std::mutex m_inference_mutex;
 };
 

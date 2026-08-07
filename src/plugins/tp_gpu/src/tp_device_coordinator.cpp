@@ -1207,6 +1207,12 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                     "[TP][L0] collective_id out of range: ", collective_id);
     OPENVINO_ASSERT(rank >= 0 && rank < m_world_size,
                     "[TP][L0] rank out of range: ", rank);
+    // A null device pointer reaches the driver as a request to wrap a host
+    // allocation at address 0 and makes the Level-Zero runtime abort the whole
+    // process, so it has to be rejected here while it is still diagnosable.
+    OPENVINO_ASSERT(in_dev != nullptr && out_dev != nullptr,
+                    "[TP][L0] null device buffer passed to allreduce (collective ", collective_id,
+                    ", rank ", rank, ", in=", in_dev, ", out=", out_dev, ")");
     throw_if_aborted();
 
     static const bool dbg = std::getenv("TP_DBG") != nullptr;
@@ -1284,6 +1290,12 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         OPENVINO_ASSERT(rdz.n == n && rdz.dtype == dtype,
                         "[TP][L0] inconsistent (n,dtype) across ranks for collective ",
                         collective_id);
+        for (int i = 0; i < m_world_size; ++i) {
+            OPENVINO_ASSERT(rdz.in_ptrs[i] && rdz.out_ptrs[i],
+                            "[TP][L0] collective ", collective_id, " has no buffers for rank ", i,
+                            "; the barrier was released by ", m_world_size,
+                            " arrivals that did not cover every rank");
+        }
 
         auto& slot = m_plans[collective_id];
         if (!slot) slot = std::make_unique<Plan>();
