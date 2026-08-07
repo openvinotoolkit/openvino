@@ -17,6 +17,11 @@ namespace mock_auto_plugin {
 
 class MockAutoPlugin : public Plugin {
 public:
+    MOCK_METHOD((ov::Any), get_property, ((const std::string&), (const ov::AnyMap&)), (const, override));
+    MOCK_METHOD((std::optional<float>),
+                get_device_utilization,
+                ((const std::string&), (const std::string&)),
+                (override));
     MOCK_METHOD((std::string),
                 get_device_list,
                 ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::filesystem::path&),
@@ -28,7 +33,16 @@ public:
                 (const, override));
     MOCK_METHOD(DeviceInformation,
                 select_device,
-                ((const std::vector<DeviceInformation>&), const std::string&, unsigned int),
+                ((const std::vector<DeviceInformation>&),
+                 const std::string&,
+                 unsigned int,
+                 (const std::unordered_map<std::string, unsigned>&),
+                 (const std::map<std::string, std::map<unsigned, float>>&)),
+                (override));
+    MOCK_METHOD((std::list<DeviceInformation>),
+                sort_device_by_perf_curve,
+                ((const std::list<DeviceInformation>&),
+                 (const std::map<std::string, std::map<unsigned, float>>&)),
                 (override));
     MOCK_METHOD((std::vector<DeviceInformation>),
                 parse_meta_devices,

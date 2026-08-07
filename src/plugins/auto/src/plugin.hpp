@@ -6,16 +6,20 @@
 #pragma once
 
 #include <filesystem>
-#include <map>
-#include <vector>
-#include <string>
 #include <list>
+#include <map>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "openvino/runtime/iplugin.hpp"
-#include "utils/log_util.hpp"
 #include "common.hpp"
-#include "plugin_config.hpp"
 #include "compiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "plugin_config.hpp"
+#include "utils/device_telemetry.hpp"
+#include "utils/log_util.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -53,9 +57,15 @@ public:
     MOCKTESTMACRO std::list<DeviceInformation> get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                                 const std::string& model_precision = "FP32") const;
 
-    MOCKTESTMACRO DeviceInformation select_device(const std::vector<DeviceInformation>& meta_devices,
-                                                 const std::string& model_precision = "FP32",
-                                                 unsigned int priority = 0);
+    MOCKTESTMACRO DeviceInformation
+    select_device(const std::vector<DeviceInformation>& meta_devices,
+                  const std::string& model_precision = "FP32",
+                  unsigned int priority = 0,
+                  const std::unordered_map<std::string, unsigned>& utilization_thresholds = {},
+                  const std::map<std::string, std::map<unsigned, float>>& perf_curve_table = {});
+    MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
+        const std::list<DeviceInformation>& valid_devices,
+        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table);
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
@@ -70,6 +80,8 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
+    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
+                                                              const std::string& device_type = "");
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
@@ -89,9 +101,12 @@ private:
                                                           const std::shared_ptr<const ov::Model>& model,
                                                           PluginConfig& load_config) const;
     std::string get_log_tag() const noexcept;
+    static float interpolate_perf_score(const std::map<unsigned, float>& curve, float utilization);
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
+    std::once_flag m_telemetry_client_init_once;
+    std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
 };
 
 }  // namespace auto_plugin
