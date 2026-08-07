@@ -49,6 +49,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -399,6 +400,28 @@ public:
     }
 };
 
+class MarkRMS : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkRMS");
+    MarkRMS() {
+        MATCHER_SCOPE(MarkRMS);
+        auto rms_pattern = pattern::wrap_type<ov::op::internal::RMS>([](const Output<Node>& output) -> bool {
+            return !is_conversion_disabled(output.get_node_shared_ptr(), element::f16);
+        });
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            disable_conversion(node, element::f16);
+            return true;
+        };
+        auto m = make_shared<pattern::Matcher>(rms_pattern, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 class PropagateDownDisableSensitivityForQuantized : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
@@ -470,6 +493,14 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, MarkRandomUniform)
+    // Mark RMS nodes to keep in FP32 only for stateless models (e.g. encoder-only models like T5).
+    // In such models, FFN activations can exceed the FP16 representable range (65504),
+    // causing overflow to INF and subsequent NaN in RMS normalization (INF * rsqrt(INF) = INF * 0 = NaN).
+    // Stateful models (LLMs with KV-cache) are designed for mixed-precision inference with
+    // bounded activations, so marking all RMS nodes causes unnecessary performance regression.
+    if (m->get_variables().empty()) {
+        REGISTER_PASS(manager, MarkRMS)
+    }
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
 
     // both Up and Down propagations are needed.

@@ -28,6 +28,10 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/opsets/opset2_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "ov_ops/rms.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -1384,4 +1388,77 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+TEST(TransformationTests, MarkRMS_keeps_rms_in_fp32_for_stateless_model) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        model = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        disable_conversion(rms, element::f16);
+        disable_conversion(gamma, element::f16);
+
+        model_ref = make_shared<Model>(OutputVector{rms}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkRMS_skips_rms_in_stateful_model) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+    {
+        // Create a stateful model (with ReadValue/Assign for KV-cache)
+        auto input = make_shared<v0::Parameter>(element::f32, PartialShape{1, 39, 768});
+        auto weight = v0::Constant::create(element::f32, Shape{768, 768}, {0.01f});
+        auto matmul = make_shared<v0::MatMul>(input, weight, false, true);
+
+        auto gamma = v0::Constant::create(element::f32, Shape{768}, {1.0f});
+        auto rms = make_shared<ov::op::internal::RMS>(matmul, gamma, 1e-6);
+
+        // Add a state variable to make the model stateful
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{PartialShape{1, 39, 768}, element::f32, "kv_cache"});
+        auto read_value = make_shared<ov::op::v6::ReadValue>(variable);
+        auto assign = make_shared<ov::op::v6::Assign>(rms, variable);
+
+        model = make_shared<Model>(OutputVector{rms}, SinkVector{assign}, ParameterVector{input});
+
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+    }
+
+    // Verify that RMS is NOT marked in stateful models
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::internal::RMS>(node)) {
+            ASSERT_FALSE(is_conversion_disabled(node, element::f16))
+                << "RMS should not be marked in stateful models to avoid performance regression";
+        }
+    }
 }
