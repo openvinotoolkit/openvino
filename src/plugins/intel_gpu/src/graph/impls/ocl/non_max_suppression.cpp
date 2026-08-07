@@ -115,12 +115,12 @@ static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, b
 
         auto get_additional_output_node_idx = [&] (bool is_third) {
             size_t offset = 2;
-            offset += arg.has_num_select_per_class();
-            offset += arg.has_iou_threshold();
-            offset += arg.has_score_threshold();
-            offset += arg.has_soft_nms_sigma();
+            offset += static_cast<size_t>(arg.has_num_select_per_class());
+            offset += static_cast<size_t>(arg.has_iou_threshold());
+            offset += static_cast<size_t>(arg.has_score_threshold());
+            offset += static_cast<size_t>(arg.has_soft_nms_sigma());
             if (is_third)
-                offset += arg.has_second_output();
+                offset += static_cast<size_t>(arg.has_second_output());
             return offset;
         };
 

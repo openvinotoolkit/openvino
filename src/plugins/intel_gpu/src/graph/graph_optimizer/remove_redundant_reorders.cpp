@@ -99,7 +99,7 @@ void remove_redundant_reorders::run(program& p) {
                                input.get_output_layout().data_type == data_types::u8;
             auto quantize_user = has_quantize_user(node);
 
-            if (!same_data_type && !(i8_u8_input && quantize_user))
+            if (!same_data_type && (!i8_u8_input || !quantize_user))
                 continue;
 
             // Avoid optimization of nv12 reorder
@@ -235,7 +235,7 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() ||
             r_node.has_mean() ||
             r_node.get_users().size() > 1 ||
-            r_node.get_primitive()->subtract_per_feature.size() ||
+            !r_node.get_primitive()->subtract_per_feature.empty() ||
             r_node.has_fused_primitives())
             continue;
 

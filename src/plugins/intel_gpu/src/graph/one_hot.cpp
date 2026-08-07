@@ -21,9 +21,7 @@ static bool is_output_bfzyx(const layout& input, int64_t axis) {
     if (axis == 4)
         return true;
     auto in_dims = input.get_tensor().sizes(format::bfyx);
-    if (in_dims[3] != 1)
-        return true;
-    return false;
+    return in_dims[3] != 1;
 }
 
 layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_params const& impl_param) {

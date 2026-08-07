@@ -33,7 +33,7 @@ void compile_graph::run(program& p) {
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         const auto& node = *(std::next(proc_order.begin(), idx));
 
-        bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+        bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
 
         if (can_select_impl) {
             tasks.emplace_back([node, &forcing_map, &exception] {

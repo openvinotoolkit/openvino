@@ -46,11 +46,7 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
 
     // Keep scalar and 1D placeholders out of the real attention-mask path.
-    if (attn_mask_pshape.rank().is_static() && attn_mask_pshape.rank().get_length() <= 1) {
-        return false;
-    }
-
-    return true;
+    return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
 }
 
 inline size_t get_key_cache_id(const cldnn::scaled_dot_product_attention& desc) {

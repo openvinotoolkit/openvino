@@ -947,6 +947,28 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NonTranspose
     }
 }
 
+// Large f16 matmul K>=8192, N<=4096: transposed path (transpose_b=true) when supports_immad=false.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_NoImmad_Transposed) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 9216});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{9216, 4096}, {1});
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, weights, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        manager.register_pass<ConvertMatMulToFullyConnected>(false);  // supports_immad=false
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 9216});
+        auto weights = ov::opset1::Constant::create(ov::element::f16, ov::Shape{9216, 4096}, {1});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, transpose, no_bias, ov::element::f16, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+}
+
 // Compute-bound large f16 matmul: M>512 and N>4096 → transposed path (transpose_b=true).
 TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_LargeF16_ComputeBound_Transposed) {
     {
