@@ -30,6 +30,11 @@ public:
         return true;
     }
 
+    // HostCompile has no fixed plugin-side batch size; return nullopt for the shared import path.
+    const std::optional<std::size_t> get_batch_size() const override {
+        return std::nullopt;
+    }
+
     ~DynamicGraph() override;
 
     const NetworkMetadata& get_metadata() const override;

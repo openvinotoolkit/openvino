@@ -357,22 +357,28 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     };
 
-    const auto isDynamicHostCompilePort = [](const auto& port) {
-        const auto& shape = port.get_partial_shape();
-        return shape.is_dynamic() && shape.rank().get_length() == 4 && shape[0].is_static();
-    };
-    const bool explicitHostCompile =
+    // Select HostCompile automatically for supported dynamic models.
+    if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
+        !(localConfig.has<DYNAMIC_SHAPE_TO_STATIC>() && localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        const auto isDynamicHostCompilePort = [](const auto& port) {
+            const auto& shape = port.get_partial_shape();
+            return shape.is_dynamic() && shape.rank().get_length() == 4 && shape[0].is_static();
+        };
+
+        const auto& modelInputs = model->inputs();
+        const auto& modelOutputs = model->outputs();
+        const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
+        const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+        if (inputsDynamic && outputsDynamic) {
+            _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+                         "for fully-dynamic model (inputs and outputs both dynamic)");
+            localConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+        }
+    }
+
+    const bool useDynamicGraphForDynamicModel =
+        model->is_dynamic() && compilerType == ov::intel_npu::CompilerType::PLUGIN &&
         localConfig.has<COMPILATION_MODE>() && localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
-    const auto& modelInputs = model->inputs();
-    const auto& modelOutputs = model->outputs();
-    const bool automaticHostCompile =
-        !localConfig.has<COMPILATION_MODE>() &&
-        !(localConfig.has<DYNAMIC_SHAPE_TO_STATIC>() && localConfig.get<DYNAMIC_SHAPE_TO_STATIC>()) &&
-        std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort) &&
-        std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
-    const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
-                                                compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                (explicitHostCompile || automaticHostCompile);
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -388,7 +394,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
 
         if (useDynamicGraphForDynamicModel) {
-            _logger.info("DynamicGraph compilation bypasses plugin-side batch handling.");
+            _logger.info("HostCompile compilation bypasses plugin-side batch handling.");
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
             // Handle models with variables (states)
