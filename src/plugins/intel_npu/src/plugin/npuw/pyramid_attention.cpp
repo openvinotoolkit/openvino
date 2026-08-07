@@ -139,6 +139,9 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
                 attention._inputs.push_back(
                     ov::npuw::function::Attention::Param{param, past_value_sequence_dims.begin()->second});
             }
+        } else if (param_name == "npuw_lr_full_cos" || param_name == "npuw_lr_full_sin") {
+            // Sequence dim is axis 2 for this Parameter's [1, 1, F, head_dim] shape.
+            attention._longrope_lut_inputs.push_back(ov::npuw::function::Attention::Param{param, 2u});
         }
     }
 
@@ -473,6 +476,20 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 new_shapes[param->output(0)] = new_shape;
                 LOG_DEBUG("  DQ value param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
             }
+        } else if (param_name == "npuw_lr_full_cos" || param_name == "npuw_lr_full_sin") {
+            // LongRoPE unrotated-K-cache full-range LUT Parameter (see CacheRawKeyPattern
+            // in partitioning/patterns/pre_compute.cpp, NPUW_LLM_LONGROPE_UNROTATED_KV).
+            // Shape is [1, 1, F, head_dim] (sequence dim is axis 2, not the last axis), so
+            // this bucket needs exactly current_context_length rows. NB: the runtime does
+            // NOT fill them from a contiguous prefix of the outer tensor - history comes
+            // from the outer prefix but the present rows come from the outer tensor's own
+            // TAIL (see bind_function_input() in attn_subgraph.cpp).
+            if (new_shape.size() > 2) {
+                new_shape[2] = current_context_length;
+                new_shapes[param->output(0)] = new_shape;
+                LOG_DEBUG("  LongRoPE LUT param '" << param_name << "' shape: " << original_shape << " -> "
+                                                   << new_shape);
+            }
         }
     }
 
@@ -802,6 +819,17 @@ std::optional<std::size_t> PyramidAttentionContiguous::kv_param_dim(size_t pyram
     return it->dim;
 }
 
+std::optional<std::size_t> PyramidAttentionContiguous::longrope_lut_dim(size_t pyramid_id, size_t input_idx) const {
+    const auto& params = _attention_infos[pyramid_id].longrope_lut_params;
+    auto it = std::find_if(params.begin(), params.end(), [input_idx](const auto& p) {
+        return p.idx == input_idx;
+    });
+    if (it == params.end()) {
+        return std::nullopt;
+    }
+    return it->dim;
+}
+
 void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& model, std::string& out) const {
     if (_attention_infos.empty()) {
         return;
@@ -843,6 +871,11 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
             info.params.reserve(func_attn._inputs.size());
             for (const auto& input : func_attn._inputs) {
                 info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
+            }
+            info.longrope_lut_params.reserve(func_attn._longrope_lut_inputs.size());
+            for (const auto& input : func_attn._longrope_lut_inputs) {
+                info.longrope_lut_params.push_back(
+                    {static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
             }
             info.mask_idx = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
             info.query_size = func_attn.query_len();

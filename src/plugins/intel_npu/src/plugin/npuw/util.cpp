@@ -1069,10 +1069,16 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
                 return current_node;
             }
 
-            // Allow traversing through Reshape and Transpose
+            // Allow traversing through Reshape and Transpose - also Add, to see past the
+            // "rotate raw K at attention time" chain CacheRawKeyPattern (pre_compute.cpp)
+            // may insert between the KV-cache Concat and the GQA-expansion: its terminal
+            // node is Add(Multiply(raw_k, cos), Multiply(rotate_half(raw_k), sin)), and
+            // input(0) of that Add always leads back to Multiply(raw_k, cos) -> raw_k
+            // directly, without ever visiting the rotate_half/passthrough side-branch.
             if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
                 ov::is_type<ov::op::v0::Unsqueeze>(current_node) || ov::is_type<ov::op::v1::Transpose>(current_node) ||
-                ov::is_type<ov::op::v1::Multiply>(current_node) || ov::is_type<ov::op::v0::Convert>(current_node)) {
+                ov::is_type<ov::op::v1::Multiply>(current_node) || ov::is_type<ov::op::v0::Convert>(current_node) ||
+                ov::is_type<ov::op::v1::Add>(current_node)) {
                 if (current_node->get_input_size() > 0) {
                     current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
                 } else {

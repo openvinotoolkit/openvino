@@ -8,6 +8,7 @@
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 
 namespace ov {
 namespace test {
@@ -133,6 +134,16 @@ private:
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
+
+    // LongRoPE full-range cos/sin table handles (see LongRopeHostLut,
+    // pre_compute.hpp) used to populate the npuw_lr_full_cos/npuw_lr_full_sin
+    // Parameters at runtime (see the lr_lut helpers in llm_infer_request.cpp) -
+    // only valid (is_valid() == true) when NPUW_LLM_LONGROPE_UNROTATED_KV is set
+    // and the model matched LongRopePatternPhi_v5. One entry for prefill, one per
+    // generate variant (parallel to m_kvcache_sizes - sizes can differ). Both are
+    // part of the exported blob (see serialize()/deserialize()).
+    ov::npuw::patterns::pre_compute::LongRopeHostLut m_longrope_prefill_lut;
+    std::vector<ov::npuw::patterns::pre_compute::LongRopeHostLut> m_longrope_generate_luts;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

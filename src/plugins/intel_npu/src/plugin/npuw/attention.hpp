@@ -30,6 +30,15 @@ struct Attention {
     };
     std::vector<Param> _inputs;
 
+    // LongRoPE unrotated-K-cache full-range LUT Parameters (npuw_lr_full_cos /
+    // npuw_lr_full_sin - see CacheRawKeyPattern in
+    // partitioning/patterns/pre_compute.cpp, NPUW_LLM_LONGROPE_UNROTATED_KV), if
+    // present in the model. Kept separate from _inputs/kv_param_dim because
+    // their runtime binding is different: kv_param_dim slices to past_len,
+    // while these need the FULL current bucket context length (no gap, unlike
+    // the mask - see attn_subgraph.cpp's bind_function_input()).
+    std::vector<Param> _longrope_lut_inputs;
+
     // FIXME: This may be way too specific for a generic dynamic block,
     // as it reflects the attention input here.
     PPtr _mask;
