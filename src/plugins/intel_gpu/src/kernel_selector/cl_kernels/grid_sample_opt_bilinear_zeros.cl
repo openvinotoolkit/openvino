@@ -28,6 +28,33 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 }
 #define is_between FUNC_CALL(is_between)
 
+// WARNING: This loads may read from 'wrong' location
+// (in sense that is has nothing to do with
+// sampling point being calculated) - this is done
+// intentianally to keep warp without need to sync
+// and allows for having multiple such loads on the fly - if
+// compiler is smart enough.
+// Otherwise, if load is done conditionally, software pipelinging
+// is hindered by having warp sync due to warp divergence.
+// Tested on a770 GPU with ocl 3.0
+#define LOAD_INPUT(c)                                             \
+    const data_et v00_d = data[INPUT0_GET_INDEX(n, c, y0c, x0c)]; \
+    const data_et v01_d = data[INPUT0_GET_INDEX(n, c, y0c, x1c)]; \
+    const data_et v10_d = data[INPUT0_GET_INDEX(n, c, y1c, x0c)]; \
+    const data_et v11_d = data[INPUT0_GET_INDEX(n, c, y1c, x1c)];
+
+#define INTERPOLATE()                                      \
+    const data_et v00 = v00_valid ? v00_d * (1 - dx) : 0;  \
+    const data_et v01 = v01_valid ? v01_d * dx : 0;        \
+    const data_et v10 = v10_valid ? v10_d * (1 - dx) : 0;  \
+    const data_et v11 = v11_valid ? v11_d * dx : 0;        \
+                                                           \
+    const data_et q0 = v00 + v01;                          \
+    const data_et q1 = v10 + v11;                          \
+    const data_et out = dy * q1 + (1 - dy) * q0;
+
+#define STORE(c) output[OUTPUT_GET_INDEX(n, c, h, w)] = out;
+
 // ====================================================================
 //
 // GRID SAMPLE KERNEL (layout-agnostic data/output addressing)
@@ -118,24 +145,15 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
 
 #pragma unroll
         for (int c = 0; c < OUTPUT_FEATURE_NUM; ++c) {
-            const data_et v00_d = data[INPUT0_GET_INDEX(n, c, y0c, x0c)];
-            const data_et v01_d = data[INPUT0_GET_INDEX(n, c, y0c, x1c)];
-            const data_et v10_d = data[INPUT0_GET_INDEX(n, c, y1c, x0c)];
-            const data_et v11_d = data[INPUT0_GET_INDEX(n, c, y1c, x1c)];
-
-            const data_et v00 = v00_valid ? v00_d * (1 - dx) : 0;
-            const data_et v01 = v01_valid ? v01_d * dx : 0;
-            const data_et v10 = v10_valid ? v10_d * (1 - dx) : 0;
-            const data_et v11 = v11_valid ? v11_d * dx : 0;
-
-            const data_et q0 = v00 + v01;
-            const data_et q1 = v10 + v11;
-            const data_et out = dy * q1 + (1 - dy) * q0;
-
-            output[OUTPUT_GET_INDEX(n, c, h, w)] = out;
+            LOAD_INPUT(c);
+            INTERPOLATE();
+            STORE(c);
         }
     }
 }
 
 #undef denormalize
 #undef is_between
+#undef STORE
+#undef INTERPOLATE
+#undef LOAD_INPUT
