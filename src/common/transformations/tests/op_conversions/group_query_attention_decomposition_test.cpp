@@ -38,30 +38,10 @@ constexpr int64_t NUM_HEADS = 2;
 constexpr int64_t KV_NUM_HEADS = 1;
 constexpr int64_t HEAD_SIZE = 16;
 
-// Stand-in for an absent optional input. The decomposition detects missing inputs by node description
-// ("NullNode"), matching the ONNX frontend's NullNode, so a filler must report the same description
-// rather than be a real Parameter (which would be treated as a supplied position_ids / bias / etc.).
-// Declared without the OPENVINO_OP macro so no export/visibility attributes are applied to this
-// test-local type (the macro's RTTI attributes are rejected under -Werror on some toolchains).
-class NullNode : public op::Op {
-public:
-    static const ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ov::DiscreteTypeInfo info{"NullNode", "test"};
-        return info;
-    }
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return get_type_info_static();
-    }
-    std::string description() const override {
-        return "NullNode";
-    }
-    NullNode() {
-        set_output_size(1);
-    }
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector&) const override {
-        return std::make_shared<NullNode>();
-    }
-};
+std::shared_ptr<op::v0::Constant> make_absent_optional_input() {
+    // Optional ONNX inputs are represented as an empty tensor.
+    return op::v0::Constant::create(element::f32, Shape{0}, {});
+}
 
 // Chainable so each test case reads as a one-liner without C++20 designated initializers.
 struct GqaParams {
@@ -139,7 +119,7 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     };
     auto pad_to = [&](size_t idx) {
         while (args.size() < idx)
-            args.push_back(std::make_shared<NullNode>());  // absent optional input
+            args.push_back(make_absent_optional_input());  // absent optional input
     };
 
     // The internal op receives Q/K/V already transposed to [batch, heads, seq, head_size] (the ONNX FE

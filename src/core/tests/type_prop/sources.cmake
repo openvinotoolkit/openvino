@@ -92,6 +92,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/group_convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/grouped_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/group_query_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hard_sigmoid.cpp

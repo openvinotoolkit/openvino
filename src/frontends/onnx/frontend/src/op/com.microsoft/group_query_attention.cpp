@@ -11,6 +11,7 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -151,6 +152,11 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
 
     OutputVector ov_op_inputs;
+
+    const auto make_empty_optional_input = []() {
+        return v0::Constant::create<float>(ov::element::f32, ov::Shape{0}, {})->output(0);
+    };
+
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
         auto total_num_heads_node =
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
@@ -194,8 +200,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
-        ov_op_inputs.push_back(onnx_op_inputs[i]);
+    FRONT_END_OP_CONVERSION_CHECK(
+        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
+    // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
+    // also be updated and  may need mapping the index manually.
+    for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
+        if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
+            ov_op_inputs.push_back(onnx_op_inputs[i]);
+        } else {
+            ov_op_inputs.push_back(make_empty_optional_input());
+        }
     }
 
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,

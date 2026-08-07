@@ -79,6 +79,8 @@ ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
 
 ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::op::internal::GroupQueryAttention> node) {
+    using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
+
     const auto num_heads = node->get_num_heads();
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto scale = node->get_scale();
@@ -88,30 +90,36 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto smooth_softmax = node->get_smooth_softmax();
     // TODO: add softcap support
 
-    auto Q = node->input_value(0);
-    auto K = node->input_value(1);
-    auto V = node->input_value(2);
-    auto past_key = node->input_value(3);
-    auto past_value = node->input_value(4);
-    auto seqlens_k = node->input_value(5);
-    auto total_sequence_length = node->input_value(6);
+    const auto get_input = [&](const GQAInputs input_pos) -> ov::Output<ov::Node> {
+        const auto original_pos = static_cast<int64_t>(input_pos);
+        const bool exists = node->has_input(original_pos);
+        OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
+        return node->input_value(static_cast<size_t>(original_pos));
+    };
+
+    auto Q = get_input(GQAInputs::QUERY);
+    auto K = get_input(GQAInputs::KEY);
+    auto V = get_input(GQAInputs::VALUE);
+    auto past_key = get_input(GQAInputs::PAST_KEY);
+    auto past_value = get_input(GQAInputs::PAST_VALUE);
+    auto seqlens_k = get_input(GQAInputs::SEQLENS_K);
 
     // Quantized KV cache (com.microsoft spec): past/present KV are i8/u8/f8e4m3 and are dequantized before the
-    // attention math and (re)quantized when appended to the cache. Scales live at inputs 12 (K) / 13 (V).
+    // attention math and (re)quantized when appended to the cache. Scales live at ONNX K_SCALE / V_SCALE positions.
     const bool kv_quantized = node->is_kv_quantized();
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto k_quant_type = node->get_k_quant_type();
     const auto v_quant_type = node->get_v_quant_type();
     const auto kv_cache_type = past_key.get_element_type();
     ov::Output<ov::Node> k_scale, v_scale;
-    if (kv_quantized) {
-        k_scale = node->input_value(12);
-        v_scale = node->input_value(13);
-    }
 
-    auto is_null = [](const ov::Output<ov::Node>& output) {
-        return output.get_node_shared_ptr()->description() == "NullNode";
-    };
+    // Get k_scale and v_scale from their actual input indices.
+    // Note: validate_and_infer_types() already verified these indices are valid when kv_quantized is true,
+    // so we skip redundant bounds checks here.
+    if (kv_quantized) {
+        k_scale = get_input(GQAInputs::K_SCALE);
+        v_scale = get_input(GQAInputs::V_SCALE);
+    }
 
     // The length of all tokens (past + current) is `seqlens_k` + 1.
     // current = Q.shape[2], past = `seqlens_k` + 1 - current
@@ -135,16 +143,19 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
     if (do_rotary) {
-        auto cos_cache = node->input_value(7);
-        auto sin_cache = node->input_value(8);
+        // Get cos_cache and sin_cache from their actual input indices (ONNX COS_CACHE and SIN_CACHE).
+        // validate_and_infer_types() already verified these inputs exist and indices are valid when do_rotary is true.
+        auto cos_cache = get_input(GQAInputs::COS_CACHE);
+        auto sin_cache = get_input(GQAInputs::SIN_CACHE);
 
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        if (node->get_input_size() > 9 && !is_null(node->input_value(9))) {
+        // Check if position_ids is provided (optional input), using actual input index
+        if (node->has_input(static_cast<int64_t>(GQAInputs::POSITION_IDS))) {
             // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
             // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
             const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
-            position_ids = register_new_node<v1::Reshape>(node->input_value(9), neg_one, false);
+            position_ids = register_new_node<v1::Reshape>(get_input(GQAInputs::POSITION_IDS), neg_one, false);
         } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
@@ -266,8 +277,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     ov::Output<ov::Node> external_bias;
-    if (node->get_input_size() > 10 && !is_null(node->input_value(10))) {
-        external_bias = node->input_value(10);
+    if (node->has_input(static_cast<int64_t>(GQAInputs::ATTENTION_BIAS))) {
+        external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
     const auto mask = make_attention_mask(curr_seqlen_scalar,
                                           concat_kv_len_scalar,
@@ -281,11 +292,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = node->get_input_size() > 11 && !is_null(node->input_value(11));
+    const bool has_head_sink = node->has_input(static_cast<int64_t>(GQAInputs::HEAD_SINK));
     if (has_head_sink || smooth_softmax) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
-            auto head_sink = node->input_value(11);
+            auto head_sink = get_input(GQAInputs::HEAD_SINK);
             if (head_sink.get_element_type() != T) {
                 head_sink = register_new_node<v0::Convert>(head_sink, T);
             }

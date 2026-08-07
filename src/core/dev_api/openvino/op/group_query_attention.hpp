@@ -4,10 +4,29 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "openvino/op/op.hpp"
 
 namespace ov::op::internal {
+
+enum class GroupQueryAttentionInputs : int64_t {
+    QUERY = 0,                  // Q (mandatory)
+    KEY = 1,                    // K (mandatory)
+    VALUE = 2,                  // V (mandatory)
+    PAST_KEY = 3,               // KV cache key (mandatory)
+    PAST_VALUE = 4,             // KV cache value (mandatory)
+    SEQLENS_K = 5,              // Sequence lengths (mandatory)
+    TOTAL_SEQUENCE_LENGTH = 6,  // Total sequence length (mandatory)
+    COS_CACHE = 7,              // RoPE cos cache (optional, required if do_rotary=1)
+    SIN_CACHE = 8,              // RoPE sin cache (optional, required if do_rotary=1)
+    POSITION_IDS = 9,           // Position IDs (optional)
+    ATTENTION_BIAS = 10,        // Attention bias (optional)
+    HEAD_SINK = 11,             // Head sink (optional, required if smooth_softmax=1)
+    K_SCALE = 12,               // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
+    V_SCALE = 13,               // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
+    // Positions 14-15 are reserved (QK-Norm, not supported)
+};
 
 // This is an experimental operation that is implemented in the plugins.
 class OPENVINO_API GroupQueryAttention : public Op {
@@ -74,6 +93,8 @@ public:
     bool is_kv_quantized() const {
         return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
     }
+
+    bool has_input(int64_t input_position) const;
 
 private:
     int64_t m_num_heads = 0;
