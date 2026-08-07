@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-14-34-08-545-31180798488",
+  "timestamp": "2026-08-07T14:34:08Z",
+  "run_id": "31180798488",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31180798488",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37225",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37225",
+  "author": "alexandruenache1111",
+  "category": "Flaky Test",
+  "title": "JS API E2E of openvino-node package fails on Windows (Node 26)",
+  "signature": "e2e of openvino-node package step failed on windows js api node|Flaky Test",
+  "signature_hash": "4d65f509ca436814",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (26)",
+      "conclusion": "failure",
+      "symptom": "E2E of openvino-node package step failed (Node 26 runner on Windows)"
+    }
+  ],
+  "key_errors": [
+    "Step 'E2E of openvino-node package' failed in job 'JS API (26)' (job id: 92884892630)",
+    "Run duration: 13:54:47 - 13:56:46 UTC (about 2 minutes)",
+    "Logs unavailable for retrieval (secrecy policy blocks get_job_logs MCP tool)"
+  ],
+  "root_cause": "The JS API (26) job's 'E2E of openvino-node package' step failed on a Windows runner. The PR (#37225) only modifies NPU plugin test files and has no changes to the JS/Node.js codebase. This is consistent with a well-documented recurring flaky pattern in the OpenVINO CI for JS API E2E tests on Windows, particularly around Electron binary cleanup/permission errors on AKS Windows runners. The step completed in under 2 minutes, suggesting a transient startup or cleanup failure rather than a logic error. Job logs were not accessible via the MCP tooling (secrecy policy), so the exact error line could not be confirmed.",
+  "reproduction_steps": "N/A - transient Windows runner issue unrelated to PR changes",
+  "recommended_actions": [
+    "Re-run the failed job - the failure appears transient and unrelated to the NPU test changes",
+    "If failures continue on Node 26 JS API E2E, investigate whether the Node 26 runner image has Electron permission issues similar to the known pattern (85df26485ff568d8)"
+  ],
+  "prevention_strategies": "The recurring JS API E2E flakiness on Windows should be addressed at the infrastructure level (e.g., runner cleanup hooks, or excluding Electron binary from reuse across test runs).",
+  "historical_context": "Pattern 85df26485ff568d8 'JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll' has 16 occurrences; pattern 323dd65ac8d70bf1 'JS API E2E of openvino-node package fails on Windows' occurred once on 2026-08-06. The PR itself (NPU test ports) is completely unrelated to JS API."
+}
