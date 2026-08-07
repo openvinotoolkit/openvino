@@ -149,6 +149,50 @@ auto compiled = core.compile_model(modelPath,
     }
 }
 
+void part7() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "NPU";
+    ov::Core core;
+    core.set_property(ov::cache_dir("/path/to/cache/dir"));
+//! [ov:caching:part7]
+// Explicitly enable weightless caching using the ov::enable_weightless property.
+// This is supported on NPU, GPU, and CPU devices.
+auto compiled = core.compile_model(modelPath,
+                                   device,
+                                   ov::enable_weightless(true));
+//! [ov:caching:part7]
+    if (!compiled) {
+        throw std::runtime_error("error");
+    }
+}
+
+void part8() {
+    std::string modelPath = "/tmp/myModel.xml";
+    std::string device = "NPU";
+    ov::Core core;
+    core.set_property(ov::cache_dir("/path/to/cache/dir"));
+    auto model = core.read_model(modelPath);
+//! [ov:caching:part8]
+// When loading a weightless cached model, you can provide the weights
+// using ov::weights_path or ov::hint::model.
+
+// Option 1: Provide weights via file path
+auto compiled = core.compile_model(model,
+                                   device,
+                                   ov::enable_weightless(true),
+                                   ov::weights_path("/path/to/model.bin"));
+
+// Option 2: Provide weights via the original model
+auto compiled2 = core.compile_model(model,
+                                    device,
+                                    ov::enable_weightless(true),
+                                    ov::hint::model(model));
+//! [ov:caching:part8]
+    if (!compiled || !compiled2) {
+        throw std::runtime_error("error");
+    }
+}
+
 int main() {
     try {
         part0();
@@ -158,6 +202,8 @@ int main() {
         part4();
         part5();
         part6();
+        part7();
+        part8();
     } catch (...) {
     }
     return 0;

@@ -143,7 +143,9 @@ model caching, use the following code in your application:
 Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file.
+Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file and lower peak memory consumption during compilation — which is especially beneficial for edge and client deployments.
+
+You can enable weightless caching implicitly by setting the ``cache_mode`` property to ``OPTIMIZE_SIZE``:
 
 .. tab-set::
 
@@ -161,9 +163,61 @@ Weightless caching is a feature that allows you to create a cache file which doe
          :language: cpp
          :fragment: [ov:caching:part4]
 
+
+Explicitly enable weightless caching using ``enable_weightless``
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+You can also enable weightless caching explicitly using the ``ov::enable_weightless`` property (``ENABLE_WEIGHTLESS``). This property takes priority over ``cache_mode`` when both are specified.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part7]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part7]
+
+
+Providing weights for weightless cache reload
+++++++++++++++++++++++++++++++++++++++++++++++
+
+When a weightless cached model is loaded, the weights must be provided separately. You can do this using one of the following options:
+
+- ``ov::weights_path`` (``WEIGHTS_PATH``) — path to the ``.bin`` file containing the weights.
+- ``ov::hint::model`` (``MODEL_PTR``) — a shared pointer to the original ``ov::Model`` object.
+- Passing the original model directly to ``compile_model`` — in this case, the model itself serves as the weight source.
+
+If ``ov::hint::model`` and ``ov::weights_path`` are both provided, ``ov::hint::model`` takes priority.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part8]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part8]
+
 .. important::
 
-   Currently, this property is supported only by the GPU Plugin and IR model format.
+   Weightless caching is supported by the GPU, NPU, and CPU plugins. The behavior may vary slightly
+   across devices — for example, NPU uses an internal weights separation mechanism, while GPU and CPU
+   rely on the shared weightless caching infrastructure.
 
 .. important::
 
