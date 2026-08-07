@@ -87,8 +87,11 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("HAS_ATTN_MASK_INPUT", has_attn_mask_input ? 1 : 0);
             if (has_attn_mask_input) {
                 const auto& attn_mask_layout = params.get_input_layout(attn_mask_idx);
+                if (attn_mask_layout.data_type == data_types::u8) {
+                    jit.make("BOOLEAN_ATTN_MASK", 1);
+                }
                 // Enable clamping only if attn_mask dtype differs from softmax_accumulator_type(f32)
-                if (attn_mask_layout.data_type != data_types::f32) {
+                if (attn_mask_layout.data_type != data_types::f32 && attn_mask_layout.data_type != data_types::u8) {
                     jit.make("CLAMP_ATTN_MASK_INPUT", 1);
                 }
             }

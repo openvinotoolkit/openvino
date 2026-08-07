@@ -362,6 +362,94 @@ TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     }
 }
 
+TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Micro SDPA requires IMMAD support";
+    }
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const int batch = 1;
+    const int seq_length = 64;
+    const int num_heads = 16;
+    const int head_size = 96;
+
+    const layout qkv_layout({batch, seq_length, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::u8, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(qkv_layout);
+    auto k_mem = engine.allocate_memory(qkv_layout);
+    auto v_mem = engine.allocate_memory(qkv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+
+    auto fill_random = [&](const memory::ptr& mem) {
+        const auto size = ov::shape_size(mem->get_layout().get_shape());
+        set_values(mem, rg.generate_random_1d<ov::float16>(size, -1.0f, 1.0f));
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
+    for (int query = 0; query < seq_length; ++query) {
+        mask[query * seq_length + query] = 1;
+    }
+    set_values(mask_mem, mask);
+
+    auto run_sdpa = [&](const std::string& kernel_name) {
+        topology topo;
+        topo.add(input_layout("q", qkv_layout));
+        topo.add(input_layout("k", qkv_layout));
+        topo.add(input_layout("v", qkv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                              false,
+                                              -1,
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, kernel_name}}}));
+
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        network->set_input_data("mask", mask_mem);
+        return network->execute().at("result").get_memory();
+    };
+
+    auto ref_output = run_sdpa("sdpa_ref");
+    auto micro_output = run_sdpa("sdpa_micro");
+
+    mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> micro_data(micro_output, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> value_data(v_mem, get_test_stream());
+
+    ASSERT_EQ(ref_data.size(), micro_data.size());
+    for (int head = 0; head < num_heads; ++head) {
+        for (int query = 0; query < seq_length; ++query) {
+            for (int feature = 0; feature < head_size; ++feature) {
+                const size_t output_idx = ((head * seq_length + query) * head_size) + feature;
+                const size_t value_idx = ((query * num_heads + head) * head_size) + feature;
+                const float expected = static_cast<float>(value_data[value_idx]);
+                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, 1e-3f);
+                ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, 1e-3f);
+            }
+        }
+    }
+}
+
 TEST(sdpa_gpu_custom, scalar_placeholder_mask_matches_scale_only) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);

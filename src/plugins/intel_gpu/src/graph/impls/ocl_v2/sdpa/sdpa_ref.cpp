@@ -35,6 +35,11 @@ protected:
         size_t data_inputs_num = get_data_inputs_num(*desc);
         if (sdpa_has_runtime_attn_mask_input(params)) {
             jit.make("HAS_ATTN_MASK_INPUT", 1);
+            const auto& attn_mask_layout =
+                params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK);
+            if (attn_mask_layout.data_type == data_types::u8) {
+                jit.make("BOOLEAN_ATTN_MASK", 1);
+            }
         }
         size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
         if (data_inputs_num > scale_idx) {

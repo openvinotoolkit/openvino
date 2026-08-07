@@ -76,7 +76,9 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
@@ -432,6 +434,44 @@ extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig&
 }  // namespace cldnn
 
 namespace ov::intel_gpu {
+
+class PreserveBooleanAttnMaskPrecision : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PreserveBooleanAttnMaskPrecision");
+
+    PreserveBooleanAttnMaskPrecision() {
+        auto sdpa_pattern = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
+        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& matcher) {
+            auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(matcher.get_match_root());
+            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 &&
+                sdpa->get_input_element_type(3) == ov::element::boolean) {
+                std::vector<ov::Output<ov::Node>> pending{sdpa->input_value(3)};
+                std::unordered_set<ov::Node*> visited;
+                while (!pending.empty()) {
+                    auto output = pending.back();
+                    pending.pop_back();
+
+                    auto producer = output.get_node_shared_ptr();
+                    if (!visited.insert(producer.get()).second) {
+                        continue;
+                    }
+
+                    ov::disable_conversion(producer, ov::element::boolean, ov::element::u8);
+                    for (const auto& input : producer->inputs()) {
+                        if (input.get_element_type() == ov::element::boolean) {
+                            pending.push_back(input.get_source_output());
+                        }
+                    }
+                }
+            }
+            return false;
+        };
+
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(sdpa_pattern,
+                                                                      "PreserveBooleanAttnMaskPrecision"),
+                         callback);
+    }
+};
 
 namespace {
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
@@ -929,11 +969,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
 
-            // - The attn mask type of SDPA should be fp16
-            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
-                return false;
-            }
-
             // - The number of dimensions for each input is expected to be 4 or 3
             if ((query_ps.size() != 3 && query_ps.size() != 4) ||
                 (key_ps.size() != 3 && key_ps.size() != 4) ||
@@ -1069,6 +1104,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         const bool keep_precision_sensitive_in_fp32_2 = true;
+
+        manager.register_pass<PreserveBooleanAttnMaskPrecision>();
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
