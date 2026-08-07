@@ -98,6 +98,17 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
                 entry.per_lib[idx] = {dev.internal_id, dev.score};
                 entries.push_back(std::move(entry));
             } else {
+                // One candidate reporting a fingerprint twice cannot be disambiguated: merging
+                // would drop a device and its id, silently hiding it. Fail loudly instead.
+                OPENVINO_ASSERT(it->per_lib.find(idx) == it->per_lib.end(),
+                                "Library \"",
+                                lib.string(),
+                                "\" enumerated devices \"",
+                                it->per_lib.at(idx).internal_id,
+                                "\" and \"",
+                                dev.internal_id,
+                                "\" with the same fingerprint, so they cannot be told apart. The "
+                                "driver may not report the PCI bus info the identity is built from.");
                 it->per_lib[idx] = {dev.internal_id, dev.score};
             }
         }

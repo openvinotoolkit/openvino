@@ -297,6 +297,16 @@ TEST_F(DispatchGroupTest, set_property_for_unresolved_id_targets_only_that_winne
     EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
 }
 
+// Two devices of one candidate sharing a fingerprint are indistinguishable (e.g. a driver that
+// reports no PCI bus info): merging would silently drop one, so resolution must fail instead.
+TEST_F(DispatchGroupTest, duplicate_fingerprint_from_one_candidate_throws) {
+    script("0,aa," + std::to_string(PREFERRED) + ";1,aa," + std::to_string(PREFERRED),
+           "0,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::HasSubstr("same fingerprint"));
+}
+
 // --- register_plugin runtime API forms a dispatch group ---
 
 // A second register_plugin for the same device name now appends a candidate (no opt-in flag),
