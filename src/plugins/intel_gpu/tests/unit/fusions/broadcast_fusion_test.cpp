@@ -72,6 +72,17 @@ public:
 #define CASE_BROADCAST_FP16_OPT_1     { 21, 2, 1, 5 }, { 21, 2, 13, 5 },       data_types::f16, data_types::f16, format::bfyx,           data_types::f16,  format::bfyx
 #define CASE_BROADCAST_FP16_OPT_2     { 21, 2, 1, 1 }, { 21, 2, 13, 1 },       data_types::f16, data_types::f16, format::bfyx,           data_types::f16,  format::bfyx
 
+#define CASE_BROADCAST_BF16_1         { 1, 16, 4, 4 }, { 2, 16, 4, 4 },        data_types::bf16, data_types::bf16, format::bfyx,          data_types::bf16, format::bfyx
+#define CASE_BROADCAST_BF16_2         { 2, 1,  4, 4, 4 }, { 2, 16, 4, 4, 4 },  data_types::bf16, data_types::bf16, format::bfzyx,         data_types::bf16, format::bfzyx
+#define CASE_BROADCAST_BF16_3         { 2, 16, 4, 4, 1 }, { 2, 16, 4, 4, 8 },  data_types::bf16, data_types::bf16, format::bfzyx,         data_types::bf16, format::bfzyx
+
+#define CASE_BROADCAST_BF16_1_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::bf16, data_types::bf16, format::b_fs_yx_fsv16, data_types::bf16, format::bfyx
+#define CASE_BROADCAST_BF16_2_BLK     { 1, 16, 4, 4 }, { 2, 16, 4, 4 },        data_types::bf16, data_types::bf16, format::b_fs_yx_fsv16, data_types::bf16, format::bfyx
+#define CASE_BROADCAST_BF16_3_BLK     { 2, 16, 4, 1 }, { 2, 16, 4, 4 },        data_types::u8,   data_types::i8,   format::b_fs_yx_fsv32, data_types::bf16, format::bfyx
+
+#define CASE_BROADCAST_BF16_OPT_1     { 21, 2, 1, 5 }, { 21, 2, 13, 5 },       data_types::bf16, data_types::bf16, format::bfyx,          data_types::bf16, format::bfyx
+#define CASE_BROADCAST_BF16_OPT_2     { 21, 2, 1, 1 }, { 21, 2, 13, 1 },       data_types::bf16, data_types::bf16, format::bfyx,          data_types::bf16, format::bfyx
+
 class broadcast_fused_prims : public BroadcastFusingTest {};
 TEST_P(broadcast_fused_prims, broadcast_activation_with_broadcast) {
     auto p = GetParam();
@@ -104,4 +115,15 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, broadcast_fused_prims, ::testing::ValuesIn
 
     broadcast_test_params{ CASE_BROADCAST_FP16_OPT_1, 4, 6 },
     broadcast_test_params{ CASE_BROADCAST_FP16_OPT_2, 4, 6 },
+
+    broadcast_test_params{ CASE_BROADCAST_BF16_1, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_BF16_2, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_BF16_3, 4, 6 },
+
+    broadcast_test_params{ CASE_BROADCAST_BF16_1_BLK, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_BF16_2_BLK, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_BF16_3_BLK, 4, 6 },
+
+    broadcast_test_params{ CASE_BROADCAST_BF16_OPT_1, 4, 6 },
+    broadcast_test_params{ CASE_BROADCAST_BF16_OPT_2, 4, 6 },
 }));
