@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -249,9 +250,15 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  param_weights,
                  dyn_quan_group_size,
                  abs_threshold_f16] = GetParam();
-    // Sub-byte parameter weights with transposed layout still need runtime transpose, which GPU can't do
-    if (param_weights && weights_precision.bitwidth() < 8 && transpose_weights) {
-        GTEST_SKIP();
+    // Sub-byte parameter weights need the non-transposed FC path which requires XMX
+    if (param_weights && weights_precision.bitwidth() < 8) {
+        if (transpose_weights) {
+            GTEST_SKIP() << "Sub-byte parameter weights with transposed layout need runtime transpose, which GPU can't do";
+        }
+        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
+            GTEST_SKIP() << "Non-transposed sub-byte parameter weights require XMX (HW_MATMUL capability)";
+        }
     }
     SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
     run();
