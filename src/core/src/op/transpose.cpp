@@ -56,11 +56,17 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         out.set_shape(out_shape);
 
         if (arg_type == ov::element::u2) {
-            reference::transpose_2bit(static_cast<const uint8_t*>(arg.data()),
-                                      static_cast<uint8_t*>(out.data()),
-                                      arg.get_shape(),
-                                      axes_order,
-                                      out_shape);
+            reference::transpose_sub_byte<ov::element::Type_t::u2>(static_cast<const uint8_t*>(arg.data()),
+                                                                   static_cast<uint8_t*>(out.data()),
+                                                                   arg.get_shape(),
+                                                                   axes_order,
+                                                                   out_shape);
+        } else if (arg_type == ov::element::u3) {
+            reference::transpose_sub_byte<ov::element::Type_t::u3>(static_cast<const uint8_t*>(arg.data()),
+                                                                   static_cast<uint8_t*>(out.data()),
+                                                                   arg.get_shape(),
+                                                                   axes_order,
+                                                                   out_shape);
         } else if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
             reference::transpose_4bit(static_cast<const uint8_t*>(arg.data()),
                                       static_cast<uint8_t*>(out.data()),
