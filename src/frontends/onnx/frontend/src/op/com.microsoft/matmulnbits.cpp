@@ -243,11 +243,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
-                // Preserve the original zero_point name on the repacked low-bit Constant (as done for B) so
-                // weight sharing / weights-as-input can identify it by name. This packed Constant keeps the
-                // source uint8 byte count, so the promoted input's tensor matches the external weight at runtime.
-                casted_zp_org->set_friendly_name(zero_points_const->get_friendly_name());
-                casted_zp_org->get_output_tensor(0).set_names(zero_points_const->get_output_tensor(0).get_names());
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 if (n_blocks_per_col != num_elements_aligned) {
                     // if not align
@@ -259,6 +254,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                                                              static_cast<int32_t>(n_blocks_per_col));
                     converted_zero_points =
                         std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
+                } else {
+                    // Aligned (no Slice): preserve the original zero_point name on the repacked Constant (as
+                    // done for B) so weight sharing can promote it. The packed Constant keeps the source uint8
+                    // byte count, so the promoted input's tensor matches the external weight at runtime.
+                    casted_zp_org->set_friendly_name(zero_points_const->get_friendly_name());
+                    casted_zp_org->get_output_tensor(0).set_names(zero_points_const->get_output_tensor(0).get_names());
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");
