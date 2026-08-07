@@ -15,7 +15,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
-from common import github_client, handle_numeric_id, read_agent_item, require_env, resolve_repository
+from common import github_client, handle_numeric_id, merge_queue_status, read_agent_item, require_env, resolve_repository
 
 if TYPE_CHECKING:
     from github.PullRequest import PullRequest
@@ -28,15 +28,26 @@ def already_readded(pull: "PullRequest") -> bool:
     return any(MARKER in (comment.body or "") for comment in pull.get_issue_comments())
 
 
-def skip_reason(pull: "PullRequest", pr_number: str) -> str | None:
-    """Return a human-readable reason to skip re-adding, or None to proceed."""
+def skip_reason(pull: "PullRequest", pr_number: str, status: str) -> str | None:
+    """Return a human-readable reason to skip re-adding, or None to proceed.
+
+    ``status`` is the PR's **live** merge-queue membership resolved at this moment; 
+    re-add only when it is
+    ``not_in_queue`` so a status change during the investigation cannot cause a
+    wrong or redundant enqueue.
+    """
     if pull.merged:
         return f"PR #{pr_number} is already merged; nothing to re-add."
     if pull.state != "open":
         return f"PR #{pr_number} is not open (state={pull.state}); not re-adding."
     if pull.draft:
         return f"PR #{pr_number} is a draft; not re-adding."
+    if status == "in_queue":
+        return f"PR #{pr_number} is already in the merge queue; not re-adding."
+    if status != "not_in_queue":
+        return f"PR #{pr_number} merge-queue status is '{status}'; not re-adding (fail safe)."
     return None
+
 
 
 def enqueue(pull: "PullRequest", pr_number: str, repository: str) -> None:
@@ -73,13 +84,18 @@ def main() -> None:
 
     print(f"Requested re-add of PR #{pr_number} in {repository} to merge queue (reason: {reason})")
 
-    pull = github_client(token).get_repo(repository).get_pull(int(pr_number))
+    gh = github_client(token)
+    repo = gh.get_repo(repository)
+    pull = repo.get_pull(int(pr_number))
 
     if already_readded(pull):
         print(f"PR #{pr_number} already re-added by CI Doctor (marker comment found); skipping.")
         return
 
-    reason_to_skip = skip_reason(pull, pr_number)
+    status = merge_queue_status(gh, repo, pull)
+    print(f"Live merge-queue status for PR #{pr_number}: {status}")
+
+    reason_to_skip = skip_reason(pull, pr_number, status)
     if reason_to_skip:
         print(reason_to_skip)
         return

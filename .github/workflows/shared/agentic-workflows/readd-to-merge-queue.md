@@ -69,6 +69,9 @@ stall.
 
 The job is idempotent and loop-safe: it skips the PR when it is already merged,
 closed, or a draft, or when a previous CI Doctor re-add marker comment is
-present. Import it via `imports:` in the consuming workflow's frontmatter, and
-instruct the agent to call `readd_to_merge_queue` only when a re-queue is likely
-to let the PR merge.
+present. It also re-checks the PR's **live** merge-queue status
+(`common.merge_queue_status`) at run time — not the stale pre-session snapshot —
+and only re-adds when the PR is `not_in_queue`, skipping if it is
+already back in the queue or if membership cannot be confirmed. Import it via
+`imports:` in the consuming workflow's frontmatter, and instruct the agent to
+call `readd_to_merge_queue` only when a re-queue is likely to let the PR merge.

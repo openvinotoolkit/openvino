@@ -13,10 +13,30 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from common import github_client, handle_numeric_id, read_agent_item, require_env, resolve_repository
+from common import (
+    github_client,
+    handle_numeric_id,
+    merge_queue_status,
+    pr_number_from_merge_queue_branch,
+    read_agent_item,
+    require_env,
+    resolve_repository,
+)
 
 if TYPE_CHECKING:
     from github.WorkflowRun import WorkflowRun
+
+
+def resolve_pr_number(run: "WorkflowRun") -> str:
+    """Best-effort PR number behind a merge-queue run, or '' when none applies."""
+    number = pr_number_from_merge_queue_branch(run.head_branch or "")
+    if number:
+        return number
+    try:
+        pulls = run.pull_requests or []
+    except Exception:
+        pulls = []
+    return str(pulls[0].number) if pulls else ""
 
 
 def trigger_rerun(run: "WorkflowRun", run_id: str, repository: str) -> None:
@@ -43,9 +63,26 @@ def main() -> None:
     print(f"Requested re-run of failed jobs for {repository} run {run_id} (reason: {reason})")
 
     token = require_env("GH_TOKEN", "GITHUB_TOKEN is not configured; cannot re-run failed jobs.")
-    run = github_client(token).get_repo(repository).get_workflow_run(int(run_id))
+    gh = github_client(token)
+    repo = gh.get_repo(repository)
+    run = repo.get_workflow_run(int(run_id))
+
+    # A re-run only helps the PR merge if it is still queued; re-verify live here
+    # (not from the stale pre-session snapshot) so a status change during the
+    # investigation cannot trigger a pointless re-run of a dropped PR.
+    pr_number = resolve_pr_number(run)
+    if pr_number:
+        status = merge_queue_status(gh, repo, repo.get_pull(int(pr_number)))
+        print(f"Live merge-queue status for PR #{pr_number}: {status}")
+        if status != "in_queue":
+            print(f"PR #{pr_number} is '{status}', not in the merge queue; a re-run would not let it merge. Skipping.")
+            return
+    else:
+        print("No pull request associated with this run; proceeding with re-run.")
+
     trigger_rerun(run, run_id, repository)
 
 
 if __name__ == "__main__":
     main()
+

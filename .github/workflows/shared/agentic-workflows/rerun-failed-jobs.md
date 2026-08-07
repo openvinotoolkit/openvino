@@ -12,6 +12,7 @@ safe-outputs:
       permissions:
         actions: write
         contents: read
+        pull-requests: read  # read live merge-queue status before re-running
       inputs:
         run_id:
           description: "Numeric ID of the GitHub Actions workflow run whose failed jobs should be re-run. This is the run that was investigated (github.event.workflow_run.id for merge-queue triggers, or the run_id input for workflow_dispatch). Report as a numeric string."
@@ -54,3 +55,9 @@ CI Doctor Merge Queue workflow. It calls the GitHub Actions
 restart only the failed jobs of the analysed run. Import it via `imports:` in the
 consuming workflow's frontmatter, and instruct the agent to call
 `rerun_failed_jobs` only when a restart is likely to remedy the failure.
+
+Because queue membership can change between the pre-session snapshot and the
+moment this job runs, the job re-resolves the PR behind the analysed run and
+re-checks its **live** merge-queue status (`common.merge_queue_status`). It skips
+the re-run when the PR is no longer in the queue (a re-run cannot re-enqueue a
+dropped PR); when no PR is associated it proceeds unconditionally.

@@ -104,7 +104,7 @@ Logs have been pre-downloaded before this session started:
 - **Job metadata**: `/tmp/gh-aw/agent/ci-doctor/logs/failed-jobs.json` — structured list of failed jobs and their failed steps
 - **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log` — full job logs downloaded from GitHub Actions
 - **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/*-hints.txt` — pre-located error lines (from logs) via generic grep heuristics
-- **PR info**: `/tmp/gh-aw/agent/ci-doctor/pr-info.json` (structured) and `/tmp/gh-aw/agent/ci-doctor/pr-info.txt` (human-readable) — the pull request behind this merge-queue run, resolved before the session. Includes `pr_number`, `pr_url`, `author`, `title`, `base_branch`, `head_sha`, `labels`, and the list of `changed_files`. **Use these values verbatim for the analysis and safe-outputs.** If the file is empty (`{}`) or `pr-info.txt` says no PR could be associated, treat the PR/Author fields as `not_found` and skip `add_comment`. Prefer the `changed_files` list when scoping PR-diff source inspection (Phase 4).
+- **PR info**: `/tmp/gh-aw/agent/ci-doctor/pr-info.json` (structured) and `/tmp/gh-aw/agent/ci-doctor/pr-info.txt` (human-readable) — the pull request behind this merge-queue run, resolved before the session. Includes `pr_number`, `pr_url`, `author`, `title`, `base_branch`, `head_sha`, `labels`, `merge_queue_status`, and the list of `changed_files`. **Use these values verbatim for the analysis and safe-outputs.** The `merge_queue_status` field (one of `in_queue`, `not_in_queue`, `merged`, `unknown`) is a **pre-session hint** captured deterministically before the investigation; use it to pick which remedy to request, but do **not** treat it as final — queue membership can change while you investigate, so the `rerun_failed_jobs` and `readd_to_merge_queue` safe-output jobs independently re-verify the PR's live status at action time and will no-op if it no longer matches. If the file is empty (`{}`) or `pr-info.txt` says no PR could be associated, treat the PR/Author fields as `not_found` and skip `add_comment`. Prefer the `changed_files` list when scoping PR-diff source inspection (Phase 4).
 
 **Start here**: Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` first — it lists every file location and the first few hint matches. Then examine the relevant hint files to jump directly to error locations (read ~50 lines around each hinted line number before loading the full log).
 
@@ -682,9 +682,10 @@ Call the `rerun_failed_jobs` safe-output tool **only** when your Root Cause Anal
 
 **Do NOT** request a re-run for deterministic failures a restart cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-run.
 
-**Merge-queue branch (mutually exclusive with `readd_to_merge_queue`):** A re-run only helps the PR merge if the PR is **still in the merge queue**. Before calling `rerun_failed_jobs`, determine the PR's current queue membership (query the associated PR and check whether it is still in the merge queue). Then:
-- **PR still in the queue**, or **no PR is associated** with the run → call `rerun_failed_jobs`.
-- **PR no longer in the queue** (GitHub dropped it on the failure) → do **NOT** call `rerun_failed_jobs`; a re-run would not re-enter it into the queue. Call `readd_to_merge_queue` instead (see its guidance below).
+**Merge-queue branch (mutually exclusive with `readd_to_merge_queue`):** A re-run only helps the PR merge if the PR is **still in the merge queue**. Use the `merge_queue_status` hint from `/tmp/gh-aw/agent/ci-doctor/pr-info.json` to pick the remedy — the `rerun_failed_jobs` job re-verifies the PR's live status before acting and skips the re-run if the PR is no longer queued, so you do not need to re-derive membership yourself. Then:
+- `merge_queue_status` is **`in_queue`** → call `rerun_failed_jobs`.
+- `merge_queue_status` is **`not_in_queue`** (GitHub dropped the PR on the failure) → do **NOT** call `rerun_failed_jobs`; a re-run would not re-enter it into the queue. Call `readd_to_merge_queue` instead (see its guidance below).
+- `merge_queue_status` is **`merged`** or **`unknown`** → do **NOT** call either tool; the PR is already merged or membership could not be determined, so fail safe and take no automated re-run/re-add action.
 
 Never call both `rerun_failed_jobs` and `readd_to_merge_queue` in the same investigation.
 
@@ -705,7 +706,7 @@ Whenever you decide about a restart (whether or not you trigger one), you MUST r
 When a merge-queue pipeline fails, GitHub drops the affected pull request from the merge queue. Call the `readd_to_merge_queue` safe-output tool **only** when all of the following hold:
 
 1. The failure is **associated with a PR** (you have its number), and
-2. The PR is **no longer in the merge queue** (it was dropped as a result of the failure) — if it is still in the queue, use `rerun_failed_jobs` instead, and
+2. The PR is **no longer in the merge queue** — i.e. the `merge_queue_status` hint in `/tmp/gh-aw/agent/ci-doctor/pr-info.json` is **`not_in_queue`** (it was dropped as a result of the failure). If it is `in_queue`, use `rerun_failed_jobs` instead; if it is `merged` or `unknown`, do neither. The `readd_to_merge_queue` job re-verifies the PR's live status before acting and skips the re-add if the PR is already back in the queue or its membership cannot be confirmed, so you do not need to re-derive membership yourself. And
 3. Your Root Cause Analysis concludes the failure is **transient** and a plain re-queue is likely to let the PR merge — the same `Infrastructure`, `Flaky Test`, `Network`, or `External Service` categories that justify `rerun_failed_jobs`.
 
 **Do NOT** re-add the PR for deterministic failures a re-queue cannot fix — `Code Issue`, `Dependencies`, or `Configuration` categories (compilation errors, assertion failures, missing symbols, bad workflow config). When in doubt, do not re-add.
