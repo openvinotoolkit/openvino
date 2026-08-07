@@ -1,0 +1,115 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/common_optimizations/broadcast_matmul_fusion.hpp"
+
+#include "itt.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
+
+namespace v0 = ov::op::v0;
+
+namespace ov::pass {
+
+namespace {
+
+// Checks that removing a Broadcast placed on a MatMul input keeps the MatMul result
+// unchanged. The trailing matrix dimensions are already proven equal between the data input
+// and the Broadcast by the pattern's "M, N" shape predicate (see below), so only the batch
+// (leading) dimensions the Broadcast expands need checking here: every such dimension must be
+// carried by the other MatMul operand, so that MatMul reproduces it via implicit (NumPy-style)
+// batch broadcasting. Equality is accepted only when provable -- equal static value or equal
+// shape symbol; an unlabeled dynamic dimension is never assumed compatible, since that could
+// hide a runtime batch mismatch the original Broadcast would have rejected.
+bool can_remove_broadcast(const ov::PartialShape& data_shape,
+                          const ov::PartialShape& broadcast_shape,
+                          const ov::PartialShape& other_shape) {
+    const int64_t data_rank = data_shape.rank().get_length();
+    const int64_t broadcast_rank = broadcast_shape.rank().get_length();
+    const int64_t other_rank = other_shape.rank().get_length();
+
+    const int64_t broadcast_batch = broadcast_rank - 2;
+    for (int64_t offset = 0; offset < broadcast_batch; ++offset) {
+        const ov::Dimension& broadcast_dim = broadcast_shape[broadcast_batch - 1 - offset];
+
+        const int64_t data_idx = (data_rank - 2) - 1 - offset;
+        if (data_idx >= 0 && ov::symbol::util::dims_are_equal(data_shape[data_idx], broadcast_dim)) {
+            continue;
+        }
+
+        const int64_t other_idx = (other_rank - 2) - 1 - offset;
+        if (other_idx < 0 || !ov::symbol::util::dims_are_equal(other_shape[other_idx], broadcast_dim)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
+
+BroadcastMatMulFusion::BroadcastMatMulFusion() {
+    MATCHER_SCOPE(BroadcastMatMulFusion);
+
+    // Only NumPy-style broadcasting (including its symmetric BIDIRECTIONAL variant) matches
+    // MatMul's implicit batch broadcasting. PDPD / EXPLICIT modes align dimensions differently
+    // and must not be detached.
+    auto is_numpy_or_bidirectional_mode =
+        pattern::attrs_match({{"mode", "numpy"}}) || pattern::attrs_match({{"mode", "bidirectional"}});
+
+    // Match any input (Constant or otherwise) -> Broadcast -> MatMul, with the Broadcast on
+    // either MatMul input. The shared "M, N" names require the Broadcast to leave the matrix
+    // (last two) dimensions of its data input intact; otherwise removing the Broadcast would
+    // change the contraction. A Broadcast is detached from a MatMul input even when it still has
+    // other consumers: only that one input edge is rewired, so unrelated consumers keep seeing
+    // the broadcasted value.
+    // shape_matches() with a named "...,M,N" group already rejects dynamic rank and rank < 2,
+    // so has_static_rank() / rank_more_than(1) are not needed alongside it.
+    auto data = pattern::any_input(pattern::shape_matches("DataBatches..., M, N"));
+    auto broadcast_shape_and_mode =
+        pattern::shape_matches("BroadcastBatches..., M, N") && is_numpy_or_bidirectional_mode;
+    // v1::Broadcast always carries a (possibly mocked) axes_mapping input, even in NUMPY mode,
+    // so both the 2-input and 3-input BroadcastBase forms need to be matched.
+    auto broadcast_without_axes_mapping =
+        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input()}, broadcast_shape_and_mode);
+    auto broadcast_with_axes_mapping =
+        pattern::wrap_type<ov::op::util::BroadcastBase>({data, pattern::any_input(), pattern::any_input()},
+                                                        broadcast_shape_and_mode);
+    auto broadcast = broadcast_without_axes_mapping | broadcast_with_axes_mapping;
+    auto other = pattern::any_input(pattern::has_static_rank() && pattern::rank_more_than(1));
+    auto matmul_lhs = pattern::wrap_type<v0::MatMul>({broadcast, other});
+    auto matmul_rhs = pattern::wrap_type<v0::MatMul>({other, broadcast});
+    auto matmul = matmul_lhs | matmul_rhs;
+
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        const auto broadcast_value = pattern_map.at(broadcast);
+        const auto matmul_node = m.get_match_root();
+
+        const size_t broadcast_port = matmul_node->input_value(0) == broadcast_value ? 0 : 1;
+        const auto data_value = pattern_map.at(data);
+        const auto other_value = pattern_map.at(other);
+
+        if (!can_remove_broadcast(data_value.get_partial_shape(),
+                                  broadcast_value.get_partial_shape(),
+                                  other_value.get_partial_shape())) {
+            return false;
+        }
+
+        copy_runtime_info(broadcast_value.get_node_shared_ptr(), matmul_node);
+        matmul_node->input(broadcast_port).replace_source_output(data_value);
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(matmul, matcher_name);
+    register_matcher(m, callback);
+}
+
+}  // namespace ov::pass
