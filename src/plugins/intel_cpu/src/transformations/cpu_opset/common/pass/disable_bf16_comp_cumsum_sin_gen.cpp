@@ -5,7 +5,6 @@
 #include "disable_bf16_comp_cumsum_sin_gen.hpp"
 
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
@@ -25,17 +24,6 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_cpu {
-
-namespace {
-
-bool is_l_sin_gen_node(const std::shared_ptr<ov::Node>& node) {
-    if (!node) {
-        return false;
-    }
-    return node->get_friendly_name().find("l_sin_gen") != std::string::npos;
-}
-
-}  // namespace
 
 DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     MATCHER_SCOPE(DisableBF16CompCumSumSinGen);
@@ -83,10 +71,6 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
 
         auto sin_node = pattern_map.at(sin_m).get_node_shared_ptr();
         if (transformation_callback(sin_node)) {
-            return false;
-        }
-
-        if (!is_l_sin_gen_node(sin_node)) {
             return false;
         }
 
