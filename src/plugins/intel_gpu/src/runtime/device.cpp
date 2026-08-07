@@ -154,10 +154,7 @@ bool device::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return get_mem_caps().supports_usm();
 }
 
 }  // namespace cldnn

@@ -30,7 +30,7 @@ class JitConstants;
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct fuse_params {
-    virtual ~fuse_params() {}
+    virtual ~fuse_params() = default;
 
     KernelType GetType() const { return kType; }
 protected:
@@ -246,6 +246,7 @@ public:
 
         union DataTypesKey {
             struct val_t {
+                uint32_t uint2 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
@@ -258,6 +259,7 @@ public:
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
                 uint32_t BF16 : 1;
+                uint32_t F4E2M1 : 1;
                 uint32_t F8E4M3 : 1;
                 uint32_t F8E5M2 : 1;
                 uint32_t F8E8M0 : 1;
@@ -342,7 +344,7 @@ public:
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
-        return key.restrict.val.different_input_weights_types ? true : false;
+        return key.restrict.val.different_input_weights_types != 0;
     }
     ParamsKey Merge(const ParamsKey& k) const;
 
@@ -409,9 +411,9 @@ struct EngineInfo {
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
-    std::string deviceId = "";
-    std::string driverVersion = "";
-    std::vector<size_t> supportedSimdSizes = {};
+    std::string deviceId;
+    std::string driverVersion;
+    std::vector<size_t> supportedSimdSizes;
 
     DeviceFeaturesKey get_supported_device_features_key() const;
 };
@@ -420,7 +422,7 @@ struct EngineInfo {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct Params {
-    virtual ~Params() {}
+    virtual ~Params() = default;
 
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
@@ -634,7 +636,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
-    std::vector<dep_info> dep_data = {};
+    std::vector<dep_info> dep_data;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }
@@ -655,7 +657,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    ~base_params() override {}
+    ~base_params() override = default;
 
     enum class ArgType {
         Input,
@@ -663,7 +665,7 @@ struct base_params : public Params {
     };
 
     std::vector<base_activation_params> activations;
-    std::vector<fused_operation_desc> fused_ops = {};
+    std::vector<fused_operation_desc> fused_ops;
     MultiDataTensor inputs;
     MultiDataTensor outputs;
 
