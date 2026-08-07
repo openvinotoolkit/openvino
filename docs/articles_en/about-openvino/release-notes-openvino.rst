@@ -44,7 +44,7 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 Broader LLM model support and more model compression techniques
 ---------------------------------------------------------------
 
-* OpenVINO™ GenAI extends the EAGLE 3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top K sampling to deliver additional token generation speedups on CPUs, GPUs, and NPUs.
+* OpenVINO™ GenAI extends the EAGLE-3 speculative decoding pipeline to LLMs and VLMs, enhancing existing continuous batching and adding Top-K sampling to deliver additional token-generation speedups on CPUs, GPUs, and NPUs.
 
 * Lazy weight loading is enabled for IR and ONNX models to automatically select an optimal loading and compilation path, minimizing peak memory usage during model initialization.
 
