@@ -80,7 +80,7 @@ void add_rope_sin_cos(TensorMap& tensor_map, const RopeConfig& rope_config) {
         rope_freqs_weight = tensor_map.at("rope_freqs.weight").get_node_shared_ptr();
     }
 
-    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight);
+    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, rope_config.is_imrope);
     auto sin_theta = sin_cos.first;
     auto cos_theta = sin_cos.second;
 

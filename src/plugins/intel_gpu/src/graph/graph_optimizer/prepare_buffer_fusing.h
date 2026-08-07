@@ -74,9 +74,19 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                       layout& input_layout,
                       bool is_runtime = false);
     bool optimize(crop_node& node);
+    // user_info.first: the reshape user program_node (or nullptr if the crop
+    //                  has no propagatable reshape user). When non-null, the
+    //                  helper writes the propagated padding into
+    //                  user_info.second so the caller can install it on the
+    //                  reshape's runtime output layout. Passing user_info
+    //                  aligns the along-feature helper with
+    //                  update_in_place_crop_padding_simple_data_format and
+    //                  avoids relying on reshape's calc_output_layouts (which
+    //                  resets padding to empty for reshape_mode::base).
     static void update_in_place_crop_padding_along_feature(const program_node& node,
                                                            layout& crop_layout,
                                                            layout& pred_layout,
+                                                           std::pair<const program_node*, layout>& user_info,
                                                            const tensor offsets,
                                                            size_t crop_axis,
                                                            bool is_runtime);

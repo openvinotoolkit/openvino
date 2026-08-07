@@ -158,7 +158,7 @@ struct gemm : public primitive_base<gemm> {
     size_t weight_rank = 4;
 
     /// @brief Beam table input for indirect access for one of the inputs
-    input_info beam_table = {};
+    input_info beam_table;
     bool indirect_a = false;
     bool indirect_b = false;
     int64_t indirect_axis = 0;

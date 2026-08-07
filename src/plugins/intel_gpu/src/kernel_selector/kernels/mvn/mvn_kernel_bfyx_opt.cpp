@@ -4,12 +4,17 @@
 
 #include "mvn_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
+#include "../mvn_rms_scheduling_utils.h"
 
 #include <algorithm>
+#include <cctype>
+#include <limits>
 #include <vector>
 #include <string>
 
 namespace kernel_selector {
+
+
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -43,31 +48,24 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
-    if (!params.has_dynamic_tensors()) {
-        if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-            dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v;
-            dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
-        } else {
-            dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
-            dispatchData.dataSetsCount = input.Batch().v;
-        }
+    if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
+    } else {
+        dispatchData.dataSetSize = input.X().v * input.Y().v * input.Z().v * input.Feature().v;
+        dispatchData.dataSetsCount = input.Batch().v;
+    }
 
-        // start with 1 thread per data set
+    if (dispatchData.dataSetSize != 0 && dispatchData.dataSetsCount != 0) {
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataSetsCount;
         dispatchData.gws[2] = 1;
-        dispatchData.itemsNum = dispatchData.dataSetSize;
 
-        dispatchData.lws[0] = 1;
+        const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSetSize);
+        dispatchData.lws[0] = MvnSchedulingPolicy::GetGeneralizedLws(dispatchData.dataSetSize, max_lws, policy.target_items);
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
-        // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
-        // reads.
-        // WA: itemsNum value has been adjusted less than or equal to 8 to increase the number of work items.
-        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
-            dispatchData.lws[0] *= 2;
-            dispatchData.itemsNum /= 2;
-        }
+        dispatchData.itemsNum = dispatchData.dataSetSize / dispatchData.lws[0];
 
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
@@ -90,17 +88,48 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f()});
             data_set_count = dims.b();
         }
-        const std::string lws_0 = "get_local_size(0)";
+        std::string lws_0 = "get_local_size(0)";
+        size_t stack_size = MvnSchedulingPolicy::kMaxRegisterStack;
+        bool reread_input = true;
+        bool is_static_lws = false;
+        size_t static_data_set_size = 0;
+        bool has_static_data_set_size = false;
+        if (StaticDimExpressionParser::IsDecimalNumber(data_set_size)) {
+            static_data_set_size = std::stoul(data_set_size);
+            has_static_data_set_size = true;
+        } else {
+            has_static_data_set_size = StaticDimExpressionParser::TryFoldMulExpression(data_set_size, static_data_set_size);
+        }
+
+        if (has_static_data_set_size) {
+            const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(static_data_set_size);
+            const size_t lws = MvnSchedulingPolicy::GetGeneralizedLws(static_data_set_size,
+                                                                       dispatchData.maxSlmSize,
+                                                                       policy.target_items);
+            const size_t required_stack = MvnSchedulingPolicy::GetStackSize(static_data_set_size, lws);
+            lws_0 = std::to_string(lws);
+            stack_size = std::min(required_stack, policy.stack_cap);
+            reread_input = required_stack > policy.stack_cap;
+            is_static_lws = true;
+        }
         jit.AddConstants({
+            MakeJitConstant("LWS_IS_STATIC", is_static_lws),
             MakeJitConstant("LWS", lws_0),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            MakeJitConstant("MVN_STACK_SIZE", stack_size),
+            MakeJitConstant("MVN_REREAD_INPUT", reread_input),
         });
     } else {
+        const auto policy = MvnSchedulingPolicy::GetAdaptivePolicy(dispatchData.dataSetSize);
+        const size_t stack_size = MvnSchedulingPolicy::GetStackSize(dispatchData.dataSetSize, dispatchData.lws[0]);
         jit.AddConstants({
+            MakeJitConstant("LWS_IS_STATIC", true),
             MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
+            MakeJitConstant("MVN_STACK_SIZE", std::min(stack_size, policy.stack_cap)),
+            MakeJitConstant("MVN_REREAD_INPUT", stack_size > policy.stack_cap),
         });
     }
     auto activation_dt = GetActivationType(params);

@@ -62,10 +62,7 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
             // but the perf is worse than permute + gemm_tiled_opt.
             // So we'll use this permute + gemm_tiled_opt strategy as a temporal solution,
             // until we have an essential solution, i.e., fixing the gemm_tiled_opt kernel to support unaligned shape.
-            if (p.get_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu)
-                return true;
-            else
-                return false;
+            return p.get_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu;
         }
         if (shapes[0].size() < 2 || shapes[1].size() < 2)
             return false;

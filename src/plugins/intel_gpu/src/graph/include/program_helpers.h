@@ -71,7 +71,6 @@ struct program_helpers {
     // this is the termination case for parameter pack recurrence, see overload below for logic
     template <class... T>
     static void do_for_types(program_node&) {
-        return;
     }
 
     // helper function for selecting function basing on the type of the given primitive
