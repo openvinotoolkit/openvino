@@ -2,20 +2,23 @@
   "schema_version": "1.0",
   "signature": "COMPARATION FAILED abs threshold rel threshold incorrect elem counter among shapes|Code Issue",
   "signature_hash": "4975bf8755e5f7c4",
-  "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure on ARM64",
   "category": "Code Issue",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-08-07T11:59:02Z",
-  "last_seen": "2026-08-07T12:34:58Z",
+  "last_seen": "2026-08-07T15:20:05Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31187877559",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31176442700",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31174378977"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36189",
     "https://github.com/openvinotoolkit/openvino/pull/36921",
     "https://github.com/openvinotoolkit/openvino/pull/37141"
   ],
   "recent_timestamps": [
+    "2026-08-07T15:20:05Z",
     "2026-08-07T12:34:58Z",
     "2026-08-07T11:59:02Z"
   ],

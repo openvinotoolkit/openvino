@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 115,
+  "total": 116,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1127,6 +1127,15 @@
       "category": "Flaky Test",
       "signature_hash": "4d65f509ca436814",
       "pr_number": "37225"
+    },
+    {
+      "investigation_id": "2026-08-07-15-20-05-000-31187877559",
+      "run_id": "31187877559",
+      "timestamp": "2026-08-07T15:20:05Z",
+      "title": "smoke_Conv1x1WeightCompressedToMatmul and Samples tests fail on ARM64 (unrelated to PR)",
+      "category": "Code Issue",
+      "signature_hash": "4975bf8755e5f7c4",
+      "pr_number": "36189"
     }
   ]
 }

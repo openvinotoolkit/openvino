@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-15-20-05-000-31187877559",
+  "timestamp": "2026-08-07T15:20:05Z",
+  "run_id": "31187877559",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31187877559",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36189",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36189",
+  "author": "dylanneve1",
+  "category": "Code Issue",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul and Samples tests fail on ARM64 (unrelated to PR)",
+  "signature": "COMPARATION FAILED abs threshold rel threshold incorrect elem counter among shapes|Code Issue",
+  "signature_hash": "4975bf8755e5f7c4",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_Conv1x1WeightCompressedToMatmul_TransposeInput COMPARATION FAILED with large numerical diff (all elements wrong)"
+    },
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "Samples tests step failed (log content inaccessible due to secrecy policy)"
+    }
+  ],
+  "key_errors": [
+    "Intel CPU plugin func tests (parallel) step failed - smoke_Conv1x1WeightCompressedToMatmul_TransposeInput COMPARATION FAILED (pre-existing ARM64 issue, seen 2x earlier today)",
+    "Samples tests step failed (no log access - secrecy policy filter on get_job_logs)"
+  ],
+  "root_cause": "The CPU functional test failure is a known pre-existing issue with smoke_Conv1x1WeightCompressedToMatmul_TransposeInput on ARM64 (pattern 4975bf8755e5f7c4, 3rd occurrence today: runs 31174378977, 31176442700, and now 31187877559). The PR #36189 only adds NPUW encoder embedding support and does not touch the CPU Conv1x1-to-Matmul transformation. The Samples test failure could not be analyzed due to a secrecy policy filter on job logs. This is run attempt 2 (auto-retried).",
+  "recommended_actions": [
+    "Investigate and fix the pre-existing smoke_Conv1x1WeightCompressedToMatmul_TransposeInput test on ARM64 - it has failed 3 times today across unrelated PRs.",
+    "Track the Samples test failure separately once attempt 2 results are available.",
+    "If attempt 2 passes, PR #36189 can proceed to merge.",
+    "Consider disabling or quarantining smoke_Conv1x1WeightCompressedToMatmul_TransposeInput on ARM64 until root cause is fixed."
+  ],
+  "prevention_strategies": "ARM64-specific CPU test accuracy issues should be tracked and quarantined to avoid blocking unrelated PRs. Add a test quarantine mechanism for known-flaky ARM64 tests.",
+  "historical_context": "Pattern 4975bf8755e5f7c4 has been seen 2 times earlier today: runs 31174378977 and 31176442700, affecting PRs 37141 and 36921. This is the 3rd occurrence today."
+}
