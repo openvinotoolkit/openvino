@@ -1435,8 +1435,10 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         deviceNameWithBatchSize = device_name.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         if (device_name.find("(") == std::string::npos) {
-            const auto parsed = ov::parse_device_name_into_config(deviceNameWithoutBatch);
-            if (!get_plugin(parsed.m_device_name).is_property_supported(ov::optimal_batch_size.name())) {
+            auto parsed = ov::parse_device_name_into_config(deviceNameWithoutBatch);
+            // Route by id: for a dispatch group ".N" selects that device's winner, not the default.
+            if (!get_plugin(parsed.m_device_name, parsed.m_config)
+                     .is_property_supported(ov::optimal_batch_size.name())) {
                 return model;
             }
         }
@@ -1471,12 +1473,14 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
         if (is_proxy_device(parsed.m_device_name))
             return model;
         deviceNameWithoutBatch = device_name;
-        if (!get_plugin(parsed.m_device_name).is_property_supported(ov::optimal_batch_size.name(), parsed.m_config)) {
+        // Route by id: for a dispatch group ".N" selects that device's winner, not the default.
+        if (!get_plugin(parsed.m_device_name, parsed.m_config)
+                 .is_property_supported(ov::optimal_batch_size.name(), parsed.m_config)) {
             return model;
         }
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bTputInPlg = get_plugin(parsed.m_device_name)
+        bool bTputInPlg = get_plugin(parsed.m_device_name, parsed.m_config)
                               .get_property(ov::hint::performance_mode.name(), parsed.m_config)
                               .as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT;
         const auto& mode = config.find(ov::hint::performance_mode.name());
@@ -1572,6 +1576,11 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
     } else if (name == ov::cache_path.name()) {
         return {
             m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name, parsed.m_config)).m_cache_dir};
+    } else if (name == ov::available_devices.name()) {
+        // A dispatch group's device list is core's merged canonical list (every physical device
+        // once, with canonical ids), not a single candidate's view. Empty => not a group.
+        if (auto group_ids = dispatch_group_device_ids(parsed.m_device_name); !group_ids.empty())
+            return group_ids;
     }
     // Route by id so a per-device query (e.g. get_property("<device>.1", architecture)) is
     // answered by that device's winner; a bare-name query resolves to the default-device winner.
@@ -1683,6 +1692,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
     std::string clear_device_name = parser.get_device_name();
 
     std::vector<std::pair<std::string, ov::Plugin>> created_plugins;
+    // Dispatch-group routing: the instance key of the id's winner and that winner's own device id.
+    bool is_group = false;
+    std::string group_key, group_internal_id;
     {
         std::lock_guard<std::mutex> lock(get_mutex());
         created_plugins.reserve(m_plugins.size());
@@ -1716,9 +1728,31 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
             }
         }
 
+        // A group's live instances are keyed "<device>#<candidate>", which the bare-name match
+        // below never selects; an id-qualified request needs only that id's winner, by its own id.
+        const auto reg_it = m_plugin_registry.find(clear_device_name);
+        is_group = reg_it != m_plugin_registry.end() && reg_it->second.is_dispatch_group();
+        if (is_group && !parser.get_device_id().empty()) {
+            if (const auto map_it = m_dispatch_map.find(clear_device_name); map_it != m_dispatch_map.end()) {
+                for (const auto& e : map_it->second) {
+                    if (e.canonical_id != parser.get_device_id() || !e.winner_idx)
+                        continue;
+                    group_key = clear_device_name + '#' + std::to_string(*e.winner_idx);
+                    if (const auto v = e.per_lib.find(*e.winner_idx); v != e.per_lib.end())
+                        group_internal_id = v->second.internal_id;
+                    break;
+                }
+            }
+        }
+
         // set config for already created plugins
         for (auto& plugin : m_plugins) {
-            if (device_name.empty() || clear_device_name == plugin.first) {
+            bool selected = device_name.empty() || clear_device_name == plugin.first;
+            if (!selected && is_group) {
+                selected =
+                    group_key.empty() ? plugin.first.rfind(clear_device_name + '#', 0) == 0 : plugin.first == group_key;
+            }
+            if (selected) {
                 created_plugins.emplace_back(std::pair<std::string, ov::Plugin>{plugin.first, plugin.second});
             }
         }
@@ -1735,7 +1769,10 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
                         device_supports_internal_property(plugin.second, ov::internal::config_device_id.name())
                             ? ov::internal::config_device_id.name()
                             : ov::device::id.name();
-                    config_copy[deviceKey] = parser.get_device_id();
+                    // A group winner is addressed by its own id, not the canonical one.
+                    config_copy[deviceKey] = (!group_internal_id.empty() && plugin.first == group_key)
+                                                 ? group_internal_id
+                                                 : parser.get_device_id();
                 }
             }
             plugin.second.set_property(config_copy);

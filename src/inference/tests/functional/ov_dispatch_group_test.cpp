@@ -247,6 +247,41 @@ TEST_F(DispatchGroupTest, global_set_property_after_group_resolved) {
     OV_ASSERT_NO_THROW(core.set_property({{"SOME_PROPERTY", "SOME_VALUE"}}));
 }
 
+// get_property(<group>, available_devices) must report core's merged canonical list, not the
+// winner library's own view, which would omit devices only another candidate sees.
+TEST_F(DispatchGroupTest, available_devices_property_reports_merged_list) {
+    script("0,aa," + std::to_string(PREFERRED),
+           "0,aa," + std::to_string(CAPABLE) + ";1,cc," + std::to_string(SERVABLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    // A wins "aa" and does not see "cc" at all; the merged list still has both devices.
+    EXPECT_EQ(core.get_property(device, ov::available_devices), std::vector<std::string>({"0", "1"}));
+}
+
+// set_property(<group>, ...) must reach the already-created winner instance, which is cached
+// under an internal key ("FAKE#N") that a bare-name comparison never matches.
+TEST_F(DispatchGroupTest, set_property_reaches_live_group_instance) {
+    script("0,aa," + std::to_string(PREFERRED), "0,aa," + std::to_string(CAPABLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core), "A");  // instance now live under "FAKE#0"
+    core.set_property(device, {{"MOCK_PROP", "SET_VIA_GROUP"}});
+    EXPECT_EQ(core.get_property(device, "MOCK_PROP").as<std::string>(), "SET_VIA_GROUP");
+}
+
+// An id-qualified set_property must target that id's winner using the winner's OWN device id:
+// canonical "1" is B's internal "7" here, so pushing the canonical id would configure nothing.
+TEST_F(DispatchGroupTest, set_property_translates_id_for_group_winner) {
+    script("0,aa," + std::to_string(PREFERRED), "7,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "1"), "B");  // canonical "1" == B's internal "7"
+    core.set_property(device + ".1", {{"MOCK_PROP", "FOR_B"}});
+    EXPECT_EQ(core.get_property(device + ".1", "MOCK_PROP").as<std::string>(), "FOR_B");
+    // The id handed to the plugin is its own, not the canonical one.
+    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
+}
+
 // --- register_plugin runtime API forms a dispatch group ---
 
 // A second register_plugin for the same device name now appends a candidate (no opt-in flag),

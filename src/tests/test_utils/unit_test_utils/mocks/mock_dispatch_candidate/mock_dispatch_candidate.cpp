@@ -43,7 +43,10 @@ public:
                                                       const ov::SoPtr<ov::IRemoteContext>&) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    void set_property(const ov::AnyMap&) override {}
+    void set_property(const ov::AnyMap& properties) override {
+        for (const auto& p : properties)
+            m_properties[p.first] = p.second;
+    }
     ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
         if (name == ov::supported_properties.name())
             return std::vector<ov::PropertyName>{};
@@ -51,6 +54,9 @@ public:
             return std::vector<ov::PropertyName>{};
         if (name == ov::available_devices.name())
             return std::vector<std::string>{};
+        // Echo back whatever was set, so a test can assert set_property reached this instance.
+        if (const auto it = m_properties.find(name); it != m_properties.end())
+            return it->second;
         // Report which candidate answered, so a test can assert who was constructed.
         if (name == "MOCK_CANDIDATE_TAG")
             return std::string(MOCK_CANDIDATE_TAG);
@@ -81,6 +87,9 @@ public:
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
+
+private:
+    ov::AnyMap m_properties;
 };
 
 // Parse the scripted enumeration for this candidate from its env var.

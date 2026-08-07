@@ -1064,10 +1064,10 @@ std::vector<uint8_t> make_fingerprint(const cldnn::device_info& info) {
 
 void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
     try {
-        // Debug override OV_GPU_RUNTIME=OCL|ZE|SYCL, applied here via score manipulation (core
-        // stays runtime agnostic); an unrecognized value is ignored. See the per-device block.
+        // Debug override OV_GPU_RUNTIME=OCL|ZE (only what a group ships; anything else, e.g. SYCL,
+        // is ignored - it would drop every candidate's Intel devices and hide the device entirely).
         static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
-        const bool has_override = forced == "OCL" || forced == "ZE" || forced == "SYCL";
+        const bool has_override = forced == "OCL" || forced == "ZE";
         const bool is_this_runtime = std::string_view(forced) == cldnn::get_runtime_cache_tag();
 
         for (const auto& d : cldnn::lightweight_enumerate()) {
