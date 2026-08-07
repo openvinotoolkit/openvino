@@ -368,6 +368,9 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         });
 
     const auto& tile_in = hfa->_sdpa_attention_info._tile_input_indices;
+    const auto n_tile_in = hfa->_compiled_tile_model->inputs().size();
+    OPENVINO_ASSERT(tile_in.acc < n_tile_in && tile_in.max < n_tile_in && tile_in.d < n_tile_in,
+                    "HFA tile input index out of range");
     auto state_acc = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
         hfa->_compiled_tile_model->inputs()[tile_in.acc]);
     auto state_max = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
@@ -905,6 +908,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
+                        const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
+                        const auto n_out = hfa_desc->_compiled_tile_model->outputs().size();
+                        OPENVINO_ASSERT(
+                            tile_in.q < n_in && tile_in.acc < n_in && tile_in.max < n_in && tile_in.d < n_in,
+                            "HFA tile input index out of range");
+                        OPENVINO_ASSERT(tile_out.acc < n_out && tile_out.max < n_out && tile_out.d < n_out,
+                                        "HFA tile output index out of range");
 
                         ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
