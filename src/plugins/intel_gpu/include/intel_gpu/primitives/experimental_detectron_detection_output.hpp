@@ -75,8 +75,6 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
                                             std::vector<float> deltas_weights)
         : primitive_base{id,
                          {input_rois, input_deltas, input_scores, input_im_info}},
-          output_classes{},
-          output_scores{},
           score_threshold{score_threshold},
           nms_threshold{nms_threshold},
           num_classes{num_classes},

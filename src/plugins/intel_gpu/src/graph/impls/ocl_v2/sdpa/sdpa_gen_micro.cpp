@@ -227,7 +227,7 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
 
 inline size_t micro_get_input_num(const kernel_impl_params& params, const sdpa_configuration& config) {
     auto data_inputs_num = config.input_num;
-    bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
+    bool is_paged_attention = params.is_type<paged_attention>();
     if (!is_paged_attention) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         data_inputs_num = get_data_inputs_num(*desc);
@@ -1491,7 +1491,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 }
 
 size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
-    OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+    OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
     const auto& gemms = kernel_data.micro_kernels;
     const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");

@@ -256,7 +256,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const c
     }
 
     // Filter out combinations that are known to be sub-optimal in order to reduce search space
-    valid_tune_params &= tparams.exeMode == EXE_MODE_DEFAULT;
+    valid_tune_params &= tparams.exeMode.empty();
     valid_tune_params &= tparams.preload_input_slm || tparams.lws0 * tparams.lws1 == 1;
     valid_tune_params &= !tparams.preload_input_slm || (tparams.lws0 * tparams.lws1) % 2 == 0;
 
@@ -287,7 +287,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params
     dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
 
     dispatchData.cldnnStyle.blockWidth = tune_params.tile_x;
-    dispatchData.cldnnStyle.prefetch = tune_params.preload_input_slm;
+    dispatchData.cldnnStyle.prefetch = static_cast<size_t>(tune_params.preload_input_slm);
 
     return dispatchData;
 }

@@ -130,7 +130,27 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     }
 
     if (weights_pshape.size() != 2) {
-        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        // Detect 3D weights being passed to oneDNN
+        if (supports_immad && desc->weights_rank == 3 && weights_pshape.size() == 4 &&
+            weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+            return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
+        } else {
+            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
+    }
+
+    format output_format = get_preferred_format(node, impl_param);
+
+    auto& fused_prims = node.get_fused_primitives();
+    for (const auto& f : fused_prims) {
+        if (f.is_type<swiglu>()) {
+            OPENVINO_ASSERT(fused_prims.size() == 1, "[GPU] Other operation is fused in addition to swiglu!");
+            OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
+            ov::PartialShape out_pshape = f.output_layout.get_partial_shape();
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " fused with swiglu so override with its output layout: " << out_pshape.to_string()
+                                    << std::endl;
+            return layout(out_pshape, output_type, output_format);
+        }
     }
 
     if (supports_immad) {
@@ -147,8 +167,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
                           input_layout.spatial(2), input_layout.spatial(1), out_features};
         }
 
-        format output_format = get_preferred_format(node, impl_param);
-
         return layout(out_pshape, output_type, output_format);
     } else {
         if (desc->input_size > 5) {
@@ -164,8 +182,6 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         } else if (desc->input_size == 5) {
             output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1), input_layout.spatial(2));
         }
-
-        format output_format = get_preferred_format(node, impl_param);
 
         return layout(output_type, output_format, output_size);
     }
@@ -381,7 +397,7 @@ bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl
     }
 
     // Don't support swiglu fused
-    if (impl_param.fused_desc.size() > 0) {
+    if (!impl_param.fused_desc.empty()) {
         for (const auto& f : impl_param.fused_desc) {
             if (f.is_type<swiglu>())
                 return false;

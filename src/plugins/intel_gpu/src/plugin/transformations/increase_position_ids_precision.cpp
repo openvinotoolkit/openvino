@@ -89,6 +89,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         auto matmul_node = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(gemm_or_matmul).get_node_shared_ptr());
         auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
         auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
+        auto rope_node = pattern_map.at(rope).get_node_shared_ptr();
 
         if (!matmul_node || transformation_callback(matmul_node))
             return false;
@@ -98,13 +99,21 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
         if (original_et == desired_et)
             return false;
 
+        // Step 1: Ensure MatMul inputs are f32
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, input_idx);
-
+        
+        // Step 2: Insert restore converts only if RoPE expects non-f32 precision.
         if (is_changed) {
             size_t output_idx = 0;
-            insert_converts_after_if_needed(cos_node, original_et, output_idx);
-            insert_converts_after_if_needed(sin_node, original_et, output_idx);
+            auto rope_cos_et = rope_node->get_input_element_type(1);
+            if (rope_cos_et != desired_et) {
+                insert_converts_after_if_needed(cos_node, rope_cos_et, output_idx);
+            }
+            auto rope_sin_et = rope_node->get_input_element_type(2);
+            if (rope_sin_et != desired_et) {
+                insert_converts_after_if_needed(sin_node, rope_sin_et, output_idx);
+            }
         }
         return true;
     };
@@ -476,8 +485,7 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
     this->register_matcher(m, callback);
 }
 
-
-IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() {}
+IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() = default;
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());

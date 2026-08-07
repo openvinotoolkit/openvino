@@ -7,7 +7,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/compute_hash.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/hash_util.hpp"
 
 namespace ov::util {
 
