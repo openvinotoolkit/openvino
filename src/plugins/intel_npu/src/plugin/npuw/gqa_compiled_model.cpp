@@ -12,6 +12,7 @@
 #include "logging.hpp"
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
+#include "npuw_transformations/dequantize_gqa_kv.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
@@ -113,6 +114,11 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                               : stage == GQAModelStage::GENERATE ? "generate"
                                                                  : "unknown"));
 
+    // Dequantize any int8 KV cache around the GroupQueryAttention op, keeping the op float, so it routes to
+    // the native fused float-GQA lowering (the quantized op is otherwise unlowerable by vpux). Runs first, so
+    // the downstream QDQ-cleanup passes and the online partitioner only ever see the float op + plain QDQ nodes.
+    ov::npuw::DequantizeGQAKVCache dequantize_gqa_kv;
+    dequantize_gqa_kv.run_on_model(model);
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.
