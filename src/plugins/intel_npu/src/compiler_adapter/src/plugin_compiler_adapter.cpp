@@ -92,22 +92,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, effectiveConfig);
     _logger.debug("compile end");
 
-    auto isHostCompiledBlob = [&](ov::Tensor& tensor) {
-        const size_t headerSize = std::min(tensor.get_byte_size(), size_t{20});
-        const std::string_view header(static_cast<const char*>(tensor.data()), headerSize);
-        if (header.find("llvm") != std::string_view::npos || header.find("NPUByte\x00") != std::string_view::npos) {
-            _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
-            return true;
-        }
-        return false;
-    };
-
-    if (isHostCompiledBlob(tensor)) {
+    const auto& compilationMode = effectiveConfig.get<COMPILATION_MODE>();
+    const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
+    const BlobType blobType =
+        isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
+                                                                                              : BlobType::LLVM)
+                      : BlobType::ELF;
+    if (blobType != BlobType::ELF) {
+        _logger.debug("HostCompile mode is detected from NPU_COMPILATION_MODE, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), config);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), config, blobType);
     }
 
     GraphDescriptor graphDesc;

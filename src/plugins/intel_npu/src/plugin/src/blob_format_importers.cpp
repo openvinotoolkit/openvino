@@ -256,6 +256,10 @@ private:
         return std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return std::nullopt;
+    }
+
     /**
      * @brief The compiler main schedule, that is also the whole blob received to be imported.
      */
@@ -383,6 +387,10 @@ private:
                    : std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return m_metadata->get_blob_type();
+    }
+
     /**
      * @brief Registers the compiler version inside the configuration attribute if the version is found within the
      * metadata.
@@ -457,7 +465,8 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             m_config,
                             std::move(weights_source),
                             init_schedules,
-                            extract_compiler_compatibility_descriptor());
+                            extract_compiler_compatibility_descriptor(),
+                            extract_blob_type());
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
