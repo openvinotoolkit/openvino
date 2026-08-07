@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-11-59-02-000-31174378977",
+  "timestamp": "2026-08-07T11:59:02Z",
+  "run_id": "31174378977",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31174378977",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "37141",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37141",
+  "author": "goyaladitya05",
+  "category": "Code Issue",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
+  "signature": "COMPARATION FAILED abs threshold rel threshold incorrect elem counter among shapes|Code Issue",
+  "signature_hash": "4975bf8755e5f7c4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_Conv1x1WeightCompressedToMatmul test COMPARATION FAILED with large numerical diff"
+    }
+  ],
+  "key_errors": [
+    "COMPARATION FAILED! abs_threshold: 0.050000 rel_threshold: 0.010000 incorrect elem counter: 12 among 128 shapes.",
+    "Coordinate with max diff: [0,104] Expected: 17.5101 Actual: 2221.72 Diff: 2204.21",
+    "[  FAILED  ] smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference/IS=[?.1.1.128]_([1.1.1.128].[3.1.1.128])_Cout=128_in=Transpose_out=Reshape_actPrec=f32_wPrec=i4_device=CPU"
+  ],
+  "root_cause": "PR #37141 adds RoPEFusionLtxVideo on CPU and a new RoPEExecutorLtxVideo. The transformation_pipeline.cpp changes enable RoPEFusionLtxVideo. This appears to inadvertently alter how Conv1x1WeightCompressedToMatmul transformations interact, causing catastrophic numerical errors (expected ~17.5, actual ~2221) in a f32/i4 weight-compressed conv-to-matmul test. The deviation is far too large to be a precision issue and indicates incorrect data flow \u2014 likely the RoPE transformation is being applied to the wrong subgraph or is interfering with the weight decompression path for the matmul.",
+  "reproduction_steps": "Run: smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference with IS=[?.1.1.128] ([1.1.1.128].[3.1.1.128]) Cout=128 in=Transpose out=Reshape actPrec=f32 wPrec=i4 device=CPU",
+  "recommended_actions": [
+    "Revert or narrow the scope of RoPEFusionLtxVideo enablement in transformation_pipeline.cpp to ensure it only matches genuine LTX-Video RoPE subgraphs",
+    "Add a stricter pattern guard in the RoPEFusionLtxVideo matcher to not match conv weight decompression subgraphs",
+    "Run the Conv1x1WeightCompressedToMatmul test suite before re-merging PR #37141"
+  ],
+  "prevention_strategies": "When enabling new subgraph fusions in the CPU transformation pipeline, always run the full Conv1x1WeightCompressedToMatmul and FullyConnected weight-compression test suites to catch pattern match collisions.",
+  "historical_context": "First occurrence of this specific pattern. Numerical magnitude of error (expected ~17, actual ~2221) suggests transformation incorrectly applied to wrong subgraph rather than precision rounding."
+}
