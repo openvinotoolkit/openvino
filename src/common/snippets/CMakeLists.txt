@@ -31,10 +31,9 @@ ov_build_target_faster(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
-                                     PRIVATE openvino::reference openvino::runtime::dev)
+                                     PRIVATE openvino::reference openvino::runtime::dev openvino::shape_inference)
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-                                          PRIVATE $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>)
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
