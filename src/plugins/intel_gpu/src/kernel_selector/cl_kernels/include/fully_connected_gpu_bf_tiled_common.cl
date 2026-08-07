@@ -60,7 +60,7 @@ inline void (FUNC_NAME)(
 #endif
 
 #if COMPRESSED_WEIGHTS_INT4
-    uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / 2);
+    uint weights_offset = out_f * (INPUT_ELEMENTS_COUNT / FILTER_ELEMENTS_PER_BYTE);
 #else
     uint weights_offset = out_f * INPUT_ELEMENTS_COUNT;
 #endif
