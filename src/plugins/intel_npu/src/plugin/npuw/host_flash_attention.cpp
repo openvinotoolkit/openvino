@@ -660,6 +660,10 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // enable_mask_skipping is true (depending on the model mask type).
     // For the non-fused operation all tiles require mask
     const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
+    LOG_INFO("[HFA] " << (is_final_tile ? "FINAL" : "regular") << " tile mask decision: use_mask=" << use_mask
+                       << " (is_final_tile=" << is_final_tile
+                       << ", fused_flash_attention=" << fused_flash_attention
+                       << ", enable_mask_skipping=" << enable_mask_skipping << ")");
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;
@@ -978,6 +982,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                            bool enable_mask_skipping) {
     LOG_INFO("Attempting to create HostFlashAttention"
              << (fused_flash_attention ? " with fused flash attention node" : ""));
+    LOG_INFO("[HFA] enable_mask_skipping=" << enable_mask_skipping
+                                            << " (regular, non-final tiles will "
+                                            << (enable_mask_skipping ? "SKIP" : "KEEP") << " the explicit mask)");
     LOG_BLOCK();
 
     // ========================================================================

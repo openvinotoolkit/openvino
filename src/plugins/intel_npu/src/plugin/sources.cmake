@@ -131,6 +131,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_kvcache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_kvcache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp

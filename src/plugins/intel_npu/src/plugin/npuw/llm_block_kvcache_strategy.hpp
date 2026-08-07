@@ -32,8 +32,46 @@ enum class BlockParamKind {
 
 /// @brief Pair of key/value block managers for one transformer layer.
 struct LayerBlockManagers {
+    // Used for NON-sliding (full-attention) layers only: a growable pool of block_size-wide
+    // blocks, zero-copy bound directly to the model's numbered block ports.
     std::unique_ptr<KVCacheBlockManager> key_manager;
     std::unique_ptr<KVCacheBlockManager> value_manager;
+
+    // True for a sliding-window-attention (SWA) layer. SWA layers do NOT use key_manager /
+    // value_manager (both stay null) - a per-token-exact sliding window cannot be
+    // represented by whole-block eviction/rotation alone (block-granularity eviction can
+    // only keep/evict in units of block_size, which cannot reproduce an exact window_size
+    // cutoff whenever it doesn't land on a block boundary - "torn" mid-block positions).
+    // Instead SWA layers use a single persistent swa_key_window / swa_value_window buffer
+    // (see below), updated via ov::npuw::util::write_kv_slice_sliding() using
+    // SlidingBufferLayout::Circular - see the detailed rationale above
+    // update_swa_windows_from_prefill()/update_swa_windows_generate() in the .cpp file for
+    // why physical column order within the window doesn't need to be chronological.
+    bool is_sliding = false;
+
+    // SWA layers only: one contiguous window_size-wide buffer per key/value, allocated once
+    // in create_block_managers_and_helpers() and never reallocated. All numbered input ports
+    // for this layer (past_key_values.N.key_block_0..k-1), across the prefill request AND
+    // every generate variant, are bound ONCE (see bind_swa_window_views()) as adjacent
+    // block_size-wide VIEWS into this single buffer, and are never rebound again - only the
+    // buffer's CONTENT changes (via write_kv_slice_sliding()), so the k views always show the
+    // latest data automatically.
+    //
+    // NB: an oversized-buffer + periodic-compaction + "slide the view forward" scheme was
+    // tried and reverted - the NPU backend's zero-copy remote tensor binding requires each
+    // port's bound memory to stay at a FIXED (block-aligned, established-once) address;
+    // rebinding to an arbitrary shifting offset every step triggered "Strided remote tensor
+    // is not supported for this port!" and produced wrong results. The current
+    // Circular-layout write scheme keeps every port's binding fixed for its entire lifetime
+    // and never rebinds anything - only the write OFFSET within the fixed buffer changes.
+    ov::SoPtr<ov::ITensor> swa_key_window;
+    ov::SoPtr<ov::ITensor> swa_value_window;
+
+    // The dimension (2 or 3) within swa_key_window/swa_value_window's shape that represents
+    // the token/sequence axis - mirrors the dim auto-detected by KVCacheBlockManager for
+    // non-sliding layers (base_shape[2] or base_shape[3] == block_size).
+    uint32_t swa_key_dim = 0;
+    uint32_t swa_value_dim = 0;
 };
 
 /// @brief Helper for block binding: determines whether a block uses zero-copy numbered binding
@@ -144,6 +182,23 @@ private:
 
     void create_block_managers_and_helpers();
 
+    // Bind every SWA layer's numbered input ports (prefill + all generate variants) as
+    // static, never-rebound VIEWS into its single swa_key_window/swa_value_window buffer.
+    // Called once from on_initialize(), and again from on_reset() (which - like any other
+    // numbered block port - overwrites SWA ports with dummy tensors as a side effect of
+    // releasing non-sliding blocks, so the static views need re-establishing).
+    void bind_swa_window_views();
+
+    // Slide SWA layers' window buffers forward using this prefill chunk's freshly computed
+    // "present.N.key/value" outputs. Called unconditionally at the end of
+    // on_prefill_chunk_done(), regardless of whether non-sliding layers used the zero-copy
+    // or copy path for this chunk (SWA layers are never zero-copy-redirected).
+    void update_swa_windows_from_prefill(uint32_t current_prompts_len);
+
+    // Slide SWA layers' window buffers forward using this generate step's freshly computed
+    // "present.N.key/value" outputs. Called unconditionally from on_generate_step_done().
+    void update_swa_windows_generate(uint32_t input_tokens_len);
+
     // -------------------------------------------------------------------------
     // Core KV copy/bind engine (shared by prefill and generate paths)
     // -------------------------------------------------------------------------
@@ -206,6 +261,13 @@ private:
     // Block size in tokens — fixed at on_initialize() time, equal to m_prefill_chunk_size.
     // Cached here to avoid repeated map lookups into m_kv_cache_block_managers.
     uint32_t m_block_size = 0;
+
+    // Perf diagnostics: running total/count of update_swa_windows_generate() time, so
+    // on_generate_step_done()'s per-call LOG_DEBUG can also report a running average
+    // without needing a separate profiling pass. Reset at the start of every conversation
+    // (on_reset()) so the numbers reflect a single generation, not the whole process lifetime.
+    float m_swa_update_total_ms = 0.0f;
+    uint64_t m_swa_update_calls = 0;
 };
 
 }  // namespace npuw

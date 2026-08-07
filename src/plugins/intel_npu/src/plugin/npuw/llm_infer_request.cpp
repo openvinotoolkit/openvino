@@ -650,6 +650,18 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                 // Create backup of past KV tensor when buffer sharing is enabled to prevent data corruption
                 // This is necessary because subsequent copy operations would overwrite the shared buffer
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+
+                // For SWA layers, prefill_past_kv's OWN capacity (its shape at pre_kv_dim) is shrunk by
+                // PatchSlidingWindowKVCache to window_size, which can be SMALLER than the logical
+                // tokens_in_past_chunks count once the prompt spans enough chunks to saturate the window
+                // - slicing to the raw (unclamped) tokens_in_past_chunks would then read out of bounds.
+                // Per the KV buffer invariant, the tensor always holds exactly its min(total, capacity)
+                // MOST RECENT tokens, LEFT-aligned - so the valid prefix to read is [0, valid_past_chunks),
+                // which is already exactly that "most recent" prefix by construction (no extra math needed).
+                const auto pre_capacity = static_cast<uint32_t>(prefill_past_kv->get_shape()[pre_kv_dim]);
+                const uint32_t valid_past_chunks =
+                    std::min(static_cast<uint32_t>(tokens_in_past_chunks), pre_capacity);
+
                 ov::SoPtr<ov::ITensor> tmp_dense_kv_tensor;
                 ov::SoPtr<ov::ITensor> prefill_past_kv_chunks;
                 if (m_past_kv_bound) {
@@ -658,49 +670,59 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                    m_pre_alloc_device,
                                                                    m_npuw_llm_compiled_model->get_plugin());
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
-                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor, pre_kv_dim, 0u, valid_past_chunks);
                 } else {
-                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv,
-                                                               pre_kv_dim,
-                                                               0u,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks));
+                    prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv, pre_kv_dim, 0u, valid_past_chunks);
                 }
 
-                auto kvcache_past_kv_chunks = uu::make_tensor_slice(kvcache_in_tensor,
-                                                                    gen_kv_dim,
-                                                                    0u,
-                                                                    static_cast<uint32_t>(tokens_in_past_chunks));
-
-                uu::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, pre_kv_dim, gen_kv_dim);
+                // prefill_past_kv_chunks may hold FEWER than tokens_in_past_chunks tokens for a saturated
+                // SWA layer (see above) - pass the full LOGICAL tokens_in_past_chunks as num_new_tokens
+                // regardless: write_kv_slice_sliding() re-clamps against the source tensor's own (possibly
+                // smaller) length internally and extracts its TAIL (most recent) portion, which is exactly
+                // correct since prefill_past_kv_chunks is itself already the most-recent-valid_past_chunks
+                // prefix.
+                uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                          prefill_past_kv_chunks,
+                                          gen_kv_dim,
+                                          pre_kv_dim,
+                                          0u,
+                                          static_cast<uint32_t>(tokens_in_past_chunks));
             }
 
-            // Copy part 2 KV results
+            // Copy part 2 KV results. prefill_out_tensor here is the LAST chunk's own "present" OUTPUT -
+            // a pure function of this forward call's own input length (prefill_chunk_size), computed fresh
+            // each call and NEVER shrunk by PatchSlidingWindowKVCache (only the "past" INPUT Parameter is
+            // shrunk for SWA layers) - so this slice bound is safe for SWA and non-SWA layers alike.
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
                                       pre_kv_dim,
                                       static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
                                       static_cast<uint32_t>(prefill_chunk_size));
 
-            auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
-                                                               gen_kv_dim,
-                                                               static_cast<uint32_t>(tokens_in_past_chunks),
-                                                               kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, pre_kv_dim, gen_kv_dim);
-        } else {
-            auto prefill_out_slice =
-                uu::make_tensor_slice(prefill_out_tensor,
+            // num_stored_tokens_before is the logical token count represented by part 1
+            // above; write_kv_slice_sliding re-derives the capacity-clamped valid count
+            // from it internally, consistently with what part 1 actually wrote.
+            uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                      prefill_present_kv_chunk,
+                                      gen_kv_dim,
                                       pre_kv_dim,
-                                      kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                      kvcache_desc.max_prompt_size);
-
-            auto kvcache_in_slice =
-                uu::make_tensor_slice(kvcache_in_tensor, gen_kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
-            uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, pre_kv_dim, gen_kv_dim);
+                                      static_cast<uint32_t>(tokens_in_past_chunks),
+                                      static_cast<uint32_t>(m_tokens_in_present_chunk));
+        } else {
+            // prefill_out_tensor follows the "present/output" convention (right-aligned
+            // valid tail of length num_stored_tokens within the max_prompt_size buffer);
+            // this is the whole (non-chunked) prefill's own single-shot "present" output, a pure
+            // function of the model's own input_size (== max_prompt_size here) - like chunked
+            // prefill's part 2, it is NEVER shrunk by PatchSlidingWindowKVCache for SWA layers (only
+            // the "past" INPUT Parameter is), so no pre-slice/clamp is needed here: the tensor's own
+            // full shape at pre_kv_dim is always >= num_stored_tokens. write_kv_slice_sliding extracts
+            // the correct (capacity-clamped) tail itself.
+            uu::write_kv_slice_sliding(kvcache_in_tensor,
+                                      prefill_out_tensor,
+                                      gen_kv_dim,
+                                      pre_kv_dim,
+                                      0u,
+                                      kvcache_desc.num_stored_tokens);
         }
     });
     LOG_DEBUG("Done.");
@@ -729,22 +751,21 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
 
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
-        auto dst_slice = uu::make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
         // NOTE: Sometimes present kv layer can contain greater seq_len
         //       than was sent to be processed
         uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
         OPENVINO_ASSERT(num_tokens <= src_seq_len);
-        if (src_seq_len > num_tokens) {
-            auto src_slice = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
-        } else {
-            uu::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, kv_dim);
-        }
+        // write_kv_slice_sliding() clamps against dst_tensor's own capacity, so this is
+        // also correct (and a no-op change in behavior) for non-SWA layers, where
+        // capacity always covers the whole context.
+        uu::write_kv_slice_sliding(dst_tensor,
+                                   src_tensor,
+                                   kv_dim,
+                                   kv_dim,
+                                   kvcache_desc.num_stored_tokens - num_tokens,
+                                   num_tokens);
     }
 }
 

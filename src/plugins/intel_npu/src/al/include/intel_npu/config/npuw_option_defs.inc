@@ -73,6 +73,8 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS, uint64_t, 128,
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, bool, false, ov::intel_npu::npuw::llm, enable_continuous_prefill, "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, ov::intel_npu::npuw::llm, cache_rope, "NPUW_LLM_CACHE_ROPE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, bool, false, ov::intel_npu::npuw::llm, enable_block_based_kv_cache, "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SLIDING_WINDOW, uint64_t, 0, ov::intel_npu::npuw::llm, sliding_window, "NPUW_LLM_SLIDING_WINDOW", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_LAYER_TYPES, std::string, "", ov::intel_npu::npuw::llm, layer_types, "NPUW_LLM_LAYER_TYPES", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, prefill_moe_hint, "NPUW_LLM_PREFILL_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_GENERATE_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, generate_moe_hint, "NPUW_LLM_GENERATE_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_HINT, ::intel_npu::npuw::llm::PrefillHint, PrefillHintOptionTraits, ov::intel_npu::npuw::llm, prefill_hint, "NPUW_LLM_PREFILL_HINT", LLM, EXPOSED, CACHED, ALL)

@@ -645,6 +645,80 @@ public:
     }
 };
 
+class Gemma4MaskedFillSlidingMaskMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::Gemma4MaskedFillSlidingMaskMatcher");
+
+    explicit Gemma4MaskedFillSlidingMaskMatcher(const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
+        // Fixes a THIRD, newer Gemma-4 sliding-window mask export shape (confirmed on a real
+        // chunked-prefill dump), built via "masked_fill" (lowered to Select) instead of the
+        // BitwiseAnd-based forms handled by Gemma4SlidingMaskMatcher / Gemma4UnifiedSlidingMaskMatcher
+        // above:
+        //
+        //   col_pos = Unsqueeze(Range(0, kvcache_size, 1))               -- [1, kvcache_size], static
+        //   row_pos = Add(Unsqueeze(Range(0, chunk_size, 1)), past_len)  -- [chunk_size, 1]
+        //   beyond_window = GreaterEqual(Subtract(row_pos, col_pos), window_size)
+        //   sliding_mask  = Select(Unsqueeze(Unsqueeze(beyond_window)), -inf, causal_mask)
+        //
+        // `past_len` here is a plain compile-time Constant (observed to fold to
+        // `kvcache_size - chunk_size`, i.e. it silently assumes every call's queries sit at the LAST
+        // `chunk_size` absolute positions of the buffer) - it never reads `position_ids`. For a model
+        // reused across multiple chunks/generate steps (chunked prefill, or any generate KV-size
+        // variant), the window boundary is therefore frozen to whichever single call happens to match
+        // that assumption, silently corrupting `beyond_window`/`sliding_mask` for every other call.
+        //
+        // Fix: replace the `past_len` operand of `row_pos`'s Add with the REAL current chunk start,
+        // read from `position_ids[0]` at runtime. This only fixes mask CONTENT - the separate
+        // width-selection Slice (patched by PatchSlidingWindowKVCache) still needs its own,
+        // position_ids-anchored column-selection fix.
+        auto col_start_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto key_range = opp::wrap_type<ov::op::v4::Range>({col_start_const, opp::any_input(), opp::any_input()});
+        auto col_pos = opp::wrap_type<ov::op::v0::Unsqueeze>({key_range, opp::any_input()});
+
+        auto row_start_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto local_arange = opp::wrap_type<ov::op::v4::Range>({row_start_const, opp::any_input(), opp::any_input()});
+        auto local_arange_row = opp::wrap_type<ov::op::v0::Unsqueeze>({local_arange, opp::any_input()});
+        auto row_pos = opp::wrap_type<ov::op::v1::Add>({local_arange_row, opp::any_input()});
+
+        auto row_minus_col = opp::wrap_type<ov::op::v1::Subtract>({row_pos, col_pos});
+        auto beyond_window = opp::wrap_type<ov::op::v1::GreaterEqual>({row_minus_col, opp::any_input()});
+        auto beyond_window_u1 = opp::wrap_type<ov::op::v0::Unsqueeze>({beyond_window, opp::any_input()});
+        auto beyond_window_u2 = opp::wrap_type<ov::op::v0::Unsqueeze>({beyond_window_u1, opp::any_input()});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Select>({beyond_window_u2, opp::any_input(), opp::any_input()});
+
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto row_pos_node = node_to_output.at(row_pos).get_node_shared_ptr();
+
+            // chunk_start = position_ids[:, 0:1] -- the real absolute position of the first query row
+            // in THIS call, read at runtime. Unlike PatchSlidingWindowKVCache's mask-column reselection
+            // (which needs a runtime-computed begin), the index here is a compile-time-literal 0, so a
+            // plain `Slice` already yields a fully static output shape - cheaper than a `Gather` and
+            // simpler (no Reshape-pin needed). Slice (unlike Gather with a scalar index) keeps the
+            // sliced axis instead of removing it, so the result stays [batch, 1] rather than [batch] -
+            // Add below broadcasts a [batch, 1]-shaped operand just as well.
+            auto begin_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+            auto end_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            auto step_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            auto axis_1d = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            std::shared_ptr<ov::Node> chunk_start =
+                std::make_shared<ov::op::v8::Slice>(position_ids_node_ptr, begin_1d, end_1d, step_1d, axis_1d);
+
+            const auto target_et = row_pos_node->get_input_element_type(1);
+            if (chunk_start->get_element_type() != target_et) {
+                chunk_start = std::make_shared<ov::op::v0::Convert>(chunk_start, target_et);
+            }
+            row_pos_node->input(1).replace_source_output(chunk_start);
+
+            LOG_INFO("Found Gemma-4 (masked_fill-style) Sliding Window Attention mask, replaced its static "
+                     "past-length reference with a position_ids-derived value.");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(sliding_mask, "Gemma4MaskedFillSlidingMaskMatcher"),
+                         std::move(callback));
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -680,6 +754,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+    rewriter->add_matcher<Gemma4MaskedFillSlidingMaskMatcher>(position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
     return manager.run_passes(model);

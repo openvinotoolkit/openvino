@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <stack>
@@ -97,11 +98,51 @@ public:
     uint32_t get_block_tokens(uint32_t block_id) const;
 
     /**
-     * @brief Get list of all currently allocated block IDs
+     * @brief Get list of all currently allocated block IDs, in allocation order
+     * (oldest first). This is the order new blocks were appended in, which - unlike
+     * ascending block ID order - stays correct even after ensure_blocks_up_to() has
+     * reused evicted IDs for newer blocks.
      *
      * @return Vector of block IDs
      */
     std::vector<uint32_t> get_allocated_blocks() const;
+
+    /**
+     * @brief Ensure blocks exist for every chronological (ever-increasing) block index
+     * up to and including `up_to_index`, allocating new blocks as needed.
+     *
+     * Intended for sliding-window (SWA) layers: once max_blocks are resident, each
+     * additional index evicts the single oldest resident block (by allocation order,
+     * see get_allocated_blocks()) and reuses its slot, so the manager always holds
+     * exactly the most recent max_blocks chronological blocks. Use resident_index() /
+     * evicted_count() to translate a chronological index into its position in
+     * get_allocated_blocks() / get_allocated_blocks().size().
+     *
+     * Callers that never need eviction (full-attention layers) should keep using
+     * allocate_block() directly, which fails loudly on exhaustion instead of evicting.
+     *
+     * @param up_to_index Highest chronological block index that must be resident.
+     *                    Indices must be requested in non-decreasing order across the
+     *                    manager's lifetime (matches token generation order).
+     */
+    void ensure_blocks_up_to(uint32_t up_to_index);
+
+    /**
+     * @brief Number of chronological blocks evicted so far via ensure_blocks_up_to().
+     * Always 0 unless ensure_blocks_up_to() has actually evicted a block.
+     */
+    uint32_t evicted_count() const {
+        return evicted_count_;
+    }
+
+    /**
+     * @brief Translate a chronological block index into its position in
+     * get_allocated_blocks() (0 = oldest resident block).
+     *
+     * @param chronological_index Must be >= evicted_count(), i.e. still resident -
+     *        indices below that have been evicted and no longer have a backing block.
+     */
+    uint32_t resident_index(uint32_t chronological_index) const;
 
     /**
      * @brief Release blocks to FREE state, selectively dropping device memory.
@@ -176,6 +217,15 @@ private:
     uint32_t max_blocks_;                  ///< Maximum blocks in pool
     std::vector<Block> blocks_;            ///< All blocks (free + allocated)
     std::stack<uint32_t> free_block_ids_;  ///< Stack of free block IDs (LIFO for better reuse)
+
+    /// Allocated block IDs in allocation order (oldest first). Backs get_allocated_blocks()
+    /// and drives ensure_blocks_up_to()'s eviction (front = oldest = evicted first).
+    /// For managers that never evict, this always equals ascending block-ID order.
+    std::deque<uint32_t> allocated_order_;
+
+    /// Number of chronological blocks evicted so far via ensure_blocks_up_to() (0 unless
+    /// eviction has actually happened).
+    uint32_t evicted_count_ = 0;
 
     ov::element::Type element_type_;             ///< Element type for tensors
     ov::Shape block_shape_;                      ///< Shape for block tensors

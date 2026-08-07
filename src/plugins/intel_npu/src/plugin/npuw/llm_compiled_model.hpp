@@ -159,6 +159,21 @@ private:
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
 
+    // Sliding Window Attention (SWA) support: per-layer KV-cache window capping for
+    // hybrid sliding/full-attention models (e.g. Gemma4). Both fields are derived from
+    // the cached NPUW_LLM_SLIDING_WINDOW / NPUW_LLM_LAYER_TYPES config options - they are
+    // NOT separately serialized, they are recomputed by parse_swa_config() both in the
+    // constructor and right after m_cfg is restored in deserialize().
+    uint32_t m_swa_window_size = 0;            // 0 == Sliding Window Attention disabled
+    std::vector<bool> m_swa_layer_is_sliding;  // per-layer flag, indexed by decoder layer id
+
+    // Parses NPUW_LLM_SLIDING_WINDOW / NPUW_LLM_LAYER_TYPES from m_cfg into
+    // m_swa_window_size / m_swa_layer_is_sliding.
+    void parse_swa_config();
+
+    // True if SWA is enabled and layer_idx is configured as a sliding-window layer.
+    bool is_swa_layer(size_t layer_idx) const;
+
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
         const std::shared_ptr<ov::Model>& generate_model,

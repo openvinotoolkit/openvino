@@ -278,6 +278,65 @@ std::shared_ptr<ov::Model> build_minicpm_less() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{seq, amask});
 }
 
+// ---------------------------------------------------------------------------
+// Faithful reproduction of the THIRD, newer Gemma-4 "masked_fill" sliding
+// window mask export shape (see Gemma4MaskedFillSlidingMaskMatcher in
+// sliding_window_mask.cpp). The window check is a single GreaterEqual
+// combined via Select/masked_fill, and — crucially — the causal part is a
+// SEPARATE, standalone LessEqual(range_chain, range_chain) sub-comparison
+// (the same shape StandardCausalMatcher recognizes on its own):
+//
+//   col_pos       = Unsqueeze(Range(0, total, 1))
+//   row_pos       = Add(Unsqueeze(Range(0, seq, 1)), past)
+//   beyond_window = GreaterEqual(Subtract(row_pos, col_pos), window)
+//   causal_mask   = LessEqual(kv_row, q_col)              -- independent chain
+//   sliding_mask  = Select(Unsqueeze(Unsqueeze(beyond_window)), -inf, causal_mask)
+// ---------------------------------------------------------------------------
+std::shared_ptr<ov::Model> build_gemma4_masked_fill_sliding(int64_t window) {
+    using namespace ov::op;
+    auto seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto amask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+
+    auto ids_shape = std::make_shared<v3::ShapeOf>(seq, ov::element::i64);
+    auto mask_shape = std::make_shared<v3::ShapeOf>(amask, ov::element::i64);
+    auto seq_len = std::make_shared<v8::Gather>(ids_shape, one, zero);
+    auto total = std::make_shared<v8::Gather>(mask_shape, one, zero);
+    auto past = std::make_shared<v1::Subtract>(total, seq_len);
+
+    // col_pos: Range(0, total) -> Unsqueeze -> [1, total]
+    auto key_range = std::make_shared<v4::Range>(zero, total, one, ov::element::i64);
+    auto col_pos = std::make_shared<v0::Unsqueeze>(key_range, zero);
+
+    // row_pos: Add(Unsqueeze(Range(0, seq)), past) -> [seq, 1]
+    auto local_arange = std::make_shared<v4::Range>(zero, seq_len, one, ov::element::i64);
+    auto local_arange_row = std::make_shared<v0::Unsqueeze>(local_arange, one);
+    auto row_pos = std::make_shared<v1::Add>(local_arange_row, past);
+
+    auto row_minus_col = std::make_shared<v1::Subtract>(row_pos, col_pos);
+    auto window_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {window});
+    auto beyond_window = std::make_shared<v1::GreaterEqual>(row_minus_col, window_const);
+    auto bw_u1 = std::make_shared<v0::Unsqueeze>(beyond_window, zero);
+    auto bw_u2 = std::make_shared<v0::Unsqueeze>(bw_u1, zero);
+
+    // Separate causal sub-comparison, own Range chain, matching StandardCausalMatcher.
+    auto kv_range = std::make_shared<v4::Range>(zero, total, one, ov::element::i64);
+    auto kv_row = std::make_shared<v0::Unsqueeze>(kv_range, zero);
+    auto q_range = std::make_shared<v4::Range>(zero, seq_len, one, ov::element::i64);
+    auto q_abs = std::make_shared<v1::Add>(q_range, past);
+    auto q_col = std::make_shared<v0::Unsqueeze>(q_abs, one);
+    auto causal_mask = std::make_shared<v1::LessEqual>(kv_row, q_col);
+
+    auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto neg_inf = v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
+    auto causal_mask_f = std::make_shared<v1::Select>(causal_mask, zero_f, neg_inf);
+    auto sliding_mask = std::make_shared<v1::Select>(bw_u2, neg_inf, causal_mask_f);
+    auto result = std::make_shared<v0::Result>(sliding_mask);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{seq, amask});
+}
+
 }  // namespace
 
 // ============================================================================
@@ -474,6 +533,47 @@ TEST(DetectAttentionMaskTest, RealPattern_Phi3Sliding_IsSlidingWindowWithSize) {
     const int64_t window = 2047;
     DetectAttentionMask pass;
     pass.run_on_model(build_phi3_sliding(window));
+    const auto& info = pass.get_mask_info();
+    EXPECT_EQ(info.mask_type, MaskInfo::MaskType::SlidingWindow);
+    EXPECT_EQ(info.window_size, window);
+}
+
+// Real pattern: newer Gemma-4 "masked_fill"-style SWA export (GreaterEqual +
+// Select, with a standalone causal LessEqual sub-comparison). Regression test
+// for the bug where the standalone causal sub-comparison alone got picked up
+// by StandardCausalMatcher, mis-tagging the whole model as plain Causal and
+// silently disabling the HFA explicit mask for SWA layers.
+TEST(DetectAttentionMaskTest, RealPattern_Gemma4MaskedFillSliding_IsSlidingWindowWithSize) {
+    const int64_t window = 1024;
+    DetectAttentionMask pass;
+    pass.run_on_model(build_gemma4_masked_fill_sliding(window));
+    const auto& info = pass.get_mask_info();
+    EXPECT_EQ(info.mask_type, MaskInfo::MaskType::SlidingWindow);
+    EXPECT_EQ(info.window_size, window);
+}
+
+// Mixed graph: one masked_fill-style sliding-window layer alongside a
+// separate plain-causal SDPA layer (mirrors a real mixed sliding/full-
+// attention model, e.g. Gemma-4 MoE). SlidingWindow detection must win
+// regardless of GraphRewrite traversal order, otherwise HFA mask-skipping
+// gets wrongly enabled for the SWA layers once the causal layer is scanned.
+TEST(DetectAttentionMaskTest, RealPattern_Gemma4MaskedFillSlidingMixedWithCausalLayer_IsSlidingWindow) {
+    const int64_t window = 1024;
+    auto sliding_model = build_gemma4_masked_fill_sliding(window);
+    auto causal_model = make_sdpa_model(/*is_causal=*/true);
+
+    ov::ResultVector results = sliding_model->get_results();
+    const auto& causal_results = causal_model->get_results();
+    results.insert(results.end(), causal_results.begin(), causal_results.end());
+
+    ov::ParameterVector params = sliding_model->get_parameters();
+    const auto& causal_params = causal_model->get_parameters();
+    params.insert(params.end(), causal_params.begin(), causal_params.end());
+
+    auto mixed_model = std::make_shared<ov::Model>(results, params);
+
+    DetectAttentionMask pass;
+    pass.run_on_model(mixed_model);
     const auto& info = pass.get_mask_info();
     EXPECT_EQ(info.mask_type, MaskInfo::MaskType::SlidingWindow);
     EXPECT_EQ(info.window_size, window);

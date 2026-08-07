@@ -224,6 +224,55 @@ public:
     }
 };
 
+// ============================================================================
+// Matches the "masked_fill"-style Gemma-4 sliding-window mask (the newer
+// export variant handled by Gemma4MaskedFillSlidingMaskMatcher in
+// sliding_window_mask.cpp). The sliding-window check here is a single
+// GreaterEqual combined via Select/masked_fill instead of a separate
+// LessEqual+Greater pair combined via BitwiseAnd/LogicalAnd/BitwiseOr like
+// the matchers above:
+//
+//   col_pos       = Unsqueeze(Range(...))
+//   row_pos       = Add(Unsqueeze(Range(...)), any)
+//   beyond_window = GreaterEqual(Subtract(row_pos, col_pos), window_size)
+//   sliding_mask  = Select(Unsqueeze(Unsqueeze(beyond_window)), any, causal_mask)
+//
+// None of the matchers above recognize this shape. Left unmatched, the
+// standalone `causal_mask` operand of the Select (still built via a plain
+// LessEqual(range_chain, range_chain), which StandardCausalMatcher *does*
+// recognize) is the only thing that fires, mis-tagging the whole model's
+// mask as plain Causal and wrongly enabling HFA mask-skipping for the SWA
+// layers (silently reverting sliding-window prefill to full causal
+// attention once the context grows past the window).
+// ============================================================================
+class MaskedFillSlidingMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::MaskedFillSlidingMatcher");
+    explicit MaskedFillSlidingMatcher(ov::npuw::MaskInfo& mask_info) {
+        auto key_range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto col_pos = opp::wrap_type<ov::op::v0::Unsqueeze>({key_range, opp::any_input()});
+
+        auto local_arange = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto local_arange_row = opp::wrap_type<ov::op::v0::Unsqueeze>({local_arange, opp::any_input()});
+        auto row_pos = opp::wrap_type<ov::op::v1::Add>({local_arange_row, opp::any_input()});
+
+        auto row_minus_col = opp::wrap_type<ov::op::v1::Subtract>({row_pos, col_pos});
+        auto window_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto beyond_window = opp::wrap_type<ov::op::v1::GreaterEqual>({row_minus_col, window_const});
+        auto beyond_window_u1 = opp::wrap_type<ov::op::v0::Unsqueeze>({beyond_window, opp::any_input()});
+        auto beyond_window_u2 = opp::wrap_type<ov::op::v0::Unsqueeze>({beyond_window_u1, opp::any_input()});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Select>({beyond_window_u2, opp::any_input(), opp::any_input()});
+
+        auto callback = [=, &mask_info](opp::Matcher& m) {
+            const int64_t w = get_window_size(m.get_pattern_value_map().at(window_const).get_node_shared_ptr());
+            if (w > 0)
+                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, w};
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(sliding_mask, "MaskedFillSliding"), callback);
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -239,6 +288,7 @@ bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) 
     detector.add_matcher<BitwiseAndSlidingMatcher>(m_mask_info);
     detector.add_matcher<OldPhi3SlidingMatcher>(m_mask_info);
     detector.add_matcher<DefaultSWAMatcher>(m_mask_info);
+    detector.add_matcher<MaskedFillSlidingMatcher>(m_mask_info);
     detector.add_matcher<SDPACausalMatcher>(m_mask_info);
     detector.add_matcher<StandardCausalMatcher>(m_mask_info);
     detector.add_matcher<Qwen3CausalMatcher>(m_mask_info);

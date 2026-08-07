@@ -77,6 +77,7 @@ std::optional<uint32_t> KVCacheBlockManager::allocate_block() {
     // Reset block state
     block.num_tokens = 0;
     block.is_allocated = true;
+    allocated_order_.push_back(block_id);
 
     LOG_VERB("KVCacheBlockManager: Allocated block " << block_id
                                                      << " (free blocks remaining: " << free_block_ids_.size() << ")");
@@ -130,29 +131,62 @@ uint32_t KVCacheBlockManager::get_block_tokens(uint32_t block_id) const {
 }
 
 std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
-    std::vector<uint32_t> allocated;
-    allocated.reserve(max_blocks_ - free_block_ids_.size());
+    return std::vector<uint32_t>(allocated_order_.begin(), allocated_order_.end());
+}
 
-    for (uint32_t i = 0; i < blocks_.size(); ++i) {
-        if (blocks_[i].is_allocated) {
-            allocated.push_back(i);
+void KVCacheBlockManager::ensure_blocks_up_to(uint32_t up_to_index) {
+    // evicted_count_ + allocated_order_.size() is the total number of chronological
+    // blocks ever allocated by this manager - keep allocating (evicting the oldest
+    // resident block once the pool is full) until it covers up_to_index.
+    //
+    // NB: when the pool is already full, this is the EXPECTED steady-state path for a
+    // sliding-window layer (happens once per new chronological block, i.e. once every
+    // block_size tokens) - so eviction is done directly here, without ever going through
+    // allocate_block()'s "pool exhausted" warning (that warning is reserved for the
+    // genuinely-unexpected exhaustion of a non-evicting, e.g. full-attention, manager).
+    while (evicted_count_ + allocated_order_.size() <= up_to_index) {
+        if (free_block_ids_.empty()) {
+            OPENVINO_ASSERT(!allocated_order_.empty(),
+                            "KVCacheBlockManager: pool exhausted (max_blocks=",
+                            max_blocks_,
+                            ") and no resident block available to evict");
+
+            const uint32_t oldest_id = allocated_order_.front();
+            allocated_order_.pop_front();
+            auto& oldest_block = blocks_[oldest_id];
+            oldest_block.is_allocated = false;
+            oldest_block.num_tokens = 0;
+            free_block_ids_.push(oldest_id);
+            ++evicted_count_;
+            LOG_VERB("KVCacheBlockManager: Evicted oldest block " << oldest_id << " (evicted_count=" << evicted_count_
+                                                                  << ")");
         }
-    }
 
-    return allocated;
+        const auto block_id = allocate_block();
+        OPENVINO_ASSERT(block_id.has_value(),
+                        "KVCacheBlockManager: unexpected allocate_block() failure right after eviction");
+    }
+}
+
+uint32_t KVCacheBlockManager::resident_index(uint32_t chronological_index) const {
+    OPENVINO_ASSERT(chronological_index >= evicted_count_,
+                    "KVCacheBlockManager: block ",
+                    chronological_index,
+                    " has already been evicted (evicted_count=",
+                    evicted_count_,
+                    ")");
+    return chronological_index - evicted_count_;
 }
 
 void KVCacheBlockManager::release(uint32_t keep_warm_count) {
     LOG_DEBUG("KVCacheBlockManager: Resetting blocks (keep_warm_count=" << keep_warm_count << ")");
 
-    // Iterate allocated blocks in ascending block-ID order.
+    // Iterate allocated blocks in allocation order (oldest first).
     // The first keep_warm_count retain their device tensors (warm reuse next round).
     // The remainder have tensors dropped to reduce RSS.
     uint32_t warm_seen = 0;
-    for (auto& block : blocks_) {
-        if (!block.is_allocated) {
-            continue;
-        }
+    for (uint32_t block_id : allocated_order_) {
+        auto& block = blocks_[block_id];
         block.is_allocated = false;
         block.num_tokens = 0;
         if (warm_seen >= keep_warm_count) {
@@ -166,6 +200,8 @@ void KVCacheBlockManager::release(uint32_t keep_warm_count) {
                                                    << keep_warm_count << " warm");
     }
 
+    allocated_order_.clear();
+    evicted_count_ = 0;
     rebuild_free_block_ids();
 }
 
@@ -187,24 +223,25 @@ void KVCacheBlockManager::rebuild_free_block_ids() {
 }
 
 void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
-    const auto allocated = get_allocated_blocks();
-    OPENVINO_ASSERT(keep_count <= allocated.size(),
+    OPENVINO_ASSERT(keep_count <= allocated_order_.size(),
                     "KVCacheBlockManager: cannot truncate to ",
                     keep_count,
                     " blocks, only ",
-                    allocated.size(),
+                    allocated_order_.size(),
                     " are allocated");
 
     // Deallocate the suffix, keeping device tensors warm for quick reuse.
-    for (size_t i = keep_count; i < allocated.size(); ++i) {
-        auto& block = blocks_[allocated[i]];
+    const auto dropped_count = allocated_order_.size() - keep_count;
+    for (size_t i = keep_count; i < allocated_order_.size(); ++i) {
+        auto& block = blocks_[allocated_order_[i]];
         block.is_allocated = false;
         block.num_tokens = 0;
     }
+    allocated_order_.resize(keep_count);
 
     rebuild_free_block_ids();
 
-    LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
+    LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << dropped_count
                                                    << " suffix block(s) freed");
 }
 

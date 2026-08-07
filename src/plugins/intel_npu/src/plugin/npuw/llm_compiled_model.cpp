@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <cctype>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -20,6 +22,7 @@
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
+#include "npuw_transformations/patch_sliding_window_kvcache.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
@@ -587,6 +590,65 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
 
 }  // namespace
 
+void ov::npuw::LLMCompiledModel::parse_swa_config() {
+    m_swa_window_size = static_cast<uint32_t>(m_cfg.get<::intel_npu::NPUW_LLM_SLIDING_WINDOW>());
+    m_swa_layer_is_sliding.clear();
+
+    const std::string layer_types = m_cfg.get<::intel_npu::NPUW_LLM_LAYER_TYPES>();
+    if (m_swa_window_size == 0 || layer_types.empty()) {
+        LOG_DEBUG("[SWA] Sliding Window Attention is disabled (window_size=" << m_swa_window_size
+                                                                             << ", layer_types is "
+                                                                             << (layer_types.empty() ? "empty" : "set")
+                                                                             << ").");
+        return;
+    }
+
+    std::stringstream ss(layer_types);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        const auto not_space = [](unsigned char c) {
+            return !std::isspace(c);
+        };
+        token.erase(token.begin(), std::find_if(token.begin(), token.end(), not_space));
+        token.erase(std::find_if(token.rbegin(), token.rend(), not_space).base(), token.end());
+        m_swa_layer_is_sliding.push_back(token == "sliding_attention");
+    }
+
+    std::string pattern;
+    pattern.reserve(m_swa_layer_is_sliding.size());
+    size_t num_sliding = 0;
+    for (const bool is_sliding : m_swa_layer_is_sliding) {
+        pattern.push_back(is_sliding ? 'S' : 'F');
+        num_sliding += is_sliding ? 1 : 0;
+    }
+    LOG_INFO("[SWA] Sliding Window Attention is ENABLED: window_size=" << m_swa_window_size << ", "
+                                                                       << m_swa_layer_is_sliding.size()
+                                                                       << " layers total, " << num_sliding
+                                                                       << " sliding-window layer(s).");
+    LOG_DEBUG("[SWA] Layer pattern (S=sliding, F=full attention): " << pattern);
+}
+
+bool ov::npuw::LLMCompiledModel::is_swa_layer(size_t layer_idx) const {
+    return m_swa_window_size > 0 && layer_idx < m_swa_layer_is_sliding.size() && m_swa_layer_is_sliding[layer_idx];
+}
+
+namespace {
+// Dumps `model` to an .xml/.bin pair next to the current working directory when
+// NPUW_DUMP_FULL is enabled, so users can inspect the effect of
+// PatchSlidingWindowKVCache on the compiled sub-model. Reuses the existing
+// NPUW_DUMP_FULL flag/convention instead of introducing a new dedicated option.
+void dump_swa_model_if_requested(const ::intel_npu::Config& cfg,
+                                 const std::shared_ptr<ov::Model>& model,
+                                 const std::string& tag) {
+    if (!cfg.get<::intel_npu::NPUW_DUMP_FULL>()) {
+        return;
+    }
+    const std::string path = model->get_friendly_name() + "_swa_" + tag + ".xml";
+    ov::save_model(model, path);
+    LOG_INFO("[SWA] Dumped post-transform model to " << path << " for inspection.");
+}
+}  // namespace
+
 // Apply DEVICE_ROUTED MoE transformations to models
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
@@ -648,6 +710,19 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         // Reshape to target size
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
+
+        if (m_swa_window_size > 0) {
+            LOG_DEBUG("[SWA] Applying sliding-window KV-cache reduction to generate variant (kv_size=" << kv_size
+                                                                                                        << ").");
+            ov::npuw::PatchSlidingWindowKVCache(m_swa_window_size,
+                                                m_swa_layer_is_sliding,
+                                                kv_size,
+                                                max_generation_token_len,
+                                                axes,
+                                                /*trim_attention_mask=*/true)
+                .run_on_model(generate_variant);
+            dump_swa_model_if_requested(m_cfg, generate_variant, "generate_kv" + std::to_string(kv_size));
+        }
 
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
@@ -837,6 +912,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
 
+    parse_swa_config();
+
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
@@ -915,6 +992,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::DetectAttentionMask detect_mask;
     detect_mask.run_on_model(kvcache_model);
     const auto mask_info = detect_mask.get_mask_info();
+    {
+        const char* mask_type_str = mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal        ? "Causal"
+                                    : mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow ? "SlidingWindow"
+                                                                                                          : "Unknown";
+        LOG_INFO("[HFA] DetectAttentionMask result: mask_type=" << mask_type_str
+                                                                 << ", window_size=" << mask_info.window_size);
+    }
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
@@ -980,6 +1064,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   whisper_lhs_seq_size,
                                   true)
             .run_on_model(prefill_model);
+    }
+    if (m_swa_window_size > 0) {
+        // NB: prefill's own attention mask must stay full-width (it is already correctly
+        // banded per-query-position by PatchSlidingWindowMask above) - only shrink the
+        // past_key_values buffers here (a no-op for non-chunked prefill, where the past
+        // buffer is always empty), never trim the mask.
+        const uint32_t prefill_input_size = m_use_chunk_prefill ? static_cast<uint32_t>(m_prefill_chunk_size)
+                                                                : m_kvcache_desc.max_prompt_size;
+        LOG_DEBUG("[SWA] Applying sliding-window KV-cache reduction to prefill model.");
+        ov::npuw::PatchSlidingWindowKVCache(m_swa_window_size,
+                                            m_swa_layer_is_sliding,
+                                            m_kvcache_desc.max_prompt_size,
+                                            prefill_input_size,
+                                            axes,
+                                            /*trim_attention_mask=*/false)
+            .run_on_model(prefill_model);
+        dump_swa_model_if_requested(m_cfg, prefill_model, "prefill");
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -1106,12 +1207,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     if (prefill_attn_hfa) {
-        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
+        const bool mask_skipping_enabled =
             mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
-                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
-                     mask_info.window_size >= max_prompt_len)
-                ? "YES"
-                : "NO";
+            (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
+             mask_info.window_size >= max_prompt_len);
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
+            mask_skipping_enabled ? "YES" : "NO";
+        LOG_INFO("[HFA] NPUW_ATTN_HFA_MASK_SKIPPING=" << (mask_skipping_enabled ? "YES" : "NO")
+                                                       << " (mask_type="
+                                                       << (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal
+                                                               ? "Causal"
+                                                           : mask_info.mask_type ==
+                                                                   ov::npuw::MaskInfo::MaskType::SlidingWindow
+                                                               ? "SlidingWindow"
+                                                               : "Unknown")
+                                                       << ", window_size=" << mask_info.window_size
+                                                       << ", max_prompt_len=" << max_prompt_len
+                                                       << "). When YES, HFA regular (non-final) prefill tiles "
+                                                          "skip the explicit mask.");
     }
 
     // NB: GENERATE_HINT is only applicable for default generate config!
@@ -1697,6 +1810,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         compiled->implement_properties();
         // Not serialized. Recomputed from the deserialized config so older blobs stay loadable.
         compiled->m_enable_continuous_prefill = compiled->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
+        // NB: SWA state is fully derived from cached config options, not separately
+        // serialized - recompute it now that m_cfg is restored.
+        compiled->parse_swa_config();
 
         // Deserialize KV cache model variants
         stream & compiled->m_kvcache_sizes;

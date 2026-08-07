@@ -4,6 +4,8 @@
 
 #include "llm_continuous_kvcache_strategy.hpp"
 
+#include <algorithm>
+
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "util.hpp"
@@ -127,8 +129,18 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
                 ? 3u
                 : kvcache_desc.dim;
 
-        auto src_slice = uu::make_tensor_slice(src, kv_dim, 0u, num_stored);
-        auto dst_slice = uu::make_tensor_slice(dst, kv_dim, 0u, num_stored);
+        // For SWA layers, the past-KV capacity (dim size of `src`/`dst`) may differ between
+        // generate variants (it is derived as window_size - variant's own kv_size), and may
+        // be smaller than `num_stored`. Buffers are left-aligned holding their most recent
+        // valid() tokens in chronological order, so when clamping we must keep the TAIL
+        // (most recent) `copy_count` tokens of src's valid region, not its head.
+        const uint32_t src_cap = static_cast<uint32_t>(src->get_shape()[kv_dim]);
+        const uint32_t dst_cap = static_cast<uint32_t>(dst->get_shape()[kv_dim]);
+        const uint32_t src_valid = std::min(num_stored, src_cap);
+        const uint32_t copy_count = std::min(src_valid, dst_cap);
+
+        auto src_slice = uu::make_tensor_slice(src, kv_dim, src_valid - copy_count, src_valid);
+        auto dst_slice = uu::make_tensor_slice(dst, kv_dim, 0u, copy_count);
 
         // Copy via a temporary CPU buffer to avoid aliasing (src and dst share backing memory).
         auto tmp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
@@ -136,8 +148,6 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
         uu::copy_tensor_by_dim(tmp, dst_slice, kv_dim, kv_dim);
     }
 }
-
-// on_generate_step_done: persist the new token's KV output into the past KV input buffer
 // so the next generate step sees the updated context.
 void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     const bool v_transposed = m_req.m_npuw_llm_compiled_model->m_kvcache_desc.v_tensors_transposed_gen;
