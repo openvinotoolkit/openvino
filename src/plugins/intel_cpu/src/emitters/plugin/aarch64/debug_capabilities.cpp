@@ -6,8 +6,8 @@
 
 #    include "debug_capabilities.hpp"
 
-#    include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#    include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#    include <xbyak_aarch64/xbyak_aarch64_adr.h>
+#    include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #    include <array>
 #    include <climits>
