@@ -18,14 +18,16 @@ SDPA::SDPA(const OutputVector& inputs,
            const std::vector<int64_t>& order_k,
            const std::vector<int64_t>& order_v,
            const std::vector<int64_t>& order_out,
-           const ov::element::Type output_type)
+           const ov::element::Type output_type,
+           bool split_kv)
     : m_is_causal(is_causal)
     , m_order_q(order_q)
     , m_order_k(order_k)
     , m_order_v(order_v)
     , m_order_out(order_out)
     , m_output_type(output_type)
-    , m_compressed(false) {
+    , m_compressed(false)
+    , m_split_kv(split_kv) {
     set_arguments(inputs);
     set_causal(is_causal);
     validate_and_infer_types();
@@ -61,18 +63,34 @@ std::shared_ptr<ov::Node> SDPA::clone_with_new_inputs(const ov::OutputVector& ne
                                   m_order_k,
                                   m_order_v,
                                   m_order_out,
-                                  m_output_type);
+                                  m_output_type,
+                                  m_split_kv);
 }
 
 void SDPA::validate_and_infer_types() {
     const auto input_size = get_input_size();
 
-    const auto compression_inputs = get_compression_inputs_num();
-    NODE_VALIDATION_CHECK(this,
-        input_size >= 3 + compression_inputs && input_size <= 5 + compression_inputs,
-        "Number of inputs is incorrect. Current value is: ",
-        input_size,
-        ", expected 3, 4 or 5 data inputs and ", compression_inputs, " KV-cache compression related inputs");
+    if (m_split_kv) {
+        // split_kv layout: [Q, K_cache, V_cache, (mask), K_new, V_new, kv_len] -- 3 base inputs +
+        // optional mask + 2 trailing K_new/V_new + the trailing i32 kv_len (6 or 7 total). No scale
+        // INPUT (scale is the scale_val attribute). KV-cache compression / indirect / sink are not
+        // supported together with split_kv.
+        NODE_VALIDATION_CHECK(this,
+            !m_compressed,
+            "split_kv SDPA does not support KV-cache compression.");
+        NODE_VALIDATION_CHECK(this,
+            input_size == 6 || input_size == 7,
+            "Number of inputs is incorrect for split_kv SDPA. Current value is: ",
+            input_size,
+            ", expected [Q, K_cache, V_cache, (mask), K_new, V_new, kv_len]");
+    } else {
+        const auto compression_inputs = get_compression_inputs_num();
+        NODE_VALIDATION_CHECK(this,
+            input_size >= 3 + compression_inputs && input_size <= 5 + compression_inputs,
+            "Number of inputs is incorrect. Current value is: ",
+            input_size,
+            ", expected 3, 4 or 5 data inputs and ", compression_inputs, " KV-cache compression related inputs");
+    }
 
     std::vector<ov::PartialShape> input_shapes;
     for (size_t i = 0; i < input_size; i++) {
@@ -96,6 +114,7 @@ bool SDPA::visit_attributes(ov::AttributeVisitor &visitor) {
     visitor.on_attribute("order_v", m_order_v);
     visitor.on_attribute("order_out", m_order_out);
     visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("split_kv", m_split_kv);
     return true;
 }
 
@@ -135,6 +154,31 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     auto shape_q_t = (order_q.size() > 1) ? transpose_pshape(shape_q, order_q) : shape_q;
     auto shape_k_t = (order_k.size() > 1) ? transpose_pshape(shape_k, order_k) : shape_k;
     auto shape_v_t = (order_v.size() > 1) ? transpose_pshape(shape_v, order_v) : shape_v;
+
+    // split_kv: K and V are supplied as two chunks each. input_shapes is
+    // [Q, K_cache, V_cache, (mask), K_new, V_new] (K_new/V_new are always the last two inputs);
+    // the new chunks reuse K/V's transpose order. The op attends over the logical sequence
+    // concatenation, so the effective K/V seq length is (cache_seq + new_seq). Fold the new chunk's
+    // seq dim into the cache shape here so the standard v13 inference below produces the
+    // concatenated output shape. In transposed [B,H,S,D] space the sequence axis is the
+    // second-to-last dimension.
+    if (op != nullptr && op->get_split_kv() && shape_k_t.rank().is_static() && shape_v_t.rank().is_static() &&
+        shape_k_t.size() >= 2 && shape_v_t.size() >= 2 && input_shapes.size() >= 3) {
+        // Inputs end with [.., K_new, V_new, kv_len], so K_new/V_new are the 3rd/2nd from last
+        // (the trailing slot is the i32 kv_len control tensor, not a K/V chunk).
+        const auto shape_k_new = input_shapes[input_shapes.size() - 3];
+        const auto shape_v_new = input_shapes[input_shapes.size() - 2];
+        const auto shape_k_new_t = (order_k.size() > 1) ? transpose_pshape(shape_k_new, order_k) : shape_k_new;
+        const auto shape_v_new_t = (order_v.size() > 1) ? transpose_pshape(shape_v_new, order_v) : shape_v_new;
+        const auto k_seq_axis = shape_k_t.size() - 2;
+        const auto v_seq_axis = shape_v_t.size() - 2;
+        if (shape_k_new_t.rank().is_static() && shape_k_new_t.size() == shape_k_t.size()) {
+            shape_k_t[k_seq_axis] += shape_k_new_t[k_seq_axis];
+        }
+        if (shape_v_new_t.rank().is_static() && shape_v_new_t.size() == shape_v_t.size()) {
+            shape_v_t[v_seq_axis] += shape_v_new_t[v_seq_axis];
+        }
+    }
 
     const auto is_broadcastable = shape_k_t.rank().is_static() &&
                                   shape_v_t.rank().is_static() &&
