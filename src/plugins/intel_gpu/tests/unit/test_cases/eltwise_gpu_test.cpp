@@ -4111,10 +4111,6 @@ TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_basic)
     };
 
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     auto input1 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
     auto input2 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
@@ -4165,10 +4161,6 @@ TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast)
 {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     tensor::value_type input_b = 2;
     tensor::value_type input_f = 72;
@@ -4230,10 +4222,6 @@ TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast_bfyx)
 {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     tensor::value_type input_b = 2;
     tensor::value_type input_f = 72;
@@ -4297,10 +4285,6 @@ TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_basic)
     VF<ov::bfloat16> bf16_bfyx_32x96x2x2_input = flatten_4d<ov::bfloat16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     auto input1 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
     auto input2 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
@@ -4375,10 +4359,6 @@ TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     VF<ov::bfloat16> bf16_bfyx_32x96x2x2_input = flatten_4d<ov::bfloat16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     auto input1 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
     auto input2 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
@@ -4462,10 +4442,6 @@ TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_input_padding)
     VF<ov::bfloat16> bf16_bfyx_32x96x2x2_input = flatten_4d<ov::bfloat16>(format::bfyx, input_rnd);
 
     auto& engine = get_test_engine();
-    bool f16_supported = engine.get_device_info().supports_fp16;
-    if (!f16_supported) {
-        GTEST_SKIP() << "bfloat16 combinations are skipped (cl_khr_fp16 is not supported).";
-    }
 
     auto input1 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });
     auto input2 = engine.allocate_memory({ data_types::bf16,format::bfyx, input_tensor });

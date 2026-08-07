@@ -110,33 +110,6 @@ public:
 
 #define CASE_ELTWISE_FP16_7         { 3, 32, 2, 3, 3, 2, 1, 2 }, data_types::f16, data_types::f16, format::bfvuwzyx,  data_types::f16,  format::bfvuwzyx,    eltwise_mode::sum
 
-// bf16 counterparts of the f16 cases above
-#define CASE_ELTWISE_BF16_1         { 2, 16, 4, 4 }, data_types::bf16, data_types::bf16, format::bfyx,           data_types::bf16, format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_BF16_2         { 2, 16, 4, 4 }, data_types::bf16, data_types::bf16, format::bfzyx,          data_types::bf16, format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_BF16_3         { 2, 32, 4, 8 }, data_types::bf16, data_types::bf16, format::b_fs_yx_fsv16,  data_types::bf16, format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_BF16_4         { 3, 32, 4, 4 }, data_types::bf16, data_types::bf16, format::fs_b_yx_fsv32,  data_types::bf16, format::fs_b_yx_fsv32,    eltwise_mode::sum
-#define CASE_ELTWISE_BF16_5         { 2, 32, 4, 8 }, data_types::bf16, data_types::bf16, format::b_fs_yx_fsv4,   data_types::bf16, format::b_fs_yx_fsv4,     eltwise_mode::sum
-#define CASE_ELTWISE_BF16_6         { 1, 32, 4, 8 }, data_types::bf16, data_types::bf16, format::byxf,           data_types::bf16, format::byxf,            eltwise_mode::sum
-#define CASE_ELTWISE_BF16_7         { 3, 32, 2, 3, 3, 2, 1, 2 }, data_types::bf16, data_types::bf16, format::bfvuwzyx, data_types::bf16, format::bfvuwzyx, eltwise_mode::sum
-#define CASE_ELTWISE_FP32_BF16_1    { 2, 16, 4, 4 }, data_types::f32,  data_types::bf16, format::bfyx,           data_types::f32,  format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_FP32_BF16_2    { 2, 16, 4, 4 }, data_types::f32,  data_types::bf16, format::bfzyx,          data_types::f32,  format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_FP32_BF16_3    { 2, 32, 4, 4 }, data_types::f32,  data_types::bf16, format::b_fs_yx_fsv16,  data_types::f32,  format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_BF16_FP32_1    { 2, 16, 4, 4 }, data_types::bf16, data_types::f32,  format::bfyx,           data_types::bf16, format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_BF16_FP32_2    { 2, 16, 4, 4 }, data_types::bf16, data_types::f32,  format::bfzyx,          data_types::bf16, format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_BF16_FP32_3    { 2, 32, 4, 4 }, data_types::bf16, data_types::f32,  format::b_fs_yx_fsv16,  data_types::bf16, format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_I8_BF16_1      { 2, 16, 4, 4 }, data_types::i8,   data_types::bf16, format::bfyx,           data_types::f32,  format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_I8_BF16_2      { 2, 16, 4, 4 }, data_types::i8,   data_types::bf16, format::bfzyx,          data_types::f32,  format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_I8_BF16_3      { 2, 32, 4, 4 }, data_types::i8,   data_types::bf16, format::b_fs_yx_fsv16,  data_types::f32,  format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_U8_BF16_1      { 2, 16, 4, 4 }, data_types::u8,   data_types::bf16, format::bfyx,           data_types::f32,  format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_U8_BF16_2      { 2, 16, 4, 4 }, data_types::u8,   data_types::bf16, format::bfzyx,          data_types::f32,  format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_U8_BF16_3      { 2, 32, 4, 4 }, data_types::u8,   data_types::bf16, format::b_fs_yx_fsv16,  data_types::f32,  format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_I8_FP32_BF16_1 { 2, 16, 4, 4 }, data_types::i8,   data_types::f32,  format::bfyx,           data_types::bf16, format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_I8_FP32_BF16_2 { 2, 16, 4, 4 }, data_types::i8,   data_types::f32,  format::bfzyx,          data_types::bf16, format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_I8_FP32_BF16_3 { 2, 32, 4, 4 }, data_types::i8,   data_types::f32,  format::b_fs_yx_fsv16,  data_types::bf16, format::b_fs_yx_fsv16,    eltwise_mode::sum
-#define CASE_ELTWISE_U8_FP32_BF16_1 { 2, 16, 4, 4 }, data_types::u8,   data_types::f32,  format::bfyx,           data_types::bf16, format::bfyx,             eltwise_mode::sum
-#define CASE_ELTWISE_U8_FP32_BF16_2 { 2, 16, 4, 4 }, data_types::u8,   data_types::f32,  format::bfzyx,          data_types::bf16, format::bfzyx,            eltwise_mode::sum
-#define CASE_ELTWISE_U8_FP32_BF16_3 { 2, 32, 4, 4 }, data_types::u8,   data_types::f32,  format::b_fs_yx_fsv16,  data_types::bf16, format::b_fs_yx_fsv16,    eltwise_mode::sum
-
 class eltwise_quantize : public EltwiseFusingTest {};
 TEST_P(eltwise_quantize, u8) {
     auto p = GetParam();
@@ -178,9 +151,6 @@ TEST_P(eltwise_quantize, i8_per_channel) {
     tolerance = default_tolerance(data_types::i8);
     if (p.default_type == data_types::f16 && p.default_format == format::b_fs_yx_fsv4) {
         tolerance *= 11.f; // Issue: 94154
-    }
-    if (p.default_type == data_types::bf16 && p.default_format == format::b_fs_yx_fsv16) {
-        tolerance *= 2.0f; // One test has +-2 difference, probably because in case of bf16, fused quantize is done directly on f32 accumulator
     }
     execute(p);
 }
@@ -226,9 +196,7 @@ TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
         data("const2", get_mem(get_input_layout2(p), -10, 10)),
         input_layout("input", get_input_layout2(p)),
         eltwise("eltwise", { input_info("const1"), input_info("const2") }, p.mode, p.default_type),
-        // Default type added here explicitly, because otherwise it's taken from second input
-        // Which makes all the graph run in U8 for test case CASE_ELTWISE_U8_4
-        eltwise("add", { input_info("eltwise"), input_info("input") }, eltwise_mode::sum, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("input") }, eltwise_mode::sum),
         activation("activation", input_info("add"), activation_func::negative),
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
