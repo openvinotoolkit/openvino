@@ -642,19 +642,28 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Gated on supports_immad (systolic-only) and oneDNN (required for expert GEMM dispatch).
         // Note: even though we are already inside `if (supports_immad)`, oneDNN can still be explicitly disabled by the user.
         if (device_info.supports_immad && config.get_use_onednn() && !config.get_moe_disable_fusion()) {
+            // Note: u2 is only enabled for the TiledMoeBlock->GatherMatmul path (OCL kernels).
+            // GroupedMatMulCompressed is executed via oneDNN which has no u2 support,
+            // so u2 must not be offered to ConvertGroupedMatMulToGroupedMatMulCompressed.
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
                                                                                     ov::element::u8};
+            const std::vector<ov::element::Type> supported_compressed_weights_types_with_u2{ov::element::u4,
+                                                                                            ov::element::i4,
+                                                                                            ov::element::i8,
+                                                                                            ov::element::u8,
+                                                                                            ov::element::u2};
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(
+                supported_compressed_weights_types_with_u2);
 
             // f32 listed because this pass runs before ConvertPrecision (line ~588);
             // f32 activations are lowered to f16 before reaching the f16-only DPAS kernels.
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(
                 std::vector<ov::element::Type>{ov::element::f32, ov::element::f16},
-                supported_compressed_weights_types);
+                supported_compressed_weights_types_with_u2);
             manager.register_pass<ov::intel_gpu::FuseMoERouter>();
 
             {
@@ -1742,7 +1751,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 bool has_wzp = root->get_input_size() > 4;
 
-                if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
+                if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2})) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
                     return true;

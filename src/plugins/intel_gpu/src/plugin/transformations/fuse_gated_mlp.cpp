@@ -110,7 +110,8 @@ FuseGatedMLP::FuseGatedMLP() {
 
         auto is_compressed_const = [](const ov::Output<ov::Node>& output) {
             const auto et = output.get_element_type();
-            return et == ov::element::u8 || et == ov::element::i8 || et == ov::element::u4 || et == ov::element::i4;
+            return et == ov::element::u8 || et == ov::element::i8 || et == ov::element::u4 || et == ov::element::i4 ||
+                   et == ov::element::u2;
         };
 
         auto parse_decompression = [&](const ov::Output<ov::Node>& maybe_decompressed_weight) -> decompression_info {
@@ -201,7 +202,8 @@ FuseGatedMLP::FuseGatedMLP() {
 
             const auto weight_et = compressed_weights.get_element_type();
             const auto zp_et = zp_output.get_element_type();
-            if ((weight_et == ov::element::u8 || weight_et == ov::element::u4) && zp_et == ov::element::u4) {
+            if ((weight_et == ov::element::u8 || weight_et == ov::element::u4 || weight_et == ov::element::u2) &&
+                (zp_et == ov::element::u4 || zp_et == ov::element::u2)) {
                 auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_output, ov::element::u8);
                 new_ops.push_back(zp_convert);
                 MatcherPass::register_new_node(zp_convert);
