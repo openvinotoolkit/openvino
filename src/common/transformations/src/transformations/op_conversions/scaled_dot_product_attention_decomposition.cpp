@@ -20,6 +20,7 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -155,8 +156,14 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             mask = register_new_node<v1::Broadcast>(minus_inf, mask_shape);
             auto horizontal_range = register_new_node<v4::Range>(zero_i, source_s_len, one_i, element::i32)->output(0);
             horizontal_range = register_new_node<v0::Unsqueeze>(horizontal_range, zero_i);
-            auto stop = register_new_node<v1::Add>(target_s_len, one_i);
-            auto vertical_range = register_new_node<v4::Range>(one_i, stop, one_i, element::i32)->output(0);
+            // For decoding: past_seq = max(0, source_s_len - target_s_len)
+            // vertical_range starts from (1 + past_seq) to account for past context
+            // Clamp to 0 for cases where seq_q > seq_kv
+            auto past_seq = register_new_node<v1::Subtract>(source_s_len, target_s_len)->output(0);
+            past_seq = register_new_node<v1::Maximum>(past_seq, zero_i);
+            auto start = register_new_node<v1::Add>(one_i, past_seq);
+            auto stop = register_new_node<v1::Add>(start, target_s_len);
+            auto vertical_range = register_new_node<v4::Range>(start, stop, one_i, element::i32)->output(0);
             vertical_range = register_new_node<v0::Unsqueeze>(vertical_range, one_i);
             auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
             atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
