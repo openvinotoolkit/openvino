@@ -5,6 +5,7 @@
 #include "patterns.hpp"
 
 #include <algorithm>
+#include <functional>
 
 #include <openvino/op/add.hpp>
 #include <openvino/op/concat.hpp>
@@ -234,11 +235,77 @@ SlicePattern::SlicePattern()
 SqueezePattern::SqueezePattern()
     : MarkPattern(wrap_type<v0::Squeeze>({any_input()}), ConvertSqueeze()) {}
 
+// ConvertTranspose requires an explicit Constant order covering all input dimensions.
 TransposePattern::TransposePattern()
-    : MarkPattern(wrap_type<v1::Transpose>({any_input(), any_input()}), ConvertTranspose()) {}
+    : MarkPattern(
+        wrap_type<v1::Transpose>(
+            {any_input(), any_input()},
+            [](const Output<Node>& output) {
+                auto node = ov::as_type_ptr<v1::Transpose>(output.get_node_shared_ptr());
+                if (!node || has_dynamic_rank(node)) {
+                    OPENVINO_MLIR_DEBUG_PRINT("TransposePattern: rejected " << output.get_node()->get_friendly_name()
+                                              << " — dynamic rank");
+                    return false;
+                }
 
+                const auto order = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+                if (!order) {
+                    OPENVINO_MLIR_DEBUG_PRINT("TransposePattern: rejected " << node->get_friendly_name()
+                                              << " — non-constant order");
+                    return false;
+                }
+
+                // An empty order means "reverse the dimensions" in OpenVINO, but linalg::TransposeOp
+                // needs an explicit permutation. A non-empty order is already validated to be a
+                // permutation of the input rank by the Transpose shape inference.
+                if (order->cast_vector<int64_t>().empty()) {
+                    OPENVINO_MLIR_DEBUG_PRINT("TransposePattern: rejected " << node->get_friendly_name()
+                                              << " — empty (implicit reverse) order");
+                    return false;
+                }
+                return true;
+            }),
+        ConvertTranspose()) {}
+
+// ConvertUnsqueeze requires Constant axes that are already normalized: non-negative, unique and
+// sorted ascending.
 UnsqueezePattern::UnsqueezePattern()
-    : MarkPattern(wrap_type<v0::Unsqueeze>({any_input(), any_input()}), ConvertUnsqueeze()) {}
+    : MarkPattern(
+        wrap_type<v0::Unsqueeze>(
+            {any_input(), any_input()},
+            [](const Output<Node>& output) {
+                auto node = ov::as_type_ptr<v0::Unsqueeze>(output.get_node_shared_ptr());
+                if (!node || has_dynamic_rank(node)) {
+                    OPENVINO_MLIR_DEBUG_PRINT("UnsqueezePattern: rejected " << output.get_node()->get_friendly_name()
+                                              << " — dynamic rank");
+                    return false;
+                }
+
+                const auto axes = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+                if (!axes) {
+                    OPENVINO_MLIR_DEBUG_PRINT("UnsqueezePattern: rejected " << node->get_friendly_name()
+                                              << " — non-constant axes");
+                    return false;
+                }
+
+                // The converter reads the axes via Constant::get_coordinate_val(), which requires i64.
+                if (axes->get_element_type() != element::i64) {
+                    OPENVINO_MLIR_DEBUG_PRINT("UnsqueezePattern: rejected " << node->get_friendly_name()
+                                              << " — only i64 axes are supported, got "
+                                              << axes->get_element_type());
+                    return false;
+                }
+
+                const auto axes_values = axes->cast_vector<int64_t>();
+                if (axes_values.empty() || axes_values.front() < 0 ||
+                    !std::is_sorted(axes_values.begin(), axes_values.end(), std::less_equal<int64_t>{})) {
+                    OPENVINO_MLIR_DEBUG_PRINT("UnsqueezePattern: rejected " << node->get_friendly_name()
+                                              << " — axes must be non-negative, unique and sorted ascending");
+                    return false;
+                }
+                return true;
+            }),
+        ConvertUnsqueeze()) {}
 
 BinaryEltwisePatternBase::BinaryEltwisePatternBase(
     NodeTypeInfo wrapped_type, GraphConverter::Convertor convertor, const std::set<element::Type>& element_types)
