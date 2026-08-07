@@ -26,21 +26,21 @@ struct ConvertReshape {
         // Build reassociation by matching accumulated products of src/dst dims.
         // Each group maps one src dim to multiple dst dims (expand) or vice versa (collapse).
         SmallVector<ReassociationIndices> reassociation;
-        for (size_t src_i = 0, dst_i = 0; src_i < in_rank && dst_i < out_rank; src_i++, dst_i++) {
+        for (size_t src_i = 0, dst_i = 0; src_i < in_rank && dst_i < out_rank; ++src_i, ++dst_i) {
             ReassociationIndices group;
             int64_t src_prod = in_shape[src_i].get_length();
             int64_t dst_prod = out_shape[dst_i].get_length();
             if (expand) {
                 // one src dim -> multiple dst dims
                 group.push_back(dst_i);
-                while (src_prod != dst_prod && dst_i < out_rank) {
+                while (src_prod != dst_prod && (dst_i + 1) < out_rank) {
                     dst_prod *= out_shape[++dst_i].get_length();
                     group.push_back(dst_i);
                 }
             } else {
                 // multiple src dims -> one dst dim
                 group.push_back(src_i);
-                while (src_prod != dst_prod && src_i < in_rank) {
+                while (src_prod != dst_prod && (src_i + 1) < in_rank) {
                     src_prod *= in_shape[++src_i].get_length();
                     group.push_back(src_i);
                 }
