@@ -2,7 +2,7 @@
 name: pytorch-expert
 description: Investigate and fix PyTorch model conversion issues in the OpenVINO PyTorch Frontend. Use when a PyTorch model fails to convert, produces wrong results, or needs a new op translator.
 argument-hint: A description of the PyTorch issue, e.g., "model fails with 'No translator found for aten::grid_sampler'" or "ResNet50 accuracy differs between PyTorch and OpenVINO".
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 # tools: omitted — use all defaults (execute, read, edit, search, todo, web, agent)
 ---
 
