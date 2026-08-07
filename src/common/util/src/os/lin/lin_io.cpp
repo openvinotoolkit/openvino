@@ -3,12 +3,13 @@
 //
 
 #include <sys/mman.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cstdint>
 
 #include "openvino/util/io.hpp"
+#include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #if defined ENABLE_IO_URING && defined MADV_POPULATE_READ
 #    include <liburing.h>
@@ -29,15 +30,14 @@ bool io_populate_mmap(void* ptr, size_t size, size_t offset, size_t queue_depth)
         return false;
     }
 
-    const auto page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
-    const auto raw = static_cast<uint8_t*>(ptr) + offset;
-    const auto prefix = reinterpret_cast<uintptr_t>(raw) % page_size;
-    const auto base = raw - prefix;
-    const auto aligned_size = size + prefix;
+    const auto page_size = static_cast<size_t>(get_system_page_size());
+    const auto raw = reinterpret_cast<uintptr_t>(ptr) + offset;
+    const auto region = align_region(raw, size, page_size);
+    const auto base = reinterpret_cast<uint8_t*>(region.m_address);
+    const auto aligned_size = region.m_length;
 
 #if defined USE_IO_URING
-    queue_depth = std::max<size_t>(1, queue_depth);
-    queue_depth = std::min<size_t>(queue_depth, 4096);
+    queue_depth = std::clamp<size_t>(queue_depth, 1, 4096);
     // Round chunk_size up to a page multiple so every subsequent chunk address stays aligned.
     const size_t raw_chunk = (aligned_size + queue_depth - 1) / queue_depth;
     const size_t chunk_size = ((raw_chunk + page_size - 1) / page_size) * page_size;
