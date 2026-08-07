@@ -13,12 +13,18 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "test_utils.h"
+#include "transformations/convert_precision.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "../../../src/plugin/transformations_pipeline.cpp"
 
@@ -178,6 +184,40 @@ TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCac
     // Those 4 bytes store per-token scale and zero-point as two fp16 values.
     EXPECT_EQ(key_shape[3].get_length(), 68);
     EXPECT_EQ(value_shape[3].get_length(), 68);
+}
+
+TEST(GPUTransformPipelineTest, PreservesBooleanAttentionMaskProducerChain) {
+    auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 4, 8});
+    auto key = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 4, 8});
+    auto value = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 2, 4, 8});
+    auto mask_lhs = std::make_shared<v0::Parameter>(element::boolean, PartialShape{4, 4});
+    auto mask_rhs = std::make_shared<v0::Parameter>(element::boolean, PartialShape{4, 4});
+
+    auto mask_and = std::make_shared<ov::op::v13::BitwiseAnd>(mask_lhs, mask_rhs);
+    auto unsqueeze_batch = std::make_shared<v0::Unsqueeze>(
+        mask_and,
+        v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto unsqueeze_heads = std::make_shared<v0::Unsqueeze>(
+        unsqueeze_batch,
+        v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
+        query, key, value, unsqueeze_heads, false);
+
+    auto model = std::make_shared<Model>(OutputVector{sdpa},
+                                         ParameterVector{query, key, value, mask_lhs, mask_rhs});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::PreserveBooleanAttnMaskPrecision>();
+    precisions_map precision_map = {{element::boolean, element::u8}};
+    manager.register_pass<ov::pass::ConvertPrecision>(precision_map);
+    manager.run_passes(model);
+
+    EXPECT_EQ(mask_lhs->get_output_element_type(0), element::boolean);
+    EXPECT_EQ(mask_rhs->get_output_element_type(0), element::boolean);
+    EXPECT_EQ(mask_and->get_output_element_type(0), element::boolean);
+    EXPECT_EQ(unsqueeze_batch->get_output_element_type(0), element::boolean);
+    EXPECT_EQ(unsqueeze_heads->get_output_element_type(0), element::boolean);
+    EXPECT_EQ(sdpa->get_input_element_type(3), element::boolean);
 }
 
 }  // namespace ov::test::intel_gpu
