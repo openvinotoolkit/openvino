@@ -55,8 +55,7 @@ ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${EN
 ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ON "ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
-# NPU internal components (e.g. compile_tool) require BUILD_SHARED_LIBS, same as ENABLE_INTEL_NPU_COMPILER;
-# otherwise a static build's default install manifest expects binaries that were never built (see docs/dev/static_libraries.md)
+# matches ENABLE_INTEL_NPU_COMPILER default: internal NPU tools aren't built for static libs
 ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ${BUILD_SHARED_LIBS} "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
