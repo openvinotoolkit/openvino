@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include <unordered_map>
+#include <utility>
+
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace npuw {
 namespace pass {
+
+// Per-layer KV cache sequence dimension info extracted during transformation.
+// Key: layer index. Value: {key_seq_dim, value_seq_dim}.
+using KVSeqDimsMap = std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>>;
 
 /**
  * @brief Transformation pass to split KV cache access into block-based pattern
@@ -63,8 +70,14 @@ public:
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
+    /// Per-layer seq dims extracted during run_on_model(). Populated after a successful run.
+    const KVSeqDimsMap& get_kv_seq_dims() const {
+        return m_kv_seq_dims;
+    }
+
 private:
     uint32_t m_block_size;
+    KVSeqDimsMap m_kv_seq_dims;
 };
 
 }  // namespace pass

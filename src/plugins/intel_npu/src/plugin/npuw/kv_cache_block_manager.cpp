@@ -19,11 +19,11 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                                          uint32_t seq_dim)
     : block_size_(block_size),
       max_blocks_(max_blocks),
+      seq_dim_(seq_dim),
       element_type_(elem_type),
       block_shape_(base_shape),
       device_(device),
-      plugin_(plugin),
-      seq_dim_(seq_dim) {
+      plugin_(plugin) {
     OPENVINO_ASSERT(block_size_ > 0 && max_blocks_ > 0,
                     "KVCacheBlockManager: block_size and max_blocks must be > 0, got block_size=",
                     block_size_,

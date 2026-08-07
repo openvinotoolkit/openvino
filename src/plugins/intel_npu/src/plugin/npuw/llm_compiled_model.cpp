@@ -3,8 +3,6 @@
 //
 #include "llm_compiled_model.hpp"
 
-#include <regex>
-
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
@@ -1169,17 +1167,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             bool all_transformed = true;
             auto apply_block_kv_transform =
                 [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
-                    ov::pass::Manager mgr(tag);
-                    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
-                    if (mgr.run_passes(model)) {
+                    ov::npuw::pass::SplitKVCacheIntoBlocks pass(block_size, v_transposed);
+                    if (pass.run_on_model(model)) {
                         LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
                     } else {
                         LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
                         all_transformed = false;
                     }
+                    return pass;
                 };
 
-            apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+            auto prefill_pass =
+                apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
                 apply_block_kv_transform(generate_model_variants[i],
@@ -1193,46 +1192,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                "Ensure the model uses HFA or Pyramid attention pattern.");
             }
             m_is_block_kv_cache = true;
-
-            // Extract per-layer KV seq dims from the (already transformed) prefill model.
-            // Block params are named "past_key_values.{idx}.{key|value}_block_*" and feed
-            // into a Concat whose axis is the ground-truth sequence dimension.
-            for (const auto& param : prefill_model->get_parameters()) {
-                const auto& name = param->get_friendly_name();
-                if (name.find("_block_0") == std::string::npos) {
-                    continue;
-                }
-                // Parse layer index from "past_key_values.{idx}.key_block_0"
-                std::regex re(R"(past_key_values\.(\d+)\.(key|value)_block_0)");
-                std::smatch m;
-                if (!std::regex_search(name, m, re)) {
-                    continue;
-                }
-                uint32_t layer_idx = static_cast<uint32_t>(std::stoi(m[1].str()));
-                bool is_key = (m[2].str() == "key");
-
-                // Walk to the Concat this param feeds (possibly through Convert).
-                auto consumers = param->output(0).get_target_inputs();
-                for (const auto& input : consumers) {
-                    auto node = input.get_node()->shared_from_this();
-                    if (ov::is_type<ov::op::v0::Convert>(node)) {
-                        auto next = node->output(0).get_target_inputs();
-                        if (!next.empty()) {
-                            node = next.begin()->get_node()->shared_from_this();
-                        }
-                    }
-                    if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node)) {
-                        uint32_t axis = static_cast<uint32_t>(concat->get_axis());
-                        auto& entry = m_kv_seq_dims[layer_idx];
-                        if (is_key) {
-                            entry.first = axis;
-                        } else {
-                            entry.second = axis;
-                        }
-                        break;
-                    }
-                }
-            }
+            m_kv_seq_dims = prefill_pass.get_kv_seq_dims();
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
                      "Block-based KV cache requires: chunk prefill enabled, "

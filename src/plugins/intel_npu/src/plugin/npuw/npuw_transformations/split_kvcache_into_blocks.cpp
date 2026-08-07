@@ -30,6 +30,7 @@ struct KVCacheTransformInfo {
     bool is_key;                             // true = K tensor
     bool is_value;                           // true = V tensor
     int64_t concat_axis;                     // sequence dimension index in the concat
+    uint32_t layer_idx;                      // layer index parsed from parameter name
 };
 
 // Walk a parameter's consumers to find the Concat it feeds (directly or via Convert).
@@ -80,11 +81,14 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
     for (const auto& param : model->get_parameters()) {
         const std::string& name = param->get_friendly_name();
 
-        const bool is_key = ov::npuw::util::isPastKeyValuesKeyContiguous(name).has_value();
-        const bool is_value = ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
+        auto key_layer = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
+        auto value_layer = ov::npuw::util::isPastKeyValuesValueContiguous(name);
+        const bool is_key = key_layer.has_value();
+        const bool is_value = value_layer.has_value();
         if (!is_key && !is_value) {
             continue;  // not a contiguous KV cache parameter
         }
+        const uint32_t layer_idx = static_cast<uint32_t>(is_key ? key_layer.value() : value_layer.value());
 
         // Shape must be 4D and fully static before we can proceed.
         const auto& orig_shape = param->get_partial_shape();
@@ -128,7 +132,8 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         const int64_t rank = static_cast<int64_t>(orig_shape.rank().get_length());
         const int64_t concat_axis = (raw_axis < 0) ? raw_axis + rank : raw_axis;
 
-        params_to_transform.push_back({param, concat, present_kv_input, convert_node, is_key, is_value, concat_axis});
+        params_to_transform.push_back(
+            {param, concat, present_kv_input, convert_node, is_key, is_value, concat_axis, layer_idx});
     }
 
     // --- Phase 2: Transform — replace each collected parameter with blocks --
@@ -202,6 +207,14 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         model->remove_parameter(param);
 
         LOG_DEBUG("SplitKVCacheIntoBlocks: new concat shape " << new_concat->get_output_partial_shape(0));
+
+        // Record per-layer seq dim for downstream consumers.
+        auto& entry = m_kv_seq_dims[info.layer_idx];
+        if (info.is_key) {
+            entry.first = static_cast<uint32_t>(info.concat_axis);
+        } else {
+            entry.second = static_cast<uint32_t>(info.concat_axis);
+        }
 
         model_changed = true;
     }

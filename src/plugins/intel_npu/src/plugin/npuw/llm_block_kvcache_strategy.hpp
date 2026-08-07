@@ -151,7 +151,6 @@ private:
     void copy_outputs_to_blocks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                 const PortsMap& src_ports,
                                 uint32_t num_tokens,
-                                bool v_transposed,
                                 uint32_t current_kv_position);
 
     void update_generate_bindings(uint32_t old_num_tokens,

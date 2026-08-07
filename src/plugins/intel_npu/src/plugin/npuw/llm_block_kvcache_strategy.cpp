@@ -390,12 +390,7 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len
         const uint32_t write_start = kvcache_desc.num_stored_tokens - current_prompts_len;
         LOG_DEBUG("Copying prefill outputs to blocks: num_tokens=" << current_prompts_len
                                                                    << " kv_position=" << write_start);
-        const bool v_transposed = kvcache_desc.v_tensors_transposed_pre;
-        copy_outputs_to_blocks(m_req.m_prefill_request,
-                               m_req.m_prefill_out_ports,
-                               current_prompts_len,
-                               v_transposed,
-                               write_start);
+        copy_outputs_to_blocks(m_req.m_prefill_request, m_req.m_prefill_out_ports, current_prompts_len, write_start);
     }
 }
 
@@ -476,11 +471,7 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     const uint32_t tokens_after = kvcache_desc.num_stored_tokens;
     const uint32_t tokens_before = tokens_after - input_tokens_len;
-    copy_outputs_to_blocks(m_req.m_kvcache_request,
-                           m_req.m_kvcache_out_ports,
-                           input_tokens_len,
-                           kvcache_desc.v_tensors_transposed_gen,
-                           tokens_before);
+    copy_outputs_to_blocks(m_req.m_kvcache_request, m_req.m_kvcache_out_ports, input_tokens_len, tokens_before);
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
 }
 
@@ -760,7 +751,6 @@ void LLMBlockKVCacheStrategy::update_generate_bindings(uint32_t old_num_tokens,
 void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                                      const PortsMap& src_ports,
                                                      uint32_t num_tokens,
-                                                     bool /*v_transposed*/,
                                                      uint32_t current_kv_position) {
     namespace uu = ov::npuw::util;
     auto& compiled = request->get_compiled_model();
