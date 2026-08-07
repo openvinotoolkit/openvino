@@ -14,16 +14,6 @@ details::OptionConcept FilteredConfig::getOpt(std::string_view key) const {
     return _desc->get(key);
 }
 
-bool FilteredConfig::isOptPublic(std::string_view key) const {
-    auto log = Logger::global().clone("Config");
-    if (_desc->has(key)) {
-        return _desc->get(key).isPublic();
-    } else {
-        log.warning("Option '%s' not registered in config", key.data());
-        return true;
-    }
-}
-
 void FilteredConfig::update(const ConfigMap& options) {
     auto log = Logger::global().clone("Config");
 
@@ -68,23 +58,9 @@ bool FilteredConfig::isAvailable(std::string key) const {
     return false;
 }
 
-void FilteredConfig::enable(std::string key, bool enabled) {
+void FilteredConfig::enable(std::string_view key, bool enabled) {
     // we insert for all cases - no need to check if exists
-    _enabled[key] = enabled;
-}
-
-void FilteredConfig::enableAll() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        enable(opt.key().data(), true);
-    });
-}
-
-void FilteredConfig::enableRuntimeOptions() {
-    _desc->walk([&](const details::OptionConcept& opt) {
-        if (opt.mode() == OptionMode::RunTime) {
-            enable(opt.key().data(), true);
-        }
-    });
+    _enabled[std::string(key)] = enabled;
 }
 
 void FilteredConfig::walkEnables(std::function<void(const std::string&)> cb) const {
@@ -107,7 +83,7 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     } else {
         // manual insert
         log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
-        _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
+        _internal_compiler_configs.emplace(key, std::move(value));
     }
 }
 

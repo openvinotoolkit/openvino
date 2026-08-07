@@ -82,16 +82,10 @@ std::string utils::getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBack
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
-std::string utils::getDeviceArchitecture(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                         const std::string& specifiedDeviceName) {
-    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
-    return getPlatformByDeviceName(devName);
-}
-
 IDevice::Uuid utils::getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend,
                                    const std::string& specifiedDeviceName) {
     const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
-    const auto deviceToUse = getDeviceById(engineBackend, devName);
+    const auto& deviceToUse = getDeviceById(engineBackend, devName);
     if (deviceToUse) {
         return deviceToUse->getUuid();
     }

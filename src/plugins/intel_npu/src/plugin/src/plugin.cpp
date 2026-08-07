@@ -130,12 +130,11 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // Initialize (note: it will reset registered options)
     options.reset();
 
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options.add<OPT_TYPE>();                              \
-        config.enable(std::move(o_name), false);              \
+#define REGISTER_OPTION(OPT_TYPE)                                                                              \
+    do {                                                                                                       \
+        options.add<OPT_TYPE>();                                                                               \
+        const bool _enabled = OPT_TYPE::mode() == OptionMode::RunTime || OPT_TYPE::mode() == OptionMode::Both; \
+        config.enable(OPT_TYPE::key(), _enabled);                                                              \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -151,9 +150,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PERFORMANCE_HINT);
     REGISTER_OPTION(EXECUTION_MODE_HINT);
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
     REGISTER_OPTION(MODEL_PRIORITY);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
@@ -190,44 +186,38 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
     REGISTER_OPTION(RUNTIME_REQUIREMENTS);
     REGISTER_OPTION(COMPATIBILITY_CHECK);
+    REGISTER_OPTION(MAX_TILES);
+    REGISTER_OPTION(WORKLOAD_TYPE);
+    REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
-    if (backend) {
-        // Options registered only if drivers is present and supports the corresponding extension
-        REGISTER_OPTION(MAX_TILES);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    REGISTER_OPTION(ENABLE_CPU_PINNING);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
-        if (backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(WORKLOAD_TYPE);
-        }
-        if (backend->isContextExtSupported()) {
-            REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-        }
-    }
-
-    // parse again env_variables to update registered configs which have env vars set
+    // parse again env_variables to update registered configs which
+    // have env vars set
     config.parseEnvVars();
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
-    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and
+    // have no effect on the NPU plugin. But we still need to enable
+    // those for OV Core to query. Note: do this last to not filter
+    // them out. register npuw caching properties
     for_each_exposed_npuw_option([&](auto tag) {
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
     });
 
-    config.enableRuntimeOptions();
-
-    // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
-    // support them, because they may be used by the plugin itself or by the driver.
-    // We still check compiler support to decide whether these options should be removed from the config string.
-
-    // NPU_TURBO might be supported by the driver
-    if (backend && backend->isCommandQueueExtSupported()) {
-        config.enable(ov::intel_npu::turbo.name(), true);
-    }
-
-    // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
-    config.enable(ov::log::level.name(), true);
-    config.enable(ov::hint::performance_mode.name(), true);
-    config.enable(ov::enable_profiling.name(), true);
+    // Special cases
+    // Disable turbo in case driver is not present or it does not support the extension.
+    config.enable(ov::intel_npu::turbo.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+    // Align config enabled/disabled state with the properties manager support.
+    // Disable workload type in case driver is not present or it does not support the extension.
+    config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+    // Disable max tiles in case we don't have a device.
+    config.enable(ov::intel_npu::max_tiles.name(), backend != nullptr && backend->getDevice() != nullptr);
+    // Disable idle memory pruning in case driver is not present or it does not support the extension.
+    config.enable(ov::intel_npu::disable_idle_memory_prunning.name(),
+                  backend != nullptr && backend->isContextExtSupported());
 
     if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
         auto device = backend->getDevice();
