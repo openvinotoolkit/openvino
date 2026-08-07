@@ -35,9 +35,12 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
 
-# The include directories above use TARGET_PROPERTY expressions instead of
-# target_link_libraries, so CMake creates no build-order edge. Level Zero
-# headers are copied into the build directory by prepare_ze_headers; without
-# this explicit dependency a parallel build may compile ${TARGET_NAME} before
-# the headers are copied, causing a missing-header error
-add_dependencies(${TARGET_NAME} prepare_ze_headers)
+# Keep an explicit build-order dependency for the bundled Level Zero headers.
+# Although this dependency is currently also propagated through
+# openvino::zero_loader -> LevelZero::Headers, declaring it here protects this
+# target if that link interface changes and prevents parallel compilation
+# before prepare_ze_headers has copied the headers. The target does not exist
+# when system Level Zero is used, because those headers are already available.
+if(TARGET prepare_ze_headers)
+    add_dependencies(${TARGET_NAME} prepare_ze_headers)
+endif()
