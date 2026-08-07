@@ -109,7 +109,10 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
                                                        bool skip_unsqueeze,
                                                        bool matmul_transpose_b,
                                                        bool reduce_sum_keep_dims,
-                                                       AdditionalConsumersMode additional_consumers_mode) {
+                                                       AdditionalConsumersMode additional_consumers_mode,
+                                                       bool bias_as_parameter = false,
+                                                       bool insert_activation_scale = false,
+                                                       bool per_expert_scale = false) {
     // Fixed values that don't affect pass behavior
     const auto expert_alpha = 1.625f;
     const auto expert_beta = 7.0f;
@@ -158,10 +161,16 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     gate_up_matmul->set_friendly_name("GateUpMatMul");
 
-    auto gate_up_add = std::make_shared<ov::op::v1::Add>(
-        gate_up_matmul,
-        ov::test::utils::make_constant(data_precision,
-                                       ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor}));
+    const auto gate_up_bias_shape = ov::Shape{number_of_experts, 1, intermediate_size * fusion_factor};
+    std::shared_ptr<ov::Node> gate_up_bias_src;
+    std::shared_ptr<ov::op::v0::Parameter> gate_up_bias_param, down_bias_param, act_scale_param;
+    if (bias_as_parameter) {
+        gate_up_bias_param = std::make_shared<ov::op::v0::Parameter>(data_precision, gate_up_bias_shape);
+        gate_up_bias_src = gate_up_bias_param;
+    } else {
+        gate_up_bias_src = ov::test::utils::make_constant(data_precision, gate_up_bias_shape);
+    }
+    auto gate_up_add = std::make_shared<ov::op::v1::Add>(gate_up_matmul, gate_up_bias_src);
 
     auto slice1 = std::make_shared<ov::op::v8::Slice>(
         gate_up_add,
@@ -188,7 +197,15 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
     auto swish_beta = ov::op::v0::Constant::create(data_precision, ov::Shape{}, std::vector<float>{expert_alpha});
     auto swish = std::make_shared<ov::op::v4::Swish>(minimum1, swish_beta);
 
-    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, swish);
+    std::shared_ptr<ov::Node> gate_act = swish;
+    if (insert_activation_scale) {
+        const auto scale_shape = per_expert_scale
+                                     ? ov::Shape{number_of_experts, 1, intermediate_size}
+                                     : ov::Shape{1};
+        act_scale_param = std::make_shared<ov::op::v0::Parameter>(data_precision, scale_shape);
+        gate_act = std::make_shared<ov::op::v1::Multiply>(swish, act_scale_param);
+    }
+    auto multiply2 = std::make_shared<ov::op::v1::Multiply>(add1, gate_act);
 
     auto down_proj_weights = build_matmul_weights(ov::Shape{number_of_experts, intermediate_size, hidden_size},
                                                   weights_precision,
@@ -200,9 +217,15 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
 
     down_proj_matmul->set_friendly_name("DownProjMatMul");
 
-    auto down_proj_add = std::make_shared<ov::op::v1::Add>(
-        down_proj_matmul,
-        ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size}));
+    std::shared_ptr<ov::Node> down_bias_src;
+    if (bias_as_parameter) {
+        down_bias_param = std::make_shared<ov::op::v0::Parameter>(data_precision,
+                                                                  ov::Shape{number_of_experts, 1, hidden_size});
+        down_bias_src = down_bias_param;
+    } else {
+        down_bias_src = ov::test::utils::make_constant(data_precision, ov::Shape{number_of_experts, 1, hidden_size});
+    }
+    auto down_proj_add = std::make_shared<ov::op::v1::Add>(down_proj_matmul, down_bias_src);
 
     auto router_weights =
         build_matmul_weights(ov::Shape{hidden_size, number_of_experts}, weights_precision, seed++, matmul_transpose_b);
@@ -311,6 +334,11 @@ inline std::shared_ptr<ov::Model> initMoE2GeMMSubgraph(bool use_scatter_v12,
     }
 
     ov::ParameterVector params = {input};
+    for (const auto& extra : {gate_up_bias_param, down_bias_param, act_scale_param}) {
+        if (extra) {
+            params.push_back(extra);
+        }
+    }
     ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(reduce_sum)};
 
     if (additional_consumers_mode == AdditionalConsumersMode::MATMULS) {
@@ -1053,4 +1081,46 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
+
+static size_t countGatherMatmuls(bool bias_as_parameter,
+                                 bool insert_activation_scale,
+                                 bool per_expert_scale = false) {
+    auto model = initMoE2GeMMSubgraph(false,
+                                      false,
+                                      false,
+                                      true,
+                                      false,
+                                      AdditionalConsumersMode::NO,
+                                      bias_as_parameter,
+                                      insert_activation_scale,
+                                      per_expert_scale);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>();
+    manager.run_passes(model);
+    size_t n = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (std::string(op->get_type_name()) == "GatherMatmul") {
+            ++n;
+        }
+    }
+    return n;
+}
+
+TEST(ConvertTiledMoeBlockToGatherMatmuls, MoE2GeMM_Baseline) {
+    EXPECT_EQ(countGatherMatmuls(false, false), 2u);
+}
+TEST(ConvertTiledMoeBlockToGatherMatmuls, MoE2GeMM_ParameterBiasOnly) {
+    EXPECT_EQ(countGatherMatmuls(true, false), 2u);
+}
+TEST(ConvertTiledMoeBlockToGatherMatmuls, MoE2GeMM_ActivationScaleOnly) {
+    EXPECT_EQ(countGatherMatmuls(false, true), 2u);
+}
+
+TEST(ConvertTiledMoeBlockToGatherMatmuls, MoE2GeMM_ParameterBiasAndActivationScale) {
+    EXPECT_EQ(countGatherMatmuls(true, true), 2u);
+}
+
+TEST(ConvertTiledMoeBlockToGatherMatmuls, MoE2GeMM_PerExpertActivationScaleIsDeclined) {
+    EXPECT_NO_THROW({ EXPECT_EQ(countGatherMatmuls(true, true, /*per_expert_scale=*/true), 0u); });
+}
 }  // namespace

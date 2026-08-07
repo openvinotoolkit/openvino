@@ -16,6 +16,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
@@ -51,6 +52,10 @@ void validate_nodes(const pattern::PatternValueMap& map, const std::initializer_
 };
 
 // Build a per-expert MatMul weight pattern
+std::shared_ptr<ov::Node> make_expert_bias_pattern() {
+    return pattern::wrap_type<v0::Constant, v0::Parameter>();
+}
+
 std::shared_ptr<ov::Node> make_expert_weight_pattern(const std::vector<ov::element::Type>& supported_weights_types) {
     if (supported_weights_types.empty()) {
         return pattern::any_input();
@@ -70,7 +75,7 @@ std::shared_ptr<ov::op::v0::Unsqueeze> introduce_n_experts_dim(const ov::Output<
 struct MOE2GEMMPatternNodes {
     std::shared_ptr<ov::Node> experts_input, tile, after_tile_reshape;
     std::shared_ptr<ov::Node> gate_up_matmul, gate_up_add, gate_up_bias;
-    std::shared_ptr<ov::Node> slice1, clamp, add1, slice2, minimum1, swish_beta, swish, multiply2;
+    std::shared_ptr<ov::Node> slice1, clamp, add1, slice2, minimum1, swish_beta, swish, gate_scale, multiply2;
     std::shared_ptr<ov::Node> down_proj_matmul, down_proj_bias, down_proj_add;
     std::shared_ptr<ov::Node> end_reshape_target_shape, end_reshape;
     std::shared_ptr<ov::Node> router_topk_indices, chosen_experts, scatter_elements_update;
@@ -88,7 +93,7 @@ MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& s
     p.gate_up_matmul = pattern::wrap_type<v0::MatMul>(
         {p.after_tile_reshape, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
-    p.gate_up_bias = pattern::wrap_const();
+    p.gate_up_bias = make_expert_bias_pattern();
     p.gate_up_add = pattern::wrap_type<v1::Add>({p.gate_up_matmul, p.gate_up_bias}, pattern::consumers_count(2));
 
     // Branch 1: Slice_1 -> Clamp -> Add_1
@@ -106,14 +111,16 @@ MOE2GEMMPatternNodes build_2gemm_pattern(const std::vector<ov::element::Type>& s
     p.swish_beta = pattern::wrap_const();
     p.swish = pattern::wrap_type<v4::Swish>({p.minimum1, p.swish_beta}, pattern::consumers_count(1));
 
+    p.gate_scale = pattern::optional<v1::Multiply>({p.swish, pattern::any_input()});
+
     // Join: Multiply_2
-    p.multiply2 = pattern::wrap_type<v1::Multiply>({p.add1, p.swish}, pattern::consumers_count(1));
+    p.multiply2 = pattern::wrap_type<v1::Multiply>({p.add1, p.gate_scale}, pattern::consumers_count(1));
 
     // Down projection
     p.down_proj_matmul = pattern::wrap_type<v0::MatMul>(
         {p.multiply2, make_expert_weight_pattern(supported_weights_types)},
         pattern::consumers_count(1) && pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
-    p.down_proj_bias = pattern::wrap_const();
+    p.down_proj_bias = make_expert_bias_pattern();
     p.down_proj_add = pattern::wrap_type<v1::Add>({p.down_proj_matmul, p.down_proj_bias}, pattern::consumers_count(1));
     p.end_reshape_target_shape = pattern::any_input();
     p.end_reshape =
@@ -229,6 +236,13 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
 
         const auto& experts_subgraph_input = pm.at(p.experts_input);
         const auto& active_indices = pm.at(p.router_topk_indices);
+        if (pm.count(p.gate_scale)) {
+            const auto& scale_shape = pm.at(p.gate_scale).get_node_shared_ptr()->get_input_partial_shape(1);
+            if (scale_shape.rank().is_static() && scale_shape.rank().get_length() >= 3 &&
+                scale_shape[0].is_static() && scale_shape[0].get_length() != 1) {
+                return false;
+            }
+        }
 
         const auto gate_up_mm_node = pm.at(p.gate_up_matmul).get_node_shared_ptr();
         const auto gate_up_add_node = pm.at(p.gate_up_add).get_node_shared_ptr();
@@ -243,7 +257,11 @@ ConvertTiledMoeBlockTo2GatherMatmuls::ConvertTiledMoeBlockTo2GatherMatmuls(
                                                                         gate_up_bias_node);
         ov::replace_node_update_name(gate_up_add_node, gate_up_gathered_mm);
 
-        validate_nodes(pm, {p.slice1, p.clamp, p.add1, p.slice2, p.minimum1, p.swish, p.multiply2});
+        validate_nodes(pm, {p.slice1, p.clamp, p.add1, p.slice2, p.minimum1, p.swish});
+        if (pm.count(p.gate_scale)) {
+            validate_nodes(pm, {p.gate_scale});
+        }
+        validate_nodes(pm, {p.multiply2});
 
         const auto down_proj_mm_node = pm.at(p.down_proj_matmul).get_node_shared_ptr();
         const auto down_proj_bias_node = pm.at(p.down_proj_bias).get_node_shared_ptr();
