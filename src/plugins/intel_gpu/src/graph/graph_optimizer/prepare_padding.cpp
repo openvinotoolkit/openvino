@@ -22,20 +22,22 @@ void prepare_padding::run(program& p) {
 
         auto& weight_node = node->get_dependency(1);
         if (weight_node.is_constant()) {
-            const size_t alignment = 2;
             auto weight_layout = weight_node.get_output_layout(false);
+            // 4 values are packed per byte for u2 weights, 2 values per byte for u4/i4 weights
+            const size_t alignment = weight_layout.data_type == cldnn::data_types::u2 ? 4 : 2;
             const auto const_shape = weight_layout.get_partial_shape().to_shape();
             OPENVINO_ASSERT(!const_shape.empty(), "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
             auto inner_most_idx = node->as<fully_connected>().get_primitive()->weights_rank - 1;
 
             if (const_shape[inner_most_idx] % alignment != 0) {
                 std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
-                new_paddings[inner_most_idx] = 1;
+                new_paddings[inner_most_idx] = alignment - (const_shape[inner_most_idx] % alignment);
 
                 if (node->get_preferred_impl_type() == impl_types::onednn &&
                     weight_node.is_type<data>() &&
                     (weight_node.get_output_layout(false).data_type == cldnn::data_types::u4 ||
-                     weight_node.get_output_layout(false).data_type == cldnn::data_types::i4)) {
+                     weight_node.get_output_layout(false).data_type == cldnn::data_types::i4 ||
+                     weight_node.get_output_layout(false).data_type == cldnn::data_types::u2)) {
                     auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
