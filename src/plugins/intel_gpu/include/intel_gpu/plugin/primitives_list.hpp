@@ -328,3 +328,6 @@ REGISTER_FACTORY(internal, GatherMatmul);
 REGISTER_FACTORY(internal, GatherMatmulCompressed);
 REGISTER_FACTORY(internal, GroupedMatMulCompressed);
 REGISTER_FACTORY(internal, Atan2);
+#ifdef GRAPH_COMPILER
+REGISTER_FACTORY(internal, MLIR);
+#endif

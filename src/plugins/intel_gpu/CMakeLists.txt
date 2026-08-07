@@ -134,9 +134,35 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
+# MLIR sources are always excluded from the main plugin target. When
+# ENABLE_GRAPH_COMPILER=ON they are built into a dedicated OBJECT library
+# (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
+# when OFF they must not be compiled at all.
+set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
+file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
+list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+
+if(ENABLE_GRAPH_COMPILER)
+    include(${CMAKE_SOURCE_DIR}/cmake/graph-compiler.cmake)
+
+    set(mlir_lib openvino_intel_gpu_mlir_obj)
+    add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
+    target_compile_options(${mlir_lib} PRIVATE -Wno-error)
+    target_compile_definitions(${mlir_lib} PRIVATE GRAPH_COMPILER IMPLEMENT_OPENVINO_API)
+    target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph GraphCompiler)
+    target_include_directories(${mlir_lib} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            ${OV_GPU_MLIR_DIR})
+
+    set(GPU_PLUGIN_OBJECT_LIBRARIES ${mlir_lib})
+    set(GPU_PLUGIN_OPTIONS LINKABLE)
+endif()
+
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
+              OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
+              ${GPU_PLUGIN_OPTIONS}
               DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
               VERSION_DEFINES_FOR src/plugin/plugin.cpp
               # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
@@ -150,6 +176,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+if(ENABLE_GRAPH_COMPILER)
+    target_link_libraries(${TARGET_NAME} PRIVATE GraphCompiler)
+    target_compile_definitions(${TARGET_NAME} PRIVATE GRAPH_COMPILER)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})

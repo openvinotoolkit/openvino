@@ -31,6 +31,7 @@ endif()
 #               [SOURCES <sources>]
 #               [OBJECT_LIBRARIES <object_libs>]
 #               [VERSION_DEFINES_FOR <source>]
+#               [LINKABLE] Build as a shared library so tests can link it
 #               [SKIP_INSTALL]
 #               [SKIP_REGISTRATION] Skip creation of <device>.xml
 #               [ADD_CLANG_FORMAT]
@@ -38,7 +39,7 @@ endif()
 #               )
 #
 function(ov_add_plugin)
-    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION)
+    set(options SKIP_INSTALL PSEUDO_DEVICE ADD_CLANG_FORMAT ADD_CLANG_TIDY AS_EXTENSION SKIP_REGISTRATION LINKABLE)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR PSEUDO_PLUGIN_FOR)
     set(multiValueArgs DEFAULT_CONFIG SOURCES OBJECT_LIBRARIES)
     cmake_parse_arguments(OV_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -60,7 +61,11 @@ function(ov_add_plugin)
         endforeach()
 
         if(BUILD_SHARED_LIBS)
-            set(library_type MODULE)
+            if(OV_PLUGIN_LINKABLE)
+                set(library_type SHARED)
+            else()
+                set(library_type MODULE)
+            endif()
         else()
             set(library_type STATIC)
         endif()
