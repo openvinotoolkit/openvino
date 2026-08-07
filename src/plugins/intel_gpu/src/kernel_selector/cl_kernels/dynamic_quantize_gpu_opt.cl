@@ -226,20 +226,29 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if ASYMMETRIC_QUANTIZATION
-    unroll_for (int j = 0; j < VEC_SIZE; j++) {
-        max_value = fmax(max_value, val[j]);
-        min_value = fmin(min_value, val[j]);
+    if (is_valid_block) {
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max_value = fmax(max_value, val[j]);
+            min_value = fmin(min_value, val[j]);
+        }
+        grp_max = fmax(grp_max, max_value);
+        grp_min = fmin(grp_min, min_value);
+    } else {
+        grp_max = -INFINITY;
+        grp_min = INFINITY;
     }
-    grp_max = fmax(grp_max, max_value);
-    grp_min = fmin(grp_min, min_value);
 #else
-    abs_val = fabs(val);
+    if (is_valid_block) {
+        abs_val = fabs(val);
 
-    unroll_for (int j = 0; j < VEC_SIZE; j++) {
-        max_value = fmax(max_value, abs_val[j]);
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max_value = fmax(max_value, abs_val[j]);
+        }
+
+        grp_max = fmax(grp_max, max_value);
+    } else {
+        grp_max = -INFINITY;
     }
-
-    grp_max = fmax(grp_max, max_value);
 #endif
 
     max_value = sub_group_reduce_max(grp_max);
