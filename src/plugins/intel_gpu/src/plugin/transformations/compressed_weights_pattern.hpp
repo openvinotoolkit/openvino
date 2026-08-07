@@ -17,7 +17,7 @@ using ov::pass::operator|;
         };\
         \
         auto compressed_type = type_matches_any({ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4,\
-                                                 ov::element::u2, ov::element::f8e4m3, ov::element::f8e5m2,\
+                                                 ov::element::u3, ov::element::u2, ov::element::f8e4m3, ov::element::f8e5m2,\
                                                  ov::element::f4e2m1});\
         auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_type);\
         auto weights_param_m = wrap_type<ov::op::v0::Parameter>(compressed_type);\
