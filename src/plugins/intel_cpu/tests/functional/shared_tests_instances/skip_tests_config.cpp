@@ -387,6 +387,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)"),
             std::regex(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)"),
+            std::regex(R"(.*Conv1x1WeightCompressedToMatmulTest.*)"),
             std::regex(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)"),
             std::regex(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)"),
