@@ -44,6 +44,10 @@ public:
     void activate() const {
 #if OV_THREAD == OV_THREAD_TBB_ADAPTIVE
         dnnl_threadpool_interop_set_max_concurrency(get_num_threads());
+        // oneDNN uses this value when estimating scratchpad outside an active parallel region.
+        // Keep it aligned with the real worker pool size: AUTO may raise max_concurrency via
+        // virtual threads for scheduling, but scratchpad is still needed only for worker threads.
+        dnnl_threadpool_interop_set_scratchpad_concurrency(get_num_worker_threads());
 #endif
     }
 
