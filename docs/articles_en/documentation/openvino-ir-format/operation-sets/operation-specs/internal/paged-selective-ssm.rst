@@ -163,7 +163,7 @@ Cases for reading and updating blocks:
 
 .. note::
 
-   ``recurrent_state_table`` (input 5) is updated in place as a side effect. The initial
+   ``recurrent_state_table`` (input 6) is updated in place as a side effect. The initial
    recurrent state is an all-zeros tensor, consistent with the StatefulCausalConv1D convention.
 
 .. note::
