@@ -32,7 +32,7 @@ whole sequence before the recurrence (cheaper than recomputing it per time step)
 
    dtB = dt \cdot B
 
-The per-timestep recurrence then only forms the outer product ``dtB_t \otimes x_t``
+The per-timestep recurrence then only forms the outer product :math:`dtB_t \otimes x_t`
 (its full ``[batch_size, seq_len, num_heads, head_dim, state_size]`` form is too large to
 materialize up front):
 
