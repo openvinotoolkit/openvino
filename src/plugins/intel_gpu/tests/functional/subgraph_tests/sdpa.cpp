@@ -235,7 +235,7 @@ protected:
             auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, split_lengths_values);
             auto split_k = std::make_shared<ov::op::v1::VariadicSplit>(scatter_k, split_axis, split_lengths);
             auto split_v = std::make_shared<ov::op::v1::VariadicSplit>(scatter_v, split_axis, split_lengths);
-            // Reshape 4D→5D: [1,10,?,128] -> [1,10,1,?,128]
+            // Reshape 4D→5D
             std::vector<int64_t> reshape1_pattern = {static_cast<int64_t>(k_shape[0]),
                                                      static_cast<int64_t>(k_shape[1]),
                                                      1,
