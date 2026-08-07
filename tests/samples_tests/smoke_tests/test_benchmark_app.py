@@ -21,6 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
+from openvino.tools.benchmark.utils.utils import parse_value_per_device
 import openvino as ov
 
 def get_executable(sample_language):
@@ -226,6 +227,14 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
             ).uniform(0, 256, data_shape).astype(np.int32)
         )
     verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+
+def test_parse_value_per_device_rejects_malformed_value():
+    assert parse_value_per_device(['CPU', 'GPU'], '2', 'nstreams') == {'CPU': '2', 'GPU': '2'}
+    assert parse_value_per_device(['CPU', 'GPU'], 'CPU:2,GPU:4', 'nstreams') == {'CPU': '2', 'GPU': '4'}
+    with pytest.raises(Exception, match='Unknown string format: CPU:2:4'):
+        parse_value_per_device(['CPU'], 'CPU:2:4', 'nstreams')
+
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
