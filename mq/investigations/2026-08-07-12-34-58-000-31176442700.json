@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-07-12-34-58-000-31176442700",
+  "timestamp": "2026-08-07T12:34:58Z",
+  "run_id": "31176442700",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31176442700",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36921",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36921",
+  "author": "Roszczyk",
+  "category": "Code Issue",
+  "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
+  "signature": "COMPARATION FAILED abs threshold rel threshold incorrect elem counter among shapes|Code Issue",
+  "signature_hash": "4975bf8755e5f7c4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_Conv1x1WeightCompressedToMatmul_TransposeInput test COMPARATION FAILED - all 128 elements incorrect"
+    }
+  ],
+  "key_errors": [
+    "[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.050000 rel_threshold: 0.010000 incorrect elem counter: 128 among 128 shapes.",
+    "Coordinate with max diff: [0,103] Expected: 12.2144 Actual: 2332.88 Diff: 2320.66 abs_threshold: 0.172144",
+    "[  FAILED  ] smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference/IS=[?.1.1.128]_([1.1.1.128].[3.1.1.128])_Cout=128_in=Transpose_out=Reshape_actPrec=f32_wPrec=i4_device=CPU"
+  ],
+  "root_cause": "PR #36921 fixes an out-of-bounds read in the GPU convolution f16 1x1 kernel (convolution_gpu_bfyx_f16_1x1.cl). However, the CPU functional test smoke_Conv1x1WeightCompressedToMatmul fails with catastrophic numerical errors (all 128/128 elements wrong, diff of ~2320 vs threshold 0.05). This is the same CPU test that failed on run 31174378977 for a different PR (PR #37141). This suggests the CPU plugin's Conv1x1WeightCompressedToMatmul transformation has a pre-existing instability or is sensitive to an earlier merged change, causing it to yield corrupted output (f32+i4 weight-compressed matmul path). The PR under review only touches the GPU CL kernel file and is unlikely to be the direct cause of this CPU failure.",
+  "reproduction_steps": "Run: ov_cpu_func_tests --gtest_filter='smoke_Conv1x1WeightCompressedToMatmul_TransposeInput/Conv1x1WeightCompressedToMatmulTest.Inference/IS=*1.1.128*wPrec=i4_device=CPU'",
+  "recommended_actions": [
+    "Investigate the same Conv1x1WeightCompressedToMatmul test that failed in run 31174378977 (PR #37141). Both PRs hit the exact same failing test configuration - this may be a pre-existing regression on master caused by an earlier merged change.",
+    "Run the smoke_Conv1x1WeightCompressedToMatmul test suite on the clean master branch (without this PR) to determine if the test is already broken.",
+    "If the test is broken on master, file a CPU plugin bug tracking issue and temporarily disable the test until fixed.",
+    "Review PR #37141 (RoPEFusionLtxVideo changes) as a likely source of the regression since it was identified as the suspected cause in the prior investigation."
+  ],
+  "prevention_strategies": "CPU transformation changes that add new subgraph fusion patterns should run the full Conv1x1WeightCompressedToMatmul and FullyConnected weight-compression test suites before merge. Flaky or serially-failing tests should be gated with required status checks.",
+  "historical_context": "Identical test failure occurred in run 31174378977 (PR #37141, 35 minutes earlier). That investigation attributed the failure to a new RoPEFusionLtxVideo transformation interfering with the Conv1x1-to-matmul path. The current PR (#36921) only touches the GPU kernel file, suggesting this CPU test is broken on master independently of this PR."
+}

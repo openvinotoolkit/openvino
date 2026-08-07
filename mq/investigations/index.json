@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 112,
+  "total": 113,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1098,6 +1098,15 @@
       "category": "Code Issue",
       "signature_hash": "4975bf8755e5f7c4",
       "pr_number": "37141"
+    },
+    {
+      "investigation_id": "2026-08-07-12-34-58-000-31176442700",
+      "run_id": "31176442700",
+      "timestamp": "2026-08-07T12:34:58Z",
+      "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
+      "category": "Code Issue",
+      "signature_hash": "4975bf8755e5f7c4",
+      "pr_number": "36921"
     }
   ]
 }

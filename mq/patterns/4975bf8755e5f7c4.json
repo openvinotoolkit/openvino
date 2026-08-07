@@ -4,11 +4,20 @@
   "signature_hash": "4975bf8755e5f7c4",
   "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-08-07T11:59:02Z",
-  "last_seen": "2026-08-07T11:59:02Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31174378977"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37141"],
-  "recent_timestamps": ["2026-08-07T11:59:02Z"],
+  "last_seen": "2026-08-07T12:34:58Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31176442700",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31174378977"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36921",
+    "https://github.com/openvinotoolkit/openvino/pull/37141"
+  ],
+  "recent_timestamps": [
+    "2026-08-07T12:34:58Z",
+    "2026-08-07T11:59:02Z"
+  ],
   "rerun_search_string": null
 }
