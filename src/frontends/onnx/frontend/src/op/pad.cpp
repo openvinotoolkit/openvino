@@ -99,10 +99,27 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     }
 
     if (common::is_input_valid(node, 3)) {
-        const auto data_rank = static_cast<size_t>(data.get_partial_shape().rank().get_length());
-        auto zeroes = v0::Constant::create(ov::element::i64, ov::Shape{data_rank}, std::vector<int64_t>(data_rank, 0));
+        const auto data_rank = data.get_partial_shape().rank();
+        int64_t rank_length = data_rank.get_length();
+        auto zeroes = v0::Constant::create(ov::element::i64,
+                                           ov::Shape{static_cast<size_t>(rank_length)},
+                                           std::vector<int64_t>(rank_length, 0));
 
         const auto axes = inputs[3];
+        CHECK_VALID_NODE(node, data_rank.is_static(), "Data rank must be static to validate Pad axes.");
+        if (const auto& axes_const = ov::as_type_ptr<v0::Constant>(axes.get_node_shared_ptr())) {
+            for (auto& axis : axes_const->cast_vector<int64_t>()) {
+                CHECK_VALID_NODE(node,
+                                 axis >= -rank_length && axis < rank_length,
+                                 "Pad axis ",
+                                 axis,
+                                 " is out of bounds for data rank ",
+                                 rank_length);
+            }
+        } else {
+            // Reject non-constant axes to prevent unvalidated offsets during inference
+            CHECK_VALID_NODE(node, false, "Pad with non-constant axes is not supported due to security constraints.");
+        }
 
         auto scatter_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
 
