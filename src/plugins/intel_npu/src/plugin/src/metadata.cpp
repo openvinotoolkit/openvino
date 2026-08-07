@@ -443,7 +443,9 @@ void Metadata<METADATA_VERSION_2_7>::read() {
 
     uint8_t blobType;
     read_data_from_source(reinterpret_cast<char*>(&blobType), sizeof(blobType));
-    OPENVINO_ASSERT(blobType == BlobType::ELF || blobType == BlobType::LLVM || blobType == BlobType::BYTECODE,
+    OPENVINO_ASSERT(blobType == static_cast<uint8_t>(BlobType::ELF) ||
+                        blobType == static_cast<uint8_t>(BlobType::LLVM) ||
+                        blobType == static_cast<uint8_t>(BlobType::BYTECODE),
                     "Invalid blob type in NPU blob metadata: ",
                     static_cast<uint32_t>(blobType));
     _blobType = static_cast<BlobType>(blobType);

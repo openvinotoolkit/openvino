@@ -4,12 +4,10 @@
 
 #pragma once
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <memory>
 #include <mutex>
-#include <string_view>
 #include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
@@ -22,18 +20,6 @@
 namespace intel_npu {
 
 enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
-
-inline BlobType detect_blob_type(const void* data, const size_t size) {
-    const size_t headerSize = std::min(size, size_t{20});
-    const std::string_view header(static_cast<const char*>(data), headerSize);
-    if (header.find("NPUByte\x00") != std::string_view::npos) {
-        return BlobType::BYTECODE;
-    }
-    if (header.find("llvm") != std::string_view::npos) {
-        return BlobType::LLVM;
-    }
-    return BlobType::ELF;
-}
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:

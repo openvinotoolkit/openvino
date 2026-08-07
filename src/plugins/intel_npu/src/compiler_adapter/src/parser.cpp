@@ -35,14 +35,12 @@ std::shared_ptr<IGraph> Parser::parse(
     const std::optional<BlobType>& blobType) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "Parser", "parse");
 
-    // Metadata identifies versioned blobs. Keep header detection only for raw and legacy imports.
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
-    const BlobType type = blobType.value_or(detect_blob_type(data, size));
-    if (type == BlobType::LLVM || type == BlobType::BYTECODE) {
+    if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config, type);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config, blobType.value());
     }
 
     GraphDescriptor mainGraphDesc;

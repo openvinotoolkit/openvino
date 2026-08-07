@@ -92,9 +92,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, effectiveConfig);
     _logger.debug("compile end");
 
-    const auto blobType = detect_blob_type(tensor.data(), tensor.get_byte_size());
+    const auto& compilationMode = effectiveConfig.get<COMPILATION_MODE>();
+    const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
+    const BlobType blobType =
+        isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
+                                                                                              : BlobType::LLVM)
+                      : BlobType::ELF;
     if (blobType != BlobType::ELF) {
-        _logger.debug("HostCompile mode is detected based on blob header, use internal function to get metadata!");
+        _logger.debug("HostCompile mode is detected from NPU_COMPILATION_MODE, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(tensor.data(), tensor.get_byte_size());
 
         // metadata will be obtained in initialze() of DynamicGraph
