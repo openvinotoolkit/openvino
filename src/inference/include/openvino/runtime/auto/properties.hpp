@@ -74,5 +74,27 @@ inline std::istream& operator>>(std::istream& is, SchedulePolicy& policy) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
+
+/**
+ * @brief Device utilization thresholds (in percent) used by AUTO for device selection.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::map<std::string, unsigned>> devices_utilization_threshold{
+    "DEVICES_UTILIZATION_THRESHOLD"};
+
+/**
+ * @brief Per-device performance curve table mapping utilization percent to expected performance score, used by
+ * AUTO for device selection when set. Device key must be one of "CPU", "iGPU", "dGPU", "NPU".
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::map<std::string, std::map<unsigned, float>>> perf_curve_table{"PERF_CURVE_TABLE"};
+
+/**
+ * @brief Name of the device AUTO should prefer while the platform is in low power mode
+ * (as reported by IPF/DTT). Takes precedence over perf_curve_table and
+ * devices_utilization_threshold when the platform is in low power mode.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::string> low_power_device{"LOW_POWER_DEVICE"};
 }  // namespace intel_auto
 }  // namespace ov

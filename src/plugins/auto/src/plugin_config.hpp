@@ -12,6 +12,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include <string>
 #include <map>
+#include <set>
 #include <vector>
 
 namespace ov {
@@ -49,7 +50,50 @@ public:
                 return true;
             else
                 throw std::logic_error("wrong val");
-        } catch (std::exception&) {
+        } catch (const ov::Exception&) {
+            return false;
+        } catch (const std::exception&) {
+            return false;
+        }
+    }
+};
+
+class DeviceUtilizationThresholdValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            const auto& threshold_map = v.as<std::map<std::string, unsigned>>();
+            // Validate that all threshold values are in range [0, 100]
+            for (const auto& [device, value] : threshold_map) {
+                if (value > 100) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (const ov::Exception&) {
+            return false;
+        }
+    }
+};
+
+class PerfCurveTableValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            const auto& table = v.as<std::map<std::string, std::map<unsigned, float>>>();
+            static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
+            for (const auto& [device, curve] : table) {
+                if (allowed_devices.find(device) == allowed_devices.end()) {
+                    return false;
+                }
+                for (const auto& [utilization, score] : curve) {
+                    if (utilization > 100 || score < 0.f) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (const ov::Exception&) {
             return false;
         }
     }
@@ -153,6 +197,15 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
                                 multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::devices_utilization_threshold.name()),
+                                multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::perf_curve_table.name()),
+                                multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::low_power_device.name()),
+                                multi_supported_configKeys.end());
         return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
@@ -168,6 +221,18 @@ public:
         multi_supported_properties.erase(std::remove(
                                 multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
                                 multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::devices_utilization_threshold),
+                                         multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::perf_curve_table),
+                                         multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(multi_supported_properties.begin(),
+                                                     multi_supported_properties.end(),
+                                                     ov::intel_auto::low_power_device),
+                                         multi_supported_properties.end());
         return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
 

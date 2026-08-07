@@ -184,6 +184,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, std::string>>()) {
         return py::cast(any.as<std::map<std::string, std::string>>());
     }
+    // Check for std::map<std::string, unsigned>
+    else if (any.is<std::map<std::string, unsigned>>()) {
+        return py::cast(any.as<std::map<std::string, unsigned>>());
+    }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
         return py::cast(any.as<std::map<std::string, int>>());
@@ -191,6 +195,10 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::map<std::string, uint64_t>
     else if (any.is<std::map<std::string, uint64_t>>()) {
         return py::cast(any.as<std::map<std::string, uint64_t>>());
+    }
+    // Check for std::map<std::string, std::map<unsigned, float>>
+    else if (any.is<std::map<std::string, std::map<unsigned, float>>>()) {
+        return py::cast(any.as<std::map<std::string, std::map<unsigned, float>>>());
     }
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
@@ -333,6 +341,71 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
+        } else if (property.first == ov::intel_auto::devices_utilization_threshold.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            std::map<std::string, unsigned> thresholds;
+            auto dict = py::cast<py::dict>(property.second);
+            for (const auto& item : dict) {
+                if (!py::isinstance<py::str>(item.first)) {
+                    OPENVINO_THROW("The key type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]] with string keys");
+                }
+                if (!py::isinstance<py::int_>(item.second) || py::isinstance<py::bool_>(item.second)) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]] with integer values");
+                }
+                const auto key = py::str(item.first).cast<std::string>();
+                const auto value = py::cast<long long>(item.second);
+                if (value < 0 || value > 100) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::devices_utilization_threshold.name(),
+                                   " should be dict[str, int in [0, 100]]");
+                }
+                thresholds[key] = static_cast<unsigned>(value);
+            }
+            properties_to_cpp[property.first] = thresholds;
+        } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            std::map<std::string, std::map<unsigned, float>> perf_curve_table;
+            auto dict = py::cast<py::dict>(property.second);
+            for (const auto& item : dict) {
+                if (!py::isinstance<py::str>(item.first)) {
+                    OPENVINO_THROW("The key type of ",
+                                   ov::intel_auto::perf_curve_table.name(),
+                                   " should be dict[str, dict[int in [0, 100], float]] with string keys");
+                }
+                if (!py::isinstance<py::dict>(item.second)) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::perf_curve_table.name(),
+                                   " should be dict[str, dict[int in [0, 100], float]] with dict values");
+                }
+                const auto device_key = py::str(item.first).cast<std::string>();
+                std::map<unsigned, float> curve;
+                for (const auto& curve_item : py::cast<py::dict>(item.second)) {
+                    if (!py::isinstance<py::int_>(curve_item.first) || py::isinstance<py::bool_>(curve_item.first)) {
+                        OPENVINO_THROW("The key type of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " should be dict[str, dict[int in [0, 100], float]] with integer inner keys");
+                    }
+                    const auto utilization = py::cast<long long>(curve_item.first);
+                    if (utilization < 0 || utilization > 100) {
+                        OPENVINO_THROW("The key type of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " should be dict[str, dict[int in [0, 100], float]]");
+                    }
+                    const auto score = py::cast<float>(curve_item.second);
+                    if (score < 0.f) {
+                        OPENVINO_THROW("The value type of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " should be dict[str, dict[int in [0, 100], float]] with non-negative scores");
+                    }
+                    curve[static_cast<unsigned>(utilization)] = score;
+                }
+                perf_curve_table[device_key] = curve;
+            }
+            properties_to_cpp[property.first] = perf_curve_table;
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
