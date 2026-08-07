@@ -964,7 +964,6 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto max_context_len_i64 = makeOP<v0::Convert>({max_context_len}, {dest_type_i64});
         auto max_context_len_aligned = makeOP<v1::Reshape>({max_context_len_i64, {1}}, {special_zero_true});
         auto input_ids_aligned = makeOP<v0::Unsqueeze>({input_ids, 1});
-        auto position_ids_aligned = makeOP<v0::Unsqueeze>({position_ids, 1});
 
         // Embeddings processing:
         auto embeddings = Qwen7bChatPA::gen_embeddings(input_ids_aligned);
@@ -973,9 +972,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         // RoPE emb sin/cos init:
         auto head_size = shared_ptr<Node>();
         auto rope_emb_sin =
-            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids_aligned, head_size, model_precision);
-        auto rope_emb_cos =
-            Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids_aligned, model_precision);
+            Qwen7bChatPA::gen_rope_emb_sin(max_context_len_aligned, position_ids, head_size, model_precision);
+        auto rope_emb_cos = Qwen7bChatPA::gen_rope_emb_cos(max_context_len_aligned, position_ids, model_precision);
 
         // rope Q, K:
         auto rope_Q = Qwen7bChatPA::gen_rope(QKV::Q, qkv_proj, head_size, rope_emb_sin, rope_emb_cos);
@@ -1466,6 +1464,268 @@ TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank4
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
+namespace {
+// Whether the optional Unsqueeze/Convert wrappers sit between position_ids and the batch-drop select Gather.
+struct EliminateDropBatchWrappers {
+    bool has_unsqueeze;
+    bool has_convert;
+};
+
+std::string test_name(const EliminateDropBatchWrappers& wrappers) {
+    std::string name = "Select";
+    name += wrappers.has_unsqueeze ? "_Unsqueeze" : "_NoUnsqueeze";
+    name += wrappers.has_convert ? "_Convert" : "_NoConvert";
+    return name;
+}
+
+std::shared_ptr<Node> wrap_optional(const std::shared_ptr<Node>& data, const EliminateDropBatchWrappers& wrappers) {
+    std::shared_ptr<Node> result = data;
+    if (wrappers.has_unsqueeze) {
+        result = std::make_shared<v0::Unsqueeze>(result, v0::Constant::create(element::i32, Shape{}, {0}));
+    }
+    if (wrappers.has_convert) {
+        result = std::make_shared<v0::Convert>(result, element::f32);
+    }
+    return result;
+}
+}  // namespace
+
+class SDPAToPAEliminateDropBatchTest : public TransformationTestsF,
+                                       public ::testing::WithParamInterface<EliminateDropBatchWrappers> {};
+
+TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToReshape) {
+    // Parameter(position_ids) -> Unsqueeze(optional) -> Convert(optional) -> Gather(select dim=0, index=0)
+    // collapses to Parameter(position_ids) -> Unsqueeze(optional) -> Convert(optional) -> Reshape([-1]),
+    // regardless of which of the optional wrapper nodes are present.
+    const auto wrappers = GetParam();
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto data = wrap_optional(position_ids, wrappers);
+        auto select = std::make_shared<v8::Gather>(data,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto data = wrap_optional(position_ids, wrappers);
+        auto reshape = std::make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
+                                            nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAEliminateDropBatchTest,
+                         ::testing::Values(EliminateDropBatchWrappers{false, false},
+                                           EliminateDropBatchWrappers{false, true},
+                                           EliminateDropBatchWrappers{true, false},
+                                           EliminateDropBatchWrappers{true, true}),
+                         [](const ::testing::TestParamInfo<EliminateDropBatchWrappers>& info) {
+                             return test_name(info.param);
+                         });
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_ReconnectsDownstreamConsumer) {
+    // The replaced Gather's consumers must be reconnected to the new Reshape node.
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto select = std::make_shared<v8::Gather>(position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        auto add = std::make_shared<v1::Add>(select, v0::Constant::create(element::i64, Shape{}, {1}));
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto reshape =
+            std::make_shared<v1::Reshape>(position_ids, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto add = std::make_shared<v1::Add>(reshape, v0::Constant::create(element::i64, Shape{}, {1}));
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+namespace {
+// A Gather that isn't the scalar select(dim=0, index=0) pattern on a Parameter named "position_ids": wrong
+// index, wrong axis, non-zero batch_dims, a non-scalar indices tensor, or a differently-named Parameter.
+struct EliminateDropBatchNegativeCase {
+    std::vector<int64_t> indices;
+    int64_t axis;
+    int64_t batch_dims;
+    std::string param_name;
+    std::string name;
+};
+}  // namespace
+
+class SDPAToPAEliminateDropBatchNegativeTest : public TransformationTestsF,
+                                               public ::testing::WithParamInterface<EliminateDropBatchNegativeCase> {};
+
+TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotABatchDropSelect) {
+    const auto& test_case = GetParam();
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, test_case.param_name);
+    auto select = std::make_shared<v8::Gather>(
+        position_ids,
+        v0::Constant::create(element::i64, Shape{test_case.indices.size()}, test_case.indices),
+        v0::Constant::create(element::i64, Shape{}, {test_case.axis}),
+        test_case.batch_dims);
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, nodes_to_params({position_ids}));
+    manager.register_pass<pass::EliminateDropBatch>();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SDPAToPA,
+    SDPAToPAEliminateDropBatchNegativeTest,
+    ::testing::Values(EliminateDropBatchNegativeCase{{1}, 0, 0, "position_ids", "WrongIndex"},
+                      EliminateDropBatchNegativeCase{{0}, 1, 0, "position_ids", "WrongAxis"},
+                      EliminateDropBatchNegativeCase{{0, 1}, 0, 0, "position_ids", "NonScalarIndices"},
+                      EliminateDropBatchNegativeCase{{0}, 0, 0, "input_ids", "NotPositionIdsParam"},
+                      EliminateDropBatchNegativeCase{{0}, 0, -1, "position_ids", "WrongBatchDims"}),
+    [](const ::testing::TestParamInfo<EliminateDropBatchNegativeCase>& info) {
+        return info.param.name;
+    });
+
+namespace {
+// Builds the "manual RoPE" outer-product tail that RoPEUnsqueezeAxisReplacer requires before its trailing
+// Unsqueeze(axis=0): Unsqueeze -> MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast(optional).
+std::shared_ptr<Node> build_rope_broadcast(const Output<Node>& positions, bool use_sin, bool with_broadcast) {
+    auto positions_unsqueeze =
+        std::make_shared<v0::Unsqueeze>(positions, v0::Constant::create(element::i32, Shape{1}, {1}));
+    auto inv_freq = v0::Constant::create(element::f32, Shape{4, 1}, std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f});
+    auto outer = std::make_shared<v0::MatMul>(positions_unsqueeze, inv_freq, false, true);
+    std::shared_ptr<Node> trig;
+    if (use_sin) {
+        trig = std::make_shared<v0::Sin>(outer);
+    } else {
+        trig = std::make_shared<v0::Cos>(outer);
+    }
+    auto scale = v0::Constant::create(element::f32, Shape{}, {1.0f});
+    std::shared_ptr<Node> scaled = std::make_shared<v1::Multiply>(scale, trig);
+    if (with_broadcast) {
+        auto broadcast_shape = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{4, 4});
+        scaled = std::make_shared<v3::Broadcast>(scaled, broadcast_shape);
+    }
+    return scaled;
+}
+
+// Whether the RoPE tail computes Sin (vs Cos), and whether the optional Broadcast is present before the
+// trailing Unsqueeze.
+struct RoPEUnsqueezeAxisCase {
+    bool use_sin;
+    bool with_broadcast;
+};
+
+std::string test_name(const RoPEUnsqueezeAxisCase& test_case) {
+    std::string name = test_case.use_sin ? "Sin" : "Cos";
+    name += test_case.with_broadcast ? "_Broadcast" : "_NoBroadcast";
+    return name;
+}
+}  // namespace
+
+class SDPAToPARoPEUnsqueezeAxisReplacerTest : public TransformationTestsF,
+                                              public ::testing::WithParamInterface<RoPEUnsqueezeAxisCase> {};
+
+TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerTest, SDPAToPA_RoPEUnsqueezeAxisReplacer_RewritesAxis) {
+    // Manual RoPE outer-product tail ending in Unsqueeze(axis=0): the flattened-tokens axis must move from
+    // index 1 to index 0 to match the layout PagedAttention's Q/K arrive in, so the trailing Unsqueeze's axis
+    // is rewritten from 0 to 1. This holds for both the Cos and Sin branches, and regardless of whether the
+    // optional Broadcast is present.
+    const auto test_case = GetParam();
+    {
+        auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+        auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                        nodes_to_params({positions}));
+        manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+    }
+    {
+        auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+        auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {1}));
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                            nodes_to_params({positions}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPARoPEUnsqueezeAxisReplacerTest,
+                         ::testing::Values(RoPEUnsqueezeAxisCase{false, true},
+                                           RoPEUnsqueezeAxisCase{false, false},
+                                           RoPEUnsqueezeAxisCase{true, true},
+                                           RoPEUnsqueezeAxisCase{true, false}),
+                         [](const ::testing::TestParamInfo<RoPEUnsqueezeAxisCase>& info) {
+                             return test_name(info.param);
+                         });
+
+class SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest : public TransformationTestsF,
+                                                      public ::testing::WithParamInterface<int64_t> {};
+
+TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest, SDPAToPA_RoPEUnsqueezeAxisReplacer_NonZeroAxisUnchanged) {
+    // A trailing Unsqueeze with an axis other than 0 is not the tokens-to-batch reorientation this pass
+    // targets (this includes axis=1, the value this pass itself rewrites axis=0 to), so the model must
+    // remain unchanged.
+    auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+    auto broadcast = build_rope_broadcast(positions, false, true);
+    auto unsqueeze =
+        std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {GetParam()}));
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, nodes_to_params({positions}));
+    manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest,
+                         ::testing::Values(1, 2),
+                         [](const ::testing::TestParamInfo<int64_t>& info) {
+                             return "Axis" + std::to_string(info.param);
+                         });
+
+TEST_F(SDPAToPATest, SDPAToPA_RoPEUnsqueezeAxisReplacer_WithEliminateDropBatch) {
+    // Full flow: EliminateDropBatch collapses the now-invalid batch-drop select to a Reshape, and
+    // RoPEUnsqueezeAxisReplacer independently rewrites the RoPE outer-product tail's trailing Unsqueeze axis from 0
+    // to 1. Neither pass depends on the other having run.
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto select = std::make_shared<v8::Gather>(convert,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        auto broadcast = build_rope_broadcast(select, false, true);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+        manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto reshape =
+            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto broadcast = build_rope_broadcast(reshape, false, true);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {1}));
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                            nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
 // TODO: split the models in blocks the way it's done for Qwen and make the code not to be such a clutter
 // TODO: write a test for StateManagementPattern only (because changes for Alibi are inside it)
 // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
@@ -1682,17 +1942,17 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Reshape132 = makeOP<opset1::Reshape>({Gather130, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose134 = makeOP<opset1::Transpose>({Reshape132, {0, 2, 1, 3}});
         auto Transpose136 = makeOP<opset1::Transpose>({Transpose134, {0, 2, 1, 3}});
-        auto Reshape138 = makeOP<opset1::Reshape>({Transpose136, {0, -1}}, {{"special_zero", true}});
+        auto Reshape138 = makeOP<v1::Reshape>({Transpose136, {0, -1}}, {{"special_zero", true}});
         auto Gather140 = makeOP<opset8::Gather>({Transpose129, 1, 0}, {{"batch_dims", 0}});
         auto Reshape142 = makeOP<opset1::Reshape>({Gather140, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose144 = makeOP<opset1::Transpose>({Reshape142, {0, 2, 1, 3}});
         auto Transpose145 = makeOP<opset1::Transpose>({Transpose144, {0, 2, 1, 3}});
-        auto Reshape147 = makeOP<opset1::Reshape>({Transpose145, {0, -1}}, {{"special_zero", true}});
+        auto Reshape147 = makeOP<v1::Reshape>({Transpose145, {0, -1}}, {{"special_zero", true}});
         auto Gather149 = makeOP<opset8::Gather>({Transpose129, 2, 0}, {{"batch_dims", 0}});
         auto Reshape151 = makeOP<opset1::Reshape>({Gather149, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose153 = makeOP<opset1::Transpose>({Reshape151, {0, 2, 1, 3}});
         auto Transpose154 = makeOP<opset1::Transpose>({Transpose153, {0, 2, 1, 3}});
-        auto Reshape156 = makeOP<opset1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
+        auto Reshape156 = makeOP<v1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
         auto Constant159 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);
         auto Slice164 = makeOP<opset8::Slice>({Constant159, {1, 1}, {2, 2}, {1, 1}, {1, 2}});
         auto Reshape166 = makeOP<opset1::Reshape>({Slice164, {-1}}, {{"special_zero", false}});
@@ -2041,7 +2301,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add =
             makeOP<opset1::Add>({pref_1_mul_Multiply, pref_1_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51951 = makeOP<opset1::Transpose>({pref_1_add_Add, {0, 2, 1, 3}});
-        auto Reshape_51953 = makeOP<opset1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51953 = makeOP<v1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
         auto pref_8_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_3_linear_MatMul = makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, pref_8_weight},
                                                            {{"transpose_a", false}, {"transpose_b", true}});
@@ -2063,7 +2323,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add_1 =
             makeOP<opset1::Add>({pref_1_mul_Multiply_2, pref_1_mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51954 = makeOP<opset1::Transpose>({pref_1_add_Add_1, {0, 2, 1, 3}});
-        auto Reshape_51957 = makeOP<opset1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51957 = makeOP<v1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
         auto self_model_model_layers_0_self_attn_v_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_9_MatMul =
             makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_v_proj_weight},
@@ -2071,7 +2331,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_view_Reshape_2 = makeOP<opset1::Reshape>({pref_9_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
         auto pref_1_transpose_Transpose_2 = makeOP<opset1::Transpose>({pref_1_view_Reshape_2, {0, 2, 1, 3}});
         auto Transpose_51955 = makeOP<opset1::Transpose>({pref_1_transpose_Transpose_2, {0, 2, 1, 3}});
-        auto Reshape_51959 = makeOP<opset1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51959 = makeOP<v1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
 
         auto c1 = makeConst(element::f32, {}, {0.707107f});
         auto c2 = makeConst(element::i32, {}, {0});
@@ -2383,7 +2643,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply6 = makeOP<opset1::Multiply>({Concat2, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add1 = makeOP<opset1::Add>({Multiply4, Multiply6}, {{"auto_broadcast", "numpy"}});
         auto Transpose2 = makeOP<opset1::Transpose>({Add1, {0, 2, 1, 3}});
-        auto Q = makeOP<opset1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
+        auto Q = makeOP<v1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
 
         auto Slice3 = makeOP<opset8::Slice>({MatMul, {3072}, {6144}, {1}, {2}});
         auto Reshape3 = makeOP<opset1::Reshape>({Slice3, {0, 0, 32, 96}}, {{"special_zero", true}});
@@ -2397,13 +2657,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply9 = makeOP<opset1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add2 = makeOP<opset1::Add>({Multiply7, Multiply9}, {{"auto_broadcast", "numpy"}});
         auto Transpose4 = makeOP<opset1::Transpose>({Add2, {0, 2, 1, 3}});
-        auto K = makeOP<opset1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
+        auto K = makeOP<v1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
 
         auto Slice6 = makeOP<opset8::Slice>({MatMul, {6144}, {LLONG_MAX}, {1}, {2}});
         auto Reshape5 = makeOP<opset1::Reshape>({Slice6, {0, 0, 32, 96}}, {{"special_zero", true}});
         auto Transpose5 = makeOP<opset1::Transpose>({Reshape5, {0, 2, 1, 3}});
         auto Transpose6 = makeOP<opset1::Transpose>({Transpose5, {0, 2, 1, 3}});
-        auto V = makeOP<opset1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
+        auto V = makeOP<v1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
 
         auto offset = makeOP<opset1::Convert>({-2046}, {{"destination_type", "i32"}});
         auto sliding_window = makeOP<opset1::Subtract>({2, offset}, {{"auto_broadcast", "numpy"}});
@@ -2735,7 +2995,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat2 = makeOP<opset1::Concat>({Add1, Slice4}, {{"axis", -1}});
         auto Transpose2 = makeOP<opset1::Transpose>({Concat2, {0, 2, 1, 3}});
         auto Transpose3 = makeOP<opset1::Transpose>({Transpose2, {0, 2, 1, 3}});
-        auto Reshape11 = makeOP<opset1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
+        auto Reshape11 = makeOP<v1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Multiply4 = makeOP<opset1::Multiply>({Slice1, Unsqueeze2}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<opset8::Slice>({Slice1, {1}, {LLONG_MAX}, {2}, {3}});
         auto Convert10 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
@@ -2751,13 +3011,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat4 = makeOP<opset1::Concat>({Add2, Slice7}, {{"axis", -1}});
         auto Transpose4 = makeOP<opset1::Transpose>({Concat4, {0, 2, 1, 3}});
         auto Transpose5 = makeOP<opset1::Transpose>({Transpose4, {0, 2, 1, 3}});
-        auto Reshape13 = makeOP<opset1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
+        auto Reshape13 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
         auto Reshape14 =
             makeOP<opset1::Reshape>({VariadicSplit0->output(1), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape15 = makeOP<opset1::Reshape>({Reshape14, {0, 0, 16, 256}}, {{"special_zero", true}});
         auto Transpose6 = makeOP<opset1::Transpose>({Reshape15, {0, 2, 1, 3}});
         auto Transpose7 = makeOP<opset1::Transpose>({Transpose6, {0, 2, 1, 3}});
-        auto Reshape16 = makeOP<opset1::Reshape>({Transpose7, {0, -1}}, {{"special_zero", true}});
+        auto Reshape16 = makeOP<v1::Reshape>({Transpose7, {0, -1}}, {{"special_zero", true}});
 
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});

@@ -4,9 +4,15 @@
 
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 
+#include <cstdint>
+#include <vector>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/gather.hpp"
@@ -26,15 +32,17 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::value_matches;
 using ov::pass::pattern::wrap_type;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
+
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
 // position_ids parameter is missing, consider replacing always existing attention_mask parameter with a sub-graph using
 // a new slot_mapping parameter.
@@ -44,7 +52,12 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto input_ids = any_input();
     auto input_embed = wrap_type<v8::Gather>({any_input(), input_ids, any_input()});
 
-    auto position_ids_pattern = any_input();
+    // This pass only fires when position_ids is detached and the model derives positions internally, so skip
+    // graphs that already have a dedicated Unsqueeze on position_ids.
+    auto position_ids_pattern = any_input([position_ids](const Output<Node>& output) -> bool {
+        const auto node = output.get_node_shared_ptr();
+        return !(ov::as_type_ptr<v0::Unsqueeze>(node) && node->input_value(0) == position_ids);
+    });
     auto offset = wrap_type<v0::Constant>();
     auto add_offset = wrap_type<v1::Add>({position_ids_pattern, offset});
     auto convert = wrap_type<v0::Convert>({add_offset});
@@ -54,9 +67,17 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 
     auto add = wrap_type<v1::Add>({mul, position_embed});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, shared_unsqueeze = std::shared_ptr<v0::Unsqueeze>()](Matcher& m) mutable {
         const auto& pattern_map = m.get_pattern_value_map();
-        replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
+        const auto matched = pattern_map.at(position_ids_pattern).get_node_shared_ptr();
+        // position_ids is detached and the model derives positions internally: redirect the embedding to a
+        // rank-restored position_ids. The rank-restoring Unsqueeze is shared across all matches to avoid
+        // duplicating an identical node for every occurrence of this pattern.
+        if (!shared_unsqueeze) {
+            shared_unsqueeze =
+                std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        }
+        replace_node(matched, shared_unsqueeze);
         return true;
     };
 
@@ -155,7 +176,7 @@ ov::pass::PositionIDsReplacerLFM2::PositionIDsReplacerLFM2(const Output<Node>& p
     // Allow either the dequant-like start branch or a direct Parameter connection.
     auto p_start_subtract = wrap_type<v1::Subtract>({p_max_context_len, any_input()});
     auto p_start_dequant = wrap_type<v0::Convert>({p_start_subtract});
-    auto p_start = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_start_dequant, p_max_context_len});
+    auto p_start = p_start_dequant | p_max_context_len;
     auto p_end = wrap_type<v1::Add>({p_start, any_input()});
     auto p_range = wrap_type<ov::op::v4::Range>({p_start, p_end, ov::pass::pattern::wrap_const()});
 
@@ -220,6 +241,71 @@ ov::pass::PositionIDsReplacerLFM2::PositionIDsReplacerLFM2(const Output<Node>& p
     };
 
     const auto m = std::make_shared<Matcher>(p_add, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::EliminateDropBatch::EliminateDropBatch() {
+    MATCHER_SCOPE(EliminateDropBatch);
+
+    // Parameter(name == "position_ids") -> Unsqueeze(optional) -> Convert(optional) -> Gather(index=0, axis=0)
+    auto p_position_ids = wrap_type<v0::Parameter>([](const Output<Node>& output) -> bool {
+        return output.get_names().count("position_ids") != 0;
+    });
+    auto p_unsqueeze = ov::pass::pattern::optional<v0::Unsqueeze>({p_position_ids, any_input()});
+    auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
+
+    // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
+    auto p_index = wrap_type<v0::Constant>(value_matches("0"));
+    auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
+    auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        const auto gather = m.get_match_root();
+
+        auto reshape = std::make_shared<v1::Reshape>(gather->input_value(0),
+                                                     v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                     false);
+
+        ov::replace_output_update_name(gather->output(0), reshape->output(0));
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_gather, matcher_name);
+    register_matcher(m, callback);
+}
+
+// Handles models that compute RoPE manually via an explicit outer product (position * inv_freq) followed by
+// Cos/Sin instead of a fused rotary embedding op, producing cos/sin values in the original
+// [batch=1, tokens, ...] layout via a trailing Unsqueeze(axis=0). PagedAttention's Q/K arrive with tokens
+// flattened into the leading axis instead, so this rewrites that trailing Unsqueeze's axis from 0 to 1,
+// moving the flattened-tokens axis to index 0.
+ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
+    MATCHER_SCOPE(RoPEUnsqueezeAxisReplacer);
+
+    // MatMul(outer, with a constant inv_freq operand) -> Cos/Sin("polar") -> Multiply(scale) ->
+    // Broadcast(optional) -> Unsqueeze(axis=0).
+    auto p_outer_matmul = wrap_type<v0::MatMul>({any_input(), ov::pass::pattern::wrap_const()});
+    auto p_trig = wrap_type<v0::Cos, v0::Sin>({p_outer_matmul});
+    auto p_scaled = wrap_type<v1::Multiply>({any_input(), p_trig});
+    auto p_broadcast = ov::pass::pattern::optional<op::util::BroadcastBase>({p_scaled, any_input()});
+    auto p_concat = wrap_type<v0::Concat>({p_broadcast, p_broadcast});
+    auto p_rope_out = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_broadcast, p_concat});
+    auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
+    auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_rope_out, p_axis});
+
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        const auto axis_const = ov::as_type_ptr<v0::Constant>(pattern_map.at(p_axis).get_node_shared_ptr());
+        const auto unsqueeze = pattern_map.at(p_unsqueeze).get_node_shared_ptr();
+        auto new_axis_const = v0::Constant::create(axis_const->get_element_type(), axis_const->get_shape(), {1});
+        copy_runtime_info(axis_const, new_axis_const);
+        unsqueeze->input(1).replace_source_output(new_axis_const);
+        unsqueeze->validate_and_infer_types();
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_unsqueeze, matcher_name);
     register_matcher(m, callback);
 }
 
