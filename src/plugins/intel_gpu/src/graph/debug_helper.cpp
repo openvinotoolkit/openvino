@@ -32,6 +32,8 @@ float convert_element(float f) { return f; }
 
 float convert_element(ov::float16 h) { return static_cast<float>(h); }
 
+float convert_element(ov::bfloat16 h) { return static_cast<float>(h); }
+
 size_t get_x_pitch(const layout& layout) {
     try {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
@@ -121,6 +123,8 @@ std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, con
         return __validate_data_range<float>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::f16)
         return __validate_data_range<ov::float16>(mem, stream, data_layout, info);
+    else if (data_type == cldnn::data_types::bf16)
+        return __validate_data_range<ov::bfloat16>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::i8)
         return __validate_data_range<int8_t>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::u8)
@@ -272,6 +276,8 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
         dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::bf16)
+        dump<ov::bfloat16>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
         dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
