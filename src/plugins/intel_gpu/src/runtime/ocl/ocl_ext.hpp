@@ -583,7 +583,7 @@ public:
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() { }
+    ImageVA() = default;
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -607,16 +607,12 @@ public:
     /*! \brief Copy constructor to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA(const ImageVA& img) :
-        Image2D(img) {}
+    ImageVA(const ImageVA& img) = default;
 
     /*! \brief Copy assignment to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA& operator = (const ImageVA &img) {
-        Image2D::operator=(img);
-        return *this;
-    }
+    ImageVA& operator = (const ImageVA &img) = default;
 
     /*! \brief Move constructor to forward move to the superclass correctly.
     * Required for MSVC.
@@ -767,7 +763,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() { }
+    PlatformVA() = default;
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
