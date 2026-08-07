@@ -230,9 +230,6 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
 
-      - name: Install system dependencies
-        run: apt-get install -y --no-install-recommends libgl1
-
       - name: Install LLM accuracy test requirements
         run: |
           python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
