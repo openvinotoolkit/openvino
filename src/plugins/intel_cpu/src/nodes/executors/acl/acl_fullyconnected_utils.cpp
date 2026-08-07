@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -28,8 +29,9 @@
 #include <vector>
 
 #include "acl_utils.hpp"
+#include "common/memory_desc_wrapper.hpp"
 #include "common/primitive_desc_iface.hpp"
-#include "cpu/acl/acl_utils.hpp"
+#include "common/utils.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -54,6 +56,101 @@
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
+
+namespace {
+
+// Set an ACL stride value, guarding against uint32 overflow (ACL strides are uint32).
+dnnl::impl::status_t safe_set_strides(arm_compute::Strides& strides,
+                                      size_t dim,
+                                      size_t val,
+                                      bool inc_dim = true) {
+    if (val > std::numeric_limits<uint32_t>::max()) {
+        return dnnl::impl::status::unimplemented;
+    }
+    strides.set(dim, val, inc_dim);
+    return dnnl::impl::status::success;
+}
+
+// Fill a oneDNN blocked memory descriptor (and the matching ACL TensorInfo) that
+// describes weights repacked into an ACL fixed-format weight layout.
+//
+// This used to live in oneDNN (dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format)
+// but the oneDNN fork no longer builds ACL (it has been replaced by KleidiAI). The CPU
+// plugin still uses ARM Compute Library through its own executors, so the helper is kept
+// here, operating on the same oneDNN memory descriptor types.
+dnnl::impl::status_t reorder_to_weight_format(arm_compute::TensorInfo& info,
+                                              dnnl::impl::memory_desc_t& md,
+                                              arm_compute::WeightFormat wf,
+                                              dnnl::impl::dim_t I_dim,
+                                              dnnl::impl::dim_t O_dim,
+                                              const std::vector<dnnl::impl::dim_t>& spatial_dims,
+                                              const std::vector<dnnl::impl::dim_t>& batch_dims) {
+    using namespace dnnl::impl;
+
+    md.format_kind = format_kind::blocked;
+    md.format_desc.blocking = blocking_desc_t {};
+    const int interleaved_by = arm_compute::interleave_by(wf);
+    const int block_by = arm_compute::block_by(wf);
+
+    // I dimension becomes densest (apart from blocking)
+    md.format_desc.blocking.strides[I_dim] = interleaved_by * block_by;
+    md.padded_dims[I_dim] = utils::rnd_up(md.dims[I_dim], block_by);
+
+    // Then any spatial dimensions (e.g. HW)
+    dim_t ldb = interleaved_by * md.padded_dims[I_dim];
+    for (dim_t sd : spatial_dims) {
+        md.format_desc.blocking.strides[sd] = ldb;
+        ldb *= md.padded_dims[sd];
+    }
+
+    // O dim (which was the innermost) becomes the outermost (apart from batching)
+    md.format_desc.blocking.strides[O_dim] = ldb;
+    md.padded_dims[O_dim] = utils::rnd_up(md.dims[O_dim], interleaved_by);
+
+    // Update the batch dimensions, starting with stride of the innermost batch
+    const dim_t innermost_batch_stride = md.padded_dims[I_dim] * md.padded_dims[O_dim];
+    dim_t batch_stride = innermost_batch_stride;
+    for (dim_t bd : batch_dims) {
+        md.format_desc.blocking.strides[bd] = batch_stride;
+        batch_stride *= md.padded_dims[bd];
+    }
+
+    // Weights can only be blocked if they are also interleaved
+    if (interleaved_by > 1) {
+        md.format_desc.blocking.inner_nblks = 1 + static_cast<int>(block_by > 1);
+
+        md.format_desc.blocking.inner_idxs[0] = O_dim;
+        md.format_desc.blocking.inner_blks[0] = interleaved_by;
+        if (block_by > 1) {
+            md.format_desc.blocking.inner_idxs[1] = I_dim;
+            md.format_desc.blocking.inner_blks[1] = block_by;
+        }
+    }
+
+    if (arm_compute::is_fixed_format_fast_math(wf)) {
+        md.data_type = dnnl_bf16;
+        info.set_data_type(arm_compute::DataType::BFLOAT16);
+    }
+
+    // The data layout is now determined by the manually set strides
+    info.set_data_layout(arm_compute::DataLayout::UNKNOWN);
+
+    // y is the leading dimension of b (ldb) in the GEMM d = a*b + c
+    // z is the (collapsed) batch dimension stride
+    arm_compute::Strides new_strides_in_bytes = info.strides_in_bytes();
+    CHECK(safe_set_strides(new_strides_in_bytes, 1, ldb * info.element_size()));
+    CHECK(safe_set_strides(new_strides_in_bytes, 2, innermost_batch_stride * info.element_size()));
+
+    info.init(info.tensor_shape(),
+              info.num_channels(),
+              info.data_type(),
+              new_strides_in_bytes,
+              info.offset_first_element_in_bytes(),
+              memory_desc_wrapper(md).size());
+    return status::success;
+}
+
+}  // namespace
 
 VectorDims acl_fc_executor::makeDummyInputDims(const Shape& inShape, const Shape& wShape) {
     const auto& weightDims = wShape.getStaticDims();
@@ -286,13 +383,13 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
         dnnl::impl::dim_t inner_dim = 1;
         std::vector<dnnl::impl::dim_t> remaining_dims = {};
         auto* weights_md_ = dnnlDstDesc->getDnnlDesc().get();
-        dnnl::impl::cpu::acl::acl_utils::reorder_to_weight_format(weiTensorInfo,
-                                                                  *weights_md_,
-                                                                  expectedWeightFormat,
-                                                                  inner_dim,
-                                                                  o_dim,
-                                                                  remaining_dims,
-                                                                  {});
+        reorder_to_weight_format(weiTensorInfo,
+                                 *weights_md_,
+                                 expectedWeightFormat,
+                                 inner_dim,
+                                 o_dim,
+                                 remaining_dims,
+                                 {});
         if (aclfcAttrs.weightsNonTransposed) {
             dnnlSrcDesc = makeTransposedWeightDescriptor(dnnlSrcDesc, dnnlDstDesc);
         }

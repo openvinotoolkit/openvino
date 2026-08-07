@@ -80,6 +80,13 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     if ((res & jit) && (res & any)) {
         res = static_cast<impl_desc_type>(res & ~any);
     }
+    // Canonicalize KleidiAI convolution kernels: oneDNN exposes several kernel
+    // name variants (e.g. "indirect_gemm:kleidiai", "im2row:kleidiai",
+    // "direct_1x1:kleidiai", "wino:kleidiai"). Map them all to a single
+    // recognized implementation type so node impl-priority filtering can match.
+    if ((res & kleidiai) == kleidiai) {
+        res = (res & winograd) == winograd ? winograd_kleidiai : gemm_kleidiai;
+    }
     return res;
 }
 
@@ -156,6 +163,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_gv);
     CASE(kleidiai);
     CASE(gemm_kleidiai);
+    CASE(winograd_kleidiai);
 
 #undef CASE
     return "unknown";
