@@ -29,6 +29,11 @@ namespace npuw {
  * accepted inference itself. Any failure after mutation started poisons the
  * request as RESET_REQUIRED, where only reset() is accepted.
  *
+ * The pending command needs no representation beyond the stage and the keep
+ * value: PENDING always carries a positive keep, RESET_PENDING always means
+ * keep zero, and IDLE means no command at all, so publishing a live count can
+ * never be mistaken for arming one.
+ *
  * The keep rule is K = C * floor(min(K_common, K_max, W) / C), where C is the
  * prefill chunk size, K_max is how many past tokens the chunked prefill can
  * represent, and W is the prefill-produced watermark. The rule is evaluated
@@ -45,19 +50,6 @@ public:
         RESET_PENDING,
         ACTIVE,
         RESET_REQUIRED,
-    };
-
-    struct Command {
-        enum class Kind : uint8_t { NONE, KEEP, RESET };
-        Kind kind = Kind::NONE;
-        uint32_t keep_value = 0u;
-
-        bool is_keep() const {
-            return kind == Kind::KEEP;
-        }
-        bool is_reset() const {
-            return kind == Kind::RESET;
-        }
     };
 
     ContinuationCoordinator() = default;
@@ -105,12 +97,12 @@ public:
         const uint32_t granted = m_chunk_size * (clamped / m_chunk_size);
 
         if (granted > 0u) {
-            m_pending = Command{Command::Kind::KEEP, granted};
+            m_pending_keep = granted;
             m_stage = Stage::PENDING;
         } else {
             // Preserving zero tokens is a full reset, not a continuation with an
             // empty prefix.
-            m_pending = Command{Command::Kind::RESET, 0u};
+            m_pending_keep = 0u;
             m_stage = Stage::RESET_PENDING;
         }
         LOG_DEBUG("Continuous prefill: proposed " << k_common << ", granted " << granted << " (K_max=" << m_k_max
@@ -124,11 +116,11 @@ public:
         case Stage::IDLE:
             return static_cast<int64_t>(m_live_tokens);
         case Stage::PENDING:
-            return static_cast<int64_t>(m_pending ? m_pending->keep_value : 0u);
+            return static_cast<int64_t>(m_pending_keep);
         case Stage::ACTIVE:
             // Not concurrently observable by design; report the value the accepted
-            // operation is honouring.
-            return static_cast<int64_t>(m_pending && m_pending->is_keep() ? m_pending->keep_value : 0u);
+            // operation is honouring. A reset in flight carries a zero keep.
+            return static_cast<int64_t>(m_pending_keep);
         case Stage::RESET_PENDING:
         case Stage::RESET_REQUIRED:
             return 0;
@@ -142,16 +134,18 @@ public:
     void request_reset() {
         OPENVINO_ASSERT(m_stage != Stage::ACTIVE,
                         "npuw_stored_tokens_state: reset() must not be called while an inference is executing.");
-        m_pending = Command{Command::Kind::RESET, 0u};
+        m_pending_keep = 0u;
         m_stage = Stage::RESET_PENDING;
     }
 
     // Infer-request side.
 
-    // What the next inference must be. Throws if the request is poisoned.
-    Command command() const {
+    // What the next inference must be: no value means ordinary inference, zero
+    // means the pending reset's full prefill, positive means the delta-only
+    // prefill at exactly that keep. Throws if the request is poisoned.
+    std::optional<uint32_t> pending() const {
         if (!m_enabled) {
-            return Command{};
+            return std::nullopt;
         }
         OPENVINO_ASSERT(m_stage != Stage::RESET_REQUIRED,
                         "Continuous prefill: the request is poisoned by a previous failure. "
@@ -159,9 +153,9 @@ public:
         switch (m_stage) {
         case Stage::PENDING:
         case Stage::RESET_PENDING:
-            return *m_pending;
+            return m_pending_keep;
         default:
-            return Command{};
+            return std::nullopt;
         }
     }
 
@@ -172,7 +166,7 @@ public:
     void abort_preflight() {
         OPENVINO_ASSERT(m_stage == Stage::PENDING,
                         "Continuous prefill: abort_preflight() without a pending keep command.");
-        m_pending.reset();
+        m_pending_keep = 0u;
         m_stage = Stage::IDLE;
     }
 
@@ -187,23 +181,29 @@ public:
     // An exception after begin_active() poisons the request. No new count is
     // published and only reset() can start recovery.
     void fail_active() {
-        m_pending.reset();
+        m_pending_keep = 0u;
         m_stage = Stage::RESET_REQUIRED;
     }
 
     // Publish a committed prefill, full or continued. The new live count is also
-    // the new prefill-produced watermark.
+    // the new prefill-produced watermark. Legal only for an ordinary idle prefill
+    // or an ACTIVE transaction; in particular a commit must never clear the
+    // poisoning that only reset() owns.
     void commit_prefill(uint32_t live_tokens) {
+        OPENVINO_ASSERT(m_stage == Stage::IDLE || m_stage == Stage::ACTIVE,
+                        "Continuous prefill: commit_prefill() outside an idle prefill or an active transaction.");
         m_live_tokens = live_tokens;
         m_watermark = live_tokens;
-        m_pending.reset();
+        m_pending_keep = 0u;
         m_stage = Stage::IDLE;
     }
 
     // Publish the result of an ordinary generate step. Generate-produced KV must
     // not advance the watermark; a speculative-decoding trim may even lower the
-    // live count below it, in which case the watermark is clamped down.
+    // live count below it, in which case the watermark is clamped down. Generate
+    // only runs when no command is pending, so anything but IDLE is an error.
     void publish_generate(uint32_t live_tokens) {
+        OPENVINO_ASSERT(m_stage == Stage::IDLE, "Continuous prefill: publish_generate() outside the idle state.");
         m_live_tokens = live_tokens;
         m_watermark = std::min(m_watermark, live_tokens);
     }
@@ -227,9 +227,10 @@ public:
 private:
     bool m_enabled = false;
     Stage m_stage = Stage::IDLE;
-    // The optional keeps "no command" and "a command to keep 0" distinct, so
-    // publishing a live count never re-arms a pending command.
-    std::optional<Command> m_pending;
+    // Valid while a command is pending or active. PENDING implies a positive
+    // keep, RESET_PENDING implies zero, and the stage keeps "no command"
+    // distinct from "a command to keep 0" without extra representation.
+    uint32_t m_pending_keep = 0u;
     uint32_t m_live_tokens = 0u;
     uint32_t m_watermark = 0u;
     uint32_t m_chunk_size = 0u;
