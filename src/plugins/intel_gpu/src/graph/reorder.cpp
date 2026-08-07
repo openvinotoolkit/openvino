@@ -35,16 +35,19 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
         auto out_shape = input_layout.get_partial_shape();
         out_shape[c_dim] = 3;
-        if (desc->input_size() == 1)
+        if (desc->input_size() == 1) {
             out_shape[h_dim] = out_shape[h_dim] * 2 / 3;
+        }
 
-        if (ofmt != ifmt)
+        if (ofmt != ifmt) {
             return layout(out_shape, odt, ofmt, op);
+        }
 
         CLDNN_ERROR_MESSAGE(desc->id, "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
-        if (ofmt == ifmt)
+        if (ofmt == ifmt) {
             return layout(odt, ofmt, input_layout.get_tensor(), op);
+        }
 
         CLDNN_ERROR_MESSAGE(desc->id, "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
@@ -136,8 +139,9 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
                                                       // computations of output tile (for given filter size and stride)
 
         auto output_width = input_layout.spatial(0) / input_tile_width * output_tile_width;
-        if (input_layout.spatial(0) % input_tile_width != 0)  // leftovers
+        if (input_layout.spatial(0) % input_tile_width != 0) {  // leftovers
             ++output_width;  // output tile is 2 by default, so we can have only 1 value as leftover
+        }
 
         return layout(odt,
                       ofmt,
@@ -232,8 +236,9 @@ reorder_inst::typed_primitive_inst(network& network, reorder_node const& node) :
         , _req_reinterpr(node.requires_reinterpret()) {
     update_output_memory();
 
-    if (is_dynamic())
+    if (is_dynamic()) {
         return;
+    }
 
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
@@ -270,22 +275,26 @@ void reorder_inst::on_execute() {
 }
 
 void reorder_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     if (static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
-        && output_memory().get_layout().identical(get_output_layout()))
+        && output_memory().get_layout().identical(get_output_layout())) {
         return;
+    }
 
-    if (_node != nullptr)
+    if (_node != nullptr) {
         build_deps();
+    }
 
     // Do not update output memory when reorder is optimized out
     // but input memory is not allocated yet because input is dynamic.
     // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
-    if (!dependencies().front().first->outputs_allocated())
+    if (!dependencies().front().first->outputs_allocated()) {
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

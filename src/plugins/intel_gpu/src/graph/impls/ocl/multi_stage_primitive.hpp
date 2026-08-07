@@ -153,8 +153,9 @@ protected:
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
-            if (kd.internalBuffers.empty())
+            if (kd.internalBuffers.empty()) {
                 continue;
+            }
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);

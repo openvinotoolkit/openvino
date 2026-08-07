@@ -24,8 +24,9 @@ void entryObserver(const gemmstone::kcatalog::Entry* entry, double score, gemmst
 
 static bool has_fused_swiglu(const kernel_impl_params& params) {
     for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>())
+        if (fd.is_type<swiglu>()) {
             return true;
+        }
     }
     return false;
 }
@@ -106,14 +107,16 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
         }
 
         input_ids.push_back(static_cast<size_t>(scale_idx));
-        if (!cfg.is_weight_symmetric_quantized)
+        if (!cfg.is_weight_symmetric_quantized) {
             input_ids.push_back(static_cast<size_t>(cfg.weight_zp_idx));
+        }
 
         jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));
-        if (cfg.weight_group_size > 0)
+        if (cfg.weight_group_size > 0) {
             jit.make("NUM_GROUPS", scale_shape[2]);
-        else
+        } else {
             jit.make("NUM_GROUPS", 1);
+        }
 
         // Scales are physically [E, G, N]; must match GatherMatmulBatchedGemmGenerator.
         jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
@@ -180,12 +183,14 @@ JitConstants GatherMatmulMicroGenerator::get_jit_constants(const kernel_impl_par
     jit.make("N_ACTIVATED_EXPERTS", "INPUT0_BATCH_NUM");
     jit.make("TOP_K", "INPUT2_FEATURE_NUM");
 
-    if (!m_is_prefill)
+    if (!m_is_prefill) {
         jit.make("IS_GENERATE", 1);
+    }
 
     auto slm_size = bgm_gemm.getSetting("slm_size");
-    if (slm_size > 0)
+    if (slm_size > 0) {
         jit.make("USE_SLM", 1);
+    }
     return jit;
 }
 
@@ -347,8 +352,9 @@ std::string GatherMatmulMicroGenerator::get_build_options(const kernel_impl_para
 
 Arguments GatherMatmulMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
     auto cfg = get_config(params);
 
     args.push_back({ArgumentDescriptor::Types::INPUT, gather_matmul::BGMInputIdx::INPUT});
@@ -364,8 +370,9 @@ Arguments GatherMatmulMicroGenerator::get_arguments_desc(const kernel_impl_param
 
     if (cfg.is_weight_quantized) {
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_scale_idx)});
-        if (!cfg.is_weight_symmetric_quantized)
+        if (!cfg.is_weight_symmetric_quantized) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_zp_idx)});
+        }
     }
 
     return args;

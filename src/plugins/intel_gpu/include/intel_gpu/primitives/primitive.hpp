@@ -39,8 +39,9 @@ struct input_info {
 
     /// @brief Copy assignment.
     input_info& operator=(const input_info& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         pid = other.pid;
         idx = other.idx;
         return *this;
@@ -145,8 +146,9 @@ public:
         auto result = input;
 
         auto dependencies_map = get_dependencies_map();
-        for (const auto& dep : dependencies_map)
+        for (const auto& dep : dependencies_map) {
             result.push_back(*dep.second);
+        }
 
         return result;
     }
@@ -171,30 +173,37 @@ public:
     }
 
     bool compare_common_params(const primitive& rhs) const {
-        if (type != rhs.type)
+        if (type != rhs.type) {
             return false;
+        }
 
-        if (num_outputs != rhs.num_outputs)
+        if (num_outputs != rhs.num_outputs) {
             return false;
+        }
 
-        if (dependencies().size() != rhs.dependencies().size())
+        if (dependencies().size() != rhs.dependencies().size()) {
             return false;
+        }
 
-        if (output_data_types.size() != rhs.output_data_types.size())
+        if (output_data_types.size() != rhs.output_data_types.size()) {
             return false;
+        }
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
             if (output_data_types[i].value_or(data_types::dynamic) !=
-                rhs.output_data_types[i].value_or(data_types::dynamic))
+                rhs.output_data_types[i].value_or(data_types::dynamic)) {
                 return false;
+            }
         }
 
-        if (output_paddings.size() != rhs.output_paddings.size())
+        if (output_paddings.size() != rhs.output_paddings.size()) {
             return false;
+        }
 
         for (size_t i = 0; i < output_paddings.size(); ++i) {
-            if (output_paddings[i] != rhs.output_paddings[i])
+            if (output_paddings[i] != rhs.output_paddings[i]) {
                 return false;
+            }
         }
 
         return true;
@@ -304,8 +313,9 @@ public:
 
     /// @brief Returns mutable reference to input dependency at given index.
     input_info& get_dependency(size_t idx) {
-        if (idx < input.size())
+        if (idx < input.size()) {
             return input[idx];
+        }
 
         auto dependencies_map = get_dependencies_map();
         OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
@@ -326,8 +336,9 @@ public:
 
     /// @brief Returns const reference to input dependency at given index.
     const input_info& get_dependency(size_t idx) const {
-        if (idx < input.size())
+        if (idx < input.size()) {
             return input[idx];
+        }
 
         auto dependencies_map = get_dependencies_map();
         OPENVINO_ASSERT(dependencies_map.count(idx) > 0,

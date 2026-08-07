@@ -74,8 +74,9 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
     // Kernel uses TRANSPOSE_BLOCK_8 and subgroup block reads/writes designed for SIMD8.
     // With wider SIMD (e.g. SIMD16), lanes beyond 7 produce OOB filter accesses via
     // filter_idx2 = filter_idx + 8 (ofm_offset + sub_group_id + 8 exceeds FILTER_OFM_NUM).
-    if (!IsSIMDSizeSupported(params.engineInfo, 8))
+    if (!IsSIMDSizeSupported(params.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const bool bInputValidated = (filterOfmNum > 0) && (batchSize > 0) && (params.outputs[0].Feature().v == filterOfmNum);
 
@@ -89,8 +90,9 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (params.outputs[0].PitchesDifferFromLogicalDims())
+    if (params.outputs[0].PitchesDifferFromLogicalDims()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

@@ -25,10 +25,11 @@ protected:
     static size_t GetNeuronsPerWorkItem(const fully_connected_params& params) {
         auto batchSize = params.outputs[0].Batch().v;
         auto out_elements_count_per_batch = params.outputs[0].LogicalSize() / batchSize;
-        if (out_elements_count_per_batch % 16 == 0)
+        if (out_elements_count_per_batch % 16 == 0) {
             return 2;
-        else
+        } else {
             return 1;
+        }
     }
 };
 }  // namespace kernel_selector

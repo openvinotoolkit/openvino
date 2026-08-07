@@ -47,13 +47,14 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance) const override {
         kernel_arguments_data args;
 
-        if (instance.get_typed_desc<roi_pooling>()->mode == pooling_mode::deformable_bilinear && !instance.get_typed_desc<roi_pooling>()->no_trans)
+        if (instance.get_typed_desc<roi_pooling>()->mode == pooling_mode::deformable_bilinear && !instance.get_typed_desc<roi_pooling>()->no_trans) {
             args.inputs = {
                 instance.input_memory_ptr(),
                 instance.rois_memory(),
                 instance.trans_memory()};
-        else
+        } else {
             args.inputs = {instance.input_memory_ptr(), instance.rois_memory()};
+        }
 
         args.outputs = { instance.output_memory_ptr() };
 
@@ -68,8 +69,9 @@ public:
         auto params = get_default_params<kernel_selector::roi_pooling_params>(impl_param);
 
         params.inputs.push_back(convert_data_tensor(rois_layout));
-        if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans)
+        if (primitive->mode == pooling_mode::deformable_bilinear && !primitive->no_trans) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+        }
         params.mode = cldnn_2_pool_type(primitive->mode);
         params.position_sensitive = primitive->position_sensitive;
         params.pooled_width = primitive->pooled_width;

@@ -65,14 +65,15 @@ SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softma
         if ((dispatchData.dataSetsCount > 1) && ((dataSetSizeInByte - ((dataSetSizeInByte >> 4) << 4)))) {
             dispatchData.subgroupBlockSize = 1;
         } else {
-            if (dispatchData.itemsNum >> 3)
+            if (dispatchData.itemsNum >> 3) {
                 dispatchData.subgroupBlockSize = 8;
-            else if (dispatchData.itemsNum >> 2)
+            } else if (dispatchData.itemsNum >> 2) {
                 dispatchData.subgroupBlockSize = 4;
-            else if (dispatchData.itemsNum >> 1)
+            } else if (dispatchData.itemsNum >> 1) {
                 dispatchData.subgroupBlockSize = 2;
-            else
+            } else {
                 dispatchData.subgroupBlockSize = 1;
+            }
         }
         assert((dispatchData.itemsNum + 1) * dispatchData.lws[0] >= dispatchData.dataSetSize && "More than 'lws[0]' items per batch remains! Lws too small?");
 

@@ -99,20 +99,25 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p) const {
     }
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
-    if (!IsSIMDSizeSupported(cp.engineInfo, 8))
+    if (!IsSIMDSizeSupported(cp.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.stride.x != 1 || cp.stride.y != 1)
+    if (cp.stride.x != 1 || cp.stride.y != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.filterSize.x != 1 || cp.filterSize.y != 1)
+    if (cp.filterSize.x != 1 || cp.filterSize.y != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.outputs[0].Feature().v % 64 != 0)
+    if (cp.outputs[0].Feature().v % 64 != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.padding_begin.x != 0 || cp.padding_begin.y != 0)
+    if (cp.padding_begin.x != 0 || cp.padding_begin.y != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (cp.inputs[0].Feature().v % 2 != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -120,13 +125,16 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p) const {
 
     // if block sizes are 1x1, then this algorithm is probably not the best
     auto block = get_out_block_size(cp);
-    if (block.out_width == 1 && block.out_height == 1)
+    if (block.out_width == 1 && block.out_height == 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (cp.outputs[0].X().v % block.out_width != 0)
+    if (cp.outputs[0].X().v % block.out_width != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
-    if (cp.outputs[0].Y().v % block.out_height != 0)
+    }
+    if (cp.outputs[0].Y().v % block.out_height != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -145,14 +153,17 @@ JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_
 
 WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp) const {
     auto block = get_out_block_size(cp);
-    if (block.out_depth == 8)
+    if (block.out_depth == 8) {
         return WeightsLayout::os_iyx_osv64;
-    if (block.out_depth == 4)
+    }
+    if (block.out_depth == 4) {
         return WeightsLayout::os_iyx_osv32;
-    if (block.out_depth == 2)
+    }
+    if (block.out_depth == 2) {
         return WeightsLayout::os_iyx_osv16;
-    else
+    } else {
         return WeightsLayout::yxio;
+    }
 }
 
 KernelsData convolution_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params) const {

@@ -52,8 +52,9 @@ void trim_to_outputs::run(program& p) {
     // all not-marked nodes should be removed
     std::vector<program_node*> to_rem;
     for (auto& node : p.get_processing_order()) {
-        if (!node->is_marked())
+        if (!node->is_marked()) {
             to_rem.push_back(node);
+        }
     }
     p.remove_nodes(to_rem);
 

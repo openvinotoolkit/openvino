@@ -101,8 +101,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
-    if (IsUnsupportedModeForVecCode(ewParams))
+    if (IsUnsupportedModeForVecCode(ewParams)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         if ((SelectVecSizeFromFormat(ewParams.inputs[i]) == 1) &&
@@ -115,8 +116,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     const auto& input0 = ewParams.inputs[0];
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
-    if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
+    if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
         // Check all parameters except DataType
@@ -138,8 +140,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
 
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
         const auto& input = ewParams.inputs[i];
-        if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0)))
+        if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0))) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
         if (input.Feature().pad.before % vec_size != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
@@ -195,12 +198,13 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
 
             // Based on dimension, get a string of indexing for formmatted GET_INDEX
             std::string default_indexing_str;
-            if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 4)
+            if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 4) {
                 default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), y, x";
-            else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5)
+            } else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5) {
                 default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), z, y, x";
-            else
+            } else {
                 OPENVINO_THROW("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
+            }
 
             // Generate Jit
             switch (input.mode) {
@@ -316,8 +320,9 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
         const auto &ew = operations[op_num];
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
-            if (input.mode != EltwiseInputMode::INPUT_BUFFER && input.mode != EltwiseInputMode::SCALAR)
+            if (input.mode != EltwiseInputMode::INPUT_BUFFER && input.mode != EltwiseInputMode::SCALAR) {
                 continue;
+            }
 
             if (InputHasFeatureBroadcast(params, op_num, input_idx)) {
                 do_eltwise += "\\\n\tDO_FEATURE_BROADCAST" + toCodeString(op_num) + "_" + toCodeString(input_idx) + ";";
@@ -342,8 +347,9 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
 
     jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "_TYPED"));
 
-    if (params.outputs[0].Feature().v % vec_size != 0)
+    if (params.outputs[0].Feature().v % vec_size != 0) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));
+    }
 
     // Fused post_ops
     if (!params.fused_ops.empty()) {
@@ -374,8 +380,9 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
             }
         }
 
-        if (need_idx_safe)
+        if (need_idx_safe) {
             jit.AddConstant(MakeJitConstant("ELTWISE_BROADCAST", params.broadcast));
+        }
     }
 
     return jit;
@@ -399,10 +406,11 @@ static inline size_t CalculateTotalWorkItemCount(const eltwise_params& params) {
     auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
     auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
     size_t spatial = 0;
-    if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5)
+    if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
         spatial = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
-    else
+    } else {
         spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
+    }
 
     return (feature * batch * spatial);
 }

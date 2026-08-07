@@ -44,8 +44,9 @@ bool DeconvolutionKernelBase::Validate(const Params& p) const {
     }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -139,27 +140,31 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params) const 
 }
 
 Datatype DeconvolutionKernelBase::GetAccumulatorType(const deconvolution_params& params) const {
-    if (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8)
+    if (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8) {
         return Datatype::INT32;
+    }
 
     // Use fp32 accumulator for dilated fp16 deconvolutions to avoid precision loss
     // during accumulation with large effective kernel sizes.
     if (params.inputs[0].GetDType() == Datatype::F16 &&
-        (params.dilation.x > 1 || params.dilation.y > 1 || params.dilation.z > 1))
+        (params.dilation.x > 1 || params.dilation.y > 1 || params.dilation.z > 1)) {
         return Datatype::F32;
+    }
 
     // input is either fp32 or fp16
     // for fp32->fp16 accumulate to fp16, otherwise accumulate to input type
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
+    }
 
     return params.inputs[0].GetDType();
 }
 
 Datatype DeconvolutionKernelBase::GetActivationType(const deconvolution_params& params) const {
     auto accumulator_dt = GetAccumulatorType(params);
-    if (accumulator_dt == Datatype::INT32)
+    if (accumulator_dt == Datatype::INT32) {
         return Datatype::F32;
+    }
     return accumulator_dt;
 }
 

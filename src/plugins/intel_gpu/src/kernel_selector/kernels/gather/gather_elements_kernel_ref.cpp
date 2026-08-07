@@ -100,8 +100,9 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
     std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
+    for (size_t i = 1; i < order.size(); i++) {
         order_str += ", " + order[i];
+    }
 
     return order_str;
 }
@@ -188,8 +189,9 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
     }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;

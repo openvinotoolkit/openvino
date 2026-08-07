@@ -14,12 +14,14 @@ bool PoolingKernelBase::Validate(const Params& p) const {
     auto& params = dynamic_cast<const pooling_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
-    if (params.inputs[0].Dimentions() > 5)
+    if (params.inputs[0].Dimentions() > 5) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -42,10 +44,11 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
-    else
+    } else {
         return Datatype::F32;
+    }
 }
 
 

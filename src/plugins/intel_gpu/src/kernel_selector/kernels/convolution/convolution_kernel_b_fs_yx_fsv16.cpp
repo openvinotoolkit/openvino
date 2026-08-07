@@ -39,19 +39,21 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
     auto x = cp.outputs[0].X().v;
     auto f = cp.outputs[0].Feature().v;
     if (x * f <= 256) {
-        if (x <= 8 || x * f <= 128)
+        if (x <= 8 || x * f <= 128) {
             return { 2, EXE_MODE_DEFAULT };
-        else
+        } else {
             return { 4, EXE_MODE_DEFAULT };
+        }
     } else if (x * f <= 1536) {
         return { 4, EXE_MODE_DEFAULT };
     } else {
-        if (x >= 8  && x < 12 && x * f < 2600)
+        if (x >= 8  && x < 12 && x * f < 2600) {
             return { 4, EXE_MODE_DEFAULT };
-        else if (x < 12 && x * f < 8192)
+        } else if (x < 12 && x * f < 8192) {
             return { 8, EXE_MODE_DEFAULT };
-        else
+        } else {
             return { 8, EXE_MODE_AGE_BASED };
+        }
     }
 }
 
@@ -82,10 +84,12 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionTuningData ConvolutionKernel_b_fs_yx
     bool slm_exception = params.outputs[0].X().v == 3 && params.outputs[0].Y().v == 3 && params.outputs[0].ElementSize() == 4
                          && params.outputs[0].Feature().v <= 512;
 
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !slm_exception)
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !slm_exception) {
         while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-               EstimateOccupancy(params, tuning_data) < 4.0)
+               EstimateOccupancy(params, tuning_data) < 4.0) {
             tuning_data.slm_div_factor *= 2;
+        }
+    }
 
     tuning_data.work_group_size = tuning_data.slm_div_factor * tuning_data.sub_group_size;
 
@@ -187,22 +191,26 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
         auto grouped = inFeaturesPerGroup % tuning_data.sub_group_size == 0 &&
                        (outFeaturesPerGroup % tuning_data.sub_group_size == 0 || tuning_data.sub_group_size % outFeaturesPerGroup == 0);
 
-        if (!multipleGroupsInputPreload && !grouped)
+        if (!multipleGroupsInputPreload && !grouped) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     // Check that padding before features doesn't miss-align the blocks
-    if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
+    if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Not supporting batch padding for different format (reorder-fused case)
     if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 && output.GetLayout() == DataLayout::bfyx) {
-        if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0)
+        if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
-    if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
+    if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -262,8 +270,9 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
                                       (tuning_data.feature_block_size / outFeaturesPerGroup > 1) &&
                                       (tuning_data.feature_block_size / inFeaturesPerGroup > 1);
 
-    if (multipleGroupsInputPreload)
+    if (multipleGroupsInputPreload) {
         jit.AddConstant(MakeJitConstant("MULTIPLE_GROUPS_INPUT_PRELOAD", 1));
+    }
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));

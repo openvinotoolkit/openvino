@@ -10,8 +10,9 @@ namespace cldnn {
 
 size_t kernel_impl_params::hash() const {
     size_t seed = 0;
-    if (desc != nullptr)
+    if (desc != nullptr) {
         seed = desc->hash();
+    }
     const size_t prime_number = 2654435761; // magic number to reduce hash collision rate.
     for (auto& in : input_layouts) {
         seed = hash_combine(seed, in.hash() * prime_number);
@@ -30,34 +31,42 @@ size_t kernel_impl_params::hash() const {
 }
 
 bool kernel_impl_params::operator==(const kernel_impl_params& rhs) const {
-    if ((desc != nullptr && rhs.desc == nullptr) || (desc == nullptr && rhs.desc != nullptr))
+    if ((desc != nullptr && rhs.desc == nullptr) || (desc == nullptr && rhs.desc != nullptr)) {
         return false;
+    }
 
-    if ((desc != nullptr && rhs.desc != nullptr) && *desc != *rhs.desc)
+    if ((desc != nullptr && rhs.desc != nullptr) && *desc != *rhs.desc) {
         return false;
+    }
 
-    if (rhs.input_layouts.size() != input_layouts.size())
+    if (rhs.input_layouts.size() != input_layouts.size()) {
         return false;
+    }
 
-    if (rhs.output_layouts.size() != output_layouts.size())
+    if (rhs.output_layouts.size() != output_layouts.size()) {
         return false;
+    }
 
     for (size_t i = 0; i < input_layouts.size(); i++) {
-        if (input_layouts[i] != rhs.input_layouts[i])
+        if (input_layouts[i] != rhs.input_layouts[i]) {
             return false;
+        }
     }
 
     for (size_t i = 0; i < output_layouts.size(); i++) {
-        if (output_layouts[i] != rhs.output_layouts[i])
+        if (output_layouts[i] != rhs.output_layouts[i]) {
             return false;
+        }
     }
 
-    if (fused_desc.size() != rhs.fused_desc.size())
+    if (fused_desc.size() != rhs.fused_desc.size()) {
         return false;
+    }
 
     for (size_t i = 0; i < rhs.fused_desc.size(); i++) {
-        if (fused_desc[i] != rhs.fused_desc[i])
+        if (fused_desc[i] != rhs.fused_desc[i]) {
             return false;
+        }
     }
 
     return true;

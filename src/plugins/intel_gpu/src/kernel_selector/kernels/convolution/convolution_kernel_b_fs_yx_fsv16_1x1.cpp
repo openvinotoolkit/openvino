@@ -29,10 +29,11 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
         if (x == 1 && y == 1) {
             return { 1, EXE_MODE_DEFAULT };
         } else if (x * f <= 256) {
-            if (x < 8 || x * f <= 128)
+            if (x < 8 || x * f <= 128) {
                 return { 2, EXE_MODE_DEFAULT };
-            else
+            } else {
                 return { 4, EXE_MODE_DEFAULT };
+            }
         } else if (x * f <= 1536) {
             return { 4, EXE_MODE_DEFAULT };
         } else {
@@ -73,8 +74,9 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
             size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
 
             while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
-                EstimateOccupancy(params, tuning_data) < 4.0)
+                EstimateOccupancy(params, tuning_data) < 4.0) {
                 tuning_data.slm_div_factor *= 2;
+            }
         }
     }
 
@@ -341,13 +343,15 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
     if (NeedPaddedInput()) {
         if (newParams.has_dynamic_inputs()) {
-            if (!CheckConvolutionExplicitPaddings(newParams))
+            if (!CheckConvolutionExplicitPaddings(newParams)) {
                 return {};
+            }
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !newParams.allowInputReordering)
+            if (kd.reorderInput && !newParams.allowInputReordering) {
                 return {};
+            }
         }
     }
 
@@ -393,16 +397,20 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 
         if (newParams.deformable_mode) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-            if (newParams.deformable_mask_enabled)
+            if (newParams.deformable_mask_enabled) {
                 kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+            }
         }
 
-        if (!newParams.weights_zero_points.empty())
+        if (!newParams.weights_zero_points.empty()) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
-        if (!newParams.activations_zero_points.empty())
+        }
+        if (!newParams.activations_zero_points.empty()) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
-        if (!newParams.compensation.empty())
+        }
+        if (!newParams.compensation.empty()) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
+        }
 
         uint32_t fused_deps_total = 0;
         for (auto& fused_dep : newParams.fused_ops) {

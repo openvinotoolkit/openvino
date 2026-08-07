@@ -133,12 +133,14 @@ static bool parse_driver_version(const std::string& driver_version, size_t num_c
     const char* last = driver_version.data() + driver_version.size();
     for (size_t i = 0; i < num_components; i++) {
         auto [ptr, ec] = std::from_chars(first, last, components[i]);
-        if (ec != std::errc())
+        if (ec != std::errc()) {
             return false;
+        }
         if (i + 1 < num_components) {
             // Expect a '.' separator before the next component
-            if (ptr == last || *ptr != '.')
+            if (ptr == last || *ptr != '.') {
                 return false;
+            }
             first = ptr + 1;
         }
     }
@@ -152,8 +154,9 @@ static bool driver_version_supports_microkernels(const std::string& driver_versi
         return false;
     return std::tie(v[0], v[1], v[2], v[3]) >= std::make_tuple(31, 0, 101, 6987);
 #else
-    if (!parse_driver_version(driver_version, 3, v))
+    if (!parse_driver_version(driver_version, 3, v)) {
         return false;
+    }
     return std::tie(v[0], v[1], v[2]) >= std::make_tuple(24, 22, 29735);
 #endif
 }
@@ -209,8 +212,9 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
 
 bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto device = e.get_device().get();
-    if (device->get_info().arch < gpu_arch::xe3)
+    if (device->get_info().arch < gpu_arch::xe3) {
         return false;
+    }
 
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
@@ -666,8 +670,9 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
         case format::bfzyx:
             return is_grouped ? kernel_selector::weights_layout::goiyx : kernel_selector::weights_layout::oizyx;
         case format::bfwzyx: {
-            if (!is_grouped)
+            if (!is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
+            }
             return kernel_selector::weights_layout::goizyx;
         }
         case format::oizyx:
@@ -974,10 +979,11 @@ kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
     ov::PartialShape vals_ordered;
     const auto& axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
-        if (axis_order[i] >= vals_original.size())
+        if (axis_order[i] >= vals_original.size()) {
             vals_ordered.push_back(ov::Dimension(1));
-        else
+        } else {
             vals_ordered.push_back(vals_original[axis_order[i]]);
+        }
     }
     const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
     const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
@@ -1223,15 +1229,18 @@ void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_inf
 
 bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
     const auto& fused_ops = param_info.fused_desc;
-    if (fused_ops.size() != 1)
+    if (fused_ops.size() != 1) {
         return false;
+    }
 
     const auto& fused_op = fused_ops[0];
-    if (!fused_op.is_type<activation>())
+    if (!fused_op.is_type<activation>()) {
         return false;
+    }
 
-    if (!fused_op.deps.empty())
+    if (!fused_op.deps.empty()) {
         return false;
+    }
 
 
     std::vector<primitive_type_id> legacy_fusion_list = {
@@ -1267,8 +1276,9 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
                                  format::is_simple_data_format(param_info.get_output_layout().format);
         bool has_winograd_formats = format::is_winograd(param_info.get_input_layout().format) ||
                                     format::is_winograd(param_info.get_output_layout().format);
-        if (!has_plain_formats && !has_winograd_formats)
+        if (!has_plain_formats && !has_winograd_formats) {
             return false;
+        }
     }
 
     return true;

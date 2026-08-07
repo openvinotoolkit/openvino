@@ -206,8 +206,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
         // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
+            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared()) {
                 plugin_tensors.erase(plugin_tensors.find(port_index));
+            }
         }
     };
 
@@ -279,8 +280,9 @@ void SyncInferRequest::check_tensors() const {
                 auto it = inputs->find(i);
                 return it != inputs->end() && !it->second.ptr;
             }();
-            if (not_allocated)
+            if (not_allocated) {
                 continue;
+            }
             check_tensor(inputs[i], get_tensor_ptr(inputs[i]));
         }
     }
@@ -668,8 +670,9 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_device_tensor(const ov::Pa
     }
 
     // Create OpenCL buffer for PVC if lockable memory is needed due to performance issue with usm host
-    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory)
+    if (!can_use_usm_host(m_graph->get_engine(), total_output_bytes) && need_lockable_memory) {
         tensor_type = TensorType::BT_BUF_INTERNAL;
+    }
 
     return std::make_shared<RemoteTensorImpl>(m_context,
                                               get_tensor_shape(port_shape),
@@ -1097,10 +1100,11 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                            << " alloc_type: " << memory->get_allocation_type() << std::endl;
     network->set_input_data(internal_name, memory);
 
-    if (ret_event && !ret_event->is_set())
+    if (ret_event && !ret_event->is_set()) {
         return { ret_event };
-    else
+    } else {
         return {};
+    }
 }
 
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_idx,

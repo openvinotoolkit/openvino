@@ -23,12 +23,14 @@ enum class DynQuanMode {
 static size_t get_input_f_size(const dynamic_quantize_params& params) {
     size_t input_f = params.inputs[0].Feature().v;
     // 3D input
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx)
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
+    }
 
     // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
-    if (params.inputs[0].is_dynamic() && input_f == 0)
+    if (params.inputs[0].is_dynamic() && input_f == 0) {
         return params.fc_ifm_size;
+    }
 
     return input_f;
 }
@@ -36,8 +38,9 @@ static size_t get_input_f_size(const dynamic_quantize_params& params) {
 static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
     size_t input_batch = params.inputs[0].Batch().v;
     // 3D input
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx)
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+    }
 
     // Validate() rejects this kernel when the size cannot be resolved, so it is known to be set here
     const auto input_f = get_input_f_size(params);
@@ -179,8 +182,9 @@ void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DYNAMIC_QUANTIZE);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const dynamic_quantize_params& prim_params = static_cast<const dynamic_quantize_params&>(params);
     auto dispatchData = SetDefault(prim_params);
@@ -216,26 +220,30 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
 }
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
     // The group count is baked into the kernel at compile time, so it cannot be built without knowing
     // the length of the dimension the groups are formed along
-    if (get_input_f_size(dq_params) == 0)
+    if (get_input_f_size(dq_params) == 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto bf = get_input_bf_size(dq_params);
-    if (((bf.second) % (simd * 2)) != 0)
+    if (((bf.second) % (simd * 2)) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // For MODE_LARGE_GS, ensure the quantization group fits within a single work_group
     // There is no cross work_group synchronization.
@@ -251,30 +259,37 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
         }
     }
 
-    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
+    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (dq_params.append_axis != -1)
+    if (dq_params.append_axis != -1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
-        if (dq_params.group_sizes[i] != 1)
+        if (dq_params.group_sizes[i] != 1) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // Allow only default scales order
     const auto& scales_output_order = dq_params.scales_output_order;
     if (!scales_output_order.empty()) {
-        for (size_t i = 0; i < scales_output_order.size(); i++)
-            if (scales_output_order[i] != i)
+        for (size_t i = 0; i < scales_output_order.size(); i++) {
+            if (scales_output_order[i] != i) {
                 DO_NOT_USE_THIS_KERNEL(params.layerID);
+            }
+        }
     }
 
     if (dq_params.use_asymmetric_quantization) {
-        if (dq_params.combine_scales_and_zp)
+        if (dq_params.combine_scales_and_zp) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
+        }
+        if (dq_params.outputs[0].GetDType() != Datatype::UINT8) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;

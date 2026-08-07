@@ -54,8 +54,9 @@ JitConstants SwiGLUKernelBase::GetJitConstants(const swiglu_params& params, cons
 KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::SWIGLU);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const swiglu_params& orgParams = static_cast<const swiglu_params&>(params);
     auto dispatchData = SetDefault(orgParams);
@@ -88,8 +89,9 @@ KernelsData SwiGLUKernelBase::GetKernelsData(const Params& params) const {
 
 
 bool SwiGLUKernelBase::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
@@ -97,10 +99,13 @@ bool SwiGLUKernelBase::Validate(const Params& params) const {
 Datatype SwiGLUKernelBase::GetAccumulatorType(const swiglu_params& params) const {
     Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
-    for (Datatype type : types)
-        for (auto& in : params.inputs)
-            if (in.GetDType() == type)
+    for (Datatype type : types) {
+        for (auto& in : params.inputs) {
+            if (in.GetDType() == type) {
                 return type;
+            }
+        }
+    }
 
     return Datatype::F32;
 }

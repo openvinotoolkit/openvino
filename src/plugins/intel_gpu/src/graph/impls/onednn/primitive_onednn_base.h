@@ -515,8 +515,9 @@ protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized())
+        if (instance.can_be_optimized()) {
             return;
+        }
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }
@@ -576,8 +577,9 @@ protected:
                 // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
                 // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
                 // return it as oneDNN primitive's event as it is a single option for proper synchronization
-                if (instance.needs_completion_event())
+                if (instance.needs_completion_event()) {
                     event = stream.enqueue_marker({});
+                }
             }
         }
 
@@ -585,8 +587,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_scratchpad_md.get_size() == 0)
+        if (_scratchpad_md.get_size() == 0) {
             return {};
+        }
         return {BufferDescriptor(_scratchpad_md.get_size(), cldnn::data_types::u8)};
     }
 };

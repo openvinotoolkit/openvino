@@ -23,8 +23,9 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto& wei_node = conv_node.weights();
-        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8) {
             return false;
+        }
 
         return conv_node.get_groups() == 1 && node.get_dependency_index(concat_node) == 0 &&
             conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
@@ -34,8 +35,9 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     if (node.is_type<fully_connected>()) {
         auto& fc_node = node.as<fully_connected>();
         auto& wei_node = fc_node.weights();
-        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8) {
             return false;
+        }
 
         return node.get_dependency_index(concat_node) == 0 && wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
     }
@@ -48,8 +50,9 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     if (pass_through) {
         // Primitives that are feature order invariant, pass-through shuffled features to users
         for (auto& user : node.get_users()) {
-            if (!can_shuffle_features(*user, node, stream))
+            if (!can_shuffle_features(*user, node, stream)) {
                 return false;
+            }
         }
         return true;
     }
@@ -125,8 +128,9 @@ void concat_input_order::run(program& p) {
         // 4. Not already aligned
         // 5. Users can accept shuffled features
         // 6. No fused primitives
-        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic())
+        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic()) {
             continue;
+        }
 
         auto& concat_node = node->as<concatenation>();
         auto prim = concat_node.get_primitive();
@@ -138,10 +142,11 @@ void concat_input_order::run(program& p) {
         auto out_format = concat_node.get_output_layout().format;
         bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
         tensor::value_type alignment = 1;
-        if (out_format == format::b_fs_yx_fsv16)
+        if (out_format == format::b_fs_yx_fsv16) {
             alignment = 16;
-        else if (out_format == format::b_fs_yx_fsv32)
+        } else if (out_format == format::b_fs_yx_fsv32) {
             alignment = 32;
+        }
 
         bool single_format = true;
         std::vector<tensor::value_type> feature_sizes;
@@ -166,20 +171,23 @@ void concat_input_order::run(program& p) {
             can_shuffle_users &= can_shuffle_features(*user, concat_node, p.get_stream());
         }
 
-        if (!along_f || !no_fusing || !correct_format || !single_format || already_aligned || !can_shuffle_users)
+        if (!along_f || !no_fusing || !correct_format || !single_format || already_aligned || !can_shuffle_users) {
             continue;
+        }
 
         // Perform the optimization
         // Calculate new input order - first inputs preserving alignment, then rest
         std::vector<size_t> new_order;
         new_order.reserve(inputs_count);
         for (size_t i = 0; i < feature_sizes.size(); ++i) {
-            if (feature_sizes[i] % alignment == 0)
+            if (feature_sizes[i] % alignment == 0) {
                 new_order.push_back(i);
+            }
         }
         for (size_t i = 0; i < feature_sizes.size(); ++i) {
-            if (feature_sizes[i] % alignment != 0)
+            if (feature_sizes[i] % alignment != 0) {
                 new_order.push_back(i);
+            }
         }
         // Calculate new ranges
         tensor::value_type current_offset = 0;

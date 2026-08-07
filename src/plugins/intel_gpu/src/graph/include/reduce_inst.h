@@ -34,8 +34,9 @@ public:
     static std::string to_string(reduce_node const& node);
 
     bool need_reset_input_memory(size_t idx = 0) const override {
-        if (idx != 0)
+        if (idx != 0) {
             return false;
+        }
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(_deps[0].second);
         return !format::format::is_simple_data_format(input_layout.format) &&

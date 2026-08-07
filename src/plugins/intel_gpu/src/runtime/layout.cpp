@@ -24,13 +24,15 @@ std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const
     std::vector<int32_t> new_sizes(out_order.size(), {-1});
     for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
         auto channel = out_order[out_idx];
-        if (channel == '?')
+        if (channel == '?') {
             continue;
+        }
 
         auto in_idx = in_order.find(channel);
         if (in_idx != in_order.npos) {
-            if (in_idx < sizes.size())
+            if (in_idx < sizes.size()) {
                 new_sizes[out_idx] = sizes[in_idx];
+            }
         }
     }
     return new_sizes;
@@ -72,8 +74,9 @@ tensor::value_type layout::feature() const {
 }
 
 tensor::value_type layout::spatial(size_t spatial_idx) const {
-    if (spatial_idx >= format.spatial_num() )
+    if (spatial_idx >= format.spatial_num() ) {
         return 1;
+    }
     const auto& dims = get_dims();
     const size_t dim_idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
     return dims[dim_idx];
@@ -85,8 +88,9 @@ tensor::value_type layout::group() const {
         throw std::logic_error("[GPU] can't get group dimension for data layout");
     }
 
-    if (!format::is_grouped(format))
+    if (!format::is_grouped(format)) {
         return 1;
+    }
 
     return dims[0];
 }
@@ -111,16 +115,18 @@ tensor::value_type layout::ifm() const {
 }
 
 std::vector<tensor::value_type> layout::get_dims() const {
-    if (is_dynamic())
+    if (is_dynamic()) {
         throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
+    }
 
     std::vector<tensor::value_type> res;
     for (const auto& dim : size) {
         res.push_back(static_cast<tensor::value_type>(dim.get_length()));
     }
 
-    if (res.size() < format.dimension())
+    if (res.size() < format.dimension()) {
         res.insert(res.end(), format.dimension() - res.size(), 1);
+    }
 
     return res;
 }
@@ -153,8 +159,9 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
 }
 
 static format to_weights_format(format f, bool is_grouped) {
-    if (format::is_weights_format(f))
+    if (format::is_weights_format(f)) {
         return f;
+    }
 
     switch (f) {
         case format::bfyx:
@@ -174,8 +181,9 @@ static format to_weights_format(format f, bool is_grouped) {
         case format::bfzyx:
             return is_grouped ? format::goiyx : format::oizyx;
         case format::bfwzyx: {
-            if (!is_grouped)
+            if (!is_grouped) {
                 throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
+            }
             return format::goizyx;
         }
         case format::b_fs_yx_fsv4:
@@ -196,8 +204,9 @@ layout layout::convert_to_weights_layout(bool is_grouped) const {
 }
 
 std::vector<tensor::value_type> layout::get_ordered_dims() const {
-    if (is_dynamic())
+    if (is_dynamic()) {
         throw std::runtime_error("[GPU] get_ordered_dims() is called for dynamic shape");
+    }
 
     const auto& t = get_tensor();
     return t.sizes(format);
@@ -232,8 +241,9 @@ std::string layout::to_short_string() const {
         } else {
             for (size_t i = 0; i < shape.size(); i++) {
                 stream << shape[i];
-                if (i != shape.size() - 1)
+                if (i != shape.size() - 1) {
                     stream << "x";
+                }
             }
         }
     };
@@ -242,8 +252,9 @@ std::string layout::to_short_string() const {
                                  size_t rank) {
         stream << "[";
         for (size_t i = 0; i < rank; ++i) {
-            if (i)
+            if (i) {
                 stream << ",";
+            }
             stream << values[i];
         }
         stream << "]";
@@ -269,8 +280,9 @@ std::string layout::to_short_string() const {
 }
 
 size_t layout::count() const {
-    if (is_dynamic())
+    if (is_dynamic()) {
         throw std::runtime_error("[GPU] Count is called for dynamic shape");
+    }
 
     return ov::shape_size(size.to_shape());
 }
@@ -370,8 +382,9 @@ size_t layout::get_linear_offset(tensor element) const {
 
     auto t = get_tensor();
     for (auto& d : t.raw) {
-        if (d == 0)
+        if (d == 0) {
             d = 1;
+        }
     }
 
     if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
@@ -385,8 +398,9 @@ size_t layout::get_linear_offset(tensor element) const {
         (element.spatial[0] >= t.spatial[0] + u_padd.spatial[0]) ||
         (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
         (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
-        (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
+        (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3])) {
         throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
+    }
 
     auto padded_size = t + l_padd + u_padd;
     auto padded_element = element + l_padd;
@@ -401,15 +415,17 @@ size_t layout::get_linear_size() const {
     const auto& blocks = format.logic_block_sizes();
 
     for (size_t i = 0; i < blocks.size(); i++) {
-        if (processed_dims.count(blocks[i].first))
+        if (processed_dims.count(blocks[i].first)) {
             continue;
+        }
 
         auto block_axis = blocks[i].first;
         auto block_size = blocks[i].second;
 
         for (size_t j = i + 1; j < blocks.size(); j++) {
-            if (blocks[j].first != block_axis)
+            if (blocks[j].first != block_axis) {
                 continue;
+            }
 
             block_size *= blocks[j].second;
         }
@@ -470,24 +486,31 @@ bool layout::compatible(const layout& other) const {
     auto& l1 = *this;
     auto& l2 = other;
 
-    if (l1.is_dynamic() || l2.is_dynamic())
+    if (l1.is_dynamic() || l2.is_dynamic()) {
         return false;
+    }
 
-    if (l1 == l2)
+    if (l1 == l2) {
         return true;
-    if (check_redundant_1d_along_feature(l1, l2))
+    }
+    if (check_redundant_1d_along_feature(l1, l2)) {
         return true;
-    if (l1.data_type != l2.data_type)
+    }
+    if (l1.data_type != l2.data_type) {
         return false;
+    }
     // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
     if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
-        !l1.data_padding && !l2.data_padding && l1.get_linear_size() == l2.get_linear_size())
+        !l1.data_padding && !l2.data_padding && l1.get_linear_size() == l2.get_linear_size()) {
         return true;
-    if (l1.get_shape() != l2.get_shape())
+    }
+    if (l1.get_shape() != l2.get_shape()) {
         return false;
-    if (l1.get_linear_size() != l2.get_linear_size())
+    }
+    if (l1.get_linear_size() != l2.get_linear_size()) {
         return false;
+    }
 
     auto check_format = [&l1, &l2](cldnn::format format) {
         return (l1.format == format && l2.format != format) ||
@@ -499,8 +522,9 @@ bool layout::compatible(const layout& other) const {
 
     // TODO: Relax restrictions below
     if (blocks1 != blocks2 ||
-        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
+        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order())) {
         return false;
+    }
 
     // Since it is not possible to properly check compatibility for custom formats, return false
     if (l1.format == cldnn::format::custom || l2.format == cldnn::format::custom) {
@@ -529,8 +553,9 @@ bool layout::compatible(const layout& other) const {
         check_format(format::bs_fs_zyx_bsv16_fsv32) ||
         check_format(format::bs_fs_zyx_bsv16_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv16) ||
-        check_format(format::bs_fs_zyx_bsv32_fsv32))
+        check_format(format::bs_fs_zyx_bsv32_fsv32)) {
         return false;
+    }
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
@@ -554,8 +579,9 @@ bool layout::compatible(const layout& other) const {
 }
 
 bool layout::identical(const layout& other) const {
-    if (is_dynamic() || other.is_dynamic())
+    if (is_dynamic() || other.is_dynamic()) {
         return false;
+    }
     bool ret = (*this == other);
     if (ret && this->format == cldnn::format::custom) {
         ret &= (this->format.traits().block_sizes == other.format.traits().block_sizes);
@@ -572,8 +598,9 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
     if (format::is_default_format(old_fmt) && new_fmt == format::bfvuwzyx) {
         ov::PartialShape res = pshape;
         // This part is necessary because we treat 3D layouts as "bfy", not as "bfx".
-        if (res.size() == 3)
+        if (res.size() == 3) {
             res.push_back(1);
+        }
         size_t num_to_insert = layout::max_rank() - res.size();
         size_t pos_to_insert = std::min<size_t>(res.size(), 2);
         res.insert(res.begin() + pos_to_insert, num_to_insert, 1);
@@ -626,8 +653,9 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
 
     for (size_t i = 0; i < new_order.size(); i++) {
         auto c = new_order[i]; //bfxywz
-        if (c == '?')
+        if (c == '?') {
             continue;
+        }
         if (new_sizes[i] == -1) {
             new_sizes[i] = 1;
         }
@@ -635,10 +663,11 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
 
     auto new_dims = convert_dimensions(new_sizes, default_fmt.internal_order(), new_fmt.order());
     for (int idx = static_cast<int>(new_dims.size() - 1); idx >= 0; idx--) {
-        if (new_dims[idx] == -1)
+        if (new_dims[idx] == -1) {
             new_dims.erase((new_dims.begin() + idx));
-        else if (new_dims[idx] < 0)
+        } else if (new_dims[idx] < 0) {
             new_dims[idx] *= -1;
+        }
     }
 
     ov::PartialShape res;
@@ -663,8 +692,9 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
 
         auto is_1x1_spatial = [](layout const& l) {
             for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
-                if (l.spatial(i) > 1)
+                if (l.spatial(i) > 1) {
                     return false;
+                }
             }
             return true;
         };
@@ -683,8 +713,9 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
             l1.feature() == l2_inner_blk)) {
             // each spatial axis should be same
             for (size_t i = 0 ; i < l2.get_spatial_rank() ; i++) {
-                if (l2.spatial(i) != l1.spatial(i))
+                if (l2.spatial(i) != l1.spatial(i)) {
                     return false;
+                }
             }
 
             return true;

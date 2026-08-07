@@ -129,16 +129,18 @@ int driver_dev_id() {
 
     auto id_itr = result.begin();
     while (id_itr != result.end()) {
-        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end())
+        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end()) {
             id_itr = result.erase(id_itr);
-        else
+        } else {
             id_itr++;
+        }
     }
 
-    if (result.empty())
+    if (result.empty()) {
         return 0;
-    else
+    } else {
         return result.back();
+    }
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -178,8 +180,9 @@ bool get_imad_support(const cl::Device& device) {
     std::string dev_name = device.getInfo<CL_DEVICE_NAME>();
 
     if (dev_name.find("Gen12") != std::string::npos ||
-        dev_name.find("Xe") != std::string::npos)
+        dev_name.find("Xe") != std::string::npos) {
         return true;
+    }
 
     if (get_device_type(device) == device_type::integrated_gpu) {
         const std::vector<int> imad_ids = {
@@ -188,11 +191,13 @@ bool get_imad_support(const cl::Device& device) {
             0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
         };
         int dev_id = driver_dev_id();
-        if (dev_id == 0)
+        if (dev_id == 0) {
             return false;
+        }
 
-        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end())
+        if (std::find(imad_ids.begin(), imad_ids.end(), dev_id) != imad_ids.end()) {
             return true;
+        }
     } else {
         return true;
     }
@@ -263,8 +268,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     auto query_device_bool = [&](cl_device_info param) -> bool {
         cl_bool value = CL_FALSE;
         try {
-            if (device.getInfo(param, &value) != CL_SUCCESS)
+            if (device.getInfo(param, &value) != CL_SUCCESS) {
                 return false;
+            }
         } catch (const cl::Error&) {
             return false;
         }
@@ -453,12 +459,14 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
 
 bool ocl_device::is_same(const device::ptr other) {
     auto casted = downcast<ocl_device>(other.get());
-    if (!casted)
+    if (!casted) {
         return false;
+    }
 
     // Short path if cl_device is the same
-    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device)
+    if (_platform == casted->_platform && _device.get() && casted->_device.get() && _device == casted->_device) {
         return true;
+    }
     return _info.is_same_device(casted->_info);
 }
 
@@ -471,8 +479,9 @@ void ocl_device::set_sub_device_idx(uint32_t idx) {
 }
 
 void ocl_device::initialize() {
-    if (_is_initialized)
+    if (_is_initialized) {
         return;
+    }
 
     ocl::ocl_device_detector detector;
     auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);

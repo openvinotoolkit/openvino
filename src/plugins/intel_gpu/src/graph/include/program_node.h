@@ -84,8 +84,9 @@ public:
     }
 
     bool is_shape_infer_dep() const {
-        if (!myprog.is_new_shape_infer())
+        if (!myprog.is_new_shape_infer()) {
             return false;
+        }
         for (auto u : users) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
                 if (u->get_dependencies().size() <= dep_idx) {
@@ -106,18 +107,21 @@ public:
 
     bool has_fused_dep() const {
         for (auto& fused : get_fused_primitives()) {
-            if (fused.has_outer_dep())
+            if (fused.has_outer_dep()) {
                 return true;
+            }
         }
         return false;
     }
 
     int32_t get_first_fused_dep_idx() const {
-        if (!has_fused_dep())
+        if (!has_fused_dep()) {
             return -1;
+        }
         for (auto& fused : get_fused_primitives()) {
-            if (fused.has_outer_dep())
+            if (fused.has_outer_dep()) {
                 return fused.outer_dep_start_idx;
+            }
         }
         return -1;
     }
@@ -223,8 +227,9 @@ public:
     template <class PType>
     bool have_user_with_type() const {
         for (auto const& usr : users) {
-            if (usr->is_type<PType>())
+            if (usr->is_type<PType>()) {
                 return true;
+            }
         }
         return false;
     }
@@ -346,16 +351,18 @@ public:
     // conversion from generic to specific
     template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
     typed_program_node<To>& as() {
-        if (type() != To::type_id())
+        if (type() != To::type_id()) {
             throw std::invalid_argument("program_node: mismatching primitive's type");
+        }
 
         return reinterpret_cast<typed_program_node<To>&>(*this);
     }
 
     template <class To, class..., class = typename std::enable_if<!std::is_same<To, primitive>::value>::type>
     typed_program_node<To> const& as() const {
-        if (type() != To::type_id())
+        if (type() != To::type_id()) {
             throw std::invalid_argument("program_node: mismatching primitive's type");
+        }
 
         return reinterpret_cast<typed_program_node<To> const&>(*this);
     }
@@ -404,13 +411,15 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() const {
-        if (onednn_attrs == nullptr)
+        if (onednn_attrs == nullptr) {
             const_cast<program_node*>(this)->init_onednn_primitive_attributes();
+        }
         return onednn_attrs;
     }
     std::shared_ptr<dnnl::primitive_attr>& get_onednn_primitive_attributes() {
-        if (onednn_attrs == nullptr)
+        if (onednn_attrs == nullptr) {
             init_onednn_primitive_attributes();
+        }
         return onednn_attrs;
     }
 
@@ -437,8 +446,9 @@ public:
 
     layout get_fused_output_layout() const {
         auto fp = get_fused_primitives();
-        if (fp.empty())
+        if (fp.empty()) {
             return layout(data_types::f32, format::bfyx, tensor());
+        }
         return fp.back().output_layout;
     }
 
@@ -607,11 +617,13 @@ inline void set_format_no_any(layout& l, format new_format) {
 template <typename RT>
 inline RT test_format(program_node& node, format fmt, std::function<RT(program_node& node)> f) {
     // Don't change anything for reorder
-    if (node.is_type<reorder>())
+    if (node.is_type<reorder>()) {
         return f(node);
+    }
 
-    if (!node.is_all_valid_output_layouts())
+    if (!node.is_all_valid_output_layouts()) {
         node.recalc_output_layouts(false);
+    }
 
     bool has_deps = !node.get_dependencies().empty();
     layout prev_input_layout = layout();
@@ -644,11 +656,13 @@ inline RT test_format(program_node& node, format fmt, std::function<RT(program_n
 template <typename RT>
 inline RT test_no_input_pad(program_node& node, std::function<RT(program_node& node)> f) {
     // Don't change anything for reorder
-    if (node.is_type<reorder>())
+    if (node.is_type<reorder>()) {
         return f(node);
+    }
 
-    if (!node.is_all_valid_output_layouts())
+    if (!node.is_all_valid_output_layouts()) {
         node.recalc_output_layouts(false);
+    }
 
     // Use a map keyed by (dep_node_ptr, port) to handle duplicate dependencies correctly.
     // When the same dependency appears multiple times (e.g., eltwise self-multiply),
@@ -656,11 +670,13 @@ inline RT test_no_input_pad(program_node& node, std::function<RT(program_node& n
     std::map<std::pair<program_node*, int32_t>, padding> original_padding;
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
         auto dep_with_port = node.get_dependency_with_port(i);
-        if (dep_with_port.first->is_constant())
+        if (dep_with_port.first->is_constant()) {
             continue;
+        }
         auto key = std::make_pair(dep_with_port.first, dep_with_port.second);
-        if (original_padding.count(key))
+        if (original_padding.count(key)) {
             continue;
+        }
         original_padding[key] = dep_with_port.first->get_output_layout(false, dep_with_port.second).data_padding;
         dep_with_port.first->set_output_padding(padding(), dep_with_port.second);
     }

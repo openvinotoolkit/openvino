@@ -58,8 +58,9 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
     if (CeilDiv(RoundUp(params.outputs[0].X().v * params.outputs[0].Y().v, dispatchData.gemmStyle.subBlockDimM),
                 dispatchData.gemmStyle.globalWorkSizeDY) %
             dispatchData.lws[1] !=
-        0)
+        0) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
+    }
 
     return jit;
 }
@@ -103,8 +104,9 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p) const {
 
     const auto& params = static_cast<const convolution_params&>(p);
 
-    if (!IsSIMDSizeSupported(p.engineInfo, 8) && params.inputs[0].GetDType() == Datatype::F32)
+    if (!IsSIMDSizeSupported(p.engineInfo, 8) && params.inputs[0].GetDType() == Datatype::F32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);

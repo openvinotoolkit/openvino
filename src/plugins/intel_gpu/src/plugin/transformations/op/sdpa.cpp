@@ -105,8 +105,9 @@ size_t SDPA::get_compression_inputs_num() const {
         compression_inputs += 2; // 2 * scales
 
         if (m_quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-            m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+            m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             compression_inputs += 2; // 2 * zp
+        }
     }
 
     return compression_inputs;

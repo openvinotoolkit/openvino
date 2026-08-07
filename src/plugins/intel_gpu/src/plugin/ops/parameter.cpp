@@ -76,8 +76,9 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
         [&](const std::shared_ptr<ov::Node> &node) -> bool {
         for (auto& user : node->get_users()) {
-            if (ov::is_type<ov::op::v0::FakeQuantize>(user))
+            if (ov::is_type<ov::op::v0::FakeQuantize>(user)) {
                 return true;
+            }
         }
         return false;
     };
@@ -98,8 +99,9 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         std::string suffix;
         std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
-            if (batch > 1)
+            if (batch > 1) {
                 suffix = "_" + std::to_string(i);
+            }
             std::string batched_name = input_name + suffix;
             p.add_primitive(*op, cldnn::input_layout(batched_name, input_layout));
 
@@ -119,10 +121,11 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
             surfaces_inputs.emplace_back(reorder_name);
         }
 
-        if (batch > 1 && !is_convert_color_input)
+        if (batch > 1 && !is_convert_color_input) {
             p.add_primitive(*op, cldnn::concatenation(input_name, surfaces_inputs, 0));
-        else
+        } else {
             p.primitive_ids[input_name] = "reorder:" + input_name + ProgramBuilder::m_preProcessTag;
+        }
     } else {
         auto reorder_name = "reorder:" + input_name + ProgramBuilder::m_preProcessTag;
 

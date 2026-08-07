@@ -31,15 +31,18 @@ void mark_runtime_skippable_nodes::run(program& p) {
         auto& node = *itr++;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
-        if (node->is_type<data>() || node->is_constant())
+        if (node->is_type<data>() || node->is_constant()) {
             continue;
+        }
 
         std::function<bool(const program_node& node)> all_users_are_shape_of = [&](const program_node& node) {
-            if (node.is_input() || node.is_output())
+            if (node.is_input() || node.is_output()) {
                 return false;
+            }
             for (auto& u : node.get_users()) {
-                if (!u->is_type<shape_of>())
+                if (!u->is_type<shape_of>()) {
                     return false;
+                }
             }
             return true;
         };
@@ -60,8 +63,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             auto impl_params = node.get_kernel_impl_params();
             if (node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
-                node.get_dependency(1).is_constant() || node.get_dependency(1).is_type<data>())
+                node.get_dependency(1).is_constant() || node.get_dependency(1).is_type<data>()) {
                 return;
+            }
             auto idx_rank = impl_params->get_input_layout(1).get_partial_shape().size();
 
             if (idx_rank != 1) {
@@ -83,23 +87,27 @@ void mark_runtime_skippable_nodes::run(program& p) {
 
         program_helpers::do_for_types<permute>(*node, [](permute_node& node) {
             // if node is already optimized at compilation time, do not handle at runtime
-            if (node.can_be_optimized())
+            if (node.can_be_optimized()) {
                 return;
+            }
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output() ||
                 node.has_fused_primitives() ||
                 (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
-                impl_params->get_input_layout(0).data_padding.is_dynamic())
+                impl_params->get_input_layout(0).data_padding.is_dynamic()) {
                 return;
+            }
 
             // TODO: For now, all permutes with dynamic shape are applied.
             //       A more detailed pattern will need to be applied later
             if (node.is_dynamic()) {
-                if (node.get_dependency(0).is_type<kv_cache>())
+                if (node.get_dependency(0).is_type<kv_cache>()) {
                     return;
+                }
                 // If the user is concatenation, priority should be given to in place concat optimization at runtime
-                if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1)
+                if (node.have_user_with_type<concatenation>() && node.get_users().size() == 1) {
                     return;
+                }
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
@@ -112,8 +120,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_output()
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
 
             auto prim = impl_params->typed_desc<strided_slice>();
             auto begin = prim->begin;
@@ -124,8 +133,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || !prim->shrink_axis_mask.empty()
                 || !prim->ellipsis_mask.empty()
                 || (!all_zeroes(begin) && !all_ones(begin_mask))
-                || !all_ones(strides))
+                || !all_ones(strides)) {
                 return;
+            }
 
             auto end = prim->end;
             auto end_mask = prim->end_mask;
@@ -140,8 +150,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
                     break;
                 }
             }
-            if (!end.empty() && !is_valid)
+            if (!end.empty() && !is_valid) {
                 return;
+            }
             node.can_be_optimized(true);
             // Set runtime skippable only when the node is set as can_be_optimized finally.
             node.set_runtime_skippable(true);
@@ -153,29 +164,33 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_output()
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
                 // If the user is reorder, it could be fused to broadcast in the remove_redundant_reorders pass.
                 // In this case, broadcast can not be optimized due to different input and output shapes.
-                if (node.have_user_with_type<reorder>() && node.get_users().size() == 1)
+                if (node.have_user_with_type<reorder>() && node.get_users().size() == 1) {
                     return;
+                }
 
                 // Check if the size of rank is different, or if one of static dimensions has different size
                 auto input_pshape = impl_params->get_input_layout(0).get_partial_shape();
                 auto output_pshape = impl_params->get_output_layout().get_partial_shape();
 
                 if (input_pshape.rank().is_static() && output_pshape.rank().is_static()) {
-                    if (input_pshape.size() != output_pshape.size())
+                    if (input_pshape.size() != output_pshape.size()) {
                         return;
+                    }
 
                     auto input_pdim = input_pshape.begin();
                     auto output_pdim = output_pshape.begin();
                     while (input_pdim != input_pshape.end()) {
                         if (input_pdim->is_static() && output_pdim->is_static()) {
-                            if (input_pdim->get_max_length() != output_pdim->get_max_length())
+                            if (input_pdim->get_max_length() != output_pdim->get_max_length()) {
                                 return;
+                            }
                         }
 
                         input_pdim++;
@@ -197,16 +212,19 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
                 || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)
-                || (impl_params->get_input_layout(0).data_padding != impl_params->get_output_layout().data_padding))
+                || (impl_params->get_input_layout(0).data_padding != impl_params->get_output_layout().data_padding)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
-                if (!node.is_output() && node.get_users().size() != 1)
+                if (!node.is_output() && node.get_users().size() != 1) {
                     return;
+                }
 
                 // If the user is concatenation with 1 user and the concat is optimized, priority should be given to in place concat optimization at runtime
-                if (node.have_user_with_type<concatenation>() && node.get_users().front()->can_be_optimized())
+                if (node.have_user_with_type<concatenation>() && node.get_users().front()->can_be_optimized()) {
                     return;
+                }
 
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
@@ -221,8 +239,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if ((node.is_output() && node.get_dependency(0).is_input())
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);
@@ -238,8 +257,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if ((node.is_output() && node.get_dependency(0).is_input())
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);
@@ -255,8 +275,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if ((node.is_output() && node.get_dependency(0).is_input())
                 || node.has_fused_primitives()
                 || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
-                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);
@@ -271,8 +292,9 @@ void mark_runtime_skippable_nodes::run(program& p) {
 
             if ((node.is_output() && node.get_dependency(0).is_input())
                 || node.has_fused_primitives()
-                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format))
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)) {
                 return;
+            }
 
             if (node.is_dynamic()) {
                 node.can_be_optimized(true);

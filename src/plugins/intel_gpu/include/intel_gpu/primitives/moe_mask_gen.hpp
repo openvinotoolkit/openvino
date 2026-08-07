@@ -55,8 +55,9 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         if (auto rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
             return num_total_experts == rhs_casted->num_total_experts &&
                    num_experts_per_token == rhs_casted->num_experts_per_token &&

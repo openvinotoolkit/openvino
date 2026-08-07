@@ -33,8 +33,9 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
     result_sizes[axis_index] = 0;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_sizes = impl_param.get_input_layout(i).get_dims();
-        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
+        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16) {
             output_format = format::b_fs_yx_fsv16;
+        }
 
         result_sizes[axis_index] += input_sizes[axis_index];
     }
@@ -56,8 +57,9 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     }
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
-        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16)
+        if (impl_param.get_input_layout(i).format == format::b_fs_yx_fsv16) {
             output_format = format::b_fs_yx_fsv16;
+        }
     }
 
     auto axis_index = desc->axis;
@@ -85,10 +87,11 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 
     for (size_t i = 0; i < node.get_inputs_count(); ++i) {
         ss_inputs << node.input(i).id();
-        if (node.input(i).get_output_layout().is_static())
+        if (node.input(i).get_output_layout().is_static()) {
             ss_inputs << ", count: " << node.input(i).get_output_layout().count();
-        else
+        } else {
             ss_inputs << ", count: " << "?";
+        }
         i != (node.get_inputs_count() - 1) ? ss_inputs << ", " : ss_inputs << "";
     }
 
@@ -159,8 +162,9 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
                 auto processed_node = processed_nodes.first;
                 processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {
-                    if (!processed_node->_deps.empty())
+                    if (!processed_node->_deps.empty()) {
                         stack.push_back(&processed_node->_deps);
+                    }
                 }
             }
         }

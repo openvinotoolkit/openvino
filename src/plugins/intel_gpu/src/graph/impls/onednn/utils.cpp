@@ -61,10 +61,12 @@ void copy_zp_data_to_s32(const memory::ptr& zp_memory, const memory::ptr& zp_s32
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     auto zp_s32_layout = zp_memory->get_layout();
     const auto src_dtype = zp_s32_layout.data_type;
-    if (src_dtype == data_types::i32)
+    if (src_dtype == data_types::i32) {
         return zp_memory;
-    if (!data_type_traits::is_i8_u8(src_dtype))
+    }
+    if (!data_type_traits::is_i8_u8(src_dtype)) {
         return nullptr;
+    }
 
     auto engine = zp_memory->get_engine();
     auto& stream = engine->get_service_stream();
@@ -248,8 +250,9 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
     auto ret = std::find_if(format_map.begin(), format_map.end(),
             [fmt](std::pair<cldnn::format, dnnl::memory::format_tag> &e) {
                     return e.second == fmt; });
-    if (ret == format_map.end())
+    if (ret == format_map.end()) {
         throw std::invalid_argument("[clDNN] Unsupported onednn layout");
+    }
 
     return ret->first;
 }
@@ -376,8 +379,9 @@ private:
             const auto& raw = _layout.get_tensor().raw;
             int64_t result = 1;
             for (size_t i = 0; i < raw.size(); ++i) {
-                if (i != skip_idx)
+                if (i != skip_idx) {
                     result *= static_cast<int64_t>(raw[i]);
+                }
             }
             return result;
         };
@@ -571,13 +575,15 @@ get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, 
 
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {
-    if (depth == 0)
+    if (depth == 0) {
         return;
+    }
 
     for (size_t idx = first; idx <= first + depth ; idx++) {
         std::swap(order[first], order[idx]);
-        if (first != idx)
+        if (first != idx) {
             orders.push_back(order);
+        }
 
         get_identical_order(orders, order, first+1, depth-1);
         std::swap(order[first], order[idx]);
@@ -618,8 +624,9 @@ std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc) {
 
 static bool compare_orders(std::vector<std::vector<size_t>> a, std::vector<size_t> b) {
     for (size_t idx = 0 ; idx < a.size() ; idx++) {
-        if (std::equal(a[idx].begin(), a[idx].end(), b.begin()))
+        if (std::equal(a[idx].begin(), a[idx].end(), b.begin())) {
             return true;
+        }
     }
 
     return false;
@@ -641,8 +648,9 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
                     break;
                 }
             }
-            if (is_match)
+            if (is_match) {
                 return static_cast<format::type>(fmt_idx);
+            }
         }
     }
 
@@ -664,8 +672,9 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
         << "ndims: " << desc.get_ndims()
         << ", inner_nblks: " << desc.get_inner_nblks()
         << ", inner_blks: ";
-    for (int i = 0; i < desc.get_inner_nblks(); i++)
+    for (int i = 0; i < desc.get_inner_nblks(); i++) {
         msg << "(blk " << desc.get_inner_blks()[i] << ", idx " << desc.get_inner_idxs()[i] << ") ";
+    }
 
     throw std::runtime_error(msg.str());
 }
@@ -674,8 +683,9 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
     auto orders = get_candidate_orders(desc);
 
     format start_format = format::oiyx;
-    if (is_grouped)
+    if (is_grouped) {
         start_format = format::goiyx;
+    }
 
     for (int32_t fmt_idx = start_format ; fmt_idx < format::format_num ; fmt_idx++) {
         auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
@@ -711,8 +721,9 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 }
             }
 
-            if (is_match)
+            if (is_match) {
                 return static_cast<format::type>(fmt_idx);
+            }
         }
     }
 
@@ -721,13 +732,15 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
         << "ndims: " << desc.get_ndims()
         << ", inner_nblks: " << desc.get_inner_nblks()
         << ", inner_blks: ";
-    for (int i = 0; i < desc.get_inner_nblks(); i++)
+    for (int i = 0; i < desc.get_inner_nblks(); i++) {
         msg << "(blk " << desc.get_inner_blks()[i] << ", idx " << desc.get_inner_idxs()[i] << ") ";
+    }
     for (auto order : orders) {
         msg << ", strides_order : ";
 
-        for (const auto& value : order)
+        for (const auto& value : order) {
             msg << value << " ";
+        }
     }
     msg << ", stride_value : ";
     auto strides = desc.get_strides();
@@ -878,8 +891,9 @@ cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& des
  * If the shape is expanded from 4D to 5D, the format of the input layout is also updated accordingly.
  */
 bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc) {
-    if (layout.is_dynamic())
+    if (layout.is_dynamic()) {
         return false;
+    }
 
     auto shape = layout.get_shape();
     auto dims = desc.get_dims();
@@ -897,8 +911,9 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     std::copy_if(desc_dims.begin(), desc_dims.end(), std::back_inserter(filtered_desc_dims),
                  [](ov::Dimension::value_type i) { return i != 1; });
 
-    if (filtered_target_dims != filtered_desc_dims)
+    if (filtered_target_dims != filtered_desc_dims) {
         return false; // We cannot keep the shapes consistent
+    }
 
     layout.set_partial_shape(desc_dims);
     if (layout.get_rank() == desc_dims.size()) {
@@ -943,8 +958,9 @@ bool is_supported_post_ops(const program_node& node) {
             auto activation_prim = fo.typed_desc<activation>();
             if (activation_prim->activation_function == activation_func::negative ||
                 activation_prim->activation_function == activation_func::negation ||
-                activation_prim->activation_function == activation_func::sign)
+                activation_prim->activation_function == activation_func::sign) {
                 return false;
+            }
         }
     }
 
@@ -952,8 +968,9 @@ bool is_supported_post_ops(const program_node& node) {
 }
 
 bool is_supported_pad(const layout& layout) {
-    if (!layout.data_padding)
+    if (!layout.data_padding) {
         return true;
+    }
 
     const auto& pad = layout.data_padding;
     // Check spatial padding
@@ -987,14 +1004,16 @@ int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout
 
     bool is_scalar = true;
     for (size_t i = 0; i < slope_shape.size(); i++) {
-        if (slope_shape[i] != 1)
+        if (slope_shape[i] != 1) {
             is_scalar = false;
+        }
     }
 
-    if (is_scalar)
+    if (is_scalar) {
         return 0;
-    else
+    } else {
         return (1 << 1);
+    }
 }
 std::string dnnl_status_to_string(dnnl_status_t status) {
     switch (status) {

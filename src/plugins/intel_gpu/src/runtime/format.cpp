@@ -242,8 +242,9 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
     auto current_order = current_traits._order;
     auto current_blocking = current_traits.block_sizes;
     auto current_rank = current_order.size();
-    if (new_rank == current_rank)
+    if (new_rank == current_rank) {
         return fmt;
+    }
 
     auto is_adjustable = [](const format& fmt) -> bool {
         return !format::is_weights_format(fmt) &&
@@ -273,23 +274,26 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
         auto candidate_blocking = candidate_traits.block_sizes;
         auto candidate_rank = candidate_traits.order.size();
 
-        if (candidate_rank != new_rank || !is_adjustable(candidate_tag))
+        if (candidate_rank != new_rank || !is_adjustable(candidate_tag)) {
             continue;
+        }
 
         bool same_blocking_scheme = candidate_blocking == current_blocking;
         bool same_dims_scheme = current_traits.batch_num == candidate_traits.batch_num &&
                                 current_traits.group_num == candidate_traits.group_num &&
                                 current_traits.feature_num == candidate_traits.feature_num;
 
-        if (!same_blocking_scheme || !same_dims_scheme)
+        if (!same_blocking_scheme || !same_dims_scheme) {
             continue;
+        }
 
         if (current_rank > candidate_rank) {
             align_order(candidate_order, candidate_rank, current_rank);
         }
 
-        if (candidate_order == current_order)
+        if (candidate_order == current_order) {
             return candidate_tag;
+        }
     }
 
     OPENVINO_ASSERT(false, "Can't adjust format ", fmt.to_string(), " to the new rank (", new_rank, ")");
@@ -301,10 +305,11 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
     for (const auto& block : fmt.block_sizes()) {
         auto it = std::find_if(sizes_for_dims.begin(), sizes_for_dims.end(),
                 [&block](const std::pair<size_t, int>& ele) { return ele.first == block.first; });
-        if (it != sizes_for_dims.end())
+        if (it != sizes_for_dims.end()) {
             it->second *= block.second;  // the axis is double blocked
-        else
+        } else {
             sizes_for_dims.push_back({block.first, block.second});
+        }
     }
 
     return sizes_for_dims;
@@ -329,8 +334,9 @@ format format::find_format(const std::vector<uint64_t>& order,
 
     std::vector<format> finded_formats;
     for (auto& traits : format_traits_map) {
-        if (is_suitable_traits(traits))
+        if (is_suitable_traits(traits)) {
             finded_formats.emplace_back(traits.first);
+        }
     }
 
     OPENVINO_ASSERT(!finded_formats.empty(), "[GPU] Cannot find a format with the specified parameters");

@@ -39,8 +39,9 @@ struct primitive_type_base : primitive_type {
     in_out_fmts_t query_preferred_formats(const cldnn::program_node& node, impl_types impl_type) const  override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::query_preferred_formats: primitive type mismatch");
         auto shape_type = ImplementationManager::get_shape_type(node);
-        if (auto factory = implementation_map<PType>::get(node.get_preferred_impl_type(), shape_type))
+        if (auto factory = implementation_map<PType>::get(node.get_preferred_impl_type(), shape_type)) {
             return factory->query_formats(node);
+        }
         return {};
     }
 
@@ -48,15 +49,18 @@ struct primitive_type_base : primitive_type {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
         for (auto& impl : get_supported_implementations(node)) {
             impl_types impl_type = impl->get_impl_type();
-            if ((node.get_forced_impl_type() & impl_type) != impl_type)
+            if ((node.get_forced_impl_type() & impl_type) != impl_type) {
                 continue;
+            }
 
-            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
+            if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node)) {
                 continue;
+            }
 
             shape_types supported_shape_type = impl->get_shape_type();
-            if ((requested_shape_type & supported_shape_type) != requested_shape_type && requested_shape_type != shape_types::any)
+            if ((requested_shape_type & supported_shape_type) != requested_shape_type && requested_shape_type != shape_types::any) {
                 continue;
+            }
 
             return impl;
         }
@@ -79,12 +83,14 @@ struct primitive_type_base : primitive_type {
         const auto& all_impls = get_all_implementations();
         for (auto& impl : all_impls) {
             impl_types impl_type = impl->get_impl_type();
-            if ((requested_impl_type & impl_type) != impl_type)
+            if ((requested_impl_type & impl_type) != impl_type) {
                 continue;
+            }
 
             shape_types supported_shape_type = impl->get_shape_type();
-            if ((requested_shape_type & supported_shape_type) != requested_shape_type)
+            if ((requested_shape_type & supported_shape_type) != requested_shape_type) {
                 continue;
+            }
 
             return impl;
         }
@@ -105,8 +111,9 @@ struct primitive_type_base : primitive_type {
 
     std::shared_ptr<ImplementationManager> get(const ov::DiscreteTypeInfo& type_info) const override {
         for (auto& impl : get_all_implementations()) {
-            if (impl->get_type_info() == type_info)
+            if (impl->get_type_info() == type_info) {
                 return impl;
+            }
         }
         return nullptr;
     }
@@ -154,25 +161,30 @@ struct primitive_type_base : primitive_type {
         auto forced_impl_type = node.get_forced_impl_type();
         for (auto& impl : all_impls) {
             impl_types impl_type = impl->get_impl_type();
-            if (requested_impl_type != impl_types::any && (requested_impl_type & impl_type) != impl_type)
+            if (requested_impl_type != impl_types::any && (requested_impl_type & impl_type) != impl_type) {
                 continue;
+            }
 
             shape_types supported_shape_type = impl->get_shape_type();
-            if (requested_shape_type != shape_types::any && (requested_shape_type & supported_shape_type) != requested_shape_type)
+            if (requested_shape_type != shape_types::any && (requested_shape_type & supported_shape_type) != requested_shape_type) {
                 continue;
+            }
 
             if (forced_impl_type != impl_types::any) {
                 // in case if we have forced impl, we don't do validation
                 // and skip all other impl types here
-                if (forced_impl_type == impl->get_impl_type())
+                if (forced_impl_type == impl->get_impl_type()) {
                     return true;
+                }
                 continue;
             } else {
-                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node))
+                if (impl_type == impl_types::onednn && !node.get_program().get_layout_optimizer().contains_onednn_impls_optimization_attribute(&node)) {
                     continue;
+                }
 
-                if (!impl->validate(node))
+                if (!impl->validate(node)) {
                     continue;
+                }
 
                 return true;
             }

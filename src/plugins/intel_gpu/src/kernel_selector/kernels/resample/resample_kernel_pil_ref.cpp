@@ -425,11 +425,13 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
         if (!NeedHorizontalPass(resample_parameters) &&
-            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal))
+            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal)) {
             continue;
+        }
         if (!NeedVerticalPass(resample_parameters) &&
-            (id == eCalcVerticalCoefficients || id == eResampleVertical))
+            (id == eCalcVerticalCoefficients || id == eResampleVertical)) {
             continue;
+        }
         auto& kernel = kd.kernels[i++];
         const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, i);
         auto jitConstants = GetJitConstantsForKernel(id, resample_parameters);

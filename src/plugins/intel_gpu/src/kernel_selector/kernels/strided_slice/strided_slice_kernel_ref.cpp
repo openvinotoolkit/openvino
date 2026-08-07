@@ -74,15 +74,18 @@ bool StridedSliceKernelRef::Validate(const Params& p) const {
     }
 
     const strided_slice_params& params = static_cast<const strided_slice_params&>(p);
-    if (params.inputs.empty())
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.outputs[0].Dimentions() > 6 || params.inputs[0].Dimentions() > 6)
+    if (params.outputs[0].Dimentions() > 6 || params.inputs[0].Dimentions() > 6) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
@@ -180,15 +183,18 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         const size_t skip_dims_num = output_rank - params.ellipsis_mask.size() + 1;
         int dim_counter = 0;
 
-        for (size_t i = 0; i < ellipsis_pos1; i++)
+        for (size_t i = 0; i < ellipsis_pos1; i++) {
             dims_indexes.push_back(dim_counter++);
+        }
 
-        for (size_t i = 0; i < skip_dims_num; i++)
+        for (size_t i = 0; i < skip_dims_num; i++) {
             dims_indexes.push_back(-1);
+        }
 
         dim_counter++;
-        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++)
+        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++) {
             dims_indexes.push_back(dim_counter++);
+        }
 
         OPENVINO_ASSERT(dims_indexes.size() == output_rank, "[GPU] Number of indexes is expected to match with output rank");
     } else {
@@ -202,12 +208,13 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant("SHRINK_MODE", true));
         makeJitConstForParam(jit, "SHRINK", params.shrink_axis_mask);
         std::vector<std::string> bfwzyx_in_order;
-        if (params.outputs[0].Dimentions() == 6)
+        if (params.outputs[0].Dimentions() == 6) {
             bfwzyx_in_order = {"batch", "feature", "w", "z", "y", "x"};
-        else if (params.outputs[0].Dimentions() == 5)
+        } else if (params.outputs[0].Dimentions() == 5) {
             bfwzyx_in_order = {"batch", "feature", "z", "y", "x"};
-        else
+        } else {
             bfwzyx_in_order = {"batch", "feature", "y", "x"};
+        }
 
         // Insert zeroes to indices order for shinked axes
         for (size_t i = 0; i < params.shrink_axis_mask.size(); i++) {

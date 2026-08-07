@@ -97,15 +97,19 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) con
         return params.inputs[0].GetDType();
     }
 
-    if (params.int8_quantization)
+    if (params.int8_quantization) {
         return Datatype::INT32;
+    }
 
     Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
-    for (Datatype type : types)
-        for (auto& in : params.inputs)
-            if (in.GetDType() == type)
+    for (Datatype type : types) {
+        for (auto& in : params.inputs) {
+            if (in.GetDType() == type) {
                 return type;
+            }
+        }
+    }
 
     return Datatype::F32;
 }
@@ -144,8 +148,9 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
 
     const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
     for (auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -175,8 +180,9 @@ bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params
 
     for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
         const auto& ew =  params.operations[op_num];
-        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end())
+        if (std::find(unsupported_modes.begin(), unsupported_modes.end(), ew.mode) != unsupported_modes.end()) {
             return true;
+        }
     }
 
     return false;
@@ -213,8 +219,9 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 const auto& input = ew.inputs[input_idx];
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
-                    if (c != 1.0f)
+                    if (c != 1.0f) {
                         coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
+                    }
                 }
             }
 
@@ -253,10 +260,11 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 if (is_integer_type(input_0_type)) {
                     // input_0 == int && input_1 == int
                     if (is_integer_type(input_1_type)) {
-                        if (ew.mode == EltwiseMode::MODULU)
+                        if (ew.mode == EltwiseMode::MODULU) {
                             op += input0_str + " % " + input1_str;
-                        else
+                        } else {
                             op += cast_type + mode + "(" + input0_str + ", " + input1_str + ")";
+                        }
                     } else {
                         // input_0 == int && input_1 != int
                         op += cast_type + "f" + mode + "(convert_float(" + input0_str + "), " + input1_str + ")";
@@ -374,8 +382,9 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
         const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
         bool is_dynamic_crop_kernel = params.is_shape_agnostic && params.operations[op_num].mode == EltwiseMode::ASSIGN;
-        if (is_dynamic_crop_kernel)
+        if (is_dynamic_crop_kernel) {
             jit.AddConstant(MakeJitConstant("IS_DYNAMIC_CROP", 1));
+        }
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
@@ -386,13 +395,14 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                     jit.AddConstant(MakeJitConstant(name, input.scalar));
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
-                    if (useVload8)
+                    if (useVload8) {
                         jit.AddConstant(MakeJitConstant(name, "in" + toCodeString(input.index)));
-                    else
+                    } else {
                         jit.AddConstant(MakeJitConstant(name,
                                                         "input" + toCodeString(input.index) +
                                                         "[GET_INDEX(INPUT, " + toCodeString(input.index) +
                                                         "," + idx_order + ") " + (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]")));
+                    }
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
@@ -414,10 +424,11 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
     if (useVload8) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
             vload_decls += "\\\n\tconst " + toCLType(params.inputs[i].GetDType()) + "8 in" + toCodeString(i);
-            if (params.inputs[i].PhysicalSize() == 1)  // Scalar case
+            if (params.inputs[i].PhysicalSize() == 1) {  // Scalar case
                 vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
-            else  // Buffer case
+            } else {  // Buffer case
                 vload_decls += " = vload8(global_id, input" + toCodeString(i);
+            }
             vload_decls += ");";
         }
         jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
@@ -615,11 +626,12 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     }
 
     auto& updateInputs = params.updateInputIds;
-    for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++)
+    for (size_t update_input_idx = 0; update_input_idx < updateInputs.size(); update_input_idx++) {
         do_eltwise += "\\\n\tinput" + toCodeString(updateInputs[update_input_idx].inputId) + "[GET_INDEX(INPUT, " +
                       toCodeString(updateInputs[update_input_idx].inputId) + ", " +
                       "INPUT"+toCodeString(updateInputs[update_input_idx].inputId) + "_IDX_ORDER)] = tmp" +
                       toCodeString(updateInputs[update_input_idx].tmpId) + ";";
+    }
 
     do_eltwise += "\\\n\tres = tmp" + toCodeString(operations.size() - 1) + ";";
 

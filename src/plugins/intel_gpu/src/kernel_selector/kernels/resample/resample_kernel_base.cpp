@@ -36,14 +36,19 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     const size_t min_size = 4;
     size_t feature_block_size = 1;
     std::vector<size_t> preferred_sizes = { 32, 16, 8 };
-    for (auto& s : preferred_sizes)
-        if (params.outputs[0].Feature().v % s == 0)
+    for (auto& s : preferred_sizes) {
+        if (params.outputs[0].Feature().v % s == 0) {
             return s;
-    if (params.outputs[0].Feature().v < max_size)
+        }
+    }
+    if (params.outputs[0].Feature().v < max_size) {
         return params.outputs[0].Feature().v;
-    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++)
-        if (params.outputs[0].Feature().v % f == 0)
+    }
+    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++) {
+        if (params.outputs[0].Feature().v % f == 0) {
             feature_block_size = f;
+        }
+    }
     return std::max(feature_block_size, min_size);
 }
 
@@ -98,8 +103,9 @@ bool ResampleKernelBase::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     if (params.inputs.empty()) {
@@ -111,8 +117,9 @@ bool ResampleKernelBase::Validate(const Params& p) const {
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
         params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
         params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+        params.resampleType != ResampleType::LINEAR_ONNX) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -124,10 +131,12 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     const auto& output = params.outputs[0];
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
-    if (pads_begin.size() == 4)
+    if (pads_begin.size() == 4) {
         pads_begin.insert(std::next(pads_begin.begin(), 2), 0);
-    if (pads_end.size() == 4)
+    }
+    if (pads_end.size() == 4) {
         pads_end.insert(std::next(pads_end.begin(), 2), 0);
+    }
 
     const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
     const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
@@ -155,12 +164,14 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     for (std::size_t i = 0; i < params.axes.size(); i++) {
         int idx = getAxisIndex(params.axes[i]);
         axesUsed[idx] = 1;
-        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
+        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
             scales[idx] = 1.f / params.scales[i];
+        }
     }
     for (size_t i = 0; i < scales.size(); ++i) {
-        if (scales[i] != 1.f)
+        if (scales[i] != 1.f) {
             axesUsed[i] = 1;
+        }
     }
 
     jit.AddConstants({
@@ -241,8 +252,9 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
 Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
 
-    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR)
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
         return in_dt;
+    }
 
     return Datatype::F32;
 }

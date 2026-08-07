@@ -16,8 +16,9 @@ inline bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
     auto input_layout = node.get_input_layout();
-    if (node.get_output_layout().format == format::any)
+    if (node.get_output_layout().format == format::any) {
         return false;
+    }
 
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
@@ -34,8 +35,9 @@ inline bool is_reduce_blocked_axes(reduce_node const& node) {
     if (input_layout.is_static() &&
         (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
         (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0))) {
-        if (!feature_axis_is_only_remaining)
+        if (!feature_axis_is_only_remaining) {
             return true;
+        }
     }
 
     return false;
@@ -50,8 +52,9 @@ struct ReduceImplementationManager : public ImplementationManager {
         assert(node.is_type<reduce>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         const auto& reduce_node = node.as<reduce>();
 
@@ -61,8 +64,9 @@ struct ReduceImplementationManager : public ImplementationManager {
         auto in_dt = in_layout.data_type;
         auto out_dt = out_layout.data_type;
 
-        if (in_dt == data_types::f32 && out_dt == data_types::f32)
+        if (in_dt == data_types::f32 && out_dt == data_types::f32) {
             return false;
+        }
 
         static const std::vector<format::type> supported_formats = {
             format::any,
@@ -83,11 +87,13 @@ struct ReduceImplementationManager : public ImplementationManager {
             format::bs_fs_zyx_bsv32_fsv32,
         };
 
-        if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats))
+        if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats)) {
             return false;
+        }
 
-        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout)) {
             return false;
+        }
 
         // oneDNN reduction currently does not support logical_and, logical_or, log_sum and log_sum_exp.
         switch (reduce_prim->mode) {
@@ -101,8 +107,9 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::l1:
             case reduce_mode::l2:
                 // modes have a limitation of data type
-                if (one_of(in_dt, {data_types::f16, data_types::f32}))
+                if (one_of(in_dt, {data_types::f16, data_types::f32})) {
                     break;
+                }
             default:
                 return false;
         }

@@ -27,8 +27,9 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto convert_max_val = [](int64_t casted_val, ov::element::Type type) {
         // if the original const is int32_t and the value is max,
         // it should be kept to set the shape as unbounded dynamic shape.
-        if ((type == ov::element::i32 && casted_val == INT_MAX) || (type == ov::element::u32 && casted_val == UINT_MAX))
+        if ((type == ov::element::i32 && casted_val == INT_MAX) || (type == ov::element::u32 && casted_val == UINT_MAX)) {
             return static_cast<int64_t>(0x7FFFFFFFFFFFFFFF);
+        }
         return casted_val;
     };
 
@@ -58,20 +59,23 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
         auto input_pshape = op->get_input_partial_shape(0);
 
-        if (input_pshape.is_dynamic() || output_pshape.is_dynamic())
+        if (input_pshape.is_dynamic() || output_pshape.is_dynamic()) {
             return;
+        }
 
         auto input_shape = input_pshape.to_shape();
         auto output_shape = output_pshape.to_shape();
 
         bool ones_stride = true;
         for (auto & s : strides) {
-            if (s != 1)
+            if (s != 1) {
                 ones_stride = false;
+            }
         }
 
-        if (!ones_stride)
+        if (!ones_stride) {
             break;
+        }
 
         auto convert_to_set = [](const std::vector<int64_t> mask) {
             ov::AxisSet axis_set{};
@@ -103,12 +107,14 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                 int num_new_axis_after_ellipses = 0;
                 int num_input_axis_before_ellipses = 0;
                 for (size_t i = 0; i < axis; ++i) {
-                    if (!new_axis_mask.count(i))
+                    if (!new_axis_mask.count(i)) {
                         num_input_axis_before_ellipses++;
+                    }
                 }
                 for (size_t i = axis + 1; i < begin.size(); ++i) {
-                    if (new_axis_mask.count(i))
+                    if (new_axis_mask.count(i)) {
                         num_new_axis_after_ellipses++;
+                    }
                 }
 
                 // -1 because it's a position of ellipses
@@ -137,9 +143,10 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                     reshape_pattern.emplace_back(1);
                     dim.emplace_back(1);
                     int64_t lb = begin[axis];
-                    if (lb < 0)
+                    if (lb < 0) {
                         lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
                                         static_cast<int64_t>(0));
+                    }
                     offset.emplace_back(begin_mask.count(axis) ? 0 : lb);
                     input_shape_idx++;
                 } else {
@@ -150,12 +157,14 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                     int64_t ub = end[axis];
 
                     // convert negative indexes to positive
-                    if (lb < 0)
+                    if (lb < 0) {
                         lb = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + lb,
                                         static_cast<int64_t>(0));
-                    if (ub < 0)
+                    }
+                    if (ub < 0) {
                         ub = std::max(static_cast<int64_t>(input_shape[input_shape_idx]) + ub,
                                         static_cast<int64_t>(0));
+                    }
 
                     // apply restrictions when begin or end values more/less than max/min possible values.
                     lb = std::min(static_cast<int64_t>(input_shape[input_shape_idx]), lb);
@@ -165,31 +174,38 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
                     // set default value for stride or use given value
                     int64_t stride = 1;
-                    if (strides.size() > axis)
+                    if (strides.size() > axis) {
                         stride = strides[axis];
+                    }
 
                     int64_t dimension = 0;
                     if (stride < 0) {
                         // apply masks
-                        if (begin_mask.count(axis))
+                        if (begin_mask.count(axis)) {
                             lb = static_cast<int64_t>(input_shape[input_shape_idx]) - 1;
-                        if (end_mask.count(axis))
+                        }
+                        if (end_mask.count(axis)) {
                             ub = -1;
+                        }
 
                         lb = std::min(lb, static_cast<int64_t>(input_shape[input_shape_idx]) - 1);
                         lb -= 1;  // we always get 1st element, so we need decrease range
-                        if (ub <= lb)
+                        if (ub <= lb) {
                             dimension = (ub - lb) / stride + 1;
+                        }
                     } else {
                         // apply masks
-                        if (begin_mask.count(axis))
+                        if (begin_mask.count(axis)) {
                             lb = 0;
-                        if (end_mask.count(axis))
+                        }
+                        if (end_mask.count(axis)) {
                             ub = static_cast<int64_t>(input_shape[input_shape_idx]);
+                        }
 
                         lb += 1;  // we always get 1st element, so we need decrease range
-                        if (ub >= lb)
+                        if (ub >= lb) {
                             dimension = (ub - lb) / stride + 1;
+                        }
                     }
 
                     dim.emplace_back(dimension);

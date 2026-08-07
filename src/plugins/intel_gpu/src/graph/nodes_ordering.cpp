@@ -11,8 +11,9 @@
 namespace cldnn {
 // helper method for calc_processing order
 void program::nodes_ordering::calc_processing_order_visit(program_node* node) {
-    if (node->is_marked())
+    if (node->is_marked()) {
         return;
+    }
     for (auto user : node->users) {
         calc_processing_order_visit(user);
     }

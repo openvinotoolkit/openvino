@@ -41,12 +41,13 @@ struct reorder_cache_key {
     friend bool operator!=(reorder_cache_key const& lhs, reorder_cache_key const& rhs) { return !(lhs == rhs); }
 
     friend bool operator<(reorder_cache_key const& lhs, reorder_cache_key const& rhs) {
-        if (lhs.data_source != rhs.data_source)
+        if (lhs.data_source != rhs.data_source) {
             return (lhs.data_source < rhs.data_source);
-        else if (lhs.expected_layout != rhs.expected_layout)
+        } else if (lhs.expected_layout != rhs.expected_layout) {
             return (lhs.expected_layout < rhs.expected_layout);
-        else
+        } else {
             return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+        }
     }
 };
 

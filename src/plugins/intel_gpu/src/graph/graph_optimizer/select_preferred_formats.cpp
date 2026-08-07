@@ -64,26 +64,31 @@ static void optimize_conv_permute(program_node& node) {
 
 static void optimize_permute_conv(program_node& node) {
     // Goal: Eliminate the Reorder by aligning connection to byxf
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty()) {
         return;
+    }
 
     auto& dep = node.get_dependency(0);
 
     // Dependency must be a Permute node (not network output)
-    if (!dep.is_type<permute>() || dep.is_output())
+    if (!dep.is_type<permute>() || dep.is_output()) {
         return;
+    }
 
-    if ((node.get_users().size() != 1) || (node.get_output_layout().get_rank() != 4))
+    if ((node.get_users().size() != 1) || (node.get_output_layout().get_rank() != 4)) {
         return;
+    }
 
     auto& pnode = dep.as<permute>();
 
-    if (pnode.get_output_layout().data_type != node.get_output_layout().data_type)
+    if (pnode.get_output_layout().data_type != node.get_output_layout().data_type) {
         return;
+    }
 
     // NHWC <-> NCHW (ensures reverse rotation pattern)
-    if (!pnode.is_reverse_rotating_except_batch())
+    if (!pnode.is_reverse_rotating_except_batch()) {
         return;
+    }
 
     auto pnode_upstream_fmt = pnode.get_dependency(0).get_preferred_output_fmt();
     auto node_fmt = node.get_preferred_output_fmt();
@@ -91,8 +96,9 @@ static void optimize_permute_conv(program_node& node) {
     bool is_compatible_format = ((pnode_upstream_fmt == format::bfyx || pnode_upstream_fmt == format::any)
                                 && (node_fmt == format::byxf));
 
-    if (!is_compatible_format)
+    if (!is_compatible_format) {
         return;
+    }
 
     // Set the layouts so that the memory buffer is re-interpreted rather than physically shuffled.
     node.set_preferred_input_fmt(0, format::byxf);

@@ -329,19 +329,23 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
 }
 
 bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
-    if (mem1.get_engine() != this || mem2.get_engine() != this)
+    if (mem1.get_engine() != this || mem2.get_engine() != this) {
         return false;
-    if (mem1.get_allocation_type() != mem2.get_allocation_type())
+    }
+    if (mem1.get_allocation_type() != mem2.get_allocation_type()) {
         return false;
-    if (&mem1 == &mem2)
+    }
+    if (&mem1 == &mem2) {
         return true;
+    }
 
-    if (!memory_capabilities::is_usm_type(mem1.get_allocation_type()))
+    if (!memory_capabilities::is_usm_type(mem1.get_allocation_type())) {
         return (reinterpret_cast<const ocl::gpu_buffer&>(mem1).get_buffer() ==
                 reinterpret_cast<const ocl::gpu_buffer&>(mem2).get_buffer());
-    else
+    } else {
         return (reinterpret_cast<const ocl::gpu_usm&>(mem1).get_buffer() ==
                 reinterpret_cast<const ocl::gpu_usm&>(mem2).get_buffer());
+    }
 }
 
 void* ocl_engine::get_user_context(runtime_types rt_type) const {

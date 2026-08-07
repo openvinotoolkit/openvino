@@ -33,8 +33,9 @@ struct search_sorted : public primitive_base<search_sorted> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const search_sorted>(rhs);
 

@@ -194,8 +194,9 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
         for (size_t i = 0; i < op->get_input_size(); i++) {
             auto& in_shape = op->get_input_partial_shape(i);
-            if (in_shape.size() > 1)
+            if (in_shape.size() > 1) {
                 return false;
+            }
         }
         return true;
     };
@@ -216,8 +217,9 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     };
 
     auto is_grouped_conv = [](ov::Node* op) -> bool {
-        if (ov::is_type<ov::op::v1::GroupConvolution>(op))
+        if (ov::is_type<ov::op::v1::GroupConvolution>(op)) {
             return true;
+        }
 
         if (ov::is_type<op::Convolution>(op)) {
             return ov::as_type<op::Convolution>(op)->get_groups() > 0;
@@ -281,8 +283,9 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ov::Shape slope_shape(input_shape.size(), 1);
-                for (size_t j = 1; j <= constDims.size(); j++)
+                for (size_t j = 1; j <= constDims.size(); j++) {
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
+                }
                 constDims = slope_shape;
             }
         } else if (is_grouped_conv(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {

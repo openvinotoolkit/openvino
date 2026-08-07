@@ -98,16 +98,21 @@ public:
         }
 
         // Update ids
-        if (get_trip_count_id() == prevID)
+        if (get_trip_count_id() == prevID) {
             trip_count_id = newID;
-        if (get_initial_execution_id() == prevID)
+        }
+        if (get_initial_execution_id() == prevID) {
             initial_execution_id = newID;
-        if (get_current_iteration_id() == prevID)
+        }
+        if (get_current_iteration_id() == prevID) {
             current_iteration_id = newID;
-        if (get_execution_condition_id() == prevID)
+        }
+        if (get_execution_condition_id() == prevID) {
             execution_condition_id = newID;
-        if (get_num_iterations_id() == prevID)
+        }
+        if (get_num_iterations_id() == prevID) {
             num_iterations_id = newID;
+        }
     }
 
     // current_iteration is necessary to calculate output layout in dynamic shape

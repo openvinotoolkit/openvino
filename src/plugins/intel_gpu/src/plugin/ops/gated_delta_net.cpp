@@ -42,14 +42,18 @@ static void CreateGatedDeltaNetOp(ProgramBuilder& p, const std::shared_ptr<ov::o
             const auto k_heads_num_dim = query_ps[query_rank - 2];
             const auto v_heads_num_dim = value_ps[value_rank - 2];
 
-            if (k_head_size_dim.is_static())
+            if (k_head_size_dim.is_static()) {
                 gated_delta_net_prim.k_head_size = k_head_size_dim.get_length();
-            if (v_head_size_dim.is_static())
+            }
+            if (v_head_size_dim.is_static()) {
                 gated_delta_net_prim.v_head_size = v_head_size_dim.get_length();
-            if (k_heads_num_dim.is_static())
+            }
+            if (k_heads_num_dim.is_static()) {
                 gated_delta_net_prim.k_heads_num = k_heads_num_dim.get_length();
-            if (v_heads_num_dim.is_static())
+            }
+            if (v_heads_num_dim.is_static()) {
                 gated_delta_net_prim.v_heads_num = v_heads_num_dim.get_length();
+            }
         }
     }
 

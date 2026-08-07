@@ -67,11 +67,13 @@ protected:
 
         args.inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
-        if (desc->decompression_scale.is_valid())
+        if (desc->decompression_scale.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
+        }
 
-        if (desc->decompression_zero_point.is_valid())
+        if (desc->decompression_zero_point.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(in_id));
+        }
 
         return args;
     }
@@ -154,8 +156,9 @@ public:
         bool swiglu_fused = false;
         if (!updated_impl_param.fused_desc.empty()) {
             for (const auto& f : updated_impl_param.fused_desc) {
-                if (f.is_type<swiglu>())
+                if (f.is_type<swiglu>()) {
                     swiglu_fused = true;
+                }
             }
         }
 
@@ -196,12 +199,14 @@ public:
             }
         }
 
-        if (primitive->input_size != 3)
+        if (primitive->input_size != 3) {
             params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+        }
 
         bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
+        for (auto& input : impl_param.input_layouts) {
             is_quantized &= data_type_traits::is_quantized(input.data_type);
+        }
 
         if (is_quantized) {
             params.quantization = kernel_selector::QuantizationType::SYMMETRIC;

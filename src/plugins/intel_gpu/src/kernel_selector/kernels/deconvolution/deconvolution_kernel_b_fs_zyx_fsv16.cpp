@@ -61,8 +61,9 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
     if (ver_bsv16_fsv16) {
         dispatchData.gws[0] = 64;
         while (dispatchData.gws[0] > 16) {
-            if (f % dispatchData.gws[0] == 0)
+            if (f % dispatchData.gws[0] == 0) {
                 break;
+            }
             dispatchData.gws[0] /= 2;
         }
         dispatchData.gws[1] = x * y * z;
@@ -74,15 +75,17 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
     } else {
         size_t x_block_size = 16;
         while (x_block_size > 1) {
-            if (x % x_block_size == 0)
+            if (x % x_block_size == 0) {
                break;
+            }
             x_block_size--;
         }
         x_block_size = std::max(x_block_size, (size_t)8);
         dispatchData.gws[0] = 64;
         while (dispatchData.gws[0] > 16) {
-            if (f % dispatchData.gws[0] == 0)
+            if (f % dispatchData.gws[0] == 0) {
                 break;
+            }
             dispatchData.gws[0] /= 2;
         }
         dispatchData.gws[1] = CeilDiv(x, x_block_size) * y * z;
@@ -106,15 +109,17 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     }
     auto& deconv_params = static_cast<const deconvolution_params&>(p);
 
-    if (deconv_params.outputs[0].GetLayout() != deconv_params.inputs[0].GetLayout())
+    if (deconv_params.outputs[0].GetLayout() != deconv_params.inputs[0].GetLayout()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& params = static_cast<const deconvolution_params&>(p);
     const auto feature_block_size = 16;
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -157,8 +162,9 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     } else {
         iw_block = 16;
         while (iw_block > 1) {
-            if (output.X().v % iw_block == 0)
+            if (output.X().v % iw_block == 0) {
                 break;
+            }
             iw_block--;
         }
         iw_block = std::max(iw_block, 8);

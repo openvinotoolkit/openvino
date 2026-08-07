@@ -141,8 +141,9 @@ protected:
             const auto& v_layout = params.input_layouts[paged_gated_delta_net::VALUE];
             auto read_pitch = [](const cldnn::layout& layout, size_t idx) -> int32_t {
                 const auto& pitches = layout.get_pitches();
-                if (idx < pitches.size())
+                if (idx < pitches.size()) {
                     return static_cast<int32_t>(pitches[idx]);
+                }
                 return 1;
             };
 
