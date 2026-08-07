@@ -32,7 +32,7 @@ KERNEL(concatenation_gpu_ref)(
         uint input_offset = GET_INDEX(INPUT0, INPUT_DIMS_ORDER);
         uint output_offset = GET_INDEX(OUTPUT, OUTPUT_DIMS_ORDER);
 
-        INPUT0_TYPE result = input[input_offset];
+        INPUT0_COMPUTE_TYPE result = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
 #if HAS_FUSED_OPS
         FUSED_OPS;
@@ -40,7 +40,7 @@ KERNEL(concatenation_gpu_ref)(
 #elif INPUT0_IS_F8E4M3
         // fp8 is a 1-byte struct; Concat just moves data (in/out dtype match), so copy the byte
         // (TO_OUTPUT_TYPE/ACTIVATION won't compile on it).
-        output[output_offset] = result;
+        output[output_offset] = input[input_offset];
 #else
         output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
 #endif
