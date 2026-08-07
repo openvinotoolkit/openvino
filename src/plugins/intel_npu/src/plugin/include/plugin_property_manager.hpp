@@ -34,7 +34,7 @@ public:
     }
 
     FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const;
-    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties, const ICompilerAdapter* compiler) const;
+    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties) const;
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;

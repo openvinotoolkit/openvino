@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "compiler_property_helper.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
@@ -52,28 +53,15 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
-                                       const intel_npu::ICompilerAdapter* compiler,
+                                       ov::intel_npu::CompilerType compilerType,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                        const intel_npu::Logger& logger) {
     using namespace intel_npu;
 
-    bool legacy = false;
-    std::optional<std::vector<std::string>> compilerSupportList{};
-    uint32_t compilerVersion = 0;
-
-    OPENVINO_ASSERT(compiler != nullptr, "Compiler must be present to filter properties by compiler support");
-
-    compilerVersion = compiler->get_version();
-    compilerSupportList = compiler->get_supported_options();
-
+    std::optional<std::vector<std::string>> compilerSupportList = getCompilerSupportedOptions(compilerType, backend);
     if (!compilerSupportList.has_value()) {
         logger.info("No compiler support options list received! Fallback to version-based option registration");
-        legacy = true;
-    }
-
-    logger.debug("Compiler version: %u", compilerVersion);
-    logger.debug("Legacy registration: %s", legacy ? "true" : "false");
-    if (!legacy) {
+    } else {
         const auto& supportedOptions = compilerSupportList.value();
         logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
         for (const auto& str : supportedOptions) {
@@ -82,34 +70,12 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     }
 
     config.walkEnables([&](const std::string& key) {
-        bool isEnabled = false;
         auto opt = config.getOpt(key);
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
         if (opt.mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
-            if (legacy) {
-                // Compiler or common option in Legacy mode? Checking its supported version
-                if (compilerVersion >= opt.compilerSupportVersion()) {
-                    isEnabled = true;
-                }
-            } else {
-                // We have compiler, we are not in legacy mode = we have a valid list of supported options
-                // Searching in the list
-                const auto& supportedOptions = compilerSupportList.value();
-                auto it = std::find(supportedOptions.begin(), supportedOptions.end(), key);
-                if (it != supportedOptions.end()) {
-                    isEnabled = true;
-                } else {
-                    // Not found in the supported options list.
-                    if (compiler != nullptr) {
-                        // Checking if it is a private option?
-                        isEnabled = compiler->is_option_supported(key);
-                    } else {
-                        // Not in the list and not a private option = disabling
-                        isEnabled = false;
-                    }
-                }
-            }
+            bool isEnabled =
+                isCompilerOptionSupported(compilerType, key, std::nullopt, backend, opt.compilerSupportVersion());
 
             if (!isEnabled) {
                 logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
@@ -125,7 +91,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     // Special cases
     // NPU_TURBO which might not be supported by compiler, but driver will still use it
     // if it exists in config = driver supports it
-    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // if compiler->is_option_supported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
@@ -625,7 +591,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
               compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -737,7 +703,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
                                      compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -833,7 +799,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
                                  compilationPlatform == _currentlyUsedPlatform)) {
         // In case properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+        filterPropertiesByCompilerSupport(_config, compilerType, _backend, _logger);
 
         // reset properties for the new options
         registerProperties();
@@ -901,8 +867,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
     return std::move(updatedConfig);
 }
 
-FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties,
-                                                                   const ICompilerAdapter* compiler) const {
+FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties) const {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
         [&]() {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -922,24 +887,21 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
-    if (compilerConfigsFilteredByCompiler) {
-        auto compilerType = pluginProperties.find(ov::intel_npu::compiler_type.name());
-        if (compilerType != pluginProperties.end()) {
-            propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
-        }
+    auto compilerType = pluginProperties.find(ov::intel_npu::compiler_type.name());
+    if (compilerType != pluginProperties.end()) {
+        propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
     }
     auto platform = pluginProperties.find(ov::intel_npu::platform.name());
     if (platform != pluginProperties.end()) {
         propertiesPlatform = platform->second.as<std::string>();
     }
 
-    // filter out unsupported options
-    if (!(compilerConfigsFilteredByCompiler &&
-          propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
+    const auto effectiveCompilerType = propertiesCompilerType.value_or(currentlyUsedCompiler);
+    if (!(compilerConfigsFilteredByCompiler && effectiveCompilerType == currentlyUsedCompiler &&
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
+        filterPropertiesByCompilerSupport(updatedConfig, effectiveCompilerType, _backend, logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
@@ -948,7 +910,7 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
-            if (!compiler->is_option_supported(key)) {
+            if (!isCompilerOptionSupported(effectiveCompilerType, key, std::nullopt, _backend, std::nullopt)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
             updatedConfig.addOrUpdateInternal(key, value);

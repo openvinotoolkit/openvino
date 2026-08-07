@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "graph.hpp"
+#include "intel_npu/common/compiler_options_cache.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -272,10 +273,17 @@ uint32_t DriverCompilerAdapter::get_version() const {
 }
 
 std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_options() const {
+    if (auto cachedOptions = CompilerOptionsCache::getSupportedOptions(ov::intel_npu::CompilerType::DRIVER);
+        cachedOptions.has_value()) {
+        return cachedOptions;
+    }
+
     std::optional<std::string> compilerOptionsStr;
     compilerOptionsStr = _zeGraphExt->getCompilerSupportedOptions();
 
     if (!compilerOptionsStr.has_value()) {
+        // Legacy path: compiler does not expose supported options list.
+        cacheSetLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER, _zeroInitStruct->getCompilerVersion());
         return std::nullopt;
     }
 
@@ -286,13 +294,35 @@ std::optional<std::vector<std::string>> DriverCompilerAdapter::get_supported_opt
     while (suppstream >> option) {
         compilerOpts.push_back(option);
     }
+
+    cacheSetSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
     return compilerOpts;
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
-                                                const std::optional<std::string>& optValue) const {
+                                                const std::optional<std::string>& optValue,
+                                                const std::optional<uint32_t>& compilerSupportVersion) const {
+    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
+                                                optName,
+                                                optValue,
+                                                compilerSupportVersion)) {
+        return true;
+    }
+
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
-    return isOptionSupported.value_or(false);
+    if (!isOptionSupported.has_value()) {
+        cacheSetLegacyCompilerVersion(ov::intel_npu::CompilerType::DRIVER, _zeroInitStruct->getCompilerVersion());
+        return CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
+                                                       optName,
+                                                       optValue,
+                                                       compilerSupportVersion);
+    }
+    const bool supported = isOptionSupported.value();
+    if (supported) {
+        cacheAddSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
+    }
+
+    return supported;
 }
 
 bool DriverCompilerAdapter::isCompilerOptionSupported(const FilteredConfig& config,
