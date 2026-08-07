@@ -9,6 +9,7 @@
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
+#include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
 namespace ov {
