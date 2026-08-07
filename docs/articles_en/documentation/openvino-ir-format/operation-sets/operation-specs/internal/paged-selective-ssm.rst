@@ -1,3 +1,5 @@
+.. {#openvino_docs_ops_internal_PagedSelectiveSSM}
+
 PagedSelectiveSSM
 =================
 
