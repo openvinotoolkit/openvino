@@ -175,8 +175,8 @@ static inline uint64_t get_l0_context_memory_allocation_id(ze_context_handle_t h
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
     auto res = intel_npu::zeMemGetAllocProperties(handle, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS && desc.id > 0 &&
-        ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
-         (desc.type == ZE_MEMORY_TYPE_SHARED))) {
+        ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_HOST_IMPORTED) ||
+         (desc.type == ZE_MEMORY_TYPE_DEVICE) || (desc.type == ZE_MEMORY_TYPE_SHARED))) {
         return desc.id;
     }
 
