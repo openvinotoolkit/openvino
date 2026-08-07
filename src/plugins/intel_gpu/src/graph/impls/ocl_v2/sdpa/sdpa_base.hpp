@@ -54,6 +54,11 @@ struct sdpa_configuration {
     int64_t input_num;
 };
 
+// Build the comma-separated dims-order string (e.g. "b,f,w,z,y,x") for the given transpose order.
+// Declared here (lifted out of sdpa_base.cpp's anonymous namespace) so the split-KV jit emission in
+// sdpa_gen_opt.cpp can reuse it for the KEY_NEW/VALUE_NEW chunks.
+std::string get_dims_order(const std::vector<int64_t>& order_idx);
+
 struct SDPABase : public KernelGenerator {
     SDPABase(std::string_view name, std::string_view suffix, bool indirect) : KernelGenerator(name, suffix), m_indirect(indirect) {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;

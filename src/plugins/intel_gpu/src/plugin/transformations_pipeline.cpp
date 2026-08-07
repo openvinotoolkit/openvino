@@ -116,7 +116,9 @@
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
+#include "plugin/transformations/sdpa_split_kv_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -1591,6 +1593,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
+        // Build a split-KV SDPA for the "split attention" sub-graph (cache + new K/V attended
+        // separately then summed) in decode (q_len == 1). SDPASplitAttentionFusionMatcher (core
+        // transformations) is registered explicitly right before it: models normally reach this
+        // already fused into v13::SDPA(Q, Concat(K_cache,K_new), Concat(V_cache,V_new), mask) by an
+        // earlier offline conversion step (e.g. ovc, which runs MOCTransformations), but
+        // CommonOptimizations above does NOT include that fusion, so re-running it here guarantees
+        // the Concat+SDPA shape SDPASplitKVFusion matches is present even for models compiled
+        // directly from a raw (un-converted) graph. A naive single-SDPA lowering of that shape is
+        // avoided because materializing the Concats would force a full-cache copy every step. Must
+        // run before TransposeFusion (further below), which converts v13::SDPA into the plugin's
+        // internal op::SDPA and would consume the anchor node.
+        manager.register_pass<ov::pass::SDPASplitAttentionFusionMatcher>();
+        manager.register_pass<ov::intel_gpu::SDPASplitKVFusion>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
         manager.register_pass<ov::pass::MoveFCReshapeToWeights<ov::intel_gpu::op::FullyConnected>>();
         if (!device_info.supports_immad) {

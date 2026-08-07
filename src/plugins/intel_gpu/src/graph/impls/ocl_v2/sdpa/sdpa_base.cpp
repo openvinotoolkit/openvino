@@ -31,6 +31,12 @@ static std::string get_broadcast_input_str(const size_t input_rank, const int64_
     return dims[axes] + " /= " + std::to_string(val) + ";";
 }
 
+size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attention>& primitive) {
+    return primitive->input_size() - 1;
+}
+
+}  // namespace
+
 std::string get_dims_order(const std::vector<int64_t>& order_idx) {
     auto get_order_idx = [](const std::vector<int64_t>& order_idx, int64_t dim_idx) {
         int loc = 0;
@@ -67,12 +73,6 @@ std::string get_dims_order(const std::vector<int64_t>& order_idx) {
     }
     return dims_order;
 }
-
-size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attention>& primitive) {
-    return primitive->input_size() - 1;
-}
-
-}  // namespace
 
 // 4-bit KV-cache packs two u4 values into one i8 byte, halving the physical
 // innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
