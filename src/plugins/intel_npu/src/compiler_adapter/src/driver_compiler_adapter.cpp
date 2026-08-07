@@ -5,7 +5,6 @@
 #include "driver_compiler_adapter.hpp"
 
 #include <functional>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -45,19 +44,22 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::hint::num_requests.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::hint::performance_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::log::level.name(), ONEAPI_MAKE_VERSION(0, 0)},
-    {ov::intel_npu::batch_compiler_mode_settings.name(), ONEAPI_MAKE_VERSION(7, 4)},
-    {ov::intel_npu::batch_mode.name(), ONEAPI_MAKE_VERSION(5, 5)},
-    {ov::intel_npu::backend_compilation_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
-    {ov::intel_npu::compilation_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compilation_mode_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::compiler_dynamic_quantization.name(), ONEAPI_MAKE_VERSION(7, 1)},
-    {ov::intel_npu::dma_engines.name(), ONEAPI_MAKE_VERSION(0, 0)},
-    {ov::intel_npu::dynamic_shape_to_static.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::max_tiles.name(), ONEAPI_MAKE_VERSION(5, 3)},
     {ov::intel_npu::platform.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::qdq_optimization.name(), ONEAPI_MAKE_VERSION(7, 20)},
     {ov::intel_npu::tiles.name(), ONEAPI_MAKE_VERSION(5, 4)},
     {ov::intel_npu::turbo.name(), ONEAPI_MAKE_VERSION(7, 21)},
+};
+
+const std::vector<PropertySupportInfo> _privatePropertiesWithVersions = {
+    {ov::intel_npu::batch_compiler_mode_settings.name(), ONEAPI_MAKE_VERSION(7, 4)},
+    {ov::intel_npu::batch_mode.name(), ONEAPI_MAKE_VERSION(5, 5)},
+    {ov::intel_npu::backend_compilation_params.name(), ONEAPI_MAKE_VERSION(0, 0)},
+    {ov::intel_npu::compilation_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
+    {ov::intel_npu::dma_engines.name(), ONEAPI_MAKE_VERSION(0, 0)},
+    {ov::intel_npu::dynamic_shape_to_static.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::stepping.name(), ONEAPI_MAKE_VERSION(5, 3)},
 };
 
@@ -318,7 +320,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     if (compilerOptionsStr.has_value()) {
         if (compilerOptionsStr->empty()) {
             _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
-            return {};
+            return std::vector<std::string>{""};
         }
 
         // vectorize string
@@ -339,7 +341,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
     }
 
     if (compilerOpts.empty()) {
-        return {};
+        return std::vector<std::string>{""};
     }
     return compilerOpts;
 }
@@ -354,6 +356,11 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     // legacy path
     const auto& compilerVersion = _compilerProperties.compilerVersion;
     for (const auto& prop : _supportedPropertiesWithVersions) {
+        if (prop.name == optName) {
+            return isVersionSupportedByCompiler(prop.version, compilerVersion);
+        }
+    }
+    for (const auto& prop : _privatePropertiesWithVersions) {
         if (prop.name == optName) {
             return isVersionSupportedByCompiler(prop.version, compilerVersion);
         }
