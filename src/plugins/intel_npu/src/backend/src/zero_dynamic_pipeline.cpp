@@ -22,6 +22,7 @@
 #include "zero_infer_request.hpp"
 
 namespace intel_npu {
+
 struct MemRefTypeImpl {
     npu_vm_runtime_mem_ref_handle_t _memRef;
     bool _ptrUpdated = false;
@@ -50,10 +51,11 @@ struct MemRefTypeImpl {
         }
     }
 
-    void UpdateMemRefHandleStatus(MemRefType& memref) {
+    void UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
         // Update current MemRef handle to use latest metadata
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
+            _ptrUpdated = _shapeUpdated = _strideUpdated = true;
         } else {
             // Create a temporary MemRefType based on current handle and compare, use arg to create right size
             MemRefType tempMemRef(memref._basePtr,
@@ -85,15 +87,18 @@ struct MemRefTypeImpl {
                 _strideUpdated = false;
             }
         }
-        auto result = npuVMRuntimeSetMemRef(_memRef,
-                                            memref._basePtr,
-                                            memref._data,
-                                            memref._offset,
-                                            memref._sizes.data(),
-                                            memref._strides.data(),
-                                            memref._dimsCount);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to update MemRef handle");
+
+        if (_ptrUpdated || _shapeUpdated || _strideUpdated) {
+            auto result = npuVMRuntimeSetMemRef(_memRef,
+                                                memref._basePtr,
+                                                memref._data,
+                                                memref._offset,
+                                                useV2Api && !_shapeUpdated ? nullptr : memref._sizes.data(),
+                                                useV2Api && !_strideUpdated ? nullptr : memref._strides.data(),
+                                                memref._dimsCount);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to update MemRef handle");
+            }
         }
     }
 
@@ -124,8 +129,30 @@ VMExecutionContext::~VMExecutionContext() {
 
 npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runtime_handle_t vmRuntime) {
     if (_handle == nullptr) {
-        if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle);
+        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to create a VM execution context");
+        }
+    }
+    return _handle;
+}
+
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
+    npu_vm_runtime_handle_t vmRuntime,
+    ze_context_handle_t ctx,
+    ze_device_handle_t device,
+    ze_command_queue_handle_t commandQueue,
+    ze_graph_dditable_ext_t* graphDdiTableExt,
+    ze_command_queue_npu_dditable_ext_t* queueDdiTableExt) {
+    if (_handle == nullptr) {
+        npu_vm_runtime_create_execution_context_params_t params = {ctx,
+                                                                   device,
+                                                                   commandQueue,
+                                                                   graphDdiTableExt,
+                                                                   queueDdiTableExt};
+        const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
+        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context (v2)");
         }
     }
     return _handle;
@@ -182,7 +209,30 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     _logger.debug("Initialization started, batch size: %zu", _batch_size);
 
-    if (!_sync_output_with_fences) {
+    const auto versionResult = npuVMRuntimeGetAPIVersion(&_apiVersion);
+    if (versionResult != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime version, error code: ", versionResult);
+    }
+
+    if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+        _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
+        const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+        const auto commandQueueDesc = _graph->get_command_queue_desc();
+        _executionContext.ensureV2(vmRuntime,
+                                   init_structs->getContext(),
+                                   init_structs->getDevice(),
+                                   commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr,
+                                   _init_structs->getGraphDdiTable().getImpl(),
+                                   _init_structs->getCommandQueueDdiTable().getImpl());
+        _runtime_config_command_queue_desc = commandQueueDesc;
+        _runtime_config_command_queue_desc_valid = true;
+    } else {
+        _logger.debug("DynamicPipeline: using v1.x VM runtime API");
+        const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+        _executionContext.ensure(vmRuntime);
+    }
+
+    if (!use_npu_vm_runtime_v2_api(_apiVersion) && !_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
@@ -193,25 +243,31 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Event pool and command queue setup completed");
 
     const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
+    const size_t numCommandListGroups = use_npu_vm_runtime_v2_api(_apiVersion) ? 1 : _batch_size;
 
-    _command_lists.reserve(_batch_size);
+    _command_lists.reserve(numCommandListGroups);
     if (batch_size >= 1) {
-        _logger.debug("Initializing %zu command list group(s) (batch size %zu)", batch_size, batch_size);
-        for (size_t i = 0; i < _batch_size; i++) {
-            _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
+        _logger.debug("Initializing %zu plugin command list group(s); model batch size is %zu",
+                      numCommandListGroups,
+                      batch_size);
+        for (size_t i = 0; i < numCommandListGroups; i++) {
+            _command_lists.emplace_back(
+                std::make_unique<PipelinedCommandLists>(num_of_subgraphs,
+                                                        _init_structs,
+                                                        use_npu_vm_runtime_v2_api(_apiVersion)));
         }
     } else {
         OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
     }
 
-    if (_sync_output_with_fences) {
+    if (!use_npu_vm_runtime_v2_api(_apiVersion) && _sync_output_with_fences) {
         _fences.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
             _fences.emplace_back(std::make_unique<Fence>(_command_queue));
         }
     }
 
-    for (size_t i = 0; i < _batch_size; i++) {
+    for (size_t i = 0; i < numCommandListGroups; i++) {
         _logger.debug("Set args for command list number: %zu", i);
 
         _command_lists.at(i)->initArguments(_graph->get_metadata());
@@ -286,30 +342,10 @@ void DynamicPipeline::push() {
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
+    const auto useV2Api = use_npu_vm_runtime_v2_api(_apiVersion);
     const auto command_queue_desc = _graph->get_command_queue_desc();
-    const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
-    if (command_queue_version_changed) {
-        _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
 
-        if (_sync_output_with_fences) {
-            for (size_t i = 0; i < _fences.size(); i++) {
-                _fences[i] = std::make_unique<Fence>(_command_queue);
-            }
-        }
-    }
-
-    auto commandQueueHandle = _command_queue->handle();
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-
-        ze_fence_handle_t fence = nullptr;
-        ze_event_handle_t event = nullptr;
-        if (_sync_output_with_fences) {
-            fence = _fences.at(i)->handle();
-        }
-
-        auto& command_lists = _command_lists.at(i);
-        auto& dynamicArguments = command_lists->getArguments();
+    auto logDynamicArguments = [&](DynamicArguments& dynamicArguments) {
         if (_logger.level() >= ov::log::Level::DEBUG) {
             _logger.debug("push - inputs info for dynamic graph:");
             for (auto& memType : dynamicArguments._inputsMemRef) {
@@ -320,11 +356,91 @@ void DynamicPipeline::push() {
                 _logger.debug("push - output: %s", memType.toString().c_str());
             }
         }
+    };
 
-        execute_vm_runtime(vmRuntime, dynamicArguments, command_lists->getHandles(), commandQueueHandle, fence, event);
+    if (useV2Api) {
+        const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+        if (command_queue_version_changed && command_queue_desc.shared_common_queue()) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+        }
+
+        const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
+        if (_runtime_config_command_queue_desc_valid) {
+            runtimeConfig = update_runtime_config(_runtime_config_command_queue_desc, command_queue_desc);
+        } else {
+            _runtime_config_command_queue_desc = command_queue_desc;
+            _runtime_config_command_queue_desc_valid = true;
+        }
+
+        const auto commandQueueHandle = command_queue_desc.shared_common_queue() ? _command_queue->handle() : nullptr;
+        for (size_t i = 0; i < _command_lists.size(); ++i) {
+            OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+
+            auto& command_lists = _command_lists.at(i);
+            auto& dynamicArguments = command_lists->getArguments();
+            logDynamicArguments(dynamicArguments);
+
+            execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
+        }
+
+        _runtime_config_command_queue_desc = command_queue_desc;
+        _runtime_config_command_queue_desc_valid = true;
+    } else {
+        const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
+        if (command_queue_version_changed) {
+            _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, command_queue_desc);
+
+            if (_sync_output_with_fences) {
+                for (size_t i = 0; i < _fences.size(); i++) {
+                    _fences[i] = std::make_unique<Fence>(_command_queue);
+                }
+            }
+        }
+
+        const auto commandQueueHandle = _command_queue->handle();
+        for (size_t i = 0; i < _command_lists.size(); ++i) {
+            OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+
+            auto& command_lists = _command_lists.at(i);
+            auto& dynamicArguments = command_lists->getArguments();
+            logDynamicArguments(dynamicArguments);
+
+            ze_fence_handle_t fence = nullptr;
+            ze_event_handle_t event = nullptr;
+            if (_sync_output_with_fences) {
+                fence = _fences.at(i)->handle();
+            }
+            execute_vm_runtime(vmRuntime,
+                               dynamicArguments,
+                               command_lists->getHandles(),
+                               commandQueueHandle,
+                               fence,
+                               event);
+        }
     }
 
     _logger.debug("push - completed");
+}
+
+const npu_vm_runtime_config_desc_t* DynamicPipeline::update_runtime_config(
+    const CommandQueueDesc& previousCommandQueueDesc,
+    const CommandQueueDesc& currentCommandQueueDesc) {
+    _runtimeConfigChain.clear();
+
+    if (previousCommandQueueDesc.priority() != currentCommandQueueDesc.priority()) {
+        _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+                                   static_cast<npu_vm_runtime_config_value_t>(currentCommandQueueDesc.priority()));
+    }
+    if (previousCommandQueueDesc.workload() != currentCommandQueueDesc.workload() &&
+        currentCommandQueueDesc.workload().has_value()) {
+        _runtimeConfigChain.append(
+            NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+            static_cast<npu_vm_runtime_config_value_t>(currentCommandQueueDesc.workload().value()));
+    }
+    if (previousCommandQueueDesc.options() != currentCommandQueueDesc.options()) {
+        _runtimeConfigChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, currentCommandQueueDesc.options());
+    }
+    return _runtimeConfigChain.head();
 }
 
 void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
@@ -414,6 +530,47 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("Completed to execute graph with runtime engine");
 }
 
+void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
+                                            DynamicArguments& args,
+                                            ze_command_queue_handle_t commandQueue,
+                                            const npu_vm_runtime_config_desc_t* pConfig) {
+    _logger.debug("execute_vm_runtime_v2 - started");
+
+    auto processMemRefs = [&](auto& memRefs, auto& targetHandles) {
+        targetHandles.clear();
+        targetHandles.reserve(memRefs.size());
+        for (auto& memref : memRefs) {
+            auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
+            if (impl == nullptr) {
+                impl = std::make_shared<MemRefTypeImpl>();
+                memref._impl = impl;
+            }
+            impl->UpdateMemRefHandleStatus(memref, true);
+            targetHandles.push_back(impl->_memRef);
+        }
+    };
+
+    processMemRefs(args._inputsMemRef, args._inputMemRefHandles);
+    processMemRefs(args._outputsMemRef, args._outputMemRefHandles);
+
+    auto& params = args._executeParams2;
+    params.commandQueue = commandQueue;
+    params.pConfig = pConfig;
+    params.pInputs = args._inputMemRefHandles.data();
+    params.numOfInputs = static_cast<uint32_t>(args._inputMemRefHandles.size());
+    params.pOutputs = args._outputMemRefHandles.data();
+    params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
+    params.executionContext = _executionContext.handle();
+
+    _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
+    const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute VM runtime engine (v2), error code: ", result);
+    }
+
+    _logger.debug("execute_vm_runtime_v2 - completed");
+}
+
 std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
     const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors) {
@@ -468,7 +625,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref);
+            impl->UpdateMemRefHandleStatus(memref, use_npu_vm_runtime_v2_api(_apiVersion));
             destMemRefHandles.push_back(impl->_memRef);
         }
     };
@@ -477,13 +634,9 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
     processMemRefs(outputsMemRefs, outputMemRefHandles);
 
     npu_vm_runtime_result_t result = NPU_VM_RUNTIME_RESULT_SUCCESS;
-    npu_vm_runtime_version_t version{};
-    if ((result = npuVMRuntimeGetAPIVersion(&version)) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to get VM runtime version, error code: ", result);
-    }
-    _logger.debug("VM runtime version: %u.%u", ZE_MAJOR_VERSION(version), ZE_MINOR_VERSION(version));
+    _logger.debug("VM runtime version: %u.%u", ZE_MAJOR_VERSION(_apiVersion), ZE_MINOR_VERSION(_apiVersion));
 
-    if (version == NPU_VM_RUNTIME_VERSION_1_0) {
+    if (_apiVersion == NPU_VM_RUNTIME_VERSION_1_0) {
         npu_vm_runtime_predict_output_shape_params_t params{};
         params.pInputs = inputMemRefHandles.data();
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
@@ -497,7 +650,14 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        params.executionContext = _executionContext.ensure(vmRuntime);
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            const auto commandQueueDesc = _graph->get_command_queue_desc();
+            if (commandQueueDesc.shared_common_queue() && commandQueueDesc.key() != _command_queue->desc().key()) {
+                _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
+            }
+        }
+        params.executionContext =
+            use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
@@ -551,11 +711,22 @@ void DynamicPipeline::pull() {
     _logger.debug("pull - started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
 
+    const npu_vm_runtime_handle_t vmRuntime =
+        use_npu_vm_runtime_v2_api(_apiVersion) ? static_cast<npu_vm_runtime_handle_t>(_graph->get_handle()) : nullptr;
+
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->hostSynchronize();
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            auto& dynamicArguments = _command_lists.at(i)->getArguments();
+            const auto result = npuVMRuntimeHostSync(vmRuntime, &dynamicArguments._executeParams2);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("npuVMRuntimeHostSync failed, error code: ", result);
+            }
         } else {
-            _events.at(i)->hostSynchronize();
+            if (_sync_output_with_fences) {
+                _fences.at(i)->hostSynchronize();
+            } else {
+                _events.at(i)->hostSynchronize();
+            }
         }
         /// sample npu timestamps if feature was activated
         if (_npu_profiling != nullptr) {
@@ -568,11 +739,13 @@ void DynamicPipeline::pull() {
 
 void DynamicPipeline::reset() const {
     _logger.debug("reset - started");
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->reset();
-        } else {
-            _events.at(i)->reset();
+    if (!use_npu_vm_runtime_v2_api(_apiVersion)) {
+        for (size_t i = 0; i < _command_lists.size(); ++i) {
+            if (_sync_output_with_fences) {
+                _fences.at(i)->reset();
+            } else {
+                _events.at(i)->reset();
+            }
         }
     }
     _logger.debug("reset - completed");
@@ -620,13 +793,13 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // The required check is alredy done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    const size_t number_of_command_lists = _command_lists.size();
+    const size_t command_list_index = use_npu_vm_runtime_v2_api(_apiVersion) ? 0 : batch_index;
 
-    OPENVINO_ASSERT(batch_index < number_of_command_lists,
+    OPENVINO_ASSERT(command_list_index < _command_lists.size(),
                     "Command list index is higher than the number of Command lists ",
-                    batch_index);
+                    command_list_index);
 
-    _command_lists.at(batch_index)
+    _command_lists.at(command_list_index)
         ->updateMutableCommandList(index,
                                    zeroTensor->data(),
                                    get_strides(tensor->get_strides(), elementSize),

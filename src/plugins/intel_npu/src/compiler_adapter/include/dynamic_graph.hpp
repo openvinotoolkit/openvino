@@ -58,8 +58,8 @@ private:
     bool release_blob(const FilteredConfig& config);
     std::optional<size_t> determine_batch_size();
 
-    void initialize_engine();
-    void create_execution_engine();
+    void initialize_engine(const FilteredConfig& config);
+    void create_execution_engine(const FilteredConfig& config);
     void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
@@ -94,6 +94,7 @@ private:
 
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
     bool _engineInitialized = false;
 };
 
