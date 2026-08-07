@@ -184,6 +184,22 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_b_name_preserved) {
     EXPECT_EQ(packed_b->get_element_type(), element::u4);
 }
 
+OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved) {
+    // MatMulNBits repacks the zero-point into a low-bit Constant; it must keep the ONNX initializer name
+    // "b_zp" so weight sharing / weights-as-input can identify it (mirrors matmulnbits_b_name_preserved).
+    const auto model = convert_model("com.microsoft/matmulnbits_3x32_zp.onnx");
+
+    const auto ops = model->get_ordered_ops();
+
+    // Repacked zero-point keeps "b_zp" as friendly_name and tensor name.
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp", {"b_zp"}));
+
+    // It is the u4 repacked zero-point (bits=4), not the original uint8 initializer.
+    const auto packed_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp");
+    ASSERT_NE(packed_zp, nullptr);
+    EXPECT_EQ(packed_zp->get_element_type(), element::u4);
+}
+
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_shared_b_name_collision_resolved) {
     // One B feeding two MatMulNBits creates two same-named Constants; ResolveNameCollisions (in
     // normalize) keeps "b_Q4" on one and suffixes the other - no manual postfix needed.
@@ -192,7 +208,8 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_shared_b_name_collision_resolved) {
     const auto ops = model->get_ordered_ops();
 
     // Collect the two named u4 weights directly: counting and uniqueness can't be expressed by the
-    // bool/first-match helpers. Unnamed u4 zero-point constants are excluded by the name check.
+    // bool/first-match helpers. This model has no zero-point input, so the only named u4 constants are
+    // the two repacked B weights (the default zero-point is unnamed).
     std::vector<std::shared_ptr<op::v0::Constant>> packed_weights;
     for (const auto& op : ops) {
         const auto c = ov::as_type_ptr<op::v0::Constant>(op);
