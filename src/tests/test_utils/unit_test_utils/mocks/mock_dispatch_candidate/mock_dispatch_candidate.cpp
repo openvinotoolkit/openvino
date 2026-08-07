@@ -101,6 +101,13 @@ void mock_enumerate(std::vector<ov::EnumeratedDevice>& out) noexcept {
             std::getline(fields, fingerprint_hex, ',');
             std::getline(fields, score, ',');
 
+            // Odd-length hex would silently drop the last nibble and yield a different
+            // fingerprint; treat it as malformed so a bad script fails deterministically.
+            if (fingerprint_hex.size() % 2 != 0) {
+                out.clear();
+                return;
+            }
+
             ov::EnumeratedDevice e;
             e.internal_id = id;
             for (size_t i = 0; i + 1 < fingerprint_hex.size(); i += 2)

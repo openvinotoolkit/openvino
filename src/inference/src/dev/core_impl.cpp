@@ -837,9 +837,17 @@ void ov::CoreImpl::translate_dispatch_device_id_unsafe(const std::string& device
     for (const auto& e : entries) {
         if (e.canonical_id != target_id)
             continue;
+        // The winner was selected from this entry, so it must serve it; a miss means the resolved
+        // winner and the routed id disagree, which would silently target a wrong/absent id.
         auto view = e.per_lib.find(winner_idx);
-        if (view == e.per_lib.end())
-            return;  // winner does not serve this id (defensive; shouldn't happen post-resolve)
+        OPENVINO_ASSERT(view != e.per_lib.end(),
+                        "Internal error: the resolved candidate (index ",
+                        winner_idx,
+                        ") for device \"",
+                        device_name,
+                        ".",
+                        target_id,
+                        "\" does not serve that device.");
         // Only rewrite when an id was actually requested; a bare request has no id to translate.
         if (!canonical_id.empty() || config.count(ov::device::id.name()))
             config[ov::device::id.name()] = view->second.internal_id;
@@ -930,9 +938,6 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
                             device_name,
                             "\". Please check the plugins registry and device drivers.");
             instance_key = device_name + '#' + std::to_string(*winner);
-            // The instance is cached under this internal key; register a mutex for it so code that
-            // iterates m_plugins and locks per key (e.g. set_property_for_device) never throws.
-            add_mutex(instance_key);
             if (config)
                 translate_dispatch_device_id_unsafe(device_name, device_id, *winner, *config);
             if (*winner != 0)
@@ -943,6 +948,9 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
         if (it_plugin != m_plugins.end())
             return it_plugin->second;
     }
+
+    if (instance_key != device_name)
+        add_mutex(instance_key);
     // Plugin is in registry, but not created, let's create
     std::shared_ptr<void> so;
     try {
