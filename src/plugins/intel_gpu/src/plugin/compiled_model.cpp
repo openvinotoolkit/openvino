@@ -66,7 +66,7 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_weight_sharing_context(std::move(weightSharingContext)),
       m_loaded_from_cache(false) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
-    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
+    auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0, m_weight_sharing_context);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);

@@ -78,7 +78,7 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     , m_is_inner_program(is_inner_program) {
     // Remember weight sharing context for the program builder, so that it can be used to share weights across multiple compiled models
     m_weight_sharing_ctx = weight_sharing_ctx;
-    
+
     // Constant GPU uploads use the engine before cldnn::program ctor syncs config to the engine.
     m_engine.set_enable_large_allocations(m_config.get_enable_large_allocations());
 

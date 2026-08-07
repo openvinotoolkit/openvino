@@ -167,6 +167,7 @@ private:
     // Exposed via get_property(ov::internal::model_sharing_context) so Core can
     // write it back into SingleFileStorage after compilation.
     std::unique_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
+    std::vector<std::shared_ptr<AlignedBuffer>> m_shared_weight_sources;
 };
 
 }  // namespace npuw
