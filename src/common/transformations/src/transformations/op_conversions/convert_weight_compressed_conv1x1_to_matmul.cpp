@@ -64,7 +64,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_reshape_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({weight_mult_m, ov::pass::pattern::any_input()});
     auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
+    auto conv1x1_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m}, ov::pass::pattern::rank_equals(4));
 
     // Optional bias
     auto bias_const_m = wrap_type<ov::op::v0::Constant>(pattern::shape_matches("[1, ?, 1, 1]"));
@@ -259,19 +260,35 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
         }
 
         if (reshape_out) {
+            std::shared_ptr<Node> pre_reshape_out = matmul_out;
             if (convert_out) {
                 auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
-                auto reshape_final = reshape_out->clone_with_new_inputs({convert_final, out_order});
-                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
                 ov::copy_runtime_info(convert_out, convert_final);
-                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
-                ov::replace_node(m.get_match_root(), reshape_final);
-            } else {
-                auto reshape_final = reshape_out->clone_with_new_inputs({matmul_out, out_order});
-                reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
-                ov::replace_node(m.get_match_root(), reshape_final);
+                pre_reshape_out = convert_final;
             }
+
+            // pre_reshape_out is NHWC (channel last, since MatMul(transpose_b=true) produces [N, H, W,
+            // Cout]), but Reshape never reorders elements, and reshape_out was built assuming NCHW
+            // element order (like the original Convolution's output [N, Cout, H, W]). Restore NCHW
+            // order before handing off to reshape_out, unless the spatial size H*W is statically 1 -
+            // in that case NHWC [N, 1, 1, Cout] and NCHW [N, Cout, 1, 1] have identical element order,
+            // so no restoring Transpose is needed.
+            const auto& conv_out_pshape = conv1x1->get_output_partial_shape(0);
+            const auto spatial_size = conv_out_pshape[2] * conv_out_pshape[3];
+            if (!(spatial_size.is_static() && spatial_size.get_length() == 1)) {
+                auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                                 ov::Shape{4},
+                                                                                 std::vector<int64_t>{0, 3, 1, 2});
+                auto pre_reshape_out_nchw =
+                    std::make_shared<ov::op::v1::Transpose>(pre_reshape_out, nhwc_to_nchw_order);
+                ov::copy_runtime_info(conv1x1, pre_reshape_out_nchw);
+                pre_reshape_out = pre_reshape_out_nchw;
+            }
+
+            auto reshape_final = reshape_out->clone_with_new_inputs({pre_reshape_out, out_order});
+            reshape_final->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
+            ov::replace_node(m.get_match_root(), reshape_final);
         } else {
             if (convert_out) {
                 auto convert_final = convert_out->clone_with_new_inputs({matmul_out});
