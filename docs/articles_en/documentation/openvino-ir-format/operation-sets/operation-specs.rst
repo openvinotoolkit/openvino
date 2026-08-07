@@ -88,6 +88,8 @@ Operation Specifications
    GRUCell-3 <operation-specs/sequence/gru-cell-3>
    GRUSequence-5 <operation-specs/sequence/gru-sequence-5>
    GatedDeltaNet <operation-specs/internal/gated-delta-net>
+   PagedSelectiveSSM <operation-specs/internal/paged-selective-ssm>
+   SelectiveSSM <operation-specs/internal/selective-ssm>
    GatherTree-1 <operation-specs/movement/gather-tree-1>
    Gather-1 <operation-specs/movement/gather-1>
    Gather-7 <operation-specs/movement/gather-7>

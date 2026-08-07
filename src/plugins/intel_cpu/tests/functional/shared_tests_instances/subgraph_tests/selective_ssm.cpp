@@ -1,0 +1,22 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "subgraph_tests/selective_ssm.hpp"
+
+namespace ov::test {
+
+std::vector<selective_ssm_params> selective_ssm_test_cases = {
+    {1, 4, 4, 2, 8, 16, ov::element::f32, "CPU"},
+    {2, 3, 4, 1, 8, 8, ov::element::f32, "CPU"},
+    {1, 6, 8, 2, 16, 16, ov::element::f32, "CPU"},
+    {1, 4, 4, 2, 8, 16, ov::element::f16, "CPU"},
+    {1, 4, 4, 2, 8, 16, ov::element::bf16, "CPU"},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_SelectiveSSM,
+                         SelectiveSSM,
+                         ::testing::ValuesIn(selective_ssm_test_cases),
+                         SelectiveSSM::getTestCaseName);
+
+}  // namespace ov::test

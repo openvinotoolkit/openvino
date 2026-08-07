@@ -138,6 +138,8 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/prelu.cpp

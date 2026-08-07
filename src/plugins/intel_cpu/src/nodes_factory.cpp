@@ -70,6 +70,7 @@
 #include "nodes/pad.h"
 #include "nodes/paged_causal_conv1d.h"
 #include "nodes/paged_gated_delta_net.h"
+#include "nodes/paged_selective_ssm.h"
 #include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
@@ -92,6 +93,7 @@
 #include "nodes/rope.h"
 #include "nodes/scaled_attn.h"
 #include "nodes/scatter_update.h"
+#include "nodes/selective_ssm.h"
 #include "nodes/search_sorted.h"
 #include "nodes/segment_max.h"
 #include "nodes/shapeof.h"
@@ -249,6 +251,8 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
     INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
     INTEL_CPU_NODE(PagedGatedDeltaNet, Type::PagedGatedDeltaNet);
+    INTEL_CPU_NODE(SelectiveSSM, Type::SelectiveSSM);
+    INTEL_CPU_NODE(PagedSelectiveSSM, Type::PagedSelectiveSSM);
     INTEL_CPU_NODE(PagedCausalConv1D, Type::PagedCausalConv1D);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
