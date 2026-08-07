@@ -16,11 +16,7 @@ mode from the environment (mirroring ``download_failure_logs.py``):
 Resolving it deterministically before the session and writing it to
 ``/tmp/gh-aw/agent/ci-doctor/pr-info.json`` (plus a human-readable
 ``pr-info.txt``) lets the agent populate the Teams ``PR`` / ``Author`` fields and
-scope its source inspection to the PR diff. The ``merge_queue_status`` field
-(``in_queue`` / ``not_in_queue`` / ``merged`` / ``unknown``) is a **pre-session
-hint** captured here; because queue membership can change while the agent
-investigates, the ``rerun_failed_jobs`` / ``readd_to_merge_queue`` safe-output
-jobs re-verify it live (via ``common.merge_queue_status``) right before acting.
+scope its source inspection to the PR diff.
 """
 
 from __future__ import annotations
@@ -29,10 +25,9 @@ import json
 import os
 from typing import TYPE_CHECKING, Any
 
-from common import MERGE_QUEUE_PR_RE, github_client, merge_queue_status
+from common import MERGE_QUEUE_PR_RE, github_client
 
 if TYPE_CHECKING:
-    from github import Github
     from github.PullRequest import PullRequest
     from github.Repository import Repository
     from github.WorkflowRun import WorkflowRun
@@ -82,7 +77,7 @@ def changed_files(pull: "PullRequest") -> list[str]:
     return files
 
 
-def build_pr_info(pull: "PullRequest", queue_status: str) -> dict[str, Any]:
+def build_pr_info(pull: "PullRequest") -> dict[str, Any]:
     """Assemble the serialisable PR metadata dictionary."""
     body = pull.body or ""
     if len(body) > MAX_BODY_CHARS:
@@ -103,7 +98,6 @@ def build_pr_info(pull: "PullRequest", queue_status: str) -> dict[str, Any]:
         "state": pull.state or "",
         "draft": bool(pull.draft),
         "merged": bool(pull.merged),
-        "merge_queue_status": queue_status,
         "labels": [label.name for label in pull.labels],
         "changed_files": changed_files(pull),
         "body": body,
@@ -130,7 +124,6 @@ def write_outputs(pr_info: dict[str, Any] | None) -> None:
         handle.write(f"Head ref:      {pr_info['head_ref']}\n")
         handle.write(f"Head SHA:      {pr_info['head_sha']}\n")
         handle.write(f"State:         {pr_info['state']} (draft={pr_info['draft']}, merged={pr_info['merged']})\n")
-        handle.write(f"Merge queue:   {pr_info['merge_queue_status']}\n")
         handle.write(f"Labels:        {', '.join(pr_info['labels']) or '(none)'}\n")
         handle.write("\n")
         handle.write(f"Changed files ({len(pr_info['changed_files'])}, capped at {MAX_CHANGED_FILES}):\n")
@@ -138,7 +131,7 @@ def write_outputs(pr_info: dict[str, Any] | None) -> None:
             handle.write(f"  {path}\n")
 
 
-def persist_pull(gh: "Github", repo: "Repository", pr_number: str) -> None:
+def persist_pull(repo: "Repository", pr_number: str) -> None:
     """Fetch PR ``pr_number`` and persist its metadata (or the no-PR fallback)."""
     try:
         pull = repo.get_pull(int(pr_number))
@@ -147,14 +140,13 @@ def persist_pull(gh: "Github", repo: "Repository", pr_number: str) -> None:
         write_outputs(None)
         return
 
-    pr_info = build_pr_info(pull, merge_queue_status(gh, repo, pull))
+    pr_info = build_pr_info(pull)
     write_outputs(pr_info)
     print(f"Wrote PR info to {PR_INFO_JSON} and {PR_INFO_TXT}")
     print(f"  PR #{pr_info['pr_number']} by @{pr_info['author']}: {pr_info['title']}")
-    print(f"  Merge queue status: {pr_info['merge_queue_status']}")
 
 
-def run_mode(gh: "Github", repo: "Repository", run_id: str) -> None:
+def run_mode(repo: "Repository", run_id: str) -> None:
     """Resolve and persist the PR metadata behind a merge-queue run."""
     print(f"=== CI Doctor: Collecting PR info for run {run_id} ===")
 
@@ -172,13 +164,13 @@ def run_mode(gh: "Github", repo: "Repository", run_id: str) -> None:
         return
     print(f"Resolved PR #{pr_number} from run {run_id}")
 
-    persist_pull(gh, repo, pr_number)
+    persist_pull(repo, pr_number)
 
 
-def pr_mode(gh: "Github", repo: "Repository", pr_number: str) -> None:
+def pr_mode(repo: "Repository", pr_number: str) -> None:
     """Persist the PR metadata for an already-known PR number."""
     print(f"=== CI Doctor: Collecting PR info for PR #{pr_number} ===")
-    persist_pull(gh, repo, pr_number)
+    persist_pull(repo, pr_number)
 
 
 def main() -> None:
@@ -198,9 +190,9 @@ def main() -> None:
     repo = gh.get_repo(repo_name)
 
     if run_id:
-        run_mode(gh, repo, run_id)
+        run_mode(repo, run_id)
     else:
-        pr_mode(gh, repo, pr_number)
+        pr_mode(repo, pr_number)
 
 
 if __name__ == "__main__":
