@@ -60,7 +60,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                          one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
         bool compressed_case = fc_prim->compressed_weights &&
                                one_of(in0_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::u8}) &&
-                               one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4}) &&
+                               one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4, data_types::u3}) &&
                                one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8});
         const bool fp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) &&
                                         one_of(wei_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
@@ -71,7 +71,7 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             if (fc_prim->decompression_zero_point.is_valid()) {
                 const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
                 const auto decompression_zp_dt = fc_node.get_input_layout(decompression_zp_idx).data_type;
-                const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u8});
+                const bool is_wei_compressed = one_of(wei_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4, ov::element::Type_t::u3, ov::element::Type_t::u8});
                 const bool is_zp_compressed = one_of(decompression_zp_dt, {ov::element::Type_t::i4, ov::element::Type_t::u4,
                                                     ov::element::Type_t::u8, ov::element::Type_t::i8});
                 if (!is_wei_compressed || !is_zp_compressed) {
