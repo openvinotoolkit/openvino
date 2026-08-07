@@ -184,6 +184,16 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
                                                     const float min,
                                                     const float max,
                                                     const int seed);
+
+/**
+ * Creates and fills a tensor with values that are exactly representable in FP16.
+ * Useful for NPU tests where FP32 inputs are internally converted to FP16.
+ * This ensures no precision loss during FP32->FP16->FP32 round-trip.
+ */
+ov::Tensor create_and_fill_tensor_fp16_representable(const ov::element::Type element_type,
+                                                     const ov::Shape& shape,
+                                                     const InputGenerateData& inGenData = InputGenerateData(0, 10, 1, 1));
+
 namespace tensor_comparation {
 double calculate_threshold(const double abs_threshold, const double rel_threshold, const double ref_value);
 
