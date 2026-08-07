@@ -65,7 +65,6 @@ public:
 
 private:
     uint32_t m_block_size;
-    bool m_v_transposed;
 };
 
 }  // namespace pass

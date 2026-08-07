@@ -47,10 +47,8 @@ public:
      * @param elem_type Element type (e.g., fp16, fp32)
      * @param device Target device for memory allocation ("NPU", "CPU")
      * @param plugin Plugin instance for memory allocation
-     * @param seq_dim Explicit sequence dimension index (2 or 3). When set it is the
-     *               ground-truth axis carried from SplitKVCacheIntoBlocks and takes
-     *               precedence over shape-based detection (avoids head_dim==block_size
-     *               ambiguity). When empty the axis is inferred from base_shape.
+     * @param seq_dim Sequence dimension index (2 or 3), as determined by the
+     *                concat axis in SplitKVCacheIntoBlocks.
      */
     KVCacheBlockManager(uint32_t block_size,
                         uint32_t max_blocks,
@@ -58,7 +56,7 @@ public:
                         ov::element::Type elem_type,
                         const std::string& device,
                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                        std::optional<uint32_t> seq_dim = std::nullopt);
+                        uint32_t seq_dim);
 
     ~KVCacheBlockManager() = default;
 

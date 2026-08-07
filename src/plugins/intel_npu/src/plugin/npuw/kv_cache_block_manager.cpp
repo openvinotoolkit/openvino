@@ -16,13 +16,14 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                                          ov::element::Type elem_type,
                                          const std::string& device,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                                         std::optional<uint32_t> seq_dim)
+                                         uint32_t seq_dim)
     : block_size_(block_size),
       max_blocks_(max_blocks),
       element_type_(elem_type),
       block_shape_(base_shape),
       device_(device),
-      plugin_(plugin) {
+      plugin_(plugin),
+      seq_dim_(seq_dim) {
     OPENVINO_ASSERT(block_size_ > 0 && max_blocks_ > 0,
                     "KVCacheBlockManager: block_size and max_blocks must be > 0, got block_size=",
                     block_size_,
@@ -32,39 +33,14 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                     "KVCacheBlockManager: plugin must be non-null for non-CPU device '",
                     device_,
                     "'");
-    // Check that the sequence dimension (dim 2 for K/non-transposed-V, dim 3 for transposed V)
-    // equals block_size.
-    OPENVINO_ASSERT(base_shape.size() == 4 && (base_shape[2] == block_size || base_shape[3] == block_size),
+    OPENVINO_ASSERT(seq_dim_ == 2u || seq_dim_ == 3u, "KVCacheBlockManager: seq_dim must be 2 or 3, got ", seq_dim_);
+    OPENVINO_ASSERT(base_shape.size() == 4 && base_shape[seq_dim_] == block_size,
                     "KVCacheBlockManager: base_shape ",
                     base_shape,
                     " does not have block_size=",
                     block_size,
-                    " in sequence dimension (expected at dim 2 or 3)");
-    if (base_shape[2] == block_size && base_shape[3] != block_size) {
-        seq_dim_ = 2u;
-    } else if (base_shape[3] == block_size && base_shape[2] != block_size) {
-        seq_dim_ = 3u;
-    } else {
-        // Ambiguous: both dims equal block_size (e.g. head_dim == block_size).
-        // Default to dim 2 (non-transposed layout).
-        seq_dim_ = 2u;
-    }
-
-    // Explicit seq_dim (carried from SplitKVCacheIntoBlocks concat axis) is ground truth
-    // and overrides shape-based inference, resolving the ambiguous head_dim==block_size case.
-    if (seq_dim.has_value()) {
-        OPENVINO_ASSERT(*seq_dim == 2u || *seq_dim == 3u,
-                        "KVCacheBlockManager: explicit seq_dim must be 2 or 3, got ",
-                        *seq_dim);
-        OPENVINO_ASSERT(base_shape[*seq_dim] == block_size,
-                        "KVCacheBlockManager: base_shape ",
-                        base_shape,
-                        " does not have block_size=",
-                        block_size,
-                        " at explicit seq_dim=",
-                        *seq_dim);
-        seq_dim_ = *seq_dim;
-    }
+                    " at seq_dim=",
+                    seq_dim_);
 
     // Initialize block pool (tensors allocated on-demand, not here)
     blocks_.reserve(max_blocks);

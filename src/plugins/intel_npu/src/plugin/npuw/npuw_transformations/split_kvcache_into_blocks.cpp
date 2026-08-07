@@ -10,7 +10,6 @@
 #include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
@@ -70,9 +69,7 @@ ov::Shape make_block_shape(const ov::PartialShape& orig_shape, int64_t seq_dim, 
 
 }  // namespace
 
-SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool v_transposed)
-    : m_block_size(block_size),
-      m_v_transposed(v_transposed) {}
+SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool /*v_transposed*/) : m_block_size(block_size) {}
 
 bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
@@ -200,13 +197,6 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
             new_nodes.push_back(p);
         }
         copy_runtime_info({param, concat}, new_nodes);
-
-        // Carry the ground-truth sequence axis on each block param so the runtime block
-        // manager does not have to re-infer it from shape (ambiguous when head_dim ==
-        // block_size). Set after copy_runtime_info so it is not clobbered.
-        for (const auto& p : new_params) {
-            p->get_rt_info()["npuw_kv_seq_axis"] = info.concat_axis;
-        }
 
         concat->output(0).replace(new_concat->output(0));
         model->remove_parameter(param);

@@ -642,8 +642,6 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         // different value-tensor layouts (e.g. sliding-window vs full-attention with MHA).
         // The KV-sequence axis is the only dimension where the prefill output and the
         // generate KV-cache input shapes differ; fall back to flag-derived dims when ambiguous.
-        // Note: prefill_past_kv (past input) shares the same layout as prefill_out_tensor
-        // (present output) within the same layer, so seq_dim_pre is valid for both.
         const auto& pre_out_shape = prefill_out_tensor->get_shape();
         const auto& gen_in_shape = kvcache_in_tensor->get_shape();
         uint32_t seq_dim_pre = pre_kv_dim;

@@ -213,26 +213,6 @@ size_t set_dummy_tensors_to_request(const std::shared_ptr<ov::IAsyncInferRequest
         dummies);
 }
 
-// Read the ground-truth sequence axis carried by SplitKVCacheIntoBlocks on the block
-// parameter (rt_info "npuw_kv_seq_axis"). Returns nullopt when absent (e.g. attribute did
-// not survive compilation), letting the block manager fall back to shape-based inference.
-std::optional<uint32_t> seq_axis_from_port(const ov::Output<const ov::Node>& port) {
-    const auto* node = port.get_node();
-    if (node == nullptr) {
-        return std::nullopt;
-    }
-    const auto& rt = node->get_rt_info();
-    auto it = rt.find("npuw_kv_seq_axis");
-    if (it == rt.end()) {
-        return std::nullopt;
-    }
-    const int64_t axis = it->second.as<int64_t>();
-    if (axis != 2 && axis != 3) {
-        return std::nullopt;
-    }
-    return static_cast<uint32_t>(axis);
-}
-
 }  // anonymous namespace
 
 namespace ov {
@@ -942,13 +922,14 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers() {
                             " has key blocks but no key_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_key_port = m_prefill_classified_in_ports.at(key_block0_name).port;
+            const auto& seq_dims = compiled_model->m_kv_seq_dims.at(layer_idx);
             layer_managers.key_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                max_blocks,
                                                                                first_key_port.get_shape(),
                                                                                first_key_port.get_element_type(),
                                                                                m_req.m_pre_alloc_device,
                                                                                compiled_model->get_plugin(),
-                                                                               seq_axis_from_port(first_key_port));
+                                                                               seq_dims.first);
         }
         if (presence.has_value_numbered_block) {
             const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str, 0);
@@ -958,13 +939,14 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers() {
                             " has value blocks but no value_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_value_port = m_prefill_classified_in_ports.at(value_block0_name).port;
+            const auto& seq_dims = compiled_model->m_kv_seq_dims.at(layer_idx);
             layer_managers.value_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                  max_blocks,
                                                                                  first_value_port.get_shape(),
                                                                                  first_value_port.get_element_type(),
                                                                                  m_req.m_pre_alloc_device,
                                                                                  compiled_model->get_plugin(),
-                                                                                 seq_axis_from_port(first_value_port));
+                                                                                 seq_dims.second);
         }
 
         m_kv_cache_block_managers[layer_idx] = std::move(layer_managers);
