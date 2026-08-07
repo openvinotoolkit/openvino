@@ -111,9 +111,14 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
         m_rank_requests.push_back(rank_model->create_infer_request());
     }
 
-    // Pre-allocate TP model output tensors (check_tensors() needs non-null).
-    for (const auto& output : compiled_model->outputs()) {
-        auto ps = output.get_partial_shape();
+    // Pre-allocate tensors for every port.  Callers are allowed to read a
+    // tensor back before they have ever set one -- GenAI's stateful LLM
+    // pipeline does exactly that with `get_tensor("attention_mask").set_shape()`
+    // at the start of every generate() -- and the base class hands out a null
+    // SoPtr until something is stored.  Dynamic dimensions start at 0, so the
+    // tensor is empty until the caller reshapes or replaces it.
+    auto allocate_port = [this](const ov::Output<const ov::Node>& port) {
+        const auto& ps = port.get_partial_shape();
         ov::Shape shape;
         if (ps.is_static()) {
             shape = ps.get_shape();
@@ -125,9 +130,16 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
         } else {
             shape = {0};
         }
-        allocate_tensor(output, [&](ov::SoPtr<ov::ITensor>& t) {
-            t = ov::make_tensor(output.get_element_type(), shape);
+        allocate_tensor(port, [&](ov::SoPtr<ov::ITensor>& t) {
+            t = ov::make_tensor(port.get_element_type(), shape);
         });
+    };
+
+    for (const auto& input : compiled_model->inputs()) {
+        allocate_port(input);
+    }
+    for (const auto& output : compiled_model->outputs()) {
+        allocate_port(output);
     }
 }
 
