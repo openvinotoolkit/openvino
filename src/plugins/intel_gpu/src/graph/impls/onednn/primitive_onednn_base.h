@@ -112,6 +112,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << _apply_to_int;
             }
             {
+                dnnl::accumulation_mode _acc_mode = _attrs->get_accumulation_mode();
+                ob << make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
+            }
+            {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
 
                 ob << _post_ops.len();
@@ -214,6 +218,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
                 ib >> _apply_to_int;
                 _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
+            }
+            {
+                dnnl::accumulation_mode _acc_mode = dnnl::accumulation_mode::strict;
+                ib >> make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
+                _attrs->set_accumulation_mode(_acc_mode);
             }
             {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
