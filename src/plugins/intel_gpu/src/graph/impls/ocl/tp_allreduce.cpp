@@ -49,6 +49,20 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         rank = prim->rank;
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << group_id;
+        ob << collective_id;
+        ob << rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> group_id;
+        ib >> collective_id;
+        ib >> rank;
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             tp_allreduce_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
@@ -128,5 +142,6 @@ attach_tp_allreduce_impl::attach_tp_allreduce_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tp_allreduce_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::tp_allreduce)
 
 #endif  // ENABLE_TP_GPU

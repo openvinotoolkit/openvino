@@ -154,6 +154,40 @@ num_layers gives one report per inference). Output documents
 record/exec/sync breakdown plus measured PCIe throughput per direction;
 see [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables-all-opt-in-via-env-var).
 
+## Model Caching
+
+Compiling a large model once per rank is expensive, so `TP_GPU` supports
+both explicit export/import and the standard `ov::cache_dir` flow:
+
+```cpp
+core.set_property(ov::cache_dir("/path/to/cache"));
+// First call compiles every rank and writes one cache entry.
+auto compiled = core.compile_model(model, "TP_GPU", ov::intel_gpu::tp_size(2));
+// Any later call with the same model and the same TP topology imports it.
+```
+
+Explicit form:
+
+```cpp
+std::stringstream blob;
+compiled.export_model(blob);
+auto imported = core.import_model(blob, "TP_GPU", ov::intel_gpu::tp_size(2));
+```
+
+Things to know:
+
+- **The blob is bound to the topology it was produced on.** It records the
+  device of every rank, and rank `r`'s graph only makes sense on that device.
+  Importing it against a different device set is rejected rather than silently
+  retargeted. `TP_SIZE` and `DEVICE_IDS` are part of the cache hash, so
+  different topologies get separate cache entries.
+- **It is not portable.** Like any GPU blob, it is tied to the driver and
+  hardware it was compiled on.
+- **Weights are stored in full.** Weightless caching is not wired up, so the
+  entry is roughly the size of the model.
+- `compiled.get_property(ov::loaded_from_cache)` tells you which path was
+  taken.
+
 ## Limitations
 
 - **Architecture coverage.** The graph rewriter recognizes Llama-family
@@ -166,8 +200,9 @@ see [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables-all-opt-in-via-
 - **Single-process.** All ranks execute in the same process under
   `std::async`. Multi-process / multi-host configurations are out of
   scope; use NCCL/CCL-based stacks for those.
-- **No model import/export, no user-supplied remote context.** The
-  plugin always builds its own shared L0 context covering all ranks.
+- **No user-supplied remote context.** The plugin always builds its own
+  shared L0 context covering all ranks, so importing into a caller-provided
+  context is rejected.
 - **Dynamic quantization is force-disabled** (see above).
 - **TP degree 2 is the validated production path.** Larger world sizes
   (3–4) build and run, but use a legacy funnel topology and have not

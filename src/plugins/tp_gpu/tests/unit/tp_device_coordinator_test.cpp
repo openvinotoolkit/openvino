@@ -593,15 +593,25 @@ TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
     auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{300});
 
     // Only rank 0 calls, so the enter barrier can never be satisfied.  The
-    // buffers are never dereferenced because execution is not reached.
-    EXPECT_THROW(coord->allreduce(0, 0, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+    // buffers are real but never read: execution is not reached.
+    RankScratch rank0;
+    rank0.init(shared->context, shared->devices[0]);
+    const size_t bytes = elements * sizeof(float);
+    void* in = rank0.alloc(bytes);
+    void* out = rank0.alloc(bytes);
+
+    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32), ov::Exception);
     EXPECT_TRUE(coord->is_aborted());
 
     // The device queues are left in an unknown state, so the coordinator stays
     // failed and rejects further work immediately rather than after a timeout.
     const auto before = std::chrono::steady_clock::now();
-    EXPECT_THROW(coord->allreduce(0, 0, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32), ov::Exception);
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::milliseconds{300});
+
+    ov::zeMemFree(shared->context, in);
+    ov::zeMemFree(shared->context, out);
+    rank0.destroy();
 }
 
 TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {

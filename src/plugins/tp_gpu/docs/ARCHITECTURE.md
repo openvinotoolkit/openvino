@@ -301,6 +301,49 @@ Registration order (see `tp_allreduce_impls.cpp`): `OCL_static`,
 L0 context spanning every rank's device, and without one the plugin
 fails at `compile_model` rather than silently degrading.
 
+Both the primitive and its impl are registered with
+`BIND_BINARY_BUFFER_WITH_TYPE`, and both persist `group_id` /
+`collective_id` / `rank`. The impl needs its own `save`/`load` because a
+blob-restored impl is not rebuilt from its node: without them every rank
+would come back as rank 0.
+
+## Compiled Blob
+
+`CompiledModel::export_model` writes a container around one intel_gpu
+blob per rank:
+
+```
+char[8]  "OVTPGPU"        magic
+uint32   version
+uint32   world_size
+uint32   num_collectives
+[world_size] device name : uint32 length + bytes
+[world_size] rank blob   : uint64 length + bytes
+```
+
+The weight shards are already baked into each rank's blob, so no shard
+metadata is stored. `num_collectives` is, because at import time there is
+no graph left to analyze and the coordinator has to be sized anyway.
+
+`Plugin::import_model` validates the header, builds its own shared L0
+context over the recorded devices, hands each rank blob to intel_gpu
+through that rank's remote context, and re-injects a fresh
+`CollectiveCommRegistry` with `set_property` — the same mechanism used
+after `compile_model`. The resulting `CompiledModel` has no `ov::Model`
+and derives its ports from rank 0.
+
+Everything read back is untrusted input (a stale, truncated or corrupt
+cache entry), so each length is bounds-checked before it is used to size
+an allocation or move the stream. A blob is bound to its topology:
+importing it against a different device set is rejected.
+
+`ov::cache_dir` works because the plugin advertises
+`ov::device::capability::EXPORT_IMPORT` and answers
+`ov::internal::caching_properties` — the GPU list plus `TP_SIZE` and
+`DEVICE_IDS`, so two topologies cannot collide on one hash. Values of GPU
+caching properties are aggregated across the rank devices and joined with
+`;`.
+
 ## Lifetime and Threading
 
 - `TPL0SharedContext` is owned by the `Plugin` instance and outlives all
@@ -347,8 +390,9 @@ fails at `compile_model` rather than silently degrading.
   force-disabled by `Plugin::compile_model`. The oneDNN i8×i4 BRGEMM
   kernel produces shape-dependent results that diverge between
   unsharded and sharded MatMuls at sequence lengths ≥ 80.
-- Model import/export and remote contexts from the user are not
-  supported. The plugin always creates its own shared L0 context.
+- Remote contexts supplied by the user are not supported: the plugin
+  always creates its own shared L0 context. Weightless caching is not
+  wired up either, so a cache entry carries the full weights.
 - Stateful inference works (KV-cache constants are patched), but
   `state.reset()` mid-session destroys plan capacity tracking on the
   next forward — only an issue for benchmarks that toggle reset.

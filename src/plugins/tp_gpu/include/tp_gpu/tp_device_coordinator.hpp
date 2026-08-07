@@ -58,6 +58,11 @@ public:
     /// Returns world size (number of ranks).
     int world_size() const { return m_world_size; }
 
+    /// Number of distinct AllReduce points the coordinator was sized for.
+    /// Recorded in the compiled blob so an imported model can rebuild an
+    /// identically sized coordinator without re-analyzing the graph.
+    int num_collectives() const { return m_num_collectives; }
+
     /// Returns true when initialization built kernels successfully on all ranks.
     bool is_ready() const { return m_ready; }
 
