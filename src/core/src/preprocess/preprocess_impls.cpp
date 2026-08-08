@@ -350,19 +350,27 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     // Apply post-processing
     node = result->get_input_source_output(0);
     bool post_processing_applied = false;
+
+    std::shared_ptr<op::util::ConvertColorToNV12Base> convert_nv12_node;
+    PostprocessingContext uv_context(Layout{}); // snapshot in case NV12_TWO_PLANES is encountered
+    std::vector<InternalPostprocessAction> post_nv12_explicit_actions;
+
     for (const auto& action : get_postprocess()->actions()) {
         auto action_result = action.m_op({node}, context);
         node = std::get<0>(action_result);
         post_processing_applied = true;
-    }
-
-    // Capture NV12 two-plane convert node to apply implicit steps on UV plane
-    std::shared_ptr<op::util::ConvertColorToNV12Base> convert_nv12_node;
-    Layout pre_implicit_layout;
-    if (auto nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr())) {
-        if (!nv12->is_single_plane()) {
-            convert_nv12_node = nv12;
-            pre_implicit_layout = context.layout();
+        if (!convert_nv12_node) {
+            // Check whether this action produced a two-plane NV12 node.
+            if (auto nv12 = ov::as_type_ptr<op::util::ConvertColorToNV12Base>(node.get_node_shared_ptr())) {
+                if (!nv12->is_single_plane()) {
+                    convert_nv12_node = nv12;
+                    uv_context = context;
+                }
+            }
+        } else {
+            // Collect every explicit action that follows the NV12 conversion;
+            // in order to apply on the UV plane.
+            post_nv12_explicit_actions.push_back(action);
         }
     }
     // Implicit: Convert element type + layout to user's tensor implicitly
@@ -424,15 +432,15 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         result->set_layout(context.layout());
     }
 
-    // Handle NV12_TWO_PLANES - use previously captured node (before implicit steps)
+    // Handle NV12_TWO_PLANES: apply post-NV12 explicit actions and implicit steps on UV plane.
     if (convert_nv12_node) {
-        // Re-apply the same implicit steps to the UV plane (output 1) using a
-        // new context initialized with the pre-implicit layout.
-        PostprocessingContext uv_context(pre_implicit_layout);
-
         Output<Node> uv_node = convert_nv12_node->output(1);
+        for (const auto& action : post_nv12_explicit_actions) {
+            auto action_result = action.m_op({uv_node}, uv_context);
+            uv_node = std::get<0>(action_result);
+        }
         for (const auto& action : implicit_steps.actions()) {
-            auto action_result = action.m_op(uv_node, uv_context);
+            auto action_result = action.m_op({uv_node}, uv_context);
             uv_node = std::get<0>(action_result);
         }
 
