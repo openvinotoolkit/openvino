@@ -876,6 +876,7 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForQwen35) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
+// Verifies FP32 promotion for the direct MatMul -> Sin/Cos topology.
 TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCos) {
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
     position_ids->set_friendly_name("position_ids");
@@ -892,7 +893,9 @@ TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCos) {
     auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
     auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
     auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{position_ids});
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(matmul, ov::element::i32);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, shape_of}, ov::ParameterVector{position_ids});
 
     ov::pass::Manager manager;
     manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
@@ -903,6 +906,7 @@ TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCos) {
     EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(sin->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(cos->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(shape_of->get_output_element_type(0), ov::element::i32);
 
     for (const auto& trig_node : {std::static_pointer_cast<ov::Node>(sin),
                                   std::static_pointer_cast<ov::Node>(cos)}) {
@@ -914,6 +918,29 @@ TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCos) {
     }
 }
 
+// Verifies that position_ids are detected when they feed the right-hand side of MatMul.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosWithPositionIdsOnRhs) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{4, 1});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(frequencies, position_ids_f16);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f32);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(sin->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(cos->get_output_element_type(0), ov::element::f32);
+}
+
+// Verifies that a similarly shaped graph is ignored when its input is not position_ids.
 TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosIgnoresUnrelatedInput) {
     auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
     input_ids->set_friendly_name("input_ids");
@@ -933,6 +960,51 @@ TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosIgnoresUnrelatedInput) 
     EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f16);
     EXPECT_EQ(sin->get_output_element_type(0), ov::element::f16);
     EXPECT_EQ(cos->get_output_element_type(0), ov::element::f16);
+}
+
+// Verifies that promoting MatMul does not change another consumer of a shared Convert.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosPreservesSharedConvertConsumer) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto unrelated = std::make_shared<ov::op::v0::Result>(position_ids_f16);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, unrelated}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(unrelated->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(unrelated->input_value(0).get_node_shared_ptr(), position_ids_f16);
+}
+
+// Verifies that the transformation is skipped when MatMul has an unrelated value consumer.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosIgnoresExtraMatMulConsumer) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto unrelated = std::make_shared<ov::op::v0::Result>(matmul);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, unrelated}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f16);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(unrelated->get_input_element_type(0), ov::element::f16);
 }
 
 TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGPTOSS) {

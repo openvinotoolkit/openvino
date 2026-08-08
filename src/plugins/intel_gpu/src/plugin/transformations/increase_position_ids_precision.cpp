@@ -522,46 +522,46 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
         };
 
         std::shared_ptr<ov::op::v0::Convert> position_ids_convert_node;
-        auto position_ids_path = matmul_node->input_value(0);
-        std::set<ov::Node*> visited;
-        while (visited.insert(position_ids_path.get_node()).second) {
-            const auto node = position_ids_path.get_node_shared_ptr();
-            if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-                if (convert->input_value(0).get_element_type().is_integral() &&
-                    reaches_position_ids(convert->input_value(0))) {
-                    position_ids_convert_node = convert;
-                    break;
+        for (auto position_ids_path : matmul_node->input_values()) {
+            std::set<ov::Node*> visited;
+            while (visited.insert(position_ids_path.get_node()).second) {
+                const auto node = position_ids_path.get_node_shared_ptr();
+                if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+                    if (convert->input_value(0).get_element_type().is_integral() &&
+                        reaches_position_ids(convert->input_value(0))) {
+                        position_ids_convert_node = convert;
+                        break;
+                    }
                 }
+
+                if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
+                    ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+                    ov::is_type<ov::op::v8::Gather>(node)) {
+                    position_ids_path = node->input_value(0);
+                    continue;
+                }
+                break;
             }
 
-            if (ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
-                ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-                ov::is_type<ov::op::v8::Gather>(node)) {
-                position_ids_path = node->input_value(0);
-                continue;
-            }
-            break;
+            if (position_ids_convert_node)
+                break;
         }
 
         if (!position_ids_convert_node)
             return false;
 
         for (const auto& user : matmul_node->get_users()) {
-            if (auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(user))
+            if (auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(user)) {
                 cos_nodes.push_back(cos_node);
+            } else if (user != sin_node && !ov::is_type<ov::op::util::ShapeOfBase>(user)) {
+                return false;
+            }
         }
 
         const auto desired_et = ov::element::f32;
         const auto original_et = matmul_node->get_output_element_type(0);
-        if (cos_nodes.empty() || original_et == desired_et ||
-            !position_ids_convert_node->input_value(0).get_element_type().is_integral())
+        if (cos_nodes.empty() || original_et == desired_et)
             return false;
-
-        auto position_ids_to_f32 =
-            std::make_shared<ov::op::v0::Convert>(position_ids_convert_node->input_value(0), desired_et);
-        position_ids_to_f32->set_friendly_name(position_ids_convert_node->get_friendly_name() + "_increase_precision");
-        ov::copy_runtime_info(position_ids_convert_node, position_ids_to_f32);
-        ov::replace_node(position_ids_convert_node, position_ids_to_f32);
 
         size_t input_idx = 0;
         if (!insert_converts_before_if_needed(matmul_node, desired_et, input_idx))
