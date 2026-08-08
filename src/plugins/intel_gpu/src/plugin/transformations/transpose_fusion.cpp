@@ -368,7 +368,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
         static const auto fusecompressedkv = []() {
             const auto txt = std::getenv("fusecompressedkv");
-            return txt && txt == std::string_view("true");
+            return !(txt && txt == std::string_view("false"));
         }();
         auto input_k = select_kv_input(kv_compressed && fusecompressedkv, k_quant_m, input_k_m, input_k_output_idx, 1);
         auto input_v = select_kv_input(kv_compressed && fusecompressedkv, v_quant_m, input_v_m, input_v_output_idx, 2);
