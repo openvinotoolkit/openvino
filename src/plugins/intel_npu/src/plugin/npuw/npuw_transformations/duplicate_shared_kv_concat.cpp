@@ -13,8 +13,10 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 namespace ov {
@@ -77,6 +79,16 @@ std::optional<KVBroadcastChain> try_match(const std::shared_ptr<ov::Node>& node)
     auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
     if (!reshape || reshape->output(0).get_target_inputs().size() <= 1)
         return std::nullopt;
+
+    // Guard: all consumers must be SDPA-related ops (non-decomposed SDPA or decomposed MatMul).
+    // This prevents the pass from firing on unrelated fan-out Reshape nodes that happen to
+    // have past-KV-named parameters upstream.
+    for (const auto& ti : reshape->output(0).get_target_inputs()) {
+        auto* consumer = ti.get_node();
+        if (!ov::is_type<ov::op::v13::ScaledDotProductAttention>(consumer) &&
+            !ov::is_type<ov::op::v0::MatMul>(consumer))
+            return std::nullopt;
+    }
 
     KVBroadcastChain chain;
     chain.reshape = reshape;
