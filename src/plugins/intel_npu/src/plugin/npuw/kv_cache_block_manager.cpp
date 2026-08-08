@@ -15,9 +15,11 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                                          const ov::Shape& base_shape,
                                          ov::element::Type elem_type,
                                          const std::string& device,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         uint32_t seq_dim)
     : block_size_(block_size),
       max_blocks_(max_blocks),
+      seq_dim_(seq_dim),
       element_type_(elem_type),
       block_shape_(base_shape),
       device_(device),
@@ -31,14 +33,14 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
                     "KVCacheBlockManager: plugin must be non-null for non-CPU device '",
                     device_,
                     "'");
-    // Check that the sequence dimension (dim 2 for K/non-transposed-V, dim 3 for transposed V)
-    // equals block_size.
-    OPENVINO_ASSERT(base_shape.size() == 4 && (base_shape[2] == block_size || base_shape[3] == block_size),
+    OPENVINO_ASSERT(seq_dim_ == 2u || seq_dim_ == 3u, "KVCacheBlockManager: seq_dim must be 2 or 3, got ", seq_dim_);
+    OPENVINO_ASSERT(base_shape.size() == 4 && base_shape[seq_dim_] == block_size,
                     "KVCacheBlockManager: base_shape ",
                     base_shape,
                     " does not have block_size=",
                     block_size,
-                    " in sequence dimension (expected at dim 2 or 3)");
+                    " at seq_dim=",
+                    seq_dim_);
 
     // Initialize block pool (tensors allocated on-demand, not here)
     blocks_.reserve(max_blocks);

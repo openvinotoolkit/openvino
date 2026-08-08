@@ -1216,24 +1216,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_BLOCK();
 
             bool all_transformed = true;
-            auto apply_block_kv_transform =
-                [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
-                    ov::pass::Manager mgr(tag);
-                    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(block_size, v_transposed);
-                    if (mgr.run_passes(model)) {
-                        LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
-                    } else {
-                        LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
-                        all_transformed = false;
-                    }
-                };
+            auto apply_block_kv_transform = [&](std::shared_ptr<ov::Model>& model, const std::string& tag) {
+                ov::npuw::pass::SplitKVCacheIntoBlocks pass(block_size);
+                if (pass.run_on_model(model)) {
+                    LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                } else {
+                    LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                    all_transformed = false;
+                }
+                return pass;
+            };
 
-            apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+            auto prefill_pass = apply_block_kv_transform(prefill_model, "prefill");
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-                apply_block_kv_transform(generate_model_variants[i],
-                                         m_kvcache_desc.v_tensors_transposed_gen,
-                                         "generate_" + std::to_string(i));
+                apply_block_kv_transform(generate_model_variants[i], "generate_" + std::to_string(i));
             }
 
             if (!all_transformed) {
@@ -1242,6 +1239,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                "Ensure the model uses HFA or Pyramid attention pattern.");
             }
             m_is_block_kv_cache = true;
+            m_kv_seq_dims = prefill_pass.get_kv_seq_dims();
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
                      "Block-based KV cache requires: chunk prefill enabled, "

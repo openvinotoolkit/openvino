@@ -28,7 +28,8 @@ protected:
         device = "CPU";  // Use CPU for unit tests
 
         // Pass nullptr for plugin since CPU device doesn't need it in allocMem
-        manager = std::make_unique<KVCacheBlockManager>(block_size, max_blocks, base_shape, elem_type, device, nullptr);
+        manager =
+            std::make_unique<KVCacheBlockManager>(block_size, max_blocks, base_shape, elem_type, device, nullptr, 2u);
     }
 
     void TearDown() override {
@@ -346,16 +347,16 @@ TEST_F(KVCacheBlockManagerTest, InvalidConstructorParams) {
     const ov::Shape valid_shape{1, 32, 512, 128};
 
     // block_size = 0 must throw
-    EXPECT_THROW(KVCacheBlockManager(0u, 8u, valid_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+    EXPECT_THROW(KVCacheBlockManager(0u, 8u, valid_shape, ov::element::f16, "CPU", nullptr, 2u), ov::Exception)
         << "block_size=0 must throw";
 
     // max_blocks = 0 must throw
-    EXPECT_THROW(KVCacheBlockManager(512u, 0u, valid_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+    EXPECT_THROW(KVCacheBlockManager(512u, 0u, valid_shape, ov::element::f16, "CPU", nullptr, 2u), ov::Exception)
         << "max_blocks=0 must throw";
 
     // Shape with no dimension equal to block_size must throw
     const ov::Shape bad_shape{1, 32, 256, 128};  // neither dim[2]=256 nor dim[3]=128 equals 512
-    EXPECT_THROW(KVCacheBlockManager(512u, 8u, bad_shape, ov::element::f16, "CPU", nullptr), ov::Exception)
+    EXPECT_THROW(KVCacheBlockManager(512u, 8u, bad_shape, ov::element::f16, "CPU", nullptr, 2u), ov::Exception)
         << "Shape not containing block_size must throw";
 }
 
@@ -393,6 +394,43 @@ TEST_F(KVCacheBlockManagerTest, NumFreeBlocks) {
         manager->allocate_block();
     }
     EXPECT_EQ(manager->num_free_blocks(), 0u);
+}
+
+TEST_F(KVCacheBlockManagerTest, SeqDimDetection_Dim2) {
+    // base_shape = [1, 32, block_size, 128] → seq is at dim 2
+    EXPECT_EQ(manager->get_seq_dim(), 2u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDimDetection_Dim3) {
+    // Transposed V layout: [1, 8, 256, block_size] → seq is at dim 3
+    uint32_t block_size = 512;
+    ov::Shape transposed_shape{1, 8, 256, block_size};
+    KVCacheBlockManager mgr(block_size, 4, transposed_shape, ov::element::f16, "CPU", nullptr, 3u);
+    EXPECT_EQ(mgr.get_seq_dim(), 3u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDim_AmbiguousShapeWithExplicitAxis) {
+    // Both dim 2 and dim 3 equal block_size — caller must specify the correct axis.
+    uint32_t block_size = 256;
+    ov::Shape ambiguous_shape{1, 8, block_size, block_size};
+    KVCacheBlockManager mgr2(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr, 2u);
+    EXPECT_EQ(mgr2.get_seq_dim(), 2u);
+    KVCacheBlockManager mgr3(block_size, 4, ambiguous_shape, ov::element::f16, "CPU", nullptr, 3u);
+    EXPECT_EQ(mgr3.get_seq_dim(), 3u);
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDim_MismatchThrows) {
+    // seq_dim points to a dimension that does NOT equal block_size — must throw.
+    uint32_t block_size = 512;
+    ov::Shape shape{1, 8, 256, block_size};  // seq at dim 3, dim 2 = 256
+    EXPECT_ANY_THROW(KVCacheBlockManager(block_size, 4, shape, ov::element::f16, "CPU", nullptr, 2u));
+}
+
+TEST(KVCacheBlockManagerSeqDimTest, SeqDim_InvalidAxisThrows) {
+    uint32_t block_size = 512;
+    ov::Shape shape{1, 8, block_size, 128};
+    EXPECT_ANY_THROW(KVCacheBlockManager(block_size, 4, shape, ov::element::f16, "CPU", nullptr, 0u));
+    EXPECT_ANY_THROW(KVCacheBlockManager(block_size, 4, shape, ov::element::f16, "CPU", nullptr, 1u));
 }
 
 }  // namespace

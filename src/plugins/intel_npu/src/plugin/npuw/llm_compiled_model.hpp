@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
@@ -116,6 +117,10 @@ private:
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
     bool m_is_block_kv_cache = false;
+
+    // Per-layer KV cache sequence dimension (populated by SplitKVCacheIntoBlocks).
+    // Key: layer index. Value: {key_seq_dim, value_seq_dim}.
+    std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> m_kv_seq_dims;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.

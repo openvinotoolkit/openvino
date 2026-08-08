@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include <unordered_map>
+#include <utility>
+
 #include "openvino/pass/pass.hpp"
 
 namespace ov {
 namespace npuw {
 namespace pass {
+
+// Per-layer KV cache sequence dimension info extracted during transformation.
+// Key: layer index. Value: {key_seq_dim, value_seq_dim}.
+using KVSeqDimsMap = std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>>;
 
 /**
  * @brief Transformation pass to split KV cache access into block-based pattern
@@ -54,18 +61,22 @@ public:
      * @brief Construct transformation with block configuration
      *
      * @param block_size Number of tokens per block (default: 1024 for efficiency)
-     * @param v_transposed Whether V tensor is transposed (true: [B,H,D,S], false: [B,H,S,D])
      *
      * The number of blocks is automatically calculated from the original past_key shape.
      * If the sequence length is not evenly divisible by block_size, a tail block is created.
      */
-    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024, bool v_transposed = true);
+    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
+    /// Per-layer seq dims extracted during run_on_model(). Populated after a successful run.
+    const KVSeqDimsMap& get_kv_seq_dims() const {
+        return m_kv_seq_dims;
+    }
+
 private:
     uint32_t m_block_size;
-    bool m_v_transposed;
+    KVSeqDimsMap m_kv_seq_dims;
 };
 
 }  // namespace pass

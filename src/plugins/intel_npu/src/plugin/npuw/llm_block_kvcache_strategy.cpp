@@ -390,12 +390,7 @@ void LLMBlockKVCacheStrategy::on_prefill_chunk_done(uint32_t current_prompts_len
         const uint32_t write_start = kvcache_desc.num_stored_tokens - current_prompts_len;
         LOG_DEBUG("Copying prefill outputs to blocks: num_tokens=" << current_prompts_len
                                                                    << " kv_position=" << write_start);
-        const bool v_transposed = kvcache_desc.v_tensors_transposed_pre;
-        copy_outputs_to_blocks(m_req.m_prefill_request,
-                               m_req.m_prefill_out_ports,
-                               current_prompts_len,
-                               v_transposed,
-                               write_start);
+        copy_outputs_to_blocks(m_req.m_prefill_request, m_req.m_prefill_out_ports, current_prompts_len, write_start);
     }
 }
 
@@ -412,7 +407,6 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
     //    write directly into the shared BlockManager buffer — no re-binding needed.
     //  Tail block (block_tail port): copy-based; refreshed by update_generate_bindings() each step.
 
-    auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& variant_layer_helpers = m_variant_block_binding_helpers.at(m_req.m_kvcache_request);
 
     auto process_blocks = [&](uint32_t layer_idx,
@@ -448,12 +442,15 @@ void LLMBlockKVCacheStrategy::on_generate_kv_init() {
             process_blocks(layer_idx,
                            layer_managers.key_manager.get(),
                            layer_helpers.key_helper,
-                           kvcache_desc.dim,
+                           layer_managers.key_manager->get_seq_dim(),
                            "key");
         }
         if (layer_managers.value_manager) {
-            const uint32_t kv_dim = kvcache_desc.v_tensors_transposed_gen ? 3u : kvcache_desc.dim;
-            process_blocks(layer_idx, layer_managers.value_manager.get(), layer_helpers.value_helper, kv_dim, "value");
+            process_blocks(layer_idx,
+                           layer_managers.value_manager.get(),
+                           layer_helpers.value_helper,
+                           layer_managers.value_manager->get_seq_dim(),
+                           "value");
         }
     }
 
@@ -474,11 +471,7 @@ void LLMBlockKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_len) {
     const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     const uint32_t tokens_after = kvcache_desc.num_stored_tokens;
     const uint32_t tokens_before = tokens_after - input_tokens_len;
-    copy_outputs_to_blocks(m_req.m_kvcache_request,
-                           m_req.m_kvcache_out_ports,
-                           input_tokens_len,
-                           kvcache_desc.v_tensors_transposed_gen,
-                           tokens_before);
+    copy_outputs_to_blocks(m_req.m_kvcache_request, m_req.m_kvcache_out_ports, input_tokens_len, tokens_before);
     update_generate_bindings(tokens_before, tokens_after, m_req.m_kvcache_request);
 }
 
@@ -670,7 +663,6 @@ void LLMBlockKVCacheStrategy::update_generate_bindings(uint32_t old_num_tokens,
     LOG_DEBUG("=== Update Block Bindings After Generate ===");
     LOG_BLOCK();
 
-    auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& variant_layer_helpers = m_variant_block_binding_helpers.at(kvcache_request);
 
     auto update_blocks = [&](uint32_t layer_idx,
@@ -739,12 +731,15 @@ void LLMBlockKVCacheStrategy::update_generate_bindings(uint32_t old_num_tokens,
             update_blocks(layer_idx,
                           layer_managers.key_manager.get(),
                           layer_helpers.key_helper,
-                          kvcache_desc.dim,
+                          layer_managers.key_manager->get_seq_dim(),
                           "key");
         }
         if (layer_managers.value_manager) {
-            const uint32_t kv_dim = kvcache_desc.v_tensors_transposed_gen ? 3u : kvcache_desc.dim;
-            update_blocks(layer_idx, layer_managers.value_manager.get(), layer_helpers.value_helper, kv_dim, "value");
+            update_blocks(layer_idx,
+                          layer_managers.value_manager.get(),
+                          layer_helpers.value_helper,
+                          layer_managers.value_manager->get_seq_dim(),
+                          "value");
         }
     }
 }
@@ -756,10 +751,8 @@ void LLMBlockKVCacheStrategy::update_generate_bindings(uint32_t old_num_tokens,
 void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                                      const PortsMap& src_ports,
                                                      uint32_t num_tokens,
-                                                     bool v_transposed,
                                                      uint32_t current_kv_position) {
     namespace uu = ov::npuw::util;
-    auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
     auto& compiled = request->get_compiled_model();
 
     for (std::size_t i = LLMInferBaseRequest::layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size();
@@ -780,18 +773,28 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
 
         auto& layer_managers = it->second;
         auto& block_manager = is_key ? layer_managers.key_manager : layer_managers.value_manager;
-        const uint32_t kv_dim = (!is_key && v_transposed) ? 3u : kvcache_desc.dim;
+
+        // Use per-layer seq dim from block manager (handles mixed transposed/non-transposed V).
+        const uint32_t kv_dim = block_manager->get_seq_dim();
 
         auto src_tensor = request->get_tensor(src_ports.at(output_name));
-        uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
-        OPENVINO_ASSERT(num_tokens <= src_seq_len, "num_tokens (", num_tokens, ") > src_seq_len (", src_seq_len, ")");
+        const uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
 
-        auto src_to_copy = src_tensor;
-        if (src_seq_len > num_tokens) {
-            src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len);
+        uint32_t effective_tokens;
+        ov::SoPtr<ov::ITensor> src_to_copy;
+        if (num_tokens <= src_seq_len) {
+            // Normal case: output has enough (or more) tokens — take the tail.
+            effective_tokens = num_tokens;
+            src_to_copy = (src_seq_len > num_tokens)
+                              ? uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len)
+                              : src_tensor;
+        } else {
+            // SWA case: sliding-window layer produced fewer tokens than requested.
+            effective_tokens = src_seq_len;
+            src_to_copy = src_tensor;
         }
 
-        const uint32_t start_pos = current_kv_position;
+        const uint32_t start_pos = current_kv_position + (num_tokens - effective_tokens);
         const uint32_t end_pos = current_kv_position + num_tokens;
         const uint32_t start_block_idx = start_pos / m_block_size;
         const uint32_t end_block_idx = (end_pos - 1) / m_block_size;
@@ -820,7 +823,11 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
             tokens_written += count;
             block_manager->update_block_tokens(block_id, write_end);
         }
-        OPENVINO_ASSERT(tokens_written == num_tokens, "Mismatch: wrote ", tokens_written, " but expected ", num_tokens);
+        OPENVINO_ASSERT(tokens_written == effective_tokens,
+                        "Mismatch: wrote ",
+                        tokens_written,
+                        " but expected ",
+                        effective_tokens);
     }
 }
 
@@ -909,12 +916,14 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers() {
                             " has key blocks but no key_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_key_port = m_prefill_classified_in_ports.at(key_block0_name).port;
+            const auto& seq_dims = compiled_model->m_kv_seq_dims.at(layer_idx);
             layer_managers.key_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                max_blocks,
                                                                                first_key_port.get_shape(),
                                                                                first_key_port.get_element_type(),
                                                                                m_req.m_pre_alloc_device,
-                                                                               compiled_model->get_plugin());
+                                                                               compiled_model->get_plugin(),
+                                                                               seq_dims.first);
         }
         if (presence.has_value_numbered_block) {
             const std::string value_block0_name = make_numbered_block_input_name("value", layer_idx_str, 0);
@@ -924,12 +933,14 @@ void LLMBlockKVCacheStrategy::create_block_managers_and_helpers() {
                             " has value blocks but no value_block_0. "
                             "SplitKVCacheIntoBlocks transformation may be broken.");
             auto first_value_port = m_prefill_classified_in_ports.at(value_block0_name).port;
+            const auto& seq_dims = compiled_model->m_kv_seq_dims.at(layer_idx);
             layer_managers.value_manager = std::make_unique<KVCacheBlockManager>(block_size,
                                                                                  max_blocks,
                                                                                  first_value_port.get_shape(),
                                                                                  first_value_port.get_element_type(),
                                                                                  m_req.m_pre_alloc_device,
-                                                                                 compiled_model->get_plugin());
+                                                                                 compiled_model->get_plugin(),
+                                                                                 seq_dims.second);
         }
 
         m_kv_cache_block_managers[layer_idx] = std::move(layer_managers);
