@@ -4,11 +4,19 @@
   "signature_hash": "a73572e761729ca3",
   "title": "ARM64 CPU functional tests fail on cross-compilation workflow (unrelated to GPU clang-tidy PR)",
   "category": "Flaky Test",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-08-08T13:22:41Z",
-  "last_seen": "2026-08-08T13:22:41Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31258094887"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37211"],
-  "recent_timestamps": ["2026-08-08T13:22:41Z"],
+  "last_seen": "2026-08-08T14:38:50Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31261069094",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31258094887"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37211"
+  ],
+  "recent_timestamps": [
+    "2026-08-08T14:38:50Z",
+    "2026-08-08T13:22:41Z"
+  ],
   "rerun_search_string": "intel cpu plugin func tests parallel"
 }

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-14-38-50-000-31261069094",
+  "timestamp": "2026-08-08T14:38:50Z",
+  "run_id": "31261069094",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31261069094",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Flaky Test",
+  "title": "ARM64 CPU functional tests fail on cross-compilation workflow (unrelated to GPU clang-tidy PR)",
+  "signature": "cpu functional tests parallel step failed intel cpu plugin arm64|Flaky Test",
+  "signature_hash": "a73572e761729ca3",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed on ARM64 runner; this is run attempt 2"
+    }
+  ],
+  "key_errors": [
+    "Job 'CPU functional tests / CPU functional tests' (job id 93113889055) failed at step 'Intel CPU plugin func tests (parallel)' on ARM64 runner aks-linux-16-cores-arm. Job ran 14:28-14:33 UTC. Logs inaccessible due to secrecy policy. Run is on attempt 2."
+  ],
+  "root_cause": "The CPU functional tests step failed on the ARM64 cross-compilation runner. PR #37211 only modifies src/plugins/intel_gpu/ files (GPU clang-tidy changes). It has no interaction with ARM64 CPU functional tests. This is a recurrence of the same Flaky Test pattern (a73572e761729ca3) that failed 75 minutes earlier on run 31258094887 for the same PR. The run is already on attempt 2 (auto-retried). Detailed logs are inaccessible due to the secrecy policy filter, but historical context strongly indicates an unrelated pre-existing ARM64 CPU test flakiness.",
+  "reproduction_steps": "N/A - ARM64 cross-compilation CI environment required",
+  "recommended_actions": [
+    "Monitor attempt 2 (job 93114868265, currently in_progress) for successful completion.",
+    "If attempt 2 passes, PR #37211 can proceed to merge.",
+    "If attempt 2 also fails, investigate the specific CPU test failure in the ARM64 environment.",
+    "Track known-flaky ARM64 CPU tests to avoid blocking unrelated PRs."
+  ],
+  "prevention_strategies": "Recurring ARM64 CPU test failures across unrelated PRs indicate systemic instability in the ARM64 test environment. Consider quarantining known-flaky tests and implementing a dedicated tracking ticket for ARM64 test reliability.",
+  "historical_context": "Same signature a73572e761729ca3 seen previously on run 31258094887 at 13:22 UTC today (attempt 1 of the same PR). Pattern 4975bf8755e5f7c4 (smoke_Conv1x1WeightCompressedToMatmul COMPARATION FAILED on ARM64) appeared 3 times on 2026-08-07. Pattern 724272b6bb94e4b5 (ARM64 CPU functional tests job fails) appeared 3 times between 2026-07-23 and 2026-07-28."
+}
