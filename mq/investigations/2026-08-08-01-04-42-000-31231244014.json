@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-01-04-42-000-31231244014",
+  "timestamp": "2026-08-08T01:04:42Z",
+  "run_id": "31231244014",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31231244014",
+  "workflow_name": "Android",
+  "pr_number": "37304",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37304",
+  "author": "dylanneve1",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Build x64", "conclusion": "failure", "symptom": "CMake Error at plugins.cmake:275: MODULE_LIBRARY targets cannot be linked"},
+    {"name": "Build arm64", "conclusion": "failure", "symptom": "CMake Error at plugins.cmake:275: MODULE_LIBRARY targets cannot be linked"}
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries):\n  Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into\n  another target.  One may link only to INTERFACE, OBJECT, STATIC or SHARED\n  libraries, or to executables with the ENABLE_EXPORTS property set.\nCall Stack (most recent call first):\n  cmake/developer_package/plugins/plugins.cmake:325 (ov_target_link_plugins)\n  cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp)\n  CMakeLists.txt:196 (include)",
+    "-- Configuring incomplete, errors occurred!\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Android build uses -DBUILD_SHARED_LIBS=ON (or equivalent via the toolchain/genai extra modules), but ov_generate_plugins_hpp() unconditionally calls ov_target_link_plugins(openvino) at plugins.cmake:325-327 even for shared-lib builds. The ov_target_link_plugins function contains an early return guard for BUILD_SHARED_LIBS (line ~264), but calling ov_target_link_plugins from ov_generate_plugins_hpp bypasses the intent - or an EXTRA_MODULE (openvino.genai) changes the plugin type to MODULE_LIBRARY which is not linkable. The PR #37304 (NPUW sliding-window matcher fix) does not touch CMake files, so this is a pre-existing CMake issue with the Android extra-modules configuration, likely exposed by the openvino.genai extra modules registration making plugins MODULE_LIBRARY targets.",
+  "reproduction_steps": "Run the Android CMake configure step with -DOPENVINO_EXTRA_MODULES=<openvino.genai> and -DENABLE_INTEL_NPU=ON against the master branch.",
+  "recommended_actions": [
+    "Inspect cmake/extra_modules.cmake:186 and how ov_generate_plugins_hpp interacts with extra modules that register MODULE_LIBRARY plugin targets.",
+    "Add a guard in ov_generate_plugins_hpp (or ov_target_link_plugins) to skip MODULE_LIBRARY targets, similar to the BUILD_SHARED_LIBS guard.",
+    "Check if this failure is pre-existing on master (unrelated to PR #37304) by running the same Android workflow on master alone.",
+    "File a bug if confirmed pre-existing; if introduced by a recent merge, identify and revert the CMake change."
+  ],
+  "prevention_strategies": "Add CI validation that ov_generate_plugins_hpp works correctly when EXTRA_MODULES register MODULE_LIBRARY targets. Consider adding a CMake check that rejects MODULE_LIBRARY plugin registrations when static linking is needed.",
+  "historical_context": "No prior occurrences of this exact failure found in the pattern database."
+}
