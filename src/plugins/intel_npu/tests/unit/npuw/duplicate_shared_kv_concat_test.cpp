@@ -253,7 +253,7 @@ std::shared_ptr<ov::Model> build_fanout_model_with_convert(const std::string& kv
 
     // Use MatMul as consumers so the consumer-type guard in try_match() is satisfied.
     const size_t head_dim = reshape_target.back();
-    auto matmul_weight = ov::op::v0::Constant::create(ov::element::f16,
+    auto matmul_weight = ov::op::v0::Constant::create(ov::element::f32,
                                                       ov::Shape{head_dim, head_dim},
                                                       std::vector<float>(head_dim * head_dim, 1.0f));
     ov::ResultVector results;
