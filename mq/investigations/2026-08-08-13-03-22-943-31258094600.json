@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-13-03-22-943-31258094600",
+  "timestamp": "2026-08-08T13:03:22Z",
+  "run_id": "31258094600",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31258094600",
+  "workflow_name": "Android",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails with MODULE_LIBRARY link error at plugins.cmake:275"
+    },
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails with MODULE_LIBRARY link error at plugins.cmake:275"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails due to Build arm64/x64 failures"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into another target. One may link only to INTERFACE, OBJECT, STATIC or SHARED libraries",
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target.",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The Android CMake build fails in ov_generate_plugins_hpp() (cmake/extra_modules.cmake:186), which calls ov_target_link_plugins() (plugins.cmake:325-327). This function tries to link plugin MODULE_LIBRARY targets (openvino_auto_plugin, openvino_intel_gpu_plugin, openvino_hetero_plugin, etc.) into another target, which CMake prohibits. This is a pre-existing deterministic bug in the Android build CMake configuration that is entirely unrelated to the PR changes (GPU clang-tidy only). The same failure has now been observed 3 times for this PR (#37211) and a previous PR (#37304). The underlying CMake configuration issue must be fixed before Android builds will succeed.",
+  "reproduction_steps": "Run the Android CMake configure step with the same NDK and BUILD_SHARED_LIBS=OFF settings used in the Android CI workflow. The ov_generate_plugins_hpp() call will fail because plugins are registered as MODULE_LIBRARY and ov_target_link_plugins() tries to link them statically.",
+  "recommended_actions": [
+    "Fix cmake/developer_package/plugins/plugins.cmake to handle MODULE_LIBRARY targets in ov_target_link_plugins() - either skip them or convert them to SHARED or STATIC for Android builds",
+    "Investigate why the Android build is registering plugins as MODULE_LIBRARY when they should likely be SHARED for Android",
+    "Check the ov_add_plugin() macro (around line 111) for Android-specific BUILD_SHARED_LIBS handling",
+    "File a tracking issue for the Android CMake build configuration bug to avoid blocking unrelated PRs"
+  ],
+  "prevention_strategies": "The Android CMake build configuration bug is a systemic issue. A dedicated CMake fix PR must be merged before any further PRs will succeed in the Android workflow. Consider adding a pre-merge check that validates CMake configuration on Android to catch such regressions earlier.",
+  "historical_context": "Same failure seen in run 31231244014 (2026-08-08T01:04:42Z, PR #37304) and run 31257162423 (2026-08-08T12:39:01Z, PR #37211). This is the 3rd occurrence in under 12 hours, all for Android CMake configure on the same plugins.cmake:275 error."
+}
