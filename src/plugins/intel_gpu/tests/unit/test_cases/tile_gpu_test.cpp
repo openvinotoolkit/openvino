@@ -786,12 +786,17 @@ public:
 
 using tile_test_f32 = tile_test<float>;
 using tile_test_f16 = tile_test<ov::float16>;
+using tile_test_bf16 = tile_test<ov::bfloat16>;
 
 TEST_P(tile_test_f32, test_case) {
     ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(tile_test_f16, test_case) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
+
+TEST_P(tile_test_bf16, test_case) {
     ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
@@ -811,6 +816,14 @@ INSTANTIATE_TEST_SUITE_P(tile_gpu_2D,
                              ::testing::ValuesIn(layouts_2d)),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(tile_gpu_2D,
+                         tile_test_bf16,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(generateTileParams2D<ov::bfloat16>()),
+                             ::testing::Values(format::bfyx),
+                             ::testing::ValuesIn(layouts_2d)),
+                         PrintToStringParamName());
+
 INSTANTIATE_TEST_SUITE_P(tile_gpu_3D,
                          tile_test_f32,
                          ::testing::Combine(
@@ -823,6 +836,14 @@ INSTANTIATE_TEST_SUITE_P(tile_gpu_3D,
                          tile_test_f16,
                          ::testing::Combine(
                              ::testing::ValuesIn(generateTileParams3D<ov::float16>()),
+                             ::testing::Values(format::bfzyx),
+                             ::testing::ValuesIn(layouts_3d)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(tile_gpu_3D,
+                         tile_test_bf16,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(generateTileParams3D<ov::bfloat16>()),
                              ::testing::Values(format::bfzyx),
                              ::testing::ValuesIn(layouts_3d)),
                          PrintToStringParamName());
@@ -853,6 +874,10 @@ TEST_P(tile_test_f32, test_case_cached) {
 }
 
 TEST_P(tile_test_f16, test_case_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(tile_test_bf16, test_case_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 #endif

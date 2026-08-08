@@ -2020,7 +2020,13 @@ void primitive_inst::do_runtime_in_place_crop() {
                             continue;
                         }
                     }
-                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    if (!crop_in_place_optimization::update_in_place_crop_padding_along_feature(
+                            u->get_node(), crop_layout, pred_layout, user_info, offsets, crop_axis, true)) {
+                        u->set_can_be_optimized(false);
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id()
+                                               << " cannot be optimized due to padding indivisibility" << std::endl;
+                        continue;
+                    }
                     // Install the padded crop layout and propagate the reshape
                     // output padding computed by the helper. Assigning the
                     // reshape output layout directly (mirroring the
