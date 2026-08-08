@@ -15,6 +15,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
@@ -78,9 +79,16 @@ std::shared_ptr<ov::Model> build_fanout_model(const std::string& kv_param_name,
         reshape_target.push_back((size_t)ps[i].get_length());
     auto reshape = std::make_shared<ov::op::v1::Reshape>(data, shape_const(reshape_target), false);
 
+    // Use MatMul as consumers so the consumer-type guard in try_match() is satisfied.
+    const size_t head_dim = reshape_target.back();
+    auto matmul_weight = ov::op::v0::Constant::create(ov::element::f16,
+                                                      ov::Shape{head_dim, head_dim},
+                                                      std::vector<float>(head_dim * head_dim, 1.0f));
     ov::ResultVector results;
-    for (size_t i = 0; i < fan_out; ++i)
-        results.push_back(std::make_shared<ov::op::v0::Result>(reshape));
+    for (size_t i = 0; i < fan_out; ++i) {
+        auto mm = std::make_shared<ov::op::v0::MatMul>(reshape, matmul_weight);
+        results.push_back(std::make_shared<ov::op::v0::Result>(mm));
+    }
 
     return std::make_shared<ov::Model>(results, ov::ParameterVector{kv, current});
 }
@@ -101,7 +109,26 @@ TEST_F(DuplicateSharedKVConcatTest, NoOp_SingleConsumer) {
 
 TEST_F(DuplicateSharedKVConcatTest, NoOp_NonPastKVParam) {
     // Replace the past-KV param with an unrecognised name.
+    // MatMul consumers satisfy the type guard so the no-op is due to the name check.
     auto model = build_fanout_model("hidden_state", {1, 2, 4, 8}, 2, /*fan_out=*/2);
+    EXPECT_FALSE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
+}
+
+// ─── No-op: consumers of the shared Reshape are not SDPA/MatMul ──────────────
+
+TEST_F(DuplicateSharedKVConcatTest, NoOp_NonSDPAConsumer) {
+    // Valid past-KV chain, fan-out > 1, but consumers are Results (not SDPA/MatMul).
+    // The consumer-type guard must reject this.
+    auto kv = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 4, 8});
+    kv->set_friendly_name("past_key_values.0.key");
+    auto current = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 8});
+    current->set_friendly_name("current_k");
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{kv, current}, 2);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(concat->output(0), shape_const(ov::Shape{2, 5, 8}), false);
+    auto model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(reshape), std::make_shared<ov::op::v0::Result>(reshape)},
+        ov::ParameterVector{kv, current});
     EXPECT_FALSE(DuplicateSharedKVConcat().run_on_model(model));
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
 }
@@ -129,7 +156,7 @@ TEST_F(DuplicateSharedKVConcatTest, MHA_FanOut3) {
 
     std::set<ov::Node*> reshapes;
     for (const auto& r : model->get_results())
-        reshapes.insert(r->get_input_node_ptr(0));
+        reshapes.insert(r->get_input_node_ptr(0)->get_input_node_ptr(0));  // skip MatMul
     EXPECT_EQ(reshapes.size(), 3u);
 }
 
@@ -157,7 +184,7 @@ TEST_F(DuplicateSharedKVConcatTest, GQA_FanOut3) {
 
     std::set<ov::Node*> reshapes;
     for (const auto& r : model->get_results())
-        reshapes.insert(r->get_input_node_ptr(0));
+        reshapes.insert(r->get_input_node_ptr(0)->get_input_node_ptr(0));  // skip MatMul
     EXPECT_EQ(reshapes.size(), 3u);
 }
 
@@ -192,7 +219,7 @@ TEST_F(DuplicateSharedKVConcatTest, Integration_SplitThenDuplicate) {
 
     std::set<ov::Node*> reshapes;
     for (const auto& r : model->get_results())
-        reshapes.insert(r->get_input_node_ptr(0));
+        reshapes.insert(r->get_input_node_ptr(0)->get_input_node_ptr(0));  // skip MatMul
     EXPECT_EQ(reshapes.size(), 2u);
 }
 
@@ -224,9 +251,16 @@ std::shared_ptr<ov::Model> build_fanout_model_with_convert(const std::string& kv
         reshape_target.push_back((size_t)ps[i].get_length());
     auto reshape = std::make_shared<ov::op::v1::Reshape>(concat->output(0), shape_const(reshape_target), false);
 
+    // Use MatMul as consumers so the consumer-type guard in try_match() is satisfied.
+    const size_t head_dim = reshape_target.back();
+    auto matmul_weight = ov::op::v0::Constant::create(ov::element::f16,
+                                                      ov::Shape{head_dim, head_dim},
+                                                      std::vector<float>(head_dim * head_dim, 1.0f));
     ov::ResultVector results;
-    for (size_t i = 0; i < fan_out; ++i)
-        results.push_back(std::make_shared<ov::op::v0::Result>(reshape));
+    for (size_t i = 0; i < fan_out; ++i) {
+        auto mm = std::make_shared<ov::op::v0::MatMul>(reshape, matmul_weight);
+        results.push_back(std::make_shared<ov::op::v0::Result>(mm));
+    }
 
     return std::make_shared<ov::Model>(results, ov::ParameterVector{kv, current});
 }
@@ -259,6 +293,6 @@ TEST_F(DuplicateSharedKVConcatTest, WithConvertInputs_ClonesHaveIndependentConve
     // Each Result must come from a distinct Reshape.
     std::set<ov::Node*> reshapes;
     for (const auto& r : model->get_results())
-        reshapes.insert(r->get_input_node_ptr(0));
+        reshapes.insert(r->get_input_node_ptr(0)->get_input_node_ptr(0));  // skip MatMul
     EXPECT_EQ(reshapes.size(), 3u);
 }
