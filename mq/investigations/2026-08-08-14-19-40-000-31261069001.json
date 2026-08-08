@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-14-19-40-000-31261069001",
+  "timestamp": "2026-08-08T14:19:40Z",
+  "run_id": "31261069001",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31261069001",
+  "workflow_name": "Android",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked as static targets",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails with MODULE_LIBRARY target_link_libraries errors for all plugins"
+    },
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "Same CMake configure failure on arm64 build"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target.  One may link only to INTERFACE, OBJECT, STATIC or SHARED libraries, or to executables with the ENABLE_EXPORTS property set.",
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_cpu_plugin\" of type MODULE_LIBRARY may not be linked into another target.",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The `ov_target_link_plugins` function in cmake/developer_package/plugins/plugins.cmake:275 tries to link MODULE_LIBRARY plugin targets into another target. This is only safe when BUILD_SHARED_LIBS=OFF (static build), where the function is expected to be a no-op (early return). The Android build uses BUILD_SHARED_LIBS=ON, which should trigger the early return, but somehow the function is running and hitting the link errors. This PR (#37211) only modifies GPU plugin C++ source files and `.clang-tidy`, which should not affect CMake configuration. The failure may indicate a pre-existing or unrelated issue in the Android workflow, or the merge queue combined this PR with another commit that changed CMake logic.",
+  "reproduction_steps": "N/A - Android build requires the Android NDK Docker container and cannot be easily reproduced locally",
+  "recommended_actions": [
+    "Check whether the merge queue combined this PR with another commit that modified cmake/developer_package/plugins/plugins.cmake or BUILD_SHARED_LIBS logic",
+    "Verify the Android build container image (ubuntu_22_04_android:pr-37010) has correct CMake version compatibility",
+    "Check if cmake/developer_package/plugins/plugins.cmake:261 BUILD_SHARED_LIBS guard is being evaluated correctly for the Android x64/arm64 builds"
+  ],
+  "prevention_strategies": "For CMake changes affecting plugin linking behavior, ensure Android CI is included in presubmit checks. GPU-only style PRs should not affect CMake configure.",
+  "historical_context": "No prior instances of this exact CMake Android plugin linking failure found in the database."
+}
