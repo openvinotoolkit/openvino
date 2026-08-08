@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-12-39-01-000-31257162423",
+  "timestamp": "2026-08-08T12:39:01Z",
+  "run_id": "31257162423",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31257162423",
+  "workflow_name": "Android",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "symptom": "CMake configure fails with MODULE_LIBRARY link error at plugins.cmake:275"
+    },
+    {
+      "name": "Build x64",
+      "symptom": "CMake configure fails with MODULE_LIBRARY link error at plugins.cmake:275"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "symptom": "Overall status check failed due to upstream job failures"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into another target. One may link only to INTERFACE, OBJECT, STATIC or SHARED libraries",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The Android CMake build fails during ov_generate_plugins_hpp() which calls ov_target_link_plugins() at plugins.cmake:325-327. This function tries to link plugin targets (openvino_auto_plugin, openvino_intel_gpu_plugin, etc.) into another target, but these are MODULE_LIBRARY type targets which CMake prohibits from being linked into other targets. The PR #37211 (GPU clang-tidy changes) does not touch CMake files, so this is a pre-existing infrastructure issue with the Android extra-modules configuration. The same failure was previously seen in run 31231244014 against PR #37304. This is a recurring CMake build configuration bug in the Android workflow unrelated to the PR content."
+}
