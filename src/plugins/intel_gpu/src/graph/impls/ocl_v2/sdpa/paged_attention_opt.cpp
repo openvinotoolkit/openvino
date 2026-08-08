@@ -1419,6 +1419,17 @@ public:
         // sdpa_ocl becomes the MIXED default or sdpa_micro gets ported.
         if (stage == PagedAttentionStage::MIXED && !use_ocl && get_k_token_major(params))
             return false;
+        // sdpa_ocl's MIXED cache dequant only implements the i8 BY_TOKEN layout (data region with a
+        // head_size row pitch, followed by two per-token f16 scale/zp arrays). BY_CHANNEL puts a
+        // scale/zp pair at the end of every column, and INT4 packs two values per byte with inline
+        // per-row comp, so both would be read with the wrong offsets. Route them to pa_multi_token,
+        // which handles all three layouts. The mixed kernel still COMPILES for them (see
+        // IS_PA_KV_COMPRESSED in sdpa_gen_ocl.cpp) -- it just must not be dispatched.
+        if (stage == PagedAttentionStage::MIXED && use_ocl && get_kv_compressed(params)) {
+            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            if (desc->is_key_by_channel || data_type_traits::is_i4_u4(kv_cache_dt))
+                return false;
+        }
         return true;
     }
 
