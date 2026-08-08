@@ -664,8 +664,8 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // spans a whole page. That means the block2d rule has to be checked against the page pitch:
     //   width = pitch = v_head_size * 2 bytes  =>  needs (v_head_size * 2) % 64 == 0 and >= 64,
     // and the page base is a multiple of PAGED_ATTENTION_BLOCK_SIZE * v_head_size * 2, which is
-    // 64B-aligned whenever the pitch rule holds. Only f16 (uncompressed) caches qualify; the
-    // compressed layouts interleave scale/zp into the row and break the pitch rule outright.
+    // 64B-aligned whenever the pitch rule holds. This flag is the f16 one; the i8 cache has the same
+    // page geometry but needs a dequant, so it gets its own flag (USE_2D_BLOCK_IO_V_PA_I8) below.
     int v_pa_2d = 0;
     if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed &&
         !data_type_traits::is_i8_u8(V.data_type) && !data_type_traits::is_i4_u4(V.data_type)) {
@@ -677,6 +677,55 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_V_PA_2D"))
         v_pa_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_V_PA", v_pa_2d);
+    // Paged-attention mixed stage with an i8 (BY_TOKEN) compressed cache. The cache carries its
+    // scale/zp INSIDE the page rather than in separate tensors, so this is a different code path
+    // from the plain-SDPA KV_COMPRESSED one (which sdpa_gen_ocl never enables for PA -- see the
+    // is_kv_compressed = false in init_sdpa_configuration). Per (block, kv_head) page, with
+    // ADJUSTED_* = head_size + 4 sizing the allocation:
+    //   K: [k_head_size + 4, block_size] i8, data d-major at (head_dim * block_size + token),
+    //   V: [block_size, v_head_size + 4] i8, data token-major at (token * v_head_size),
+    //   scale/zp: two f16 arrays at (head_size * block_size), indexed [token] and
+    //             [block_size + token].
+    // NOTE the row pitch is head_size, NOT head_size + 4: the +4 is space for those two trailing
+    // scale/zp arrays, not an inline per-row field. (Per-row/per-column inline comp is the INT4 and
+    // BY_CHANNEL layout, which is why those get ADJUSTED_* as a real pitch and this does not.)
+    //
+    // The flag is driven purely by the cache DATA TYPE, not by the quantization mode, because both
+    // stages' kernels are compiled up front (PagedAttentionOptImpl's ctor add_stage()s prefill AND
+    // mixed), so a mixed kernel that fails to compile takes down a prefill-only case too. Before
+    // this flag existed, ANY compressed cache hit the f16 d-major branch below and failed to build on
+    // `as_ushort(K[...])` -- KEY_DATA_T is char for an i8 cache and as_ushort of a 1-byte type is an
+    // invalid reinterpret. So every i8/u8 cache takes this branch to keep the kernel compilable.
+    // The dequant math it contains is only CORRECT for BY_TOKEN; BY_CHANNEL and INT4 place their
+    // scale/zp differently (per column / inline per row) and are kept off sdpa_ocl by the execution
+    // gate in paged_attention_opt.cpp's can_use_micro_sdpa_for(), which routes them to
+    // pa_multi_token. For those the code below compiles but is never dispatched.
+    const bool pa_kv_compressed = config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type);
+    jit.make("IS_PA_KV_COMPRESSED", pa_kv_compressed ? 1 : 0);
+    // Whether that dequant is actually valid for this cache, i.e. i8 BY_TOKEN. Used only to gate the
+    // V block read below; the execution gate is host-side (see above).
+    const bool pa_i8_by_token = pa_kv_compressed &&
+                                !data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
+                                !params.typed_desc<paged_attention>()->is_key_by_channel;
+    // i8 V cache via the 8-bit VNNI-transform block read. The V page is already token-major with a
+    // v_head_size row pitch (see above), so for an i8 cache that pitch is v_head_size BYTES and the
+    // block2d rule reduces to v_head_size % 64 == 0 -- head 128 qualifies. Same builtin and same
+    // dequant shape as the plain-SDPA USE_2D_BLOCK_IO_V_I8 path; only the surface origin (the page)
+    // and the scale/zp source (inside the page instead of separate tensors) differ.
+    // The builtin has a hard 32-row minimum on Xe2 (no _8b_16r variant exists -- probed), while a
+    // page holds only PAGED_ATTENTION_BLOCK_SIZE == 16 tokens, so the kernel clamps the surface
+    // height to the page and consumes uints 0..3. It must NOT use V_I8_PAIRED_READ: pairing assumes
+    // the next 16 keys are the next 16 rows of the SAME surface, but here consecutive key groups
+    // live in different, non-adjacent pages via block_indices.
+    int v_pa_2d_i8 = 0;
+    if (pa_i8_by_token && !m_is_prefill) {
+        v_pa_2d_i8 = block2d_surface_ok(v_head_size * ov::element::Type(V.data_type).size());
+    }
+    // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather + dequant, which
+    // is what attributes a wrong result to the block read rather than to the dequant math.
+    if (const char* env = std::getenv("SDPA_OCL_V_PA_I8_2D"))
+        v_pa_2d_i8 = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
     // Same idea for the K cache, but ONLY once the K cache is stored token-major
     // (paged_attention::k_token_major()): a d-major page's row is block_size keys = 32 B, below the
     // 64 B block2d minimum, so no head size can satisfy the rule -- which is exactly why the K read
