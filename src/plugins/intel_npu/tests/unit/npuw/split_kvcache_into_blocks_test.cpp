@@ -57,7 +57,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformKeyParameter) {
 
     // Apply transformation (max_blocks removed, auto-calculated from shape)
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have expected_blocks + 1 parameters (blocks + new_token)
@@ -99,7 +99,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformValueParameterTransposed) {
 
     // Apply transformation with v_transposed=true
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     const uint32_t expected_blocks = 64 / block_size;  // 4 blocks
@@ -137,7 +137,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TransformValueParameterNotTransposed) {
 
     // Apply transformation with v_transposed=false
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, false);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     const uint32_t expected_blocks = 64 / block_size;  // 4 blocks
@@ -177,7 +177,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, AlternativeNaming) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have transformed
@@ -203,7 +203,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, SkipNonKVCacheParameter) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Parameter count unchanged (not transformed)
@@ -234,7 +234,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, InvalidRank) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Not transformed due to invalid rank
@@ -267,7 +267,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, MultipleKVParameters) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have (expected_blocks * 2) + 2 parameters (K blocks + V blocks + new_k + new_v)
@@ -303,7 +303,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, TailBlockHandling) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have 5 block parameters + 1 new_token = 6 total
@@ -364,7 +364,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, WithConvertNode) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have 4 block parameters + 1 new_token
@@ -435,7 +435,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, NegativeConcatAxis) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: Should have expected_blocks + 1 parameters (blocks + new_token)
@@ -494,7 +494,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, MixedConcatAxesAcrossLayers) {
 
     // Apply transformation
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // Verify: total params = blocks_l0 + blocks_l1 + 2 new_token params
@@ -565,7 +565,7 @@ TEST_F(SplitKVCacheIntoBlocksTest, HeterogeneousKVShapesAcrossLayers) {
                                              ov::ParameterVector{key0, key1, new_k0, new_k1});
 
     ov::pass::Manager manager;
-    manager.register_pass<SplitKVCacheIntoBlocks>(block_size, true);
+    manager.register_pass<SplitKVCacheIntoBlocks>(block_size);
     manager.run_passes(model);
 
     // 4 blocks per layer * 2 layers + 2 new_token params = 10

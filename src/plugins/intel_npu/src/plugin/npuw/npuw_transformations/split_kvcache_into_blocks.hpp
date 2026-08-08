@@ -61,12 +61,11 @@ public:
      * @brief Construct transformation with block configuration
      *
      * @param block_size Number of tokens per block (default: 1024 for efficiency)
-     * @param v_transposed Whether V tensor is transposed (true: [B,H,D,S], false: [B,H,S,D])
      *
      * The number of blocks is automatically calculated from the original past_key shape.
      * If the sequence length is not evenly divisible by block_size, a tail block is created.
      */
-    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024, bool v_transposed = true);
+    explicit SplitKVCacheIntoBlocks(uint32_t block_size = 1024);
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 

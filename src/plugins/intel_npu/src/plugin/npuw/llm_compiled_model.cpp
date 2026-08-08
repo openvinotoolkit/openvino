@@ -1165,25 +1165,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_BLOCK();
 
             bool all_transformed = true;
-            auto apply_block_kv_transform =
-                [&](std::shared_ptr<ov::Model>& model, bool v_transposed, const std::string& tag) {
-                    ov::npuw::pass::SplitKVCacheIntoBlocks pass(block_size, v_transposed);
-                    if (pass.run_on_model(model)) {
-                        LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
-                    } else {
-                        LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
-                        all_transformed = false;
-                    }
-                    return pass;
-                };
+            auto apply_block_kv_transform = [&](std::shared_ptr<ov::Model>& model, const std::string& tag) {
+                ov::npuw::pass::SplitKVCacheIntoBlocks pass(block_size);
+                if (pass.run_on_model(model)) {
+                    LOG_INFO("SplitKVCacheIntoBlocks applied: " << tag);
+                } else {
+                    LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
+                    all_transformed = false;
+                }
+                return pass;
+            };
 
-            auto prefill_pass =
-                apply_block_kv_transform(prefill_model, m_kvcache_desc.v_tensors_transposed_pre, "prefill");
+            auto prefill_pass = apply_block_kv_transform(prefill_model, "prefill");
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-                apply_block_kv_transform(generate_model_variants[i],
-                                         m_kvcache_desc.v_tensors_transposed_gen,
-                                         "generate_" + std::to_string(i));
+                apply_block_kv_transform(generate_model_variants[i], "generate_" + std::to_string(i));
             }
 
             if (!all_transformed) {

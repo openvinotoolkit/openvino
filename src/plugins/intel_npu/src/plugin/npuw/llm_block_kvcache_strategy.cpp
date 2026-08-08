@@ -778,16 +778,20 @@ void LLMBlockKVCacheStrategy::copy_outputs_to_blocks(const std::shared_ptr<ov::I
         const uint32_t kv_dim = block_manager->get_seq_dim();
 
         auto src_tensor = request->get_tensor(src_ports.at(output_name));
-        uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
+        const uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
 
-        // For sliding-window attention layers the prefill output may be shorter than
-        // the full prompt length (e.g. 512 vs 546).  In that case we only copy what
-        // the layer actually produced and write it to the tail of the KV position range.
-        const uint32_t effective_tokens = std::min(num_tokens, src_seq_len);
-
-        auto src_to_copy = src_tensor;
-        if (src_seq_len > effective_tokens) {
-            src_to_copy = uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - effective_tokens, src_seq_len);
+        uint32_t effective_tokens;
+        ov::SoPtr<ov::ITensor> src_to_copy;
+        if (num_tokens <= src_seq_len) {
+            // Normal case: output has enough (or more) tokens — take the tail.
+            effective_tokens = num_tokens;
+            src_to_copy = (src_seq_len > num_tokens)
+                              ? uu::make_tensor_slice(src_tensor, kv_dim, src_seq_len - num_tokens, src_seq_len)
+                              : src_tensor;
+        } else {
+            // SWA case: sliding-window layer produced fewer tokens than requested.
+            effective_tokens = src_seq_len;
+            src_to_copy = src_tensor;
         }
 
         const uint32_t start_pos = current_kv_position + (num_tokens - effective_tokens);

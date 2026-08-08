@@ -70,7 +70,7 @@ ov::Shape make_block_shape(const ov::PartialShape& orig_shape, int64_t seq_dim, 
 
 }  // namespace
 
-SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size, bool /*v_transposed*/) : m_block_size(block_size) {}
+SplitKVCacheIntoBlocks::SplitKVCacheIntoBlocks(uint32_t block_size) : m_block_size(block_size) {}
 
 bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
@@ -89,6 +89,8 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
             continue;  // not a contiguous KV cache parameter
         }
         const uint32_t layer_idx = static_cast<uint32_t>(is_key ? key_layer.value() : value_layer.value());
+        LOG_DEBUG("SplitKVCacheIntoBlocks: found " << (is_key ? "key" : "value") << " param '" << name
+                                                   << "' layer_idx=" << layer_idx);
 
         // Shape must be 4D and fully static before we can proceed.
         const auto& orig_shape = param->get_partial_shape();
