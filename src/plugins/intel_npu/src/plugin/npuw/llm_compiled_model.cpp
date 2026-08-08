@@ -15,6 +15,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -1247,6 +1248,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                      "Block-based KV cache requires: chunk prefill enabled, "
                      "HFA or Pyramid attention, and a non-embedding model. "
                      "Falling back to monolithic (continuous) KV cache.");
+        }
+    }
+
+    // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
+    // SDPA gets its own independent Concat chain.  This enables TagSDPA/SDPADecomposed to
+    // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
+    // L13/L14 KV).
+    if ((prefill_attn_hfa || prefill_attn_pyramid) && !m_is_embedding) {
+        if (ov::npuw::pass::DuplicateSharedKVConcat().run_on_model(prefill_model)) {
+            LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
         }
     }
 
