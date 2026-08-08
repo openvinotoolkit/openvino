@@ -2242,6 +2242,68 @@ TEST(pre_post_process, postprocess_convert_color_format_RGB_NV12_dynamic_batch) 
     EXPECT_EQ(f->get_results().size(), 1);
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{-1, 45, 20, 1}));
 }
+// Verify that two explicit steps added after convert_color(NV12_TWO_PLANES) are both
+// applied to the UV plane.
+TEST(pre_post_process, postprocess_nv12_two_planes_multiple_explicit_actions_mirrored_on_uv) {
+    auto f = create_simple_function(element::f32, Shape{1, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output()
+        .postprocess()
+        .convert_color(ColorFormat::NV12_TWO_PLANES)
+        .convert_element_type(element::u8)
+        .convert_layout("NCHW");
+    f = p.build();
+
+    ASSERT_EQ(f->get_results().size(), 2);
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{1, 1, 30, 20}));
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{1, 2, 15, 10}));
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+}
+// Verify that two implicit steps added after convert_color(NV12_TWO_PLANES) are both
+// applied to the UV plane.
+TEST(pre_post_process, postprocess_nv12_two_planes_both_implicit_steps_applied_on_uv) {
+    auto f = create_simple_function(element::f32, Shape{1, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES);
+    // Implicit layout and type conversions
+    p.output().tensor().set_element_type(element::u8).set_layout("NCHW");
+    f = p.build();
+
+    ASSERT_EQ(f->get_results().size(), 2);
+    // Y plane: shape transposed NHWC->NCHW, element type converted to u8
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{1, 1, 30, 20}));
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    // UV plane: same two implicit steps applied
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{1, 2, 15, 10}));
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[1]->get_layout(), "NCHW");
+}
+// Verify the combined path: one explicit post-NV12 step followed by one implicit
+// step; both must be applied to the UV plane in the correct order.
+TEST(pre_post_process, postprocess_nv12_two_planes_explicit_then_implicit_step_both_applied_on_uv) {
+    auto f = create_simple_function(element::f32, Shape{1, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+    // Explicit type conversion after NV12
+    p.output().postprocess().convert_color(ColorFormat::NV12_TWO_PLANES).convert_element_type(element::u8);
+    // Implicit layout transpose
+    p.output().tensor().set_layout("NCHW");
+    f = p.build();
+
+    ASSERT_EQ(f->get_results().size(), 2);
+    // Y plane
+    EXPECT_EQ(f->get_results()[0]->get_output_partial_shape(0), (PartialShape{1, 1, 30, 20}));
+    EXPECT_EQ(f->get_results()[0]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
+    // UV plane
+    EXPECT_EQ(f->get_results()[1]->get_output_partial_shape(0), (PartialShape{1, 2, 15, 10}));
+    EXPECT_EQ(f->get_results()[1]->get_element_type(), element::u8);
+    EXPECT_EQ(f->get_results()[1]->get_layout(), "NCHW");
+}
 
 // Postprocessing - other
 
