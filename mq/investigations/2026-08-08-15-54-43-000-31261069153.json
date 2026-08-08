@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-08-15-54-43-000-31261069153",
+  "timestamp": "2026-08-08T15:54:43Z",
+  "run_id": "31261069153",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31261069153",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "TensorFlow Layer Tests artifact upload fails on Windows runner - Upload Test Results step",
+  "signature": "upload test results step failed on windows runner|Infrastructure",
+  "signature_hash": "522aa4df96cd506a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Upload Test Results step (step 15) failed; all TF1 and TF2 layer test steps passed"
+    }
+  ],
+  "key_errors": [
+    "Step 15 'Upload Test Results' failed on Windows runner aks-win-8-cores-16gb-test-t9ncc-runner-pfwpq",
+    "Steps 13 (TensorFlow 1 Layer Tests - TF FE) and 14 (TensorFlow 2 Layer Tests - TF FE) both succeeded"
+  ],
+  "root_cause": "The actual TF1 and TF2 layer tests passed successfully. The job failed at the 'Upload Test Results' artifact upload step on a Windows runner. This is a transient infrastructure failure in the CI artifact upload mechanism, unrelated to the PR changes (GPU clang-tidy). The run is already on attempt 2.",
+  "reproduction_steps": "N/A - transient CI infrastructure failure",
+  "recommended_actions": [
+    "No code change required - the tests themselves passed",
+    "Re-run the failed job or re-add the PR to the merge queue if the failure persists"
+  ],
+  "prevention_strategies": "No action required from the PR author. Monitor for recurring artifact upload failures on Windows runners.",
+  "historical_context": "Similar artifact upload failures on Windows runners have been observed previously (patterns 4e9cf236bf92d555, 6b6a229047392a0f). These are transient infrastructure issues."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 122,
+  "total": 123,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1197,6 +1197,15 @@
       "title": "ARM64 CPU functional tests fail on cross-compilation workflow (unrelated to GPU clang-tidy PR)",
       "category": "Flaky Test",
       "signature_hash": "a73572e761729ca3",
+      "pr_number": "37211"
+    },
+    {
+      "investigation_id": "2026-08-08-15-54-43-000-31261069153",
+      "run_id": "31261069153",
+      "timestamp": "2026-08-08T15:54:43Z",
+      "title": "TensorFlow Layer Tests artifact upload fails on Windows runner - Upload Test Results step",
+      "category": "Infrastructure",
+      "signature_hash": "522aa4df96cd506a",
       "pr_number": "37211"
     }
   ]

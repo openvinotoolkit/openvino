@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "upload test results step failed on windows runner|Infrastructure",
+  "signature_hash": "522aa4df96cd506a",
+  "title": "TensorFlow Layer Tests artifact upload fails on Windows runner - Upload Test Results step",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-08T15:54:43Z",
+  "last_seen": "2026-08-08T15:54:43Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31261069153"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37211"
+  ],
+  "recent_timestamps": [
+    "2026-08-08T15:54:43Z"
+  ],
+  "rerun_search_string": null
+}
