@@ -352,7 +352,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     bool post_processing_applied = false;
 
     std::shared_ptr<op::util::ConvertColorToNV12Base> convert_nv12_node;
-    PostprocessingContext uv_context(Layout{}); // snapshot in case NV12_TWO_PLANES is encountered
+    PostprocessingContext uv_context(Layout{});  // snapshot in case NV12_TWO_PLANES is encountered
     std::vector<InternalPostprocessAction> post_nv12_explicit_actions;
 
     for (const auto& action : get_postprocess()->actions()) {
