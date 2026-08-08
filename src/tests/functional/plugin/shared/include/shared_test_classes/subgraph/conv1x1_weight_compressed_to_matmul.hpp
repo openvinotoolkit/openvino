@@ -33,6 +33,7 @@ using Conv1x1WeightCompressedToMatmulParams = std::tuple<
     ov::element::Type,                   // activation precision
     ov::element::Type,                   // compressed weights precision
     Conv1x1ExpectedOpCounts,             // expected runtime op-type counts
+    ov::AnyMap,                          // additional plugin configuration
     std::string                          // target device
 >;
 
