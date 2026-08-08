@@ -25,7 +25,7 @@ std::shared_ptr<ov::Node> ov::op::v17::RGBtoNV12::clone_with_new_inputs(const Ou
 
 namespace {
 bool is_type_supported(const ov::element::Type& type) {
-    return type.is_dynamic() || type.is_real() || type == ov::element::u8;
+    return type.is_dynamic() || (type.is_real() && !type.is_quantized()) || type == ov::element::u8;
 }
 }  // namespace
 
