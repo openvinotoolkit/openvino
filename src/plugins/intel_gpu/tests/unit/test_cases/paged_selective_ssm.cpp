@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_selective_ssm.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <numeric>
 #include <vector>
 
@@ -30,6 +31,12 @@ struct paged_selective_ssm_test_params {
     ov::element::Type precision;
     ov::element::Type index_precision;
     bool dynamic_shapes;
+    std::vector<bool> alias_first_write = {};
+    bool reverse_blocks = false;
+    bool caching_test = false;
+    bool padded_layouts = false;
+    int32_t iterations = 1;
+    int32_t invalid_metadata = 0;
 };
 
 struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_selective_ssm_test_params> {
@@ -66,7 +73,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
             const int32_t block_begin = block_indices_begins[seq];
             const int32_t block_end = block_indices_begins[seq + 1];
             const int32_t seq_blocks = std::max(block_end - block_begin, 0);
-            const int32_t processed = num_processed_tokens[seq];
+            const int32_t processed = std::max(num_processed_tokens[seq], 0);
             const int32_t interval = cache_interval[seq];
             const int32_t prev_nums = interval > 0 ? (processed % interval) : 0;
             const int32_t first_block = block_indices[block_begin];
@@ -74,9 +81,9 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
             for (int32_t h = 0; h < num_heads; h++) {
                 const int32_t g = h / heads_per_group;
                 for (int32_t p = 0; p < head_dim; p++) {
-                    std::vector<float> local_state(static_cast<size_t>(state_size), 0.f);
+                    std::vector<T> local_state(static_cast<size_t>(state_size), T{});
                     for (int32_t n = 0; n < state_size; n++) {
-                        local_state[n] = static_cast<float>(state[state_off(first_block, h, p, n)]);
+                        local_state[n] = state[state_off(first_block, h, p, n)];
                     }
 
                     for (int32_t token = token_begin; token < token_end; token++) {
@@ -85,8 +92,10 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
                         const float x_val = static_cast<float>(x[(token * num_heads + h) * head_dim + p]);
                         float acc = 0.f;
                         for (int32_t n = 0; n < state_size; n++) {
-                            local_state[n] = local_state[n] * dA + x_val * dt_val * static_cast<float>(B[(token * num_groups + g) * state_size + n]);
-                            acc += local_state[n] * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
+                            const float new_state =
+                                static_cast<float>(local_state[n]) * dA + x_val * dt_val * static_cast<float>(B[(token * num_groups + g) * state_size + n]);
+                            local_state[n] = static_cast<T>(new_state);
+                            acc += static_cast<float>(local_state[n]) * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
                         }
                         output[(token * num_heads + h) * head_dim + p] = static_cast<T>(acc);
 
@@ -125,14 +134,31 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
             subsequence_begins.push_back(subsequence_begins.back() + p.seq_tokens[seq]);
             int32_t required_slots = 1;
             if (p.cache_intervals[seq] > 0) {
-                const int32_t prev_nums = p.processed_tokens[seq] % p.cache_intervals[seq];
+                const int32_t processed = std::max(p.processed_tokens[seq], 0);
+                const int32_t prev_nums = processed % p.cache_intervals[seq];
                 const int32_t write_blocks = (prev_nums + p.seq_tokens[seq] + p.cache_intervals[seq] - 1) / p.cache_intervals[seq];
                 required_slots = 1 + write_blocks;
             }
-            for (int32_t i = 0; i < required_slots; i++)
-                block_indices.push_back(total_blocks + i);
+            std::vector<int32_t> sequence_block_indices(static_cast<size_t>(required_slots));
+            for (int32_t i = 0; i < required_slots; i++) {
+                sequence_block_indices[i] = total_blocks + (p.reverse_blocks ? required_slots - i - 1 : i);
+            }
+            if (required_slots > 1 && seq < static_cast<int32_t>(p.alias_first_write.size()) && p.alias_first_write[seq]) {
+                sequence_block_indices[1] = sequence_block_indices[0];
+            }
+            block_indices.insert(block_indices.end(), sequence_block_indices.begin(), sequence_block_indices.end());
             total_blocks += required_slots;
-            block_indices_begins.push_back(total_blocks);
+            block_indices_begins.push_back(static_cast<int32_t>(block_indices.size()));
+        }
+        if (p.invalid_metadata != 0) {
+            OPENVINO_ASSERT(num_sequences == 1, "Invalid-metadata tests require one sequence");
+            if (p.invalid_metadata == 1) {
+                block_indices[0] = total_blocks + 3;
+            } else if (p.invalid_metadata == 2) {
+                block_indices_begins[1] = static_cast<int32_t>(block_indices.size()) + 1;
+            } else {
+                OPENVINO_THROW("Unknown invalid metadata mode");
+            }
         }
 
         layout A_layout({p.num_heads}, data_type, format::bfyx);
@@ -140,66 +166,94 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         layout BC_layout({tokens, p.num_groups, p.state_size}, data_type, format::bfyx);
         layout x_layout({tokens, p.num_heads, p.head_dim}, data_type, format::bfyx);
         layout state_layout({total_blocks, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx);
+        const auto state_memory_layout = p.padded_layouts ? state_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1})) : state_layout;
+        const auto state_pitches = state_memory_layout.get_pitches();
+        const auto state_offset = [&](int32_t block, int32_t h, int32_t dim, int32_t n) {
+            return state_memory_layout.get_linear_offset() + static_cast<size_t>(block) * state_pitches[0] + static_cast<size_t>(h) * state_pitches[1] +
+                   static_cast<size_t>(dim) * state_pitches[2] + static_cast<size_t>(n) * state_pitches[3];
+        };
         layout index_vec_layout({static_cast<int32_t>(subsequence_begins.size())}, index_data_type, format::bfyx);
         layout block_indices_layout({static_cast<int32_t>(block_indices.size())}, index_data_type, format::bfyx);
         layout processed_layout({num_sequences}, index_data_type, format::bfyx);
 
-        auto A_mem = engine.allocate_memory(A_layout);
-        auto dt_mem = engine.allocate_memory(dt_layout);
-        auto B_mem = engine.allocate_memory(BC_layout);
-        auto x_mem = engine.allocate_memory(x_layout);
-        auto C_mem = engine.allocate_memory(BC_layout);
-        auto state_mem = engine.allocate_memory(state_layout);
-        auto subseq_mem = engine.allocate_memory(index_vec_layout);
-        auto blocks_mem = engine.allocate_memory(block_indices_layout);
-        auto block_begins_mem = engine.allocate_memory(index_vec_layout);
-        auto processed_mem = engine.allocate_memory(processed_layout);
-        auto interval_mem = engine.allocate_memory(processed_layout);
+        // Empty tensors use the runtime's supported dummy-memory representation instead of a zero-byte OpenCL buffer.
+        const auto allocate = [&](const layout& requested_layout) {
+            if (requested_layout.count() != 0)
+                return engine.allocate_memory(requested_layout);
+            auto dummy = engine.allocate_memory(layout{{1}, data_types::u8, format::bfyx});
+            return engine.reinterpret_buffer(*dummy, requested_layout);
+        };
+
+        auto A_mem = allocate(A_layout);
+        auto dt_mem = allocate(dt_layout);
+        auto B_mem = allocate(BC_layout);
+        auto x_mem = allocate(x_layout);
+        auto C_mem = allocate(BC_layout);
+        auto state_mem = allocate(state_memory_layout);
+        auto subseq_mem = allocate(index_vec_layout);
+        auto blocks_mem = allocate(block_indices_layout);
+        auto block_begins_mem = allocate(index_vec_layout);
+        auto processed_mem = allocate(processed_layout);
+        auto interval_mem = allocate(processed_layout);
 
         auto A_data = rg.generate_random_1d<T>(A_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.2f), 256);
         auto dt_data = rg.generate_random_1d<T>(dt_mem->count(), static_cast<T>(0.f), static_cast<T>(0.5f), 256);
         auto B_data = rg.generate_random_1d<T>(B_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto x_data = rg.generate_random_1d<T>(x_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto C_data = rg.generate_random_1d<T>(C_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
-        auto state_data = rg.generate_random_1d<T>(state_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
+        auto state_data = rg.generate_random_1d<T>(state_layout.count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
 
-        set_values(A_mem, A_data);
-        set_values(dt_mem, dt_data);
-        set_values(B_mem, B_data);
-        set_values(x_mem, x_data);
-        set_values(C_mem, C_data);
-        set_values(state_mem, state_data);
+        const auto set_non_empty = [](const memory::ptr& mem, const auto& values) {
+            if (!values.empty())
+                set_values(mem, values);
+        };
+        set_non_empty(A_mem, A_data);
+        set_non_empty(dt_mem, dt_data);
+        set_non_empty(B_mem, B_data);
+        set_non_empty(x_mem, x_data);
+        set_non_empty(C_mem, C_data);
+        if (p.padded_layouts && !state_data.empty()) {
+            cldnn::mem_lock<T, mem_lock_type::write> state_ptr(state_mem, get_test_stream());
+            for (size_t i = 0; i < state_ptr.size(); i++)
+                state_ptr[i] = T{};
+            for (int32_t block = 0; block < total_blocks; block++) {
+                for (int32_t h = 0; h < p.num_heads; h++) {
+                    for (int32_t dim = 0; dim < p.head_dim; dim++) {
+                        for (int32_t n = 0; n < p.state_size; n++) {
+                            const auto logical_idx = ((block * p.num_heads + h) * p.head_dim + dim) * p.state_size + n;
+                            const auto physical_idx = state_offset(block, h, dim, n);
+                            state_ptr[physical_idx] = state_data[logical_idx];
+                        }
+                    }
+                }
+            }
+        } else {
+            set_non_empty(state_mem, state_data);
+        }
         if (p.index_precision == ov::element::i64) {
             const std::vector<int64_t> subsequence_begins_i64(subsequence_begins.begin(), subsequence_begins.end());
             const std::vector<int64_t> block_indices_i64(block_indices.begin(), block_indices.end());
             const std::vector<int64_t> block_indices_begins_i64(block_indices_begins.begin(), block_indices_begins.end());
             const std::vector<int64_t> processed_i64(p.processed_tokens.begin(), p.processed_tokens.end());
             const std::vector<int64_t> intervals_i64(p.cache_intervals.begin(), p.cache_intervals.end());
-            set_values(subseq_mem, subsequence_begins_i64);
-            set_values(blocks_mem, block_indices_i64);
-            set_values(block_begins_mem, block_indices_begins_i64);
-            set_values(processed_mem, processed_i64);
-            set_values(interval_mem, intervals_i64);
+            set_non_empty(subseq_mem, subsequence_begins_i64);
+            set_non_empty(blocks_mem, block_indices_i64);
+            set_non_empty(block_begins_mem, block_indices_begins_i64);
+            set_non_empty(processed_mem, processed_i64);
+            set_non_empty(interval_mem, intervals_i64);
         } else {
-            set_values(subseq_mem, subsequence_begins);
-            set_values(blocks_mem, block_indices);
-            set_values(block_begins_mem, block_indices_begins);
-            set_values(processed_mem, p.processed_tokens);
-            set_values(interval_mem, p.cache_intervals);
+            set_non_empty(subseq_mem, subsequence_begins);
+            set_non_empty(blocks_mem, block_indices);
+            set_non_empty(block_begins_mem, block_indices_begins);
+            set_non_empty(processed_mem, p.processed_tokens);
+            set_non_empty(interval_mem, p.cache_intervals);
         }
 
-        const auto dt_input_layout = p.dynamic_shapes
-                                         ? layout{ov::PartialShape{-1, p.num_heads}, data_type, format::bfyx}
-                                         : dt_layout;
-        const auto BC_input_layout = p.dynamic_shapes
-                                         ? layout{ov::PartialShape{-1, p.num_groups, p.state_size}, data_type, format::bfyx}
-                                         : BC_layout;
-        const auto x_input_layout = p.dynamic_shapes
-                                        ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim}, data_type, format::bfyx}
-                                        : x_layout;
-        const auto state_input_layout = p.dynamic_shapes
-                                            ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx}
-                                            : state_layout;
+        const auto dt_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads}, data_type, format::bfyx} : dt_layout;
+        const auto BC_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_groups, p.state_size}, data_type, format::bfyx} : BC_layout;
+        const auto x_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim}, data_type, format::bfyx} : x_layout;
+        const auto state_input_layout =
+            p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx} : state_memory_layout;
         const auto dynamic_index_layout = layout{ov::PartialShape{-1}, index_data_type, format::bfyx};
         const auto index_vec_input_layout = p.dynamic_shapes ? dynamic_index_layout : index_vec_layout;
         const auto block_indices_input_layout = p.dynamic_shapes ? dynamic_index_layout : block_indices_layout;
@@ -217,22 +271,52 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         topo.add(input_layout("block_indices_begins", index_vec_input_layout));
         topo.add(input_layout("num_processed_tokens", processed_input_layout));
         topo.add(input_layout("cache_interval", processed_input_layout));
-        topo.add(paged_selective_ssm("paged_selective_ssm",
-                                     {input_info("A"),
-                                      input_info("dt"),
-                                      input_info("B"),
-                                      input_info("x"),
-                                      input_info("C"),
-                                      input_info("state"),
-                                      input_info("subsequence_begins"),
-                                      input_info("block_indices"),
-                                      input_info("block_indices_begins"),
-                                      input_info("num_processed_tokens"),
-                                      input_info("cache_interval")}));
+        std::vector<input_info> ssm_inputs{input_info("A"),
+                                           input_info("dt"),
+                                           input_info("B"),
+                                           input_info("x"),
+                                           input_info("C"),
+                                           input_info("state"),
+                                           input_info("subsequence_begins"),
+                                           input_info("block_indices"),
+                                           input_info("block_indices_begins"),
+                                           input_info("num_processed_tokens"),
+                                           input_info("cache_interval")};
+        if (p.padded_layouts) {
+            OPENVINO_ASSERT(!p.dynamic_shapes, "Padded-layout test requires static input layouts");
+            const auto A_padding = padding(std::vector<ov::Dimension::value_type>{1}, std::vector<ov::Dimension::value_type>{2});
+            const auto metadata_padding = padding(std::vector<ov::Dimension::value_type>{2}, std::vector<ov::Dimension::value_type>{1});
+            topo.add(reorder("A_padded", input_info("A"), A_layout.with_padding(A_padding)));
+            topo.add(reorder("dt_padded", input_info("dt"), dt_layout.with_padding(padding({1, 2}, {2, 1}))));
+            topo.add(reorder("B_padded", input_info("B"), BC_layout.with_padding(padding({1, 2, 3}, {2, 1, 2}))));
+            topo.add(reorder("x_padded", input_info("x"), x_layout.with_padding(padding({1, 2, 3}, {2, 1, 2}))));
+            topo.add(reorder("C_padded", input_info("C"), BC_layout.with_padding(padding({1, 2, 3}, {2, 1, 2}))));
+            topo.add(reorder("subsequence_begins_padded", input_info("subsequence_begins"), index_vec_layout.with_padding(metadata_padding)));
+            topo.add(reorder("block_indices_padded", input_info("block_indices"), block_indices_layout.with_padding(metadata_padding)));
+            topo.add(reorder("block_indices_begins_padded", input_info("block_indices_begins"), index_vec_layout.with_padding(metadata_padding)));
+            topo.add(reorder("num_processed_tokens_padded", input_info("num_processed_tokens"), processed_layout.with_padding(metadata_padding)));
+            topo.add(reorder("cache_interval_padded", input_info("cache_interval"), processed_layout.with_padding(metadata_padding)));
+            ssm_inputs = {input_info("A_padded"),
+                          input_info("dt_padded"),
+                          input_info("B_padded"),
+                          input_info("x_padded"),
+                          input_info("C_padded"),
+                          input_info("state"),
+                          input_info("subsequence_begins_padded"),
+                          input_info("block_indices_padded"),
+                          input_info("block_indices_begins_padded"),
+                          input_info("num_processed_tokens_padded"),
+                          input_info("cache_interval_padded")};
+        }
+        auto ssm_prim = paged_selective_ssm("paged_selective_ssm", ssm_inputs);
+        if (p.padded_layouts)
+            ssm_prim.output_paddings = {padding({1, 2, 3}, {2, 1, 2})};
+        topo.add(ssm_prim);
+        topo.add(reorder("output", input_info("paged_selective_ssm"), format::bfyx, data_type));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.caching_test);
         network->set_input_data("A", A_mem);
         network->set_input_data("dt", dt_mem);
         network->set_input_data("B", B_mem);
@@ -244,36 +328,57 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         network->set_input_data("block_indices_begins", block_begins_mem);
         network->set_input_data("num_processed_tokens", processed_mem);
         network->set_input_data("cache_interval", interval_mem);
-        auto outputs = network->execute();
 
         std::vector<T> ref_output;
         auto ref_state = state_data;
-        run_reference(A_data,
-                      dt_data,
-                      B_data,
-                      x_data,
-                      C_data,
-                      ref_state,
-                      subsequence_begins,
-                      block_indices,
-                      block_indices_begins,
-                      p.processed_tokens,
-                      p.cache_intervals,
-                      p.num_heads,
-                      p.num_groups,
-                      p.head_dim,
-                      p.state_size,
-                      ref_output);
-
-        auto out_mem = outputs.at("paged_selective_ssm").get_memory();
-        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
-        cldnn::mem_lock<T, mem_lock_type::read> state_ptr(state_mem, get_test_stream());
         const float tol = p.precision == ov::element::f32 ? 2e-4f : (p.precision == ov::element::bf16 ? 0.08f : 0.03f);
-        for (size_t i = 0; i < ref_output.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(out_ptr[i]), static_cast<float>(ref_output[i]), tol) << "output idx=" << i;
-        }
-        for (size_t i = 0; i < ref_state.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(state_ptr[i]), static_cast<float>(ref_state[i]), tol) << "state idx=" << i;
+        for (int32_t iteration = 0; iteration < p.iterations; iteration++) {
+            auto outputs = network->execute();
+            if (p.invalid_metadata != 0) {
+                ref_output.assign(static_cast<size_t>(tokens) * p.num_heads * p.head_dim, T{});
+            } else {
+                run_reference(A_data,
+                              dt_data,
+                              B_data,
+                              x_data,
+                              C_data,
+                              ref_state,
+                              subsequence_begins,
+                              block_indices,
+                              block_indices_begins,
+                              p.processed_tokens,
+                              p.cache_intervals,
+                              p.num_heads,
+                              p.num_groups,
+                              p.head_dim,
+                              p.state_size,
+                              ref_output);
+            }
+
+            if (!ref_output.empty()) {
+                auto out_mem = outputs.at("output").get_memory();
+                ASSERT_NE(out_mem, nullptr);
+                cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+                for (size_t i = 0; i < ref_output.size(); i++) {
+                    ASSERT_NEAR(static_cast<float>(out_ptr[i]), static_cast<float>(ref_output[i]), tol) << "iteration=" << iteration << ", output idx=" << i;
+                }
+            }
+
+            if (!ref_state.empty()) {
+                cldnn::mem_lock<T, mem_lock_type::read> state_ptr(state_mem, get_test_stream());
+                for (int32_t block = 0; block < total_blocks; block++) {
+                    for (int32_t h = 0; h < p.num_heads; h++) {
+                        for (int32_t dim = 0; dim < p.head_dim; dim++) {
+                            for (int32_t n = 0; n < p.state_size; n++) {
+                                const auto logical_idx = ((block * p.num_heads + h) * p.head_dim + dim) * p.state_size + n;
+                                const auto physical_idx = state_offset(block, h, dim, n);
+                                ASSERT_NEAR(static_cast<float>(state_ptr[physical_idx]), static_cast<float>(ref_state[logical_idx]), tol)
+                                    << "iteration=" << iteration << ", state idx=" << logical_idx;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -292,14 +397,36 @@ TEST_P(paged_selective_ssm_gpu_test, basic) {
     execute(GetParam());
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_paged_selective_ssm_gpu_test,
-                         paged_selective_ssm_gpu_test,
-                         ::testing::Values(paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f32, ov::element::i32, false},
-                                           paged_selective_ssm_test_params{{2, 4, 1}, {1, 2, 3}, {1, 3, 2}, 4, 1, 8, 16, ov::element::f32, ov::element::i32, false},
-                                           paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f16, ov::element::i32, false},
-                                           paged_selective_ssm_test_params{{2, 1}, {0, 3}, {2, 1}, 2, 1, 4, 16, ov::element::f32, ov::element::i64, false},
-                                           paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 16, ov::element::bf16, ov::element::i32, false},
-                                           paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false},
-                                           paged_selective_ssm_test_params{{2, 3}, {1, 0}, {2, 3}, 4, 2, 4, 16, ov::element::f32, ov::element::i64, true}));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_selective_ssm_gpu_test,
+    paged_selective_ssm_gpu_test,
+    ::testing::Values(
+        paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2, 4, 1}, {1, 2, 3}, {1, 3, 2}, 4, 1, 8, 16, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2, 1}, {0, 3}, {2, 1}, 2, 1, 4, 16, ov::element::f32, ov::element::i64, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 16, ov::element::bf16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2, 3}, {1, 0}, {2, 3}, 4, 2, 4, 16, ov::element::f32, ov::element::i64, true},
+        // Five page-aliasing cases from the published specification.
+        paged_selective_ssm_test_params{{5}, {0}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i32, false, {true}, true},
+        paged_selective_ssm_test_params{{5}, {4}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i32, false, {false}, true},
+        paged_selective_ssm_test_params{{5}, {3}, {2}, 4, 2, 5, 17, ov::element::f16, ov::element::i32, false, {true}, true},
+        paged_selective_ssm_test_params{{1}, {4}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i64, false, {false}, true},
+        paged_selective_ssm_test_params{{1}, {3}, {2}, 4, 2, 5, 17, ov::element::bf16, ov::element::i64, false, {true}, true},
+        // Disabled cache must leave every state block unchanged.
+        paged_selective_ssm_test_params{{4, 3}, {9, 2}, {0, -3}, 4, 2, 4, 31, ov::element::f32, ov::element::i64, false, {}, true},
+        // Empty sequences and completely empty token batches are legal no-ops.
+        paged_selective_ssm_test_params{{0, 3, 0}, {0, 1, 7}, {2, 2, 0}, 4, 2, 4, 16, ov::element::f32, ov::element::i32, false, {true, false, false}, true},
+        paged_selective_ssm_test_params{{0}, {0}, {2}, 2, 1, 2, 8, ov::element::f32, ov::element::i32, true, {true}, false},
+        // Exercise binary serialization of the optimized implementation.
+        paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i64, true, {true, true}, true, true},
+        paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
+        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 0, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
+        paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
+        paged_selective_ssm_test_params{{3}, {-7}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
+        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2}));
 
 }  // namespace

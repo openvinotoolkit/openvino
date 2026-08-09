@@ -2156,17 +2156,23 @@ void primitive_inst::prepare_primitive() {
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
 
+    const auto all_outputs_empty = [&]() {
+        return !_impl_params->output_layouts.empty() &&
+               std::all_of(_impl_params->output_layouts.begin(), _impl_params->output_layouts.end(), [](const layout& output_layout) {
+                   return output_layout.is_static() && output_layout.count() == 0;
+               });
+    };
+
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
-    const bool prev_execution_skipped = can_be_optimized()
-                        || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
+    const bool prev_execution_skipped = can_be_optimized() || all_outputs_empty();
     const auto orig_outputs = _outputs;
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
 
-        if (_impl_params->output_layouts[0].count() == 0) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
+        if (all_outputs_empty()) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because all output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
         }
 

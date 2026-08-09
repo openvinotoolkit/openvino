@@ -27,6 +27,9 @@ struct selective_ssm_test_params {
     int32_t state_size;
     ov::element::Type precision;
     bool dynamic_shapes;
+    bool caching_test = false;
+    bool padded_layouts = false;
+    int32_t iterations = 1;
 };
 
 struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_test_params> {
@@ -59,10 +62,10 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
                         float acc = 0.f;
                         for (int32_t n = 0; n < state_size; n++) {
                             auto& s = state[((b * num_heads + h) * head_dim + p) * state_size + n];
-                            const float new_state = static_cast<float>(s) * dA +
-                                                    x_val * dt_val * static_cast<float>(B[((b * seq_len + t) * num_groups + g) * state_size + n]);
+                            const float new_state =
+                                static_cast<float>(s) * dA + x_val * dt_val * static_cast<float>(B[((b * seq_len + t) * num_groups + g) * state_size + n]);
                             s = static_cast<T>(new_state);
-                            acc += new_state * static_cast<float>(C[((b * seq_len + t) * num_groups + g) * state_size + n]);
+                            acc += static_cast<float>(s) * static_cast<float>(C[((b * seq_len + t) * num_groups + g) * state_size + n]);
                         }
                         output[((b * seq_len + t) * num_heads + h) * head_dim + p] = static_cast<T>(acc);
                     }
@@ -82,12 +85,19 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
         layout x_layout({p.batch, p.seq_len, p.num_heads, p.head_dim}, data_type, format::bfyx);
         layout state_layout({p.batch, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx);
 
-        auto A_mem = engine.allocate_memory(A_layout);
-        auto dt_mem = engine.allocate_memory(dt_layout);
-        auto B_mem = engine.allocate_memory(BC_layout);
-        auto x_mem = engine.allocate_memory(x_layout);
-        auto C_mem = engine.allocate_memory(BC_layout);
-        auto state_mem = engine.allocate_memory(state_layout);
+        const auto allocate = [&](const layout& requested_layout) {
+            if (requested_layout.count() != 0)
+                return engine.allocate_memory(requested_layout);
+            auto dummy = engine.allocate_memory(layout{{1}, data_types::u8, format::bfyx});
+            return engine.reinterpret_buffer(*dummy, requested_layout);
+        };
+
+        auto A_mem = allocate(A_layout);
+        auto dt_mem = allocate(dt_layout);
+        auto B_mem = allocate(BC_layout);
+        auto x_mem = allocate(x_layout);
+        auto C_mem = allocate(BC_layout);
+        auto state_mem = allocate(state_layout);
 
         auto A_data = rg.generate_random_1d<T>(A_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.2f), 256);
         auto dt_data = rg.generate_random_1d<T>(dt_mem->count(), static_cast<T>(0.f), static_cast<T>(0.5f), 256);
@@ -96,25 +106,22 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
         auto C_data = rg.generate_random_1d<T>(C_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto state_data = rg.generate_random_1d<T>(state_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
 
-        set_values(A_mem, A_data);
-        set_values(dt_mem, dt_data);
-        set_values(B_mem, B_data);
-        set_values(x_mem, x_data);
-        set_values(C_mem, C_data);
-        set_values(state_mem, state_data);
+        const auto set_non_empty = [](const memory::ptr& mem, const auto& values) {
+            if (!values.empty())
+                set_values(mem, values);
+        };
+        set_non_empty(A_mem, A_data);
+        set_non_empty(dt_mem, dt_data);
+        set_non_empty(B_mem, B_data);
+        set_non_empty(x_mem, x_data);
+        set_non_empty(C_mem, C_data);
+        set_non_empty(state_mem, state_data);
 
-        const auto dt_input_layout = p.dynamic_shapes
-                                         ? layout{ov::PartialShape{-1, -1, p.num_heads}, data_type, format::bfyx}
-                                         : dt_layout;
-        const auto BC_input_layout = p.dynamic_shapes
-                                         ? layout{ov::PartialShape{-1, -1, p.num_groups, p.state_size}, data_type, format::bfyx}
-                                         : BC_layout;
-        const auto x_input_layout = p.dynamic_shapes
-                                        ? layout{ov::PartialShape{-1, -1, p.num_heads, p.head_dim}, data_type, format::bfyx}
-                                        : x_layout;
-        const auto state_input_layout = p.dynamic_shapes
-                                            ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx}
-                                            : state_layout;
+        const auto dt_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, -1, p.num_heads}, data_type, format::bfyx} : dt_layout;
+        const auto BC_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, -1, p.num_groups, p.state_size}, data_type, format::bfyx} : BC_layout;
+        const auto x_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, -1, p.num_heads, p.head_dim}, data_type, format::bfyx} : x_layout;
+        const auto state_input_layout =
+            p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx} : state_layout;
 
         topology topo;
         topo.add(input_layout("A", A_layout));
@@ -123,38 +130,77 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
         topo.add(input_layout("x", x_input_layout));
         topo.add(input_layout("C", BC_input_layout));
         topo.add(input_layout("state", state_input_layout));
-        auto ssm_prim = selective_ssm("selective_ssm", {input_info("A"), input_info("dt"), input_info("B"), input_info("x"), input_info("C"), input_info("state")});
+        std::vector<input_info> ssm_inputs{input_info("A"), input_info("dt"), input_info("B"), input_info("x"), input_info("C"), input_info("state")};
+        if (p.padded_layouts) {
+            OPENVINO_ASSERT(!p.dynamic_shapes, "Padded-layout test requires static input layouts");
+            const auto A_padding = padding(std::vector<ov::Dimension::value_type>{1}, std::vector<ov::Dimension::value_type>{2});
+            topo.add(reorder("A_padded", input_info("A"), A_layout.with_padding(A_padding)));
+            topo.add(reorder("dt_padded", input_info("dt"), dt_layout.with_padding(padding({1, 2, 1}, {2, 1, 3}))));
+            topo.add(reorder("B_padded", input_info("B"), BC_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1}))));
+            topo.add(reorder("x_padded", input_info("x"), x_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1}))));
+            topo.add(reorder("C_padded", input_info("C"), BC_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1}))));
+            topo.add(reorder("state_padded", input_info("state"), state_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1}))));
+            ssm_inputs = {input_info("A_padded"),
+                          input_info("dt_padded"),
+                          input_info("B_padded"),
+                          input_info("x_padded"),
+                          input_info("C_padded"),
+                          input_info("state_padded")};
+        }
+        auto ssm_prim = selective_ssm("selective_ssm", ssm_inputs);
         ssm_prim.num_outputs = 2;
+        if (p.padded_layouts) {
+            ssm_prim.output_paddings = {padding({1, 2, 1, 3}, {2, 1, 2, 1}), padding({1, 2, 1, 3}, {2, 1, 2, 1})};
+        }
         topo.add(ssm_prim);
         topo.add(reorder("output", input_info("selective_ssm", 0), format::bfyx, data_type));
         topo.add(reorder("state_output", input_info("selective_ssm", 1), format::bfyx, data_type));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.caching_test);
         network->set_input_data("A", A_mem);
         network->set_input_data("dt", dt_mem);
         network->set_input_data("B", B_mem);
         network->set_input_data("x", x_mem);
         network->set_input_data("C", C_mem);
         network->set_input_data("state", state_mem);
-        auto outputs = network->execute();
-
-        std::vector<T> ref_output;
-        auto ref_state = state_data;
-        run_reference(A_data, dt_data, B_data, x_data, C_data, ref_state, p.batch, p.seq_len, p.num_heads, p.num_groups, p.head_dim, p.state_size, ref_output);
-
-        auto out_mem = outputs.at("output").get_memory();
-        auto state_out_mem = outputs.at("state_output").get_memory();
-        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
-        cldnn::mem_lock<T, mem_lock_type::read> state_ptr(state_out_mem, get_test_stream());
 
         const float tol = p.precision == ov::element::f32 ? 2e-4f : (p.precision == ov::element::bf16 ? 0.08f : 0.03f);
-        for (size_t i = 0; i < ref_output.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(out_ptr[i]), static_cast<float>(ref_output[i]), tol) << "output idx=" << i;
-        }
-        for (size_t i = 0; i < ref_state.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(state_ptr[i]), static_cast<float>(ref_state[i]), tol) << "state idx=" << i;
+        for (int32_t iteration = 0; iteration < p.iterations; iteration++) {
+            auto outputs = network->execute();
+            std::vector<T> ref_output;
+            auto ref_state = state_data;
+            run_reference(A_data,
+                          dt_data,
+                          B_data,
+                          x_data,
+                          C_data,
+                          ref_state,
+                          p.batch,
+                          p.seq_len,
+                          p.num_heads,
+                          p.num_groups,
+                          p.head_dim,
+                          p.state_size,
+                          ref_output);
+
+            if (!ref_output.empty()) {
+                auto out_mem = outputs.at("output").get_memory();
+                ASSERT_NE(out_mem, nullptr);
+                cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+                for (size_t i = 0; i < ref_output.size(); i++) {
+                    ASSERT_NEAR(static_cast<float>(out_ptr[i]), static_cast<float>(ref_output[i]), tol) << "iteration=" << iteration << ", output idx=" << i;
+                }
+            }
+            if (!ref_state.empty()) {
+                auto state_out_mem = outputs.at("state_output").get_memory();
+                ASSERT_NE(state_out_mem, nullptr);
+                cldnn::mem_lock<T, mem_lock_type::read> state_ptr(state_out_mem, get_test_stream());
+                for (size_t i = 0; i < ref_state.size(); i++) {
+                    ASSERT_NEAR(static_cast<float>(state_ptr[i]), static_cast<float>(ref_state[i]), tol) << "iteration=" << iteration << ", state idx=" << i;
+                }
+            }
         }
     }
 
@@ -182,6 +228,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_selective_ssm_gpu_test,
                                            selective_ssm_test_params{1, 8, 64, 1, 64, 128, ov::element::f32, false},
                                            selective_ssm_test_params{1, 8, 64, 1, 64, 128, ov::element::f16, false},
                                            selective_ssm_test_params{1, 2, 2, 1, 2, 513, ov::element::f32, false},
-                                           selective_ssm_test_params{2, 3, 4, 2, 4, 16, ov::element::f32, true}));
+                                           selective_ssm_test_params{2, 3, 4, 2, 4, 16, ov::element::f32, true},
+                                           selective_ssm_test_params{1, 7, 4, 2, 5, 31, ov::element::f16, true},
+                                           selective_ssm_test_params{1, 5, 4, 2, 8, 17, ov::element::f32, false, true},
+                                           selective_ssm_test_params{1, 5, 4, 2, 3, 19, ov::element::f32, false, false, true},
+                                           selective_ssm_test_params{2, 0, 4, 2, 3, 17, ov::element::f16, true},
+                                           selective_ssm_test_params{1, 0, 2, 1, 4, 9, ov::element::bf16, false},
+                                           selective_ssm_test_params{1, 3, 2, 1, 4, 0, ov::element::f32, false},
+                                           selective_ssm_test_params{2, 4, 4, 2, 3, 15, ov::element::f32, true, false, false, 3},
+                                           selective_ssm_test_params{2, 32, 8, 4, 16, 64, ov::element::f16, false}));
 
 }  // namespace

@@ -30,6 +30,15 @@ KERNEL(selective_ssm_opt)(
     const size_t num_groups = INPUT2_SIZE_Y;
     const size_t state_size = INPUT2_SIZE_X;
 
+    if (INPUT0_BATCH_NUM != num_heads ||
+        INPUT1_BATCH_NUM != batch || INPUT1_FEATURE_NUM != seq_len || INPUT1_SIZE_Y != num_heads ||
+        INPUT2_BATCH_NUM != batch || INPUT2_FEATURE_NUM != seq_len ||
+        INPUT4_BATCH_NUM != batch || INPUT4_FEATURE_NUM != seq_len ||
+        INPUT4_SIZE_Y != num_groups || INPUT4_SIZE_X != state_size ||
+        INPUT5_BATCH_NUM != batch || INPUT5_FEATURE_NUM != num_heads ||
+        INPUT5_SIZE_Y != head_dim || INPUT5_SIZE_X != state_size)
+        return;
+
     if (b >= batch || h >= num_heads || p >= head_dim || num_groups == 0 || num_heads % num_groups != 0)
         return;
 
@@ -57,8 +66,9 @@ KERNEL(selective_ssm_opt)(
             const size_t c_idx = INPUT4_GET_INDEX(b, t, g, n);
             const float new_state = fma(local_state[n], dA,
                                         x_value * dt_value * SSM_TO_FLOAT(B[b_idx]));
-            local_state[n] = SSM_ROUND_STATE(new_state);
-            partial = fma(new_state, SSM_TO_FLOAT(C[c_idx]), partial);
+            const float stored_state = SSM_ROUND_STATE(new_state);
+            local_state[n] = stored_state;
+            partial = fma(stored_state, SSM_TO_FLOAT(C[c_idx]), partial);
         }
 
         reduction[lane] = partial;
