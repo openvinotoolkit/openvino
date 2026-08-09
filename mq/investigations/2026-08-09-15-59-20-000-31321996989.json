@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-09-15-59-20-000-31321996989",
+  "timestamp": "2026-08-09T15:59:20Z",
+  "run_id": "31321996989",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31321996989",
+  "workflow_name": "Android",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked as targets",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build arm64 \u2014 CMake configure OpenVINO failed with MODULE_LIBRARY link errors",
+    "Build x64 \u2014 CMake configure OpenVINO failed with MODULE_LIBRARY link errors"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target.",
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:325 (ov_target_link_plugins): cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp): CMakeLists.txt:196 (include)",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The Android CMake configure step fails because plugin targets (openvino_auto_plugin, openvino_auto_batch_plugin, openvino_hetero_plugin, openvino_intel_cpu_plugin, openvino_intel_gpu_plugin) are MODULE_LIBRARY type and CMake does not allow linking MODULE_LIBRARY targets as dependencies into other targets. This appears to be a pre-existing CMake configuration issue in the Android build path, triggered by this PR's changes being merged into the merge queue commit. The PR itself only modifies GPU plugin source files with clang-tidy style fixes, and does not change any CMake configuration. This may be a pre-existing issue in the master branch affecting the Android workflow.",
+  "reproduction_steps": "Run Android CMake configure step targeting arm64/x64 with the merge-queue commit e5fb31467e644173f0129afcead85b433094c272",
+  "recommended_actions": [
+    "Investigate cmake/developer_package/plugins/plugins.cmake line 275 - the ov_target_link_plugins function attempts to link MODULE_LIBRARY targets",
+    "Check if a recent master commit changed how plugins are registered or linked in the Android build",
+    "Check cmake/extra_modules.cmake line 186 (ov_generate_plugins_hpp) for changes",
+    "This is likely unrelated to PR #37211 which only makes clang-tidy style changes to GPU plugin source files"
+  ],
+  "prevention_strategies": "Ensure Android CMake configure is tested locally before merging changes to plugin CMakeLists or plugins.cmake. Add a check that plugin targets are not MODULE_LIBRARY when being used as link dependencies.",
+  "historical_context": "No prior occurrence of this exact failure in the database."
+}

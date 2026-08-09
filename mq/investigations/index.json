@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 123,
+  "total": 124,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1206,6 +1206,15 @@
       "title": "TensorFlow Layer Tests artifact upload fails on Windows runner - Upload Test Results step",
       "category": "Infrastructure",
       "signature_hash": "522aa4df96cd506a",
+      "pr_number": "37211"
+    },
+    {
+      "investigation_id": "2026-08-09-15-59-20-000-31321996989",
+      "run_id": "31321996989",
+      "timestamp": "2026-08-09T15:59:20Z",
+      "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked as targets",
+      "category": "Code Issue",
+      "signature_hash": "9ff022172665aa06",
       "pr_number": "37211"
     }
   ]
