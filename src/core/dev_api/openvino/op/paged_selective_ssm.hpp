@@ -13,7 +13,7 @@ namespace ov::op::internal {
 /// Paged variant of the SelectiveSSM (Mamba2 selective state-space, arXiv:2405.21060) recurrence. Processes
 /// tokens from multiple sequences packed into a single batch and manages the recurrent SSM state (a per-head
 /// ``[head_dim, state_size]`` matrix) using a paged block table, enabling non-contiguous memory allocation
-/// across sequences. Per token: ``dA = exp(A * dt)``, ``dtB = dt * B``, ``dBx = dtB (x) x``,
+/// across sequences. Per token: ``dA = exp(A * dt)``, ``dtB = dt * B``, ``dBx = x (x) dtB``,
 /// ``state = state * dA + dBx``, ``output = sum(state * C)``.
 ///
 /// ``B`` and ``C`` are grouped and shared across heads: each head ``h`` reads group
@@ -38,11 +38,11 @@ public:
     /// \param x Input hidden states [batch_size_in_tokens, num_heads, head_dim].
     /// \param C Grouped output projection [batch_size_in_tokens, num_groups, state_size].
     /// \param recurrent_state_table Paged table of recurrent state snapshots, updated in place
-    ///        [num_blocks, num_heads, head_dim, state_size]; an all-zeros tensor before any tokens are cached.
+    ///        [num_physical_blocks, num_heads, head_dim, state_size]; an all-zeros tensor before any tokens are cached.
     /// \param subsequence_begins Start indices of each sequence's tokens in the flattened token batch
     ///        [batch_size_in_sequences + 1], element type i32 or i64.
     /// \param la_block_indices Physical block row indices into recurrent_state_table, concatenated across
-    ///        all sequences [num_blocks], element type i32 or i64.
+    ///        all sequences [num_logical_blocks], element type i32 or i64.
     /// \param la_block_indices_begins Splits la_block_indices among sequences
     ///        [batch_size_in_sequences + 1], element type i32 or i64.
     /// \param num_processed_tokens Number of tokens already processed for each sequence

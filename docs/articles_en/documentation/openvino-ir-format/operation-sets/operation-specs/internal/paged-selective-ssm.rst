@@ -125,7 +125,7 @@ Cases for reading and updating blocks:
   **Required.**
 
 * **6**: ``recurrent_state_table`` - Tensor of type *T* and shape
-  ``[num_blocks, num_heads, head_dim, state_size]``.
+  ``[num_physical_blocks, num_heads, head_dim, state_size]``.
   Paged table of recurrent state snapshots. Each row is one block storing a complete state for
   all heads at a cached token position. This tensor is updated in place during execution.
   The initial state before any tokens are processed is an all-zeros tensor. **Required.**
@@ -135,7 +135,7 @@ Cases for reading and updating blocks:
   ``dt``, ``B``, ``x``, ``C``). The tokens of sequence ``s`` span
   ``[subsequence_begins[s], subsequence_begins[s+1])``. **Required.**
 
-* **8**: ``la_block_indices`` - Tensor of type *T_IND* and shape ``[num_blocks]``.
+* **8**: ``la_block_indices`` - Tensor of type *T_IND* and shape ``[num_logical_blocks]``.
   Physical block row indices into ``recurrent_state_table``, concatenated across all sequences.
   For example, ``[0, 1, 3, 2, 4]`` with five blocks. **Required.**
 
@@ -145,6 +145,9 @@ Cases for reading and updating blocks:
   ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``.
   For example, ``la_block_indices = [0, 1, 3, 2, 4]`` and ``la_block_indices_begins = [0, 3, 5]``
   means sequence 0 uses blocks ``[0, 1, 3]`` and sequence 1 uses blocks ``[2, 4]``. **Required.**
+
+  ``num_logical_blocks`` is the total number of entries in this concatenated indirection array and
+  is independent of ``num_physical_blocks``; entries may refer to the same physical row.
 
 * **10**: ``num_processed_tokens`` - Tensor of type *T_IND* and shape ``[batch_size_in_sequences]``.
   Number of tokens already processed for each sequence. Used together with the cached states

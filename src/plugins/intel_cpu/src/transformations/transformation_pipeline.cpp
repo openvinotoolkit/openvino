@@ -43,6 +43,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -129,6 +130,7 @@
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
@@ -286,6 +288,30 @@
 namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+class PreservePagedSelectiveSSMPrecision final : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PreservePagedSelectiveSSMPrecision");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        for (const auto& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::internal::PagedSelectiveSSM>(node)) {
+                continue;
+            }
+
+            // The state table is updated through input port 5. Changing the data precision would insert
+            // a conversion and redirect the side effect to a temporary buffer. Keep the operation and the
+            // producers of all same-T data inputs in their original precision.
+            ov::disable_conversion(node, ov::element::dynamic, ov::element::dynamic);
+            for (size_t input = 0; input < 6; ++input) {
+                ov::disable_conversion(node->get_input_node_shared_ptr(input),
+                                       ov::element::dynamic,
+                                       ov::element::dynamic);
+            }
+        }
+        return false;
+    }
+};
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
@@ -627,6 +653,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // supported, this may lead to inconsistency during element type propagation. This transformation is called before
     // the ConvertPrecision pass to align the actual precisions with the list of supported ones.
     constexpr bool convert_input_output_precision = false;
+    CPU_REGISTER_PASS_COMMON(manager, PreservePagedSelectiveSSMPrecision);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::InsertConvertAfterExtension, convert_input_output_precision);
     // Do not insert pass::Validate between pass::InsertConvertAfterExtension and pass::ConvertPrecision.
     // This may result in the loss of the original Element type of the Output .
