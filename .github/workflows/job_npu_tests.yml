@@ -184,7 +184,7 @@ jobs:
       
       # Group C: aliked + detectron2 share compatible deps (installed together).
       # Disabled, re-enable: E-229647
-      - name: "Install PyTorch tests requirements (group C: aliked/detectron2)"
+      - name: Install PyTorch tests requirements (group C - aliked/detectron2)
         if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
