@@ -19,9 +19,12 @@ using namespace ::tests;
 
 namespace {
 
-// Uncompressed K may be stored token-major ([.., block_size, k_head_size], head dims contiguous)
-// instead of d-major; the page size is the same either way, so only the in-page strides differ.
-// Compressed callers always pass a d-major (adjusted) layout, hence the explicit flag.
+// K may be stored token-major ([.., block_size, k_head_size], head dims contiguous) instead of
+// d-major; the page size is the same either way, so only the in-page strides differ.
+// page_head_size sizes the PAGE and defaults to k_head_size; a compressed cache passes its adjusted
+// head size there while k_head_size stays the DATA row pitch (the scale/zp arrays trail the data
+// region and are addressed by key_comp_byte_offset, not here). BY_CHANNEL/INT4 callers leave
+// token_major false.
 size_t key_offset(size_t block,
                   size_t head,
                   size_t k,
@@ -29,14 +32,22 @@ size_t key_offset(size_t block,
                   size_t kv_heads,
                   size_t k_head_size,
                   size_t block_size,
-                  bool token_major = false) {
-    const size_t page_base = block * kv_heads * k_head_size * block_size + head * k_head_size * block_size;
+                  bool token_major = false,
+                  size_t page_head_size = 0) {
+    const size_t phs = page_head_size != 0 ? page_head_size : k_head_size;
+    const size_t page_base = block * kv_heads * phs * block_size + head * phs * block_size;
     return page_base + (token_major ? token * k_head_size + k : k * block_size + token);
 }
 
-// The uncompressed tests below share the PA cache-layout switch with the plugin.
+// The tests below share the PA cache-layout switch with the plugin.
 bool k_token_major() {
     return cldnn::paged_attention::k_token_major();
+}
+
+// i8 BY_TOKEN follows the same switch (its scale/zp trail the data region); INT4 and BY_CHANNEL
+// never do.
+bool k_token_major_i8() {
+    return cldnn::paged_attention::k_token_major_for(ov::element::i8, /*is_key_by_channel=*/false);
 }
 
 size_t value_offset(size_t block, size_t head, size_t token, size_t v, size_t kv_heads, size_t v_head_size, size_t block_size) {
@@ -560,7 +571,8 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed) {
     constexpr size_t adjusted_v_head_size = v_head_size + scales_zp_size;
     constexpr size_t block_size = cldnn::paged_attention::block_size;
 
-    auto key_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, adjusted_k_head_size, block_size}, data_types::i8, format::bfyx};
+    auto key_cache_layout = layout{k_token_major_i8() ? ov::PartialShape{blocks_num, kv_heads, block_size, adjusted_k_head_size}
+                                              : ov::PartialShape{blocks_num, kv_heads, adjusted_k_head_size, block_size}, data_types::i8, format::bfyx};
     auto value_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, block_size, adjusted_v_head_size}, data_types::i8, format::bfyx};
     auto block_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto block_indices_begins_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
@@ -635,12 +647,12 @@ TEST(pa_kv_reorder_gpu, copy_between_blocks_single_sequence_compressed) {
     cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
-        const auto src0 = key_cache_ref[key_offset(0, 0, k, 0, kv_heads, adjusted_k_head_size, block_size)];
-        const auto dst17 = key_ptr[key_offset(1, 0, k, 1, kv_heads, adjusted_k_head_size, block_size)];
+        const auto src0 = key_cache_ref[key_offset(0, 0, k, 0, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)];
+        const auto dst17 = key_ptr[key_offset(1, 0, k, 1, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)];
         ASSERT_EQ(dst17, src0);
 
-        const auto src15 = key_cache_ref[key_offset(0, 0, k, 15, kv_heads, adjusted_k_head_size, block_size)];
-        const auto dst16 = key_ptr[key_offset(1, 0, k, 0, kv_heads, adjusted_k_head_size, block_size)];
+        const auto src15 = key_cache_ref[key_offset(0, 0, k, 15, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)];
+        const auto dst16 = key_ptr[key_offset(1, 0, k, 0, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)];
         ASSERT_EQ(dst16, src15);
     }
 
@@ -687,7 +699,8 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence_compressed) {
     constexpr size_t adjusted_v_head_size = v_head_size + scales_zp_size;
     constexpr size_t block_size = cldnn::paged_attention::block_size;
 
-    auto key_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, adjusted_k_head_size, block_size}, data_types::i8, format::bfyx};
+    auto key_cache_layout = layout{k_token_major_i8() ? ov::PartialShape{blocks_num, kv_heads, block_size, adjusted_k_head_size}
+                                              : ov::PartialShape{blocks_num, kv_heads, adjusted_k_head_size, block_size}, data_types::i8, format::bfyx};
     auto value_cache_layout = layout{ov::PartialShape{blocks_num, kv_heads, block_size, adjusted_v_head_size}, data_types::i8, format::bfyx};
     auto block_indices_layout = layout{ov::PartialShape{2}, data_types::i32, format::bfyx};
     auto block_indices_begins_layout = layout{ov::PartialShape{3}, data_types::i32, format::bfyx};
@@ -762,13 +775,13 @@ TEST(pa_kv_reorder_gpu, updates_are_scoped_per_sequence_compressed) {
     cldnn::mem_lock<int8_t, mem_lock_type::read> value_ptr(value_cache_mem, network->get_stream());
 
     for (size_t k = 0; k < k_head_size; k++) {
-        ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, adjusted_k_head_size, block_size)],
-                  key_cache_ref[key_offset(0, 0, k, 1, kv_heads, adjusted_k_head_size, block_size)]);
-        ASSERT_EQ(key_ptr[key_offset(2, 0, k, 4, kv_heads, adjusted_k_head_size, block_size)],
-                  key_cache_ref[key_offset(2, 0, k, 2, kv_heads, adjusted_k_head_size, block_size)]);
+        ASSERT_EQ(key_ptr[key_offset(0, 0, k, 3, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)],
+                  key_cache_ref[key_offset(0, 0, k, 1, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)]);
+        ASSERT_EQ(key_ptr[key_offset(2, 0, k, 4, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)],
+                  key_cache_ref[key_offset(2, 0, k, 2, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)]);
 
-        ASSERT_EQ(key_ptr[key_offset(1, 0, k, 4, kv_heads, adjusted_k_head_size, block_size)],
-                  key_cache_ref[key_offset(1, 0, k, 4, kv_heads, adjusted_k_head_size, block_size)]);
+        ASSERT_EQ(key_ptr[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)],
+                  key_cache_ref[key_offset(1, 0, k, 4, kv_heads, k_head_size, block_size, k_token_major_i8(), adjusted_k_head_size)]);
     }
 
     for (size_t v = 0; v < v_head_size; v++) {

@@ -318,10 +318,18 @@ KERNEL(pa_kv_cache_reorder)(
                 }
                 #endif
             #else
-                // per-token quantization: copy quantized values and comp data for token
+                // per-token quantization: copy quantized values and comp data for token.
+                // Token-major makes a token's head dims contiguous (like the value copy above);
+                // d-major makes the tokens of one head dim contiguous. The trailing scale/zp arrays
+                // are layout-independent, so only this data loop changes.
                 for (uint k = sglid; k < phys_k_head_size; k += (uint)SUBGROUP_SIZE) {
+                #if IS_KEY_TOKEN_MAJOR
+                    const uint src_off = key_src_base + src_slot * K_HEAD_SIZE + k;
+                    const uint dst_off = key_dst_base + dst_slot * K_HEAD_SIZE + k;
+                #else
                     const uint src_off = key_src_base + k * PAGED_ATTENTION_BLOCK_SIZE + src_slot;
                     const uint dst_off = key_dst_base + k * PAGED_ATTENTION_BLOCK_SIZE + dst_slot;
+                #endif
                     key_cache[dst_off] = key_cache[src_off];
                 }
 
