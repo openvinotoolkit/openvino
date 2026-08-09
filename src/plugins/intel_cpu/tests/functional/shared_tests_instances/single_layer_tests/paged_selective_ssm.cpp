@@ -7,11 +7,16 @@
 namespace ov::test {
 
 std::vector<PagedSelectiveSSMLayerParams> paged_selective_ssm_test_cases = {
-    {4, 2, 8, 8, {3, 2}, {2, 0}, ov::element::f32, "CPU"},
-    {4, 1, 8, 16, {2, 4, 1}, {1, 3, 2}, ov::element::f32, "CPU"},
-    {8, 2, 16, 16, {4, 3}, {2, 4}, ov::element::f32, "CPU"},
-    {4, 2, 8, 8, {3, 2}, {2, 0}, ov::element::f16, "CPU"},
-    {4, 2, 8, 8, {3, 2}, {2, 0}, ov::element::bf16, "CPU"},
+    {4, 2, 5, 3, {3}, {0}, {2}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 5, 3, {3}, {4}, {2}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 5, 3, {4}, {1}, {3}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 5, 3, {1}, {4}, {2}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 5, 3, {1}, {3}, {2}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 5, 3, {0, 2, 1}, {7, 1, 0}, {2, 2, 4}, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 1, 3, 4, {3, 2}, {5, 9}, {0, -3}, ov::element::f32, ov::element::i32, "CPU"},
+    {3, 3, 1, 1, {4}, {0}, {1}, ov::element::f32, ov::element::i64, "CPU"},
+    {4, 2, 5, 3, {3, 1}, {1, 4}, {3, 2}, ov::element::f16, ov::element::i64, "CPU"},
+    {4, 2, 5, 3, {3, 1}, {1, 4}, {3, 2}, ov::element::bf16, ov::element::i32, "CPU"},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedSelectiveSSM,

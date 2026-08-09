@@ -157,6 +157,9 @@ void SelectiveSSM::SetUp() {
 
     const ov::Shape A_shape{static_cast<size_t>(num_heads)};
     const ov::Shape dt_shape{static_cast<size_t>(batch), static_cast<size_t>(seq_len), static_cast<size_t>(num_heads)};
+    const ov::Shape alternate_dt_shape{static_cast<size_t>(batch == 1 ? 2 : 1),
+                                       static_cast<size_t>(seq_len + 2),
+                                       static_cast<size_t>(num_heads)};
     const ov::Shape B_shape{static_cast<size_t>(batch),
                             static_cast<size_t>(seq_len),
                             static_cast<size_t>(num_groups),
@@ -165,13 +168,31 @@ void SelectiveSSM::SetUp() {
                             static_cast<size_t>(seq_len),
                             static_cast<size_t>(num_heads),
                             static_cast<size_t>(head_dim)};
+    const ov::Shape alternate_B_shape{alternate_dt_shape[0],
+                                      alternate_dt_shape[1],
+                                      static_cast<size_t>(num_groups),
+                                      static_cast<size_t>(state_size)};
+    const ov::Shape alternate_x_shape{alternate_dt_shape[0],
+                                      alternate_dt_shape[1],
+                                      static_cast<size_t>(num_heads),
+                                      static_cast<size_t>(head_dim)};
     const ov::Shape state_shape{static_cast<size_t>(batch),
                                 static_cast<size_t>(num_heads),
                                 static_cast<size_t>(head_dim),
                                 static_cast<size_t>(state_size)};
+    const ov::Shape alternate_state_shape{alternate_dt_shape[0],
+                                          static_cast<size_t>(num_heads),
+                                          static_cast<size_t>(head_dim),
+                                          static_cast<size_t>(state_size)};
 
     init_input_shapes(
-        static_shapes_to_test_representation({A_shape, dt_shape, B_shape, x_shape, B_shape, state_shape}));
+        {InputShape{ov::PartialShape{num_heads}, {A_shape, A_shape, A_shape}},
+         InputShape{ov::PartialShape{-1, -1, num_heads}, {dt_shape, alternate_dt_shape, dt_shape}},
+         InputShape{ov::PartialShape{-1, -1, num_groups, state_size}, {B_shape, alternate_B_shape, B_shape}},
+         InputShape{ov::PartialShape{-1, -1, num_heads, head_dim}, {x_shape, alternate_x_shape, x_shape}},
+         InputShape{ov::PartialShape{-1, -1, num_groups, state_size}, {B_shape, alternate_B_shape, B_shape}},
+         InputShape{ov::PartialShape{-1, num_heads, head_dim, state_size},
+                    {state_shape, alternate_state_shape, state_shape}}});
 
     auto A = std::make_shared<ov::op::v0::Parameter>(prec, ov::PartialShape{num_heads});
     auto dt = std::make_shared<ov::op::v0::Parameter>(prec, ov::PartialShape{-1, -1, num_heads});

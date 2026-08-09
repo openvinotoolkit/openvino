@@ -21,10 +21,12 @@ using PagedSelectiveSSMLayerParams = std::tuple<int32_t,
                                                 int32_t,
                                                 std::vector<int32_t>,
                                                 std::vector<int32_t>,
+                                                std::vector<int32_t>,
+                                                ov::element::Type,
                                                 ov::element::Type,
                                                 std::string>;  // num_heads, num_groups, head_dim, state_size,
-                                                               // seq_lengths, cache_intervals, element_type,
-                                                               // target_device
+                                                               // seq_lengths, num_processed_tokens, cache_intervals,
+                                                               // element_type, index_type, target_device
 
 class PagedSelectiveSSMLayerTest : public testing::WithParamInterface<PagedSelectiveSSMLayerParams>,
                                    virtual public ov::test::SubgraphBaseTest {
