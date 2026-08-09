@@ -341,11 +341,7 @@ bool ConvolutionCheckInput(const Params& p) {
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
     const bool bInputPadded = params.allowInputReordering || bProperInputDesc;
 
-    if (!bInputPadded) {
-        return false;
-    }
-
-    return true;
+    return bInputPadded;
 }
 
 bool ConvolutionUpdateInputParams(convolution_params& params) {

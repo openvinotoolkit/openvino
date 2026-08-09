@@ -56,31 +56,31 @@ struct kernel_impl_params final {
     std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
-    std::vector<event::ptr> dep_events = {};
+    std::vector<event::ptr> dep_events;
     event::ptr out_event = nullptr;
 
     ExecutionFlags flags;
 
-    optional_layout weights_layout = optional_layout();
+    optional_layout weights_layout;
 
-    optional_layout bias_layout = optional_layout();
-    optional_layout weights_zero_points_layout = optional_layout();
-    optional_layout activations_zero_points_layout = optional_layout();
-    optional_layout compensation_layout = optional_layout();
+    optional_layout bias_layout;
+    optional_layout weights_zero_points_layout;
+    optional_layout activations_zero_points_layout;
+    optional_layout compensation_layout;
     std::vector<layout> state_layouts;
 
-    std::map<size_t, memory::ptr> memory_deps = {};
+    std::map<size_t, memory::ptr> memory_deps;
     size_t primary_input_idx = 0;
-    std::vector<std::shared_ptr<program>> inner_progs = {};
-    std::vector<std::shared_ptr<network>> inner_nets = {};
-    std::vector<std::map<size_t, primitive_id>> io_output_maps = {};
+    std::vector<std::shared_ptr<program>> inner_progs;
+    std::vector<std::shared_ptr<network>> inner_nets;
+    std::vector<std::map<size_t, primitive_id>> io_output_maps;
     // TODO : These values are temporarily added for prior box.
     // Such values decided at runtime shape infer and primitive creation will be handled with more generalized way in the near future.
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
 
-    std::map<size_t, size_t> in_port_to_shape_info_offset = {};
-    std::map<size_t, size_t> out_port_to_shape_info_offset = {};
+    std::map<size_t, size_t> in_port_to_shape_info_offset;
+    std::map<size_t, size_t> out_port_to_shape_info_offset;
 
     kernel_impl_params() : prog(nullptr), dev_type(cldnn::device_type::integrated_gpu), strm(nullptr), desc(nullptr), unique_id(0) {
     }

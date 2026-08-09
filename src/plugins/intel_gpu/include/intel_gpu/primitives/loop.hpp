@@ -146,7 +146,7 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
-        backedge_mapping() {}
+        backedge_mapping() = default;
         primitive_id from;
         primitive_id to;
 

@@ -191,10 +191,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         if (gws != rhs_casted.gws)
             return false;
 
-        if (lws != rhs_casted.lws)
-            return false;
-
-        return true;
+        return lws == rhs_casted.lws;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

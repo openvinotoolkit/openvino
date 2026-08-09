@@ -132,7 +132,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
 
         size_t reg_usage = tune_params.block_x * 4
                          + line_size * weights.Y().v
-                         + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
+                         + Align(weights.X().v * weights.Y().v, 4) * static_cast<typename std::enable_if<std::is_integral<unsigned long>::value, unsigned long>::type>(tune_params.preload_weights);
         if (reg_usage > max_reg_usage)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
 
@@ -142,7 +142,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
         if (tune_params.block_y > params.outputs[0].Y().v)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
-        size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
+        size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * static_cast<typename std::enable_if<std::is_integral<unsigned long>::value, unsigned long>::type>(tune_params.preload_weights);
         if (block_size > max_reg_usage)
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -165,9 +165,9 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
 
     // Check that we can preload x and calculate at least two output values
     constexpr size_t min_preload_width = 2;
-    size_t min_preload_regs = ((min_preload_width - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1) * params.weights.Y().v
+    size_t min_preload_regs = static_cast<size_t>(((min_preload_width - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1) * params.weights.Y().v
                             + min_preload_width * 4
-                            + Align(weights.X().v * weights.Y().v, 4) <= max_reg_usage;
+                            + Align(weights.X().v * weights.Y().v, 4) <= max_reg_usage);
     bool can_preload_input = min_preload_regs <= max_reg_usage && !is_1_by_x;
 
     if (can_preload_input) {
@@ -256,11 +256,7 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         tune_params.block_x = best_x_8 != 0 ? best_x_8 : best_x_1;
         tune_params.block_y = 1;
         tune_params.preload_input = false;
-        if (tune_params.block_x > 1 && (tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4)) <= max_reg_usage) {
-            tune_params.preload_weights = true;
-        } else {
-            tune_params.preload_weights = false;
-        }
+        tune_params.preload_weights = tune_params.block_x > 1 && (tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4)) <= max_reg_usage;
         tune_params.tiled_simd = 0;
     }
 
