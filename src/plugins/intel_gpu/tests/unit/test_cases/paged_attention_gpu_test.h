@@ -368,6 +368,18 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
+    // Whether this case's K cache is laid out token-major, i.e. [.., block_size, k_head_size].
+    // Must agree with the plugin, so it goes through the same predicate and feeds it the same thing
+    // graph/paged_attention.cpp does: the PHYSICAL cache type, except for INT4, which packs into u8
+    // and can only be recognised from the configured precision. Note kv_cache_precision can be u4 on
+    // a case that runs DISABLE_CACHE_COMPRESSION (cases 126-139), so compression is checked first.
+    bool k_cache_token_major() const {
+        const auto precision = is_int4_kv_cache() ? kv_cache_precision
+                                                  : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
+        return cldnn::paged_attention::k_token_major_for(precision,
+                                                         key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+    }
+
     cldnn::memory::ptr get_key_cache_memory() {
         auto key_cache_dt = cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
@@ -396,8 +408,10 @@ struct PagedAttentionManager {
         }
 
         auto num_blocks = block_indices.back() + 1;
-        // Token-major uncompressed K swaps the two innermost dims, matching the value cache.
-        const bool k_token_major = cldnn::paged_attention::k_token_major() && !kv_cache_compression;
+        // Token-major K swaps the two innermost dims, matching the value cache. The page SIZE is the
+        // same either way, so for a compressed cache the trailing scale/zp region (adjusted_head_size
+        // - k_head_size bytes per token-row's worth) still lands at k_head_size * block_size.
+        const bool k_token_major = k_cache_token_major();
         auto key_cache_shape = k_token_major
                                    ? ov::PartialShape{num_blocks, num_kv_heads, adjusted_block_size, adjusted_head_size}
                                    : ov::PartialShape{num_blocks, num_kv_heads, adjusted_head_size, adjusted_block_size};
@@ -548,11 +562,18 @@ struct PagedAttentionManager {
                                         set_values(test_stream, memory, &fp16_inv_scale, 1, comp_offset_fp16 + token_idx);
                                         set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + block_size + token_idx);
                                     } else {
+                                        // i8 BY_TOKEN. Only the data region's strides depend on the
+                                        // layout; the trailing scale/zp arrays sit at
+                                        // k_head_size * block_size either way.
+                                        const bool k_tm = k_cache_token_major();
+                                        const size_t tok_stride = k_tm ? k_head_size : 1;
+                                        const size_t hid_stride = k_tm ? 1 : block_size;
                                         auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
                                         for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
                                             auto quantized_data_ptr = quantized_data.data() + k_head_size_idx;
 
-                                            size_t output_offset = output_block_offset + k_head_size_idx * block_size + token_idx;
+                                            size_t output_offset =
+                                                output_block_offset + k_head_size_idx * hid_stride + token_idx * tok_stride;
 
                                             set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
                                         }
@@ -564,7 +585,7 @@ struct PagedAttentionManager {
                             } else {
                                 // Both layouts have the same per-(block, head) page size, so only the
                                 // token / head-dim strides inside the page differ.
-                                const bool k_token_major = cldnn::paged_attention::k_token_major();
+                                const bool k_token_major = k_cache_token_major();
                                 const size_t token_stride = k_token_major ? k_head_size : 1;
                                 const size_t hidden_stride = k_token_major ? 1 : block_size;
                                 for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
@@ -1566,7 +1587,7 @@ public:
             cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
 
             // See get_key_cache_memory(): token-major swaps the in-page token / head-dim strides.
-            const bool k_token_major = cldnn::paged_attention::k_token_major();
+            const bool k_token_major = pam.k_cache_token_major();
             const size_t token_stride = k_token_major ? pam.k_head_size : 1;
             const size_t hidden_stride = k_token_major ? 1 : pam.block_size;
 
@@ -1715,9 +1736,14 @@ public:
                     return key_data;
                 }
 
-                // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
-                // Token-wise quantization with shared scale/zp per token
-                // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
+                // BY_TOKEN: d-major [num_blocks, num_kv_heads, head_size+4, block_size] or token-major
+                // [num_blocks, num_kv_heads, block_size, head_size+4].
+                // Token-wise quantization with shared scale/zp per token; the scale/zp arrays trail
+                // the data region at head_size * block_size in both layouts, so only the data strides
+                // below change. Scale at [head_size], zp at [head_size+2] (fp16).
+                const bool k_tm = pam.k_cache_token_major();
+                const size_t tok_stride = k_tm ? pam.k_head_size : 1;
+                const size_t hid_stride = k_tm ? 1 : pam.block_size;
                 cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1743,7 +1769,8 @@ public:
 
                             // Dequantize all dimensions for this token
                             for (int dim = 0; dim < pam.k_head_size; dim++) {
-                                const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
+                                const size_t cache_offset =
+                                    cache_base + static_cast<size_t>(dim) * hid_stride + token_offset * tok_stride;
 
                                 int8_t quantized_value = cache_ptr[cache_offset];
                                 float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);

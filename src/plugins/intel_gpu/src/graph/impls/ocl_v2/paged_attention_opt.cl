@@ -41,6 +41,11 @@
 #if IS_KEY_TOKEN_MAJOR && SUBGROUP_SIZE != 16
     #error pa_sdpa_opt.cl: token-major K load assumes SUBGROUP_SIZE == 16
 #endif
+// BY_CHANNEL stores a scale/zp pair at the end of every COLUMN, so its page is inherently d-major;
+// the host predicate (paged_attention::k_token_major_for) must never combine the two.
+#if IS_KEY_TOKEN_MAJOR && defined(IS_KEY_BY_CHANNEL)
+    #error pa_sdpa_opt.cl: BY_CHANNEL K cannot be token-major
+#endif
 
 #if HEADS_PER_WI > 1
     #define GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(multiple_heads_idx, fixed_val) multiple_heads_idx
@@ -386,6 +391,20 @@ KERNEL(pa_sdpa_opt)(
                 INPUT0_TYPE comp_scale = comp_ptr[0];
                 INPUT0_TYPE comp_zp = comp_ptr[1];
         #endif
+        #if IS_KEY_TOKEN_MAJOR
+                // Token-major i8/u8 BY_TOKEN page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]
+                // bytes, so one token's KEY_VEC_SIZE head dims are contiguous and each lane can load
+                // its OWN token's row -- exactly the operand layout the mad below wants (k_vals[i] on
+                // lane L must be K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i]). A BLOCK_READN
+                // would walk head dims across lanes, which is the wrong axis. Same idiom as the
+                // uncompressed token-major branch below. comp_scale/comp_zp were already loaded at
+                // lane == token, so the dequant is unchanged; only the data addressing moves.
+                const MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_VEC_SIZE) k_quant =
+                    vload16(0, key_cache + key_block_offset + sglid * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE);
+                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
+                    k_vals[i] = ((INPUT0_TYPE)k_quant[i] - comp_zp) * comp_scale;
+                }
+        #else
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
@@ -394,6 +413,7 @@ KERNEL(pa_sdpa_opt)(
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
+        #endif
     #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;

@@ -12,9 +12,14 @@
 // ([.., k_head_size, block_size]) so consecutive tokens are contiguous; token-major is
 // ([.., block_size, k_head_size]) so consecutive head dims are contiguous, matching the V cache.
 // The two differ only in which of the token / head-dim strides is 1, so expressing every
-// uncompressed K write in terms of this pair keeps a single code path for both layouts.
-// Compressed caches are always d-major (IS_KEY_TOKEN_MAJOR == 0), where these collapse to the
-// literal constants the code used before.
+// K write in terms of this pair keeps a single code path for both layouts.
+//
+// This covers the i8/u8 BY_TOKEN cache too: its scale/zp are two f16 arrays appended AFTER the data
+// region, so the data region is a plain [block_size, k_head_size] tile and the page size is
+// unchanged. KEY_HIDDEN_STRIDE is therefore also the out_data_pitch passed to
+// quantize_and_save_per_token for the key. BY_CHANNEL and INT4 stay d-major
+// (IS_KEY_TOKEN_MAJOR == 0), where these collapse to the literal constants the code used before --
+// which also keeps that helper's `out_data_pitch > 1` scale/zp placement test correct for INT4.
 #if IS_KEY_TOKEN_MAJOR
     #define KEY_TOKEN_STRIDE  K_HEAD_SIZE
     #define KEY_HIDDEN_STRIDE 1
@@ -504,7 +509,7 @@ KERNEL(pa_kv_cache_update)(
             const uint comp_k_offset = block_k_base_offset + phys_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
             // key processing
             INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-            FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE, comp_k_offset,
+            FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, KEY_HIDDEN_STRIDE, comp_k_offset,
                 current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
 #if IS_INT4_COMPRESSED
@@ -754,7 +759,7 @@ KERNEL(pa_kv_cache_update)(
             {
                 // Key per token
                 INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-                FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, KEY_HIDDEN_STRIDE,
                     comp_k_offset, token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                 // Value per token
@@ -878,7 +883,7 @@ KERNEL(pa_kv_cache_update)(
                 {
                     // key processing
                     INPUT0_TYPE input_k_data[K_HEAD_SIZE / SUBGROUP_SIZE];
-                    FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, PAGED_ATTENTION_BLOCK_SIZE,
+                    FUNC_CALL(quantize_and_save_per_token)(key_data, key_in_offset, key_cache_data, key_out_offset, KEY_HIDDEN_STRIDE,
                         comp_k_offset, token_start_pos_key + token_num, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_k_data[0]);
 
                     // value processing

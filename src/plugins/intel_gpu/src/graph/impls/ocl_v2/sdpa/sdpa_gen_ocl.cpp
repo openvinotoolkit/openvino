@@ -732,9 +732,20 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // was a per-key scalar gather. Token-major makes a page a [block_size, k_head_size] row-major
     // tile, i.e. the same geometry as V above, so the pitch rule is checked the same way against the
     // page pitch (k_head_size * 2), not ldk.
+    // Whether the K cache pages are [block_size, k_head_size] rather than [k_head_size, block_size].
+    // Drives PA_K_TOKEN_STRIDE / PA_K_HIDDEN_STRIDE in the .cl, which the scalar-gather fallbacks use,
+    // so it must be jitted even when neither block-read path below is enabled -- otherwise a head size
+    // that misses the pitch rule (48/80 for f16, 32/48/80/96 for i8) would gather d-major offsets out
+    // of a token-major cache. INT4 packs into u8, so the config precision is what rules it out.
+    const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    const bool pa_k_token_major =
+        config.is_paged_attention && !m_is_prefill &&
+        paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
+                                           params.typed_desc<paged_attention>()->is_key_by_channel);
+    jit.make("IS_PA_K_TOKEN_MAJOR", pa_k_token_major ? 1 : 0);
     int k_pa_2d = 0;
-    if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed && paged_attention::k_token_major() &&
-        !data_type_traits::is_i8_u8(K.data_type) && !data_type_traits::is_i4_u4(K.data_type)) {
+    if (pa_k_token_major && !config.is_kv_compressed && !data_type_traits::is_i8_u8(K.data_type) &&
+        !data_type_traits::is_i4_u4(K.data_type)) {
         const auto k_page_pitch = k_head_size * ov::element::Type(K.data_type).size();
         k_pa_2d = block2d_surface_ok(k_page_pitch);
     }
@@ -742,6 +753,20 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_K_PA_2D"))
         k_pa_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_K_PA", k_pa_2d);
+    // Same, for the i8 BY_TOKEN cache: a token-major page's data region is a
+    // [block_size, k_head_size] i8 tile, so the pitch is k_head_size BYTES and the block2d rule
+    // reduces to k_head_size % 64 == 0 -- head 64/128/256 qualify, head 32 falls back to the scalar
+    // gather (which PA_K_TOKEN_STRIDE now addresses correctly). Uses the 8-bit VNNI-transform read,
+    // exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
+    int k_pa_2d_i8 = 0;
+    if (pa_k_token_major && pa_i8_by_token) {
+        k_pa_2d_i8 = block2d_surface_ok(k_head_size * ov::element::Type(K.data_type).size());
+    }
+    // Bisection toggle: =0 restores the scalar gather + dequant, which is what attributes a wrong
+    // result to the block read rather than to the dequant math or the page addressing.
+    if (const char* env = std::getenv("SDPA_OCL_K_PA_I8_2D"))
+        k_pa_2d_i8 = std::atoi(env);
+    jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.

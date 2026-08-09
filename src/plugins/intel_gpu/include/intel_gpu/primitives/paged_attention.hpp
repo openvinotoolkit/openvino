@@ -48,11 +48,11 @@ struct paged_attention : public primitive_base<paged_attention> {
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
 
-    // Uncompressed K cache layout selector. Off => the legacy d-major
+    // K cache layout selector. Off => the legacy d-major
     // [num_blocks, kv_heads, k_head_size, block_size]; on => token-major
     // [num_blocks, kv_heads, block_size, k_head_size], matching the V cache and the
     // XAttention K cache, so a cache page is the same geometry the prefill 2D block
-    // reads already use. Compressed (i8/u4) caches stay d-major either way.
+    // reads already use.
     // TODO: temporary staging switch, to be removed once token-major is unconditional.
     static bool k_token_major() {
         static const bool enabled = []() {
@@ -60,6 +60,26 @@ struct paged_attention : public primitive_base<paged_attention> {
             return env != nullptr && env[0] == '1';
         }();
         return enabled;
+    }
+
+    // Whether THIS cache can be token-major. Every site that decides the K layout must agree, so
+    // they all go through here rather than re-deriving the condition.
+    //
+    // i8/u8 BY_TOKEN qualifies: its scale/zp are two f16 arrays appended AFTER the data region
+    // (at k_head_size * block_size), so the data region is a plain [block_size, k_head_size] tile
+    // and flipping the in-page strides leaves the comp region untouched.
+    //
+    // BY_CHANNEL and INT4 do NOT: BY_CHANNEL appends a scale/zp pair to every COLUMN
+    // (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE = block_size + 4) and INT4 packs two head dims per byte
+    // with inline per-row comp. Both interleave comp with data along the axis token-major flips,
+    // so they stay d-major.
+    static bool k_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
+        if (!k_token_major())
+            return false;
+        if (key_cache_precision.is_real())
+            return true;
+        const bool is_i8_u8 = key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u8;
+        return is_i8_u8 && !is_key_by_channel;
     }
 
     paged_attention() : primitive_base("", {}) {}
