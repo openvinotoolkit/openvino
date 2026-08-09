@@ -21,7 +21,6 @@ class SubgraphExecutor : public SubgraphRepackingExecutor<aarch64::GemmCopyBKern
 public:
     using SubgraphRepackingExecutor<aarch64::GemmCopyBKernel>::SubgraphRepackingExecutor;
 
-#ifdef SNIPPETS_DEBUG_CAPS
     SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
                      const std::shared_ptr<SubgraphAttrs>& snippet_attrs,
                      const std::shared_ptr<SubgraphCodeGenerator>& snippet,
@@ -30,6 +29,7 @@ public:
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
 
+#ifdef SNIPPETS_DEBUG_CAPS
 protected:
     void segfault_detector() const override;
 

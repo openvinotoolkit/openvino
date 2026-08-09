@@ -45,6 +45,7 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const Br
 }
 
 std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
+    [[maybe_unused]] size_t input_idx,
     const std::shared_ptr<ov::Node>& consumer,
     const RepackMatMulWeights::MatMulWeightsSource& source,
     const MemoryPtr& orig_src_mem_ptr) {

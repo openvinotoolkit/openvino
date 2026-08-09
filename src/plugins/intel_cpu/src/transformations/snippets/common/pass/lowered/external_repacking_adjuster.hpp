@@ -25,16 +25,20 @@ protected:
     ExternalRepackingAdjusterBase() = default;
     ExternalRepackingAdjusterBase(const CPURuntimeConfigurator* configurator, std::string itt_name);
 
+    /// Registers an externally repacked input and whether it needs repacking at runtime.
     void register_repacked_input(size_t idx, bool needs_runtime_repacking);
 
 private:
+    /// Returns the runtime buffer size required to repack input @p idx.
     virtual size_t update_runtime_repacking_data_size(const snippets::lowered::LinearIR& linear_ir,
                                                       const CPURuntimeConfig& cpu_config,
                                                       size_t idx) = 0;
+    /// Updates runtime configuration for input @p idx that is repacked during execution.
     virtual void update_runtime_repacking_input(const snippets::lowered::LinearIR& linear_ir,
                                                 CPURuntimeConfig& cpu_config,
                                                 size_t idx,
                                                 bool is_impl_parallel) = 0;
+    /// Updates runtime configuration for input @p idx that was repacked during compilation.
     virtual void update_compile_time_repacked_input(const snippets::lowered::LinearIR& linear_ir,
                                                     CPURuntimeConfig& cpu_config,
                                                     size_t idx) = 0;

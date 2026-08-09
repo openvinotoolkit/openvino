@@ -15,7 +15,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
@@ -82,30 +81,25 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
     return modified;
 }
 
-bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustGemmCopyBLoopPorts")
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::is_target_expr(const snippets::lowered::ExpressionPtr& expr) const {
+    return static_cast<bool>(ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node()));
+}
 
-    bool modified = false;
+snippets::lowered::ExpressionPtr pass::aarch64::AdjustGemmCopyBLoopPorts::get_copy_b_expr(
+    const snippets::lowered::ExpressionPtr& gemm_expr) const {
+    return ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr(gemm_expr);
+}
 
-    auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& gemm_expr) {
-        return pass::copy_b_loop_ports::get_repacking_loop_idces(
-            gemm_expr,
-            ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr,
-            "GemmCopyB expression is not found");
-    };
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info_impl(
+    const snippets::lowered::UnifiedLoopInfoPtr& loop_info) const {
+    return update_loop_info(loop_info);
+}
 
-    auto is_target_expr = [](const snippets::lowered::ExpressionPtr& expr) {
-        const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node());
-        return static_cast<bool>(gemm);
-    };
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::copy_b_not_found_message() const {
+    return "GemmCopyB expression is not found";
+}
 
-    modified = pass::copy_b_loop_ports::run(linear_ir,
-                                            m_affected_loops,
-                                            is_target_expr,
-                                            get_repacking_loop_idces,
-                                            pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info,
-                                            "Invalid GemmCopyB loop configuration");
-
-    return modified;
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::invalid_loop_config_message() const {
+    return "Invalid GemmCopyB loop configuration";
 }
 }  // namespace ov::intel_cpu

@@ -32,13 +32,10 @@ public:
           m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
 
 private:
-    [[nodiscard]] std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
+    [[nodiscard]] std::optional<RepackedMatMulWeights> repack(size_t input_idx,
+                                                              const std::shared_ptr<ov::Node>& consumer,
                                                               const MatMulWeightsSource& source,
                                                               const MemoryPtr& orig_src_mem_ptr) override;
-    [[nodiscard]] bool should_repack(size_t input_idx,
-                                     [[maybe_unused]] const std::shared_ptr<ov::Node>& consumer) const override {
-        return m_compile_time_repacking_idxs.count(input_idx) > 0;
-    }
 
     std::set<size_t> m_compile_time_repacking_idxs;
 };

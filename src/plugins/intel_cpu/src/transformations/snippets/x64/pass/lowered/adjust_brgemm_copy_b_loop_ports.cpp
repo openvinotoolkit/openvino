@@ -77,29 +77,26 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     return modified;
 }
 
-bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustBrgemmCopyBLoopPorts")
+bool pass::AdjustBrgemmCopyBLoopPorts::is_target_expr(const snippets::lowered::ExpressionPtr& expr) const {
+    const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
+    return brgemm && brgemm->get_config().with_wei_repacking();
+}
 
-    bool modified = false;
+snippets::lowered::ExpressionPtr pass::AdjustBrgemmCopyBLoopPorts::get_copy_b_expr(
+    const snippets::lowered::ExpressionPtr& gemm_expr) const {
+    return brgemm_utils::repacking::get_copy_b_expr(gemm_expr);
+}
 
-    auto get_repacking_loop_idces = [](const snippets::lowered::ExpressionPtr& brgemm_expr) {
-        return pass::copy_b_loop_ports::get_repacking_loop_idces(brgemm_expr,
-                                                                 brgemm_utils::repacking::get_copy_b_expr,
-                                                                 "BrgemmCopyB expression is not found");
-    };
+bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info_impl(
+    const snippets::lowered::UnifiedLoopInfoPtr& loop_info) const {
+    return update_loop_info(loop_info);
+}
 
-    auto is_target_expr = [](const snippets::lowered::ExpressionPtr& expr) {
-        const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
-        return brgemm && brgemm->get_config().with_wei_repacking();
-    };
+const char* pass::AdjustBrgemmCopyBLoopPorts::copy_b_not_found_message() const {
+    return "BrgemmCopyB expression is not found";
+}
 
-    modified = pass::copy_b_loop_ports::run(linear_ir,
-                                            m_affected_loops,
-                                            is_target_expr,
-                                            get_repacking_loop_idces,
-                                            pass::AdjustBrgemmCopyBLoopPorts::update_loop_info,
-                                            "Invalid BrgemmCopyB loop configuration");
-
-    return modified;
+const char* pass::AdjustBrgemmCopyBLoopPorts::invalid_loop_config_message() const {
+    return "Invalid BrgemmCopyB loop configuration";
 }
 }  // namespace ov::intel_cpu

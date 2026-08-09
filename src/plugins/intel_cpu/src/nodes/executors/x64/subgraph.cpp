@@ -5,7 +5,6 @@
 #include "nodes/executors/x64/subgraph.hpp"
 
 #if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
-
 #    include <csignal>
 #    include <cstddef>
 #    include <iostream>
@@ -24,6 +23,8 @@
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/parallel.hpp"
 
+#endif
+
 namespace ov::intel_cpu {
 
 SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snippet_config,
@@ -40,11 +41,14 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                                                    start_offset_out,
                                                    allocator,
                                                    kernel_cache) {
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
     const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(
         snippet_attrs->snippet->get_generator()->get_target_machine());
     enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
+#endif
 }
 
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() const {
     static std::mutex err_print_lock;
@@ -65,7 +69,6 @@ void SubgraphExecutor::segfault_detector() const {
     }
 }
 // NOLINTEND(misc-include-cleaner) bug in clang-tidy
+#endif
 
 }  // namespace ov::intel_cpu
-
-#endif

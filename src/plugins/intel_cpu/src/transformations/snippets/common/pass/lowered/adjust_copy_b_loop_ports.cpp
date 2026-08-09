@@ -6,9 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -39,29 +37,11 @@ void assign_new_ptr_increment(int64_t new_ptr_increment,
     }
 }
 
-std::vector<size_t> get_repacking_loop_idces(
-    const snippets::lowered::ExpressionPtr& gemm_expr,
-    const std::function<snippets::lowered::ExpressionPtr(const snippets::lowered::ExpressionPtr&)>& get_copy_b_expr,
-    const std::string& copy_b_not_found_message) {
-    const auto& gemm_in1 = gemm_expr->get_input_port_connector(1)->get_source();
-    const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(gemm_in1.get_expr());
-    const auto source =
-        shape_infer_seq.empty() ? gemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
-    if (is_type<ov::op::v0::Parameter>(source.get_expr()->get_node())) {
-        return {};
-    }
+}  // namespace ov::intel_cpu::pass::copy_b_loop_ports
 
-    const auto repacking_expr = get_copy_b_expr(gemm_expr);
-    OPENVINO_ASSERT(repacking_expr, copy_b_not_found_message);
-    return repacking_expr->get_loop_ids();
-}
+namespace ov::intel_cpu::pass {
 
-bool run(const snippets::lowered::LinearIR& linear_ir,
-         std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr>& affected_loops,
-         const std::function<bool(const snippets::lowered::ExpressionPtr&)>& is_target_expr,
-         const std::function<std::vector<size_t>(const snippets::lowered::ExpressionPtr&)>& get_repacking_loop_idces,
-         const std::function<bool(const snippets::lowered::UnifiedLoopInfoPtr&)>& update_loop_info,
-         const std::string& invalid_loop_config_message) {
+bool AdjustCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
     bool modified = false;
     for (const auto& expr : linear_ir) {
         if (!is_target_expr(expr)) {
@@ -69,12 +49,21 @@ bool run(const snippets::lowered::LinearIR& linear_ir,
         }
 
         const auto& gemm_loop_ids = expr->get_loop_ids();
-        const auto& repacking_loop_ids = get_repacking_loop_idces(expr);
+        const auto& gemm_in1 = expr->get_input_port_connector(1)->get_source();
+        const auto& shape_infer_seq = ov::snippets::utils::get_first_parent_shape_infer_expr_seq(gemm_in1.get_expr());
+        const auto source =
+            shape_infer_seq.empty() ? gemm_in1 : shape_infer_seq.back()->get_input_port_connector(0)->get_source();
+        std::vector<size_t> repacking_loop_ids;
+        if (!is_type<ov::op::v0::Parameter>(source.get_expr()->get_node())) {
+            const auto repacking_expr = get_copy_b_expr(expr);
+            OPENVINO_ASSERT(repacking_expr, copy_b_not_found_message());
+            repacking_loop_ids = repacking_expr->get_loop_ids();
+        }
         if (gemm_loop_ids.empty() && repacking_loop_ids.empty()) {
             continue;
         }
 
-        OPENVINO_ASSERT(gemm_loop_ids.size() > repacking_loop_ids.size(), invalid_loop_config_message);
+        OPENVINO_ASSERT(gemm_loop_ids.size() > repacking_loop_ids.size(), invalid_loop_config_message());
         const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
         for (auto i = repacking_loop_ids.size(); i < gemm_loop_ids.size(); i++) {
             const auto& loop = loop_manager->get_loop_info(gemm_loop_ids[i]);
@@ -82,8 +71,8 @@ bool run(const snippets::lowered::LinearIR& linear_ir,
             if (!uni_loop) {
                 uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
             }
-            if (!affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-                affected_loops.insert(uni_loop);
+            if (!m_affected_loops.count(uni_loop) && update_loop_info_impl(uni_loop)) {
+                m_affected_loops.insert(uni_loop);
                 modified = true;
             }
         }
@@ -91,4 +80,4 @@ bool run(const snippets::lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace ov::intel_cpu::pass::copy_b_loop_ports
+}  // namespace ov::intel_cpu::pass
