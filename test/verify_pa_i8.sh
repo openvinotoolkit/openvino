@@ -31,8 +31,12 @@ unit)
     env OV_GPU_PA_K_TOKEN_MAJOR=1 $envs "$BIN" --gtest_filter="$F" $DEV 2>&1 \
       | grep -oE "\[  (PASSED|FAILED)  \] [0-9]+ tests?" | tr '\n' ' '; echo
   done
-  EX=$(for i in $SKIP; do printf ':-smoke_paged_attention/paged_attention_test.basic/%s' "$i"; done)
-  EX="smoke_paged_attention/paged_attention_test.basic/*${EX/:-/:-}"
+  # gtest takes ONE '-' to open the negative list, then plain ':'-separated patterns. Prefixing every
+  # entry with '-' (as this did) makes 127+ literal patterns that match nothing, so case 129 still ran
+  # and its hard abort killed the process before any summary line -- the row printed EMPTY, which is
+  # easy to misread as a pass. Keep the '-' on the first entry only.
+  EX=$(for i in $SKIP; do printf ':smoke_paged_attention/paged_attention_test.basic/%s' "$i"; done)
+  EX="smoke_paged_attention/paged_attention_test.basic/*:-${EX#:}"
   echo "### full basic suite (129, minus pre-existing int4 126-139)"
   for cfg in "micro tm=1:OV_GPU_PA_K_TOKEN_MAJOR=1" "ocl tm=1:OV_GPU_PA_K_TOKEN_MAJOR=1 TEST_USE_SDPA_OCL=1" \
              "micro tm=0:" "ocl tm=0:TEST_USE_SDPA_OCL=1"; do
