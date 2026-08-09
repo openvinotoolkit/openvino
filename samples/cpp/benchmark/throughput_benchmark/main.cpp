@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <condition_variable>
+#include <exception>
 #include <string>
 #include <vector>
 

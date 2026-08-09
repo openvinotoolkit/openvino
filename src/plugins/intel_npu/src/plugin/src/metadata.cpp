@@ -243,17 +243,23 @@ void MetadataBase::read_as_text(std::map<std::string, std::string, std::less<>> 
 }
 
 size_t MetadataBase::get_remaining_source_size() const {
+    size_t remaining;
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&_source)) {
         OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
 
         const auto offset = static_cast<size_t>(stream->get().tellg());
-        return (offset <= _sourceSize) ? _sourceSize - offset : 0;
+        remaining = (offset <= _sourceSize) ? _sourceSize - offset : 0;
     } else if (std::get_if<std::reference_wrapper<const ov::Tensor>>(&_source)) {
-        return (_cursorOffset <= _sourceSize) ? _sourceSize - _cursorOffset : 0;
+        remaining = (_cursorOffset <= _sourceSize) ? _sourceSize - _cursorOffset : 0;
     } else {
         OPENVINO_THROW(MISSING_BLOB_MESSAGE);
     }
+
+    OPENVINO_ASSERT(remaining >= FOOTER_SIZE,
+                    "Invalid state. While parsing the NPU plugin metadata, it was found that the remaining number of "
+                    "bytes within the blob source is lower than the size of the footer.");
+    return remaining;
 }
 
 void MetadataBase::read_data_from_source(char* destination, const size_t size) {
