@@ -133,10 +133,10 @@ TEST(type_prop, selective_ssm_type_mismatch) {
     OV_EXPECT_THROW(
         std::ignore = std::make_shared<op::internal::SelectiveSSM>(OutputVector{A, dt, B, x, C, recurrent_state}),
         NodeValidationFailure,
-        testing::HasSubstr("SelectiveSSM expects A, dt, B, x, and C to have the same element type."));
+        testing::HasSubstr("SelectiveSSM expects A, dt, B, x, C, and recurrent_state to have the same element type."));
 }
 
-TEST(type_prop, selective_ssm_state_type_may_differ) {
+TEST(type_prop, selective_ssm_state_type_must_match) {
     auto A = std::make_shared<op::v0::Parameter>(element::f16, Shape{4});
     auto dt = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 4});
     auto B = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 2, 16});
@@ -144,10 +144,10 @@ TEST(type_prop, selective_ssm_state_type_may_differ) {
     auto C = std::make_shared<op::v0::Parameter>(element::f16, Shape{2, 5, 2, 16});
     auto recurrent_state = std::make_shared<op::v0::Parameter>(element::bf16, Shape{2, 4, 8, 16});
 
-    const auto op = std::make_shared<op::internal::SelectiveSSM>(OutputVector{A, dt, B, x, C, recurrent_state});
-
-    EXPECT_EQ(op->get_output_element_type(0), element::f16);
-    EXPECT_EQ(op->get_output_element_type(1), element::bf16);
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<op::internal::SelectiveSSM>(OutputVector{A, dt, B, x, C, recurrent_state}),
+        NodeValidationFailure,
+        testing::HasSubstr("SelectiveSSM expects A, dt, B, x, C, and recurrent_state to have the same element type."));
 }
 
 TEST(type_prop, selective_ssm_wrong_input_count) {

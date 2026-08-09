@@ -34,24 +34,18 @@ void SelectiveSSM::validate_and_infer_types() {
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(1)) &&
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(2)) &&
         ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(3)) &&
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(4));
+        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(4)) &&
+        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(5));
     NODE_VALIDATION_CHECK(this,
                           float_types_merge,
-                          "SelectiveSSM expects A, dt, B, x, and C to have the same element type.");
+                          "SelectiveSSM expects A, dt, B, x, C, and recurrent_state to have the same element type.");
     NODE_VALIDATION_CHECK(this,
                           common_float_type.is_dynamic() || common_float_type.is_real(),
                           "Float inputs must have a floating-point element type.");
 
-    // recurrent_state (5) is an in-place state cache and is allowed to use an independent float
-    // element type so plugins can maintain lower-precision state without breaking in-place semantics.
-    const auto& state_et = get_input_element_type(5);
-    NODE_VALIDATION_CHECK(this,
-                          state_et.is_dynamic() || state_et.is_real(),
-                          "Float inputs must have a floating-point element type.");
-
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, common_float_type, output_shapes[0]);
-    set_output_type(1, state_et, output_shapes[1]);
+    set_output_type(1, common_float_type, output_shapes[1]);
 }
 
 bool SelectiveSSM::visit_attributes(AttributeVisitor&) {
