@@ -22,13 +22,23 @@
         #define KEY_CACHE_ZP_OFFSET(physical_block, d) \
             (KEY_CACHE_SCALE_OFFSET(physical_block, d) + SIZEOF_HALF)
     #elif KEY_CACHE_QUANT_MODE == 2  // BY_TOKEN: per-token scale/zp
-        // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, BLOCK_SIZE]
+        // Layout: d-major [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE+4, BLOCK_SIZE], or token-major
+        // [num_blocks, KV_HEADS_NUM, BLOCK_SIZE, K_HEAD_SIZE+4]. Same page size either way, and the
+        // scale/zp arrays trail the data region in both, so only the data strides below differ.
         // Scale at [K_HEAD_SIZE], ZP at [K_HEAD_SIZE+2] (token_offset * 2 for half)
+        #if IS_KEY_TOKEN_MAJOR
+        #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+            ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
+             PAGED_ATTENTION_BLOCK_SIZE + \
+             head_idx * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * PAGED_ATTENTION_BLOCK_SIZE + \
+             (token_offset) * K_HEAD_SIZE + (d))
+        #else
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
             ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
              PAGED_ATTENTION_BLOCK_SIZE + \
              head_idx * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * PAGED_ATTENTION_BLOCK_SIZE + \
              (d) * PAGED_ATTENTION_BLOCK_SIZE + (token_offset))
+        #endif
         #define KEY_CACHE_SCALE_OFFSET(physical_block, token_offset) \
             ((physical_block) * KV_HEADS_NUM * (K_HEAD_SIZE + COMPRESSED_EXTRA_DIMS) * \
              PAGED_ATTENTION_BLOCK_SIZE + \

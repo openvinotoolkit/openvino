@@ -12,6 +12,8 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -41,10 +43,27 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 }
 
 // True when the K cache holds [block_size, k_head_size] pages (head_size innermost) rather than the
-// legacy [k_head_size, block_size]. Compressed caches are always d-major, so this mirrors exactly
-// the condition the cache shape was built with in transformations_pipeline.cpp.
-inline bool get_k_token_major(const RuntimeParams& params) {
-    return cldnn::paged_attention::k_token_major() && !get_kv_compressed(params);
+// legacy [k_head_size, block_size]. Mirrors exactly the condition the cache shape was built with in
+// transformations_pipeline.cpp -- uncompressed and i8/u8 BY_TOKEN are token-major; BY_CHANNEL and
+// INT4 stay d-major.
+//
+// `consumer` names the kernel this value is being jitted for. OV_GPU_PA_K_TM_BREAK=<consumer> forces
+// that ONE kernel back to the d-major read while the cache stays token-major, which is how we test
+// whether a suite actually OBSERVES that kernel's output: rung 3 found a rotate kernel that silently
+// corrupted the cache while 39 rotation cases still passed, so "the suite is green" is not evidence
+// that a consumer is layout-correct. Diagnostic only; delete with the k_token_major() staging switch.
+inline bool get_k_token_major(const RuntimeParams& params, const char* consumer = nullptr) {
+    const auto& key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    // INT4 packs into u8, so the layout dt alone cannot rule it out -- consult the config precision.
+    const auto& precision = data_type_traits::is_i4_u4(kv_cache_dt) ? kv_cache_dt : ov::element::Type(key_cache_layout.data_type);
+    if (!cldnn::paged_attention::k_token_major_for(precision, params.typed_desc<paged_attention>()->is_key_by_channel))
+        return false;
+    if (consumer != nullptr) {
+        if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
+            return std::strcmp(brk, consumer) != 0;
+    }
+    return true;
 }
 
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
@@ -354,7 +373,7 @@ public:
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
 
-        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "decode") ? 1 : 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("SCALE_VAL", desc->scale_val.value());
@@ -889,7 +908,7 @@ protected:
             }
         }
         jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
-        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "rkv") ? 1 : 0);
 
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
@@ -1035,7 +1054,7 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
-        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "writer") ? 1 : 0);
 
         return jit;
     }
@@ -1157,7 +1176,7 @@ protected:
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
 
-        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params) ? 1 : 0);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "rotate") ? 1 : 0);
 
         return jit;
     }

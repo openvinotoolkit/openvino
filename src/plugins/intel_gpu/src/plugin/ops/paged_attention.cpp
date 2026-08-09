@@ -41,8 +41,14 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_xattention = true;
     }
     // Token-major K puts head_size innermost, like the XAttention and value-cache layouts.
-    // Only applies to an uncompressed cache -- see paged_attention::k_token_major().
-    const bool k_token_major = cldnn::paged_attention::k_token_major() && op->get_input_element_type(3).is_real();
+    // Feed the predicate the cache's own element type, except for INT4 -- that packs into u8, so
+    // only the config precision can tell it apart from a real u8 BY_TOKEN cache.
+    // See paged_attention::k_token_major_for().
+    const auto& cfg_kv_precision = p.get_config().get_kv_cache_precision();
+    const bool is_int4_cache = cfg_kv_precision == ov::element::u4 || cfg_kv_precision == ov::element::i4;
+    const bool k_token_major = cldnn::paged_attention::k_token_major_for(
+        is_int4_cache ? cfg_kv_precision : op->get_input_element_type(3),
+        p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
     const auto k_head_size_idx = (prim.has_xattention || k_token_major) ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();

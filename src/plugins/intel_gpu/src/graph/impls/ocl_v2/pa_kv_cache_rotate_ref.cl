@@ -14,7 +14,7 @@
 // In-page K addressing: lane (sglid) walks tokens, the loop index walks head dims. The legacy
 // d-major page ([.., HEAD_SIZE, block_size]) makes tokens contiguous; token-major
 // ([.., block_size, HEAD_SIZE]) makes head dims contiguous. Only these two strides differ, so both
-// layouts share one code path. Compressed caches are always d-major (IS_KEY_TOKEN_MAJOR == 0), where
+// layouts share one code path. BY_CHANNEL and INT4 are always d-major (IS_KEY_TOKEN_MAJOR == 0), where
 // these collapse to the literals the code used before.
 #if IS_KEY_TOKEN_MAJOR
     #define KEY_TOKEN_STRIDE  HEAD_SIZE
@@ -190,7 +190,14 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
         zp = (UNCOMPRESSED_TYPE)(zp_tmp);
 
         OUTPUT_TYPE quantized_res = convert_char_rte(rotated_res * scale + zp);
+        // BY_CHANNEL walks columns of ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE (block_size + the inline
+        // scale/zp pair); everything else steps by the plain head-dim stride, which token-major makes
+        // 1. token_offset already carries the layout's token stride.
+        #if IS_KEY_BY_CHANNEL
         const uint cache_offset = token_offset + i * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        #else
+        const uint cache_offset = token_offset + i * KEY_HIDDEN_STRIDE;
+        #endif
         #if IS_KEY_BY_CHANNEL
             if(sglid == 0)
             {

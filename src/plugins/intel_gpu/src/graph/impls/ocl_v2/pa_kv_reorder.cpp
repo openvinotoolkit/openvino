@@ -4,6 +4,9 @@
 
 #include "pa_kv_reorder.hpp"
 
+#include <cstdlib>
+#include <cstring>
+
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/pa_kv_reorder.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -120,8 +123,15 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
         }
 
-        // Uncompressed K may be stored token-major; compressed layouts are always d-major.
-        jit.make("IS_KEY_TOKEN_MAJOR", (!is_kv_compressed && cldnn::paged_attention::k_token_major()) ? 1 : 0);
+        // Uncompressed and i8/u8 BY_TOKEN K may be stored token-major; BY_CHANNEL and INT4 are always
+        // d-major. key_cache_dt is desc->cache_dt, which still reads i4/u4 for a packed INT4 cache
+        // (see is_int4_compressed above), so the predicate can tell it from a real u8 one.
+        // OV_GPU_PA_K_TM_BREAK=reorder forces just this kernel back to d-major, to test whether
+        // pa_kv_reorder_gpu actually observes it.
+        bool key_token_major = cldnn::paged_attention::k_token_major_for(key_cache_dt, is_key_by_channel);
+        if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
+            key_token_major = key_token_major && std::strcmp(brk, "reorder") != 0;
+        jit.make("IS_KEY_TOKEN_MAJOR", key_token_major ? 1 : 0);
 
         jit.add(make_type_jit_constants("UNCOMPRESSED", is_kv_compressed ? cldnn::data_types::f16 : key_cache_dt));
         return jit;

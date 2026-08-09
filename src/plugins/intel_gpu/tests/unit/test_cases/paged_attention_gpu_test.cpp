@@ -1342,6 +1342,14 @@ TEST_P(kv_cache_rotation_content_test, verify_rotated_cache_content) {
 
         auto cached_key = ref.read_key_from_cache(result.key_cache_mem, seq_idx, total_tokens);
 
+        // A compressed cache round-trips f16 -> quantize (harness fill) -> dequant/rotate/requantize
+        // (rotate kernel) -> dequant (read_key_from_cache), so the comparison carries two i8
+        // quantization steps rather than pure f16 rounding. The harness data is in [-1, 1], giving a
+        // step of about 2/255, and the tolerance is ~3 steps of that. It is still far tighter than any
+        // stride error: a wrong token/head-dim stride reads an unrelated element, which for this data
+        // differs by O(1).
+        const float tolerance = p.kv_cache_compression ? 2.5e-2f : 2e-3f;
+
         // Only the past_len prefix lives in the cache in rotated form; the rotate kernel runs before
         // kv_cache_update writes the new tokens, and only fully-occupied past blocks are rotated.
         for (int token_idx = 0; token_idx < sd.past_len; token_idx++) {
@@ -1354,7 +1362,7 @@ TEST_P(kv_cache_rotation_content_test, verify_rotated_cache_content) {
 
                     ASSERT_NEAR(static_cast<float>(cached_key[cache_offset]),
                                 static_cast<float>(expected_key_data[seq_idx][input_offset]),
-                                2e-3f)
+                                tolerance)
                         << " seq=" << seq_idx << " token=" << token_idx << " head=" << head_idx << " dim=" << dim;
                 }
             }
@@ -1370,5 +1378,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_cont
     paged_attention_test_params{ {{1, 128}}, 2, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
     // GQA, and a head size the 2D-block path cannot use (48 -> 96 B pitch), to keep both K read paths covered.
     paged_attention_test_params{ {{4, 96}}, 8, 2, 48, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    // i8 BY_TOKEN. Without these, compressed rotate is UNOBSERVED: the basic suite's end-to-end output
+    // comparison cannot pin down rotated cache content (rung 3 -- 39 rotation cases passed with a
+    // rotate kernel that paired the wrong tokens), and every other case in this suite is uncompressed.
+    // Head 128 exercises the block-read K path, head 32 the scalar fallback (32 B pitch).
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{4, 96}}, 8, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
 }));
 
