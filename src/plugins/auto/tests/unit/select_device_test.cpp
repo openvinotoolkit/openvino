@@ -540,6 +540,8 @@ TEST_P(SelectDeviceWithPerfCurveTableTest, selectDeviceWithPerfCurveTable) {
     std::string netPrecision = "FP32";
     auto result = plugin->select_device(devices, netPrecision, 0, {}, perfCurveTable);
     compare(result, selectedDeviceInfo);
+    // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
+    plugin->unregister_priority(0, result.unique_name);
 }
 
 const std::vector<ConfigPerfCurveParams> testPerfCurveConfigs = {
