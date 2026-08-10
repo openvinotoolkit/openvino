@@ -20,7 +20,6 @@ namespace snippets {
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::lowered::pass;
 using ov::snippets::op::LoopBegin;
-using ov::snippets::op::LoopEnd;
 using PortType = LoopPort::Type;
 using LoopPortDesc = UnifiedLoopInfo::LoopPortDesc;
 
@@ -38,38 +37,6 @@ public:
     ov::element::Type input_precision = ov::element::f32;
     static constexpr size_t data_size = 4;  // float32
 
-    LinearIR::constExprIt insert_loop_end(const std::shared_ptr<LinearIR>& lir,
-                                          const LinearIR::constExprIt& loop_begin_expr,
-                                          size_t loop_id,
-                                          const LinearIR::constExprIt& pos) {
-        const auto& loop_manager = lir->get_loop_manager();
-        const auto loop_info = loop_manager->get_loop_info(loop_id);
-        auto unified_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info);
-        OPENVINO_ASSERT(unified_info, "insert_loop_end expects UnifiedLoopInfo");
-
-        std::vector<PortConnectorPtr> loop_end_inputs;
-        loop_end_inputs.reserve(loop_info->get_input_count() + loop_info->get_output_count());
-        loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
-            loop_end_inputs.emplace_back(port.get_expr_port()->get_port_connector_ptr());
-        });
-        loop_end_inputs.emplace_back((*loop_begin_expr)->get_output_port_connector(0));
-
-        const auto loop_begin_node = ov::as_type_ptr<LoopBegin>((*loop_begin_expr)->get_node());
-        OPENVINO_ASSERT(loop_begin_node, "The expression is not LoopBegin");
-        const auto loop_end = std::make_shared<LoopEnd>(loop_begin_node,
-                                                        unified_info->get_work_amount(),
-                                                        unified_info->get_increment(),
-                                                        unified_info->get_is_incremented(),
-                                                        unified_info->get_ptr_increments(),
-                                                        unified_info->get_finalization_offsets(),
-                                                        unified_info->get_data_sizes(),
-                                                        unified_info->get_input_count(),
-                                                        unified_info->get_output_count(),
-                                                        loop_id,
-                                                        unified_info->is_parallel());
-        return lir->insert_node(loop_end, loop_end_inputs, {}, false, pos);
-    }
-
     static LoopPortDesc inc_desc(size_t work_amount) {
         return LoopPortDesc(1, -static_cast<int64_t>(work_amount), data_size);
     }
@@ -78,6 +45,24 @@ public:
     }
 };
 
+/*
+ * Expected Control Flow Graph:
+ * LoopBegin (m)
+ * |  LoopBegin (n1)
+ * |  |  Brgemm1
+ * |  LoopEnd (n1)
+ * |  Buffer1
+ * |  LoopBegin (n_add)
+ * |  |  Add
+ * |  LoopEnd (n_add)
+ * |  Buffer2
+ * |  LoopBegin (n2)
+ * |  |  Brgemm2
+ * |  LoopEnd (n2)
+ * LoopEnd (m)
+ *
+ * Buffer1 and Buffer2 are both outside inner loops and share register group 0.
+ */
 TEST_F(SetBufferRegGroupTest, TwoBuffersSameRegGroup) {
     const size_t m = 64;
     const size_t n = 128;
@@ -209,6 +194,22 @@ TEST_F(SetBufferRegGroupTest, TwoBuffersSameRegGroup) {
     buffer2->set_reg_group(0);
 }
 
+/*
+ * Expected Control Flow Graph:
+ * LoopBegin (m)
+ * |  LoopBegin (n1)
+ * |  |  Brgemm1
+ * |  |  Buffer1
+ * |  |  Add
+ * |  LoopEnd (n1)
+ * |  Buffer2
+ * |  LoopBegin (n2)
+ * |  |  Brgemm2
+ * |  LoopEnd (n2)
+ * LoopEnd (m)
+ *
+ * Buffer1 is inside n1 while Buffer2 is outside it, so they use groups 0 and 1.
+ */
 TEST_F(SetBufferRegGroupTest, BufferInsideVsOutsideLoop) {
     const size_t m = 64;
     const size_t n = 128;
@@ -322,6 +323,24 @@ TEST_F(SetBufferRegGroupTest, BufferInsideVsOutsideLoop) {
     buffer2->set_reg_group(1);
 }
 
+/*
+ * Expected Control Flow Graph:
+ * LoopBegin (m)
+ * |  LoopBegin (n1)
+ * |  |  Brgemm1
+ * |  |  Buffer1
+ * |  |  Add1
+ * |  |  Buffer2
+ * |  |  Add2
+ * |  LoopEnd (n1)
+ * |  Buffer3
+ * |  LoopBegin (n2)
+ * |  |  Brgemm2
+ * |  LoopEnd (n2)
+ * LoopEnd (m)
+ *
+ * Buffer1 and Buffer2 share group 0 inside n1. Buffer3 is outside n1 and uses group 1.
+ */
 TEST_F(SetBufferRegGroupTest, ThreeBuffersInsideAndOutsideLoop) {
     const size_t m = 64;
     const size_t n = 128;

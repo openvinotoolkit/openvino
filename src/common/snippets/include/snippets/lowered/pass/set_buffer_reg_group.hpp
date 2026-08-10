@@ -65,6 +65,7 @@ private:
      * @param begin begin iterator
      * @param end end iterator
      * @param pool set of Buffers from the Linear IR
+     * @param buffer_indices map from Buffer expressions to adjacency matrix indices
      * @return adjacency matrix where True value means that Buffers are adjacent and cannot have the same ID
      */
     static std::vector<bool> create_adjacency_matrix(const LoopManagerPtr& loop_manager,
