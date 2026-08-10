@@ -340,11 +340,25 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
     wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
-    wrap_property_RW(m_intel_auto, ov::intel_auto::perf_curve_table, "perf_curve_table");
-    // Additional string form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
-    m_intel_auto.def("perf_curve_table", [](const std::string& value) {
+    // perf_curve_table registers explicit overloads instead of wrap_property_RW. The py::dict form is registered
+    // before the std::map form so dict inputs route through properties_to_any_map and share the same strict
+    // validation as Core.set_property({"PERF_CURVE_TABLE": ...}) rather than pybind's lossy STL conversion.
+    m_intel_auto.def("perf_curve_table", []() {
+        return ov::intel_auto::perf_curve_table.name();
+    });
+    m_intel_auto.def("perf_curve_table", [](const py::dict& value) {
+        std::map<std::string, py::object> properties;
+        properties[ov::intel_auto::perf_curve_table.name()] = value;
+        const auto any_map = Common::utils::properties_to_any_map(properties);
         return ov::intel_auto::perf_curve_table(
-            ov::Any(value).as<std::map<std::string, std::map<unsigned, float>>>());
+            any_map.at(ov::intel_auto::perf_curve_table.name()).as<std::map<std::string, std::map<unsigned, float>>>());
+    });
+    // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
+    m_intel_auto.def("perf_curve_table", [](const std::string& value) {
+        return ov::intel_auto::perf_curve_table(ov::Any(value).as<std::map<std::string, std::map<unsigned, float>>>());
+    });
+    m_intel_auto.def("perf_curve_table", [](const std::map<std::string, std::map<unsigned, float>>& value) {
+        return ov::intel_auto::perf_curve_table(value);
     });
 
     // Submodule npu

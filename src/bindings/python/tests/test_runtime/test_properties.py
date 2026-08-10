@@ -632,15 +632,19 @@ def test_properties_perf_curve_table():
     # String form is accepted and parsed to the same nested map.
     check("{CPU:{0:0,100:100}}", {"CPU": {0: 0.0, 100: 100.0}})
 
-    with pytest.raises(TypeError) as e:
-        value = {"CPU": {0: "high"}}
-        intel_auto.perf_curve_table(value)
-    assert "incompatible function arguments" in str(e.value)
+    # Dict inputs route through the same strict validation as Core.set_property, so lossy
+    # implicit conversions (bool keys/values) and invalid types are rejected consistently.
+    with pytest.raises(RuntimeError):
+        intel_auto.perf_curve_table({"CPU": {0: "high"}})
 
-    with pytest.raises(TypeError) as e:
-        value = {23: {0: 1.0}}
-        intel_auto.perf_curve_table(value)
-    assert "incompatible function arguments" in str(e.value)
+    with pytest.raises(RuntimeError):
+        intel_auto.perf_curve_table({23: {0: 1.0}})
+
+    with pytest.raises(RuntimeError):
+        intel_auto.perf_curve_table({"CPU": {True: 1.0}})
+
+    with pytest.raises(RuntimeError):
+        intel_auto.perf_curve_table({"CPU": {0: True}})
 
 
 def test_properties_streams():
