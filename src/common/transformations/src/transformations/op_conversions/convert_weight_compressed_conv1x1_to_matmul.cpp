@@ -65,7 +65,8 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
     auto weight_reshape_m =
         ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({weight_mult_m, ov::pass::pattern::any_input()});
     auto weight_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{weight_mult_m, weight_reshape_m});
-    auto conv1x1_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m});
+    auto conv1x1_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Convolution>({a_m, weight_input_m}, ov::pass::pattern::rank_equals(4));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -340,9 +341,27 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             ov::copy_runtime_info(m.get_matched_nodes(), final_out);
             ov::replace_node(consumer_transpose, final_out);
         } else if (consumer_reshape) {
-            // Reshape consumer found - clone reshape with matmul output
+            // final_out is NHWC (channel last), but Reshape does not reorder elements, so
+            // consumer_reshape (built for the Convolution's NCHW output) needs NCHW input too.
+            const auto& conv_out_pshape = conv1x1->get_output_partial_shape(0);
+            std::shared_ptr<Node> reshape_input = final_out;
+            // Skip the NCHW-restoring Transpose only when the spatial size H*W is statically 1: then
+            // the NHWC [N, 1, 1, Cout] and NCHW [N, Cout, 1, 1] layouts have identical element order.
+            // Otherwise (H*W > 1) final_out is NHWC [N, H, W, Cout] (the
+            // MatMul preserves the activation's spatial dims), so a single Transpose [0, 3, 1, 2]
+            // restores the NCHW order the matched Reshape was built for.
+            const auto spatial_size = conv_out_pshape[2] * conv_out_pshape[3];
+            if (!(spatial_size.is_static() && spatial_size.get_length() == 1)) {
+                auto nhwc_to_nchw_order = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                                 ov::Shape{4},
+                                                                                 std::vector<int64_t>{0, 3, 1, 2});
+                auto final_out_nchw = std::make_shared<ov::op::v1::Transpose>(final_out, nhwc_to_nchw_order);
+                ov::copy_runtime_info(conv1x1, final_out_nchw);
+                reshape_input = final_out_nchw;
+            }
+
             auto reshape_order = consumer_reshape->get_input_node_shared_ptr(1);
-            auto reshape_final = consumer_reshape->clone_with_new_inputs({final_out, reshape_order});
+            auto reshape_final = consumer_reshape->clone_with_new_inputs({reshape_input, reshape_order});
             reshape_final->set_friendly_name(consumer_reshape->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), reshape_final);
             ov::replace_node(consumer_reshape, reshape_final);

@@ -33,6 +33,17 @@
 namespace cldnn {
 namespace ocl {
 
+inline void validate_f4e2m1_packed_output(const layout& output_layout, const char* primitive_name) {
+    if (output_layout.data_type != ov::element::f4e2m1 || output_layout.is_dynamic()) {
+        return;
+    }
+
+    OPENVINO_ASSERT(output_layout.get_linear_size() % 8 == 0,
+                    "[GPU] ", primitive_name, ": f4e2m1 output size must be a multiple of 8 elements "
+                    "(32-bit atomic write granularity), but got: ",
+                    output_layout.get_linear_size());
+}
+
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.

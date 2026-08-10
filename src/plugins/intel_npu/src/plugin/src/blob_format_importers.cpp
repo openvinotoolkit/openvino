@@ -20,6 +20,16 @@ namespace {
 
 using namespace intel_npu;
 
+ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+
+    return tensor;
+}
+
 constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
 constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
 constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
@@ -34,16 +44,6 @@ constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
 constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler payload";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
-
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
-    return tensor;
-}
 
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
