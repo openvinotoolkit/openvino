@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <type_traits>
 
@@ -32,12 +33,26 @@ inline void store(T* ptr, float value) {
 template <typename DataT>
 inline void copy_state_to_float(float* dst, const DataT* src, size_t count) {
     if constexpr (std::is_same_v<DataT, float>) {
-        if (dst == src) {
-            return;
+        if (dst != src) {
+            std::memcpy(dst, src, count * sizeof(float));
+        }
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            dst[i] = load(src + i);
         }
     }
-    for (size_t i = 0; i < count; ++i) {
-        dst[i] = load(src + i);
+}
+
+template <typename DataT>
+inline void copy_state_from_float(DataT* dst, const float* src, size_t count) {
+    if constexpr (std::is_same_v<DataT, float>) {
+        if (dst != src) {
+            std::memcpy(dst, src, count * sizeof(float));
+        }
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            store(dst + i, src[i]);
+        }
     }
 }
 
@@ -113,11 +128,7 @@ void selective_ssm_typed(const DataT* A,
                 local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
             }
 
-            for (size_t p = 0; p < p_count; ++p) {
-                const auto* src = recurrent_state + state_base + p * shape.state_size;
-                auto* dst = local_state + p * shape.state_size;
-                copy_state_to_float(dst, src, shape.state_size);
-            }
+            copy_state_to_float(local_state, recurrent_state + state_base, p_count * shape.state_size);
 
             const float A_head = load(A + head);
             auto token_head = (batch * shape.sequence_length) * shape.num_heads + head;
@@ -144,13 +155,9 @@ void selective_ssm_typed(const DataT* A,
             }
 
             if constexpr (!std::is_same_v<DataT, float>) {
-                for (size_t p = 0; p < p_count; ++p) {
-                    const auto* src = local_state + p * shape.state_size;
-                    auto* dst = output_recurrent_state + state_base + p * shape.state_size;
-                    for (size_t n = 0; n < shape.state_size; ++n) {
-                        store(dst + n, src[n]);
-                    }
-                }
+                copy_state_from_float(output_recurrent_state + state_base,
+                                      local_state,
+                                      p_count * shape.state_size);
             }
         });
 }
@@ -357,13 +364,7 @@ void paged_selective_ssm_typed(const DataT* A,
             const auto state_slice = head * head_stride + p_begin * shape.state_size;
             const auto* initial_state = recurrent_state_table + read_block * block_stride + state_slice;
 
-            for (size_t p = 0; p < p_count; ++p) {
-                const auto* src = initial_state + p * shape.state_size;
-                auto* dst = local_state + p * shape.state_size;
-                for (size_t n = 0; n < shape.state_size; ++n) {
-                    dst[n] = load(src + n);
-                }
-            }
+            copy_state_to_float(local_state, initial_state, p_count * shape.state_size);
 
             const float A_head = load(A + head);
             const auto interval = cache_interval[sequence];
@@ -399,13 +400,7 @@ void paged_selective_ssm_typed(const DataT* A,
                     if (is_boundary || is_last) {
                         const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + write_slot++]);
                         auto* snapshot = recurrent_state_table + write_block * block_stride + state_slice;
-                        for (size_t p = 0; p < p_count; ++p) {
-                            const auto* src = local_state + p * shape.state_size;
-                            auto* dst = snapshot + p * shape.state_size;
-                            for (size_t n = 0; n < shape.state_size; ++n) {
-                                store(dst + n, src[n]);
-                            }
-                        }
+                        copy_state_from_float(snapshot, local_state, p_count * shape.state_size);
                     }
                     if (is_boundary) {
                         tokens_until_boundary = positive_interval;
