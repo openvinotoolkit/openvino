@@ -337,39 +337,6 @@ protected:
             }
         }
 
-        // Fix dims to maintain consistency of DNNL_RUNTIME_DIM_VAL
-        if (!is_update) {
-            OPENVINO_ASSERT(in0_dims.size() >= 2 &&
-                            in0_dims.size() == in1_dims.size() &&
-                            in0_dims.size() == out_dims.size(),
-                            "[GPU] Gemm onednn input/output dimensions size mismatch.");
-
-            // batched dims
-            for (size_t i = 0; i < in0_dims.size() - 2; i++) {
-                if (in0_dims[i] == DNNL_RUNTIME_DIM_VAL || in1_dims[i] == DNNL_RUNTIME_DIM_VAL || out_dims[i] == DNNL_RUNTIME_DIM_VAL) {
-                    in0_dims[i] = DNNL_RUNTIME_DIM_VAL;
-                    in1_dims[i] = DNNL_RUNTIME_DIM_VAL;
-                    out_dims[i] = DNNL_RUNTIME_DIM_VAL;
-                }
-            }
-
-            // M, K, N dims
-            size_t i = in0_dims.size() - 2;
-            size_t j = in0_dims.size() - 1;
-            if (in0_dims[i] == DNNL_RUNTIME_DIM_VAL || out_dims[i] == DNNL_RUNTIME_DIM_VAL) {
-                in0_dims[i] = DNNL_RUNTIME_DIM_VAL;
-                out_dims[i] = DNNL_RUNTIME_DIM_VAL;
-            }
-            if (in0_dims[j] == DNNL_RUNTIME_DIM_VAL || in1_dims[i] == DNNL_RUNTIME_DIM_VAL) {
-                in0_dims[j] = DNNL_RUNTIME_DIM_VAL;
-                in1_dims[i] = DNNL_RUNTIME_DIM_VAL;
-            }
-            if (in1_dims[j] == DNNL_RUNTIME_DIM_VAL || out_dims[j] == DNNL_RUNTIME_DIM_VAL) {
-                in1_dims[j] = DNNL_RUNTIME_DIM_VAL;
-                out_dims[j] = DNNL_RUNTIME_DIM_VAL;
-            }
-        }
-
         if (gemm_with_bias) {
             // Use the already-transformed layout (in_layouts[2]), not the raw impl_params layout.
             // bias_dims is already set correctly in both the dynamic path (convert_gemm_shape)
