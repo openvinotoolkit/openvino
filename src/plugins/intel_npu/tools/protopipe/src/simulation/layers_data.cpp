@@ -134,6 +134,27 @@ std::vector<IDataProvider::Ptr> createRandomProviders(const LayersInfo& layers,
     return providers;
 }
 
+static IRandomGenerator::Ptr defaultInitializer(int prec) {
+    // NB: Booleans are physically stored as U8, but only 0/1 are valid values.
+    if (prec == utils::CV_BOOL) {
+        return std::make_shared<UniformGenerator>(0.0, 2.0);
+    }
+    return std::make_shared<UniformGenerator>(0.0, 255.0);
+}
+
+std::map<std::string, IRandomGenerator::Ptr> resolveInitializers(
+        const LayersInfo& layers, const LayerVariantAttr<IRandomGenerator::Ptr>& initializers,
+        const IRandomGenerator::Ptr& global_initializer) {
+    auto per_layer = unpackWithDefault(initializers, extractLayerNames(layers), IRandomGenerator::Ptr{});
+    for (const auto& layer : layers) {
+        auto& generator = per_layer.at(layer.name);
+        if (!generator) {
+            generator = global_initializer ? global_initializer : defaultInitializer(layer.prec);
+        }
+    }
+    return per_layer;
+}
+
 std::vector<std::filesystem::path> createDirectoryLayout(const std::filesystem::path& path,
                                                          const std::vector<std::string>& layer_names) {
     std::vector<std::filesystem::path> dirs_path;
