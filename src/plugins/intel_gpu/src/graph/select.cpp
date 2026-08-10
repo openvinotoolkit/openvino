@@ -77,7 +77,7 @@ std::string select_inst::to_string(select_node const& node) {
 }
 
 select_inst::typed_primitive_inst(network& network, select_node const& node) : parent(network, node) {
-    auto& deps = node.get_dependencies();
+    const auto& deps = node.get_dependencies();
 
     auto dep0_out_layout = deps[0].first->get_output_layout();
     auto dep1_out_layout = deps[1].first->get_output_layout();
