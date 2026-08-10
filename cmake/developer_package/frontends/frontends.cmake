@@ -262,12 +262,12 @@ macro(ov_add_frontend)
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
 
-        # GCC emits -Warray-bounds / -Wstringop-overflow even from SYSTEM includes
-        # when instantiating header-only abseil code inside frontend translation units.
-        # With -Werror these become hard errors; downgrade to warnings here.
+        # GCC emits warnings even from SYSTEM includes of header-only libraries
         if(CMAKE_COMPILER_IS_GNUCXX)
             target_compile_options(${TARGET_NAME} PRIVATE
-                -Wno-error=array-bounds -Wno-error=stringop-overflow)
+                -Wno-error=array-bounds
+                -Wno-error=stringop-overflow
+            )
         endif()
 
         # protobuf generated code emits -Wsuggest-override error
@@ -281,10 +281,7 @@ macro(ov_add_frontend)
                 # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
                 # no needs to install protobuf
             else()
-                # Installs protobuf plus every non-imported transitive dep discovered by
-                # walking its link interface (all abseil targets, including internal ones
-                # such as absl_log_internal_check_impl), so consumers of the static build
-                # can resolve them from OpenVINOTargets.
+                # Installs protobuf plus its transitive dependencies
                 set(_ov_protobuf_roots ${protobuf_target_name})
                 ov_install_static_deps(_ov_protobuf_roots ${OV_CPACK_COMP_CORE})
                 unset(_ov_protobuf_roots)
