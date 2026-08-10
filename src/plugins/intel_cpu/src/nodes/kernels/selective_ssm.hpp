@@ -47,6 +47,15 @@ void selective_ssm(const void* A,
                    size_t scratch_head_dim,
                    const CpuParallelPtr& cpu_parallel);
 
+void validate_paged_selective_ssm_metadata(const void* subsequence_begins,
+                                           const void* block_indices,
+                                           const void* block_indices_begins,
+                                           const void* num_processed_tokens,
+                                           const void* cache_interval,
+                                           const PagedSelectiveSSMShape& shape,
+                                           const ov::element::Type& index_precision,
+                                           int32_t* block_owners);
+
 void paged_selective_ssm(const void* A,
                          const void* dt,
                          const void* B,

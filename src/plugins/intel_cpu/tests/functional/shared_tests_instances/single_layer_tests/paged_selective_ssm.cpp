@@ -15,6 +15,8 @@ std::vector<PagedSelectiveSSMLayerParams> paged_selective_ssm_test_cases = {
     {4, 2, 5, 3, {0, 2, 1}, {7, 1, 0}, {2, 2, 4}, ov::element::f32, ov::element::i32, "CPU"},
     {4, 1, 3, 4, {3, 2}, {5, 9}, {0, -3}, ov::element::f32, ov::element::i32, "CPU"},
     {3, 3, 1, 1, {4}, {0}, {1}, ov::element::f32, ov::element::i64, "CPU"},
+    {64, 1, 64, 128, {1}, {0}, {1}, ov::element::f32, ov::element::i32, "CPU"},
+    {96, 8, 80, 80, {5}, {0}, {2}, ov::element::f32, ov::element::i64, "CPU"},
     {4, 2, 5, 3, {3, 1}, {1, 4}, {3, 2}, ov::element::f16, ov::element::i64, "CPU"},
     {4, 2, 5, 3, {3, 1}, {1, 4}, {3, 2}, ov::element::bf16, ov::element::i32, "CPU"},
 };

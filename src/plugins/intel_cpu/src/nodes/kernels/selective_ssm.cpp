@@ -623,6 +623,35 @@ void selective_ssm(const void* A,
 #undef OV_CPU_SSM_CALL
 }
 
+void validate_paged_selective_ssm_metadata(const void* subsequence_begins,
+                                           const void* block_indices,
+                                           const void* block_indices_begins,
+                                           const void* num_processed_tokens,
+                                           const void* cache_interval,
+                                           const PagedSelectiveSSMShape& shape,
+                                           const ov::element::Type& index_precision,
+                                           int32_t* block_owners) {
+    if (index_precision == ov::element::i32) {
+        validate_paged_metadata(static_cast<const int32_t*>(subsequence_begins),
+                                static_cast<const int32_t*>(block_indices),
+                                static_cast<const int32_t*>(block_indices_begins),
+                                static_cast<const int32_t*>(num_processed_tokens),
+                                static_cast<const int32_t*>(cache_interval),
+                                shape,
+                                block_owners);
+    } else if (index_precision == ov::element::i64) {
+        validate_paged_metadata(static_cast<const int64_t*>(subsequence_begins),
+                                static_cast<const int64_t*>(block_indices),
+                                static_cast<const int64_t*>(block_indices_begins),
+                                static_cast<const int64_t*>(num_processed_tokens),
+                                static_cast<const int64_t*>(cache_interval),
+                                shape,
+                                block_owners);
+    } else {
+        OPENVINO_THROW("PagedSelectiveSSM supports only i32/i64 metadata, got ", index_precision, ".");
+    }
+}
+
 void paged_selective_ssm(const void* A,
                          const void* dt,
                          const void* B,

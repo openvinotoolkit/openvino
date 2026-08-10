@@ -4,15 +4,17 @@
 
 #pragma once
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
 
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov::intel_cpu::node {
@@ -42,13 +44,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void update_scratchpad();
-
-    MemoryPtr m_state_scratch;
-    MemoryPtr m_block_owners;
-    size_t m_scratch_head_dim = 0;
-    size_t m_scratch_state_size = 0;
-    size_t m_cached_physical_blocks = 0;
+    PagedSelectiveSSMAttrs m_attrs;
+    ExecutorFactoryPtr<PagedSelectiveSSMAttrs> m_factory;
+    ExecutorPtr m_executor;
+    MemoryArgs m_memory;
+    std::unordered_map<int, int> m_atoi;
 };
 
 }  // namespace ov::intel_cpu::node

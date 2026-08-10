@@ -48,7 +48,8 @@ enum class OperationType : uint8_t {
     Eltwise,
     GatherMatmul,
     GatedDeltaNet,
-    SelectiveSSM
+    SelectiveSSM,
+    PagedSelectiveSSM
 };
 
 std::string ExecutorTypeToString(ExecutorType type);
