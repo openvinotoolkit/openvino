@@ -1378,13 +1378,13 @@ RoPEFusionCohere::RoPEFusionCohere() {
     auto mul_sin = pattern::wrap_type<v1::Multiply>({x_rotate, sin_input}, {{"auto_broadcast", "numpy"}});
     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         // Cohere RoPE is a full rotation: the Add node is the final RoPE output.
         // If the Add is consumed by a Concat, this is likely a partial-rotation model
         // (e.g., ChatGLMHF) where only part of the head is rotated and the remainder
-        // is appended via Concat.  Avoid misidentifying such models as Cohere-style.
+        // is appended via Concat. Avoid misidentifying such models as Cohere-style.
         auto root = m.get_match_root();
         for (const auto& consumer_input : root->output(0).get_target_inputs()) {
             if (ov::is_type<v0::Concat>(consumer_input.get_node()))
