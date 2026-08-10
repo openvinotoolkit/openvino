@@ -1007,21 +1007,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
 
     auto q_shape_static = q_shape.to_shape();
     // KV cache and Q may have different element types (e.g. f16 KV vs f32 Q).
-    // Derive kv_dtype from the actual past-block parameter, NOT from K-Concat output.
-    // In many models (e.g. Gemma-4), Convert(past_block_f16 -> f32) nodes sit between
-    // the f16 block parameters and the Concat, causing the Concat output to be f32.
-    // The block manager, however, allocates tensors with the block parameter's own dtype
-    // (f16).  Using the Concat output dtype would produce a tile model that expects f32
-    // KV inputs while every runtime KV tensor is f16 — causing a type mismatch on the
-    // second (and later) prefill chunks.
-    // Derive kv_dtype by skipping any Convert(f16->f32) nodes that may sit between the
-    // actual block Parameter and the Concat.  The Concat output type can be upcast to f32
-    // (e.g. Gemma-4), while the block manager allocates tensors at the underlying storage
-    // dtype (f16).  Reading through the Convert gives us the correct storage dtype.
-    // block_kv_dtype: dtype of stored KV blocks (what the block manager allocates).
-    // Derived by skipping any Convert(f16->f32) nodes between the block Parameter and
-    // the K-Concat, so we get the storage dtype (f16) rather than the potentially-
-    // upcast Concat output dtype (f32).
+    // block_kv_dtype: skip any Convert(f16→f32) that sits between the block Parameter
+    // and the Concat; the Concat output may be upcast to f32 (Gemma-4) but the block
+    // manager allocates tensors at the underlying storage dtype (f16).
     auto first_kv_node = skip_convert_nodes(k_concat->get_input_node_shared_ptr(0));
     const ov::element::Type block_kv_dtype = first_kv_node->get_output_element_type(0);
 
