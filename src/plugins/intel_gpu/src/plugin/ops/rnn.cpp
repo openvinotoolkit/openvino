@@ -30,8 +30,7 @@ static cldnn::activation_func GetActivationFunc(std::string name) {
     auto itr = name_mapping.find(name);
     if (itr != name_mapping.end())
         return itr->second;
-    else
-        return cldnn::activation_func::none;
+    return cldnn::activation_func::none;
 }
 
 template <typename T>

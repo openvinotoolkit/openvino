@@ -102,11 +102,11 @@ std::vector<layout> non_max_suppression_gather_inst::calc_output_layouts(non_max
     auto desc = impl_param.typed_desc<non_max_suppression_gather>();
     std::vector<ShapeType> output_shapes = { ShapeType{}, ShapeType{}, ShapeType{} };
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     if (memory_deps.count(2)) {
         auto third_output = memory_deps.at(2);
         cldnn::mem_lock<int32_t, mem_lock_type::read> third_output_lock(third_output, impl_param.get_stream());
-        auto third_output_data = third_output_lock.data();
+        auto* third_output_data = third_output_lock.data();
 
         output_shapes[0] = ShapeType{third_output_data[0], 3};
     } else {

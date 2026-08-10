@@ -102,20 +102,19 @@ static inline std::pair<size_t, size_t> GetSliceSizes(WeightsLayout l) {
         l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv16 ||
         l == WeightsLayout::g_is_os_yx_isv16_osv16 || l == WeightsLayout::g_is_os_zyx_isv16_osv16)
         return {16, 16};
-    else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16)
+    if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::g_os_iyx_osv16)
         return {1, 16};
-    else if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 || l == WeightsLayout::os_iyx_osv32__ai32)
+    if (l == WeightsLayout::os_iyx_osv32 || l == WeightsLayout::g_os_iyx_osv32 || l == WeightsLayout::os_iyx_osv32__ai32)
         return {1, 32};
-    else if (l == WeightsLayout::os_is_zyx_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv16)
+    if (l == WeightsLayout::os_is_zyx_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv16)
         return {16, 32};
-    else if (l == WeightsLayout::os_is_zyx_osv64_isv16)
+    if (l == WeightsLayout::os_is_zyx_osv64_isv16)
         return {16, 64};
-    else if (l == WeightsLayout::g_os_zyx_is_osv16_isv32)
+    if (l == WeightsLayout::g_os_zyx_is_osv16_isv32)
         return {32, 16};
-    else if (l == WeightsLayout::g_os_zyx_is_osv32_isv32)
+    if (l == WeightsLayout::g_os_zyx_is_osv32_isv32)
         return {32, 32};
-    else
-        return {1, 1};
+    return {1, 1};
 }
 
 static inline bool IsOsvFirst(WeightsLayout l) {
