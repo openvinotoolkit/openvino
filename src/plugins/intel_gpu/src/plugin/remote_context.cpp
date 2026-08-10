@@ -173,9 +173,8 @@ ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::
     OPENVINO_ASSERT(m_is_initialized, "[GPU] create_host_tensor() called on uninitialized context. Please initialize the context before use");
     if (m_engine->use_unified_shared_memory()) {
         return { std::make_shared<USMHostTensor>(get_this_shared_ptr(), type, shape), nullptr };
-    } else {
-        return { ov::make_tensor(type, shape), nullptr };
     }
+    return {ov::make_tensor(type, shape), nullptr};
 }
 
 ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element::Type& type, const ov::Shape& shape, const ov::AnyMap& params) {
@@ -184,8 +183,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     if (params.empty()) {
         // user wants plugin to allocate tensor by itself and return handle
         return { create_buffer(type, shape), nullptr };
-    } else {
-        // user will supply shared object handle
+    }  // user will supply shared object handle
         auto mem_type = extract_object(params, ov::intel_gpu::shared_mem_type);
 
         bool is_usm = mem_type == ov::intel_gpu::SharedMemType::USM_HOST_BUFFER ||
@@ -198,9 +196,11 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         if (ov::intel_gpu::SharedMemType::VA_SURFACE == mem_type) {
             check_if_shared();
             return { reuse_surface(type, shape, params), nullptr };
-        } else if (ov::intel_gpu::SharedMemType::USM_HOST_BUFFER == mem_type) {
+        }
+        if (ov::intel_gpu::SharedMemType::USM_HOST_BUFFER == mem_type) {
             return { create_usm(type, shape, TensorType::BT_USM_HOST_INTERNAL), nullptr };
-        } else if (ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER == mem_type) {
+        }
+        if (ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER == mem_type) {
             return { create_usm(type, shape, TensorType::BT_USM_DEVICE_INTERNAL), nullptr };
         } else {
             TensorType tensor_type;
@@ -239,15 +239,13 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             }
 
             return { reuse_memory(type, shape, mem, tensor_type), nullptr };
-        }
-    }
 }
 
 // For external contexts we try to match underlying handles with default contexts created by plugin to find device name
 std::string RemoteContextImpl::get_device_name(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts,
                                                const cldnn::device::ptr current_device) const {
     std::string device_name = "GPU";
-    for (auto& c : known_contexts) {
+    for (const auto& c : known_contexts) {
         if (c.second->m_device->is_same(current_device)) {
             device_name = c.second->get_device_name();
             break;
