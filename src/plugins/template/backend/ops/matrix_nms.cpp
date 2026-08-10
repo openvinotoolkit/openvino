@@ -27,8 +27,8 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_outputs_shape(const ov::TensorVector& inputs, int nms_top_k, int keep_top_k) {
-    const auto boxes_ps = inputs[boxes_port].get_shape();
-    const auto scores_ps = inputs[scores_port].get_shape();
+    const auto& boxes_ps = inputs[boxes_port].get_shape();
+    const auto& scores_ps = inputs[scores_port].get_shape();
 
     ov::PartialShape result = {ov::Dimension::dynamic(), 6};
 

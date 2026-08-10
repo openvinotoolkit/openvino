@@ -25,7 +25,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVCompileAndInferRequestMultiThreading,
                          ::testing::Combine(::testing::Values(getConstantGraph(ov::element::f32)),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(configs)),
+                                            ::testing::ValuesIn(ov::test::utils::mergeConfigs(
+                                                configs,
+                                                ov::test::utils::quietCompilerLogsConfig))),
                          ov::test::utils::appendPlatformTypeTestName<OVCompileAndInferRequestMultiThreading>);
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
