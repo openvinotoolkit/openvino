@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <limits>
 
 #include "openvino/op/col2im.hpp"
 #include "utils.hpp"
@@ -65,16 +66,27 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
         //                   ^
         const size_t C_idx = is_batched ? 1 : 0;
         const auto kernel_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 2, tensor_accessor);
-        if (kernel_val && data_shape.rank().is_static() && data_shape[C_idx].is_static()) {
-            const auto& dividend = data_shape[C_idx].get_length();
-            const auto divisor = ((*kernel_val)[0] * (*kernel_val)[1]);
-            output_shape[idx] = dividend / divisor;
-
+        if (kernel_val) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   dividend % divisor == 0,
-                                   "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
-                                   data_shape[C_idx].get_length());
+                                   (*kernel_val)[0] > 0 && (*kernel_val)[1] > 0,
+                                   "kernel_size elements must be positive non-zero values.");
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   (*kernel_val)[0] <= std::numeric_limits<int64_t>::max() / (*kernel_val)[1],
+                                   "kernel_size product overflows int64.");
+            if (data_shape[C_idx].is_static()) {
+                const auto& dividend = data_shape[C_idx].get_length();
+                const auto divisor = (*kernel_val)[0] * (*kernel_val)[1];
+                output_shape[idx] = dividend / divisor;
+
+                NODE_SHAPE_INFER_CHECK(
+                    op,
+                    input_shapes,
+                    dividend % divisor == 0,
+                    "First non-batch dimension is not evenly divisible by Product(kernel_shape). Got: ",
+                    data_shape[C_idx].get_length());
+            }
         }
 
         // output_shape: (N, C, H, W)
@@ -98,6 +110,11 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
                     using TVal = typename TShape::value_type::value_type;
                     TVal L_calculated = 1;
                     for (size_t d = 0; d < spatial_dims; ++d) {
+                        NODE_SHAPE_INFER_CHECK(op,
+                                               input_shapes,
+                                               strides[d] != 0,
+                                               "strides must be non-zero at dimension ",
+                                               d);
                         L_calculated *= (((*output_size_val)[d].get_length() + pads_begin[d] + pads_end[d] -
                                           dilations[d] * ((*kernel_val)[d] - 1) - 1) /
                                          strides[d]) +
