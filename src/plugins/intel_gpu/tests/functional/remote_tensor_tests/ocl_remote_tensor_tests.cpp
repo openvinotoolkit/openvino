@@ -2993,7 +2993,9 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
-// <file offset of the tensor data, size of the tensor data in bytes>
+// <offset, byte_size>: the tensor data starts at `offset` bytes into the file and spans `byte_size` bytes,
+// so the file is `offset + byte_size` long. Both values are independent - `offset` only controls how much
+// padding precedes the data and is varied to cover mmap allocation granularity boundaries.
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
 
 class GpuRemoteTensorFromFile : public ::testing::TestWithParam<MmapFileMemoryParams> {
@@ -3054,28 +3056,23 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
     std::filesystem::remove(file_path);
 }
 
+#ifdef _WIN32
+// Windows maps file views with 64K allocation granularity
+constexpr std::size_t mmap_granularity = 65536;
+#else
+constexpr std::size_t mmap_granularity = 4096;
+#endif
+
 INSTANTIATE_TEST_SUITE_P(smoke_mmapFileMemory,
                          GpuRemoteTensorFromFile,
-#ifdef _WIN32
-                         // Windows maps file views with 64K allocation granularity
                          ::testing::Values(MmapFileMemoryParams{0, 256},
-                                           MmapFileMemoryParams{0, 4 * 65536},
-                                           MmapFileMemoryParams{65536, 256},
-                                           MmapFileMemoryParams{2 * 65536, 256},
-                                           MmapFileMemoryParams{16 * 65536, 256},
-                                           MmapFileMemoryParams{65536, 65536},
-                                           MmapFileMemoryParams{3 * 65536, 4 * 65536},
-                                           MmapFileMemoryParams{8 * 65536, 16 * 65536}),
-#else
-                         ::testing::Values(MmapFileMemoryParams{0, 256},
-                                           MmapFileMemoryParams{0, 4 * 4096},
-                                           MmapFileMemoryParams{4096, 256},
-                                           MmapFileMemoryParams{2 * 4096, 256},
-                                           MmapFileMemoryParams{16 * 4096, 256},
-                                           MmapFileMemoryParams{4096, 4096},
-                                           MmapFileMemoryParams{3 * 4096, 4 * 4096},
-                                           MmapFileMemoryParams{8 * 4096, 16 * 4096}),
-#endif
+                                           MmapFileMemoryParams{0, 4 * mmap_granularity},
+                                           MmapFileMemoryParams{mmap_granularity, 256},
+                                           MmapFileMemoryParams{2 * mmap_granularity, 256},
+                                           MmapFileMemoryParams{16 * mmap_granularity, 256},
+                                           MmapFileMemoryParams{mmap_granularity, mmap_granularity},
+                                           MmapFileMemoryParams{3 * mmap_granularity, 4 * mmap_granularity},
+                                           MmapFileMemoryParams{8 * mmap_granularity, 16 * mmap_granularity}),
                          GpuRemoteTensorFromFile::getTestCaseName);
 
 #endif  // OV_GPU_WITH_OCL_RT
