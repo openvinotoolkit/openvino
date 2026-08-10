@@ -16,12 +16,8 @@ void fuse_primitives_with_layout::run(program& p) {
     auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
         auto out_layout = node.get_output_layout();
         // This condition refers to optimizied kernel EltwiseKernel_fs_b_yx_fsv32
-        if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
-            (p.get_layout_optimizer().get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
-            return false;
-        }
-
-        return true;
+        return out_layout.data_type != data_types::f16 || out_layout.batch() <= 1 ||
+            ((p.get_layout_optimizer().get_optimization_attributes().fs_b_yx_fsv32_network == 0) && out_layout.format != format::fs_b_yx_fsv32);
     };
 
     bool need_recalc_processing_order = false;
@@ -30,7 +26,7 @@ void fuse_primitives_with_layout::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
-        auto& node = (*node_itr);
+        const auto& node = (*node_itr);
 
         if (node->is_output() || node->is_constant())
             continue;
