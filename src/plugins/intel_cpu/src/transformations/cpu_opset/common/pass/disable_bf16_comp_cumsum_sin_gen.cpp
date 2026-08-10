@@ -28,22 +28,19 @@ namespace ov::intel_cpu {
 DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     MATCHER_SCOPE(DisableBF16CompCumSumSinGen);
     using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+
+    auto interpolate_variations = [](const ov::Output<ov::Node>& input) {
+        auto interp_v0_m = wrap_type<ov::op::v0::Interpolate>({input, any_input()});
+        auto interp_v4_m = wrap_type<ov::op::v4::Interpolate>({input, any_input(), any_input()});
+        auto interp_v4_with_axes_m = wrap_type<ov::op::v4::Interpolate>({input, any_input(), any_input(), any_input()});
+        auto interp_v11_m = wrap_type<ov::op::v11::Interpolate>({input, any_input()});
+        auto interp_v11_with_axes_m = wrap_type<ov::op::v11::Interpolate>({input, any_input(), any_input()});
+        return interp_v0_m | interp_v4_m | interp_v4_with_axes_m | interp_v11_m | interp_v11_with_axes_m;
+    };
 
     auto transpose_pre_m = wrap_type<ov::op::v1::Transpose>({any_input(), any_input()});
-
-    auto interp_pre_v0_m = wrap_type<ov::op::v0::Interpolate>({transpose_pre_m, any_input()});
-    auto interp_pre_v4_m = wrap_type<ov::op::v4::Interpolate>({transpose_pre_m, any_input(), any_input()});
-    auto interp_pre_v4_with_axes_m =
-        wrap_type<ov::op::v4::Interpolate>({transpose_pre_m, any_input(), any_input(), any_input()});
-    auto interp_pre_v11_m = wrap_type<ov::op::v11::Interpolate>({transpose_pre_m, any_input()});
-    auto interp_pre_v11_with_axes_m =
-        wrap_type<ov::op::v11::Interpolate>({transpose_pre_m, any_input(), any_input()});
-    auto interp_pre_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{interp_pre_v0_m,
-                     interp_pre_v4_m,
-                     interp_pre_v4_with_axes_m,
-                     interp_pre_v11_m,
-                     interp_pre_v11_with_axes_m});
+    auto interp_pre_m = interpolate_variations(transpose_pre_m);
 
     auto transpose1_m = wrap_type<ov::op::v1::Transpose>({interp_pre_m, any_input()});
     auto cumsum_m = wrap_type<ov::op::v0::CumSum>({transpose1_m, any_input()});
@@ -51,17 +48,7 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     auto transpose2_m = wrap_type<ov::op::v1::Transpose>({mul1_m, any_input()});
     auto mul2_m = wrap_type<ov::op::v1::Multiply>({transpose2_m, any_input()});
 
-    auto interp_down_v0_m = wrap_type<ov::op::v0::Interpolate>({mul2_m, any_input()});
-    auto interp_down_v4_m = wrap_type<ov::op::v4::Interpolate>({mul2_m, any_input(), any_input()});
-    auto interp_down_v4_with_axes_m = wrap_type<ov::op::v4::Interpolate>({mul2_m, any_input(), any_input(), any_input()});
-    auto interp_down_v11_m = wrap_type<ov::op::v11::Interpolate>({mul2_m, any_input()});
-    auto interp_down_v11_with_axes_m = wrap_type<ov::op::v11::Interpolate>({mul2_m, any_input(), any_input()});
-    auto interp_down_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{interp_down_v0_m,
-                     interp_down_v4_m,
-                     interp_down_v4_with_axes_m,
-                     interp_down_v11_m,
-                     interp_down_v11_with_axes_m});
+    auto interp_down_m = interpolate_variations(mul2_m);
 
     auto transpose3_m = wrap_type<ov::op::v1::Transpose>({interp_down_m, any_input()});
     auto sin_m = wrap_type<ov::op::v0::Sin>({transpose3_m});
