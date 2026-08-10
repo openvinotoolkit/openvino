@@ -117,13 +117,13 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
 
     const eltwise_params& params = static_cast<const eltwise_params&>(p);
 
-    if (params.inputs.size() == 0) {
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& operations = params.operations;
 
-    if (operations.size() == 0) {
+    if (operations.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -491,7 +491,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
     } else {
         if (CheckInputsOutputNoPitchSameDims(params) &&
-            !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+            !params.layoutBased && !params.int8_quantization && !params.broadcast) {
             jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
         } else {
             size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
@@ -530,7 +530,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
             jit.AddConstant(MakeJitConstant(idx_order, "d1"));
         } else {
             if (CheckInputsOutputNoPitchSameDims(params) &&
-                !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+                !params.layoutBased && !params.int8_quantization && !params.broadcast) {
                 jit.AddConstant(MakeJitConstant(idx_order, "d1"));
             } else {
                 size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());

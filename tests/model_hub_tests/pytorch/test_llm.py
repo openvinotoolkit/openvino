@@ -754,9 +754,14 @@ class TestLLMModel(TestTorchConvertModel):
     def get_supported_export_precommit_models():
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             return []
+        
+        # Reason for "opt_gptq", "katuni4ka/opt-125m-gptq" skip: CVS-191720
+        # return [
+        #             ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+        #             ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+        #         ]
         return [
-            ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-            ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+            ("llama_awq", "casperhansen/tinyllama-1b-awq")
         ]
 
     @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())

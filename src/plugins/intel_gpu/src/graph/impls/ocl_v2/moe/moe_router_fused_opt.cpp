@@ -151,3 +151,6 @@ std::unique_ptr<primitive_impl> MoeRouterFusedOpt::create_impl(const program_nod
 }
 
 }  // namespace ov::intel_gpu::ocl
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::moe_router_fused)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::MoeRouterFusedImpl)

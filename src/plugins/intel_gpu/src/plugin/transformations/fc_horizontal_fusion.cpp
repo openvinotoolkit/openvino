@@ -51,9 +51,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return true;
             if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
-            if (ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
-                return true;
-            return false;
+            return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return ov::as_type_ptr<op::Placeholder>(node);
@@ -240,7 +238,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
 
         std::shared_ptr<ov::Node> fused_zps;
-        if (zp_nodes.size() > 0) {
+        if (!zp_nodes.empty()) {
             // scalar zp
             auto zp_shape = zp_nodes[0]->get_output_shape(0);
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);

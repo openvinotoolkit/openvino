@@ -54,8 +54,8 @@ static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams
     reorderNeeded |= rotate;
 
     if (reorderNeeded && !pitchesDifferFromLS && !rotate) {
-        reorderNeeded = !((reqLayouts == WeightsLayout::io && tensor.GetLayout() == WeightsLayout::iyxo) ||
-                          (reqLayouts == WeightsLayout::oi && tensor.GetLayout() == WeightsLayout::oiyx));
+        reorderNeeded = (reqLayouts != WeightsLayout::io || tensor.GetLayout() != WeightsLayout::iyxo) &&
+                          (reqLayouts != WeightsLayout::oi || tensor.GetLayout() != WeightsLayout::oiyx);
     }
 
     return reorderNeeded ? REORDER_NEEDED : SUPPORTED;
@@ -85,11 +85,8 @@ bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout lay
         return false;
 
     auto image_sizes = GetImageSizes(newParams.weights, layout);
-    if (image_sizes[0] == 0 || image_sizes[1] == 0 || image_sizes[0] > newParams.engineInfo.maxImage2dWidth ||
-        image_sizes[1] > newParams.engineInfo.maxImage2dHeight)
-        return false;
-
-    return true;
+    return image_sizes[0] != 0 && image_sizes[1] != 0 && image_sizes[0] <= newParams.engineInfo.maxImage2dWidth &&
+        image_sizes[1] <= newParams.engineInfo.maxImage2dHeight;
 }
 
 bool UpdateWeightsParams(weight_bias_params& newParams,
@@ -354,8 +351,8 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                                             16;
     // Reduces max local wgs for some cases on Gen12+ devices
     if (lws_max >= 512) {
-        auto two_dims_are_odd_and_equal = (gws[0] % 2 && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) ||
-                                          (gws[1] % 2 && gws[1] > 7 && gws[1] == gws[2]);
+        auto two_dims_are_odd_and_equal = (((gws[0] % 2) != 0u) && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) ||
+                                          (((gws[1] % 2) != 0u) && gws[1] > 7 && gws[1] == gws[2]);
 
         // Known cases when lws_max = 256 works better than lws_max > 256
         auto max_wgs_exception1 = gws[priority_order[0]] == 1278 && gws[priority_order[1]] == 718 && gws[priority_order[2]] % 10 == 0;
@@ -470,7 +467,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::bs_fs_zyx_bsv32_fsv32,  {32, 32}}
     };
 
-    if (params.inputs.size()) {
+    if (!params.inputs.empty()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
         auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
@@ -480,7 +477,7 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
                     return false;
         }
 
-        if (params.fused_ops.size()) {
+        if (!params.fused_ops.empty()) {
             for (auto fused_op : params.fused_ops) {
                 for (size_t in = 0; in < fused_op.tensors.size(); in++) {
                     if (fused_op.tensors[in].LogicalSize() == 1)

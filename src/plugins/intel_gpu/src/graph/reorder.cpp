@@ -48,7 +48,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
         CLDNN_ERROR_MESSAGE(desc->id, "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
+        return odt == data_types::bf16 ? layout(data_types::bf16, format::bfyx, input_layout.get_tensor(), op) : layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
     }
 
     // transformation of data from standard to winograd
@@ -212,7 +212,7 @@ std::string reorder_inst::to_string(reorder_node const& node) {
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
     reorder_info.add("input mem type", input_mem_type);
-    if (desc->subtract_per_feature.size() > 0) {
+    if (!desc->subtract_per_feature.empty()) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }
 
