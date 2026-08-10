@@ -826,10 +826,7 @@ float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, flo
                        max_key,
                        "]");
     }
-    auto hi_it = curve.begin();
-    while (hi_it != curve.end() && static_cast<float>(hi_it->first) < utilization) {
-        ++hi_it;
-    }
+    auto hi_it = curve.lower_bound(static_cast<unsigned>(std::ceil(utilization)));
     if (static_cast<float>(hi_it->first) == utilization) {
         return hi_it->second;
     }
@@ -889,11 +886,8 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         scored.emplace_back(device, score);
     }
     // Devices with a score are kept ahead of devices without one, both groups keep their original relative order.
-    std::stable_partition(scored.begin(), scored.end(), [](const auto& item) {
+    const auto boundary = std::stable_partition(scored.begin(), scored.end(), [](const auto& item) {
         return item.second.has_value();
-    });
-    const auto boundary = std::find_if(scored.begin(), scored.end(), [](const auto& item) {
-        return !item.second.has_value();
     });
     std::stable_sort(scored.begin(), boundary, [](const auto& a, const auto& b) {
         return a.second.value() < b.second.value();

@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
+#include <cmath>
 #include <map>
 #include <set>
 #include <string>
@@ -401,10 +402,10 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                                        " should be dict[str, dict[int in [0, 100], float]] with float scores");
                     }
                     const auto score = py::cast<float>(curve_item.second);
-                    if (score < 0.f) {
+                    if (!std::isfinite(score) || score < 0.f) {
                         OPENVINO_THROW("The value type of ",
                                        ov::intel_auto::perf_curve_table.name(),
-                                       " should be dict[str, dict[int in [0, 100], float]] with non-negative scores");
+                                       " should be dict[str, dict[int in [0, 100], float]] with non-negative finite scores");
                     }
                     curve[static_cast<unsigned>(utilization)] = score;
                 }

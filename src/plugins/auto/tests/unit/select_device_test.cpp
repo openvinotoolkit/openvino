@@ -576,7 +576,7 @@ const std::vector<ConfigPerfCurveParams> testPerfCurveConfigs = {
                           {{"CPU", 10.f}, {"NPU", 70.f}},
                           {"NPU", {}, -1, "01", "NPU_01", 0}},
     // 7. No curve entry matches any device; falls back to priority order.
-    ConfigPerfCurveParams{{{"OTHERS", {{0, 0.f}, {100, 100.f}}}},
+    ConfigPerfCurveParams{{{"iGPU", {{0, 0.f}, {100, 100.f}}}},
                           {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU_01", 2}},
                           {{"CPU", 50.f}, {"NPU", 10.f}},
                           {"CPU", {}, -1, "01", "CPU_01", 1}},
