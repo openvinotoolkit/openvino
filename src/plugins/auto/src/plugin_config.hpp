@@ -86,6 +86,9 @@ public:
                 if (allowed_devices.find(device) == allowed_devices.end()) {
                     return false;
                 }
+                if (curve.empty()) {
+                    return false;
+                }
                 for (const auto& [utilization, score] : curve) {
                     if (utilization > 100 || score < 0.f) {
                         return false;
