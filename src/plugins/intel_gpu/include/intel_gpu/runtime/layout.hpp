@@ -192,8 +192,7 @@ struct padding {
         // Compare only actual padding size not _dynamic_dims_mask
         if (lhs._lower_size < rhs._lower_size) return true;
         else if (lhs._lower_size > rhs._lower_size) return false;
-        if (lhs._upper_size < rhs._upper_size) return true;
-        return false;
+        return lhs._upper_size < rhs._upper_size;
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {

@@ -269,7 +269,7 @@ size_t LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
 
     const auto loop_id = this->add_loop_info(loop_info);
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-        insert_loop_id(*expr_it, loop_id);
+        insert_loop_ids(*expr_it, {loop_id});
     }
     return loop_id;
 }
@@ -478,7 +478,7 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin,
                                          const std::vector<ExpressionPort>& entries,
                                          const std::vector<ExpressionPort>& exits) {
     for (auto it = new_expr_begin; it != new_expr_end; ++it) {
-        insert_loop_id(*it, loop_id, true);
+        insert_loop_ids(*it, {loop_id}, true);
     }
     remove_loop_id(decomposed_expr, loop_id);
 
@@ -524,20 +524,6 @@ bool LoopManager::reorder_identifiers(const std::map<size_t, size_t>& loop_id_ma
     return true;
 }
 
-void LoopManager::insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before, size_t target_id) {
-    OPENVINO_ASSERT(m_map.count(new_id) == 1,
-                    "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
-    OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
-    auto loop_ids = expr->get_loop_ids();
-    auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
-    if (target_id != SIZE_MAX) {
-        insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
-        OPENVINO_ASSERT(insert_it != loop_ids.cend(), "Failed add loop ID: target ID hasn't been found");
-    }
-    loop_ids.insert(insert_it, new_id);
-    expr->set_loop_ids(loop_ids);
-}
-
 void LoopManager::insert_loop_ids(const ExpressionPtr& expr,
                                   const std::vector<size_t>& new_ids,
                                   bool before,
@@ -549,6 +535,10 @@ void LoopManager::insert_loop_ids(const ExpressionPtr& expr,
                                 }),
                     "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     auto loop_ids = expr->get_loop_ids();
+    std::unordered_set<size_t> unique_loop_ids(loop_ids.cbegin(), loop_ids.cend());
+    unique_loop_ids.insert(new_ids.cbegin(), new_ids.cend());
+    OPENVINO_ASSERT(unique_loop_ids.size() == loop_ids.size() + new_ids.size(), "Loop IDs must be unique");
+
     auto insert_it = before ? loop_ids.cbegin() : loop_ids.cend();
     if (target_id != SIZE_MAX) {
         insert_it = std::find(loop_ids.cbegin(), loop_ids.cend(), target_id);
@@ -556,8 +546,6 @@ void LoopManager::insert_loop_ids(const ExpressionPtr& expr,
     }
     loop_ids.insert(insert_it, new_ids.cbegin(), new_ids.cend());
     expr->set_loop_ids(loop_ids);
-    std::unordered_set<size_t> s(loop_ids.cbegin(), loop_ids.cend());
-    OPENVINO_ASSERT(s.size() == loop_ids.size(), "Loop IDs must be unique");
 }
 
 void LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {

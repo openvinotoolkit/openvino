@@ -23,7 +23,7 @@ static bool unaligned_head_size(const size_t k_head_size, const size_t v_head_si
 JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_params& params, size_t stage, bool add_tensor_definitions) const {
     auto jit = SDPABase::get_jit_constants(params);
     const auto& info = params.get_device_info();
-    const bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
+    const bool is_paged_attention = params.is_type<paged_attention>();
 
     if (add_tensor_definitions) {
         jit.add(make_tensors_jit_constants(params));
