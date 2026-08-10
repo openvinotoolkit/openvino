@@ -88,9 +88,9 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
         if (input_size.first != 1) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
-        if (!(wl == WeightsLayout::os_is_yx_osv32_isv2 && wo % 32 == 0) &&
-            !(wl == WeightsLayout::os_is_yx_osv64_isv2 && wo % 64 == 0) &&
-            !(wl == WeightsLayout::os_iyx_osv16 && wo % 16 == 0)) {
+        if ((wl != WeightsLayout::os_is_yx_osv32_isv2 || wo % 32 != 0) &&
+            (wl != WeightsLayout::os_is_yx_osv64_isv2 || wo % 64 != 0) &&
+            (wl != WeightsLayout::os_iyx_osv16 || wo % 16 != 0)) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }

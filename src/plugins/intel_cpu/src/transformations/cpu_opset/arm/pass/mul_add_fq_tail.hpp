@@ -11,8 +11,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -35,16 +37,18 @@ inline ov::Output<ov::Node> append_mul_add_fq_tail(ov::pass::pattern::op::Block*
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
+    auto activation = optional<ov::op::v4::Swish>({add});
 
     ov::pass::pattern::op::Predicate predicate = require_int_fq_output
                                                      ? type_matches_any({ov::element::i8, ov::element::u8})
                                                      : ov::pass::pattern::op::Predicate();
     auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({add, any_input(), any_input(), any_input(), any_input()}, predicate);
+        wrap_type<ov::op::v0::FakeQuantize>({activation, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     block->register_anchor("multiply", multiply);
     block->register_anchor("add", add);
     block->register_anchor("fake_quantize", fake_quantize);
+    block->register_anchor("activation", activation);
 
     return fake_quantize;
 }

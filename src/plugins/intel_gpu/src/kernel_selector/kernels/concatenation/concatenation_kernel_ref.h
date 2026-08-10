@@ -11,7 +11,7 @@ namespace kernel_selector {
 class ConcatenationKernelRef : public ConcatenationKernelBase {
 public:
     ConcatenationKernelRef() : ConcatenationKernelBase("concatenation_gpu_ref") {}
-    ~ConcatenationKernelRef() override {}
+    ~ConcatenationKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

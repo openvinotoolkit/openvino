@@ -18,8 +18,10 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -94,8 +96,9 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
     auto addMul_gemm = wrap_type<TGemm>({any_input(act_pred), any_input()});
     auto addMul_add = wrap_type<ov::op::v1::Add>({addMul_gemm, any_input()});
     auto addMul_mul = wrap_type<ov::op::v1::Multiply>({addMul_add, any_input()});
+    auto addMul_act = optional<ov::op::v4::Swish>({addMul_mul});
     auto addMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({addMul_mul, any_input(), any_input(), any_input(), any_input()});
+        wrap_type<ov::op::v0::FakeQuantize>({addMul_act, any_input(), any_input(), any_input(), any_input()});
     Matcher addMul_matcher(addMul_fq);
 
     const bool is_mul_add = (pattern == FQMulAddPattern::ConvMulAdd);

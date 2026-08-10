@@ -35,10 +35,12 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/convolution_backprop_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_ops/gather_matmul.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
@@ -259,7 +261,7 @@ auto is_skipped_op(const std::shared_ptr<ov::Node>& op) -> bool {
 }
 
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v17::GroupedMatMul>(node) &&
+    return ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v17::GroupedMatMul, ov::op::internal::GatherMatmul>(node) &&
            !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
@@ -272,15 +274,22 @@ bool mark_acl_int8_fq_chain(const std::shared_ptr<Node>& node,
     if (!match(node)) {
         return false;
     }
+    // Mark whole FQ -> [Swish] -> Mul -> Add chain as it is fused into the int8 ACL convolution
     snippets::pass::SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
 
+    auto mul_parent = node->get_input_node_shared_ptr(0);
+
+    if (const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(mul_parent)) {
+        snippets::pass::SetSnippetsNodeType(swish, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        mul_parent = swish->get_input_node_shared_ptr(0);
+    }
     if (!walk_mul_add) {
-        snippets::pass::SetSnippetsNodeType(node->get_input_node_shared_ptr(0),
+        snippets::pass::SetSnippetsNodeType(mul_parent,
                                             snippets::pass::SnippetsNodeType::SkippedByPlugin);
         return true;
     }
 
-    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(node->get_input_node_shared_ptr(0));
+    const auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_parent);
     if (!mul) {
         return true;
     }

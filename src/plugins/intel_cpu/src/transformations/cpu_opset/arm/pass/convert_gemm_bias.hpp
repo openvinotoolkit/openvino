@@ -44,6 +44,7 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
         const auto gemm_out = block->get_anchor("gemm", pattern_map);
         const auto mul_out = block->get_anchor("multiply", pattern_map);
         const auto add_out = block->get_anchor("add", pattern_map);
+        const auto activation_out = block->get_anchor("activation", pattern_map);
         const auto fq_out = block->get_anchor("fake_quantize", pattern_map);
         if (!gemm_out || !mul_out || !add_out || !fq_out) {
             return false;
@@ -57,6 +58,9 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
             return false;
         }
 
+        if (activation_out) {
+            return false;
+        }
         // ACL int8 requantization requires the activation and FakeQuantize output types to match.
         if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
             return false;

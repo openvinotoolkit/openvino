@@ -39,7 +39,7 @@ struct DeviceOps {
     }
 
     bool match(device_info& info) const {
-        if (dev_id_list.size() > 0) {
+        if (!dev_id_list.empty()) {
             return std::find(dev_id_list.begin(), dev_id_list.end(), info.device_id) != dev_id_list.end();
         }
 
@@ -154,10 +154,7 @@ bool device::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return get_mem_caps().supports_usm();
 }
 
 }  // namespace cldnn

@@ -124,18 +124,20 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         return {layout{ref_in_sizes.get_partial_shape(in_layout.get_partial_shape().size(), in_layout.get_rank()), in_layout.data_type, in_layout.format}};
     }
 
-    bool is_output_static = false;
     std::vector<layout> output_layouts;
     for (size_t i = 0; i < output_shapes.size(); ++i) {
         output_layouts.push_back(layout({output_shapes[i], in_layout.data_type, in_layout.format}));
-        is_output_static = (output_shapes[i].is_static()) ? true : is_output_static;
     }
 
     // update split offsets
-    if (is_output_static) {
+    const auto& input_shape = impl_param.input_layouts[0].get_partial_shape();
+    bool can_update_offsets = input_shape.is_static();
+    for (int32_t prev = 0; prev < desc->output_idx && can_update_offsets; ++prev) {
+        can_update_offsets = output_layouts[prev].is_static();
+    }
+    if (can_update_offsets) {
         auto p_param = const_cast<kernel_impl_params*>(&impl_param);
-        ov::Shape startOffset(p_param->input_layouts[0].get_partial_shape().size());
-        auto input_shape = p_param->input_layouts[0].get_partial_shape();
+        ov::Shape startOffset(input_shape.size());
         auto dims = p_param->input_layouts[0].get_partial_shape().size();
         for (int32_t prev = 0; prev < desc->output_idx; prev++) {
             auto prev_crop_shape = output_layouts[prev].get_partial_shape().to_shape();
