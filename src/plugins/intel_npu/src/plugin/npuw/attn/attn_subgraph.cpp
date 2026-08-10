@@ -983,9 +983,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            kv_offset,
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.k], k_source);
-                            } else if (hfa_desc->_can_use_tensor_view &&
-                                       k_tile_buffer->get_element_type() == k_source->get_element_type()) {
-                                // Tensor view zero-copy is only valid when dtypes match.
+                            } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(k_tile_buffer->get_element_type() == k_source->get_element_type(),
+                                                "HFA K tile dtype mismatch: source=",
+                                                k_source->get_element_type(),
+                                                " tile_buffer=",
+                                                k_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.k],
                                                     ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
                             } else {
@@ -998,9 +1002,13 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            kv_offset,
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.v], v_source);
-                            } else if (hfa_desc->_can_use_tensor_view &&
-                                       v_tile_buffer->get_element_type() == v_source->get_element_type()) {
-                                // Same dtype guard as above for V.
+                            } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(v_tile_buffer->get_element_type() == v_source->get_element_type(),
+                                                "HFA V tile dtype mismatch: source=",
+                                                v_source->get_element_type(),
+                                                " tile_buffer=",
+                                                v_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.v],
                                                     ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
                             } else {
@@ -1113,7 +1121,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
                             state.hfa_runtime_ctx->switch_buffers();
                         }
-
                         return;
                     }
                     return;
