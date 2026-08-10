@@ -975,7 +975,7 @@ public:
 
         // Remove this limitation once micro_gemm kernels has supported i8/u8 weights.
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
-        if (!(weight_dt == data_types::u4 || weight_dt == data_types::i4) && use_micro_gemm_prefill) {
+        if (weight_dt != data_types::u4 && weight_dt != data_types::i4 && use_micro_gemm_prefill) {
             use_micro_gemm_prefill = false;
         }
 
@@ -1105,12 +1105,13 @@ public:
                         }
                     }
                     // weight shape: [ic, oc], type: u4/i8
-                    int64_t wei_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
+                    int64_t wei_offset =
+                        j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc, moe_fusion_wei_addr.weight[i]->get_layout());
                     dnnl_weights[i].weight =
                         convert2dnnl(moe_fusion_wei_addr.weight[i], {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset);
 
                     // scale shape: [ic / ic_group_size, oc], type: f16
-                    int64_t scale_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                    int64_t scale_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                moe_fusion_wei_addr.scale[i]->get_layout());
                     dnnl_weights[i].scale = convert2dnnl(moe_fusion_wei_addr.scale[i],
                                                          {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -1120,7 +1121,7 @@ public:
                     // zp shape: [ic / ic_group_size, oc], type: u4/i8
                     // Skip ZP memory allocation for symmetric quantization (has_zp=false) to save memory
                     if (cur_moe->_config.has_zp) {
-                        int64_t zp_offset = j * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
+                        int64_t zp_offset = j * get_bytes_count(static_cast<int64_t>(dnnl_weights[i].ic) * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size,
                                                                 moe_fusion_wei_addr.zp[i]->get_layout());
                         dnnl_weights[i].zp = convert2dnnl(moe_fusion_wei_addr.zp[i],
                                                           {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},
@@ -1534,7 +1535,7 @@ public:
             on_before_batched_gemv(stream, instance, scratch, topk_count, needs_fallback);
             if (needs_fallback) {
                 // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
-                instance.output_memory_ptr(0)->fill(stream, false);
+                instance.output_memory_ptr(0)->fill(stream, 0u);
                 return exec_prefill_onednn(events, stream, instance, scratch);
             }
         }
@@ -1665,7 +1666,7 @@ public:
             bool needs_fallback = false;
             on_before_prefill(stream, instance, scratch, batch_mem_ptr, topk_count, needs_fallback);
             if (needs_fallback) {
-                instance.output_memory_ptr(0)->fill(stream, false);
+                instance.output_memory_ptr(0)->fill(stream, 0u);
                 return exec_prefill_onednn(events, stream, instance, scratch);
             }
         }
@@ -2193,7 +2194,7 @@ public:
             if (expert_no >= expert_mask.pred_flag.size()) {
                 OPENVINO_THROW("expert_no=", expert_no, " is out of bounds");
             }
-            auto can_skip_subgraph = !expert_mask.pred_flag[expert_no];
+            auto can_skip_subgraph = expert_mask.pred_flag[expert_no] == 0;
             if (can_skip_subgraph) {
                 continue;
             }
@@ -2574,7 +2575,7 @@ public:
         // fallback to exec_prefill_onednn (when unique_experts > lru slots)
         // also accumulates via index_add.
         if (!use_micro_gemm_prefill && should_pre_zero_output()) {
-            final_hidden_states_mem_ptr->fill(stream, false);
+            final_hidden_states_mem_ptr->fill(stream, 0u);
         }
         // GPU mask gen is only supported for micro_gemm; both grouped_gemm and onednn loop
         // always use CPU mask gen and therefore always need topk to be ready first.

@@ -141,10 +141,7 @@ static bool IsThreeSpatialResample(const resample_params& params) {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    if (input.Dimentions() == 5 && input.Z().v != output.Z().v)
-        return true;
-
-    return false;
+    return input.Dimentions() == 5 && input.Z().v != output.Z().v;
 }
 
 JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) const {

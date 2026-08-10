@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-typedef cl_uint VASurfaceID;
-typedef void* VADisplay;
-typedef void* VAImageFormat;
+using VASurfaceID = cl_uint;
+using VADisplay = void *;
+using VAImageFormat = void *;

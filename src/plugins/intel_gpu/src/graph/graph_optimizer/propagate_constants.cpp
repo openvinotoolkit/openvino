@@ -32,7 +32,7 @@ namespace {
 // Refreshes stale output layouts before building kernel params to avoid
 // incorrect shape_type classification.
 void try_reselect_impl_for_node(program_node* node) {
-    bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+    bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
     if (!can_select_impl)
         return;
 

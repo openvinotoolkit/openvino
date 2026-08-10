@@ -38,7 +38,7 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // allow only the same input sizes or scalars, without pitches
-        if (!(ewParams.inputs[0] == ewParams.inputs[i] && ewParams.inputs[i] == ewParams.outputs[0]) && ewParams.inputs[i].PhysicalSize() != 1)
+        if ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) && ewParams.inputs[i].PhysicalSize() != 1)
             bCheckSizes = false;
     }
 

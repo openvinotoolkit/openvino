@@ -227,7 +227,7 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
 
 inline size_t micro_get_input_num(const kernel_impl_params& params, const sdpa_configuration& config) {
     auto data_inputs_num = config.input_num;
-    bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
+    bool is_paged_attention = params.is_type<paged_attention>();
     if (!is_paged_attention) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         data_inputs_num = get_data_inputs_num(*desc);
@@ -1045,7 +1045,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto v_head_size = micro_get_head_size(params, 2);
 
     const auto d_max = get_d_max(k_head_size);
-    const auto batch = out_ps[0] * out_ps[1];
+    const auto head_num = micro_get_num_heads(params, 0);
+    const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
     auto ldk = k_head_size * ov::element::Type(K.data_type).size();
@@ -1448,7 +1449,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;
             } else {
-                wgs.global[1] *= out_ps[1].get_length();
+                wgs.global[1] *= head_num;
                 wgs.global[2] *= out_ps[0].get_length();
             }
 
@@ -1475,7 +1476,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 }
 
 size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
-    OPENVINO_ASSERT(kernel_data.micro_kernels.size() > 0, "[GPU] Invalid kernels passed to get_tile_qsize() function");
+    OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
 
     const auto& gemms = kernel_data.micro_kernels;
     const auto wg_tile_q = gemms[kq_id]->p.getSetting("wg_tile_n");
@@ -1510,7 +1511,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
-    const auto batch = out_ps[0] * out_ps[1];
+    const auto head_num = micro_get_num_heads(params, 0);
+    const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
     GPU_DEBUG_TRACE_DETAIL << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";

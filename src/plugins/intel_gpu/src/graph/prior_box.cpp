@@ -81,7 +81,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                 auto density = static_cast<size_t>(argument.density[fs]);
                 auto shift = fixed_size / density;
 
-                if (argument.fixed_ratio.size() > 0) {
+                if (!argument.fixed_ratio.empty()) {
                     for (auto fr : argument.fixed_ratio) {
                         box_width = fixed_size * sqrtf(fr);
                         box_height = fixed_size / sqrtf(fr);
@@ -158,7 +158,7 @@ void calculate_prior_box_output(memory::ptr output_mem, stream& stream, layout c
                 // ymax
                 out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
 
-                if (argument.max_sizes.size() > 0) {
+                if (!argument.max_sizes.empty()) {
                     float max_size_ = argument.max_sizes[s];
                     // second prior: aspect_ratio = 1, size = sqrt(min_size * max_size)
                     box_width = box_height = sqrtf(min_size * max_size_);
@@ -315,7 +315,7 @@ void prior_box_node::calc_result() {
                                        0,
                                        "Min size must be positive.");
     }
-    if (argument.max_sizes.size() > 0) {
+    if (!argument.max_sizes.empty()) {
         CLDNN_ERROR_NOT_EQUAL(id(),
                               "Argument min sizes",
                               argument.min_sizes.size(),

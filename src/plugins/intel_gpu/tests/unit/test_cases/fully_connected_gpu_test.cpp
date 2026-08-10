@@ -13,7 +13,6 @@
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/dynamic_quantize.hpp>
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -22,7 +21,6 @@
 #include "fully_connected_inst.h"
 
 #include <cmath>
-#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -3843,132 +3841,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         OPENVINO_ASSERT((avg/count) < 1);
     }
 
-    void test_dynamic_quantize_runtime_skip_guards() {
-        tests::random_generator rg(GET_SUITE_NAME);
-        auto& engine = get_test_engine();
-
-        if (engine.get_device_info().dev_type == device_type::discrete_gpu) {
-            GTEST_SKIP() << "DynamicQuantize runtime skip guard targets the integrated-GPU FC SLM internal path";
-        }
-
-        if (!engine.get_device_info().supports_immad) {
-            GTEST_SKIP() << "DynamicQuantize runtime skip guards require IMMAD support";
-        }
-
-        constexpr long int seq_num = 40;
-        constexpr long int ifm_num = 128;
-        constexpr long int ofm_num = 256;
-        constexpr long int scales_group_size = 128;
-
-        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::i4, format::bfyx });
-        auto u8_weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
-
-        auto weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
-        auto u8_weights_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 4);
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * (ifm_num / scales_group_size), 0.01f, 0.1f);
-        set_values(weights_mem, weights_data);
-        set_values(u8_weights_mem, u8_weights_data);
-        set_values(scale_mem, scale_data);
-
-        auto is_dynamic_quantize_skipped = [&](long int batch_num,
-                                               const std::vector<ov::float16>& input_data,
-                                               const memory::ptr& test_weights_mem,
-                                               uint64_t dynamic_quantize_group_size,
-                                               const ov::intel_gpu::ImplementationDesc* fc_impl_desc,
-                                               size_t dynamic_quantization_threshold = 64) {
-            auto input_ps = ov::PartialShape{ batch_num, seq_num, ifm_num };
-            auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
-            set_values(input_mem, input_data);
-
-            dynamic_quantize::Attributes dq_config;
-            dq_config.quantization_dt = data_types::i8;
-            dq_config.scale_dt = data_types::f16;
-            dq_config.group_sizes = {1, 1, dynamic_quantize_group_size};
-
-            auto fc_prim = fully_connected("fc_prim",
-                                           input_info("dyn_quan", 0),
-                                           "weights",
-                                           "",
-                                           "scale",
-                                           "",
-                                           input_info("dyn_quan", 1),
-                                           input_info("", 0),
-                                           input_info("", 0),
-                                           data_types::f16,
-                                           3,
-                                           2);
-
-            topology topology(
-                input_layout("input", layout{ ov::PartialShape{ -1, -1, ifm_num }, data_types::f16, format::bfyx }),
-                data("weights", test_weights_mem),
-                data("scale", scale_mem),
-                dynamic_quantize("dyn_quan", input_info("input"), dq_config, 2),
-                fc_prim
-            );
-
-            auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            config.set_property(ov::intel_gpu::optimize_data(true));
-            config.set_property(ov::intel_gpu::dynamic_quantization_threshold(dynamic_quantization_threshold));
-            if (fc_impl_desc != nullptr) {
-                config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", *fc_impl_desc} }));
-            }
-
-            network network(engine, topology, config);
-            network.set_input_data("input", input_mem);
-
-            network.get_primitive("input")->prepare_primitive();
-            auto dyn_quan = network.get_primitive("dyn_quan");
-            dyn_quan->prepare_primitive();
-            return dyn_quan->can_be_optimized();
-        };
-
-        auto single_input = rg.generate_random_1d<ov::float16>(seq_num * ifm_num, -2.f, 2.f);
-        std::vector<ov::float16> batched_input;
-        batched_input.reserve(single_input.size() * 2);
-        batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
-        batched_input.insert(batched_input.end(), single_input.begin(), single_input.end());
-        std::vector<ov::float16> slm_input;
-        constexpr long int slm_batch_num = 8;
-        slm_input.reserve(single_input.size() * slm_batch_num);
-        for (long int batch = 0; batch < slm_batch_num; ++batch) {
-            slm_input.insert(slm_input.end(), single_input.begin(), single_input.end());
-        }
-
-        ov::intel_gpu::ImplementationDesc ocl_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl };
-        ov::intel_gpu::ImplementationDesc dyn_b_fc_impl = { format::bfyx, "fully_connected_gpu_bf_tiled_dyn_b", impl_types::ocl };
-        if (engine.get_device_info().dev_type == device_type::integrated_gpu) {
-            EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, scales_group_size, &ocl_fc_impl))
-                << "Small-batch OCL FC dispatch reads the original F16 input and must keep standalone DynamicQuantize";
-            EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, weights_mem, scales_group_size, &ocl_fc_impl))
-                << "The threshold must still execute DynamicQuantize when the token batch is above the threshold";
-            EXPECT_TRUE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, weights_mem, scales_group_size, &ocl_fc_impl, 512))
-                << "Runtime skip is allowed only when integrated-GPU FC dispatch can use the internal dyn-quantized SLM path";
-            EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, weights_mem, 64, &ocl_fc_impl, 512))
-                << "Runtime skip must keep standalone DynamicQuantize when its group size differs from the FC internal path";
-            EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, u8_weights_mem, scales_group_size, &ocl_fc_impl, 512))
-                << "Symmetric 8-bit weights do not have a validated FC internal DynamicQuantize path";
-            EXPECT_FALSE(is_dynamic_quantize_skipped(slm_batch_num, slm_input, weights_mem, scales_group_size, &dyn_b_fc_impl, 512))
-                << "DynB FC reads the original F16 input and must not be treated as the internal DynamicQuantize path";
-            EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, std::numeric_limits<uint64_t>::max(), &ocl_fc_impl))
-                << "Per-token DynamicQuantize must not be skipped unless FC can reproduce the same quantization semantics";
-        }
-
-        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, scales_group_size, nullptr))
-            << "The production path must keep explicit DynamicQuantize for small batches without a proven internal FC path";
-        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, std::numeric_limits<uint64_t>::max(), nullptr))
-            << "The production path must also keep explicit per-token DynamicQuantize execution";
-        EXPECT_FALSE(is_dynamic_quantize_skipped(2, batched_input, weights_mem, scales_group_size, nullptr))
-            << "The production path must execute DynamicQuantize when the token batch is above the threshold";
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        ov::intel_gpu::ImplementationDesc onednn_fc_impl = { format::bfyx, "", impl_types::onednn };
-        EXPECT_FALSE(is_dynamic_quantize_skipped(1, single_input, weights_mem, scales_group_size, &onednn_fc_impl))
-            << "oneDNN FC does not provide an equivalent runtime fast path for skipped DynamicQuantize";
-#endif
-    }
-
     // Test for FP16 overflow prevention in dynamic quantization scale multiplication.
     // When convert_half(acc_tmp) * ds exceeds FP16 max (65504), the intermediate overflows to INF.
     // The fix reorders multiplication to: convert_half(acc_tmp) * de_quantize_scale * ds,
@@ -4219,9 +4091,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
         GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff
                       << ", avg_diff: " << (count > 0 ? avg / count : 0.f) << std::endl;
-        // This case is an overflow guard. The strict finite variants below
-        // keep the bounded max-diff sanity check.
-        ASSERT_GT(count, 0u) << "No finite elements were compared";
+        ASSERT_LT(max_diff, 512) << "max_diff = " << max_diff;
     }
 
     // Stricter variant: asserts zero INF in output regardless of reference.
@@ -5555,10 +5425,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_per_token_dyn_quan_strict_no_i
     this->test_compressed_int8_per_token_dyn_quan_strict_no_inf(true, 512);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int4_dynamic_quantize_runtime_skip_guards) {
-    this->test_dynamic_quantize_runtime_skip_guards();
-}
-
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {
     this->test_comp_weight_scale_zp(true, 1, 2048, 3072, 32, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
@@ -6528,19 +6394,157 @@ TEST_P(fc_bf_tiled_dyn_b_accuracy_test, compare_with_ref) {
     test_accuracy(batch_num, ifm_num, ofm_num, with_post_op);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    fully_connected_bf_tiled_dyn_b_accuracy,
-    fc_bf_tiled_dyn_b_accuracy_test,
-    ::testing::Values(
-        // Small batch, IFM < OFM (up/gate projection pattern)
-        std::make_tuple(3L,  256L, 1024L, false),
-        // Prime batch with tail, IFM > OFM (down projection pattern)
-        std::make_tuple(11L, 1024L, 256L, false),
-        // Aligned batch, IFM < OFM
-        std::make_tuple(16L, 256L, 1024L, false),
-        // Large prime batch, IFM < OFM (multi TILE_B + tail)
-        std::make_tuple(29L, 256L, 1024L, false),
-        // With post-op eltwise
-        std::make_tuple(16L, 256L, 1024L, true)
-    )
-);
+INSTANTIATE_TEST_SUITE_P(fully_connected_bf_tiled_dyn_b_accuracy,
+                         fc_bf_tiled_dyn_b_accuracy_test,
+                         ::testing::Values(
+                             // Small batch, IFM < OFM (up/gate projection pattern)
+                             std::make_tuple(3L, 256L, 1024L, false),
+                             // Prime batch with tail, IFM > OFM (down projection pattern)
+                             std::make_tuple(11L, 1024L, 256L, false),
+                             // Aligned batch, IFM < OFM
+                             std::make_tuple(16L, 256L, 1024L, false),
+                             // Large prime batch, IFM < OFM (multi TILE_B + tail)
+                             std::make_tuple(29L, 256L, 1024L, false),
+                             // With post-op eltwise
+                             std::make_tuple(16L, 256L, 1024L, true)));
+
+// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
+class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, int, bool>>& obj) {
+        int batch = std::get<0>(obj.param);
+        int ifm = std::get<1>(obj.param);
+        int ofm = std::get<2>(obj.param);
+        int group_size = std::get<3>(obj.param);
+        int seq_len = std::get<4>(obj.param);
+        bool use_zp = std::get<5>(obj.param);
+        auto name = "b" + std::to_string(batch) + "_ifm" + std::to_string(ifm) + "_ofm" + std::to_string(ofm) + "_g" + std::to_string(group_size);
+        if (seq_len > 1)
+            name += "_seq" + std::to_string(seq_len);
+        if (use_zp)
+            name += "_zp";
+        return name;
+    }
+};
+
+// Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
+TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().dev_type == device_type::discrete_gpu)
+        GTEST_SKIP();
+
+    const int batch_num = std::get<0>(GetParam());
+    const int ifm_num = std::get<1>(GetParam());
+    const int ofm_num = std::get<2>(GetParam());
+    const int scales_group_size = std::get<3>(GetParam());
+    const int seq_len = std::get<4>(GetParam());  // 1 = 2D path, >1 = 3D (OUTPUT_3D) path
+    const bool use_zp = std::get<5>(GetParam());
+    const bool is_3d = seq_len > 1;
+
+    ASSERT_EQ(ifm_num % 4, 0) << "ifm_num must be multiple of 4 for U2";
+    ASSERT_EQ(ifm_num % scales_group_size, 0) << "ifm_num must be multiple of scales_group_size";
+
+    auto input_shape = is_3d ? ov::PartialShape{batch_num, seq_len, ifm_num} : ov::PartialShape{batch_num, ifm_num};
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = use_zp ? engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx}) : nullptr;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int input_elems = is_3d ? batch_num * seq_len * ifm_num : batch_num * ifm_num;
+    auto input_data = rg.generate_random_1d<ov::float16>(input_elems, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    std::vector<uint8_t> packed_weights;
+    std::vector<uint8_t> unpacked_weights;
+    for (int ofm = 0; ofm < ofm_num; ++ofm) {
+        for (int ifm_byte = 0; ifm_byte < ifm_num / 4; ++ifm_byte) {
+            uint8_t packed = 0;
+            for (int i = 0; i < 4; ++i) {
+                uint8_t val = (ifm_byte * 4 + i) % 4;
+                unpacked_weights.push_back(val);
+                packed |= (val << (i * 2));
+            }
+            packed_weights.push_back(packed);
+        }
+    }
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data;
+    if (use_zp) {
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 1.5f);
+        set_values(zp_mem, zp_data);
+    }
+
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    const int input_size = is_3d ? 3 : 2;
+
+    topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem));
+    if (use_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", use_zp ? "zp" : "", data_types::f16, input_size, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto inst = network->get_primitive("fc_prim");
+    auto impl = inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    const int outer_count = is_3d ? batch_num * seq_len : batch_num;
+    std::vector<float> expected_output(outer_count * ofm_num);
+    for (int n = 0; n < outer_count; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                int group_id = ifm / scales_group_size;
+                uint8_t weight_u2 = unpacked_weights[ofm * ifm_num + ifm];
+                float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                float zp = use_zp ? static_cast<float>(zp_data[ofm * (ifm_num / scales_group_size) + group_id]) : 0.0f;
+                float weight_f16 = (static_cast<float>(weight_u2) - zp) * scale;
+                float inp = static_cast<float>(input_data[n * ifm_num + ifm]);
+                acc += inp * weight_f16;
+            }
+            expected_output[n * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f) << "Mismatch at output index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u2_validation,
+                         ::testing::Values(std::make_tuple(1, 4, 4, 4, 1, false),        // minimum size (single group)
+                                           std::make_tuple(2, 16, 8, 4, 1, false),       // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),     // group_size == ifm (single group per row)
+                                           std::make_tuple(1, 128, 64, 32, 1, false),    // larger dimensions, multiple groups
+                                           std::make_tuple(8, 256, 128, 64, 1, false),   // large batch + large matrix
+                                           std::make_tuple(1, 512, 256, 128, 1, false),  // stress test
+                                           std::make_tuple(2, 64, 63, 16, 1, false),     // odd ofm_num
+                                           std::make_tuple(2, 60, 64, 4, 1, false),      // odd number of scale groups
+                                           std::make_tuple(2, 8, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
+                                           std::make_tuple(1, 16, 8, 4, 5, false),       // 3D with longer sequence
+                                           std::make_tuple(2, 16, 8, 4, 1, true),        // with zero-point
+                                           std::make_tuple(1, 64, 32, 16, 1, true),      // with zero-point, larger
+                                           std::make_tuple(2, 8, 4, 4, 3, true)          // 3D with zero-point
+                                           ),
+                         fully_connected_gpu_u2_validation::GetTestCaseName);

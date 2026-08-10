@@ -384,6 +384,8 @@ public:
     bool all_dependencies_cpu_impl() const;
 
 protected:
+    friend class PrimitiveInstTestHelper;
+
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
@@ -625,11 +627,9 @@ private:
                 return false;
         }
 
-        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
-            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
-            return false;
-        }
-        return true;
+        // check if the only user is concat
+        return !(typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
+                 typ_node.get_users().front()->can_be_optimized());
     }
 };
 
