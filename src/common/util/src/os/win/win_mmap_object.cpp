@@ -289,7 +289,7 @@ public:
              size_t offset,
              size_t size,
              bool no_placeholder = false,
-             MmapMode mode = MmapMode::read);
+             MmapMode mode = MmapMode::READ);
     void set_from_handle(FileHandle handle, size_t offset, size_t size);
     bool try_remap_slot(uintptr_t fault_addr);
 
@@ -323,7 +323,7 @@ private:
     void set_id(HANDLE h, size_t offset, size_t size);
 
     /** @brief Core setup shared by set() and set_from_handle(). */
-    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode = MmapMode::read);
+    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode = MmapMode::READ);
 
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
@@ -331,7 +331,7 @@ private:
     bool try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size, size_t file_size);
 
     /** @brief Legacy single-call MapViewOfFile path (no partial-release support). */
-    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode = MmapMode::read);
+    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode = MmapMode::READ);
 
     /**
      * @brief Computes the clamped, gran-aligned VA range to evict.
@@ -596,7 +596,7 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
 }
 
 void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode) {
-    const DWORD access = (mode == MmapMode::read_write) ? (FILE_MAP_READ | FILE_MAP_WRITE) : FILE_MAP_READ;
+    const DWORD access = (mode == MmapMode::READ_WRITE) ? (FILE_MAP_READ | FILE_MAP_WRITE) : FILE_MAP_READ;
     if (auto view = ::MapViewOfFile(m_handle.get(),
                                     access,
                                     static_cast<DWORD>(aligned_offset >> 32),
@@ -628,7 +628,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     const size_t total_va_size = util::align_size_up(r_length, gran);
 
     set_id(file_handle, offset, size);
-    if (mode == MmapMode::read_write) {
+    if (mode == MmapMode::READ_WRITE) {
         // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
         m_id = no_mapping_id;
     }
@@ -637,7 +637,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
         return;
     }
 
-    const DWORD protect = (mode == MmapMode::read_write) ? PAGE_READWRITE : PAGE_READONLY;
+    const DWORD protect = (mode == MmapMode::READ_WRITE) ? PAGE_READWRITE : PAGE_READONLY;
     m_handle = HandleHolder{::CreateFileMappingW(file_handle, nullptr, protect, 0, 0, nullptr)};
     if (!m_handle.valid()) {
         throw std::runtime_error{"CreateFileMappingW failed: " + std::to_string(::GetLastError())};
@@ -647,14 +647,14 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     // (required for NPU zero-copy blob import). Otherwise prefer placeholder for RSS reduction.
     // Read-write mappings always take the legacy path: the VEH only remaps on read faults, so an evicted
     // granule hit by a write would fault indefinitely.
-    if (no_placeholder || mode == MmapMode::read_write ||
+    if (no_placeholder || mode == MmapMode::READ_WRITE ||
         !try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
         legacy_setup(m_aligned_offset, head_pad, m_size, mode);
     }
 }
 
 void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
-    const bool writable = mode == MmapMode::read_write;
+    const bool writable = mode == MmapMode::READ_WRITE;
     auto fh = ::CreateFileW(path.c_str(),
                             writable ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
                             writable ? (FILE_SHARE_READ | FILE_SHARE_WRITE) : (FILE_SHARE_READ | FILE_SHARE_DELETE),

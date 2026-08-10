@@ -32,8 +32,8 @@ inline constexpr auto auto_size = std::numeric_limits<size_t>::max();
  * @brief Access mode of a memory mapping.
  */
 enum class MmapMode {
-    read,       //!< Read-only mapping.
-    read_write  //!< Read-write mapping, modifications are written back to the file.
+    READ,       //!< Read-only mapping.
+    READ_WRITE  //!< Read-write mapping, modifications are written back to the file.
 };
 
 /**
@@ -82,7 +82,7 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
                                                    size_t offset = 0,
                                                    size_t size = auto_size,
                                                    bool no_placeholder = false,
-                                                   MmapMode mode = MmapMode::read);
+                                                   MmapMode mode = MmapMode::READ);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).

@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
+#include <fstream>
 #include <memory>
 
 #ifdef _WIN32
@@ -44,14 +45,11 @@ size_t get_mmap_offset_alignment() {
 #endif
 }
 
+// Permission bits (and Windows ACLs) describe what some account may do, not what this process may do,
+// so writability is probed by opening the file for update with the current credentials.
 bool is_file_writable(const std::filesystem::path& path) {
-    std::error_code ec;
-    const auto perms = std::filesystem::status(path, ec).permissions();
-    if (ec) {
-        return false;
-    }
-    return (perms & (std::filesystem::perms::owner_write | std::filesystem::perms::group_write |
-                     std::filesystem::perms::others_write)) != std::filesystem::perms::none;
+    std::fstream file(path, std::ios::in | std::ios::out | std::ios::binary);
+    return file.is_open();
 }
 
 ContextType get_default_context_type() {
@@ -328,7 +326,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               offset,
                                               *byte_size,
                                               /*no_placeholder=*/false,
-                                              read_only ? ov::MmapMode::read : ov::MmapMode::read_write);
+                                              read_only ? ov::MmapMode::READ : ov::MmapMode::READ_WRITE);
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
                                               shape,
                                               type,
