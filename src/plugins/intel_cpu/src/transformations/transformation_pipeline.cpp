@@ -250,6 +250,7 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/arm/pass/deconv_1d_decomposition.hpp"
+#    include "transformations/cpu_opset/arm/pass/extract_conv_activation_zero_point.hpp"
 #    include "transformations/cpu_opset/arm/pass/fallback_unsupported_lp_conv_to_fp16.hpp"
 #    include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -979,6 +980,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
 #endif
     CPU_REGISTER_PASS_ARM(lptManager, ConvertConvolutionBias);
     CPU_REGISTER_PASS_ARM(lptManager, ConvertFullyConnectedBias);
+    CPU_REGISTER_PASS_ARM(lptManager, ExtractConvActivationZeroPoint);
     CPU_REGISTER_PASS_ARM(lptManager, FallbackUnsupportedLPConvToFP16);
     CPU_SET_CALLBACK_ARM(
         lptManager,
