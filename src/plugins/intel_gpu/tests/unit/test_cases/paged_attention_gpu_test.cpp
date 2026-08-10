@@ -386,6 +386,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{1, 4200}}, 8, 2, 64, 64, 16, 8, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 8/2 + scores + sw=8, kv_group_size=4 -> QUERIES_PER_WI=4
     paged_attention_test_params{ {{1, 4200}}, 4, 2, 64, 64, 16, 8, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 4/2 + scores + sw=8, kv_group_size=2 -> QUERIES_PER_WI=2
     paged_attention_test_params{ {{1, 5000}}, 16, 4, 128, 128, 16, 16, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 16/4 + scores + sw=16, k_head_size=128, kv_group_size=4
+
+    /* SWA block skip: decode with past_len >> sliding_window */
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 16, 32, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // decode, past_len=1024 >> sw=32
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, Gemma4-like config (sw=512)
+    paged_attention_test_params{ {{1, 4096}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, triggers GQA kernel path (context>=4096)
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode + KV compression + SWA
+    paged_attention_test_params{ {{1, 1024}, {1, 2048}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq GQA decode with SWA
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
