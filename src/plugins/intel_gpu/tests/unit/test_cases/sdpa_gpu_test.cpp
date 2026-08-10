@@ -392,9 +392,13 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     fill_random(k_mem);
     fill_random(v_mem);
 
+    auto selected_key = [seq_length](int query) {
+        return (query * 5 + 3) % seq_length;
+    };
+
     std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
     for (int query = 0; query < seq_length; ++query) {
-        mask[query * seq_length + query] = 1;
+        mask[query * seq_length + selected_key(query)] = 1;
     }
     set_values(mask_mem, mask);
 
@@ -441,10 +445,100 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
         for (int query = 0; query < seq_length; ++query) {
             for (int feature = 0; feature < head_size; ++feature) {
                 const size_t output_idx = ((head * seq_length + query) * head_size) + feature;
-                const size_t value_idx = ((query * num_heads + head) * head_size) + feature;
+                const size_t value_idx = ((selected_key(query) * num_heads + head) * head_size) + feature;
                 const float expected = static_cast<float>(value_data[value_idx]);
                 ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, 1e-3f);
                 ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, 1e-3f);
+            }
+        }
+    }
+}
+
+TEST(sdpa_gpu_custom, boolean_mask_opt_matches_reference) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const int batch = 1;
+    const int seq_length = 64;
+    const int num_heads = 4;
+    const int qk_head_size = 64;
+    const int value_head_size = 32;
+
+    const layout qk_layout({batch, seq_length, num_heads, qk_head_size}, data_types::f16, format::bfyx);
+    const layout value_layout({batch, seq_length, num_heads, value_head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::u8, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(qk_layout);
+    auto k_mem = engine.allocate_memory(qk_layout);
+    auto v_mem = engine.allocate_memory(value_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+
+    auto fill_random = [&](const memory::ptr& mem) {
+        const auto size = ov::shape_size(mem->get_layout().get_shape());
+        set_values(mem, rg.generate_random_1d<ov::float16>(size, -1.0f, 1.0f));
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    auto selected_key = [seq_length](int query) {
+        return (query * 5 + 3) % seq_length;
+    };
+
+    std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
+    for (int query = 0; query < seq_length; ++query) {
+        mask[query * seq_length + selected_key(query)] = 1;
+    }
+    set_values(mask_mem, mask);
+
+    auto run_sdpa = [&](const std::string& kernel_name) {
+        topology topo;
+        topo.add(input_layout("q", qk_layout));
+        topo.add(input_layout("k", qk_layout));
+        topo.add(input_layout("v", value_layout));
+        topo.add(input_layout("mask", mask_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                              false,
+                                              -1,
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 2, 1, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, kernel_name}}}));
+
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        network->set_input_data("mask", mask_mem);
+        return network->execute().at("result").get_memory();
+    };
+
+    auto ref_output = run_sdpa("sdpa_ref");
+    auto opt_output = run_sdpa("sdpa_opt");
+
+    mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_output, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> value_data(v_mem, get_test_stream());
+
+    ASSERT_EQ(ref_data.size(), opt_data.size());
+    for (int head = 0; head < num_heads; ++head) {
+        for (int query = 0; query < seq_length; ++query) {
+            for (int feature = 0; feature < value_head_size; ++feature) {
+                const size_t output_idx = ((head * seq_length + query) * value_head_size) + feature;
+                const size_t value_idx = ((selected_key(query) * num_heads + head) * value_head_size) + feature;
+                const float expected = static_cast<float>(value_data[value_idx]);
+                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, 1e-3f);
+                ASSERT_NEAR(static_cast<float>(opt_data[output_idx]), expected, 1e-3f);
             }
         }
     }

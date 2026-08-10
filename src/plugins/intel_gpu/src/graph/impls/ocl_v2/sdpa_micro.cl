@@ -156,7 +156,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 #if WITH_ATTN_MASK
-    const global MSK_DATA_T *msk,
+        const global MSK_DATA_T *msk,
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
@@ -701,7 +701,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_copy(mask_tile, mask_tile_float);
 #ifdef BOOLEAN_ATTN_MASK
 #define boolean_to_additive_mask(x) ((x) != 0.0f ? 0.0f : -INFINITY)
-    tile_elementwise(mask_tile_float, boolean_to_additive_mask);
+        tile_elementwise(mask_tile_float, boolean_to_additive_mask);
 #endif
 #ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
