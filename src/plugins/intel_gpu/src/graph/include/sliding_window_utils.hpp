@@ -441,17 +441,13 @@ inline padding calc_sliding_window_needed_input_padding(const layout& actual_inp
                         std::max(needed_upad.spatial[2], actual_upad[2]),
                         std::max(needed_upad.spatial[1], actual_upad[3]),
                         std::max(needed_upad.spatial[0], actual_upad[4])});
-    else if (spatial_rank >= 2)
+    if (spatial_rank >= 2)
         return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2], actual_lpad[3]},
                        {actual_upad[0],
                         actual_upad[1],
                         std::max(needed_upad.spatial[1], actual_upad[2]),
                         std::max(needed_upad.spatial[0], actual_upad[3])});
-    else
-        return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2]},
-                       {actual_upad[0],
-                        actual_upad[1],
-                        std::max(needed_upad.spatial[0], actual_upad[2])});
+    return padding({actual_lpad[0], actual_lpad[1], actual_lpad[2]}, {actual_upad[0], actual_upad[1], std::max(needed_upad.spatial[0], actual_upad[2])});
 }
 
 }  // namespace ov::intel_gpu

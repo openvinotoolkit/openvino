@@ -67,6 +67,10 @@ ov_set_msvc_runtime(CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME ${use_static_runtime}
 ov_set_msvc_runtime(USE_DYNAMIC_VCXX_RUNTIME ${use_dynamic_runtime})
 # google-test
 ov_set_msvc_runtime(gtest_force_shared_crt ${use_dynamic_runtime})
+# AUTO plugin IPF telemetry client (ClientApi is only built against dynamic CRT)
+if(use_static_runtime)
+    ov_set_msvc_runtime(ENABLE_IPF_CLIENT_API OFF)
+endif()
 
 unset(use_static_runtime)
 unset(use_dynamic_runtime)
