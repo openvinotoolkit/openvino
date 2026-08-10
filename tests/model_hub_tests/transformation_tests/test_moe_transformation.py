@@ -21,10 +21,10 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
     Verify that MoE fusion was applied correctly by checking for fused weight tensors.
 
-    FuseMOEExperts tags fused expert weight constants with a "/FusedMOEWeights"
-    friendly-name suffix, so they can be identified directly instead of guessing
-    from constant rank/shape (other rank-3 constants, e.g. RoPE's inv_freq, can
-    also end up directly on a MatMul input after other transformations run).
+    FuseMOEExperts tags fused expert weight nodes (a Concat, possibly later constant-folded
+    to a Constant) with a "/FusedMOEWeights" friendly-name suffix, so they can be identified
+    directly instead of guessing from rank/shape (other rank-3 constants, e.g. RoPE's
+    inv_freq, can also end up directly on a MatMul input after other transformations run).
 
     Returns:
         int: Number of experts detected in the fused MoE weight tensors
@@ -38,7 +38,10 @@ def verify_moe_fusion(ov_model: ov.Model, model_id: str):
             # Unwrap decompression Convert to reach the underlying weight constant
             if input_node.get_type_name() == "Convert":
                 input_node = input_node.input_value(0).get_node()
-            if input_node.get_type_name() != "Constant" or FUSED_MOE_WEIGHT_MARKER not in input_node.get_friendly_name():
+            # The marker is applied to the Concat produced by FuseMOEExperts; it may later be
+            # constant-folded into a Constant (e.g. on serialization), so accept either node type.
+            if input_node.get_type_name() not in ("Constant", "Concat") or \
+                    FUSED_MOE_WEIGHT_MARKER not in input_node.get_friendly_name():
                 continue
             weight_shape = list(input_node.get_shape())
             assert len(weight_shape) == 3, \
