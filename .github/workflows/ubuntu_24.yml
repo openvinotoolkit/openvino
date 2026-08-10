@@ -277,7 +277,14 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.12'
       target-branch: ${{ inputs.target-branch }}
-    if: ${{ github.event_name != 'schedule' }}
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS ||
+        fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
 
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
