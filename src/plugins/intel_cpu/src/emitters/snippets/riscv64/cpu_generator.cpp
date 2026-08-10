@@ -22,6 +22,7 @@
 #include "jit_kernel_emitter.hpp"
 #include "jit_loop_emitters.hpp"
 #include "jit_memory_emitters.hpp"
+#include "jit_reg_spill_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -90,6 +91,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/op/reorder.hpp"
 #include "snippets/op/reshape.hpp"
 #include "snippets/op/result.hpp"
@@ -277,6 +279,9 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     // loop control
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
     jitters[snippets::op::LoopEnd::get_type_info_static()] = emitter_factory.from_expr<jit_loop_end_emitter>();
+    jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
+        emitter_factory.from_expr<jit_reg_spill_begin_emitter>();
+    jitters[snippets::op::RegSpillEnd::get_type_info_static()] = emitter_factory.from_expr<jit_reg_spill_end_emitter>();
 
     // service kernel entry points
     jitters[snippets::op::KernelStatic::get_type_info_static()] =

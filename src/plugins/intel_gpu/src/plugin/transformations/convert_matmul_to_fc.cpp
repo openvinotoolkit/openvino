@@ -224,7 +224,20 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
 
         // Weights normalization
         bool is_small_matmul = true;
-        if (shape_a.is_static() && shape_b.is_static()) {
+
+        // Sub-byte Parameter weights can't be transposed at runtime (permute kernel doesn't support them).
+        // Use non-transposed FC layout instead; requires XMX for the oneDNN path.
+        const bool is_parameter_compressed_weight = supports_immad &&
+            is_compressed_weight &&
+            !transpose_node &&
+            !matmul->get_transpose_b() &&
+            pattern_map.count(weights_param_m) != 0 &&
+            pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr &&
+            pattern_map.at(weights_param_m).get_element_type().bitwidth() < 8;
+
+        if (is_parameter_compressed_weight) {
+            is_small_matmul = false;
+        } else if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
              if (matmul->get_transpose_a())
@@ -233,7 +246,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                  k = shape_a[shape_a.rank().get_length() - 1].get_length();
              // M is the row/token dimension and N the output dimension of the matmul.
              size_t m = output_shape.size() >= 2 ? output_shape[output_shape.size() - 2] : 1;
-             size_t n = output_shape.size() >= 1 ? output_shape[output_shape.size() - 1] : 1;
+             size_t n = !output_shape.empty() ? output_shape[output_shape.size() - 1] : 1;
              // Empirical benchdnn study (f16 GPU matmul, see
              // temp/gemm_transpose_study): the non-transposed weight layout
              // (onednn abc) wins for matmuls with a large reduction dimension
@@ -243,7 +256,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
              // non-transposed kernel can regress by up to ~1.3x there). Restrict
              // the non-transposed path to XMX-capable GPUs (supports_immad) with
              // K >= 8192 and (M <= 512 or N <= 4096) to keep the wins while avoiding those regressions.
-             if (supports_immad && k >= 8192 && (m <= 512 || n <= 4096) &&
+             if (k >= 8192 && (m <= 512 || n <= 4096) &&
                  matmul->get_input_element_type(0) == ov::element::f16 && !is_compressed_weight) {
                  is_small_matmul = false;
              }
@@ -283,7 +296,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
                 }
             } else {
                 if (!matmul->get_transpose_b()) {
-                    if (can_reuse_transpose(fc_input_b)) {
+                    if (!is_parameter_compressed_weight && can_reuse_transpose(fc_input_b)) {
                         fc_input_b = transpose_node;
                     }
                 } else {
