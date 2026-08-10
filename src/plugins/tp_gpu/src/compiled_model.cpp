@@ -109,14 +109,29 @@ void CompiledModel::release_memory() {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties.name()) {
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> properties {
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
         };
-    } else if (name == ov::loaded_from_cache.name()) {
+        for (const auto& property : m_rank_compiled.front()->get_property(name).as<std::vector<ov::PropertyName>>()) {
+            const auto known = std::find(properties.begin(), properties.end(), property);
+            if (known == properties.end()) {
+                properties.emplace_back(property, ov::PropertyMutability::RO);
+            }
+        }
+        return properties;
+    }
+
+    if (name == ov::loaded_from_cache.name()) {
         return m_loaded_from_cache;
     }
-    OPENVINO_THROW("[TP_GPU] Unsupported compiled model property: ", name);
+
+    if (name == ov::execution_devices.name()) {
+        return m_device_names;
+    }
+
+    return m_rank_compiled.front()->get_property(name);
 }
 
 }  // namespace tp_gpu

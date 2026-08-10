@@ -253,6 +253,14 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
     // SoPtr until something is stored.  Dynamic dimensions start at 0, so the
     // tensor is empty until the caller reshapes or replaces it.
     auto allocate_port = [this](const ov::Output<const ov::Node>& port) {
+        // A port can leave its element type open -- PagedAttention's
+        // key_cache/value_cache do, because the cache precision is decided by
+        // whoever allocates it. There is nothing to allocate then, and the
+        // caller has to set a tensor before the first infer.
+        if (port.get_element_type().is_dynamic()) {
+            return;
+        }
+
         const auto& ps = port.get_partial_shape();
         ov::Shape shape;
         if (ps.is_static()) {

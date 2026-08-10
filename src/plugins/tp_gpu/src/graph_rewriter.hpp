@@ -35,6 +35,12 @@ struct ShardingPlan {
 
     std::vector<LinearDesc> linears;
 
+    /// Which attention op anchors the layers.  The two formulations differ in
+    /// how heads reach the attention: SDPA broadcasts KV heads up to the query
+    /// head count in the graph, PagedAttention takes flattened
+    /// [tokens, heads * head_dim] operands and does the grouping itself.
+    enum class AttentionBackend { NONE, SDPA, PA } attention_backend = AttentionBackend::NONE;
+
     int num_layers = 0;
     int num_heads = 0;          ///< Q attention heads
     int num_kv_heads = 0;       ///< KV attention heads (for GQA)
