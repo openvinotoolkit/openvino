@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -34,10 +33,9 @@ public:
                                                    std::move(compile_time_repacking_idxs)) {}
 
 private:
-    [[nodiscard]] std::optional<RepackedMatMulWeights> repack(size_t input_idx,
-                                                              const std::shared_ptr<ov::Node>& consumer,
-                                                              const MatMulWeightsSource& source,
-                                                              const MemoryPtr& orig_src_mem_ptr) override;
+    [[nodiscard]] RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
+                                                const MatMulWeightsSource& source,
+                                                const MemoryPtr& orig_src_mem_ptr) override;
 };
 
 }  // namespace ov::intel_cpu::pass::aarch64

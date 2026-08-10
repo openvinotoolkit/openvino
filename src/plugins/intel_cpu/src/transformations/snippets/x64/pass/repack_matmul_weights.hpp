@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -43,10 +42,9 @@ private:
     [[nodiscard]] static DnnlMemoryDescPtr get_dst_desc(const Shape& shape,
                                                         const brgemm_utils::BrgemmConfig& brgemm_config);
 
-    [[nodiscard]] std::optional<RepackedMatMulWeights> repack(size_t input_idx,
-                                                              const std::shared_ptr<ov::Node>& consumer,
-                                                              const MatMulWeightsSource& source,
-                                                              const MemoryPtr& orig_src_mem_ptr) override;
+    [[nodiscard]] RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
+                                                const MatMulWeightsSource& source,
+                                                const MemoryPtr& orig_src_mem_ptr) override;
 };
 
 }  // namespace ov::intel_cpu::pass::x64

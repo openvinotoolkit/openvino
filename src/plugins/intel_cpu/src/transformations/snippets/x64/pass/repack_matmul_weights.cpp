@@ -4,8 +4,8 @@
 
 #include "repack_matmul_weights.hpp"
 
+#include <cstddef>
 #include <memory>
-#include <optional>
 #include <utility>
 
 #include "cpu_memory.h"
@@ -44,8 +44,7 @@ DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const Br
     return MemoryDescUtils::convertToDnnlMemoryDesc(get_dst_cpu_desc(shape, brgemm_config));
 }
 
-std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
-    [[maybe_unused]] size_t input_idx,
+RepackMatMulWeights::RepackedMatMulWeights RepackMatMulWeights::repack(
     const std::shared_ptr<ov::Node>& consumer,
     const RepackMatMulWeights::MatMulWeightsSource& source,
     const MemoryPtr& orig_src_mem_ptr) {

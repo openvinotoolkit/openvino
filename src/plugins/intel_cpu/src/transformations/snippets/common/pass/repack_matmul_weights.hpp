@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
@@ -57,17 +56,15 @@ protected:
 
     /**
      * @brief Repack a constant MatMul weights input for a backend-specific MatMul/GEMM consumer.
-     * @param input_idx Index of the weights input in the subgraph parameter list.
      * @param consumer Backend MatMul/GEMM node that consumes the constant weights.
      * @param source Logical weights shape and layout after CopyB extraction. When extraction inserts a graph Reorder,
      * this metadata is not recoverable from @p orig_src_mem_ptr alone.
      * @param orig_src_mem_ptr Original constant weights memory buffer.
-     * @return Repacked weights memory with its CPU descriptor, or std::nullopt when this consumer cannot be repacked.
+     * @return Repacked weights memory with its CPU descriptor.
      */
-    [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(size_t input_idx,
-                                                                      const std::shared_ptr<ov::Node>& consumer,
-                                                                      const MatMulWeightsSource& source,
-                                                                      const MemoryPtr& orig_src_mem_ptr) = 0;
+    [[nodiscard]] virtual RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
+                                                        const MatMulWeightsSource& source,
+                                                        const MemoryPtr& orig_src_mem_ptr) = 0;
 
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
