@@ -3,6 +3,8 @@
 //
 
 #include "gemm_inst.h"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 
@@ -95,6 +97,32 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
         if (out_shape.rank().is_static() && out_shape.rank().get_length() > 3)
             return false;
+
+        // cuDNN matmul only supports a limited set of activation post-ops:
+        // relu, tanh, elu, logistic (all with alpha=0), and at most one.
+        {
+            int activation_count = 0;
+            for (auto& fo : gemm_node.get_fused_primitives()) {
+                if (fo.is_type<activation>()) {
+                    auto act_prim = fo.typed_desc<activation>();
+                    auto func = act_prim->activation_function;
+                    if (func == activation_func::none)
+                        continue;
+                    if (++activation_count > 1)
+                        return false;
+                    bool supported = (func == activation_func::relu ||
+                                      func == activation_func::hyperbolic_tan ||
+                                      func == activation_func::elu ||
+                                      func == activation_func::logistic);
+                    if (!supported)
+                        return false;
+                    if (act_prim->additional_params.a != 0.0f)
+                        return false;
+                } else {
+                    return false;
+                }
+            }
+        }
 #endif
 
         //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
