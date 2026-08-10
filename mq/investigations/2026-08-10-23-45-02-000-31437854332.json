@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-23-45-02-000-31437854332",
+  "timestamp": "2026-08-10T23:45:02Z",
+  "run_id": "31437854332",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31437854332",
+  "workflow_name": "JS API (22)",
+  "pr_number": "37080",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37080",
+  "author": "aobolensk",
+  "category": "Flaky Test",
+  "title": "JS API E2E test cleanup fails - Permission denied removing d3dcompiler_47.dll on Windows",
+  "signature": "rm cannot remove electron.exe Permission denied|Flaky Test",
+  "signature_hash": "85df26485ff568d8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "E2E after-all cleanup hook fails: rm cannot remove d3dcompiler_47.dll - Permission denied"
+    }
+  ],
+  "key_errors": [
+    "exec error: Error: Command failed: rm -rf demo-electron-app-project\nrm: cannot remove 'demo-electron-app-project/node_modules/electron/dist/d3dcompiler_47.dll': Permission denied",
+    "1) \"after all\" hook for \"should run electron package and verify output\": Error: Command failed: rm -rf demo-electron-app-project"
+  ],
+  "root_cause": "The E2E test for the openvino-node Electron integration passes successfully (2 tests pass), but the Mocha 'after all' cleanup hook fails when attempting to remove the test directory using 'rm -rf'. On Windows, the Electron binary locks d3dcompiler_47.dll and other DLLs via file handles that persist briefly after the process exits. The rm command fails with EACCES/Permission denied because the Windows OS still holds a lock on the file. This is a Windows runner environment issue unrelated to the PR changes (which only touch Snippets buffer allocation code).",
+  "reproduction_steps": "Run the JS API E2E test on a Windows runner immediately after an Electron process exits; the cleanup may fail due to DLL file locks.",
+  "recommended_actions": [
+    "Use a retry-loop or delayed rm in the E2E after-all hook instead of a plain rm -rf call",
+    "Use rimraf or a Windows-compatible file removal utility that handles locked files",
+    "Add a short sleep before cleanup to allow Windows to release file handles",
+    "Consider using the 'force' option or robocopy /MIR for cleanup on Windows runners"
+  ],
+  "prevention_strategies": "Use robust cleanup utilities (rimraf, robocopy) that handle locked DLL files on Windows. Add retry logic in the E2E test cleanup hooks.",
+  "historical_context": "First recorded occurrence of this specific pattern. The failure is unrelated to the PR changes (Snippets buffer optimization)."
+}

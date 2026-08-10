@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 140,
+  "total": 141,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1368,6 +1368,17 @@
       "category": "Code Issue",
       "signature_hash": "9ff022172665aa06",
       "pr_number": "37311"
+    },
+    {
+      "investigation_id": "2026-08-10-23-45-02-000-31437854332",
+      "run_id": "31437854332",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31437854332",
+      "workflow_name": "JS API (22)",
+      "timestamp": "2026-08-10T23:45:02Z",
+      "title": "JS API E2E test cleanup fails - Permission denied removing d3dcompiler_47.dll on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "37080"
     }
   ]
 }
