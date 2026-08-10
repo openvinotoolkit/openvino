@@ -28,6 +28,10 @@ on:
         description: 'Suffix appended to artifact name to avoid collisions (e.g. CPU, iGPU, dGPU)'
         type: string
         required: true
+      use-pip-proxy:
+        description: 'Whether the runner can reach the internal pip caching proxy (true for cloud AKS runners, false for iGPU/dGPU self-hosted runners)'
+        type: boolean
+        required: true
 
 permissions: read-all
 
@@ -57,6 +61,7 @@ jobs:
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       PIP_CERT: /etc/ssl/certs/ca-certificates.crt
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
     steps:
       - name: Update CA certificates
         run: update-ca-certificates
@@ -91,7 +96,7 @@ jobs:
           pip-cache-path: '/mnt/caches/pip'
           set-pip-install-path: 'false'
           self-hosted-runner: true
-          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+          use-pip-proxy: ${{ inputs.use-pip-proxy }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
