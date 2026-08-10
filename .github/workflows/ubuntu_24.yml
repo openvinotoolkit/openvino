@@ -175,7 +175,12 @@ jobs:
   LLM_Accuracy_CPU:
     name: LLM accuracy CPU tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    if: ${{ github.event_name != 'schedule' }}
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
       runner: '["aks-linux-4-cores-16gb"]'
@@ -243,7 +248,12 @@ jobs:
   LLM_Accuracy_GPU:
     name: LLM accuracy GPU tests (Nightly)
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
-    if: ${{ github.event_name == 'schedule' }}
+    if: |
+      github.event_name == 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
       runner: '["self-hosted", "dgpu", "Arc-B580", "Battlemage", "Linux"]'
