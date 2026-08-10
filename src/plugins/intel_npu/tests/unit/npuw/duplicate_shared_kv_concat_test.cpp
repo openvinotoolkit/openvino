@@ -20,6 +20,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
@@ -95,13 +96,20 @@ std::shared_ptr<ov::Model> build_fanout_model(const std::string& kv_param_name,
 
 }  // namespace
 
+// Convenience wrapper: MatcherPass must run inside GraphRewrite.
+static bool run_pass(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<DuplicateSharedKVConcat>();
+    return rewr.run_on_model(model);
+}
+
 class DuplicateSharedKVConcatTest : public ::testing::Test {};
 
 // ─── No-op: Reshape has only one consumer ────────────────────────────────────
 
 TEST_F(DuplicateSharedKVConcatTest, NoOp_SingleConsumer) {
     auto model = build_fanout_model("past_key_values.0.key", {1, 2, 4, 8}, 2, /*fan_out=*/1);
-    EXPECT_FALSE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_FALSE(run_pass(model));
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
 }
 
@@ -111,7 +119,7 @@ TEST_F(DuplicateSharedKVConcatTest, NoOp_NonPastKVParam) {
     // Replace the past-KV param with an unrecognised name.
     // MatMul consumers satisfy the type guard so the no-op is due to the name check.
     auto model = build_fanout_model("hidden_state", {1, 2, 4, 8}, 2, /*fan_out=*/2);
-    EXPECT_FALSE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_FALSE(run_pass(model));
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
 }
 
@@ -129,7 +137,7 @@ TEST_F(DuplicateSharedKVConcatTest, NoOp_NonSDPAConsumer) {
     auto model = std::make_shared<ov::Model>(
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(reshape), std::make_shared<ov::op::v0::Result>(reshape)},
         ov::ParameterVector{kv, current});
-    EXPECT_FALSE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_FALSE(run_pass(model));
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
 }
 
@@ -140,7 +148,7 @@ TEST_F(DuplicateSharedKVConcatTest, MHA_FanOut3) {
     auto model = build_fanout_model("past_key_values.0.key", {1, 2, 4, 8}, 2, /*fan_out=*/3);
     const auto kv_param = model->get_parameters()[0];
 
-    EXPECT_TRUE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_TRUE(run_pass(model));
 
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 3u);
 
@@ -166,7 +174,7 @@ TEST_F(DuplicateSharedKVConcatTest, GQA_FanOut3) {
     auto model = build_fanout_model("past_key_values.0.key", {1, 2, 4, 8}, 2, /*fan_out=*/3, /*with_gqa=*/true);
     const auto kv_param = model->get_parameters()[0];
 
-    EXPECT_TRUE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_TRUE(run_pass(model));
 
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 3u);
     EXPECT_EQ(count_ops<ov::op::v0::Unsqueeze>(model), 3u);
@@ -203,7 +211,7 @@ TEST_F(DuplicateSharedKVConcatTest, Integration_SplitThenDuplicate) {
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
 
     // Step 2: duplicate.
-    EXPECT_TRUE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_TRUE(run_pass(model));
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 2u);
 
     std::vector<std::shared_ptr<ov::op::v0::Concat>> concats;
@@ -270,7 +278,7 @@ TEST_F(DuplicateSharedKVConcatTest, WithConvertInputs_ClonesHaveIndependentConve
     auto model = build_fanout_model_with_convert("past_key_values.0.key", {1, 2, 4, 8}, 2, /*fan_out=*/3);
     const auto kv_param = model->get_parameters()[0];
 
-    EXPECT_TRUE(DuplicateSharedKVConcat().run_on_model(model));
+    EXPECT_TRUE(run_pass(model));
 
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 3u);
     EXPECT_EQ(count_ops<ov::op::v0::Convert>(model), 3u);  // cloned, not shared

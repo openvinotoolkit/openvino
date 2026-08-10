@@ -1256,7 +1256,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
     // L13/L14 KV).
     if ((prefill_attn_hfa || prefill_attn_pyramid) && !m_is_embedding) {
-        if (ov::npuw::pass::DuplicateSharedKVConcat().run_on_model(prefill_model)) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
+        if (rewr.run_on_model(prefill_model)) {
             LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
         }
     }

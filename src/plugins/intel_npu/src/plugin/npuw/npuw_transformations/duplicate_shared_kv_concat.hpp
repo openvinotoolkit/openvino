@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace npuw {
@@ -43,10 +43,10 @@ namespace pass {
  * cross-subgraph pass-through outputs on the producer subgraph and mismatching
  * the output count expected by HFA tile compilation.
  */
-class DuplicateSharedKVConcat : public ov::pass::ModelPass {
+class DuplicateSharedKVConcat : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("npuw::pass::DuplicateSharedKVConcat");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("npuw::pass::DuplicateSharedKVConcat");
+    DuplicateSharedKVConcat();
 };
 
 }  // namespace pass

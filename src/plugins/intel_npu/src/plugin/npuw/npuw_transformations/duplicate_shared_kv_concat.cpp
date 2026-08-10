@@ -5,7 +5,6 @@
 #include "duplicate_shared_kv_concat.hpp"
 
 #include <algorithm>
-#include <optional>
 #include <vector>
 
 #include "../logging.hpp"
@@ -18,6 +17,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
 namespace npuw {
@@ -68,56 +70,6 @@ struct KVBroadcastChain {
     std::shared_ptr<ov::op::v1::Reshape> reshape;      // fan-out root
 };
 
-// Try to match the pattern ending at `node`:
-//
-//   Concat(Parameters…, current_KV)
-//       → [Unsqueeze] → [Broadcast] → Reshape  [fan-out > 1]
-//
-// Both Unsqueeze and Broadcast are optional (present in GQA models to expand
-// K/V heads; absent in MHA models where Q/K/V head counts already match).
-std::optional<KVBroadcastChain> try_match(const std::shared_ptr<ov::Node>& node) {
-    auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
-    if (!reshape || reshape->output(0).get_target_inputs().size() <= 1)
-        return std::nullopt;
-
-    // Guard: all consumers must be SDPA-related ops (non-decomposed SDPA or decomposed MatMul).
-    // This prevents the pass from firing on unrelated fan-out Reshape nodes that happen to
-    // have past-KV-named parameters upstream.
-    for (const auto& ti : reshape->output(0).get_target_inputs()) {
-        auto* consumer = ti.get_node();
-        if (!ov::is_type<ov::op::v13::ScaledDotProductAttention>(consumer) &&
-            !ov::is_type<ov::op::v0::MatMul>(consumer))
-            return std::nullopt;
-    }
-
-    KVBroadcastChain chain;
-    chain.reshape = reshape;
-
-    std::shared_ptr<ov::Node> cur = reshape->get_input_node_shared_ptr(0);
-
-    if (ov::is_type<ov::op::v1::Broadcast>(cur) || ov::is_type<ov::op::v3::Broadcast>(cur)) {
-        chain.broadcast = cur;
-        cur = cur->get_input_node_shared_ptr(0);
-    }
-
-    if (auto unsq = ov::as_type_ptr<ov::op::v0::Unsqueeze>(cur)) {
-        chain.unsqueeze = unsq;
-        cur = cur->get_input_node_shared_ptr(0);
-    }
-
-    auto concat = ov::as_type_ptr<ov::op::v0::Concat>(cur);
-    if (!concat || !has_param_past_inputs(concat))
-        return std::nullopt;
-
-    chain.concat = concat;
-
-    chain.converts.resize(concat->get_input_size());
-    for (size_t i = 0; i < concat->get_input_size(); ++i)
-        chain.converts[i] = ov::as_type_ptr<ov::op::v0::Convert>(concat->get_input_node_shared_ptr(i));
-
-    return chain;
-}
-
 // Clone the Concat→[Unsqueeze]→[Broadcast]→Reshape chain for every consumer
 // beyond the first.  The first consumer keeps the original chain.
 void duplicate_for_extra_consumers(const KVBroadcastChain& chain) {
@@ -166,24 +118,66 @@ void duplicate_for_extra_consumers(const KVBroadcastChain& chain) {
 
 }  // namespace
 
-bool DuplicateSharedKVConcat::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool changed = false;
-    const auto ops = model->get_ordered_ops();
-    for (const auto& node : ops) {
-        auto chain_opt = try_match(node);
-        if (!chain_opt)
-            continue;
+DuplicateSharedKVConcat::DuplicateSharedKVConcat() {
+    namespace opp = ov::pass::pattern;
 
-        const size_t fan_out = chain_opt->reshape->output(0).get_target_inputs().size();
-        LOG_DEBUG("DuplicateSharedKVConcat: Reshape \"" << node->get_friendly_name() << "\" fan-out=" << fan_out
-                                                        << " — duplicating KV broadcast chain for " << (fan_out - 1)
-                                                        << " extra consumer(s)");
+    // Pattern: Concat(past-KV params…, current_KV)
+    //              → [optional Unsqueeze]
+    //              → [optional Broadcast (v1 or v3)]
+    //              → Reshape  ← anchored here; predicate checks fan-out and consumer types
+    auto p_concat = opp::wrap_type<ov::op::v0::Concat>();
+    auto p_unsqueeze = opp::optional<ov::op::v0::Unsqueeze>({p_concat, opp::any_input()});
+    auto p_broadcast = opp::optional<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({p_unsqueeze, opp::any_input()});
+    auto p_reshape =
+        opp::wrap_type<ov::op::v1::Reshape>({p_broadcast, opp::any_input()}, [](const ov::Output<ov::Node>& output) {
+            const auto& targets = output.get_target_inputs();
+            if (targets.size() <= 1)
+                return false;
+            for (const auto& ti : targets) {
+                auto* n = ti.get_node();
+                if (!ov::is_type<ov::op::v0::MatMul>(n) && !ov::is_type<ov::op::v13::ScaledDotProductAttention>(n))
+                    return false;
+            }
+            return true;
+        });
 
-        duplicate_for_extra_consumers(*chain_opt);
-        changed = true;
-    }
+    // Note: Use [=] to keep pattern nodes alive in the callback.
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& vm = m.get_pattern_value_map();
 
-    return changed;
+        auto matched_concat = ov::as_type_ptr<ov::op::v0::Concat>(vm.at(p_concat).get_node_shared_ptr());
+        if (!matched_concat || !has_param_past_inputs(matched_concat))
+            return false;
+
+        KVBroadcastChain chain;
+        chain.reshape = ov::as_type_ptr<ov::op::v1::Reshape>(vm.at(p_reshape).get_node_shared_ptr());
+        chain.concat = matched_concat;
+
+        // opp::optional nodes are absent from vm when not matched (pass-through case).
+        // Walk backward from Reshape to detect them instead of using vm.at().
+        {
+            std::shared_ptr<ov::Node> cur = chain.reshape->get_input_node_shared_ptr(0);
+            if (ov::is_type<ov::op::v1::Broadcast>(cur) || ov::is_type<ov::op::v3::Broadcast>(cur)) {
+                chain.broadcast = cur;
+                cur = cur->get_input_node_shared_ptr(0);
+            }
+            chain.unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(cur);
+        }
+
+        chain.converts.resize(matched_concat->get_input_size());
+        for (size_t i = 0; i < matched_concat->get_input_size(); ++i)
+            chain.converts[i] = ov::as_type_ptr<ov::op::v0::Convert>(matched_concat->get_input_node_shared_ptr(i));
+
+        const size_t fan_out = chain.reshape->output(0).get_target_inputs().size();
+        LOG_DEBUG("DuplicateSharedKVConcat: Reshape \""
+                  << chain.reshape->get_friendly_name() << "\" fan-out=" << fan_out
+                  << " — duplicating KV broadcast chain for " << (fan_out - 1) << " extra consumer(s)");
+
+        duplicate_for_extra_consumers(chain);
+        return true;
+    };
+
+    register_matcher(std::make_shared<opp::Matcher>(p_reshape, "DuplicateSharedKVConcat"), std::move(callback));
 }
 
 }  // namespace pass
