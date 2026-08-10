@@ -18,6 +18,8 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
+constexpr const char* kTokenTypeIds = ov::npuw::util::kTokenTypeIdsParamName;
+
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
@@ -93,10 +95,13 @@ public:
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_token_type_ids = node_to_output.at(token_type_ids).get_node_shared_ptr();
-            if (matched_token_type_ids->output(0).get_names().count(std::string(ov::npuw::token_type_ids_name)) == 0) {
+            if (matched_token_type_ids->output(0).get_names().count(std::string(kTokenTypeIds)) == 0) {
                 return false;
             }
             auto matched_causal_or_vision = node_to_output.at(branch_causal_or_vision).get_node_shared_ptr();
+            // NB: `BitwiseOr` is not listed in `ov::op::util::is_commutative()`, so the matcher never
+            //     permutes its arguments. input(1) is therefore guaranteed to be the matched vision
+            //     block and input(0) the Causal/Sliding Causal mask.
             auto zero = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, false);
             matched_causal_or_vision->input(1).replace_source_output(zero);
             return true;
@@ -140,7 +145,7 @@ public:
         auto callback = [=](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
             auto matched_token_type_ids = node_to_output.at(token_type_ids).get_node_shared_ptr();
-            if (matched_token_type_ids->output(0).get_names().count(std::string(ov::npuw::token_type_ids_name)) == 0) {
+            if (matched_token_type_ids->output(0).get_names().count(std::string(kTokenTypeIds)) == 0) {
                 return false;
             }
 
@@ -164,42 +169,69 @@ public:
 }  // anonymous namespace
 
 bool ov::npuw::RemoveTokenTypeIds::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    if (ov::npuw::util::has_input(model, token_type_ids_name) == false) {
+    if (ov::npuw::util::has_input(model, kTokenTypeIds) == false) {
         return false;
     }
     // For Gemma3 generate model, we need to remove blockwise mask created from `token_type_ids` parameter
-    // as well as second subgraph from `token_type_ids` parameter, that is used to create a reshape for the
+    // as well as `shape_of` subgraph from `token_type_ids` parameter, that is used to create a reshape for the
     // `attention_mask`. These transformations are needed to avoid accuracy issues due to incorrect interaction
     // of created vision mask with static shapes and different paddings and to allow full removal of
     // `token_type_ids` parameter from the model to skip unnecessary operations with it.
     // As `token_type_ids` isn't used in the generate stage, it is safe to remove the subgraphs.
     // However, components and connections in `attention_mask` subgraph should be fully preserved.
     //
-    // Apply both passes independently and require BOTH to succeed before removing parameter.
+    // The two patterns are independent. Note that each pattern matches once per attention branch
+    // (local and global), and `Manager::run_passes()` only reports whether a pattern fired at least once.
+    // So, to check that `token_type_ids` is fully disconnected, we need to check that it has no consumers left.
     ov::pass::Manager vision_manager("remove-token-type-ids-vision");
     vision_manager.set_per_pass_validation(false);
     vision_manager.register_pass<RemoveTTIVisionSubgraph>();
-    auto vision_removed = vision_manager.run_passes(model);
+    const auto vision_matched = vision_manager.run_passes(model);
 
     ov::pass::Manager shapeof_manager("remove-token-type-ids-shapeof");
     shapeof_manager.set_per_pass_validation(false);
     shapeof_manager.register_pass<RemoveTTIShapeOfSubgraph>();
-    auto shapeof_removed = shapeof_manager.run_passes(model);
+    const auto shapeof_matched = shapeof_manager.run_passes(model);
 
-    bool both_subgraphs_removed = vision_removed && shapeof_removed;
-    
-    if (both_subgraphs_removed) {
-        LOG_INFO("RemoveTokenTypeIds: both vision and shapeof subgraphs were found and removed. Removing `token_type_ids` parameter.");
-        auto token_type_ids_param =
-            ov::as_type_ptr<ov::op::v0::Parameter>(model->input(token_type_ids_name).get_node_shared_ptr());
-        model->remove_parameter(token_type_ids_param);
-        model->validate_nodes_and_infer_types();
-    } else if (vision_removed || shapeof_removed) {
-        LOG_WARN("RemoveTokenTypeIds: only partial subgraphs removed (vision=%d, shapeof=%d). Parameter not removed.",
-                 vision_removed, shapeof_removed);
-    } else {
-        LOG_WARN("RemoveTokenTypeIds: `token_type_ids` exists but subgraphs were not found in generate model.");
+    if (!vision_matched && !shapeof_matched) {
+        LOG_WARN("RemoveTokenTypeIds: `" << kTokenTypeIds
+                                         << "` exists, but none of the known subgraphs was found in the"
+                                            " generate model. The parameter is kept.");
+        return false;
     }
 
-    return both_subgraphs_removed;
+    auto token_type_ids_param =
+        ov::as_type_ptr<ov::op::v0::Parameter>(model->input(kTokenTypeIds).get_node_shared_ptr());
+    NPUW_ASSERT(token_type_ids_param);
+
+    // Checking that after applying both the patterns, all consumers of `token_type_ids` were dropped.
+    // Otherwise, the model is left partially transformed, thus in an undefined state.
+    // Hitting this means the patterns above need to be extended to cover the reported consumer(s).
+    const auto remaining_consumers = token_type_ids_param->get_output_target_inputs(0);
+    if (!remaining_consumers.empty()) {
+        std::string consumers;
+        for (const auto& consumer : remaining_consumers) {
+            consumers += " " + consumer.get_node()->get_friendly_name() + " (" +
+                         std::string(consumer.get_node()->get_type_name()) + ")";
+        }
+        OPENVINO_THROW("RemoveTokenTypeIds: the known subgraphs were rewritten (vision ",
+                       vision_matched ? "matched" : "didn't match",
+                       ", shapeof ",
+                       shapeof_matched ? "matched" : "didn't match",
+                       "), but `",
+                       kTokenTypeIds,
+                       "` still has ",
+                       remaining_consumers.size(),
+                       " unexpected consumer(s):",
+                       consumers,
+                       ". The model is left partially transformed, and left in "
+                       " an undefined state, the pass cannot continue.");
+    }
+
+    LOG_INFO("RemoveTokenTypeIds: `" << kTokenTypeIds << "` is fully disconnected (vision "
+                                     << (vision_matched ? "matched" : "didn't match") << ", shapeof "
+                                     << (shapeof_matched ? "matched" : "didn't match") << "). Removing the parameter.");
+    model->remove_parameter(token_type_ids_param);
+    model->validate_nodes_and_infer_types();
+    return true;
 }

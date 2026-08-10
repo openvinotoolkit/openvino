@@ -2,607 +2,458 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/remove_token_type_ids.hpp"
+
 #include <gtest/gtest.h>
 
-#include "npuw_transformations/remove_token_type_ids.hpp"
-#include "openvino/op/ops.hpp"
-#include "openvino/opsets/opset13.hpp"
+#include <memory>
+#include <numeric>
+#include <set>
+#include <string>
+#include <vector>
 
-// Tests for ov::npuw::RemoveTokenTypeIds pass.
+#include "openvino/op/ops.hpp"
+
+// Tests for ov::npuw::RemoveTokenTypeIds.
 //
-// This pass removes two separate subgraph patterns from Gemma-3 generate models:
+// The pass detaches two independent groups of `token_type_ids` (TTI) consumers from a Gemma-3
+// generate model and then drops the parameter itself:
 //
-// 1. RemoveTTIVisionSubgraph:
-//    Matches a complex pattern where token_type_ids feeds into a vision mask
-//    (blockwise attention for image tokens). The pattern has two branches
-//    (local and global attention), each with:
-//      token_type_ids -> ... -> Equal -> ... -> Select -> Equal
-//      (from token_type_ids reshape) -> ... -> Gather1 & Gather2 -> Equal chains
-//      -> BitwiseAnd (vision_block)
-//      -> BitwiseOr(causal_mask, vision_block)
+// 1. RemoveTTIVisionSubgraph - the blockwise vision mask. Two chains start at TTI and meet in
+//    `BitwiseAnd`, which is OR-ed into the causal (or sliding causal) mask, once per attention
+//    branch (global and local):
 //
-//    The callback replaces each BitwiseOr's input[1] (vision_block) with Constant(false).
+//      subg1: TTI -> Equal -> Pad -> Slice -> BitwiseNot -> BitwiseAnd -> Convert -> CumSum
+//                 -> Add -> Convert -> Select -> ShapeOf -> Gather -> Less
+//                 -> per branch: Select -> Equal
+//      subg2: TTI -> Reshape -> per branch: two Gather -> Reshape -> Reshape -> Equal chains
+//                 (only the second one carries a Select) -> BitwiseAnd
 //
-// 2. RemoveTTIShapeOfSubgraph:
-//    Matches a ShapeOf chain from token_type_ids that feeds a Reshape for
-//    attention_mask. The callback redirects tti_shape_of_2->input(0) to use
-//    the indices from an attention_mask Gather instead, cleanly disconnecting TTI.
+//      vision_block = BitwiseAnd(subg2_branch, subg1_branch)
+//      merge point  = BitwiseOr(causal_mask, vision_block)
 //
-// After both passes, the token_type_ids parameter is removed.
+//    The callback re-points each `BitwiseOr` input[1] at `Constant(false)`, which leaves the causal
+//    mask untouched and drops the last consumer of the whole vision subgraph.
+//
+// 2. RemoveTTIShapeOfSubgraph - a ShapeOf chain that supplies the target shape for a `Reshape`
+//    inside the `attention_mask` chain:
+//
+//      TTI -> ShapeOf -> Gather -> Less -> Select -> Convert -> Add -> ShapeOf ---+
+//      attention_mask -> Convert -> Reshape -> Gather -> Reshape -> Reshape <-----+
+//
+//    Here the subgraph cannot simply be cut, so the callback re-points the second ShapeOf at the
+//    `Gather` indices instead - which is what a model without TTI reshapes against. The
+//    `attention_mask` chain itself must come out untouched.
+//
+// Removal contract: the parameter is dropped if and only if nothing reads it anymore. Either pattern
+// firing on its own is enough, as long as it accounted for every consumer. If a consumer survives the
+// rewrites the pass throws, because by then the graph is half-transformed and returning it would
+// silently corrupt the generated output.
 
 namespace {
 
 using namespace ov;
 using namespace ov::op;
-using namespace ov::opset13;
 
-// =========================================================================
-// Vision Subgraph Model Builder
-// =========================================================================
-//
-// This model matches the RemoveTTIVisionSubgraph pattern with two branches
-// (global and local attention). Each branch independently transforms
-// token_type_ids into vision_block masks fed to BitwiseOr nodes.
-//
-// Topology:
-//   token_type_ids [batch, seq]
-//     |
-//     +---> Subg1 (blockwise mask from TTI)
-//     |       Equal -> Pad -> Slice -> BitwiseNot
-//     |       Union with BitwiseAnd -> Convert -> CumSum -> Add -> Convert -> Select -> ShapeOf -> Gather -> Less
-//     |       Creates two paths (branches A & B) with:
-//     |         Select -> Equal -> BitwiseAnd(branch_select, Equal) = subg1_branch_equal
-//     |
-//     +---> Subg2 (index reshape from TTI shape)
-//            Reshape -> Gather[0] -> ... -> Gather[1] -> ... -> BitwiseAnd = vision_block (for each branch)
-//
-//   Merge points (A and B):
-//     causal_mask_A -> BitwiseOr(causal_A, vision_block_A) <- vision_block_A
-//     causal_mask_B -> BitwiseOr(causal_B, vision_block_B) <- vision_block_B
-//
-// After RemoveTTIVisionSubgraph:
-//   BitwiseOr inputs[1] are both replaced with Constant(false)
+constexpr size_t SEQ = 8;
+constexpr int64_t SEQ_I64 = static_cast<int64_t>(SEQ);
 
-static std::shared_ptr<ov::Model> make_vision_subgraph_model() {
-    // token_type_ids: [batch, seq_len]
-    auto token_type_ids = std::make_shared<v0::Parameter>(element::i64, Shape{1, 128});
-    token_type_ids->set_friendly_name("token_type_ids");
-    token_type_ids->output(0).set_names({"token_type_ids"});
+std::shared_ptr<v0::Parameter> make_token_type_ids() {
+    auto tti = std::make_shared<v0::Parameter>(element::i64, Shape{1, SEQ});
+    tti->set_friendly_name("token_type_ids");
+    tti->output(0).set_names({"token_type_ids"});
+    return tti;
+}
 
-    // ======== Subgraph 1: blockwise vision mask (shared part up to branching) ========
+std::shared_ptr<v0::Parameter> make_named_param(const element::Type& type,
+                                                const Shape& shape,
+                                                const std::string& name) {
+    auto param = std::make_shared<v0::Parameter>(type, shape);
+    param->set_friendly_name(name);
+    param->output(0).set_names({name});
+    return param;
+}
 
-    // Equal(token_type_ids, constant) -> bool
-    auto equal_const = v0::Constant::create(element::i64, Shape{1, 1}, {2});
-    auto subg1_equal = std::make_shared<v1::Equal>(token_type_ids, equal_const);
+// Appends the vision-mask subgraph matched by RemoveTTIVisionSubgraph: one shared blockwise-mask
+// chain (subg1) and one shared Reshape chain (subg2), both branching into a global and a local
+// attention path that each merge into BitwiseOr(causal_mask, vision_block).
+void add_vision_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector& params, ResultVector& results) {
+    const auto zeros = v0::Constant::create(element::i64, Shape{}, {0});
 
-    // Pad(equal, pads_begin, pads_end, pad_value)
-    auto pads_begin = v0::Constant::create(element::i64, Shape{2}, {0, 1});
-    auto pads_end = v0::Constant::create(element::i64, Shape{2}, {0, 0});
-    auto pad_value = v0::Constant::create(element::boolean, Shape{}, {false});
-    auto subg1_pad = std::make_shared<v12::Pad>(subg1_equal, pads_begin, pads_end, pad_value,
-                                                 ov::op::PadMode::CONSTANT);
-
-    // Slice(pad, start, stop, step, axes)
-    auto slice_start = v0::Constant::create(element::i64, Shape{1}, {1});
-    auto slice_stop = v0::Constant::create(element::i64, Shape{1}, {129});
-    auto slice_step = v0::Constant::create(element::i64, Shape{1}, {1});
-    auto slice_axes = v0::Constant::create(element::i64, Shape{1}, {1});
-    auto subg1_slice = std::make_shared<v8::Slice>(subg1_pad, slice_start, slice_stop, slice_step, slice_axes);
-
-    // BitwiseNot(slice)
+    // ---- subg1: blockwise mask, shared by both branches up to `Less` ----
+    auto subg1_equal = std::make_shared<v1::Equal>(tti, v0::Constant::create(element::i64, Shape{1, 1}, {1}));
+    auto subg1_pad = std::make_shared<v12::Pad>(subg1_equal,
+                                                v0::Constant::create(element::i64, Shape{2}, {0, 1}),
+                                                v0::Constant::create(element::i64, Shape{2}, {0, 0}),
+                                                v0::Constant::create(element::boolean, Shape{}, {false}),
+                                                PadMode::CONSTANT);
+    auto subg1_slice = std::make_shared<v8::Slice>(subg1_pad,
+                                                   v0::Constant::create(element::i64, Shape{1}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{1}, {SEQ}),
+                                                   v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                   v0::Constant::create(element::i64, Shape{1}, {1}));
     auto subg1_bw_not = std::make_shared<v13::BitwiseNot>(subg1_slice);
-
-    // BitwiseAnd(equal, bw_not)
     auto subg1_bw_and = std::make_shared<v13::BitwiseAnd>(subg1_equal, subg1_bw_not);
-
-    // Convert(bw_and) -> i32
     auto subg1_convert = std::make_shared<v0::Convert>(subg1_bw_and, element::i32);
-
-    // CumSum(convert, axis)
-    auto cumsum_axis = v0::Constant::create(element::i64, Shape{}, {1});
-    auto subg1_cumsum = std::make_shared<v0::CumSum>(subg1_convert, cumsum_axis);
-
-    // Add(cumsum, const)
-    auto add_const = v0::Constant::create(element::i32, Shape{1, 1}, {-1});
-    auto subg1_add = std::make_shared<v1::Add>(subg1_cumsum, add_const);
-
-    // Convert(add) -> i64
+    auto subg1_cumsum = std::make_shared<v0::CumSum>(subg1_convert, v0::Constant::create(element::i64, Shape{}, {1}));
+    auto subg1_add = std::make_shared<v1::Add>(subg1_cumsum, v0::Constant::create(element::i32, Shape{1, 1}, {-1}));
     auto subg1_convert_add = std::make_shared<v0::Convert>(subg1_add, element::i64);
-
-    // Select(equal, convert_add, broadcast_val)
-    auto broadcast_val = v0::Constant::create(element::i64, Shape{1, 1}, {0});
-    auto subg1_select = std::make_shared<v1::Select>(subg1_equal, subg1_convert_add, broadcast_val);
-
-    // ShapeOf(select)
+    auto subg1_select = std::make_shared<v1::Select>(subg1_equal, subg1_convert_add, zeros);
     auto subg1_shape_of = std::make_shared<v3::ShapeOf>(subg1_select, element::i64);
+    auto subg1_gather = std::make_shared<v8::Gather>(subg1_shape_of,
+                                                     v0::Constant::create(element::i64, Shape{}, {1}),
+                                                     v0::Constant::create(element::i32, Shape{}, {0}));
 
-    // Gather(shape_of, indices, axis)
-    auto gather_indices = v0::Constant::create(element::i64, Shape{}, {1});
-    auto gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
-    auto subg1_gather = std::make_shared<v8::Gather>(subg1_shape_of, gather_indices, gather_axis);
-
-    // Less(range, gather) - shared between both branches
-    auto range_input = std::make_shared<v0::Parameter>(element::i64, Shape{1, 1, 1, 128});
-    range_input->set_friendly_name("range_input");
-    range_input->output(0).set_names({"range_input"});
+    auto range_input = make_named_param(element::i64, Shape{1, 1, 1, SEQ}, "range_input");
     auto subg1_less = std::make_shared<v1::Less>(range_input, subg1_gather);
+    params.push_back(range_input);
 
-    // ======== Branch A (global attention) ========
+    // ---- subg2: Reshape of `token_type_ids`, shared by both branches ----
+    auto subg2_reshape = std::make_shared<v1::Reshape>(tti, v0::Constant::create(element::i64, Shape{1}, {SEQ}), false);
 
-    auto select_input_a = std::make_shared<v0::Parameter>(element::i64, Shape{1, 1, 1, 128});
-    select_input_a->set_friendly_name("select_input_a");
-    select_input_a->output(0).set_names({"select_input_a"});
-    auto select_zeros_a = v0::Constant::create(element::i64, Shape{}, {0});
-    auto branch_a_select = std::make_shared<v1::Select>(subg1_less, select_input_a, select_zeros_a);
+    std::vector<int64_t> iota_values(SEQ);
+    std::iota(iota_values.begin(), iota_values.end(), 0);
 
-    auto image_group_ids_a = std::make_shared<v0::Parameter>(element::i64, Shape{1, 1, 128, 1});
-    image_group_ids_a->set_friendly_name("image_group_ids_a");
-    image_group_ids_a->output(0).set_names({"image_group_ids_a"});
-    auto branch_a_equal = std::make_shared<v1::Equal>(image_group_ids_a, branch_a_select);
+    const auto row_shape = v0::Constant::create(element::i64, Shape{2}, {int64_t{1}, SEQ_I64});
+    const auto col_shape = v0::Constant::create(element::i64, Shape{4}, {int64_t{1}, int64_t{1}, int64_t{1}, SEQ_I64});
+    const auto group_ids = v0::Constant::create(element::i64, Shape{1, 1, SEQ, 1}, iota_values);
+    const auto gather_indices = v0::Constant::create(element::i64, Shape{SEQ}, iota_values);
+    const auto gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
 
-    auto is_image_block_a = std::make_shared<v0::Parameter>(element::boolean, Shape{1, 1, 128, 128});
-    is_image_block_a->set_friendly_name("is_image_block_a");
-    is_image_block_a->output(0).set_names({"is_image_block_a"});
-    auto vision_block_a = std::make_shared<v13::BitwiseAnd>(is_image_block_a, branch_a_equal);
+    // ---- one path per attention branch ----
+    for (const char* branch : {"global", "local"}) {
+        const std::string suffix = std::string("_") + branch;
 
-    // ======== Branch B (local/sliding window attention) ========
+        auto select_input = make_named_param(element::i64, Shape{1, 1, 1, SEQ}, "select_input" + suffix);
+        auto branch_select = std::make_shared<v1::Select>(subg1_less, select_input, zeros);
+        auto image_group_ids = make_named_param(element::i64, Shape{1, 1, SEQ, 1}, "image_group_ids" + suffix);
+        auto branch_equal = std::make_shared<v1::Equal>(image_group_ids, branch_select);
 
-    auto select_input_b = std::make_shared<v0::Parameter>(element::i64, Shape{1, 1, 1, 128});
-    select_input_b->set_friendly_name("select_input_b");
-    select_input_b->output(0).set_names({"select_input_b"});
-    auto select_zeros_b = v0::Constant::create(element::i64, Shape{}, {0});
-    auto branch_b_select = std::make_shared<v1::Select>(subg1_less, select_input_b, select_zeros_b);
+        // First subg2 chain: Gather -> Reshape -> Reshape -> Equal.
+        auto gather1 = std::make_shared<v8::Gather>(subg2_reshape, gather_indices, gather_axis);
+        auto gather1_reshape = std::make_shared<v1::Reshape>(gather1, row_shape, false);
+        auto gather1_reshape2 = std::make_shared<v1::Reshape>(gather1_reshape, col_shape, false);
+        auto gather1_equal = std::make_shared<v1::Equal>(gather1_reshape2, group_ids);
 
-    auto image_group_ids_b = std::make_shared<v0::Parameter>(element::i64, Shape{1, 1, 128, 1});
-    image_group_ids_b->set_friendly_name("image_group_ids_b");
-    image_group_ids_b->output(0).set_names({"image_group_ids_b"});
-    auto branch_b_equal = std::make_shared<v1::Equal>(image_group_ids_b, branch_b_select);
+        // Second subg2 chain: same, but with a `Select` before the `Equal`.
+        auto gather2 = std::make_shared<v8::Gather>(subg2_reshape, gather_indices, gather_axis);
+        auto gather2_reshape = std::make_shared<v1::Reshape>(gather2, row_shape, false);
+        auto gather2_reshape2 = std::make_shared<v1::Reshape>(gather2_reshape, col_shape, false);
+        auto image_token_mask = make_named_param(element::boolean, Shape{1, 1, 1, SEQ}, "image_token_mask" + suffix);
+        auto gather2_select = std::make_shared<v1::Select>(image_token_mask, gather2_reshape2, zeros);
+        auto gather2_equal = std::make_shared<v1::Equal>(gather2_select, group_ids);
 
-    auto is_image_block_b = std::make_shared<v0::Parameter>(element::boolean, Shape{1, 1, 128, 128});
-    is_image_block_b->set_friendly_name("is_image_block_b");
-    is_image_block_b->output(0).set_names({"is_image_block_b"});
-    auto vision_block_b = std::make_shared<v13::BitwiseAnd>(is_image_block_b, branch_b_equal);
+        auto subg2_bw_and = std::make_shared<v13::BitwiseAnd>(gather1_equal, gather2_equal);
+        auto vision_block = std::make_shared<v13::BitwiseAnd>(subg2_bw_and, branch_equal);
+        vision_block->set_friendly_name("vision_block" + suffix);
 
-    // ======== Subgraph 2: index reshape from token_type_ids shape (shared part) ========
+        auto causal_mask = make_named_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "causal_mask" + suffix);
+        auto causal_or_vision = std::make_shared<v13::BitwiseOr>(causal_mask, vision_block);
+        causal_or_vision->set_friendly_name("causal_or_vision" + suffix);
 
-    // ShapeOf(token_type_ids)
-    auto subg2_shape_of = std::make_shared<v3::ShapeOf>(token_type_ids, element::i64);
-
-    // Gather(shape_of, index, axis)
-    auto subg2_gather_idx = v0::Constant::create(element::i64, Shape{}, {1});
-    auto subg2_gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
-    auto subg2_gather = std::make_shared<v8::Gather>(subg2_shape_of, subg2_gather_idx, subg2_gather_axis);
-
-    // Less(range, gather)
-    auto subg2_range = std::make_shared<v0::Parameter>(element::i64, Shape{1, 128});
-    subg2_range->set_friendly_name("subg2_range");
-    subg2_range->output(0).set_names({"subg2_range"});
-    auto subg2_less = std::make_shared<v1::Less>(subg2_range, subg2_gather);
-
-    // Select(less, position_data, zeros)
-    auto subg2_pos_data = std::make_shared<v0::Parameter>(element::i64, Shape{1, 128});
-    subg2_pos_data->set_friendly_name("subg2_pos_data");
-    subg2_pos_data->output(0).set_names({"subg2_pos_data"});
-    auto subg2_zeros = v0::Constant::create(element::i64, Shape{}, {0});
-    auto subg2_select = std::make_shared<v1::Select>(subg2_less, subg2_pos_data, subg2_zeros);
-
-    // Convert(select) -> i32
-    auto subg2_convert = std::make_shared<v0::Convert>(subg2_select, element::i32);
-
-    // Add(convert, const)
-    auto subg2_add_const = v0::Constant::create(element::i32, Shape{1, 1}, {1});
-    auto subg2_add = std::make_shared<v1::Add>(subg2_convert, subg2_add_const);
-
-    // ShapeOf(add) -> shared, feeds two Reshape nodes (one per branch)
-    auto subg2_shape_of_2 = std::make_shared<v3::ShapeOf>(subg2_add, element::i32);
-
-    // Branch A reshape
-    auto reshape_data_a = std::make_shared<v0::Parameter>(element::boolean, Shape{128});
-    reshape_data_a->set_friendly_name("reshape_data_a");
-    reshape_data_a->output(0).set_names({"reshape_data_a"});
-    auto subg2_reshape_a = std::make_shared<v1::Reshape>(reshape_data_a, subg2_shape_of_2, false);
-
-    // Branch B reshape
-    auto reshape_data_b = std::make_shared<v0::Parameter>(element::boolean, Shape{128});
-    reshape_data_b->set_friendly_name("reshape_data_b");
-    reshape_data_b->output(0).set_names({"reshape_data_b"});
-    auto subg2_reshape_b = std::make_shared<v1::Reshape>(reshape_data_b, subg2_shape_of_2, false);
-
-    // ======== Merge point A (global attention) ========
-
-    auto causal_mask_a = std::make_shared<v0::Parameter>(element::boolean, Shape{1, 1, 128, 128});
-    causal_mask_a->set_friendly_name("causal_mask_a");
-    causal_mask_a->output(0).set_names({"causal_mask_a"});
-    auto bw_or_a = std::make_shared<v13::BitwiseOr>(causal_mask_a, vision_block_a);
-
-    auto true_mask_a = std::make_shared<v0::Parameter>(element::boolean, Shape{});
-    true_mask_a->set_friendly_name("true_mask_a");
-    true_mask_a->output(0).set_names({"true_mask_a"});
-    auto bw_and_a = std::make_shared<v13::BitwiseAnd>(true_mask_a, bw_or_a);
-
-    auto final_bw_and_a = std::make_shared<v13::BitwiseAnd>(bw_and_a, subg2_reshape_a);
-
-    // ======== Merge point B (local/sliding attention) ========
-
-    auto causal_mask_b = std::make_shared<v0::Parameter>(element::boolean, Shape{1, 1, 128, 128});
-    causal_mask_b->set_friendly_name("causal_mask_b");
-    causal_mask_b->output(0).set_names({"causal_mask_b"});
-    auto bw_or_b = std::make_shared<v13::BitwiseOr>(causal_mask_b, vision_block_b);
-
-    auto true_mask_b = std::make_shared<v0::Parameter>(element::boolean, Shape{});
-    true_mask_b->set_friendly_name("true_mask_b");
-    true_mask_b->output(0).set_names({"true_mask_b"});
-    auto bw_and_b = std::make_shared<v13::BitwiseAnd>(true_mask_b, bw_or_b);
-
-    auto final_bw_and_b = std::make_shared<v13::BitwiseAnd>(bw_and_b, subg2_reshape_b);
-
-    // ======== Results ========
-
-    auto result_a = std::make_shared<v0::Result>(final_bw_and_a);
-    auto result_b = std::make_shared<v0::Result>(final_bw_and_b);
-
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{result_a, result_b},
-        ov::ParameterVector{token_type_ids, range_input,
-                            select_input_a, image_group_ids_a, is_image_block_a,
-                            select_input_b, image_group_ids_b, is_image_block_b,
-                            subg2_range, subg2_pos_data, reshape_data_a, reshape_data_b,
-                            causal_mask_a, true_mask_a, causal_mask_b, true_mask_b},
-        "gemma3_tti_subgraph_test");
+        params.insert(params.end(), {select_input, image_group_ids, image_token_mask, causal_mask});
+        results.push_back(std::make_shared<v0::Result>(causal_or_vision));
+    }
 }
 
-// =========================================================================
-// ShapeOf Subgraph Model Builder
-// =========================================================================
-//
-// This model matches the RemoveTTIShapeOfSubgraph pattern.
-// The pattern is where token_type_ids shapes are used to Reshape attention_mask.
-//
-// Topology:
-//   token_type_ids [batch, total_seq]
-//     |
-//     +---> ShapeOf -> Gather[1] -> Less -> Select -> Convert -> Add -> ShapeOf_2
-//                                                                           |
-//   attention_mask [batch, total_seq]                                       |
-//     |                                                                     |
-//     +---> Convert -> Reshape -> Gather -> Reshape -> Reshape ----[Reshape.new_shape]
-//     (indices from Gather become the Reshape shape source)
-//
-// Merge point: BitwiseAnd(prev, Reshape_output)
-//
-// After RemoveTTIShapeOfSubgraph:
-//   Reshape->input(1) (tti_shape_of_2) is redirected to use Gather[1] from attention_mask path
-
-static std::shared_ptr<ov::Model> make_shapeof_subgraph_model() {
-    // token_type_ids: [batch, total_seq]
-    auto token_type_ids = std::make_shared<v0::Parameter>(element::i64, Shape{1, 256});
-    token_type_ids->set_friendly_name("token_type_ids");
-    token_type_ids->output(0).set_names({"token_type_ids"});
-
-    // ======== TTI ShapeOf subgraph ========
-
-    // ShapeOf(token_type_ids)
-    auto tti_shape_of = std::make_shared<v3::ShapeOf>(token_type_ids, element::i64);
-
-    // Gather(shape_of, index=1, axis=0) -> extracts seq_len
-    auto tti_gather_idx = v0::Constant::create(element::i64, Shape{}, {1});
-    auto tti_gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
-    auto tti_gather = std::make_shared<v8::Gather>(tti_shape_of, tti_gather_idx, tti_gather_axis);
-
-    // Less(range_input, gather) -> bool mask
-    auto tti_range = std::make_shared<v0::Parameter>(element::i64, Shape{1, 256});
-    tti_range->set_friendly_name("tti_range");
-    tti_range->output(0).set_names({"tti_range"});
+// Appends the subgraph matched by RemoveTTIShapeOfSubgraph. The `Gather` indices deliberately come
+// from an `Add`: that is the node a TTI-free model reshapes against, and therefore the node the pass
+// is expected to re-point the ShapeOf at.
+void add_shapeof_chain(const std::shared_ptr<v0::Parameter>& tti, ParameterVector& params, ResultVector& results) {
+    auto tti_shape_of = std::make_shared<v3::ShapeOf>(tti, element::i64);
+    auto tti_gather = std::make_shared<v8::Gather>(tti_shape_of,
+                                                   v0::Constant::create(element::i64, Shape{}, {1}),
+                                                   v0::Constant::create(element::i32, Shape{}, {0}));
+    auto tti_range = make_named_param(element::i64, Shape{1, SEQ}, "tti_range");
     auto tti_less = std::make_shared<v1::Less>(tti_range, tti_gather);
-
-    // Select(less, position_data, zeros)
-    auto tti_pos_data = std::make_shared<v0::Parameter>(element::i64, Shape{1, 256});
-    tti_pos_data->set_friendly_name("tti_pos_data");
-    tti_pos_data->output(0).set_names({"tti_pos_data"});
-    auto tti_select_zeros = v0::Constant::create(element::i64, Shape{}, {0});
-    auto tti_select = std::make_shared<v1::Select>(tti_less, tti_pos_data, tti_select_zeros);
-
-    // Convert(select) -> i32
+    auto tti_pos_data = make_named_param(element::i64, Shape{1, SEQ}, "tti_pos_data");
+    auto tti_select =
+        std::make_shared<v1::Select>(tti_less, tti_pos_data, v0::Constant::create(element::i64, Shape{}, {0}));
     auto tti_convert = std::make_shared<v0::Convert>(tti_select, element::i32);
-
-    // Add(convert, const)
-    auto tti_add_const = v0::Constant::create(element::i32, Shape{1, 1}, {1});
-    auto tti_add = std::make_shared<v1::Add>(tti_convert, tti_add_const);
-
-    // ShapeOf(add) -> this is tti_shape_of_2 in the real pattern
+    auto tti_add = std::make_shared<v1::Add>(tti_convert, v0::Constant::create(element::i32, Shape{1, 1}, {1}));
+    tti_add->set_friendly_name("tti_add");
     auto tti_shape_of_2 = std::make_shared<v3::ShapeOf>(tti_add, element::i32);
+    tti_shape_of_2->set_friendly_name("tti_shape_of_2");
 
-    // ======== Attention mask path ========
+    const auto row_shape = v0::Constant::create(element::i64, Shape{2}, {int64_t{1}, SEQ_I64});
 
-    auto attention_mask = std::make_shared<v0::Parameter>(element::boolean, Shape{1, 256});
-    attention_mask->set_friendly_name("attention_mask");
-    attention_mask->output(0).set_names({"attention_mask"});
+    auto attention_mask = make_named_param(element::i64, Shape{1, SEQ}, "attention_mask");
+    auto attn_convert = std::make_shared<v0::Convert>(attention_mask, element::boolean);
+    auto attn_reshape = std::make_shared<v1::Reshape>(attn_convert, row_shape, false);
 
-    // Convert(attention_mask)
-    auto attn_convert = std::make_shared<v0::Convert>(attention_mask, element::f32);
+    auto attn_idx_src = make_named_param(element::i32, Shape{1, SEQ}, "attn_idx_src");
+    auto attn_idx_add = std::make_shared<v1::Add>(attn_idx_src, v0::Constant::create(element::i32, Shape{1, 1}, {0}));
+    attn_idx_add->set_friendly_name("attn_idx_add");
 
-    // Reshape(attention_mask_converted, some_shape)
-    auto attn_reshape_shape = v0::Constant::create(element::i64, Shape{2}, {1, 256});
-    auto attn_reshape = std::make_shared<v1::Reshape>(attn_convert, attn_reshape_shape, false);
+    auto attn_gather =
+        std::make_shared<v8::Gather>(attn_reshape, attn_idx_add, v0::Constant::create(element::i32, Shape{}, {1}));
+    auto attn_reshape_2 = std::make_shared<v1::Reshape>(attn_gather, row_shape, false);
+    auto attn_tti_reshape = std::make_shared<v1::Reshape>(attn_reshape_2, tti_shape_of_2, false);
+    attn_tti_reshape->set_friendly_name("attn_tti_reshape");
 
-    // Gather(reshape, indices=123)  -> extracts indices for later Reshape
-    auto attn_gather_indices = v0::Constant::create(element::i64, Shape{}, {123});
-    auto attn_gather_axis = v0::Constant::create(element::i32, Shape{}, {0});
-    auto attn_gather = std::make_shared<v8::Gather>(attn_reshape, attn_gather_indices, attn_gather_axis);
+    auto preceding_mask = make_named_param(element::boolean, Shape{1, 1, SEQ, SEQ}, "preceding_mask");
+    auto final_and = std::make_shared<v13::BitwiseAnd>(preceding_mask, attn_tti_reshape);
 
-    // Reshape (using tti_shape_of_2 as the shape)
-    auto intermediate_reshape = std::make_shared<v1::Reshape>(attn_gather, tti_shape_of_2, false);
-
-    // Another Reshape to finalize shape
-    auto final_reshape_shape = v0::Constant::create(element::i32, Shape{1}, {256});
-    auto final_reshape = std::make_shared<v1::Reshape>(intermediate_reshape, final_reshape_shape, false);
-
-    // ======== Merge point ========
-
-    // Some preceding mask
-    auto preceding_mask = std::make_shared<v0::Parameter>(element::boolean, Shape{256});
-    preceding_mask->set_friendly_name("preceding_mask");
-    preceding_mask->output(0).set_names({"preceding_mask"});
-
-    // BitwiseAnd(preceding_mask, final_reshape)
-    auto final_and = std::make_shared<v13::BitwiseAnd>(preceding_mask, final_reshape);
-
-    auto result = std::make_shared<v0::Result>(final_and);
-
-    return std::make_shared<ov::Model>(
-        ov::ResultVector{result},
-        ov::ParameterVector{token_type_ids, tti_range, tti_pos_data, attention_mask, preceding_mask},
-        "tti_shapeof_subgraph_test");
+    params.insert(params.end(), {tti_range, tti_pos_data, attention_mask, attn_idx_src, preceding_mask});
+    results.push_back(std::make_shared<v0::Result>(final_and));
 }
 
-static std::shared_ptr<ov::op::v0::Parameter> get_param_by_name(const std::shared_ptr<ov::Model>& model,
-                                                                 const std::string& name) {
-    for (const auto& p : model->get_parameters()) {
-        if (p->get_friendly_name() == name) {
-            return p;
+std::shared_ptr<ov::Model> make_vision_model() {
+    auto tti = make_token_type_ids();
+    ParameterVector params{tti};
+    ResultVector results;
+    add_vision_chain(tti, params, results);
+    return std::make_shared<ov::Model>(results, params, "gemma3_tti_vision");
+}
+
+std::shared_ptr<ov::Model> make_shapeof_model() {
+    auto tti = make_token_type_ids();
+    ParameterVector params{tti};
+    ResultVector results;
+    add_shapeof_chain(tti, params, results);
+    return std::make_shared<ov::Model>(results, params, "gemma3_tti_shapeof");
+}
+
+std::shared_ptr<ov::Model> make_combined_model() {
+    auto tti = make_token_type_ids();
+    ParameterVector params{tti};
+    ResultVector results;
+    add_vision_chain(tti, params, results);
+    add_shapeof_chain(tti, params, results);
+    return std::make_shared<ov::Model>(results, params, "gemma3_tti_combined");
+}
+
+// Both known patterns plus a `token_type_ids` reader neither of them covers - stands in for e.g. an
+// attention branch whose vision subgraph deviates from the matched topology.
+std::shared_ptr<ov::Model> make_model_with_unmatched_consumer() {
+    auto tti = make_token_type_ids();
+    ParameterVector params{tti};
+    ResultVector results;
+    add_vision_chain(tti, params, results);
+    add_shapeof_chain(tti, params, results);
+
+    auto unmatched = std::make_shared<v1::Add>(tti, v0::Constant::create(element::i64, Shape{1, 1}, {1}));
+    unmatched->set_friendly_name("unmatched_tti_consumer");
+    results.push_back(std::make_shared<v0::Result>(unmatched));
+    return std::make_shared<ov::Model>(results, params, "gemma3_tti_unmatched_consumer");
+}
+
+bool has_parameter_with_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    const auto& params = model->get_parameters();
+    return std::any_of(params.begin(), params.end(), [&name](const auto& param) {
+        return param->get_friendly_name() == name;
+    });
+}
+
+std::shared_ptr<ov::Node> find_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& op : model->get_ordered_ops()) {
+        if (op->get_friendly_name() == name) {
+            return op;
         }
     }
     return nullptr;
 }
 
-static std::shared_ptr<ov::Model> make_both_patterns_model() {
-    auto vision_model = make_vision_subgraph_model();
-    auto shapeof_model = make_shapeof_subgraph_model();
-
-    auto vision_token_type_ids = get_param_by_name(vision_model, "token_type_ids");
-    OPENVINO_ASSERT(vision_token_type_ids != nullptr,
-                    "token_type_ids parameter is required in vision model for both-pattern model");
-
-    auto shapeof_token_type_ids = get_param_by_name(shapeof_model, "token_type_ids");
-    OPENVINO_ASSERT(shapeof_token_type_ids != nullptr,
-                    "token_type_ids parameter is required in shapeof model for both-pattern model");
-
-    // Rewire shapeof pattern to use token_type_ids from vision model so both passes
-    // operate on a single shared token_type_ids parameter.
-    std::vector<ov::Input<ov::Node>> shapeof_users;
-    for (const auto& input : shapeof_token_type_ids->output(0).get_target_inputs()) {
-        shapeof_users.push_back(input);
-    }
-    for (auto& input : shapeof_users) {
-        input.replace_source_output(vision_token_type_ids->output(0));
-    }
-
-    ov::ParameterVector params_to_add;
-    for (const auto& param : shapeof_model->get_parameters()) {
-        if (param->get_friendly_name() != "token_type_ids") {
-            params_to_add.push_back(param);
-        }
-    }
-
-    vision_model->add_parameters(params_to_add);
-    vision_model->add_results(shapeof_model->get_results());
-    vision_model->validate_nodes_and_infer_types();
-    return vision_model;
-}
 template <typename T>
-static size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model) {
-    size_t count = 0;
-    for (const auto& op : model->get_ordered_ops()) {
-        if (ov::is_type<T>(op))
-            ++count;
-    }
-    return count;
-}
-
-static bool has_parameter_with_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
-    for (const auto& param : model->get_parameters()) {
-        if (param->get_friendly_name() == name) {
-            return true;
-        }
-    }
-    return false;
+size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return static_cast<size_t>(std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+        return ov::is_type<T>(op);
+    }));
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: After the pass, both BitwiseOr nodes' second input (vision_block)
-//         is replaced with a Constant(false).
+// Preconditions on the test models themselves
 // ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, VisionBlockReplacedWithFalse) {
-    auto model = make_vision_subgraph_model();
+
+TEST(RemoveTokenTypeIdsTest, TestModelsAreValid) {
+    for (const auto& model : {make_vision_model(), make_shapeof_model(), make_combined_model()}) {
+        EXPECT_NO_THROW(model->validate_nodes_and_infer_types()) << "model " << model->get_friendly_name();
+        EXPECT_TRUE(has_parameter_with_name(model, "token_type_ids")) << "model " << model->get_friendly_name();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Negative case: nothing to do
+// ---------------------------------------------------------------------------
+
+TEST(RemoveTokenTypeIdsTest, NoOpWhenTokenTypeIdsAbsent) {
+    auto input = make_named_param(element::f32, Shape{1, SEQ}, "input_ids");
+    auto model = std::make_shared<ov::Model>(ResultVector{std::make_shared<v0::Result>(input)},
+                                             ParameterVector{input},
+                                             "no_tti_model");
 
     ov::npuw::RemoveTokenTypeIds pass;
-    pass.run_on_model(model);
+    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_TRUE(has_parameter_with_name(model, "input_ids"));
+}
 
-    // Find all BitwiseOr nodes in the transformed model — both branches must be patched
+// ---------------------------------------------------------------------------
+// RemoveTTIVisionSubgraph
+// ---------------------------------------------------------------------------
+
+TEST(RemoveTokenTypeIdsTest, VisionPattern_VisionBlockReplacedWithFalseConstant) {
+    auto model = make_vision_model();
+
+    ov::npuw::RemoveTokenTypeIds pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+
     size_t bw_or_count = 0;
     for (const auto& op : model->get_ordered_ops()) {
-        if (!ov::is_type<v13::BitwiseOr>(op))
+        if (!ov::is_type<v13::BitwiseOr>(op)) {
             continue;
+        }
         ++bw_or_count;
-        // Input 1 should now be a Constant with value false
-        auto input1 = op->input_value(1).get_node_shared_ptr();
-        EXPECT_TRUE(ov::is_type<v0::Constant>(input1))
-            << "BitwiseOr input[1] must be replaced with a Constant";
-        auto c = ov::as_type_ptr<v0::Constant>(input1);
-        ASSERT_NE(c, nullptr);
-        EXPECT_EQ(c->get_element_type(), element::boolean);
-        auto val = c->cast_vector<bool>();
-        ASSERT_EQ(val.size(), 1u);
-        EXPECT_FALSE(val[0]) << "Vision block replacement must be false";
+        auto vision_input = ov::as_type_ptr<v0::Constant>(op->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(vision_input, nullptr) << "BitwiseOr input[1] must be replaced with a Constant";
+        EXPECT_EQ(vision_input->get_element_type(), element::boolean);
+        const auto values = vision_input->cast_vector<bool>();
+        ASSERT_EQ(values.size(), 1u);
+        EXPECT_FALSE(values[0]) << "the vision block must be neutralized with `false`";
     }
-    EXPECT_EQ(bw_or_count, 2u) << "Both BitwiseOr nodes (global + local) must be patched";
-}
-
-// ---------------------------------------------------------------------------
-// Test 2: When token_type_ids is absent, the pass returns false (no-op).
-// ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, NoOpWhenTokenTypeIdsAbsent) {
-    // Build a trivial model without token_type_ids
-    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 128});
-    input->set_friendly_name("input_ids");
-    input->output(0).set_names({"input_ids"});
-    auto result = std::make_shared<v0::Result>(input);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "no_tti_model");
-
-    ov::npuw::RemoveTokenTypeIds pass;
-    EXPECT_FALSE(pass.run_on_model(model));
-}
-
-// ---------------------------------------------------------------------------
-// Test 3: Model validation passes after partial transformation (no shape/dtype errors).
-// ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, ModelValidationPasses) {
-    auto model = make_vision_subgraph_model();
-
-    ov::npuw::RemoveTokenTypeIds pass;
-    EXPECT_FALSE(pass.run_on_model(model));
-
-    // Should not throw on validate_nodes_and_infer_types
+    EXPECT_EQ(bw_or_count, 2u) << "both the global and the local attention branch must be patched";
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-// =========================================================================
-// Tests for RemoveTTIShapeOfSubgraph Pattern
-// =========================================================================
-
-// ---------------------------------------------------------------------------
-// Test 4: ShapeOf subgraph redirection: tti_shape_of_2->input(0) is changed.
-// ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, ShapeOfPattern_ShapeOfInputRedirected) {
-    auto model = make_shapeof_subgraph_model();
+TEST(RemoveTokenTypeIdsTest, VisionPattern_CausalMaskInputPreserved) {
+    auto model = make_vision_model();
 
     ov::npuw::RemoveTokenTypeIds pass;
-    pass.run_on_model(model);
+    ASSERT_TRUE(pass.run_on_model(model));
 
-    // After transformation, we expect that ShapeOf nodes' inputs have been
-    // potentially redirected. Since the pattern matching is complex, we verify
-    // the model validates correctly (indicating successful redirection).
-    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
-
-    // Verify token_type_ids remains because only one pattern is present
-    EXPECT_TRUE(has_parameter_with_name(model, "token_type_ids"));
+    std::set<std::string> causal_inputs;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<v13::BitwiseOr>(op)) {
+            causal_inputs.insert(op->input_value(0).get_node()->get_friendly_name());
+        }
+    }
+    const std::set<std::string> expected{"causal_mask_global", "causal_mask_local"};
+    EXPECT_EQ(causal_inputs, expected) << "input[0] of each BitwiseOr must still be the causal mask";
 }
 
-// ---------------------------------------------------------------------------
-// Test 5: ShapeOf pattern preserves attention_mask parameter.
-// ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, ShapeOfPattern_AttentionMaskPreserved) {
-    auto model = make_shapeof_subgraph_model();
-    const auto initial_param_count = model->get_parameters().size();
+TEST(RemoveTokenTypeIdsTest, VisionPattern_UnusedSubgraphIsRemoved) {
+    auto model = make_vision_model();
+    ASSERT_GT(count_ops_of_type<v0::CumSum>(model), 0u);
+    ASSERT_GT(count_ops_of_type<v12::Pad>(model), 0u);
 
     ov::npuw::RemoveTokenTypeIds pass;
-    pass.run_on_model(model);
+    ASSERT_TRUE(pass.run_on_model(model));
 
-    // Parameter should not be removed in shapeof-only model
-    EXPECT_EQ(model->get_parameters().size(), initial_param_count);
-
-    // Attention mask and other parameters should persist
-    EXPECT_TRUE(has_parameter_with_name(model, "attention_mask"));
-    EXPECT_TRUE(has_parameter_with_name(model, "preceding_mask"));
-}
-
-// =========================================================================
-// Combined Integration Tests
-// =========================================================================
-
-// ---------------------------------------------------------------------------
-// Integration Test 1: Both patterns present - token_type_ids is removed.
-// ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, Integration_BothPatterns_RemoveTokenTypeIds) {
-    auto model = make_both_patterns_model();
-    const auto initial_param_count = model->get_parameters().size();
-
-    ov::npuw::RemoveTokenTypeIds pass;
-    EXPECT_TRUE(pass.run_on_model(model));
-
-    // Exactly one parameter (token_type_ids) should be removed
-    EXPECT_EQ(model->get_parameters().size(), initial_param_count - 1);
-
-    // Verify all other parameters still exist
-    EXPECT_TRUE(has_parameter_with_name(model, "range_input"));
-    EXPECT_TRUE(has_parameter_with_name(model, "select_input_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "image_group_ids_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "is_image_block_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "select_input_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "image_group_ids_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "is_image_block_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "subg2_range"));
-    EXPECT_TRUE(has_parameter_with_name(model, "subg2_pos_data"));
-    EXPECT_TRUE(has_parameter_with_name(model, "reshape_data_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "reshape_data_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "causal_mask_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "true_mask_a"));
-    EXPECT_TRUE(has_parameter_with_name(model, "causal_mask_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "true_mask_b"));
-    EXPECT_TRUE(has_parameter_with_name(model, "tti_range"));
-    EXPECT_TRUE(has_parameter_with_name(model, "tti_pos_data"));
-    EXPECT_TRUE(has_parameter_with_name(model, "attention_mask"));
-    EXPECT_TRUE(has_parameter_with_name(model, "preceding_mask"));
-
-    // token_type_ids must be gone
+    // Neutralizing the merge points drops the last consumer of the whole vision subgraph.
+    EXPECT_EQ(count_ops_of_type<v0::CumSum>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<v12::Pad>(model), 0u);
+    EXPECT_EQ(count_ops_of_type<v13::BitwiseNot>(model), 0u);
     EXPECT_FALSE(has_parameter_with_name(model, "token_type_ids"));
 }
 
 // ---------------------------------------------------------------------------
-// Integration Test 2: Vision-only model does not remove token_type_ids.
+// RemoveTTIShapeOfSubgraph
 // ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, Integration_VisionOnly_DoesNotRemoveTokenTypeIds) {
-    auto model = make_vision_subgraph_model();
-    const auto initial_param_count = model->get_parameters().size();
+
+TEST(RemoveTokenTypeIdsTest, ShapeOfPattern_ShapeOfRedirectedToGatherIndices) {
+    auto model = make_shapeof_model();
+
+    auto shape_of_2 = find_node(model, "tti_shape_of_2");
+    ASSERT_NE(shape_of_2, nullptr);
+    ASSERT_EQ(shape_of_2->input_value(0).get_node()->get_friendly_name(), "tti_add")
+        << "before the pass the Reshape target shape is derived from `token_type_ids`";
 
     ov::npuw::RemoveTokenTypeIds pass;
-    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_TRUE(pass.run_on_model(model));
 
-    EXPECT_EQ(model->get_parameters().size(), initial_param_count);
-    EXPECT_TRUE(has_parameter_with_name(model, "token_type_ids"));
+    shape_of_2 = find_node(model, "tti_shape_of_2");
+    ASSERT_NE(shape_of_2, nullptr) << "the ShapeOf itself must survive - only its input is re-pointed";
+    EXPECT_EQ(shape_of_2->input_value(0).get_node()->get_friendly_name(), "attn_idx_add")
+        << "after the pass it must be derived from the attention_mask Gather indices";
+
+    EXPECT_FALSE(has_parameter_with_name(model, "token_type_ids"));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+TEST(RemoveTokenTypeIdsTest, ShapeOfPattern_AttentionMaskChainPreserved) {
+    auto model = make_shapeof_model();
+    const auto reshapes_before = count_ops_of_type<v1::Reshape>(model);
+    const auto gathers_before = count_ops_of_type<v8::Gather>(model);
+
+    ov::npuw::RemoveTokenTypeIds pass;
+    ASSERT_TRUE(pass.run_on_model(model));
+
+    // Only the TTI-side Gather goes away; every Reshape of the attention_mask chain stays.
+    EXPECT_EQ(count_ops_of_type<v1::Reshape>(model), reshapes_before);
+    EXPECT_EQ(count_ops_of_type<v8::Gather>(model), gathers_before - 1);
+    EXPECT_NE(find_node(model, "attn_tti_reshape"), nullptr);
+    EXPECT_NE(find_node(model, "attn_idx_add"), nullptr);
+    EXPECT_TRUE(has_parameter_with_name(model, "attention_mask"));
+    EXPECT_TRUE(has_parameter_with_name(model, "attn_idx_src"));
+    EXPECT_TRUE(has_parameter_with_name(model, "preceding_mask"));
 }
 
 // ---------------------------------------------------------------------------
-// Integration Test 3: ShapeOf-only model does not remove token_type_ids.
+// Both patterns together
 // ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, Integration_ShapeOfOnly_DoesNotRemoveTokenTypeIds) {
-    auto model = make_shapeof_subgraph_model();
-    const auto initial_param_count = model->get_parameters().size();
+
+TEST(RemoveTokenTypeIdsTest, CombinedPatterns_TokenTypeIdsRemoved) {
+    auto model = make_combined_model();
+    const auto params_before = model->get_parameters().size();
 
     ov::npuw::RemoveTokenTypeIds pass;
-    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_TRUE(pass.run_on_model(model));
 
-    EXPECT_EQ(model->get_parameters().size(), initial_param_count);
-    EXPECT_TRUE(has_parameter_with_name(model, "token_type_ids"));
+    EXPECT_FALSE(has_parameter_with_name(model, "token_type_ids"));
+    EXPECT_EQ(model->get_parameters().size(), params_before - 1)
+        << "`token_type_ids` must be the only parameter removed";
+    for (const char* name : {"range_input",
+                             "select_input_global",
+                             "image_group_ids_global",
+                             "image_token_mask_global",
+                             "causal_mask_global",
+                             "select_input_local",
+                             "image_group_ids_local",
+                             "image_token_mask_local",
+                             "causal_mask_local",
+                             "tti_range",
+                             "tti_pos_data",
+                             "attention_mask",
+                             "attn_idx_src",
+                             "preceding_mask"}) {
+        EXPECT_TRUE(has_parameter_with_name(model, name)) << "parameter `" << name << "` must be preserved";
+    }
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
 // ---------------------------------------------------------------------------
-// Integration Test 4: Pass is idempotent when token_type_ids is already absent.
+// Removal contract: a consumer surviving the rewrites is a hard error
 // ---------------------------------------------------------------------------
-TEST(RemoveTokenTypeIdsTest, Integration_TokenTypeIdsRemovalIsIdempotent) {
-    auto model = make_both_patterns_model();
 
+TEST(RemoveTokenTypeIdsTest, ThrowsWhenUnmatchedConsumerRemains) {
+    auto model = make_model_with_unmatched_consumer();
+
+    // Both known patterns fire and rewrite the graph, but an unmatched reader still holds
+    // `token_type_ids`. The model is partially transformed by now - one attention branch would keep
+    // its vision mask while another lost it - so the pass must fail loudly rather than hand back a
+    // model that infers and silently produces wrong results.
     ov::npuw::RemoveTokenTypeIds pass;
+    try {
+        pass.run_on_model(model);
+        FAIL() << "expected a throw on a `token_type_ids` consumer that neither pattern covers";
+    } catch (const ov::Exception& e) {
+        // The diagnostic has to name the offender - that is the only lead for extending the pattern.
+        const std::string message = e.what();
+        EXPECT_NE(message.find("token_type_ids"), std::string::npos) << message;
+        EXPECT_NE(message.find("unmatched_tti_consumer"), std::string::npos) << message;
+    }
+}
 
-    // First run should fire
-    EXPECT_TRUE(pass.run_on_model(model));
-    EXPECT_FALSE(has_parameter_with_name(model, "token_type_ids"));
+TEST(RemoveTokenTypeIdsTest, SecondRunIsNoOp) {
+    auto model = make_combined_model();
 
-    // Second run on same model should not crash (tokens already gone)
-    // This tests pass robustness when token_type_ids is already absent
-    ov::npuw::RemoveTokenTypeIds pass2;
-    EXPECT_FALSE(pass2.run_on_model(model));
+    ov::npuw::RemoveTokenTypeIds first;
+    ASSERT_TRUE(first.run_on_model(model));
+    ASSERT_FALSE(has_parameter_with_name(model, "token_type_ids"));
+
+    ov::npuw::RemoveTokenTypeIds second;
+    EXPECT_FALSE(second.run_on_model(model));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
 }  // namespace

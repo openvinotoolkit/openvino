@@ -128,6 +128,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_sliced_head_to_static.cpp
