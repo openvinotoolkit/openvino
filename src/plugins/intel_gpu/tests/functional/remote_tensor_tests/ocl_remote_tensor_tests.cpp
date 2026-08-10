@@ -3179,15 +3179,20 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
     // A read-only file exercises the read-only mapping path.
     set_file_writable(m_file_path, false);
 
-    void* output_ptr = ov::util::aligned_alloc(byte_size, core.get_property(target_device, ov::intel_gpu::cacheline_size));
-    std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
+    // Host pointers are imported in whole cachelines, so the destination buffer is padded accordingly.
+    const std::size_t cacheline = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    const std::size_t output_buffer_size = ((byte_size + cacheline - 1) / cacheline) * cacheline;
+    void* output_ptr = ov::util::aligned_alloc(output_buffer_size, cacheline);
+    std::fill_n(static_cast<char*>(output_ptr), output_buffer_size, 0);
 
     {
         auto remote_input_tensor =
             ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{m_file_path, offset});
         ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
         auto remote_output_tensor =
-            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::VirtualAddressMemory(output_ptr));
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(output_ptr, static_cast<int64_t>(output_buffer_size)));
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);
@@ -3250,6 +3255,9 @@ std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
     const auto mmap_granularity = static_cast<std::size_t>(ov::util::get_system_page_size());
 #endif
     const std::vector<std::pair<std::size_t, std::size_t>> layouts{
+        // Sizes smaller than / not divisible by the device cacheline size, e.g. f32 with shape {1}.
+        {0, sizeof(float)},
+        {mmap_granularity, 3 * sizeof(float)},
         {0, 256},
         {0, 4 * mmap_granularity},
         {mmap_granularity, 256},

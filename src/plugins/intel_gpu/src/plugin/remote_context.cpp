@@ -12,6 +12,7 @@
 #include "intel_gpu/plugin/usm_host_tensor.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include <fstream>
 #include <memory>
 
@@ -327,6 +328,13 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               *byte_size,
                                               /*no_placeholder=*/false,
                                               read_only ? ov::MmapMode::READ : ov::MmapMode::READ_WRITE);
+
+    auto import_size = *byte_size;
+    const auto cacheline_size = static_cast<size_t>(get_engine().get_device_info().cacheline_size.value_or(0));
+    if (cacheline_size > 0 && alignment % cacheline_size == 0) {
+        import_size = cldnn::align_to(import_size, cacheline_size);
+    }
+
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
                                               shape,
                                               type,
@@ -335,7 +343,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               0,
                                               0,
                                               ov::intel_gpu::SharedBufferHandle{},
-                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(*byte_size)},
+                                              VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(import_size)},
                                               mapped_memory,
                                               read_only);
 }
