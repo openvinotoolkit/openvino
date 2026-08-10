@@ -485,11 +485,8 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
 }
 
 static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output) {
-    if ((input.LogicalSize() == 1) ||
-        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v)) {
-            return true;
-        }
-    return false;
+    return (input.LogicalSize() == 1) ||
+        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v);
 }
 
 static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx) {

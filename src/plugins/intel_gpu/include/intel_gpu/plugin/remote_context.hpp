@@ -98,7 +98,7 @@ private:
 
 
     ContextType m_type;
-    std::string m_device_name = "";
+    std::string m_device_name;
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
     std::mutex m_cache_mutex;

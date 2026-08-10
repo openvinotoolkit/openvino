@@ -49,11 +49,7 @@ struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
             return false;
         }
 
-        if (!fused_ops_are_one_of<eltwise, activation, reorder>(node.get_fused_primitives())) {
-            return false;
-        }
-
-        return true;
+        return fused_ops_are_one_of<eltwise, activation, reorder>(node.get_fused_primitives());
     }
 };
 

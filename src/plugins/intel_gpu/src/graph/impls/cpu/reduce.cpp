@@ -35,7 +35,7 @@ struct reduce_impl : public typed_primitive_impl<reduce> {
     using parent::parent;
 
     reduce_mode mode = reduce_mode::sum;
-    std::vector<int64_t> axes = {};
+    std::vector<int64_t> axes;
     bool keep_dims = false;
 
     std::shared_ptr<ov::op::Op> op;

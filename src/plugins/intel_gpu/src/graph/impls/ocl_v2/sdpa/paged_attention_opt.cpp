@@ -36,11 +36,7 @@ constexpr size_t u4_elems_per_byte = 2;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    if (data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type)) {
-        return true;
-    } else {
-        return false;
-    }
+    return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
 }
 
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
@@ -316,9 +312,10 @@ public:
         if (is_kv_compressed) {
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.add(make_uint4_kv_cache_jit_constants(params));
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+            }
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 if (is_key_by_channel) {
@@ -993,9 +990,10 @@ protected:
         if (is_kv_compressed) {
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.add(make_uint4_kv_cache_jit_constants(params));
+            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+            }
 
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 if (is_key_by_channel) {
@@ -1122,12 +1120,11 @@ protected:
         const auto is_key_by_channel = desc->is_key_by_channel;
         jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
         if (is_kv_compressed) {
-            jit.add(make_uint4_kv_cache_jit_constants(params));
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+                jit.add(make_uint4_kv_cache_jit_constants(params));
+                jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 // INT4 BY_CHANNEL: dim order {0,1,2,3}, scales embedded per-token in head dim
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
@@ -1388,9 +1385,7 @@ public:
         if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
             return false;
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
-            return false;
-        return true;
+        return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
@@ -1439,11 +1434,7 @@ public:
 
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-        if (data_type_traits::is_i4_u4(kv_cache_dt) && !desc->is_key_by_channel) {
-            return false;
-        }
-
-        return true;
+        return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
     }
 
     static size_t get_micro_tile_qsize(KernelData& kernel_data) {
@@ -1522,7 +1513,6 @@ public:
         } else {
             rt_params->use_gqa_kernel = false;
         }
-        return;
     }
 
     // update impl_parameter and rt_parameter
@@ -1799,8 +1789,8 @@ public:
                     total_matrix_elements += evictable_size * evictable_size;
                     total_vector_elements += evictable_size;
                 }
-                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - "
-                                       << "matrix: " << total_matrix_elements << ", vector: " << total_vector_elements << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Adaptive RKV: Allocating dynamic buffers - " << "matrix: " << total_matrix_elements
+                                       << ", vector: " << total_vector_elements << std::endl;
             } else {
                 // Fallback: use maximum size (512) if runtime values not available
                 const size_t max_evictable_size = 512;

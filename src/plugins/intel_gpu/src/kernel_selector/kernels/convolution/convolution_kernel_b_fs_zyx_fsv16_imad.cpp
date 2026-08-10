@@ -129,10 +129,10 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
         for (size_t split = 1; split <= max_slm_split; split *= 2) {
             for (size_t temp_block_features = simd; temp_block_features <= simd * 2; temp_block_features += simd) {
                 for (size_t d = 1; d < max_d; ++d) {
-                    if (d != 1 && params.outputs[0].Z().v % d)
+                    if (d != 1 && ((params.outputs[0].Z().v % d) != 0u))
                         continue;
                     for (size_t h = 1; h < max_h; ++h) {
-                        if (h != 1 && params.outputs[0].Y().v % h)
+                        if (h != 1 && ((params.outputs[0].Y().v % h) != 0u))
                             continue;
 
                         bool c_ifm_mul = CeilDiv(params.weights.IFM().v, fsv) % split == 0;
