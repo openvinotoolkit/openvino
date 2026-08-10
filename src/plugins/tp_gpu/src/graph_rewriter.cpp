@@ -356,14 +356,19 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
     // shards nothing on anything but a stock HuggingFace export.
     std::vector<std::shared_ptr<ov::Node>> attentions;
     for (const auto& op : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::PagedAttentionExtension>(op))
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
             attentions.push_back(op);
-    }
-    if (attentions.empty()) {
-        for (const auto& op : model->get_ordered_ops()) {
-            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op))
-                attentions.push_back(op);
         }
+    }
+    if (!attentions.empty()) {
+        plan.attention_backend = ShardingPlan::AttentionBackend::PA;
+    } else {
+        for (const auto& op : model->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+                attentions.push_back(op);
+            }
+        }
+        plan.attention_backend = ShardingPlan::AttentionBackend::SDPA;
     }
     OPENVINO_ASSERT(!attentions.empty(),
                     "[TP_GPU] Could not identify transformer layers for TP: the model contains "
@@ -1104,8 +1109,12 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     //     covers.  Its root is the Reshape that merges the expanded heads back
     //     into [B, num_heads, S, head_dim]; index 1 of its shape constant is
     //     the head count we have to localize.
+    //
+    //     PagedAttention has no such broadcast: it reads the kv head count off
+    //     the cache and groups internally, so there is nothing to patch and
+    //     nothing to demand.
     // ------------------------------------------------------------------
-    {
+    if (plan.attention_backend == ShardingPlan::AttentionBackend::SDPA) {
         auto kv_bcst = ov::op::util::match_multi_query_bcst(ov::pass::pattern::any_input());
         ov::pass::pattern::Matcher matcher(std::get<0>(kv_bcst), "TPMultiQueryBcst");
 
@@ -1129,6 +1138,13 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
                         " KV heads for ", plan.num_heads,
                         " Q heads) but no KV broadcast was found to re-shape");
     }
+
+    // PagedAttention needs no head patching of its own.  The conversion wraps
+    // it in reshapes that are entirely relative -- `[0, -1]` flattening the
+    // operands, and `Concat([0], [1], [-1], ShapeOf(key)[-1])` restoring the
+    // heads afterwards -- so once the projections are sharded those reshapes
+    // already carry the local head count.  The op reads the kv head count off
+    // the cache tensor bound at runtime, not off the graph.
 
     // ------------------------------------------------------------------
     // 2c) Patch the post-SDPA Reshape that flattens [B,S,heads,head_dim] back
