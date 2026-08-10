@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-14-07-04-000-31395025813",
+  "timestamp": "2026-08-10T14:07:04Z",
+  "run_id": "31395025813",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31395025813",
+  "workflow_name": "Android (Ubuntu 20.04, Python 3.11)",
+  "pr_number": "37192",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37192",
+  "author": "WenjingKangIntel",
+  "category": "Code Issue",
+  "title": "CMake configure fails - MODULE_LIBRARY type plugins cannot be linked",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build arm64 - CMake configure OpenVINO",
+    "Build x64 - CMake configure OpenVINO"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target. One may link only to INTERFACE, OBJECT, STATIC or SHARED libraries, or to executables with the ENABLE_EXPORTS property set.",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "CMake configure fails for both arm64 and x64 Android builds. The ov_target_link_plugins macro in cmake/developer_package/plugins/plugins.cmake:275 attempts to link MODULE_LIBRARY targets (openvino_auto_plugin, openvino_auto_batch_plugin, openvino_hetero_plugin, openvino_intel_cpu_plugin, openvino_intel_gpu_plugin) into another target. CMake prohibits linking MODULE_LIBRARY types. This is a pre-existing Android build issue unrelated to the NPU PR changes which only touch src/plugins/intel_npu/.",
+  "reproduction_steps": "Configure OpenVINO for Android target with the same CMake flags used in the CI job.",
+  "recommended_actions": [
+    "Investigate cmake/developer_package/plugins/plugins.cmake:275 to determine if MODULE_LIBRARY targets should be SHARED instead for Android builds",
+    "Check if a recent CMake change altered plugin library type for Android",
+    "Review cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp) call chain"
+  ],
+  "prevention_strategies": "Ensure Android CMake configuration is validated in precommit CI before merge queue builds.",
+  "historical_context": "First occurrence of this specific CMake MODULE_LIBRARY linking error. The Android build configuration appears to have regressed - possibly from a recent cmake/ change."
+}
