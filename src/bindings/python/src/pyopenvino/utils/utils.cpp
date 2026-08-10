@@ -390,7 +390,15 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                                        ov::intel_auto::perf_curve_table.name(),
                                        " should be dict[str, dict[int in [0, 100], float]] with integer inner keys");
                     }
-                    const auto utilization = py::cast<long long>(curve_item.first);
+                    long long utilization = 0;
+                    try {
+                        utilization = py::cast<long long>(curve_item.first);
+                    } catch (const py::cast_error&) {
+                        // Rethrow as ov::Exception so out-of-range ints surface as a consistent RuntimeError.
+                        OPENVINO_THROW("The utilization key of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " must be an integer within [0, 100]");
+                    }
                     if (utilization < 0 || utilization > 100) {
                         OPENVINO_THROW("The utilization key of ",
                                        ov::intel_auto::perf_curve_table.name(),
