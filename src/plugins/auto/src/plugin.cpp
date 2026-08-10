@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "plugin.hpp"
 
+#include <cmath>
 #include <map>
 #include <memory>
 #include <string>
@@ -809,6 +810,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, float utilization) {
     if (curve.empty()) {
         OPENVINO_THROW("perf_curve_table contains an empty curve; cannot compute performance score");
+    }
+    if (std::isnan(utilization)) {
+        OPENVINO_THROW("Device utilization is NaN; cannot compute performance score");
     }
     const float min_key = static_cast<float>(curve.begin()->first);
     const float max_key = static_cast<float>(curve.rbegin()->first);

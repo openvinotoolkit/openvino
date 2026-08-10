@@ -83,8 +83,10 @@ static constexpr Property<std::map<std::string, unsigned>> devices_utilization_t
     "DEVICES_UTILIZATION_THRESHOLD"};
 
 /**
- * @brief Per-device performance curve table mapping utilization percent to expected performance score, used by
- * AUTO for device selection when set. Device key must be one of "CPU", "iGPU", "dGPU", "NPU".
+ * @brief Per-device performance curve table mapping utilization percent to a relative performance score, used by
+ * AUTO for device selection when set. A lower interpolated score indicates a more preferred device: AUTO ranks
+ * candidates in ascending order of score and selects the one with the lowest score for the current utilization.
+ * Device key must be one of "CPU", "iGPU", "dGPU", "NPU".
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<std::string, std::map<unsigned, float>>> perf_curve_table{"PERF_CURVE_TABLE"};
