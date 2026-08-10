@@ -149,6 +149,10 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov
     ov::AnyMap config = {
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
         {std::string(::intel_npu::COMPILER_DYNAMIC_QUANTIZATION::key()), "YES"},
+        {std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+        {std::string(::intel_npu::NPUW_DQ::key()), "NO"},
+        {std::string(::intel_npu::NPUW_DQ_FULL::key()), "NO"},
+        {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"},
     };
     merge_config_with(config, submodel_config(role));
     // User-provided properties take precedence over the defaults above.
