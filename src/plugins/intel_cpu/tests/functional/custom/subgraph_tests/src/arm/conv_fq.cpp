@@ -248,6 +248,37 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU,
                                             ::testing::Values(true),  // withSwish
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
+
+const std::vector<std::vector<float>> asymmetricIntervals{{-0.3f}, {2.0f}, {-0.3f}, {2.0f}};
+const std::vector<std::vector<float>> perChannelAsymmetricIntervals{{-0.3f, -0.5f, -0.2f},
+                                                                     {1.7f, 1.5f, 1.8f},
+                                                                     {-0.3f, -0.5f, -0.2f},
+                                                                     {1.7f, 1.5f, 1.8f}};
+
+std::vector<QuantizationParams> asymmetricZeroPointParams{
+    {asymmetricIntervals, signedIntervals, {}, element::i8, false},                      // per-tensor zp
+    {perChannelAsymmetricIntervals, signedIntervals, {1, 3, 1, 1}, element::i8, false},  // per-channel zp
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_asymmetricZeroPointNoBias_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(asymmetricZeroPointParams),
+                                            ::testing::Values(false),  // withBias
+                                            ::testing::Values(false),  // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_asymmetricZeroPointWithBias_CPU,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(asymmetricZeroPointParams),
+                                            ::testing::Values(true),   // withBias
+                                            ::testing::Values(false),  // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov
