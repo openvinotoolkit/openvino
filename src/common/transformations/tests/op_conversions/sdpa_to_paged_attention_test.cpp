@@ -2005,17 +2005,17 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto Reshape132 = makeOP<opset1::Reshape>({Gather130, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose134 = makeOP<opset1::Transpose>({Reshape132, {0, 2, 1, 3}});
         auto Transpose136 = makeOP<opset1::Transpose>({Transpose134, {0, 2, 1, 3}});
-        auto Reshape138 = makeOP<v1::Reshape>({Transpose136, {0, -1}}, {{"special_zero", true}});
+        auto Reshape138 = makeOP<opset1::Reshape>({Transpose136, {0, -1}}, {{"special_zero", true}});
         auto Gather140 = makeOP<opset8::Gather>({Transpose129, 1, 0}, {{"batch_dims", 0}});
         auto Reshape142 = makeOP<opset1::Reshape>({Gather140, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose144 = makeOP<opset1::Transpose>({Reshape142, {0, 2, 1, 3}});
         auto Transpose145 = makeOP<opset1::Transpose>({Transpose144, {0, 2, 1, 3}});
-        auto Reshape147 = makeOP<v1::Reshape>({Transpose145, {0, -1}}, {{"special_zero", true}});
+        auto Reshape147 = makeOP<opset1::Reshape>({Transpose145, {0, -1}}, {{"special_zero", true}});
         auto Gather149 = makeOP<opset8::Gather>({Transpose129, 2, 0}, {{"batch_dims", 0}});
         auto Reshape151 = makeOP<opset1::Reshape>({Gather149, {0, 0, 40, 128}}, {{"special_zero", true}});
         auto Transpose153 = makeOP<opset1::Transpose>({Reshape151, {0, 2, 1, 3}});
         auto Transpose154 = makeOP<opset1::Transpose>({Transpose153, {0, 2, 1, 3}});
-        auto Reshape156 = makeOP<v1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
+        auto Reshape156 = makeOP<opset1::Reshape>({Transpose154, {0, -1}}, {{"special_zero", true}});
         auto Constant159 = makeConst(element::f32, ov::Shape({40, 4096, 4096}), MOCK_VALUE);
         auto Slice164 = makeOP<opset8::Slice>({Constant159, {1, 1}, {2, 2}, {1, 1}, {1, 2}});
         auto Reshape166 = makeOP<opset1::Reshape>({Slice164, {-1}}, {{"special_zero", false}});
@@ -2364,7 +2364,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add =
             makeOP<opset1::Add>({pref_1_mul_Multiply, pref_1_mul_Multiply_1}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51951 = makeOP<opset1::Transpose>({pref_1_add_Add, {0, 2, 1, 3}});
-        auto Reshape_51953 = makeOP<v1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51953 = makeOP<opset1::Reshape>({Transpose_51951, {0, -1}}, {{"special_zero", true}});
         auto pref_8_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_3_linear_MatMul = makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, pref_8_weight},
                                                            {{"transpose_a", false}, {"transpose_b", true}});
@@ -2386,7 +2386,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_add_Add_1 =
             makeOP<opset1::Add>({pref_1_mul_Multiply_2, pref_1_mul_Multiply_3}, {{"auto_broadcast", "numpy"}});
         auto Transpose_51954 = makeOP<opset1::Transpose>({pref_1_add_Add_1, {0, 2, 1, 3}});
-        auto Reshape_51957 = makeOP<v1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51957 = makeOP<opset1::Reshape>({Transpose_51954, {0, -1}}, {{"special_zero", true}});
         auto self_model_model_layers_0_self_attn_v_proj_weight = makeConst(element::f32, ov::Shape({4, 8}), MOCK_VALUE);
         auto pref_9_MatMul =
             makeOP<opset1::MatMul>({pref_7_mul_Multiply_1, self_model_model_layers_0_self_attn_v_proj_weight},
@@ -2394,7 +2394,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto pref_1_view_Reshape_2 = makeOP<opset1::Reshape>({pref_9_MatMul, {0, 0, 2, 2}}, {{"special_zero", true}});
         auto pref_1_transpose_Transpose_2 = makeOP<opset1::Transpose>({pref_1_view_Reshape_2, {0, 2, 1, 3}});
         auto Transpose_51955 = makeOP<opset1::Transpose>({pref_1_transpose_Transpose_2, {0, 2, 1, 3}});
-        auto Reshape_51959 = makeOP<v1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
+        auto Reshape_51959 = makeOP<opset1::Reshape>({Transpose_51955, {0, -1}}, {{"special_zero", true}});
 
         auto c1 = makeConst(element::f32, {}, {0.707107f});
         auto c2 = makeConst(element::i32, {}, {0});
@@ -2706,7 +2706,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply6 = makeOP<opset1::Multiply>({Concat2, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add1 = makeOP<opset1::Add>({Multiply4, Multiply6}, {{"auto_broadcast", "numpy"}});
         auto Transpose2 = makeOP<opset1::Transpose>({Add1, {0, 2, 1, 3}});
-        auto Q = makeOP<v1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
+        auto Q = makeOP<opset1::Reshape>({Transpose2, {0, -1}}, {{"special_zero", true}});
 
         auto Slice3 = makeOP<opset8::Slice>({MatMul, {3072}, {6144}, {1}, {2}});
         auto Reshape3 = makeOP<opset1::Reshape>({Slice3, {0, 0, 32, 96}}, {{"special_zero", true}});
@@ -2720,13 +2720,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto Multiply9 = makeOP<opset1::Multiply>({Concat3, Unsqueeze4}, {{"auto_broadcast", "numpy"}});
         auto Add2 = makeOP<opset1::Add>({Multiply7, Multiply9}, {{"auto_broadcast", "numpy"}});
         auto Transpose4 = makeOP<opset1::Transpose>({Add2, {0, 2, 1, 3}});
-        auto K = makeOP<v1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
+        auto K = makeOP<opset1::Reshape>({Transpose4, {0, -1}}, {{"special_zero", true}});
 
         auto Slice6 = makeOP<opset8::Slice>({MatMul, {6144}, {LLONG_MAX}, {1}, {2}});
         auto Reshape5 = makeOP<opset1::Reshape>({Slice6, {0, 0, 32, 96}}, {{"special_zero", true}});
         auto Transpose5 = makeOP<opset1::Transpose>({Reshape5, {0, 2, 1, 3}});
         auto Transpose6 = makeOP<opset1::Transpose>({Transpose5, {0, 2, 1, 3}});
-        auto V = makeOP<v1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
+        auto V = makeOP<opset1::Reshape>({Transpose6, {0, -1}}, {{"special_zero", true}});
 
         auto offset = makeOP<opset1::Convert>({-2046}, {{"destination_type", "i32"}});
         auto sliding_window = makeOP<opset1::Subtract>({2, offset}, {{"auto_broadcast", "numpy"}});
@@ -3058,7 +3058,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat2 = makeOP<opset1::Concat>({Add1, Slice4}, {{"axis", -1}});
         auto Transpose2 = makeOP<opset1::Transpose>({Concat2, {0, 2, 1, 3}});
         auto Transpose3 = makeOP<opset1::Transpose>({Transpose2, {0, 2, 1, 3}});
-        auto Reshape11 = makeOP<v1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
+        auto Reshape11 = makeOP<opset1::Reshape>({Transpose3, {0, -1}}, {{"special_zero", true}});
         auto Multiply4 = makeOP<opset1::Multiply>({Slice1, Unsqueeze2}, {{"auto_broadcast", "numpy"}});
         auto Slice5 = makeOP<opset8::Slice>({Slice1, {1}, {LLONG_MAX}, {2}, {3}});
         auto Convert10 = makeOP<opset1::Convert>({-1}, {{"destination_type", "f32"}});
@@ -3074,13 +3074,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Concat4 = makeOP<opset1::Concat>({Add2, Slice7}, {{"axis", -1}});
         auto Transpose4 = makeOP<opset1::Transpose>({Concat4, {0, 2, 1, 3}});
         auto Transpose5 = makeOP<opset1::Transpose>({Transpose4, {0, 2, 1, 3}});
-        auto Reshape13 = makeOP<v1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
+        auto Reshape13 = makeOP<opset1::Reshape>({Transpose5, {0, -1}}, {{"special_zero", true}});
         auto Reshape14 =
             makeOP<opset1::Reshape>({VariadicSplit0->output(1), {0, 0, 0, 4, 256}}, {{"special_zero", true}});
         auto Reshape15 = makeOP<opset1::Reshape>({Reshape14, {0, 0, 16, 256}}, {{"special_zero", true}});
         auto Transpose6 = makeOP<opset1::Transpose>({Reshape15, {0, 2, 1, 3}});
         auto Transpose7 = makeOP<opset1::Transpose>({Transpose6, {0, 2, 1, 3}});
-        auto Reshape16 = makeOP<v1::Reshape>({Transpose7, {0, -1}}, {{"special_zero", true}});
+        auto Reshape16 = makeOP<opset1::Reshape>({Transpose7, {0, -1}}, {{"special_zero", true}});
 
         auto sliding_window = v0::Constant::create(element::i32, {}, {0});
         auto scale = v0::Constant::create(element::f32, {}, {0.062500f});
