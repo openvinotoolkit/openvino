@@ -96,7 +96,7 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
 }
 
 static std::optional<std::string> getVCLCompatibilityString(vcl_executable_handle_t executable,
-                                                             vcl_log_handle_t logHandle) {
+                                                            vcl_log_handle_t logHandle) {
     uint64_t compatibilityStringSize = 0;
     auto result = vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
     if (result == VCL_RESULT_ERROR_UNSUPPORTED_FEATURE) {
@@ -114,9 +114,7 @@ static std::optional<std::string> getVCLCompatibilityString(vcl_executable_handl
         OPENVINO_THROW("Compatibility string size is too large to allocate a local buffer");
     }
     std::string compatibilityString(static_cast<size_t>(compatibilityStringSize), '\0');
-    result = vclExecutableGetCompatibilityString(executable,
-                                                 compatibilityString.data(),
-                                                 &compatibilityStringSize);
+    result = vclExecutableGetCompatibilityString(executable, compatibilityString.data(), &compatibilityStringSize);
     if (result != VCL_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to get compatibility string. vclExecutableGetCompatibilityString result: 0x",
                        std::hex,
@@ -428,10 +426,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     auto allocator = std::make_shared<vcl_allocator_2>();
     vcl_executable_handle_t executable = nullptr;
 
-    auto result = vclAllocatedExecutableCreateWSOneShot2(_compilerHandle,
-                                                         exeDesc,
-                                                         allocator.get(),
-                                                         &executable);
+    auto result = vclAllocatedExecutableCreateWSOneShot2(_compilerHandle, exeDesc, allocator.get(), &executable);
     if (result != VCL_RESULT_SUCCESS) {
         if (executable != nullptr) {
             vclExecutableDestroy(executable);
