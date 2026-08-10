@@ -34,13 +34,3 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
-
-# Keep an explicit build-order dependency for the bundled Level Zero headers.
-# Although this dependency is currently also propagated through
-# openvino::zero_loader -> LevelZero::Headers, declaring it here protects this
-# target if that link interface changes and prevents parallel compilation
-# before prepare_ze_headers has copied the headers. The target does not exist
-# when system Level Zero is used, because those headers are already available.
-if(TARGET prepare_ze_headers)
-    add_dependencies(${TARGET_NAME} prepare_ze_headers)
-endif()
