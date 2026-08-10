@@ -270,9 +270,11 @@ For more details, see the code snippets below:
          .. tab-item:: file
             :sync: file
 
-            Use this overload to wrap tensor data stored in a file. The plugin memory-maps the file
-            and keeps the mapping alive for the whole lifetime of the created remote tensor, so the
-            file must not be modified until the tensor is destroyed.
+            Use this overload to wrap tensor data stored in a file. A writable file is mapped read-write,
+            may be used as an inference output, and receives changes made through the tensor. A non-writable
+            file is mapped read-only and may only be used as an inference input. The plugin keeps the mapping
+            alive for the whole lifetime of the created remote tensor, so the file must not otherwise be
+            modified until the tensor is destroyed.
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
                :language: cpp
