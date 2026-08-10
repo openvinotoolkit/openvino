@@ -36,7 +36,7 @@ namespace {
 /// TP_GPU blob any more.
 constexpr uint32_t kMaxWorldSize = 64;
 constexpr uint32_t kMaxCollectives = 1u << 16;
-
+constexpr uint32_t kMaxShardedStates = 1u << 16;
 inline void ze_throw_on_error(ze_result_t r, const char* what) {
     if (r != ZE_RESULT_SUCCESS) {
         OPENVINO_THROW("[TP_GPU] L0 call ", what, " failed: 0x", std::hex, r);
@@ -359,7 +359,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            std::move(rank_compiled),
                                            std::move(device_names),
                                            std::move(setup.shared),
-                                           std::move(coordinator));
+                                           std::move(coordinator),
+                                           GraphRewriter::sharded_state_ids(model, sharding_plan));
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -528,9 +529,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                     "[TP_GPU] compiled blob declares ", num_collectives,
                     " collectives, which is not plausible; the cache entry is corrupted");
 
+    const auto num_sharded_states = tp_blob::read_trivial<uint32_t>(blob);
+    OPENVINO_ASSERT(num_sharded_states <= kMaxShardedStates,
+                    "[TP_GPU] compiled blob declares ", num_sharded_states,
+                    " sharded states, which is not plausible; the cache entry is corrupted");
+
     std::vector<std::string> device_names(world_size);
     for (auto& name : device_names) {
         name = tp_blob::read_string(blob);
+    }
+
+    std::vector<std::string> sharded_state_ids(num_sharded_states);
+    for (auto& id : sharded_state_ids) {
+        id = tp_blob::read_string(blob, tp_blob::max_variable_id_length);
     }
 
     // The blob is bound to the topology it was produced on: rank r's graph was
@@ -585,6 +596,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                                            std::move(device_names),
                                            std::move(setup.shared),
                                            std::move(coordinator),
+                                           std::move(sharded_state_ids),
                                            /*loaded_from_cache=*/true);
 }
 

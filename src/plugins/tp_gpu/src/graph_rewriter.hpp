@@ -73,6 +73,14 @@ public:
 
     /// Count how many AllReduce collectives will be created (= number of row-parallel linears).
     static int count_collectives(const ShardingPlan& plan);
+
+    /// Ids of the variables `rewrite` shards along the kv-head axis.
+    ///
+    /// Their per-rank states each hold a slice of the KV cache, so a caller
+    /// that reads or writes whole state tensors has to see them gathered and
+    /// scattered.  Every other variable is replicated on all ranks.
+    static std::vector<std::string> sharded_state_ids(const std::shared_ptr<const ov::Model>& model,
+                                                      const ShardingPlan& plan);
 };
 
 }  // namespace tp_gpu
