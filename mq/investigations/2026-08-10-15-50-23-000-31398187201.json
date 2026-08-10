@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-15-50-23-000-31398187201",
+  "timestamp": "2026-08-10T15:50:23Z",
+  "run_id": "31398187201",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31398187201",
+  "workflow_name": "Android",
+  "pr_number": "37311",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37311",
+  "author": "tkrupa-intel",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake Error: MODULE_LIBRARY targets (openvino_auto_plugin, etc.) cannot be linked via ov_target_link_plugins"
+    },
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "Same CMake MODULE_LIBRARY link error in plugins.cmake:275"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries):\n  Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into\n  another target.\n  Call Stack:\n    cmake/developer_package/plugins/plugins.cmake:325 (ov_target_link_plugins)\n    cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp)\n    CMakeLists.txt:196 (include)"
+  ],
+  "root_cause": "The Android CMake build fails because plugins (openvino_auto_plugin, openvino_intel_gpu_plugin, openvino_intel_cpu_plugin, openvino_hetero_plugin, openvino_auto_batch_plugin) are built as MODULE_LIBRARY targets but ov_generate_plugins_hpp/ov_target_link_plugins in cmake/developer_package/plugins/plugins.cmake:275 attempts to link them into another target, which CMake forbids. This is a pre-existing infrastructure bug in the Android build configuration unrelated to PR #37311 (GPU kernel .cl file changes). The failure has occurred 18 times since 2026-08-08.",
+  "reproduction_steps": "N/A - requires Android cross-compile environment; triggers on any merge-queue run of the Android workflow",
+  "recommended_actions": [
+    "Fix cmake/developer_package/plugins/plugins.cmake:275 to not attempt linking MODULE_LIBRARY targets directly",
+    "Or change the Android build to use SHARED instead of MODULE for plugin targets when cross-compiling",
+    "Create a tracking issue for this blocking Android build regression and assign to the CMake/build-system team"
+  ],
+  "prevention_strategies": "Add a CMake pre-configure check that validates plugin library type before attempting to link. Add an Android build test to the pre-merge CI gate so MODULE_LIBRARY regressions are caught before they enter the merge queue.",
+  "historical_context": "This exact failure has been recorded 18 times since 2026-08-08T01:04:42Z, affecting PRs 37211, 37311, 37192, 37001, 37056, 37123, 37064, 37304. It appears to be a systemic build infrastructure issue blocking many unrelated PRs from merging."
+}

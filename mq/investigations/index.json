@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 139,
+  "total": 140,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1357,6 +1357,17 @@
       "category": "Code Issue",
       "signature_hash": "9ff022172665aa06",
       "pr_number": "37211"
+    },
+    {
+      "investigation_id": "2026-08-10-15-50-23-000-31398187201",
+      "run_id": "31398187201",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31398187201",
+      "workflow_name": "Android",
+      "timestamp": "2026-08-10T15:50:23Z",
+      "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+      "category": "Code Issue",
+      "signature_hash": "9ff022172665aa06",
+      "pr_number": "37311"
     }
   ]
 }
