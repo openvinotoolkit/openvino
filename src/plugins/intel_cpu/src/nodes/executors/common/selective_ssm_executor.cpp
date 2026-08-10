@@ -18,8 +18,6 @@
 namespace ov::intel_cpu {
 namespace {
 
-constexpr size_t target_scratch_elements = 8192;
-
 bool is_supported_precision(const ov::element::Type& precision) {
     return precision == ov::element::f32 || precision == ov::element::f16 || precision == ov::element::bf16;
 }
@@ -59,12 +57,13 @@ bool SelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     const auto head_dim = x_dims[3];
     const auto state_size = state_dims[3];
     OPENVINO_ASSERT(state_size > 0, "SelectiveSSM state_size must be greater than zero.");
-    const auto scratch_head_dim = std::max(size_t{1}, std::min(head_dim, target_scratch_elements / state_size));
+    const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
+    const auto scratch_head_dim =
+        node::kernel::get_scratch_head_dim(head_dim, state_size, x_dims[0] * x_dims[2], thread_count);
     if (m_state_scratch && m_scratch_head_dim == scratch_head_dim && m_scratch_state_size == state_size) {
         return true;
     }
 
-    const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
                                                ov::intel_cpu::Shape{thread_count, scratch_head_dim * state_size});

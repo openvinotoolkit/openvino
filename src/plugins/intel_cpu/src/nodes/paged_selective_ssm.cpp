@@ -23,11 +23,6 @@
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
-namespace {
-
-constexpr size_t target_scratch_elements = 8192;
-
-}  // namespace
 
 PagedSelectiveSSM::PagedSelectiveSSM(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
@@ -86,13 +81,13 @@ void PagedSelectiveSSM::update_scratchpad() {
     const auto state_size = state_dims[3];
     const auto physical_blocks = state_dims[0];
     OPENVINO_ASSERT(state_size > 0, "PagedSelectiveSSM state_size must be greater than zero.");
-    const auto scratch_head_dim = std::max(size_t{1}, std::min(head_dim, target_scratch_elements / state_size));
+    const auto thread_count = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    const auto scratch_head_dim = kernel::get_scratch_head_dim(head_dim, state_size, x_dims[1], thread_count);
     if (m_state_scratch && m_block_owners && m_scratch_head_dim == scratch_head_dim &&
         m_scratch_state_size == state_size && m_cached_physical_blocks == physical_blocks) {
         return;
     }
 
-    const auto thread_count = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     const auto state_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
                                                ov::intel_cpu::Shape{thread_count, scratch_head_dim * state_size});

@@ -20,6 +20,8 @@
 namespace ov::intel_cpu::node::kernel {
 namespace {
 
+constexpr size_t target_scratch_elements = 8192;
+
 template <typename T>
 inline float load(const T* ptr) {
     return static_cast<float>(*ptr);
@@ -54,6 +56,44 @@ inline void copy_state_from_float(DataT* dst, const float* src, size_t count) {
             store(dst + i, src[i]);
         }
     }
+}
+
+template <typename DataT>
+inline float initialize_state_and_reduce(float* state,
+                                         const DataT* initial_state,
+                                         const DataT* B,
+                                         const DataT* C,
+                                         float decay,
+                                         float input_scale,
+                                         size_t state_size) {
+    // The first token can initialize the working state directly from the recurrent-state input. This avoids an
+    // otherwise redundant full-state copy followed immediately by a read/modify/write pass over the same buffer.
+    float result0 = 0.F;
+    float result1 = 0.F;
+    float result2 = 0.F;
+    float result3 = 0.F;
+    size_t n = 0;
+    for (; n + 4 <= state_size; n += 4) {
+        const float updated_state0 = load(initial_state + n) * decay + input_scale * load(B + n);
+        const float updated_state1 = load(initial_state + n + 1) * decay + input_scale * load(B + n + 1);
+        const float updated_state2 = load(initial_state + n + 2) * decay + input_scale * load(B + n + 2);
+        const float updated_state3 = load(initial_state + n + 3) * decay + input_scale * load(B + n + 3);
+        state[n] = updated_state0;
+        state[n + 1] = updated_state1;
+        state[n + 2] = updated_state2;
+        state[n + 3] = updated_state3;
+        result0 += updated_state0 * load(C + n);
+        result1 += updated_state1 * load(C + n + 1);
+        result2 += updated_state2 * load(C + n + 2);
+        result3 += updated_state3 * load(C + n + 3);
+    }
+    float result = (result0 + result1) + (result2 + result3);
+    for (; n < state_size; ++n) {
+        const float updated_state = load(initial_state + n) * decay + input_scale * load(B + n);
+        state[n] = updated_state;
+        result += updated_state * load(C + n);
+    }
+    return result;
 }
 
 template <typename DataT>
@@ -128,7 +168,14 @@ void selective_ssm_typed(const DataT* A,
                 local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
             }
 
-            copy_state_to_float(local_state, recurrent_state + state_base, p_count * shape.state_size);
+            if (shape.sequence_length == 0) {
+                auto* final_state = output_recurrent_state + state_base;
+                const auto* initial_state = recurrent_state + state_base;
+                if (final_state != initial_state) {
+                    std::memcpy(final_state, initial_state, p_count * shape.state_size * sizeof(DataT));
+                }
+                return;
+            }
 
             const float A_head = load(A + head);
             auto token_head = (batch * shape.sequence_length) * shape.num_heads + head;
@@ -136,12 +183,57 @@ void selective_ssm_typed(const DataT* A,
             auto x_base = token_head * shape.head_dim + p_begin;
             const auto projection_stride = shape.num_groups * shape.state_size;
             const auto x_stride = shape.num_heads * shape.head_dim;
-            for (size_t token = 0; token < shape.sequence_length; ++token) {
+
+            if (shape.sequence_length == 1) {
+                copy_state_to_float(local_state, recurrent_state + state_base, p_count * shape.state_size);
                 const float delta = load(dt + token_head);
                 const float decay = std::exp(A_head * delta);
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
+                for (size_t p = 0; p < p_count; ++p) {
+                    auto* state = local_state + p * shape.state_size;
+                    const float input_scale = load(x + x_base + p) * delta;
+                    const float result =
+                        update_state_and_reduce(state, B_token, C_token, decay, input_scale, shape.state_size);
+                    store(output + x_base + p, result);
+                }
+                if constexpr (!std::is_same_v<DataT, float>) {
+                    copy_state_from_float(output_recurrent_state + state_base, local_state, p_count * shape.state_size);
+                }
+                return;
+            }
 
+            // Initialize the working state directly while processing the first token. Apart from removing a full
+            // state copy, keeping the first iteration out of the recurrent loop removes the first-token condition
+            // from longer sequences. Decode keeps the memcpy-based path above because it is faster on some CPUs.
+            {
+                const float delta = load(dt + token_head);
+                const float decay = std::exp(A_head * delta);
+                const auto* B_token = B + projection_base;
+                const auto* C_token = C + projection_base;
+                for (size_t p = 0; p < p_count; ++p) {
+                    auto* state = local_state + p * shape.state_size;
+                    const float input_scale = load(x + x_base + p) * delta;
+                    const float result =
+                        initialize_state_and_reduce(state,
+                                                    recurrent_state + state_base + p * shape.state_size,
+                                                    B_token,
+                                                    C_token,
+                                                    decay,
+                                                    input_scale,
+                                                    shape.state_size);
+                    store(output + x_base + p, result);
+                }
+            }
+
+            token_head += shape.num_heads;
+            projection_base += projection_stride;
+            x_base += x_stride;
+            for (size_t token = 1; token < shape.sequence_length; ++token) {
+                const float delta = load(dt + token_head);
+                const float decay = std::exp(A_head * delta);
+                const auto* B_token = B + projection_base;
+                const auto* C_token = C + projection_base;
                 for (size_t p = 0; p < p_count; ++p) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
@@ -155,9 +247,7 @@ void selective_ssm_typed(const DataT* A,
             }
 
             if constexpr (!std::is_same_v<DataT, float>) {
-                copy_state_from_float(output_recurrent_state + state_base,
-                                      local_state,
-                                      p_count * shape.state_size);
+                copy_state_from_float(output_recurrent_state + state_base, local_state, p_count * shape.state_size);
             }
         });
 }
@@ -380,6 +470,27 @@ void paged_selective_ssm_typed(const DataT* A,
             // Track cache boundaries incrementally to keep integer division out of the token loop.
             uint64_t tokens_until_boundary = cache_enabled ? positive_interval - cache_offset : 0;
             size_t write_slot = 1;
+
+            if (token_end - token_begin == 1) {
+                const float delta = load(dt + token_head);
+                const float decay = std::exp(A_head * delta);
+                const auto* B_token = B + projection_base;
+                const auto* C_token = C + projection_base;
+                for (size_t p = 0; p < p_count; ++p) {
+                    auto* state = local_state + p * shape.state_size;
+                    const float input_scale = load(x + x_base + p) * delta;
+                    const float result =
+                        update_state_and_reduce(state, B_token, C_token, decay, input_scale, shape.state_size);
+                    store(output + x_base + p, result);
+                }
+                if (cache_enabled) {
+                    const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + write_slot]);
+                    auto* snapshot = recurrent_state_table + write_block * block_stride + state_slice;
+                    copy_state_from_float(snapshot, local_state, p_count * shape.state_size);
+                }
+                return;
+            }
+
             for (size_t token = token_begin; token < token_end; ++token) {
                 const float delta = load(dt + token_head);
                 const float decay = std::exp(A_head * delta);
@@ -461,6 +572,16 @@ void dispatch_paged_index(const void* A,
 }
 
 }  // namespace
+
+size_t get_scratch_head_dim(size_t head_dim, size_t state_size, size_t outer_work_items, size_t thread_count) {
+    OPENVINO_ASSERT(head_dim > 0 && state_size > 0);
+    const auto cache_limited = std::max(size_t{1}, std::min(head_dim, target_scratch_elements / state_size));
+    const auto outer_work = std::max(size_t{1}, outer_work_items);
+    const auto workers = std::max(size_t{1}, thread_count);
+    const auto blocks_for_parallelism = (workers + outer_work - 1) / outer_work;
+    const auto parallelism_limited = (head_dim + blocks_for_parallelism - 1) / blocks_for_parallelism;
+    return std::max(size_t{1}, std::min(cache_limited, parallelism_limited));
+}
 
 void selective_ssm(const void* A,
                    const void* dt,

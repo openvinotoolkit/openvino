@@ -146,6 +146,14 @@ TEST(SelectiveSSMKernel, SupportsF32F16AndBF16) {
     run_selective_precision<bfloat16>(element::bf16, 2e-2F);
 }
 
+TEST(SelectiveSSMKernel, ScratchBlockingBalancesParallelismAndCacheFootprint) {
+    EXPECT_EQ(get_scratch_head_dim(64, 128, 64, 14), 64U);
+    EXPECT_EQ(get_scratch_head_dim(64, 128, 1, 16), 4U);
+    EXPECT_EQ(get_scratch_head_dim(7, 9000, 1, 16), 1U);
+    EXPECT_EQ(get_scratch_head_dim(7, 3, 2, 8), 2U);
+    EXPECT_EQ(get_scratch_head_dim(7, 3, 8, 8), 7U);
+}
+
 TEST(SelectiveSSMKernel, F32ReadWriteStateAliasMatchesReference) {
     const SelectiveSSMShape shape{1, 4, 2, 3, 1, 5};
     const auto A = std::vector<float>{-0.2F, -0.35F};

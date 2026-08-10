@@ -31,6 +31,8 @@ struct PagedSelectiveSSMShape {
     size_t sequence_count = 0;
 };
 
+size_t get_scratch_head_dim(size_t head_dim, size_t state_size, size_t outer_work_items, size_t thread_count);
+
 void selective_ssm(const void* A,
                    const void* dt,
                    const void* B,
