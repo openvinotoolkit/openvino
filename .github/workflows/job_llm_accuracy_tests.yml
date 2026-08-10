@@ -88,9 +88,10 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.12'
+          pip-cache-path: '/mnt/caches/pip'
           set-pip-install-path: 'false'
           self-hosted-runner: true
-          use-pip-proxy: true
+          use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
