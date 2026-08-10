@@ -289,7 +289,7 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
     auto p_scaled = wrap_type<v1::Multiply>({any_input(), p_trig});
     auto p_broadcast = ov::pass::pattern::optional<op::util::BroadcastBase>({p_scaled, any_input()});
     auto p_concat = wrap_type<v0::Concat>({p_broadcast, p_broadcast});
-    auto p_rope_out = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{p_broadcast, p_concat});
+    auto p_rope_out = p_broadcast | p_concat;
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
     auto p_unsqueeze = wrap_type<v0::Unsqueeze>({p_rope_out, p_axis});
 
