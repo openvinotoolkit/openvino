@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <type_traits>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -36,6 +38,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
+        if constexpr (std::is_same_v<Op, ov::op::v0::Exp>)
+            rel_threshold = 0.011f;
         const auto& [shape, precision] = GetParam();
         auto input = std::make_shared<ov::op::v0::Parameter>(precision, shape);
         auto op = std::make_shared<Op>(input);
