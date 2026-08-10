@@ -112,10 +112,9 @@ UnsqueezeBroadcastReshapeSDPAFusion::UnsqueezeBroadcastReshapeSDPAFusion() {
                     if (input_shape[i] != target_shape[i]) ++diff_cnt;
                 }
                 return diff_cnt == 1;
-            } else {
-                // For dynamic output shapes, check the target_shape pattern
+            }  // For dynamic output shapes, check the target_shape pattern
                 return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
-            }
+
         };
 
         std::vector<int32_t> target_shape_val_b;

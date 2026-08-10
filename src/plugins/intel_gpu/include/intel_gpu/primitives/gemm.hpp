@@ -249,13 +249,12 @@ private:
         if (rank == order_idx[rank]) {
             // normal
             return TransposeType::X_LAST;
-        } else if (rank == order_idx[rank - 1]) {
+        }
+        if (rank == order_idx[rank - 1]) {
             // the second last dim is moved to the last
             return TransposeType::Y_LAST;
-        } else {
-            // other
+        }  // other
             return TransposeType::OTHER;
-        }
     }
 };
 
