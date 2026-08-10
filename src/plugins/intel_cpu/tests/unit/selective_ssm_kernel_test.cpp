@@ -146,6 +146,44 @@ TEST(SelectiveSSMKernel, SupportsF32F16AndBF16) {
     run_selective_precision<bfloat16>(element::bf16, 2e-2F);
 }
 
+TEST(SelectiveSSMKernel, F32ReadWriteStateAliasMatchesReference) {
+    const SelectiveSSMShape shape{1, 4, 2, 3, 1, 5};
+    const auto A = std::vector<float>{-0.2F, -0.35F};
+    const auto dt = make_values(8, 0.015F, 0.12F);
+    const auto B = make_values(20, 0.02F, 0.1F);
+    const auto x = make_values(24, 0.025F, 0.05F);
+    const auto C = make_values(20, 0.018F, -0.02F);
+    const auto initial_state = make_values(30, 0.01F);
+    auto aliased_state = initial_state;
+    std::vector<float> output(24);
+    constexpr size_t scratch_head_dim = 2;
+    const auto cpu_parallel = make_parallel();
+    std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_head_dim *
+                               shape.state_size);
+
+    selective_ssm(A.data(),
+                  dt.data(),
+                  B.data(),
+                  x.data(),
+                  C.data(),
+                  aliased_state.data(),
+                  output.data(),
+                  aliased_state.data(),
+                  shape,
+                  element::f32,
+                  scratch.data(),
+                  scratch_head_dim,
+                  cpu_parallel);
+
+    const auto expected = reference_selective_ssm(A, dt, B, x, C, initial_state, shape);
+    for (size_t i = 0; i < output.size(); ++i) {
+        EXPECT_NEAR(output[i], expected.output[i], 1e-6F) << "output index " << i;
+    }
+    for (size_t i = 0; i < aliased_state.size(); ++i) {
+        EXPECT_NEAR(aliased_state[i], expected.state[i], 1e-6F) << "state index " << i;
+    }
+}
+
 TEST(SelectiveSSMKernel, EmptySequenceCopiesInitialState) {
     const SelectiveSSMShape shape{2, 0, 3, 5, 3, 4};
     const auto A = make_values(shape.num_heads, 0.02F, -0.2F);
