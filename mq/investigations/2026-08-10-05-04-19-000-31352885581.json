@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-05-04-19-000-31352885581",
+  "timestamp": "2026-08-10T05:04:19Z",
+  "run_id": "31352885581",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31352885581",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37056",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37056",
+  "author": "clee30",
+  "category": "Flaky Test",
+  "title": "JS API E2E of openvino-node package (cmd) fails on Windows runner",
+  "signature": "e2e of openvino node package cmd step failed|Flaky Test",
+  "signature_hash": "2a7c090f9c6175e0",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "JS API (24)",
+      "conclusion": "failure",
+      "symptom": "Step 'E2E of openvino-node package (cmd)' failed; all preceding JS API steps including non-cmd E2E passed successfully"
+    }
+  ],
+  "key_errors": [
+    "Step: E2E of openvino-node package (cmd) - conclusion: failure",
+    "All prior JS API steps (Test OpenVINO JS API, E2E of openvino-node package) passed; only the cmd-shell variant failed"
+  ],
+  "root_cause": "The 'E2E of openvino-node package (cmd)' step failed while the preceding bash-shell E2E step succeeded, and the PR changes touch only GPU plugin SDPA kernel code with no JS/Node.js changes. This pattern is consistent with a transient Windows runner environment issue (e.g., cmd.exe environment variable propagation, PATH issue, or runner resource contention) rather than any code regression. The PR (GPU: SDPA transpose fusion) is entirely unrelated to the JS API.",
+  "reproduction_steps": "N/A - transient runner environment issue not reproducible locally",
+  "recommended_actions": [
+    "Re-run only the failed jobs; the failure is unrelated to the PR changes",
+    "If the failure recurs on re-run, investigate the Windows runner's cmd.exe environment setup for the openvino-node E2E test"
+  ],
+  "prevention_strategies": "Add retry logic to the cmd-shell E2E step in the JS API job, or use PowerShell consistently instead of mixing cmd and bash shells.",
+  "historical_context": "No prior occurrences of this exact failure signature found in the investigation database. The JS API job passed all other steps including the equivalent bash-shell E2E step."
+}
