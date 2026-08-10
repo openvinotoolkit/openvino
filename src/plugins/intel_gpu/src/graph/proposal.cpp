@@ -100,13 +100,13 @@ std::string proposal_inst::to_string(proposal_node const& node) {
 
     std::stringstream primitive_description;
 
-    auto swap_xy = desc->swap_xy ? "true" : "false";
-    auto initial_clip = desc->initial_clip ? "true" : "false";
-    auto round_ratios = desc->round_ratios ? "true" : "false";
-    auto shift_anchors = desc->shift_anchors ? "true" : "false";
-    auto clip_before_nms = desc->clip_before_nms ? "true" : "false";
-    auto clip_after_nms = desc->clip_after_nms ? "true" : "false";
-    auto for_deformable = desc->clip_after_nms ? "true" : "false";
+    const auto* swap_xy = desc->swap_xy ? "true" : "false";
+    const auto* initial_clip = desc->initial_clip ? "true" : "false";
+    const auto* round_ratios = desc->round_ratios ? "true" : "false";
+    const auto* shift_anchors = desc->shift_anchors ? "true" : "false";
+    const auto* clip_before_nms = desc->clip_before_nms ? "true" : "false";
+    const auto* clip_after_nms = desc->clip_after_nms ? "true" : "false";
+    const auto* for_deformable = desc->clip_after_nms ? "true" : "false";
 
     json_composite proposal_info;
     proposal_info.add("cls score", stringify_port(node.cls_score()));
