@@ -15,6 +15,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -38,6 +39,20 @@ namespace ov::intel_gpu {
 
 namespace {
 
+bool is_legacy_const_shape_layout_trigger(const std::shared_ptr<ov::Node>& op) {
+    if (!ov::is_type<ov::op::v0::Convert>(op))
+        return false;
+
+    for (size_t i = 0; i < op->get_output_size(); ++i) {
+        for (auto& consumer_input : op->get_output_target_inputs(i)) {
+            if (ov::is_type<ov::op::v0::MatMul>(consumer_input.get_node()) && consumer_input.get_index() < 2)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
     if (model.has_rt_info("runtime_options"))
@@ -52,6 +67,10 @@ ov::RTMap get_rt_info(const ov::Model& model) {
 
 bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (op->is_dynamic()) {
+        return true;
+    }
+
+    if (is_legacy_const_shape_layout_trigger(op)) {
         return true;
     }
 
