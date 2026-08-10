@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-01-27-59-000-31346588247",
+  "timestamp": "2026-08-10T01:27:59Z",
+  "run_id": "31346588247",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31346588247",
+  "workflow_name": "Android",
+  "pr_number": "37056",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37056",
+  "author": "clee30",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build arm64 \u2014 CMake configure failed: MODULE_LIBRARY targets cannot be linked",
+    "Build x64 \u2014 CMake configure failed: MODULE_LIBRARY targets cannot be linked"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into another target.",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The Android CMake configure step fails because ov_generate_plugins_hpp() attempts to call target_link_libraries() on MODULE_LIBRARY plugin targets (e.g., openvino_intel_gpu_plugin, openvino_intel_cpu_plugin). MODULE_LIBRARY targets cannot be linked like SHARED libraries. This is a pre-existing recurring issue in the Android build (seen 5+ times since 2026-08-08) unrelated to PR #37056's GPU/SDPA changes, which only touch GPU plugin implementation files.",
+  "reproduction_steps": "Run the Android CMake configure step locally with the Android NDK toolchain.",
+  "recommended_actions": [
+    "Investigate cmake/developer_package/plugins/plugins.cmake:275 \u2014 the ov_generate_plugins_hpp() call that links MODULE_LIBRARY targets",
+    "Fix the CMake logic to skip or handle MODULE_LIBRARY plugins differently (e.g., guard with get_target_property TYPE check)",
+    "This appears to be a pre-existing infrastructure/CMake bug in the Android build, not introduced by PR #37056"
+  ],
+  "prevention_strategies": "Guard target_link_libraries in ov_generate_plugins_hpp with a CMake TYPE check to skip MODULE_LIBRARY targets.",
+  "historical_context": "This exact same CMake error has been observed 5 times starting 2026-08-08 across multiple unrelated PRs, indicating a systemic Android build infrastructure issue."
+}
