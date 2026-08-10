@@ -849,19 +849,24 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         std::string device_type;
         bool resolved = true;
         if (lookup_key == "GPU") {
-            try {
-                device_type =
-                    get_core()->get_property(device.device_name, ov::device::type.name(), {}).as<std::string>();
-            } catch (const ov::Exception&) {
+            // Skip the ov::device::type query when the table has no GPU curves; the device stays unscored anyway.
+            if (perf_curve_table.count("iGPU") == 0 && perf_curve_table.count("dGPU") == 0) {
                 resolved = false;
-            }
-            if (resolved) {
-                if (device_type == "integrated") {
-                    lookup_key = "iGPU";
-                } else if (device_type == "discrete") {
-                    lookup_key = "dGPU";
-                } else {
+            } else {
+                try {
+                    device_type =
+                        get_core()->get_property(device.device_name, ov::device::type.name(), {}).as<std::string>();
+                } catch (const ov::Exception&) {
                     resolved = false;
+                }
+                if (resolved) {
+                    if (device_type == "integrated") {
+                        lookup_key = "iGPU";
+                    } else if (device_type == "discrete") {
+                        lookup_key = "dGPU";
+                    } else {
+                        resolved = false;
+                    }
                 }
             }
         }

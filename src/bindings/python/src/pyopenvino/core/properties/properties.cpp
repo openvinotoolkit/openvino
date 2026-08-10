@@ -341,6 +341,11 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
     wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
     wrap_property_RW(m_intel_auto, ov::intel_auto::perf_curve_table, "perf_curve_table");
+    // Additional string form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
+    m_intel_auto.def("perf_curve_table", [](const std::string& value) {
+        return ov::intel_auto::perf_curve_table(
+            ov::Any(value).as<std::map<std::string, std::map<unsigned, float>>>());
+    });
 
     // Submodule npu
     py::module m_intel_npu =

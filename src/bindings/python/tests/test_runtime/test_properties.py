@@ -629,6 +629,9 @@ def test_properties_perf_curve_table():
     check({"CPU": {50: 25.5}, "NPU": {50: 40.0}},
           {"CPU": {50: 25.5}, "NPU": {50: 40.0}})
 
+    # String form is accepted and parsed to the same nested map.
+    check("{CPU:{0:0,100:100}}", {"CPU": {0: 0.0, 100: 100.0}})
+
     with pytest.raises(TypeError) as e:
         value = {"CPU": {0: "high"}}
         intel_auto.perf_curve_table(value)
