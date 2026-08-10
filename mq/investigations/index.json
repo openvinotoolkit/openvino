@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 125,
+  "total": 126,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1225,6 +1225,15 @@
       "category": "Code Issue",
       "signature_hash": "9ff022172665aa06",
       "pr_number": "37056"
+    },
+    {
+      "investigation_id": "2026-08-10-02-35-09-000-31349537161",
+      "run_id": "31349537161",
+      "timestamp": "2026-08-10T02:35:09Z",
+      "title": "Android CMake configure fails: plugin MODULE_LIBRARY targets cannot be linked",
+      "category": "Code Issue",
+      "signature_hash": "9ff022172665aa06",
+      "pr_number": "37064"
     }
   ]
 }

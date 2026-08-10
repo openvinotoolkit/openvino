@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-02-35-09-000-31349537161",
+  "timestamp": "2026-08-10T02:35:09Z",
+  "run_id": "31349537161",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31349537161",
+  "workflow_name": "Android",
+  "pr_number": "37064",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37064",
+  "author": "hyunback",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: plugin MODULE_LIBRARY targets cannot be linked",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build x64 - CMake configure OpenVINO",
+    "Build arm64 - CMake configure OpenVINO"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target."
+  ],
+  "root_cause": "The CMake configure step for both x64 and arm64 Android builds fails with the same error: plugin targets (openvino_auto_plugin, openvino_auto_batch_plugin, openvino_hetero_plugin, openvino_intel_cpu_plugin, openvino_intel_gpu_plugin, openvino_intel_npu_plugin) are of type MODULE_LIBRARY but are being passed to target_link_libraries in plugins.cmake:275. This is invoked from ov_generate_plugins_hpp -> ov_target_link_plugins. The PR #37064 changes GPU plugin files (paged_attention_opt.cl and paged_attention_opt.cpp) which likely altered a CMake property or registration for the GPU plugin target, causing the ov_add_plugin macro to register it differently. Alternatively, a CMakeLists.txt change in the PR inadvertently changed target type for one or more plugins.",
+  "reproduction_steps": "Run CMake configure for the Android target with the PR's head commit. Look at how ov_add_plugin is invoked in src/plugins/intel_gpu/CMakeLists.txt.",
+  "recommended_actions": [
+    "Review the changes in src/plugins/intel_gpu/src/graph/impls/ocl_v2/paged_attention_opt.cpp for any CMakeLists.txt side effects",
+    "Check if any CMakeLists.txt in the GPU plugin subtree was modified by the PR",
+    "Examine plugins.cmake:275-327 to understand when ov_target_link_plugins is called with MODULE targets",
+    "Revert the PR and confirm the Android build succeeds to confirm PR caused the regression"
+  ],
+  "prevention_strategies": "Include Android CMake configure as a required check for GPU plugin PRs to catch MODULE_LIBRARY linkage issues before merge.",
+  "historical_context": "No prior identical pattern found. This is the first recorded CMake MODULE_LIBRARY linkage failure in Android build."
+}
