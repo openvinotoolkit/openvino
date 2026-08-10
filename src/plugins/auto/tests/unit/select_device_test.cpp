@@ -479,7 +479,7 @@ public:
         std::tie(perfCurveTable, devices, deviceUtilization, selectedDeviceInfo) = obj.param;
         std::ostringstream result;
         result << "candidateDeviceList_";
-        for (auto dev : devices)
+        for (const auto& dev : devices)
             result << dev.device_name << "_priority_" << dev.device_priority << "_";
         result << "utilization_";
         for (const auto& item : deviceUtilization) {

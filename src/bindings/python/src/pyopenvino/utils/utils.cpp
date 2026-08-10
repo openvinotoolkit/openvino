@@ -397,12 +397,21 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                                        " must be an integer within [0, 100], but got ",
                                        utilization);
                     }
+                    // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
                     if (py::isinstance<py::bool_>(curve_item.second)) {
                         OPENVINO_THROW("The value type of ",
                                        ov::intel_auto::perf_curve_table.name(),
                                        " should be dict[str, dict[int in [0, 100], float]] with float scores");
                     }
-                    const auto score = py::cast<float>(curve_item.second);
+                    float score = 0.f;
+                    try {
+                        score = py::cast<float>(curve_item.second);
+                    } catch (const py::cast_error&) {
+                        // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
+                        OPENVINO_THROW("The value type of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " should be dict[str, dict[int in [0, 100], float]] with numeric float scores");
+                    }
                     if (!std::isfinite(score) || score < 0.f) {
                         OPENVINO_THROW(
                             "The value type of ",
