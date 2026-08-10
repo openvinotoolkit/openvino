@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "inv-31356362934-2026-08-10-05-54-21-000",
+  "timestamp": "2026-08-10T05:54:21Z",
+  "run_id": "31356362934",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31356362934",
+  "workflow_name": "Android",
+  "pr_number": "37123",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37123",
+  "author": "kwieloch-intel",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build arm64",
+    "Build x64"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into another target. Call Stack: cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp)",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The Android CMake configure step fails because ov_generate_plugins_hpp attempts to link MODULE_LIBRARY plugin targets (openvino_auto_plugin, openvino_intel_gpu_plugin, openvino_intel_cpu_plugin, etc.) as dependencies, which CMake prohibits. This is a pre-existing infrastructure issue in cmake/developer_package/plugins/plugins.cmake:275 unrelated to the PR's GPU plugin changes. The same error has been seen 9 prior times since 2026-08-08.",
+  "reproduction_steps": "Build the Android target with CMake; the configure step will fail with the MODULE_LIBRARY link error.",
+  "recommended_actions": [
+    "This is a pre-existing issue unrelated to PR #37123 (GPU BF16 random_uniform). A fix to cmake/developer_package/plugins/plugins.cmake is needed to avoid linking MODULE_LIBRARY targets.",
+    "Track the fix in a dedicated issue; do not block GPU PRs on this."
+  ],
+  "prevention_strategies": "Fix ov_generate_plugins_hpp / ov_target_link_plugins to skip or handle MODULE_LIBRARY targets without issuing a target_link_libraries call.",
+  "historical_context": "This same CMake error has occurred 9 times previously (first seen 2026-08-08T01:04:42Z) across multiple PRs including #37056, #37064, #37211, #37304."
+}
