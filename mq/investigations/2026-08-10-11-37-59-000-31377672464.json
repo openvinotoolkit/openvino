@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-11-37-59-000-31377672464",
+  "timestamp": "2026-08-10T11:37:59Z",
+  "run_id": "31377672464",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31377672464",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "34485",
+  "category": "Flaky Test",
+  "title": "Conformance API test CoreThreadingTestsWithIter smoke_CompileModel_MultipleCores crashes on CPU",
+  "signature": "unexpected failures CoreThreadingTestsWithIter smoke CompileModel MultipleCores CPU|Flaky Test",
+  "signature_hash": "099f84cf324f62da",
+  "confidence": "Medium",
+  "failed_jobs": [
+    "Conformance (API)"
+  ],
+  "key_errors": [
+    "ERROR:test_parallel_runner:Unexpected failures: {'ov_plugin/CoreThreadingTestsWithIter.smoke_CompileModel_MultipleCores/targetDevice=CPU_config=PERF_COUNT=NO_numThreads=4_numIter=50'}"
+  ],
+  "root_cause": "The Conformance (API) job reported 1 crashed test in the CoreThreadingTestsWithIter suite. This test exercises multi-threaded model compilation on CPU (4 threads, 50 iterations) and is known to be sensitive to timing and runner load. The failure is unrelated to the PR changes (PyTorch bincount frontend). This is consistent with a flaky/intermittent test."
+}

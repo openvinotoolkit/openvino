@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "unexpected failures CoreThreadingTestsWithIter smoke CompileModel MultipleCores CPU|Flaky Test",
+  "signature_hash": "099f84cf324f62da",
+  "title": "Conformance API test CoreThreadingTestsWithIter smoke_CompileModel_MultipleCores crashes on CPU",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-10T11:37:59Z",
+  "last_seen": "2026-08-10T11:37:59Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31377672464"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/34485"
+  ],
+  "recent_timestamps": [
+    "2026-08-10T11:37:59Z"
+  ],
+  "rerun_search_string": "Unexpected failures"
+}
