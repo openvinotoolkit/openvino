@@ -471,6 +471,69 @@ ov::Output<ov::Node> make_sliding_window_mask_gemma4(const ov::Output<ov::Node>&
     return combine_sliding_and_causal(parts, q_col, neg_window, p);
 }
 
+namespace {
+// Shared body for the two Gemma-4 Unified builders: `select_index` picks which
+// element of the cache_position range feeds the Q-side Add. Only 0 is the real
+// export shape (and the only one equal to past_kv_len).
+ov::Output<ov::Node> make_sliding_window_mask_gemma4_unified_impl(const ov::Output<ov::Node>& seq_source,
+                                                                  const ov::Output<ov::Node>& attention_mask_output,
+                                                                  size_t window_size,
+                                                                  int64_t select_index,
+                                                                  const std::string& p) {
+    auto parts = make_swa_parts(seq_source, attention_mask_output, p);
+
+    // Q side after the transformers 5.5 lowering: the past offset is no longer
+    // added directly. cache_position is built as a range and its first element,
+    // which equals past_kv_len, is what the Add consumes.
+    auto full_ctx_q = std::make_shared<ov::opset11::Add>(parts.past_kv_len, parts.seq_len);
+    full_ctx_q->set_friendly_name(p + "full_ctx_q");
+    auto cache_pos_range =
+        std::make_shared<ov::op::v4::Range>(parts.past_kv_len, full_ctx_q, parts.step, ov::element::i64);
+    cache_pos_range->set_friendly_name(p + "cache_pos_range");
+    auto sel_idx = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {select_index});
+    auto sel_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto past_len_select = std::make_shared<ov::opset11::Gather>(cache_pos_range, sel_idx, sel_axis);
+    past_len_select->set_friendly_name(p + "past_len_select");
+
+    auto q_range = std::make_shared<ov::op::v4::Range>(parts.zero, parts.seq_len, parts.step, ov::element::i64);
+    q_range->set_friendly_name(p + "q_range");
+    auto cache_position = std::make_shared<ov::opset11::Add>(q_range, past_len_select);
+    cache_position->set_friendly_name(p + "cache_position");
+    auto q_col = unsq1(unsq1(unsq1(cache_position, 1), 0), 0);
+    q_col->set_friendly_name(p + "q_col");
+
+    auto neg_window = ov::opset11::Constant::create(ov::element::i64,
+                                                    ov::Shape{1, 1, 1, 1},
+                                                    {-static_cast<int64_t>(window_size)});
+    neg_window->set_friendly_name(p + "neg_window");
+
+    return combine_sliding_and_causal(parts, q_col, neg_window, p);
+}
+}  // namespace
+
+ov::Output<ov::Node> make_sliding_window_mask_gemma4_unified(const ov::Output<ov::Node>& seq_source,
+                                                             const ov::Output<ov::Node>& attention_mask_output,
+                                                             ov::element::Type /*unused*/,
+                                                             size_t window_size) {
+    return make_sliding_window_mask_gemma4_unified_impl(seq_source,
+                                                        attention_mask_output,
+                                                        window_size,
+                                                        0,
+                                                        "model.swgu.");
+}
+
+ov::Output<ov::Node> make_sliding_window_mask_gemma4_unified_nonzero_select(
+    const ov::Output<ov::Node>& seq_source,
+    const ov::Output<ov::Node>& attention_mask_output,
+    ov::element::Type /*unused*/,
+    size_t window_size) {
+    return make_sliding_window_mask_gemma4_unified_impl(seq_source,
+                                                        attention_mask_output,
+                                                        window_size,
+                                                        1,
+                                                        "model.swgun.");
+}
+
 ov::Output<ov::Node> make_sliding_window_mask_phi3_legacy(const ov::Output<ov::Node>& seq_source,
                                                           const ov::Output<ov::Node>& attention_mask_output,
                                                           ov::element::Type prec,
