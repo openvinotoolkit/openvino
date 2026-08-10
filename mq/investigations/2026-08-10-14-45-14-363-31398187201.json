@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-14-45-14-363-31398187201",
+  "timestamp": "2026-08-10T14:45:14Z",
+  "run_id": "31398187201",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31398187201",
+  "workflow_name": "Android",
+  "pr_number": "37311",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37311",
+  "author": "tkrupa-intel",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: TARGET MODULE_LIBRARY cannot be linked"
+    },
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: TARGET MODULE_LIBRARY cannot be linked"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to upstream job failures"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into another target. One may link only to INTERFACE, OBJECT, STATIC or SHARED libraries",
+    "-- Configuring incomplete, errors occurred!\nProcess completed with exit code 1."
+  ],
+  "root_cause": "The cmake/developer_package/plugins/plugins.cmake:275 calls target_link_libraries on MODULE_LIBRARY targets (plugin .so files). CMake does not allow MODULE_LIBRARY targets to be linked as dependencies into other targets. This is triggered by ov_generate_plugins_hpp via ov_target_link_plugins. This is a pre-existing infrastructure/CMake issue unrelated to the PR's GPU kernel changes \u2014 it has been recurring since 2026-08-08 across 16 different PRs.",
+  "reproduction_steps": "N/A - this is a CI infrastructure issue in the Android build configuration",
+  "recommended_actions": [
+    "Fix cmake/developer_package/plugins/plugins.cmake:275 to not use target_link_libraries on MODULE_LIBRARY targets",
+    "The ov_target_link_plugins / ov_generate_plugins_hpp call chain needs to be reworked to avoid linking MODULE_LIBRARY targets directly",
+    "This appears to be a pre-existing infrastructure issue - investigate whether a recent CMake version change or plugin CMake type change caused this regression"
+  ],
+  "prevention_strategies": "Review CMake policy for plugin target types. MODULE_LIBRARY targets cannot be linked; consider using SHARED or interface-only dependencies for plugin discovery.",
+  "historical_context": "This exact failure has been occurring since 2026-08-08 and has been recorded 16 times. It blocks the Android workflow for all PRs touching master branch."
+}
