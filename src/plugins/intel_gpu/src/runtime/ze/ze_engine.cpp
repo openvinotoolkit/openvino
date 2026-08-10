@@ -147,6 +147,10 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
         auto ocl_image = static_cast<cl_mem>(params.mem);
         auto imported_image = ze_import_image(ocl_image);
         return std::make_shared<ze::gpu_image2d>(this, new_layout, imported_image, nullptr);
+    } else if (params.mem_type == shared_mem_type::shared_mem_vasurface) {
+        OPENVINO_NOT_IMPLEMENTED;
+    } else if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
+        OPENVINO_NOT_IMPLEMENTED;
     } else {
         OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
     }
