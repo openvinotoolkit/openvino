@@ -13,7 +13,7 @@
 #endif
 
 namespace cldnn::ze {
-struct ze_stream;
+class ze_stream;
 class ze_command_list : public command_list {
 public:
     using ptr = std::shared_ptr<ze_command_list>;
