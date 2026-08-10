@@ -1400,24 +1400,16 @@ RoPEFusionCohere::RoPEFusionCohere() {
             return false;
         config.rotary_ndims = static_cast<size_t>(x_shape[3].get_length());
 
-        NodeVector rt_from = {pattern_map.at(neg_x_odd).get_node_shared_ptr(),
+        NodeVector rt_from = {pattern_map.at(x_odd).get_node_shared_ptr(),
+                              pattern_map.at(x_even).get_node_shared_ptr(),
+                              pattern_map.at(neg_x_odd).get_node_shared_ptr(),
+                              pattern_map.at(neg_x_odd_unsq).get_node_shared_ptr(),
+                              pattern_map.at(x_even_unsq).get_node_shared_ptr(),
                               pattern_map.at(stack).get_node_shared_ptr(),
+                              pattern_map.at(x_rotate).get_node_shared_ptr(),
                               pattern_map.at(mul_cos).get_node_shared_ptr(),
                               pattern_map.at(mul_sin).get_node_shared_ptr(),
                               pattern_map.at(result).get_node_shared_ptr()};
-        for (const auto& np : {x_odd,
-                               x_even,
-                               neg_x_odd_unsq_unsqueeze,
-                               neg_x_odd_unsq_reshape,
-                               x_even_unsq_unsqueeze,
-                               x_even_unsq_reshape}) {
-            if (pattern_map.count(np))
-                rt_from.push_back(pattern_map.at(np).get_node_shared_ptr());
-        }
-        if (pattern_map.count(flatten_Reshape_dyn))
-            rt_from.push_back(pattern_map.at(flatten_Reshape_dyn).get_node_shared_ptr());
-        if (pattern_map.count(flatten_Reshape_zero))
-            rt_from.push_back(pattern_map.at(flatten_Reshape_zero).get_node_shared_ptr());
 
         OutputVector new_args = {pattern_map.at(x), pattern_map.at(cos_input), pattern_map.at(sin_input)};
 
