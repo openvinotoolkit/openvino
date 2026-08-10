@@ -4,10 +4,11 @@
   "signature_hash": "9ff022172665aa06",
   "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
   "category": "Code Issue",
-  "count": 11,
+  "count": 12,
   "first_seen": "2026-08-08T01:04:42Z",
-  "last_seen": "2026-08-10T09:09:40Z",
+  "last_seen": "2026-08-10T10:16:36Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31377673039",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31369296085",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31356362934",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31352885426",
@@ -16,10 +17,10 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/31346588247",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31321996989",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31261069001",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/31258094600",
-    "https://github.com/openvinotoolkit/openvino/actions/runs/31257162423"
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31258094600"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37001",
     "https://github.com/openvinotoolkit/openvino/pull/37056",
     "https://github.com/openvinotoolkit/openvino/pull/37123",
     "https://github.com/openvinotoolkit/openvino/pull/37064",
@@ -27,6 +28,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37304"
   ],
   "recent_timestamps": [
+    "2026-08-10T10:16:36Z",
     "2026-08-10T09:09:40Z",
     "2026-08-10T05:54:21Z",
     "2026-08-10T03:44:31Z",

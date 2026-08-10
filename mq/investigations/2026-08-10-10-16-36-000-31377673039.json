@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-10-16-36-000-31377673039",
+  "timestamp": "2026-08-10T10:16:36Z",
+  "run_id": "31377673039",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31377673039",
+  "workflow_name": "Android",
+  "pr_number": "37001",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37001",
+  "author": "dependabot[bot]",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: MODULE_LIBRARY target cannot be linked in ov_generate_plugins_hpp"
+    },
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: MODULE_LIBRARY target cannot be linked in ov_generate_plugins_hpp"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because Build x64 and Build arm64 failed"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries):\n  Target \"openvino_auto_plugin\" of type MODULE_LIBRARY may not be linked into\n  another target.  One may link only to INTERFACE, OBJECT, STATIC or SHARED\n  libraries, or to executables with the ENABLE_EXPORTS property set.\nCall Stack (most recent call first):\n  cmake/developer_package/plugins/plugins.cmake:325 (ov_target_link_plugins)\n  cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp)\n  CMakeLists.txt:196 (include)",
+    "-- Configuring incomplete, errors occurred!\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The ov_generate_plugins_hpp() CMake function calls ov_target_link_plugins() which calls target_link_libraries() with MODULE_LIBRARY targets (openvino_auto_plugin, openvino_hetero_plugin, openvino_intel_cpu_plugin, openvino_intel_gpu_plugin, openvino_intel_npu_plugin, openvino_auto_batch_plugin). CMake does not allow linking MODULE_LIBRARY targets to other targets. This is a pre-existing code issue in cmake/developer_package/plugins/plugins.cmake line 275 affecting all Android builds (both x64 and arm64). The PR under test (mistune bump in docs/requirements.txt) did not introduce this issue - it is a persistent master-branch regression. This failure has been seen 12 times since 2026-08-08.",
+  "reproduction_steps": "N/A - this reproduces on any Android CI build; not easily reproducible without the Android NDK toolchain setup.",
+  "recommended_actions": [
+    "Investigate plugins.cmake:275 - the ov_target_link_plugins function must not use target_link_libraries with MODULE_LIBRARY targets on Android builds; consider using INTERFACE libraries or compile-time registration instead.",
+    "Check if a recent commit changed plugin build type from SHARED to MODULE and broke the Android linkage contract.",
+    "Search for the PR that introduced this regression (started 2026-08-08) and revert or fix it."
+  ],
+  "prevention_strategies": "Add a CMake check in the Android CI pipeline that validates no MODULE_LIBRARY plugin targets are passed to target_link_libraries. Consider a precommit validation step for plugins.cmake changes.",
+  "historical_context": "This exact failure has occurred 12 times since 2026-08-08, pattern 9ff022172665aa06. It is a persistent master-branch regression unrelated to individual PRs in the merge queue."
+}
