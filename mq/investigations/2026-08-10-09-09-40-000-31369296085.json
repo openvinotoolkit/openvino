@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-09-09-40-000-31369296085",
+  "timestamp": "2026-08-10T09:09:40Z",
+  "run_id": "31369296085",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31369296085",
+  "workflow_name": "Android",
+  "pr_number": "37056",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37056",
+  "author": "clee30",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build arm64 - CMake configure OpenVINO",
+    "Build x64 - CMake configure OpenVINO"
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries): Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into another target."
+  ],
+  "root_cause": "The ov_generate_plugins_hpp() function calls ov_target_link_plugins() which attempts to link MODULE_LIBRARY plugin targets into openvino. MODULE_LIBRARY targets cannot be linked as dependencies. This is a pre-existing CMake infrastructure issue affecting Android builds, triggered by every PR in the merge queue. The GPU plugin (and other plugins) are built as MODULE_LIBRARY but ov_target_link_plugins tries to link them statically. This is a systemic CI issue unrelated to the GPU SDPA changes in PR #37056."
+}
