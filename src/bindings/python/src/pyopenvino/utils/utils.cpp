@@ -392,9 +392,10 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                     }
                     const auto utilization = py::cast<long long>(curve_item.first);
                     if (utilization < 0 || utilization > 100) {
-                        OPENVINO_THROW("The key type of ",
+                        OPENVINO_THROW("The utilization key of ",
                                        ov::intel_auto::perf_curve_table.name(),
-                                       " should be dict[str, dict[int in [0, 100], float]]");
+                                       " must be an integer within [0, 100], but got ",
+                                       utilization);
                     }
                     if (py::isinstance<py::bool_>(curve_item.second)) {
                         OPENVINO_THROW("The value type of ",

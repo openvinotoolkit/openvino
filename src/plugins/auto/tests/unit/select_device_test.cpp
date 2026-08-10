@@ -504,7 +504,7 @@ public:
         return sanitize_for_gtest(result.str());
     }
 
-    void compare(DeviceInformation& a, DeviceInformation& b) {
+    void compare(const DeviceInformation& a, const DeviceInformation& b) {
         EXPECT_EQ(a.device_name, b.device_name);
         EXPECT_EQ(a.unique_name, b.unique_name);
         EXPECT_EQ(a.default_device_id, b.default_device_id);

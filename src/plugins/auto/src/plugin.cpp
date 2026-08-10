@@ -733,7 +733,10 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     } else if (!perf_curve_table.empty()) {
         // perf_curve_table takes precedence over devices_utilization_threshold when set.
         perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table);
-        ptr_select_device = &perf_curve_sorted_devices.front();
+        // sort_device_by_perf_curve is mockable/overridable; fall back to the highest-priority valid device
+        // if it returns an empty list to avoid dereferencing front() on an empty container.
+        ptr_select_device =
+            perf_curve_sorted_devices.empty() ? &valid_devices.front() : &perf_curve_sorted_devices.front();
     } else {
         // select the higher priority device in case all of device utilization is exceeded the threshold.
         last_device = valid_devices.front();
