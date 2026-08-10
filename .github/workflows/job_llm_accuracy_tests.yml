@@ -24,6 +24,10 @@ on:
         type: number
         required: false
         default: 90
+      test-suffix:
+        description: 'Suffix appended to artifact name to avoid collisions (e.g. CPU, iGPU, dGPU)'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -37,6 +41,7 @@ jobs:
       volumes:
         - /mnt/caches:/mnt/caches
         - /home/runner/secrets/:/secrets:ro
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
       options: ${{ inputs.container-options }}
     defaults:
@@ -49,7 +54,13 @@ jobs:
       HF_HUB_CACHE: /mnt/caches/huggingface
       HUGGINGFACE_HUB_CACHE: /mnt/caches/huggingface
       HF_TOKEN_PATH: /secrets/huggingface/token-secondary
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /etc/ssl/certs/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
     steps:
+      - name: Update CA certificates
+        run: update-ca-certificates
+
       - name: Checkout
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -107,7 +118,7 @@ jobs:
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: test-results-llm-accuracy-${{ inputs.device }}
+          name: test-results-llm-accuracy-${{ inputs.test-suffix }}
           path: |
             ${{ env.LLM_TEST_DIR }}/llm_accuracy.xml
             ${{ env.LLM_TEST_DIR }}/llm_accuracy.html

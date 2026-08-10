@@ -186,6 +186,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       device: 'CPU'
+      test-suffix: 'CPU'
       timeout-minutes: 30
 
   LLM_Accuracy_iGPU:
@@ -203,6 +204,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128'
       device: 'GPU'
+      test-suffix: 'iGPU'
       timeout-minutes: 30
 
   LLM_Accuracy_dGPU:
@@ -220,6 +222,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129'
       device: 'GPU'
+      test-suffix: 'dGPU'
       timeout-minutes: 30
 
   Pytorch_Layer_Tests:
