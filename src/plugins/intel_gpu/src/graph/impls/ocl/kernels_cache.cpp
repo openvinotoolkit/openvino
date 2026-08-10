@@ -22,6 +22,11 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
+// POC: dynamic-load ocloc offline compiler (bypass dump for validation).
+#include "runtime/ocl/ocloc_offline_compiler.hpp"
+// HW-free placeholder kernel for the offline export path (no driver JIT, no cl::Context).
+#include "runtime/ocl/offline_kernel.hpp"
+
 #ifdef WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
@@ -30,6 +35,7 @@
 #endif
 
 #include <cassert>
+#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <set>
@@ -308,12 +314,74 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     ///////////////////////////////////////////////////////////////////////////////////
     std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
+        // A cached driver binary would bypass the ocloc offline path below (no export override
+        // registered) and leak a non-HW-free kernel into the blob. Offline compile must not consume
+        // the cl_cache; disable kernels caching when compiling offline.
+        OPENVINO_ASSERT(!_config.get_offline_compile(),
+                        "[GPU offline] kernels cache (cl_cache) must be disabled for HW-free offline "
+                        "compile; a cached driver binary would bypass ocloc.");
         std::lock_guard<std::mutex> lock(cacheAccessMutex);
         precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
     std::vector<kernel::ptr> kernels;
     if (!precompiled.empty()) {
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
+    } else if (_offline_export) {
+        // ===== HW-free offline compilation (context-less, no driver JIT) =====
+        // Triggered by the GPU_OFFLINE_COMPILE config option. Each OCLC batch is compiled by ocloc
+        // HW-free and wrapped in an offline_kernel placeholder (id = entry point, binary = ocloc bytes).
+        // We do NOT driver-JIT here: build_kernels(SOURCE) would need a real cl::Context, which the
+        // offline path deliberately avoids (a stub device_info engine replaces the real one at compile
+        // time). The
+        // placeholder is never executed (offline compile never builds a cldnn::network); its bytes are
+        // serialized into the exported blob and loaded exactly once, at import time
+        // (clCreateProgramWithBinary in the inference process). NO fallback: if ocloc fails, abort loudly.
+        // NOTE: loadability/target-match is not validated here (that would require loading it); a
+        // wrong-target binary fails at import time instead.
+        auto combined_source = join_strings(batch.source);
+
+        // HW-free guarantee: offline compile must cover EVERY batch via ocloc, or it is not HW-free.
+        // Only plain OCLC (non-microkernel) batches can be ocloc-compiled today; CM / OCLC_V2 /
+        // microkernel batches cannot. Fail loudly instead of skipping so that "offline compile
+        // succeeds" == "100% ocloc coverage". (onednn is also force-disabled in execution_config
+        // under offline, since it JITs via the driver and bypasses ocloc.)
+        OPENVINO_ASSERT(batch.language == kernel_language::OCLC && !batch.has_microkernels,
+                        "[GPU offline] batch ", batch.hash_value,
+                        " uses a kernel path ocloc cannot compile HW-free (language enum=",
+                        static_cast<int>(batch.language), ", has_microkernels=", batch.has_microkernels,
+                        "). Offline compile requires 100% OCLC coverage; force these primitives onto "
+                        "the ocl path or extend ocloc coverage.");
+
+        const std::string device_arg = _config.get_offline_compile_device();  // ocloc -device target
+        OPENVINO_ASSERT(!device_arg.empty(),
+                        "[GPU] GPU_OFFLINE_COMPILE requires GPU_OFFLINE_COMPILE_DEVICE (e.g. 0x4680 or 12.2.0)");
+
+        std::string ocloc_log;
+        std::vector<uint8_t> ocloc_bin =
+            cldnn::ocloc_poc::ocloc_compile_ocl_c(combined_source, batch.options, device_arg, &ocloc_log);
+
+        OPENVINO_ASSERT(!ocloc_bin.empty(),
+                        "[GPU offline] ocloc compile produced no binary for batch ", batch.hash_value,
+                        " (device=", device_arg, "). Log:\n", ocloc_log);
+
+        // One placeholder per entry point in the batch; all share the same batch program binary
+        // (matches ocl_kernel::get_binary(), which returns the whole program). entry_point_to_id is
+        // populated from source parsing (no compile needed). At import, build_kernels(NATIVE_BIN) on
+        // this zebin reconstructs one real kernel per entry point -> entry_point@id mapping matches.
+        for (const auto& ep : batch.entry_point_to_id)
+            kernels.push_back(std::make_shared<ocl::offline_kernel>(ep.first, ocloc_bin));
+        OPENVINO_ASSERT(kernels.size() == batch.kernels_counter,
+                        "[GPU offline] placeholder kernel count (", kernels.size(),
+                        ") != batch kernel count (", batch.kernels_counter, ") for batch ", batch.hash_value);
+
+        if (dump_sources && dump_file.good())
+            dump_file << "\n/* Offline (ocloc, HW-free): no driver build log */\n";
+
+        // TODO(productization): drop this std::cerr marker. Kept visible (not GPU_DEBUG_LOG, which is
+        // compiled out without ENABLE_DEBUG_CAPS) for offline-compile verification.
+        std::cerr << "[GPU offline] batch " << batch.hash_value
+                  << " device=" << device_arg
+                  << " ocloc_bin=" << ocloc_bin.size() << "B (context-less, load-once)" << std::endl;
     } else {
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
@@ -521,6 +589,13 @@ void kernels_cache::add_to_cached_kernels(const std::vector<kernel::ptr>& kernel
 }
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
+    // TODO(productization): drop this std::cerr marker. Authoritative count of UNIQUE
+    // kernel binaries serialized into the exported blob (dedup by binary), independent of how many
+    // build_batch/ocloc calls produced them. For offline this is the real "kernels in blob" number.
+    if (_offline_export) {
+        std::cerr << "[GPU offline] serializing " << _cached_binaries.size()
+                  << " unique kernel binaries into blob" << std::endl;
+    }
     ob << _cached_binaries.size();
 
     auto is_zebin = [](const std::vector<unsigned char>& bin) {

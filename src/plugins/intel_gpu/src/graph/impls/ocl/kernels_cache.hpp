@@ -116,6 +116,12 @@ private:
     bool is_cache_enabled() const;
 
     bool _reuse_kernels = false;
+    // When true, build_batch emits HW-free ocloc placeholder kernels (no driver JIT, no cl::Context)
+    // for export instead of building runnable kernels. Set ONLY for the top-level offline compile-only
+    // program. It is NOT derived from _config.get_offline_compile() inside build_batch because that flag
+    // is env-polluted (OV_GPU_OFFLINE_COMPILE) in the inference process: the import-time constant-folding
+    // internal network there would otherwise emit non-executable placeholders and crash on execution.
+    bool _offline_export = false;
 
 public:
     explicit kernels_cache(engine& engine,
@@ -127,6 +133,7 @@ public:
     std::vector<kernel::ptr> get_kernels(const kernel_impl_params& params) const;
 
     void set_kernels_reuse(bool reuse_kernels) { _reuse_kernels = reuse_kernels; }
+    void set_offline_export(bool offline_export) { _offline_export = offline_export; }
     bool get_kernels_reuse() const { return _reuse_kernels; }
 
     // forces compilation of all pending kernels/programs
