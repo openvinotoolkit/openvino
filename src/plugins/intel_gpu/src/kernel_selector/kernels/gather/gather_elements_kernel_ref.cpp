@@ -108,7 +108,7 @@ static inline std::string GetOrderString(const std::vector<std::string>& order) 
 
 static std::string GetDataIndexOrder(const gather_elements_params& params, size_t axis) {
     auto idx_order = GetDefaultOrder(params.outputs[0].GetDims().size());
-    auto index_macro = "indices_val";
+    const auto* index_macro = "indices_val";
 
     idx_order[axis] = index_macro;
 
@@ -187,7 +187,7 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

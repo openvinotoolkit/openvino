@@ -11,7 +11,7 @@ namespace kernel_selector {
 namespace {
 
 size_t getTileXY(const concatenation_params& params) {
-    auto& input = params.inputs[0];
+    const auto& input = params.inputs[0];
     size_t tileXY =  1;
     if (params.isAligned) {
         switch (input.GetDType()) {
