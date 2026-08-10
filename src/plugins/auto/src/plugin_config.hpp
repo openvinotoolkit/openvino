@@ -10,6 +10,7 @@
 #include "utils/log.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <map>
