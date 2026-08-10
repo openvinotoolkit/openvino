@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-03-04-06-000-31349537487",
+  "timestamp": "2026-08-10T03:04:06Z",
+  "run_id": "31349537487",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31349537487",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37064",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37064",
+  "author": "hyunback",
+  "category": "Flaky Test",
+  "title": "CPU functional tests on ARM64 interrupted - suite count mismatch in parallel runner",
+  "signature": "number of suites in expected suite|Flaky Test",
+  "signature_hash": "16d4ac149e87a952",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 test interrupted; suite count mismatch (15 vs 60 expected) in log_2.log"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to dependent CPU functional test job failing"
+    }
+  ],
+  "key_errors": [
+    "ERROR:test_parallel_runner:Number of suites in /__w/openvino/openvino/install/tests/temp/log_2.log: 15. Expected is 60 suite",
+    "INFO:test_parallel_runner:interapted test counter is: 1",
+    "ERROR:test_parallel_runner:Run is not successful",
+    "##[error]Process completed with exit code 255."
+  ],
+  "root_cause": "The CPU functional test parallel runner detected that log_2.log (a shard/worker log file) contained only 15 test suites instead of the expected 60. This caused the runner to report 1 interrupted test and exit with code 255. This is a known flakiness pattern in the parallel test runner on ARM64 where a worker process terminates early or a suite partition is incomplete. The PR under test changes only GPU/OCL kernel code (paged_attention_opt.cl, sdpa/paged_attention_opt.cpp, paged_attention_gpu_test.cpp) and has no coupling to ARM64 CPU functional tests, strongly suggesting this is an infrastructure/runner issue rather than a PR-induced regression.",
+  "reproduction_steps": "N/A - infrastructure-level flakiness in the parallel test runner; unlikely to reproduce on local ARM64 hardware under normal conditions.",
+  "recommended_actions": [
+    "Re-add the PR to the merge queue; this failure appears unrelated to the GPU-only code change.",
+    "Monitor for recurrence of 'Number of suites in log_2.log: N. Expected is 60 suite' failures on ARM64.",
+    "If recurring: investigate the parallel runner worker process (run_parallel.py) for premature exit/OOM conditions on the ARM64 runner."
+  ],
+  "prevention_strategies": "Consider adding a retry mechanism in the parallel test runner for suite count mismatches. Monitor ARM64 runner resource utilization during CPU functional test runs.",
+  "historical_context": "No prior occurrence of this exact suite count mismatch pattern has been recorded in the CI Doctor MQ database."
+}

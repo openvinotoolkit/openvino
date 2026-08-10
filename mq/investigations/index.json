@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 126,
+  "total": 127,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1233,6 +1233,15 @@
       "title": "Android CMake configure fails: plugin MODULE_LIBRARY targets cannot be linked",
       "category": "Code Issue",
       "signature_hash": "9ff022172665aa06",
+      "pr_number": "37064"
+    },
+    {
+      "investigation_id": "2026-08-10-03-04-06-000-31349537487",
+      "run_id": "31349537487",
+      "timestamp": "2026-08-10T03:04:06Z",
+      "title": "CPU functional tests on ARM64 interrupted - suite count mismatch in parallel runner",
+      "category": "Flaky Test",
+      "signature_hash": "16d4ac149e87a952",
       "pr_number": "37064"
     }
   ]

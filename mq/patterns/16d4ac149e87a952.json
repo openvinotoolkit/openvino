@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "number of suites in expected suite|Flaky Test",
+  "signature_hash": "16d4ac149e87a952",
+  "title": "CPU functional tests on ARM64 interrupted - suite count mismatch in parallel runner",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-10T03:04:06Z",
+  "last_seen": "2026-08-10T03:04:06Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31349537487"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37064"
+  ],
+  "recent_timestamps": [
+    "2026-08-10T03:04:06Z"
+  ],
+  "rerun_search_string": "Number of suites in Expected is suite"
+}
