@@ -366,6 +366,17 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImportForWSIt
     auto model = core.read_model(model_xml.str(), model_weights);
 
     // Forcing CID as the current compiler type
+    // Check for the property in the supported properties list, since the driver may not support it.
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties = core.get_property(
+                           deviceName,
+                           ov::supported_properties,
+                           {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)}));
+   if (find(supportedProperties.cbegin(), supportedProperties.cend(), ov::enable_weightless.name()) ==
+        supportedProperties.cend()) {
+        GTEST_SKIP() << "current driver does not support ENABLE_WEIGHTLESS";
+    }
+
     ov::CompiledModel compiledModel;
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(
                            model,
