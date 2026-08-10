@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "openvino/op/paged_selective_ssm.hpp"
@@ -89,7 +90,7 @@ std::pair<std::vector<float>, std::vector<float>> selective_reference(const std:
     return {output, state};
 }
 
-std::vector<float> paged_reference(const std::vector<float>& A,
+std::pair<std::vector<float>, std::vector<float>> paged_reference(const std::vector<float>& A,
                                    const std::vector<float>& dt,
                                    const std::vector<float>& B,
                                    const std::vector<float>& x,
@@ -148,12 +149,10 @@ std::vector<float> paged_reference(const std::vector<float>& A,
             }
         }
     }
-    return output;
+    return {output, state};
 }
 
 TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMDynamicModel) {
-    constexpr int32_t batch = 2;
-    constexpr int32_t seq_len = 3;
     constexpr int32_t num_heads = 4;
     constexpr int32_t num_groups = 2;
     constexpr int32_t head_dim = 3;
@@ -171,37 +170,49 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMDynamicModel) {
         ov::ParameterVector{A_param, dt_param, B_param, x_param, C_param, state_param});
 
     auto A = make_values(num_heads, -0.03f, -0.25f);
-    auto dt = make_values(batch * seq_len * num_heads, 0.007f, 0.08f);
-    auto B = make_values(batch * seq_len * num_groups * state_size, 0.01f);
-    auto x = make_values(batch * seq_len * num_heads * head_dim, 0.015f);
-    auto C = make_values(batch * seq_len * num_groups * state_size, 0.012f);
-    auto state = make_values(batch * num_heads * head_dim * state_size, 0.008f);
-    const auto [expected_output, expected_state] = selective_reference(A, dt, B, x, C, state, batch, seq_len, num_heads, num_groups, head_dim, state_size);
+    const std::vector<std::pair<size_t, size_t>> shapes{{2, 3}, {1, 7}, {3, 1}, {2, 3}};
 
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
         auto request = core.compile_model(model, device).create_infer_request();
-        request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
-        request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
-        request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
-        request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads, head_dim}, x));
-        request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, C));
-        request.set_input_tensor(5, make_tensor<float>(ov::element::f32, {batch, num_heads, head_dim, state_size}, state));
-        request.infer();
+        for (const auto& [batch, seq_len] : shapes) {
+            SCOPED_TRACE(testing::Message() << "batch=" << batch << ", seq_len=" << seq_len);
+            auto dt = make_values(batch * seq_len * num_heads, 0.007f, 0.08f);
+            auto B = make_values(batch * seq_len * num_groups * state_size, 0.01f);
+            auto x = make_values(batch * seq_len * num_heads * head_dim, 0.015f);
+            auto C = make_values(batch * seq_len * num_groups * state_size, 0.012f);
+            auto state = make_values(batch * num_heads * head_dim * state_size, 0.008f);
+            const auto [expected_output, expected_state] =
+                selective_reference(A, dt, B, x, C, state, batch, seq_len, num_heads, num_groups, head_dim, state_size);
 
-        expect_tensor_near(request.get_output_tensor(0), expected_output);
-        expect_tensor_near(request.get_output_tensor(1), expected_state);
+            request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
+            request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
+            request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
+            request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads, head_dim}, x));
+            request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, C));
+            request.set_input_tensor(5, make_tensor<float>(ov::element::f32, {batch, num_heads, head_dim, state_size}, state));
+            request.infer();
+
+            expect_tensor_near(request.get_output_tensor(0), expected_output);
+            expect_tensor_near(request.get_output_tensor(1), expected_state);
+        }
     }
 }
 
 TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
-    constexpr int32_t tokens = 5;
     constexpr int32_t num_heads = 4;
     constexpr int32_t num_groups = 2;
     constexpr int32_t head_dim = 3;
     constexpr int32_t state_size = 5;
-    constexpr int32_t state_blocks = 5;
+    struct PagedCase {
+        std::vector<int64_t> subsequences;
+        std::vector<int64_t> blocks;
+        std::vector<int64_t> block_begins;
+        std::vector<int64_t> processed;
+        std::vector<int64_t> intervals;
+        size_t state_blocks;
+    };
 
     auto A_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{num_heads});
     auto dt_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, num_heads});
@@ -242,29 +253,282 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
                                                                  interval_param});
 
     auto A = make_values(num_heads, -0.03f, -0.2f);
-    auto dt = make_values(tokens * num_heads, 0.006f, 0.07f);
-    auto B = make_values(tokens * num_groups * state_size, 0.009f);
-    auto x = make_values(tokens * num_heads * head_dim, 0.013f);
-    auto C = make_values(tokens * num_groups * state_size, 0.011f);
-    auto state = make_values(state_blocks * num_heads * head_dim * state_size, 0.007f);
-    const std::vector<int64_t> subsequences{0, 3, 5};
-    const std::vector<int64_t> blocks{0, 1, 2, 3, 4};
-    const std::vector<int64_t> block_begins{0, 3, 5};
-    const std::vector<int64_t> processed{0, 1};
-    const std::vector<int64_t> intervals{2, 2};
-    const auto expected =
-        paged_reference(A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals, num_heads, num_groups, head_dim, state_size);
+    const std::vector<PagedCase> cases{
+        {{0, 3, 5}, {0, 1, 2, 3, 4}, {0, 3, 5}, {0, 1}, {2, 2}, 5},
+        {{0, 1}, {1, 1}, {0, 2}, {4}, {2}, 2},
+        {{0, 2, 7}, {5, 2, 1, 4, 0, 3}, {0, 2, 6}, {1, 7}, {3, 2}, 6},
+        {{0, 3, 5}, {0, 1, 2, 3, 4}, {0, 3, 5}, {0, 1}, {2, 2}, 5},
+    };
+
+    ov::Core core;
+    for (const auto& device : get_gpu_devices(core)) {
+        SCOPED_TRACE(device);
+        auto compiled_model = core.compile_model(model, device);
+        auto request = compiled_model.create_infer_request();
+        const auto set_index_input = [&request](size_t index, const std::vector<int64_t>& values) {
+            request.set_input_tensor(index, make_tensor<int64_t>(ov::element::i64, {values.size()}, values));
+        };
+        for (const auto& test_case : cases) {
+            const auto tokens = static_cast<size_t>(test_case.subsequences.back());
+            SCOPED_TRACE(testing::Message() << "tokens=" << tokens
+                                            << ", sequences=" << test_case.subsequences.size() - 1);
+            auto dt = make_values(tokens * num_heads, 0.006f, 0.07f);
+            auto B = make_values(tokens * num_groups * state_size, 0.009f);
+            auto x = make_values(tokens * num_heads * head_dim, 0.013f);
+            auto C = make_values(tokens * num_groups * state_size, 0.011f);
+            auto state = make_values(test_case.state_blocks * num_heads * head_dim * state_size, 0.007f);
+            const auto expected = paged_reference(A,
+                                                  dt,
+                                                  B,
+                                                  x,
+                                                  C,
+                                                  state,
+                                                  test_case.subsequences,
+                                                  test_case.blocks,
+                                                  test_case.block_begins,
+                                                  test_case.processed,
+                                                  test_case.intervals,
+                                                  num_heads,
+                                                  num_groups,
+                                                  head_dim,
+                                                  state_size);
+
+            auto state_tensor = compiled_model.get_context().create_tensor(
+                ov::element::f32,
+                {test_case.state_blocks, num_heads, head_dim, state_size});
+            state_tensor.copy_from(make_tensor<float>(
+                ov::element::f32,
+                {test_case.state_blocks, num_heads, head_dim, state_size},
+                state));
+            request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
+            request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {tokens, num_heads}, dt));
+            request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {tokens, num_groups, state_size}, B));
+            request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {tokens, num_heads, head_dim}, x));
+            request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {tokens, num_groups, state_size}, C));
+            request.set_input_tensor(5, state_tensor);
+            set_index_input(6, test_case.subsequences);
+            set_index_input(7, test_case.blocks);
+            set_index_input(8, test_case.block_begins);
+            set_index_input(9, test_case.processed);
+            set_index_input(10, test_case.intervals);
+            request.infer();
+
+            expect_tensor_near(request.get_output_tensor(0), expected.first);
+            ov::Tensor actual_state(ov::element::f32,
+                                    {test_case.state_blocks, num_heads, head_dim, state_size});
+            request.get_tensor(state_param).copy_to(actual_state);
+            expect_tensor_near(actual_state, expected.second);
+        }
+    }
+}
+
+TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMChainedState) {
+    constexpr int32_t batch = 1;
+    constexpr int32_t seq_len = 5;
+    constexpr int32_t num_heads = 4;
+    constexpr int32_t num_groups = 2;
+    constexpr int32_t head_dim = 5;
+    constexpr int32_t state_size = 17;
+
+    auto A_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{num_heads});
+    auto dt_param =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, num_heads});
+    auto B_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, -1, num_groups, state_size});
+    auto x_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, -1, num_heads, head_dim});
+    auto C_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, -1, num_groups, state_size});
+    auto state_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, num_heads, head_dim, state_size});
+    auto first =
+        std::make_shared<ov::op::internal::SelectiveSSM>(A_param, dt_param, B_param, x_param, C_param, state_param);
+    auto second = std::make_shared<ov::op::internal::SelectiveSSM>(
+        A_param,
+        dt_param,
+        B_param,
+        first->output(0),
+        C_param,
+        first->output(1));
+    auto model = std::make_shared<ov::Model>(
+        ov::ResultVector{std::make_shared<ov::op::v0::Result>(second->output(0)),
+                         std::make_shared<ov::op::v0::Result>(second->output(1))},
+        ov::ParameterVector{A_param, dt_param, B_param, x_param, C_param, state_param});
+
+    auto A = make_values(num_heads, -0.03f, -0.25f);
+    auto dt = make_values(batch * seq_len * num_heads, 0.007f, 0.08f);
+    auto B = make_values(batch * seq_len * num_groups * state_size, 0.01f);
+    auto x = make_values(batch * seq_len * num_heads * head_dim, 0.015f);
+    auto C = make_values(batch * seq_len * num_groups * state_size, 0.012f);
+    auto state = make_values(batch * num_heads * head_dim * state_size, 0.008f);
+    const auto first_expected =
+        selective_reference(A, dt, B, x, C, state, batch, seq_len, num_heads, num_groups, head_dim, state_size);
+    const auto second_expected = selective_reference(A,
+                                                     dt,
+                                                     B,
+                                                     first_expected.first,
+                                                     C,
+                                                     first_expected.second,
+                                                     batch,
+                                                     seq_len,
+                                                     num_heads,
+                                                     num_groups,
+                                                     head_dim,
+                                                     state_size);
 
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
         auto request = core.compile_model(model, device).create_infer_request();
         request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
+        request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
+        request.set_input_tensor(
+            2,
+            make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
+        request.set_input_tensor(
+            3,
+            make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads, head_dim}, x));
+        request.set_input_tensor(
+            4,
+            make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, C));
+        request.set_input_tensor(
+            5,
+            make_tensor<float>(ov::element::f32, {batch, num_heads, head_dim, state_size}, state));
+        request.infer();
+
+        expect_tensor_near(request.get_output_tensor(0), second_expected.first);
+        expect_tensor_near(request.get_output_tensor(1), second_expected.second);
+    }
+}
+
+TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
+    constexpr int32_t tokens = 2;
+    constexpr int32_t num_heads = 4;
+    constexpr int32_t num_groups = 2;
+    constexpr int32_t head_dim = 3;
+    constexpr int32_t state_size = 5;
+    constexpr int32_t state_blocks = 2;
+
+    auto A_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{num_heads});
+    auto dt_param =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, num_heads});
+    auto B_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, num_groups, state_size});
+    auto x_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, num_heads, head_dim});
+    auto C_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, num_groups, state_size});
+    auto state_param = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{-1, num_heads, head_dim, state_size});
+    const auto index_param = [] {
+        return std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    };
+    auto subsequence_param = index_param();
+    auto blocks_param = index_param();
+    auto block_begins_param = index_param();
+    auto processed_param = index_param();
+    auto interval_param = index_param();
+    auto first = std::make_shared<ov::op::internal::PagedSelectiveSSM>(A_param,
+                                                                       dt_param,
+                                                                       B_param,
+                                                                       x_param,
+                                                                       C_param,
+                                                                       state_param,
+                                                                       subsequence_param,
+                                                                       blocks_param,
+                                                                       block_begins_param,
+                                                                       processed_param,
+                                                                       interval_param);
+    auto second = std::make_shared<ov::op::internal::PagedSelectiveSSM>(A_param,
+                                                                        dt_param,
+                                                                        B_param,
+                                                                        first->output(0),
+                                                                        C_param,
+                                                                        state_param,
+                                                                        subsequence_param,
+                                                                        blocks_param,
+                                                                        block_begins_param,
+                                                                        processed_param,
+                                                                        interval_param);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{second},
+                                             ov::ParameterVector{A_param,
+                                                                 dt_param,
+                                                                 B_param,
+                                                                 x_param,
+                                                                 C_param,
+                                                                 state_param,
+                                                                 subsequence_param,
+                                                                 blocks_param,
+                                                                 block_begins_param,
+                                                                 processed_param,
+                                                                 interval_param});
+
+    auto A = make_values(num_heads, -0.03f, -0.2f);
+    auto dt = make_values(tokens * num_heads, 0.006f, 0.07f);
+    auto B = make_values(tokens * num_groups * state_size, 0.009f);
+    auto x = make_values(tokens * num_heads * head_dim, 0.013f);
+    auto C = make_values(tokens * num_groups * state_size, 0.011f);
+    auto state = make_values(state_blocks * num_heads * head_dim * state_size, 0.007f);
+    const std::vector<int64_t> subsequences{0, tokens};
+    const std::vector<int64_t> blocks{0, 0};
+    const std::vector<int64_t> block_begins{0, 2};
+    const std::vector<int64_t> processed{0};
+    const std::vector<int64_t> intervals{tokens};
+    const auto first_expected = paged_reference(A,
+                                                dt,
+                                                B,
+                                                x,
+                                                C,
+                                                state,
+                                                subsequences,
+                                                blocks,
+                                                block_begins,
+                                                processed,
+                                                intervals,
+                                                num_heads,
+                                                num_groups,
+                                                head_dim,
+                                                state_size);
+    const auto second_expected = paged_reference(A,
+                                                 dt,
+                                                 B,
+                                                 first_expected.first,
+                                                 C,
+                                                 first_expected.second,
+                                                 subsequences,
+                                                 blocks,
+                                                 block_begins,
+                                                 processed,
+                                                 intervals,
+                                                 num_heads,
+                                                 num_groups,
+                                                 head_dim,
+                                                 state_size);
+
+    ov::Core core;
+    for (const auto& device : get_gpu_devices(core)) {
+        SCOPED_TRACE(device);
+        auto compiled_model = core.compile_model(model, device);
+        auto state_tensor = compiled_model.get_context().create_tensor(
+            ov::element::f32,
+            {state_blocks, num_heads, head_dim, state_size});
+        state_tensor.copy_from(
+            make_tensor<float>(ov::element::f32, {state_blocks, num_heads, head_dim, state_size}, state));
+        auto request = compiled_model.create_infer_request();
+        request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
         request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {tokens, num_heads}, dt));
         request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {tokens, num_groups, state_size}, B));
         request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {tokens, num_heads, head_dim}, x));
         request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {tokens, num_groups, state_size}, C));
-        request.set_input_tensor(5, make_tensor<float>(ov::element::f32, {state_blocks, num_heads, head_dim, state_size}, state));
+        request.set_input_tensor(5, state_tensor);
         request.set_input_tensor(6, make_tensor<int64_t>(ov::element::i64, {subsequences.size()}, subsequences));
         request.set_input_tensor(7, make_tensor<int64_t>(ov::element::i64, {blocks.size()}, blocks));
         request.set_input_tensor(8, make_tensor<int64_t>(ov::element::i64, {block_begins.size()}, block_begins));
@@ -272,7 +536,10 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
         request.set_input_tensor(10, make_tensor<int64_t>(ov::element::i64, {intervals.size()}, intervals));
         request.infer();
 
-        expect_tensor_near(request.get_output_tensor(0), expected);
+        expect_tensor_near(request.get_output_tensor(0), second_expected.first);
+        ov::Tensor actual_state(ov::element::f32, {state_blocks, num_heads, head_dim, state_size});
+        request.get_tensor(state_param).copy_to(actual_state);
+        expect_tensor_near(actual_state, second_expected.second);
     }
 }
 

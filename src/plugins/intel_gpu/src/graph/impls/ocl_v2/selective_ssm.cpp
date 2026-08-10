@@ -13,6 +13,8 @@
 namespace ov::intel_gpu::ocl {
 namespace {
 
+constexpr size_t max_head_dim_block = 4;
+
 size_t get_lws(const size_t state_size, const device_info& info) {
     const size_t limit = std::min<size_t>(32, info.max_work_group_size);
     const size_t target = std::min(std::max<size_t>(state_size, 1), limit);
@@ -20,6 +22,30 @@ size_t get_lws(const size_t state_size, const device_info& info) {
     while (lws * 2 <= target)
         lws *= 2;
     return lws;
+}
+
+size_t get_head_dim_block(const size_t head_dim, const size_t state_size, const size_t lws, const device_info& info) {
+    const size_t local_capacity = info.max_local_mem_size / sizeof(float);
+    const size_t state_and_reduction = state_size + lws;
+    size_t block = std::min(std::max<size_t>(head_dim, 1), max_head_dim_block);
+    while (block > 1 && state_and_reduction > local_capacity / block)
+        --block;
+
+    OPENVINO_ASSERT(state_and_reduction <= local_capacity,
+                    "SelectiveSSM requires at least ",
+                    state_and_reduction * sizeof(float),
+                    " bytes of local memory, but the device exposes ",
+                    info.max_local_mem_size,
+                    " bytes");
+    return block;
+}
+
+void set_head_dim_block_scalar(KernelData& kd, const size_t block) {
+    kd.params.scalars.clear();
+    scalar_desc desc;
+    desc.t = scalar_desc::Types::INT32;
+    desc.v.s32 = static_cast<int32_t>(block);
+    kd.params.scalars.push_back(desc);
 }
 
 class SelectiveSSMOptGenerator : public KernelGenerator {
@@ -47,6 +73,7 @@ protected:
         for (uint32_t i = 0; i < params.output_layouts.size(); i++) {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         }
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
         args.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
         return args;
     }
@@ -57,6 +84,7 @@ protected:
             if (params.is_dynamic()) {
                 wgs.global = {1, 1, 1};
                 wgs.local = {1, 1, 1};
+                set_head_dim_block_scalar(kd, 1);
                 kd.params.local_memory_args = {2 * sizeof(float)};
                 return;
             }
@@ -68,16 +96,15 @@ protected:
             const size_t head_dim = x_shape[3].get_length();
             const size_t state_size = B_shape[3].get_length();
             const size_t lws = get_lws(state_size, params.get_device_info());
-            const size_t local_bytes = (state_size + lws) * sizeof(float);
+            const size_t head_dim_block = get_head_dim_block(head_dim, state_size, lws, params.get_device_info());
+            const size_t head_dim_groups = head_dim / head_dim_block + (head_dim % head_dim_block != 0);
+            const size_t local_bytes = head_dim_block * (state_size + lws) * sizeof(float);
 
-            OPENVINO_ASSERT(local_bytes <= params.get_device_info().max_local_mem_size,
-                            "SelectiveSSM requires ", local_bytes, " bytes of local memory, but the device exposes ",
-                            params.get_device_info().max_local_mem_size, " bytes");
-
-            wgs.global = {std::max<size_t>(head_dim, 1) * lws,
+            wgs.global = {std::max<size_t>(head_dim_groups, 1) * lws,
                           std::max<size_t>(num_heads, 1),
                           std::max<size_t>(batch, 1)};
             wgs.local = {lws, 1, 1};
+            set_head_dim_block_scalar(kd, head_dim_block);
             kd.params.local_memory_args = {local_bytes};
         }};
     }

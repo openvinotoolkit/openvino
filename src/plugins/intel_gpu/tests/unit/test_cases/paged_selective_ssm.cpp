@@ -427,6 +427,10 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
         paged_selective_ssm_test_params{{3}, {-7}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
-        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2}));
+        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},
+        // Exercise local-memory-driven 4 -> 3 -> 2 -> 1 blocking and tails.
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 5000, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 3, 6000, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 8192, ov::element::f32, ov::element::i32, false}));
 
 }  // namespace

@@ -236,6 +236,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_selective_ssm_gpu_test,
                                            selective_ssm_test_params{1, 0, 2, 1, 4, 9, ov::element::bf16, false},
                                            selective_ssm_test_params{1, 3, 2, 1, 4, 0, ov::element::f32, false},
                                            selective_ssm_test_params{2, 4, 4, 2, 3, 15, ov::element::f32, true, false, false, 3},
-                                           selective_ssm_test_params{2, 32, 8, 4, 16, 64, ov::element::f16, false}));
+                                           selective_ssm_test_params{2, 32, 8, 4, 16, 64, ov::element::f16, false},
+                                           // Exercise local-memory-driven 4 -> 3 -> 2 -> 1 blocking and tails.
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 5000, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 3, 6000, ov::element::f32, false},
+                                           selective_ssm_test_params{1, 2, 2, 1, 4, 8192, ov::element::f32, false}));
 
 }  // namespace
