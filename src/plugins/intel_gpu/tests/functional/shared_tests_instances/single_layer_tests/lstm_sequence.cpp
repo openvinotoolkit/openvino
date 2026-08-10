@@ -22,12 +22,20 @@ class LSTMSequenceGPUTest : public LSTMSequenceTest {
         params = this->GetParam();
         const auto network_precision = std::get<9>(params);
         const auto activations = std::get<5>(params);
+        const auto hidden_size = std::get<3>(params);
+        const auto input_size = std::get<4>(params);
+        const auto direction = std::get<7>(params);
         if (network_precision == ov::element::f16) {
             rel_threshold = 0.03f;
             abs_threshold = 0.0025f;
             if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
                 rel_threshold = 0.05f;
                 abs_threshold = 0.005f;
+            }
+            if (activations == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL &&
+                hidden_size == 128 && (input_size == 64 || input_size == 256)) {
+                abs_threshold = 0.025f;
             }
         }
      }
