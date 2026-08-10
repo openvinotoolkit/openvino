@@ -31,6 +31,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
@@ -48,6 +49,16 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::utils {
+
+bool is_numpy_broadcast(const std::shared_ptr<const ov::Node>& node) {
+    if (const auto broadcast = ov::as_type_ptr<const ov::op::v1::Broadcast>(node)) {
+        return broadcast->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
+    }
+    if (const auto broadcast = ov::as_type_ptr<const ov::op::v3::Broadcast>(node)) {
+        return broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
+    }
+    return false;
+}
 
 namespace {
 // copy_runtime_info drops the non-copyable DisablePrecisionConversion attribute; propagate it
