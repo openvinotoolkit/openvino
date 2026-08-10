@@ -287,7 +287,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::SetDefault(const convolution_params
     dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
 
     dispatchData.cldnnStyle.blockWidth = tune_params.tile_x;
-    dispatchData.cldnnStyle.prefetch = tune_params.preload_input_slm;
+    dispatchData.cldnnStyle.prefetch = static_cast<size_t>(tune_params.preload_input_slm);
 
     return dispatchData;
 }

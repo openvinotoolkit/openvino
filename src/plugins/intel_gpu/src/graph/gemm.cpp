@@ -231,21 +231,21 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     size_t input_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->input_rank;
     size_t weight_rank = (reordered && !allow_new_shape_infer) ? output_rank : primitive->weight_rank;
 
-    auto transposed_input0_pshape = get_transposed_input_shape(input0_pshape, input_rank, output_rank, primitive->transpose_input0, true);
-    auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
+    auto transposed_input0_pshape = get_transposed_input_shape(input0_pshape, input_rank, output_rank, primitive->transpose_input0 != 0u, true);
+    auto transposed_input1_pshape = get_transposed_input_shape(input1_pshape, weight_rank, output_rank, primitive->transpose_input1 != 0u, false);
 
     std::vector<layout> layouts = input_layouts;
     // Format update for rank > 4 case
     if (layouts[0].format.dimension() < transposed_input0_pshape.size())
         layouts[0].format = cldnn::format::get_default_format(transposed_input0_pshape.size());
     layouts[0].set_partial_shape(transposed_input0_pshape);
-    layouts[0].data_padding = get_transposed_padding(layouts[0].data_padding, input_rank, input_format_rank, primitive->transpose_input0, true);
+    layouts[0].data_padding = get_transposed_padding(layouts[0].data_padding, input_rank, input_format_rank, primitive->transpose_input0 != 0u, true);
     layouts[1].set_partial_shape(transposed_input1_pshape);
-    layouts[1].data_padding = get_transposed_padding(layouts[1].data_padding, weight_rank, weight_format_rank, primitive->transpose_input1, false);
+    layouts[1].data_padding = get_transposed_padding(layouts[1].data_padding, weight_rank, weight_format_rank, primitive->transpose_input1 != 0u, false);
 
     if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
-        auto updated_bias_pshape = get_transposed_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
+        auto updated_bias_pshape = get_transposed_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1 != 0u, false);
         layouts[2].set_partial_shape(updated_bias_pshape);
     }
 

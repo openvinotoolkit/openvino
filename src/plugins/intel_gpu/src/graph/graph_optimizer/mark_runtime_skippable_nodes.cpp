@@ -123,7 +123,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || !prim->new_axis_mask.empty()
                 || !prim->shrink_axis_mask.empty()
                 || !prim->ellipsis_mask.empty()
-                || !(all_zeroes(begin) || all_ones(begin_mask))
+                || (!all_zeroes(begin) && !all_ones(begin_mask))
                 || !all_ones(strides))
                 return;
 
