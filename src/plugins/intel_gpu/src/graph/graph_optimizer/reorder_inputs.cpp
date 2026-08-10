@@ -328,7 +328,7 @@ void minimize_local_reorders(program& p, std::map<program_node*, format::type>& 
                         continue;
                     io_formats.insert(fmt_map.at(dep.first));
                 }
-                if (!(io_formats.size() == 1 && io_formats.count(preferred_format) == 0))
+                if (io_formats.size() != 1 || io_formats.count(preferred_format) != 0)
                     continue;
             } else {
                 continue;

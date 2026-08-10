@@ -29,11 +29,20 @@ protected:
     std::string deviceName;
     ov::Core core;
 
+private:
+    std::optional<utils::LoggerLevelGuard> _logGuard;
+
 public:
     void SetUp() override {
+        _logGuard.emplace(::intel_npu::Logger::global().level());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         OVCompiledModelPropertiesBase::SetUp();
         deviceName = GetParam();
+    }
+
+    void TearDown() override {
+        _logGuard.reset();
+        OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj) {
         auto targetDevice = obj.param;

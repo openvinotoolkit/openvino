@@ -747,8 +747,8 @@ void program::transfer_memory_to_device() {
             allocation_type target_alloc_type = alloc_type;
             // usm_device memory does not provide performance benefits on the LNL platform
             if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
-                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
+                (get_engine().get_device_info().arch < gpu_arch::xe2 ||
+                  get_engine().get_device_info().dev_type != device_type::integrated_gpu)) {
                 // Convert to usm_device for performance optimization
                 target_alloc_type = allocation_type::usm_device;
             }
@@ -897,10 +897,7 @@ bool program::has_state_initializers(const std::string& variable_id, const primi
 
 bool program::contains_state(const std::string& variable_id) {
     auto it = state_initializers.find(variable_id);
-    if (it != state_initializers.end())
-        return true;
-    else
-        return false;
+    return it != state_initializers.end();
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
@@ -1279,7 +1276,7 @@ void program::fuse_nodes(program_node &fused_node,
         }
 
         fused_node.dependencies.push_back({dep, port});
-        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port != 0).data_type);
         local_desc.deps.emplace_back(dep->id(), deps_idx++);
         dep->users.push_back(&fused_node);
     }
