@@ -183,7 +183,7 @@ jobs:
       )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
-      runner: '["self-hosted", "cpu", "Linux"]'
+      runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
       device: 'CPU'
       timeout-minutes: 30
