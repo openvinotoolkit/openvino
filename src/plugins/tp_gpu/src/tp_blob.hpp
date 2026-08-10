@@ -25,8 +25,10 @@ namespace tp_gpu {
 ///     uint32    version
 ///     uint32    world_size
 ///     uint32    num_collectives
-///     [world_size] device name : uint32 length + bytes
-///     [world_size] rank blob   : uint64 length + bytes
+///     uint32    num_sharded_states
+///     [world_size]        device name       : uint32 length + bytes
+///     [num_sharded_states] variable id      : uint32 length + bytes
+///     [world_size]        rank blob         : uint64 length + bytes
 ///
 /// Everything read back is untrusted input -- a cache file can be stale,
 /// truncated or corrupted -- so every length is bounds-checked before it is
@@ -38,11 +40,17 @@ inline constexpr char magic[8] = {'O', 'V', 'T', 'P', 'G', 'P', 'U', '\0'};
 /// Bump on any layout or semantic change.  The version is the only field a
 /// reader can act on before it has parsed anything else, so an older blob
 /// must never be handed to a newer runtime.
-inline constexpr uint32_t version = 1;
+///
+/// 2: added the list of kv-head-sharded variable ids.
+inline constexpr uint32_t version = 2;
 
 /// Device names are short identifiers such as "GPU.0"; anything longer means
 /// the stream is not what we think it is.
 inline constexpr uint32_t max_device_name_length = 256;
+
+/// Variable ids come from the IR and are longer than device names, but still
+/// bounded -- a multi-kilobyte id means the stream is not what we think it is.
+inline constexpr uint32_t max_variable_id_length = 4096;
 
 template <class T>
 void write_trivial(std::ostream& s, const T& v) {
@@ -67,10 +75,10 @@ inline void write_string(std::ostream& s, const std::string& v) {
     s.write(v.data(), static_cast<std::streamsize>(v.size()));
 }
 
-inline std::string read_string(std::istream& s) {
+inline std::string read_string(std::istream& s, uint32_t max_length = max_device_name_length) {
     const auto length = read_trivial<uint32_t>(s);
-    OPENVINO_ASSERT(length <= max_device_name_length,
-                    "[TP_GPU] compiled blob declares a device name of ", length,
+    OPENVINO_ASSERT(length <= max_length,
+                    "[TP_GPU] compiled blob declares a string of ", length,
                     " bytes, which is not plausible; the cache entry is corrupted");
     std::string v(length, '\0');
     s.read(v.data(), static_cast<std::streamsize>(length));

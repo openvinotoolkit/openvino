@@ -891,6 +891,48 @@ void patch_reshape_constant(const std::shared_ptr<ov::Node>& reshape,
     reshape->input(1).replace_source_output(new_const->output(0));
 }
 
+/// Collect the KV cache variables that get sharded along the kv-head axis.
+///
+/// A variable qualifies when its id names a KV cache and its shape is the
+/// canonical [batch, kv_heads, seq, head_dim] with a static kv_heads matching
+/// the model-wide count.  Anything else is left alone, which also means it
+/// stays replicated across ranks -- the runtime relies on this same predicate
+/// to decide how to gather and scatter state, so the two must not drift apart.
+std::vector<std::shared_ptr<ov::op::util::Variable>> collect_kv_cache_variables(const ov::Model& model,
+                                                                               int num_kv_heads) {
+    std::vector<std::shared_ptr<ov::op::util::Variable>> result;
+    std::unordered_set<std::string> seen;
+
+    for (const auto& op : model.get_ordered_ops()) {
+        std::shared_ptr<ov::op::util::Variable> variable;
+        if (auto rv = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
+            variable = rv->get_variable();
+        } else if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(op)) {
+            variable = assign->get_variable();
+        }
+        if (!variable)
+            continue;
+
+        const auto& info = variable->get_info();
+        const auto& var_id = info.variable_id;
+        if (var_id.find("past_key_values") == std::string::npos &&
+            var_id.find("key") == std::string::npos &&
+            var_id.find("value") == std::string::npos)
+            continue;
+
+        const auto& shape = info.data_shape;
+        if (!shape.rank().is_static() || shape.rank().get_length() != 4)
+            continue;
+        if (!shape[1].is_static() || shape[1].get_length() != static_cast<int64_t>(num_kv_heads))
+            continue;
+
+        // ReadValue and Assign share one Variable object.
+        if (seen.insert(var_id).second)
+            result.push_back(variable);
+    }
+    return result;
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -1166,38 +1208,10 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     //    ReadValue / Assign variables for KV cache have shape
     //    [batch, kv_heads, seq, head_dim].  Update dim[1] to local_kv_heads.
     // ------------------------------------------------------------------
-    // Collect unique variables (ReadValue and Assign share the same Variable).
-    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> var_map;
-    for (const auto& op : cloned->get_ordered_ops()) {
-        std::shared_ptr<ov::op::util::Variable> variable;
-        if (auto rv = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
-            variable = rv->get_variable();
-        } else if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(op)) {
-            variable = assign->get_variable();
-        }
-        if (!variable)
-            continue;
-
-        auto var_id = variable->get_info().variable_id;
-        if (var_id.find("past_key_values") == std::string::npos &&
-            var_id.find("key") == std::string::npos &&
-            var_id.find("value") == std::string::npos)
-            continue;
-
-        if (var_map.count(var_id))
-            continue;
-        var_map[var_id] = variable;
-    }
-
-    for (auto& [var_id, variable] : var_map) {
+    for (const auto& variable : collect_kv_cache_variables(*cloned, plan.num_kv_heads)) {
         auto info = variable->get_info();
-        auto& shape = info.data_shape;
-        if (shape.rank().is_static() && shape.rank().get_length() == 4 &&
-            shape[1].is_static() &&
-            shape[1].get_length() == static_cast<int64_t>(plan.num_kv_heads)) {
-            shape[1] = local_kv_heads;
-            variable->update(info);
-        }
+        info.data_shape[1] = local_kv_heads;
+        variable->update(info);
     }
 
     // ------------------------------------------------------------------
@@ -1318,6 +1332,15 @@ int GraphRewriter::count_collectives(const ShardingPlan& plan) {
             ++count;
     }
     return count;
+}
+
+std::vector<std::string> GraphRewriter::sharded_state_ids(const std::shared_ptr<const ov::Model>& model,
+                                                          const ShardingPlan& plan) {
+    std::vector<std::string> ids;
+    for (const auto& variable : collect_kv_cache_variables(*model, plan.num_kv_heads)) {
+        ids.push_back(variable->get_info().variable_id);
+    }
+    return ids;
 }
 
 }  // namespace tp_gpu

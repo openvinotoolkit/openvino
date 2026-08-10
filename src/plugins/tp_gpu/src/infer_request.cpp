@@ -5,9 +5,12 @@
 #include "infer_request.hpp"
 
 #include <chrono>
+#include <cstring>
 #include <future>
 #include <iostream>
+#include <numeric>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "compiled_model.hpp"
@@ -25,11 +28,17 @@ namespace {
 // affects rank 0 — rank 1's KV cache silently keeps accumulating across
 // inference calls, producing massive iter-to-iter slowdowns and wrong
 // numerics on the second+ infer.
+//
+// For variables the graph rewriter sharded by kv head, get_state()/set_state()
+// additionally gather and scatter along that axis, so a caller that reads a
+// whole state tensor, edits it and writes it back sees the unsharded model's
+// state rather than rank 0's slice.
 class FanOutVariableState : public ov::IVariableState {
 public:
     FanOutVariableState(const std::string& name,
-                        std::vector<ov::SoPtr<ov::IVariableState>> per_rank)
-        : ov::IVariableState(name), m_per_rank(std::move(per_rank)) {}
+                        std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
+                        bool sharded)
+        : ov::IVariableState(name), m_per_rank(std::move(per_rank)), m_sharded(sharded) {}
 
     void reset() override {
         static const bool dbg = std::getenv("TP_DBG") != nullptr;
@@ -80,22 +89,148 @@ public:
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
-        // NOTE: assumes the caller-supplied tensor is valid for every rank.
-        // KV-cache state is sharded per rank in TP; full-tensor set_state is
-        // not meaningful here, but reset()-then-fresh-prefill is the typical
-        // path and is fully covered by reset() above.
-        for (auto& s : m_per_rank)
-            s->set_state(state);
+        if (!m_sharded || m_per_rank.size() == 1) {
+            for (auto& s : m_per_rank)
+                s->set_state(state);
+            return;
+        }
+
+        // The caller handed us a whole-model KV cache; hand each rank back the
+        // slice of kv heads it owns.  Only the kv-head axis has to line up:
+        // callers legitimately change the sequence length, which is how GenAI
+        // drops the tail of the cache between chat turns.
+        const auto& heads_per_rank = rank_head_counts();
+        const auto full_shape = state->get_shape();
+        OPENVINO_ASSERT(full_shape.size() == 4,
+                        "[TP] variable '", get_name(), "' is sharded by kv head but the given state has rank ",
+                        full_shape.size(), " instead of 4");
+
+        const size_t heads_total = std::accumulate(heads_per_rank.begin(), heads_per_rank.end(), size_t{0});
+        OPENVINO_ASSERT(full_shape[kHeadAxis] == heads_total,
+                        "[TP] variable '", get_name(), "': expected a state covering all ", heads_total,
+                        " kv heads, got ", full_shape[kHeadAxis]);
+
+        const size_t head_bytes = per_head_bytes(full_shape, state->get_element_type());
+        const auto* src = static_cast<const uint8_t*>(state->data());
+
+        size_t head_offset = 0;
+        for (size_t r = 0; r < m_per_rank.size(); ++r) {
+            const size_t heads = heads_per_rank[r];
+            auto rank_shape = full_shape;
+            rank_shape[kHeadAxis] = heads;
+
+            auto slice = ov::make_tensor(state->get_element_type(), rank_shape);
+            auto* dst = static_cast<uint8_t*>(slice->data());
+            for (size_t b = 0; b < full_shape[0]; ++b) {
+                std::memcpy(dst + (b * heads) * head_bytes,
+                            src + (b * heads_total + head_offset) * head_bytes,
+                            heads * head_bytes);
+            }
+            m_per_rank[r]->set_state(slice);
+            head_offset += heads;
+        }
     }
 
     ov::SoPtr<ov::ITensor> get_state() const override {
-        // Returns rank 0's shard.  Full reconstruction across ranks would
-        // require a gather and isn't needed for current use cases.
-        return m_per_rank.empty() ? ov::SoPtr<ov::ITensor>{} : m_per_rank.front()->get_state();
+        OPENVINO_ASSERT(!m_per_rank.empty(), "[TP] variable '", get_name(), "' has no per-rank states");
+        if (!m_sharded || m_per_rank.size() == 1) {
+            return m_per_rank.front()->get_state();
+        }
+
+        // Every rank holds a slice of the kv heads.  Stitch them back into the
+        // tensor the unsharded model would have produced, so that generic
+        // consumers -- GenAI's KV cache trimming, for one -- see the state they
+        // expect instead of rank 0's slice.
+        const auto shards = collect_shards();
+        const auto full_shape = concat_shape(shards);
+        const auto type = shards.front()->get_element_type();
+
+        auto full = ov::make_tensor(type, full_shape);
+        const size_t heads_total = full_shape[kHeadAxis];
+        const size_t head_bytes = per_head_bytes(full_shape, type);
+        auto* dst = static_cast<uint8_t*>(full->data());
+
+        size_t head_offset = 0;
+        for (const auto& shard : shards) {
+            const size_t heads = shard->get_shape()[kHeadAxis];
+            const auto* src = static_cast<const uint8_t*>(shard->data());
+            for (size_t b = 0; b < full_shape[0]; ++b) {
+                std::memcpy(dst + (b * heads_total + head_offset) * head_bytes,
+                            src + (b * heads) * head_bytes,
+                            heads * head_bytes);
+            }
+            head_offset += heads;
+        }
+        return full;
     }
 
 private:
+    /// KV cache states are [batch, kv_heads, seq, head_dim] and the graph
+    /// rewriter splits dimension 1 across ranks.
+    static constexpr size_t kHeadAxis = 1;
+
+    /// How many kv heads each rank owns.  Fixed for the life of the request --
+    /// the rewriter baked the split into every rank's variable -- so it is read
+    /// once and remembered.  Reading it costs a state round-trip, which is why
+    /// it is not repeated on every scatter.
+    const std::vector<size_t>& rank_head_counts() const {
+        if (m_rank_heads.empty()) {
+            record_head_counts(collect_shards());
+        }
+        return m_rank_heads;
+    }
+
+    void record_head_counts(const std::vector<ov::SoPtr<ov::ITensor>>& shards) const {
+        m_rank_heads.clear();
+        m_rank_heads.reserve(shards.size());
+        for (const auto& shard : shards)
+            m_rank_heads.push_back(shard->get_shape()[kHeadAxis]);
+    }
+
+    std::vector<ov::SoPtr<ov::ITensor>> collect_shards() const {
+        std::vector<ov::SoPtr<ov::ITensor>> shards;
+        shards.reserve(m_per_rank.size());
+        for (const auto& s : m_per_rank)
+            shards.push_back(s->get_state());
+        return shards;
+    }
+
+    /// Shape of the concatenation of all shards along the kv-head axis, with
+    /// the checks that make the concatenation meaningful.
+    ov::Shape concat_shape(const std::vector<ov::SoPtr<ov::ITensor>>& shards) const {
+        auto shape = shards.front()->get_shape();
+        OPENVINO_ASSERT(shape.size() == 4,
+                        "[TP] variable '", get_name(), "' was sharded by kv head but its state has rank ",
+                        shape.size(), " instead of 4");
+
+        size_t heads = 0;
+        for (const auto& shard : shards) {
+            auto other = shard->get_shape();
+            OPENVINO_ASSERT(shard->get_element_type() == shards.front()->get_element_type(),
+                            "[TP] variable '", get_name(), "': ranks disagree on element type");
+            heads += other[kHeadAxis];
+            other[kHeadAxis] = shape[kHeadAxis];
+            OPENVINO_ASSERT(other == shape,
+                            "[TP] variable '", get_name(),
+                            "': ranks disagree on the state shape outside the kv-head axis");
+        }
+        record_head_counts(shards);
+        shape[kHeadAxis] = heads;
+        return shape;
+    }
+
+    /// Bytes of one kv head: the trailing [seq, head_dim] block, which is
+    /// contiguous, so a shard's data for one batch item is one memcpy.
+    size_t per_head_bytes(const ov::Shape& shape, const ov::element::Type& type) const {
+        OPENVINO_ASSERT(type.bitwidth() % 8 == 0,
+                        "[TP] variable '", get_name(), "': sub-byte state element type ", type,
+                        " cannot be sliced by kv head");
+        return shape[2] * shape[3] * type.size();
+    }
+
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
+    bool m_sharded;
+    mutable std::vector<size_t> m_rank_heads;
 };
 
 }  // namespace
@@ -252,6 +387,9 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
         }
     }
 
+    const auto& sharded_ids = m_compiled_model->get_sharded_state_ids();
+    const std::unordered_set<std::string> sharded(sharded_ids.begin(), sharded_ids.end());
+
     m_fanout_states.reserve(grouped.size());
     for (auto& kv : grouped) {
         OPENVINO_ASSERT(kv.second.size() == m_rank_requests.size(),
@@ -259,7 +397,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         "' present on only ", kv.second.size(),
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
-            kv.first, std::move(kv.second)));
+            kv.first, std::move(kv.second), sharded.count(kv.first) != 0));
     }
     return m_fanout_states;
 }

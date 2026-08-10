@@ -27,6 +27,7 @@ public:
                   std::vector<std::string>&& device_names,
                   TPL0SharedContextPtr shared_l0_ctx = nullptr,
                   TPDeviceCoordinatorPtr device_coordinator = nullptr,
+                  std::vector<std::string>&& sharded_state_ids = {},
                   bool loaded_from_cache = false);
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
@@ -41,8 +42,16 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
+    void release_memory() override;
+
     const std::vector<ov::SoPtr<ov::ICompiledModel>>& get_rank_compiled() const { return m_rank_compiled; }
     const std::vector<std::string>& get_device_names() const { return m_device_names; }
+
+    /// Ids of the variables whose per-rank states each hold a slice of the KV
+    /// cache along the kv-head axis.  A caller reading or writing whole state
+    /// tensors has to see them gathered and scattered; every other variable is
+    /// replicated and can be fanned out as is.
+    const std::vector<std::string>& get_sharded_state_ids() const { return m_sharded_state_ids; }
 
     /// The rank rendezvous, Level Zero command lists and shared scratch arena
     /// support one outer inference at a time.  Rank execution inside that
@@ -63,6 +72,7 @@ private:
     TPDeviceCoordinatorPtr m_device_coordinator;
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
+    std::vector<std::string> m_sharded_state_ids;
     bool m_loaded_from_cache{false};
     mutable std::mutex m_inference_mutex;
 };

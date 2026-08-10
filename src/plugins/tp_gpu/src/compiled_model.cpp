@@ -17,12 +17,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              std::vector<std::string>&& device_names,
                              TPL0SharedContextPtr shared_l0_ctx,
                              TPDeviceCoordinatorPtr device_coordinator,
+                             std::vector<std::string>&& sharded_state_ids,
                              bool loaded_from_cache)
     : ov::ICompiledModel(model, plugin),
       m_shared_l0_ctx(std::move(shared_l0_ctx)),
       m_device_coordinator(std::move(device_coordinator)),
       m_rank_compiled(std::move(rank_compiled)),
       m_device_names(std::move(device_names)),
+      m_sharded_state_ids(std::move(sharded_state_ids)),
       m_loaded_from_cache(loaded_from_cache) {
     OPENVINO_ASSERT(!m_rank_compiled.empty(), "[TP_GPU] compiled model has no ranks");
     OPENVINO_ASSERT(m_rank_compiled.size() == m_device_names.size(),
@@ -56,9 +58,14 @@ void CompiledModel::export_model(std::ostream& stream) const {
     tp_blob::write_trivial<uint32_t>(
         stream,
         static_cast<uint32_t>(m_device_coordinator ? m_device_coordinator->num_collectives() : 0));
+    tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_sharded_state_ids.size()));
 
     for (const auto& name : m_device_names) {
         tp_blob::write_string(stream, name);
+    }
+
+    for (const auto& id : m_sharded_state_ids) {
+        tp_blob::write_string(stream, id);
     }
 
     for (const auto& rank : m_rank_compiled) {
@@ -90,6 +97,14 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 void CompiledModel::set_property(const ov::AnyMap&) {
     OPENVINO_NOT_IMPLEMENTED;
+}
+
+void CompiledModel::release_memory() {
+    // Whatever caches the rank models hold live in their own plugins; the TP
+    // wrapper owns nothing releasable of its own.
+    for (const auto& rank : m_rank_compiled) {
+        rank->release_memory();
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {

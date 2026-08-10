@@ -99,6 +99,23 @@ protected:
         return host;
     }
 
+    /// Drops the trailing `tokens` positions from every KV cache state, the
+    /// same read-slice-write GenAI performs between chat turns.  KV cache
+    /// states are [batch, kv_heads, seq, head_dim].
+    static void trim_kv_cache(ov::InferRequest& request, size_t tokens) {
+        constexpr size_t seq_axis = 2;
+        for (auto&& state : request.query_state()) {
+            auto cached = state.get_state();
+            auto shape = cached.get_shape();
+            ASSERT_GE(shape[seq_axis], tokens) << state.get_name();
+            shape[seq_axis] -= tokens;
+
+            ov::Tensor trimmed(cached.get_element_type(), shape);
+            ov::Tensor(cached, ov::Coordinate(shape.size(), 0), ov::Coordinate(shape)).copy_to(trimmed);
+            state.set_state(trimmed);
+        }
+    }
+
     static ov::Tensor make_input(const BlockConfig& config, size_t length = sequence_length, int32_t seed = 7) {
         // A narrow range keeps the u4 weights from saturating the activations,
         // so a real mismatch is not masked by both sides producing garbage.
@@ -188,6 +205,39 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuAcrossStatefulSteps) {
 
         expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
     }
+}
+
+// GenAI drops the tail of the KV cache between chat turns by reading each
+// state, slicing off the trailing tokens and writing it back.  On TP every
+// rank holds a slice of the kv heads, so the read has to gather and the write
+// has to scatter; getting that wrong overwrites the other ranks' heads with
+// rank 0's and the next step silently produces a different answer.
+TEST_P(TPGpuAccuracyTest, MatchesSingleGpuAfterKvCacheTrim) {
+    constexpr size_t trimmed_tokens = 4;
+
+    BlockConfig config;
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+
+    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
+    auto parallel = core.compile_model(model, "TP_GPU", tp_config()).create_infer_request();
+
+    auto prefill = make_input(config, sequence_length, 1);
+    reference.set_input_tensor(prefill);
+    parallel.set_input_tensor(prefill);
+    reference.infer();
+    parallel.infer();
+
+    trim_kv_cache(reference, trimmed_tokens);
+    trim_kv_cache(parallel, trimmed_tokens);
+
+    auto next = make_input(config, 1, 2);
+    reference.set_input_tensor(next);
+    parallel.set_input_tensor(next);
+    reference.infer();
+    parallel.infer();
+
+    expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
 }
 
 // Every other case leaves `intermediate` at 448 -- 14 quantization groups, so
