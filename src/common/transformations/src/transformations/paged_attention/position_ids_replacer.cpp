@@ -52,12 +52,7 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto input_ids = any_input();
     auto input_embed = wrap_type<v8::Gather>({any_input(), input_ids, any_input()});
 
-    // This pass only fires when position_ids is detached and the model derives positions internally, so skip
-    // graphs that already have a dedicated Unsqueeze on position_ids.
-    auto position_ids_pattern = any_input([position_ids](const Output<Node>& output) -> bool {
-        const auto node = output.get_node_shared_ptr();
-        return !(ov::as_type_ptr<v0::Unsqueeze>(node) && node->input_value(0) == position_ids);
-    });
+    auto position_ids_pattern = any_input();
     auto offset = wrap_type<v0::Constant>();
     auto add_offset = wrap_type<v1::Add>({position_ids_pattern, offset});
     auto convert = wrap_type<v0::Convert>({add_offset});
@@ -67,17 +62,11 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 
     auto add = wrap_type<v1::Add>({mul, position_embed});
 
-    ov::matcher_pass_callback callback = [=, shared_unsqueeze = std::shared_ptr<v0::Unsqueeze>()](Matcher& m) mutable {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto matched = pattern_map.at(position_ids_pattern).get_node_shared_ptr();
-        // position_ids is detached and the model derives positions internally: redirect the embedding to a
-        // rank-restored position_ids. The rank-restoring Unsqueeze is shared across all matches to avoid
-        // duplicating an identical node for every occurrence of this pattern.
-        if (!shared_unsqueeze) {
-            shared_unsqueeze =
-                std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-        }
-        replace_node(matched, shared_unsqueeze);
+        // position_ids here is the shared Unsqueeze(-1) run_on_model already wired onto the parameter's consumers.
+        // Reuse that existing node so an already-wired match resolves to a self-replacement no-op.
+        replace_node(pattern_map.at(position_ids_pattern).get_node_shared_ptr(), position_ids.get_node_shared_ptr());
         return true;
     };
 

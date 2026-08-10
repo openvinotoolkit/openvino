@@ -1695,6 +1695,67 @@ INSTANTIATE_TEST_SUITE_P(SDPAToPA,
                              return "Axis" + std::to_string(info.param);
                          });
 
+namespace {
+// Minimal embedding-sum graph PositionIDsReplacer targets: Add(input_embed, Gather(pos_weight,
+// Convert(Add(<positions>, offset)), axis)), where <positions> is the node under test.
+std::shared_ptr<Node> build_position_embedding_sum(const Output<Node>& positions) {
+    auto embed_weight = v0::Constant::create(element::f32, Shape{10, 4}, std::vector<float>(40, 1.0f));
+    auto input_ids = v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    auto axis = v0::Constant::create(element::i64, Shape{}, {0});
+    auto input_embed = std::make_shared<v8::Gather>(embed_weight, input_ids, axis);
+
+    auto pos_weight = v0::Constant::create(element::f32, Shape{10, 4}, std::vector<float>(40, 1.0f));
+    auto offset = v0::Constant::create(element::i64, Shape{}, {2});
+    auto add_offset = std::make_shared<v1::Add>(positions, offset);
+    auto convert = std::make_shared<v0::Convert>(add_offset, element::i32);
+    auto position_embed = std::make_shared<v8::Gather>(pos_weight, convert, axis);
+
+    return std::make_shared<v1::Add>(input_embed, position_embed);
+}
+}  // namespace
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacer_SkipsAlreadyWiredPositionIds) {
+    // position_ids already reaches the embedding sum via the Unsqueeze(-1) SDPAToPagedAttention::run_on_model
+    // splices onto its consumers; PositionIDsReplacer receives that same node, so the match resolves to a
+    // self-replacement and the model must remain unchanged.
+    auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+    auto unsqueezed = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto sum = build_position_embedding_sum(unsqueezed);
+    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+    manager.register_pass<pass::PositionIDsReplacer>(unsqueezed);
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacer_RedirectsDetachedPositions) {
+    // The embedding sum is fed by positions computed internally (unrelated to the position_ids parameter), so
+    // it must be redirected to the shared rank-restored position_ids node run_on_model wires onto the parameter.
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto detached_positions = std::make_shared<v4::Range>(v0::Constant::create(element::i64, Shape{}, {0}),
+                                                              v0::Constant::create(element::i64, Shape{}, {2}),
+                                                              v0::Constant::create(element::i64, Shape{}, {1}),
+                                                              element::i64);
+        auto sum = build_position_embedding_sum(detached_positions);
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+        manager.register_pass<pass::PositionIDsReplacer>(unsqueezed);
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto sum = build_position_embedding_sum(unsqueezed);
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+}
+
 TEST_F(SDPAToPATest, SDPAToPA_RoPEUnsqueezeAxisReplacer_WithEliminateDropBatch) {
     // Full flow: EliminateDropBatch collapses the now-invalid batch-drop select to a Reshape, and
     // RoPEUnsqueezeAxisReplacer independently rewrites the RoPE outer-product tail's trailing Unsqueeze axis from 0
