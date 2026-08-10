@@ -38,8 +38,8 @@ GLUFusion::GLUFusion() {
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto axis_const_m = pattern::wrap_type<v0::Constant>();
     auto split_lengths_const_m = pattern::wrap_type<v0::Constant>();
-    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
-    variadic_split_m->set_output_size(2);
+    auto variadic_split_m =
+        pattern::wrap_type_strict<v1::VariadicSplit>(2, {data_m, axis_const_m, split_lengths_const_m});
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
     auto swish_m = pattern::wrap_type<v4::Swish>({variadic_split_m->output(0)});
@@ -53,7 +53,7 @@ GLUFusion::GLUFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
-        OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
+        OPENVINO_ASSERT(m.get_pattern_map().count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
         auto mul = ov::as_type_ptr<v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
@@ -87,8 +87,7 @@ GLUFusion::GLUFusion() {
             OPENVINO_THROW("'glu_type' not initialized");
         }
 
-        auto variadic_split =
-            ov::as_type_ptr<v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
+        auto variadic_split = ov::as_type_ptr<v1::VariadicSplit>(m.get_pattern_map().at(variadic_split_m));
         auto variadic_split_in_ps = variadic_split->get_input_partial_shape(0);
         auto last_dim = variadic_split_in_ps.rank().get_length() - 1;
 
