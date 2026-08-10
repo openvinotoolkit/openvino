@@ -38,11 +38,6 @@ enum class MmapMode {
 };
 
 /**
- * @brief Id reported by mappings whose content is mutable, so they must never be substituted for one another.
- */
-inline constexpr uint64_t no_mapping_id = 0;
-
-/**
  * @brief This class represents a mapped memory.
  * Instead of reading files, we can map the memory via mmap for Linux or MapViewOfFile for Windows.
  * The MappedMemory class is a abstraction to handle such memory with os-dependent details.
@@ -86,8 +81,7 @@ public:
  * @param no_placeholder When true, skip the Windows 10+ placeholder/VEH mechanism and use the legacy
  *                       single-call MapViewOfFile path instead. This guarantees a uniform AllocationBase
  *                       across the whole mapping, required for NPU zero-copy blob import. On Linux ignored.
- * @param mode Access mode of the mapping. A read_write mapping requires the file to be writable and reports
- *             no_mapping_id, because get_id() marks an immutable data source that consumers may share.
+ * @param mode Access mode of the mapping. A read-write mapping requires the file to be writable.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
