@@ -76,9 +76,7 @@
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
@@ -114,6 +112,7 @@
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/preserve_boolean_attn_mask_precision.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
@@ -434,44 +433,6 @@ extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig&
 }  // namespace cldnn
 
 namespace ov::intel_gpu {
-
-class PreserveBooleanAttnMaskPrecision : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("PreserveBooleanAttnMaskPrecision");
-
-    PreserveBooleanAttnMaskPrecision() {
-        auto sdpa_pattern = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
-        ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& matcher) {
-            auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(matcher.get_match_root());
-            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 &&
-                sdpa->get_input_element_type(3) == ov::element::boolean) {
-                std::vector<ov::Output<ov::Node>> pending{sdpa->input_value(3)};
-                std::unordered_set<ov::Node*> visited;
-                while (!pending.empty()) {
-                    auto output = pending.back();
-                    pending.pop_back();
-
-                    auto producer = output.get_node_shared_ptr();
-                    if (!visited.insert(producer.get()).second) {
-                        continue;
-                    }
-
-                    ov::disable_conversion(producer, ov::element::boolean, ov::element::u8);
-                    for (const auto& input : producer->inputs()) {
-                        if (input.get_element_type() == ov::element::boolean) {
-                            pending.push_back(input.get_source_output());
-                        }
-                    }
-                }
-            }
-            return false;
-        };
-
-        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(sdpa_pattern,
-                                                                      "PreserveBooleanAttnMaskPrecision"),
-                         callback);
-    }
-};
 
 namespace {
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
