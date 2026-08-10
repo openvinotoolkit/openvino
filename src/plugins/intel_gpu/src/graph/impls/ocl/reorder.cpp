@@ -27,7 +27,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -78,7 +78,7 @@ public:
                 params.mean = convert_data_tensor(mean_layout);
                 params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
             }
-        } else if (primitive->subtract_per_feature.empty() == false) {
+        } else if (!primitive->subtract_per_feature.empty()) {
             params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
             params.meanValues = primitive->subtract_per_feature;
         } else {
@@ -112,6 +112,8 @@ public:
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
         params.truncate = impl_param.typed_desc<reorder>()->truncate;
 
+        validate_f4e2m1_packed_output(output_layout, "reorder");
+
         return params;
     }
 
@@ -122,6 +124,7 @@ public:
         }
 
         update_shapes(*_kernel_data.params, impl_param);
+        validate_f4e2m1_packed_output(impl_param.get_output_layout(), "reorder");
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
