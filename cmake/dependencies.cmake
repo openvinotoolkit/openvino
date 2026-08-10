@@ -102,12 +102,12 @@ function(ov_download_tbb)
     endif()
 
     if(WIN32 AND X86_64)
-        # build oneTBB with Visual Studio 2019 (MSVC 14.21)
+        # build oneTBB with Visual Studio 2022 (MSVC 14.42)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.13.3-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.13.3-vs2022-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "fa25090696575d863fc54b4a2125ecf620db9f039fe5c3d7a98d6a85bcc49d06"
+                SHA256 "952c65127c2ad0dd964d7e89350924926eb99f68916854d2430e7fa9638cffd8"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with gcc 4.8 (glibc 2.17)
