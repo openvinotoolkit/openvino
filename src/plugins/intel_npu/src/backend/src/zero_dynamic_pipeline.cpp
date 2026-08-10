@@ -176,18 +176,52 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                                  size_t batch_size)
     : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
+
+    _sync_output_with_fences = false;
+
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
 
     _logger.debug("Initialization started, batch size: %zu", _batch_size);
 
+    auto result = npuVMRuntimeGetAPIVersion(&_vmRuntimeVersion);
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime version, error code: ", result);
+    }
+
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+    if (NPU_VM_RUNTIME_MAJOR_VERSION(_vmRuntimeVersion) >= 1 && (NPU_VM_RUNTIME_MINOR_VERSION(_vmRuntimeVersion) >= 2)) {
+        npu_vm_runtime_execution_properties_t executionProperties;
+        result = npuVMRuntimeGetExecutionProperties(vmRuntime, &executionProperties);
+        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to get execution properties, error code: ", result);
+        }
+        _executionProperties = executionProperties;
+        if (executionProperties.hostSyncType == NPU_VM_RUNTIME_HOST_SYNC_TYPE_EVENT ||
+            executionProperties.hostSyncType == NPU_VM_RUNTIME_HOST_SYNC_TYPE_COUNTER_BASED_EVENT) {
+            _sync_output_with_fences = false;
+        }
+    }
+    bool useImmediateCmdList = false;
     if (!_sync_output_with_fences) {
+        bool useCounterBasedEvent = 
+            _executionProperties.has_value() &&
+            _executionProperties.value().hostSyncType == NPU_VM_RUNTIME_HOST_SYNC_TYPE_COUNTER_BASED_EVENT;
+
+        useImmediateCmdList = _executionProperties.has_value() &&
+            _executionProperties.value().commandListType == NPU_VM_RUNTIME_COMMAND_LIST_TYPE_IMMEDIATE;
+
+        if (useCounterBasedEvent == false) {
         _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
 
         _events.reserve(_batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
             _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
+        }
+        }
+        else {
+            OPENVINO_THROW("Counter-based event is not supported");
         }
     }
     _logger.debug("Event pool and command queue setup completed");
@@ -198,7 +232,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     if (batch_size >= 1) {
         _logger.debug("Initializing %zu command list group(s) (batch size %zu)", batch_size, batch_size);
         for (size_t i = 0; i < _batch_size; i++) {
-            _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs));
+            _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, useImmediateCmdList));
         }
     } else {
         OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
@@ -306,6 +340,8 @@ void DynamicPipeline::push() {
         ze_event_handle_t event = nullptr;
         if (_sync_output_with_fences) {
             fence = _fences.at(i)->handle();
+        } else {
+            event = _events.at(i)->handle();
         }
 
         auto& command_lists = _command_lists.at(i);
@@ -367,6 +403,30 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     processMemRefs(args._inputsMemRef, inputMemRefHandles);
     processMemRefs(args._outputsMemRef, outputMemRefHandles);
 
+    if (NPU_VM_RUNTIME_MAJOR_VERSION(_vmRuntimeVersion) >= 1 || (NPU_VM_RUNTIME_MINOR_VERSION(_vmRuntimeVersion) >= 2)) {
+        npu_vm_runtime_execute_params2_t params = {};
+        params.executionContext = _executionContext.ensure(vmRuntime);
+        params.pInputs = inputMemRefHandles.data();
+        params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
+        params.pOutputs = outputMemRefHandles.data();
+        params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+        params.ctx = _init_structs->getContext();
+        params.device = _init_structs->getDevice();
+        params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
+        params.commandLists = commandLists.data();
+        params.numCommandLists = static_cast<uint64_t>(commandLists.size());
+        params.commandQueue = commandQueue;
+        params.inferenceFence = fence;
+        params.event = event;
+        params.hostSyncType = _executionProperties.has_value() ?
+            _executionProperties.value().hostSyncType : NPU_VM_RUNTIME_HOST_SYNC_TYPE_FENCE;
+
+        _logger.debug("Execute graph with runtime engine");
+        if (npuVMRuntimeExecute2(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to execute VM runtime engine");
+        }
+    }
+    else {
     if (!firstInference && noTensorChange) {
         _logger.debug("Reuse command list without update since no tensor change detected");
         auto result = zeCommandQueueExecuteCommandLists(commandQueue,
@@ -407,6 +467,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("Execute graph with runtime engine");
     if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to execute VM runtime engine");
+    }
     }
     _logger.debug("Execution runtime engine is created successfully.");
 

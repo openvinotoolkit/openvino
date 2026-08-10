@@ -52,6 +52,7 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+    const npu_vm_runtime_properties_t& get_engine_properties() const { return _engineProperties; }
 private:
     void initialize_impl(const FilteredConfig& config) override;
 
@@ -95,6 +96,7 @@ private:
     npu_vm_runtime_handle_t _engine = nullptr;
     npu_vm_runtime_properties_t _engineProperties{};
     bool _engineInitialized = false;
+    npu_vm_runtime_version_t _engineVersion{};
 };
 
 }  // namespace intel_npu

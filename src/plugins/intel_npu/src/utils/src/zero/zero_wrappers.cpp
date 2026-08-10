@@ -144,14 +144,13 @@ Event::~Event() {
 CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs)
     : _init_structs(init_structs),
       _log("CommandList", Logger::global().level()) {
+
     ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
-                                   &mutable_desc,
-                                   _init_structs->getCommandQueueGroupOrdinal(),
-                                   0};
+
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandListCreate",
-        zeCommandListCreate(_init_structs->getContext(), _init_structs->getDevice(), &desc, &_handle));
+        createCommandList(_init_structs->getContext(), _init_structs->getDevice(), _init_structs->getCommandQueueGroupOrdinal(),
+            &_handle));
 
     try {
         uint32_t mutable_command_list_ext_version = _init_structs->getMutableCommandListExtVersion();
@@ -188,6 +187,17 @@ CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_stru
 
         throw;
     }
+}
+
+CommandList::CommandList(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)
+    : _init_structs(init_structs),
+      _log("CommandList", Logger::global().level()) {
+    const ze_command_queue_flags_t flags = ZE_COMMAND_QUEUE_FLAG_EXPLICIT_ONLY;
+    const ze_command_queue_mode_t mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
+    ze_command_queue_desc_t queueDesc = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, _init_structs->getCommandQueueGroupOrdinal(), 0, /*flags*/ 0, mode, desc.priority()};
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeCommandListCreateImmediate",
+        zeCommandListCreateImmediate(_init_structs->getContext(), _init_structs->getDevice(), &queueDesc, &_handle));
 }
 void CommandList::reset() const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListReset", zeCommandListReset(_handle));
@@ -290,6 +300,13 @@ void CommandList::updateMutableCommandListWithStrides(uint32_t index,
 
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandListUpdateMutableCommandsExp",
                                 zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+}
+
+ze_result_t CommandList::createCommandList(ze_context_handle_t context, ze_device_handle_t device,
+    uint32_t cmd_queue_group_ordinal, ze_command_list_handle_t* handle) {
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, cmd_queue_group_ordinal, 0};
+    ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
+    return zeCommandListCreate(context, device, &desc, handle);
 }
 
 CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const CommandQueueDesc& desc)

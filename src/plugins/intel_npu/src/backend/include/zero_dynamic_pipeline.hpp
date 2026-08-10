@@ -55,10 +55,20 @@ class DynamicPipeline final : public IPipeline {
         // Store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
 
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
+        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs, bool useImmediateCmdList) {
             _commandLists.reserve(numCommandLists);
-            for (size_t i = 0; i < numCommandLists; i++) {
+            if (useImmediateCmdList == false) {
+                for (size_t i = 0; i < numCommandLists; i++) {
                 _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
+                }
+            }
+            else {
+                for (size_t i = 0; i < numCommandLists; i++) {
+                    CommandQueueDesc desc{};
+                    // FIXME
+                    desc.set_priority(ZE_COMMAND_QUEUE_PRIORITY_NORMAL);
+                    _commandLists.emplace_back(std::make_unique<CommandList>(init_structs, desc));
+                }
             }
 
             for (size_t i = 0; i < numCommandLists; i++) {
@@ -169,6 +179,8 @@ private:
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
+    npu_vm_runtime_version_t _vmRuntimeVersion{};
+    std::optional<npu_vm_runtime_execution_properties_t> _executionProperties;
 };
 
 }  // namespace intel_npu
