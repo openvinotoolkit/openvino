@@ -714,8 +714,8 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     for (auto& mapper : last_mappers) {
         // If the body has produced nothing, a loop carried dependency output keeps its initial value
-        const bool useInitialValue = !has_executed && mapper.zeroIterMapper;
-        (useInitialValue ? mapper.zeroIterMapper : mapper.mapper)->execute(strm, -1);
+        const bool use_initial_value = !has_executed && mapper.zeroIterMapper;
+        (use_initial_value ? mapper.zeroIterMapper : mapper.mapper)->execute(strm, -1);
     }
 }
 
@@ -947,16 +947,16 @@ bool TensorIterator::fillOutputByInitialValue(const dnnl::stream& strm, const Po
     }
 
     auto from_mem = getSrcMemoryAtPort(initial_value_port);
-    const auto& newDims = from_mem->getStaticDims();
+    const auto& new_dims = from_mem->getStaticDims();
 
-    const auto baseDesc = getBaseMemDescAtOutputPort(outputMapRule.from);
-    if (baseDesc->getShape().getRank() != newDims.size()) {
+    const auto base_desc = getBaseMemDescAtOutputPort(outputMapRule.from);
+    if (base_desc->getShape().getRank() != new_dims.size()) {
         return false;
     }
 
     auto to_mems = getToMemories(this, outputMapRule.from);
-    const bool hasZeroDims = std::count(std::begin(newDims), std::end(newDims), 0) > 0;
-    redefineToMemories(to_mems, baseDesc->cloneWithNewDims(newDims, hasZeroDims));
+    const bool has_zero_dims = std::count(std::begin(new_dims), std::end(new_dims), 0) > 0;
+    redefineToMemories(to_mems, base_desc->cloneWithNewDims(new_dims, has_zero_dims));
 
     BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front());
     mapper.execute(strm, -1);
