@@ -138,8 +138,12 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             p.register_remote_constant(initialconstPrimID);
             p.blobMemCache[cache_key] = initialconstPrimID;
             constPrimID = initialconstPrimID;
-            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] layout: "
-                          << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+            GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
+                          << weight_sharing::Extension::get_constant_source_id(*op)
+                          << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
+                          << ", ptr: " << static_cast<void*>(cross_device_weight_shared_buffer->get_ptr())
+                          << ", size: " << cross_device_weight_shared_buffer->size()
+                          << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
         auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
