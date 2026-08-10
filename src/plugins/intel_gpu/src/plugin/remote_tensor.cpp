@@ -171,7 +171,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
                                    uint32_t plane,
                                    ov::intel_gpu::SharedBufferHandle shared_buffer_handle,
                                    ov::intel_gpu::VirtualAddressMemory va_mem,
-                                   std::shared_ptr<ov::MappedMemory> mapped_memory)
+                                   std::shared_ptr<ov::MappedMemory> mapped_memory,
+                                   bool mapped_memory_read_only)
     : m_context(context)
     , m_element_type(element_type)
     , m_shape(shape)
@@ -182,7 +183,8 @@ RemoteTensorImpl::RemoteTensorImpl(RemoteContextImpl::Ptr context,
     , m_plane(plane)
     , m_shared_buffer_handle(shared_buffer_handle)
     , m_va_mem(va_mem)
-    , m_mapped_memory(std::move(mapped_memory)) {
+    , m_mapped_memory(std::move(mapped_memory))
+    , m_mapped_memory_read_only(mapped_memory_read_only) {
     update_hash();
     allocate();
 }
@@ -376,8 +378,8 @@ void RemoteTensorImpl::allocate() {
     }
     case TensorType::BT_CPU_VA: {
         const auto buffer_size = m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count();
-        if (m_mapped_memory) {
-            // The plugin owns the mapping (file-mmap case), so the buffer is imported as read-only.
+        if (m_mapped_memory && m_mapped_memory_read_only) {
+            // The plugin owns a read-only mapping (file-mmap case), so the buffer is imported as read-only.
             m_memory_object = engine.create_hostbuffer(static_cast<const void*>(m_va_mem.ptr),
                                             buffer_size,
                                             cldnn::allocation_type::cl_mem,

@@ -46,7 +46,8 @@ public:
                      uint32_t plane = 0,
                      ov::intel_gpu::SharedBufferHandle shared_buffer_handle = {},
                      ov::intel_gpu::VirtualAddressMemory va_mem = ov::intel_gpu::VirtualAddressMemory(nullptr),
-                     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr);
+                     std::shared_ptr<ov::MappedMemory> mapped_memory = nullptr,
+                     bool mapped_memory_read_only = true);
 
     ~RemoteTensorImpl() override;
     const AnyMap& get_properties() const override;
@@ -92,6 +93,7 @@ private:
     ov::intel_gpu::SharedBufferHandle m_shared_buffer_handle;
     ov::intel_gpu::VirtualAddressMemory m_va_mem;
     std::shared_ptr<ov::MappedMemory> m_mapped_memory;  // keeps the file mapping alive for the whole tensor lifetime
+    bool m_mapped_memory_read_only = true;
     size_t m_hash = 0;
 
     bool supports_caching() const;

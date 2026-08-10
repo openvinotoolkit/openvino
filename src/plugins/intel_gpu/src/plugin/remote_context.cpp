@@ -44,6 +44,16 @@ size_t get_mmap_offset_alignment() {
 #endif
 }
 
+bool is_file_writable(const std::filesystem::path& path) {
+    std::error_code ec;
+    const auto perms = std::filesystem::status(path, ec).permissions();
+    if (ec) {
+        return false;
+    }
+    return (perms & (std::filesystem::perms::owner_write | std::filesystem::perms::group_write |
+                     std::filesystem::perms::others_write)) != std::filesystem::perms::none;
+}
+
 ContextType get_default_context_type() {
     #ifdef OV_GPU_WITH_ZE_RT
         return ContextType::ZE;
@@ -312,7 +322,13 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                     alignment);
     // Memory-map the file. The mapping is retained inside the RemoteTensorImpl so it stays
     // alive for the whole tensor lifetime (GPU wraps the host pointer via CL_MEM_USE_HOST_PTR).
-    auto mapped_memory = ov::load_mmap_object(file_path, offset, *byte_size);
+    // Writable files get a read-write mapping so the GPU can also write back through it.
+    const bool read_only = !is_file_writable(file_path);
+    auto mapped_memory = ov::load_mmap_object(file_path,
+                                              offset,
+                                              *byte_size,
+                                              /*no_placeholder=*/false,
+                                              read_only ? ov::MmapMode::read : ov::MmapMode::read_write);
     return std::make_shared<RemoteTensorImpl>(get_this_shared_ptr(),
                                               shape,
                                               type,
@@ -322,7 +338,8 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
                                               0,
                                               ov::intel_gpu::SharedBufferHandle{},
                                               VirtualAddressMemory{mapped_memory->data(), static_cast<int64_t>(*byte_size)},
-                                              mapped_memory);
+                                              mapped_memory,
+                                              read_only);
 }
 
 std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::create_buffer(const ov::element::Type type, const ov::Shape& shape) {

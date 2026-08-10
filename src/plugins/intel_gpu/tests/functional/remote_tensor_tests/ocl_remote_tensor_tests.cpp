@@ -2993,21 +2993,23 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
-// <offset, byte_size>: the tensor data starts at `offset` bytes into the file and spans `byte_size` bytes,
-// so the file is `offset + byte_size` long. Both values are independent - `offset` only controls how much
-// padding precedes the data and is varied to cover mmap allocation granularity boundaries.
-using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
+// <offset, byte_size, writable>: the tensor data starts at `offset` bytes into the file and spans `byte_size`
+// bytes, so the file is `offset + byte_size` long. Both values are independent - `offset` only controls how much
+// padding precedes the data and is varied to cover mmap allocation granularity boundaries. `writable` controls
+// the file permissions, which decide whether the plugin creates a read-only or a read-write mapping.
+using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t, bool>;
 
 class GpuRemoteTensorFromFile : public ::testing::TestWithParam<MmapFileMemoryParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MmapFileMemoryParams>& obj) {
-        const auto& [offset, byte_size] = obj.param;
-        return "offset_" + std::to_string(offset) + "_bytes_" + std::to_string(byte_size);
+        const auto& [offset, byte_size, writable] = obj.param;
+        return "offset_" + std::to_string(offset) + "_bytes_" + std::to_string(byte_size) +
+               (writable ? "_rw" : "_ro");
     }
 };
 
 TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
-    const auto& [offset, byte_size] = GetParam();
+    const auto& [offset, byte_size, writable] = GetParam();
 
     ov::Core core;
     std::string target_device = ov::test::utils::DEVICE_GPU;
@@ -3018,9 +3020,9 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
 
     // Store input data in a file at a page-aligned offset, so the resulting file size is offset + byte_size.
     const std::filesystem::path file_path{"gpu_remote_tensor_from_file_" + std::to_string(offset) + "_" +
-                                          std::to_string(byte_size) + ".bin"};
+                                          std::to_string(byte_size) + (writable ? "_rw" : "_ro") + ".bin"};
     {
-        std::vector<float> values(element_count, 2.0f);
+        std::vector<float> values(element_count, 1.0f);
         std::ofstream file(file_path, std::ios::binary);
         if (offset > 0) {
             const std::vector<char> padding(offset, 0);
@@ -3029,6 +3031,13 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
         file.write(reinterpret_cast<const char*>(values.data()), byte_size);
     }
     ASSERT_EQ(std::filesystem::file_size(file_path), offset + byte_size);
+
+    // The plugin picks a read-write mapping only for files it is allowed to write to.
+    const auto write_perms = std::filesystem::perms::owner_write | std::filesystem::perms::group_write |
+                             std::filesystem::perms::others_write;
+    std::filesystem::permissions(file_path,
+                                 write_perms,
+                                 writable ? std::filesystem::perm_options::add : std::filesystem::perm_options::remove);
 
     void* output_ptr = ov::util::aligned_alloc(byte_size, core.get_property(target_device, ov::intel_gpu::cacheline_size));
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
@@ -3048,11 +3057,37 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
         infer_req.infer();
 
         for (size_t i = 0; i < element_count; ++i) {
-            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 1.0f) << "Mismatch at index " << i;
+        }
+    }
+
+    // A writable file gets a read-write mapping, so it can also be used as an inference output.
+    if (writable) {
+        constexpr float written_value = 3.0f;
+        std::vector<float> input_values(element_count, written_value);
+        {
+            auto remote_output_tensor =
+                ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{file_path, offset});
+
+            auto model = make_copy_model(shape);
+            auto compiled = core.compile_model(model, ctx);
+            auto infer_req = compiled.create_infer_request();
+            infer_req.set_tensor(compiled.input(), ov::Tensor(ov::element::f32, shape, input_values.data()));
+            infer_req.set_tensor(compiled.output(), remote_output_tensor);
+            infer_req.infer();
+        }
+
+        std::vector<float> file_content(element_count, 0.0f);
+        std::ifstream file(file_path, std::ios::binary);
+        file.seekg(offset);
+        file.read(reinterpret_cast<char*>(file_content.data()), byte_size);
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(file_content[i], written_value) << "Mismatch in file at index " << i;
         }
     }
 
     ov::util::aligned_free(output_ptr);
+    std::filesystem::permissions(file_path, write_perms, std::filesystem::perm_options::add);
     std::filesystem::remove(file_path);
 }
 
@@ -3063,16 +3098,29 @@ constexpr std::size_t mmap_granularity = 65536;
 constexpr std::size_t mmap_granularity = 4096;
 #endif
 
+std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
+    const std::vector<std::pair<std::size_t, std::size_t>> layouts{
+        {0, 256},
+        {0, 4 * mmap_granularity},
+        {mmap_granularity, 256},
+        {2 * mmap_granularity, 256},
+        {16 * mmap_granularity, 256},
+        {mmap_granularity, mmap_granularity},
+        {3 * mmap_granularity, 4 * mmap_granularity},
+        {8 * mmap_granularity, 16 * mmap_granularity}};
+
+    std::vector<MmapFileMemoryParams> params;
+    params.reserve(layouts.size() * 2);
+    for (const auto& [offset, byte_size] : layouts) {
+        params.emplace_back(offset, byte_size, false);
+        params.emplace_back(offset, byte_size, true);
+    }
+    return params;
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_mmapFileMemory,
                          GpuRemoteTensorFromFile,
-                         ::testing::Values(MmapFileMemoryParams{0, 256},
-                                           MmapFileMemoryParams{0, 4 * mmap_granularity},
-                                           MmapFileMemoryParams{mmap_granularity, 256},
-                                           MmapFileMemoryParams{2 * mmap_granularity, 256},
-                                           MmapFileMemoryParams{16 * mmap_granularity, 256},
-                                           MmapFileMemoryParams{mmap_granularity, mmap_granularity},
-                                           MmapFileMemoryParams{3 * mmap_granularity, 4 * mmap_granularity},
-                                           MmapFileMemoryParams{8 * mmap_granularity, 16 * mmap_granularity}),
+                         ::testing::ValuesIn(generate_mmap_file_memory_params()),
                          GpuRemoteTensorFromFile::getTestCaseName);
 
 #endif  // OV_GPU_WITH_OCL_RT
