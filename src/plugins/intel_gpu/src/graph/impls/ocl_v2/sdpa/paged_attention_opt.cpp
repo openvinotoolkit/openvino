@@ -297,6 +297,7 @@ public:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
+        jit.make("SWA_BLOCK_SKIP_ENABLED", desc->sliding_window > 0 && !desc->has_scores_output());
 
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         const bool is_kv_compressed = get_kv_compressed(params);
@@ -1475,7 +1476,17 @@ public:
         rt_params->max_context_len = get_max_context_len(params);
         rt_params->stage = stage;
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
-        rt_params->num_of_partitions = ceil_div(rt_params->max_context_len, rt_params->partition_size);
+
+        auto effective_context_len = rt_params->max_context_len;
+        // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
+        if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE && !desc->has_scores_output()) {
+            auto total_blocks = ceil_div(rt_params->max_context_len, paged_attention_block_size);
+            auto swa_start_block =
+                rt_params->max_context_len > desc->sliding_window ? (rt_params->max_context_len - desc->sliding_window) / paged_attention_block_size : 0;
+            auto effective_blocks = total_blocks - swa_start_block;
+            effective_context_len = effective_blocks * paged_attention_block_size;
+        }
+        rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
         if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
