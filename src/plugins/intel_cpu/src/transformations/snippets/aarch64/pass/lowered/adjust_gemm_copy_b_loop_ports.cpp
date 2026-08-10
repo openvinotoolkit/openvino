@@ -20,7 +20,6 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "transformations/snippets/common/pass/lowered/adjust_copy_b_loop_ports.hpp"
 
 namespace ov::intel_cpu {
 
@@ -68,7 +67,7 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
                         const auto& precision = expr->get_node()->get_input_element_type(1);
                         const auto new_ptr_increment =
                             get_rhs_packed_ptr_increment(precision, loop_info->get_increment(), K);
-                        pass::copy_b_loop_ports::assign_new_ptr_increment(new_ptr_increment, loop_desc);
+                        assign_new_ptr_increment(new_ptr_increment, loop_desc);
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustGemmCopyBLoopPorts");
                     }

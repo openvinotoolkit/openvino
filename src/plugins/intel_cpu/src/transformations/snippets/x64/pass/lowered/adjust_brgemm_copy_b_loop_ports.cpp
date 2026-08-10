@@ -16,7 +16,6 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/common/pass/lowered/adjust_copy_b_loop_ports.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -67,7 +66,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }
 
-                    pass::copy_b_loop_ports::assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
+                    assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
                     modified = true;
                 }
             }

@@ -214,13 +214,10 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
 }  // namespace
 
 std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
-    size_t input_idx,
+    [[maybe_unused]] size_t input_idx,
     const std::shared_ptr<ov::Node>& consumer,
     const RepackMatMulWeights::MatMulWeightsSource& source,
     const MemoryPtr& orig_src_mem_ptr) {
-    if (!m_compile_time_repacking_idxs.count(input_idx)) {
-        return std::nullopt;
-    }
     const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(consumer);
     OPENVINO_ASSERT(gemm_cpu != nullptr, "Expected one consumer - GemmCPU");
 

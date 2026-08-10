@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -27,8 +28,12 @@ public:
     OPENVINO_MODEL_PASS_RTTI("RepackMatMulWeights");
     RepackMatMulWeights(GraphContext::CPtr context,
                         ov::intel_cpu::InputRepackerMap& input_repackers,
-                        std::vector<MemoryPtr>& src_mem_ptrs)
-        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context), input_repackers, src_mem_ptrs) {}
+                        std::vector<MemoryPtr>& src_mem_ptrs,
+                        std::set<size_t> compile_time_repacking_idxs)
+        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context),
+                                                   input_repackers,
+                                                   src_mem_ptrs,
+                                                   std::move(compile_time_repacking_idxs)) {}
 
 private:
     [[nodiscard]] static DnnlMemoryDescPtr get_src_desc(const MatMulWeightsSource& source,

@@ -20,10 +20,10 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::pass::copy_b_loop_ports {
+namespace ov::intel_cpu::pass {
 
-void assign_new_ptr_increment(int64_t new_ptr_increment,
-                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
+void AdjustCopyBLoopPorts::assign_new_ptr_increment(int64_t new_ptr_increment,
+                                                    snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
     const auto old_ptr_incr = loop_desc.ptr_increment;
     const auto old_final_offset = loop_desc.finalization_offset;
 
@@ -36,10 +36,6 @@ void assign_new_ptr_increment(int64_t new_ptr_increment,
         }
     }
 }
-
-}  // namespace ov::intel_cpu::pass::copy_b_loop_ports
-
-namespace ov::intel_cpu::pass {
 
 bool AdjustCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
     bool modified = false;

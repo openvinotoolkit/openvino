@@ -53,10 +53,6 @@ bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model)
         const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
         OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                         "Parameter index is invalid in EliminateCopyB transformation");
-        if (!should_extract(param_idx)) {
-            return false;
-        }
-
         const auto& in_desc = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(copy_b_node->input(0));
         const auto& layout = in_desc->get_layout();
 

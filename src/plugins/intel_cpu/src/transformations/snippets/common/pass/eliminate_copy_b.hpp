@@ -31,9 +31,6 @@ protected:
     explicit EliminateCopyB(ov::intel_cpu::InputRepackerMap& input_repackers) : m_input_repackers(input_repackers) {}
 
 private:
-    [[nodiscard]] virtual bool should_extract([[maybe_unused]] size_t param_idx) const {
-        return true;
-    }
     [[nodiscard]] virtual std::shared_ptr<ov::Node> get_copy_b_pattern(
         const std::shared_ptr<ov::Node>& input) const = 0;
     [[nodiscard]] virtual bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) const = 0;

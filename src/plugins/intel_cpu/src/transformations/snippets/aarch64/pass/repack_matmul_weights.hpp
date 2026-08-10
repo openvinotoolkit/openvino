@@ -28,16 +28,16 @@ public:
                         ov::intel_cpu::InputRepackerMap& input_repackers,
                         std::vector<MemoryPtr>& src_mem_ptrs,
                         std::set<size_t> compile_time_repacking_idxs)
-        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context), input_repackers, src_mem_ptrs),
-          m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
+        : ov::intel_cpu::pass::RepackMatMulWeights(std::move(context),
+                                                   input_repackers,
+                                                   src_mem_ptrs,
+                                                   std::move(compile_time_repacking_idxs)) {}
 
 private:
     [[nodiscard]] std::optional<RepackedMatMulWeights> repack(size_t input_idx,
                                                               const std::shared_ptr<ov::Node>& consumer,
                                                               const MatMulWeightsSource& source,
                                                               const MemoryPtr& orig_src_mem_ptr) override;
-
-    std::set<size_t> m_compile_time_repacking_idxs;
 };
 
 }  // namespace ov::intel_cpu::pass::aarch64

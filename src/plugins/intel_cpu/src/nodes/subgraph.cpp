@@ -657,12 +657,12 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::intel_cpu::pass::x64::RepackMatMulWeights,
                                                context,
                                                cpu_config->input_repackers,
-                                               srcMemPtrs);
+                                               srcMemPtrs,
+                                               getConstantInputIndexes());
         SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                               ov::intel_cpu::pass::BrgemmToGemmCPU,
                                               ov::intel_cpu::pass::aarch64::EliminateGemmCopyB,
-                                              cpu_config->input_repackers,
-                                              getConstantInputIndexes());
+                                              cpu_config->input_repackers);
         SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                               ov::intel_cpu::pass::aarch64::EliminateGemmCopyB,
                                               ov::intel_cpu::pass::aarch64::RepackMatMulWeights,

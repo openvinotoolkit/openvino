@@ -58,6 +58,9 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto i = repacker_entry.first;
         OPENVINO_ASSERT(i < params.size(), "Incorrect index of externally repacked weights");
         OPENVINO_ASSERT(i < m_src_mem_ptrs.size(), "Incorrect memory index of externally repacked weights");
+        if (!m_compile_time_repacking_idxs.count(i)) {
+            continue;
+        }
         const auto& parameter = params[i];
 
         const auto shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);

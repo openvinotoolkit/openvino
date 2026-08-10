@@ -53,9 +53,7 @@ std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::r
     OPENVINO_ASSERT(brgemm_cpu != nullptr, "Expected one consumer - BrgemmCPU");
 
     const auto& brgemm_config = brgemm_cpu->get_config();
-    if (!brgemm_config.are_wei_constant()) {
-        return std::nullopt;
-    }
+    OPENVINO_ASSERT(brgemm_config.are_wei_constant(), "Expected constant weights for compile-time repacking");
 
     const auto& eng = m_context->getEngine();
     const auto src_mem_desc = get_src_desc(source, brgemm_config);

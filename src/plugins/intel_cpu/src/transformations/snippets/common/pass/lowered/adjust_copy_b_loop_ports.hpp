@@ -29,6 +29,8 @@ public:
     }
 
 protected:
+    static void assign_new_ptr_increment(int64_t new_ptr_increment,
+                                         snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc);
     /// Returns true when @p expr is a backend MatMul operation that needs CopyB loop port adjustment.
     virtual bool is_target_expr(const snippets::lowered::ExpressionPtr& expr) const = 0;
     /// Returns the CopyB expression that supplies the weights for @p gemm_expr.
@@ -46,10 +48,3 @@ private:
 };
 
 }  // namespace ov::intel_cpu::pass
-
-namespace ov::intel_cpu::pass::copy_b_loop_ports {
-
-void assign_new_ptr_increment(int64_t new_ptr_increment,
-                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc);
-
-}  // namespace ov::intel_cpu::pass::copy_b_loop_ports
