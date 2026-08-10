@@ -3022,7 +3022,10 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
     const std::filesystem::path file_path{"gpu_remote_tensor_from_file_" + std::to_string(offset) + "_" +
                                           std::to_string(byte_size) + (writable ? "_rw" : "_ro") + ".bin"};
     {
-        std::vector<float> values(element_count, 1.0f);
+        std::vector<float> values(element_count);
+        for (size_t i = 0; i < element_count; ++i) {
+            values[i] = static_cast<float>(i + 1);
+        }
         std::ofstream file(file_path, std::ios::binary);
         if (offset > 0) {
             const std::vector<char> padding(offset, 0);
@@ -3057,14 +3060,16 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
         infer_req.infer();
 
         for (size_t i = 0; i < element_count; ++i) {
-            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 1.0f) << "Mismatch at index " << i;
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], static_cast<float>(i + 1)) << "Mismatch at index " << i;
         }
     }
 
     // A writable file gets a read-write mapping, so it can also be used as an inference output.
     if (writable) {
-        constexpr float written_value = 3.0f;
-        std::vector<float> input_values(element_count, written_value);
+        std::vector<float> input_values(element_count);
+        for (size_t i = 0; i < element_count; ++i) {
+            input_values[i] = static_cast<float>(element_count - i);
+        }
         {
             auto remote_output_tensor =
                 ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{file_path, offset});
@@ -3082,7 +3087,7 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemory) {
         file.seekg(offset);
         file.read(reinterpret_cast<char*>(file_content.data()), byte_size);
         for (size_t i = 0; i < element_count; ++i) {
-            EXPECT_FLOAT_EQ(file_content[i], written_value) << "Mismatch in file at index " << i;
+            EXPECT_FLOAT_EQ(file_content[i], input_values[i]) << "Mismatch in file at index " << i;
         }
     }
 
