@@ -557,7 +557,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
               ", nnzCount = ",
               elementsCount - zerosCount);
 
-    auto sparseRate = static_cast<float>(zerosCount) / static_cast<float>(elementsCount);
+    auto sparseRate = (elementsCount > 0) ? (static_cast<float>(zerosCount) / static_cast<float>(elementsCount)) : 0.0F;
 
     DEBUG_LOG("Sparse rate = ",
               sparseRate * 100,
