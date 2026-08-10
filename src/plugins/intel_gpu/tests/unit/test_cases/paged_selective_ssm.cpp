@@ -37,6 +37,7 @@ struct paged_selective_ssm_test_params {
     bool padded_layouts = false;
     int32_t iterations = 1;
     int32_t invalid_metadata = 0;
+    bool accumulation_test = false;
 };
 
 struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_selective_ssm_test_params> {
@@ -81,9 +82,9 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
             for (int32_t h = 0; h < num_heads; h++) {
                 const int32_t g = h / heads_per_group;
                 for (int32_t p = 0; p < head_dim; p++) {
-                    std::vector<T> local_state(static_cast<size_t>(state_size), T{});
+                    std::vector<float> local_state(static_cast<size_t>(state_size), 0.f);
                     for (int32_t n = 0; n < state_size; n++) {
-                        local_state[n] = state[state_off(first_block, h, p, n)];
+                        local_state[n] = static_cast<float>(state[state_off(first_block, h, p, n)]);
                     }
 
                     for (int32_t token = token_begin; token < token_end; token++) {
@@ -92,10 +93,9 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
                         const float x_val = static_cast<float>(x[(token * num_heads + h) * head_dim + p]);
                         float acc = 0.f;
                         for (int32_t n = 0; n < state_size; n++) {
-                            const float new_state =
-                                static_cast<float>(local_state[n]) * dA + x_val * dt_val * static_cast<float>(B[(token * num_groups + g) * state_size + n]);
-                            local_state[n] = static_cast<T>(new_state);
-                            acc += static_cast<float>(local_state[n]) * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
+                            const float new_state = local_state[n] * dA + x_val * dt_val * static_cast<float>(B[(token * num_groups + g) * state_size + n]);
+                            local_state[n] = new_state;
+                            acc += local_state[n] * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
                         }
                         output[(token * num_heads + h) * head_dim + p] = static_cast<T>(acc);
 
@@ -202,6 +202,16 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         auto x_data = rg.generate_random_1d<T>(x_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto C_data = rg.generate_random_1d<T>(C_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto state_data = rg.generate_random_1d<T>(state_layout.count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
+
+        if (p.accumulation_test) {
+            A_data.assign(A_data.size(), static_cast<T>(0.f));
+            dt_data.assign(dt_data.size(), static_cast<T>(1.f));
+            B_data.assign(B_data.size(), static_cast<T>(1.f));
+            const float increment = p.precision == ov::element::bf16 ? 0.0546875f : 0.195068359375f;
+            x_data.assign(x_data.size(), static_cast<T>(increment));
+            C_data.assign(C_data.size(), static_cast<T>(1.f));
+            state_data.assign(state_data.size(), static_cast<T>(0.f));
+        }
 
         const auto set_non_empty = [](const memory::ptr& mem, const auto& values) {
             if (!values.empty())
@@ -425,6 +435,10 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 0, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
         paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
+        paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::bf16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{128}, {0}, {128}, 1, 1, 1, 1, ov::element::f16, ov::element::i32, false, {}, false, false, false, 1, 0, true},
+        paged_selective_ssm_test_params{{128}, {0}, {128}, 1, 1, 1, 1, ov::element::bf16, ov::element::i32, false, {}, false, false, false, 1, 0, true},
         paged_selective_ssm_test_params{{3}, {-7}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},

@@ -49,6 +49,7 @@ KERNEL(selective_ssm_opt)(
     const size_t heads_per_group = num_heads / num_groups;
     const size_t g = h / heads_per_group;
     const float A_value = SSM_TO_FLOAT(A[INPUT0_GET_INDEX(h, 0, 0, 0)]);
+    // Keep recurrent state in FP32 across tokens; cast only when writing output.
     __local float* local_state = work;
     __local float* reduction = work + (size_t)head_dim_block * state_size;
 
@@ -88,9 +89,8 @@ KERNEL(selective_ssm_opt)(
                 const size_t local_idx = (size_t)p_offset * state_size + n;
                 const float new_state = fma(local_state[local_idx], dA,
                                             x_values[p_offset] * dt_value * b_value);
-                const float stored_state = SSM_ROUND_STATE(new_state);
-                local_state[local_idx] = stored_state;
-                partial[p_offset] = fma(stored_state, c_value, partial[p_offset]);
+                local_state[local_idx] = new_state;
+                partial[p_offset] = fma(new_state, c_value, partial[p_offset]);
             }
         }
 

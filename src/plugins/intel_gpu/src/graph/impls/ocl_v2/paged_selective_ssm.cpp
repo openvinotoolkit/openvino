@@ -57,8 +57,6 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         const bool is_bf16 = params.get_input_layout(0).data_type == ov::element::bf16;
         jit.make("SSM_TO_FLOAT(v)", is_bf16 ? "_convert_as_bfloat16_float(v)" : "convert_float(v)");
-        jit.make("SSM_ROUND_STATE(v)",
-                 is_bf16 ? "_convert_as_bfloat16_float(TO_INPUT5_TYPE(v))" : "convert_float(TO_INPUT5_TYPE(v))");
         return jit;
     }
 
@@ -98,9 +96,7 @@ protected:
             const size_t head_dim_groups = head_dim / head_dim_block + (head_dim % head_dim_block != 0);
             const size_t local_bytes = head_dim_block * (state_size + lws) * sizeof(float);
 
-            wgs.global = {std::max<size_t>(head_dim_groups, 1) * lws,
-                          std::max<size_t>(num_heads, 1),
-                          std::max<size_t>(sequences, 1)};
+            wgs.global = {std::max<size_t>(head_dim_groups, 1) * lws, std::max<size_t>(num_heads, 1), std::max<size_t>(sequences, 1)};
             wgs.local = {lws, 1, 1};
             set_head_dim_block_scalar(kd, head_dim_block);
             kd.params.local_memory_args = {local_bytes};

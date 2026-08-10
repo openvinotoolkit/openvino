@@ -30,6 +30,7 @@ struct selective_ssm_test_params {
     bool caching_test = false;
     bool padded_layouts = false;
     int32_t iterations = 1;
+    bool accumulation_test = false;
 };
 
 struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_test_params> {
@@ -50,6 +51,10 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
                               int32_t state_size,
                               std::vector<T>& output) {
         const int32_t heads_per_group = num_heads / num_groups;
+        std::vector<float> state_fp32(state.size());
+        for (size_t i = 0; i < state.size(); ++i)
+            state_fp32[i] = static_cast<float>(state[i]);
+
         output.resize(static_cast<size_t>(batch) * seq_len * num_heads * head_dim);
         for (int32_t b = 0; b < batch; b++) {
             for (int32_t h = 0; h < num_heads; h++) {
@@ -61,17 +66,18 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
                         const float x_val = static_cast<float>(x[((b * seq_len + t) * num_heads + h) * head_dim + p]);
                         float acc = 0.f;
                         for (int32_t n = 0; n < state_size; n++) {
-                            auto& s = state[((b * num_heads + h) * head_dim + p) * state_size + n];
-                            const float new_state =
-                                static_cast<float>(s) * dA + x_val * dt_val * static_cast<float>(B[((b * seq_len + t) * num_groups + g) * state_size + n]);
-                            s = static_cast<T>(new_state);
-                            acc += static_cast<float>(s) * static_cast<float>(C[((b * seq_len + t) * num_groups + g) * state_size + n]);
+                            auto& s = state_fp32[((b * num_heads + h) * head_dim + p) * state_size + n];
+                            const float new_state = s * dA + x_val * dt_val * static_cast<float>(B[((b * seq_len + t) * num_groups + g) * state_size + n]);
+                            s = new_state;
+                            acc += s * static_cast<float>(C[((b * seq_len + t) * num_groups + g) * state_size + n]);
                         }
                         output[((b * seq_len + t) * num_heads + h) * head_dim + p] = static_cast<T>(acc);
                     }
                 }
             }
         }
+        for (size_t i = 0; i < state.size(); ++i)
+            state[i] = static_cast<T>(state_fp32[i]);
     }
 
     template <typename T>
@@ -105,6 +111,16 @@ struct selective_ssm_gpu_test : public ::testing::TestWithParam<selective_ssm_te
         auto x_data = rg.generate_random_1d<T>(x_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto C_data = rg.generate_random_1d<T>(C_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
         auto state_data = rg.generate_random_1d<T>(state_mem->count(), static_cast<T>(-0.5f), static_cast<T>(0.5f), 256);
+
+        if (p.accumulation_test) {
+            A_data.assign(A_data.size(), static_cast<T>(0.f));
+            dt_data.assign(dt_data.size(), static_cast<T>(1.f));
+            B_data.assign(B_data.size(), static_cast<T>(1.f));
+            const float increment = p.precision == ov::element::bf16 ? 0.0546875f : 0.195068359375f;
+            x_data.assign(x_data.size(), static_cast<T>(increment));
+            C_data.assign(C_data.size(), static_cast<T>(1.f));
+            state_data.assign(state_data.size(), static_cast<T>(0.f));
+        }
 
         const auto set_non_empty = [](const memory::ptr& mem, const auto& values) {
             if (!values.empty())
@@ -237,6 +253,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_selective_ssm_gpu_test,
                                            selective_ssm_test_params{1, 3, 2, 1, 4, 0, ov::element::f32, false},
                                            selective_ssm_test_params{2, 4, 4, 2, 3, 15, ov::element::f32, true, false, false, 3},
                                            selective_ssm_test_params{2, 32, 8, 4, 16, 64, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 128, 4, 2, 8, 32, ov::element::f16, false},
+                                           selective_ssm_test_params{1, 128, 4, 2, 8, 32, ov::element::bf16, false},
+                                           selective_ssm_test_params{1, 128, 1, 1, 1, 1, ov::element::f16, false, false, false, 1, true},
+                                           selective_ssm_test_params{1, 128, 1, 1, 1, 1, ov::element::bf16, false, false, false, 1, true},
                                            // Exercise local-memory-driven 4 -> 3 -> 2 -> 1 blocking and tails.
                                            selective_ssm_test_params{1, 2, 2, 1, 4, 5000, ov::element::f32, false},
                                            selective_ssm_test_params{1, 2, 2, 1, 3, 6000, ov::element::f32, false},
