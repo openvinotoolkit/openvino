@@ -186,66 +186,30 @@ protected:
         bool batched_dims_can_be_removed = !is_update;
         size_t rank = cldnn::format::dimension(out_l.format);
 
-        if (is_dynamic_shape) {
-            batched_dims_can_be_removed = false;
-            in0_dims = onednn::convert_gemm_shape(in0_l.get_partial_shape(), rank, batched_dims_can_be_removed);
-            in1_dims = onednn::convert_gemm_shape(in1_l.get_partial_shape(), rank, batched_dims_can_be_removed);
-            out_dims = onednn::convert_gemm_shape(out_l.get_partial_shape(), rank, batched_dims_can_be_removed);
-            if (gemm_with_bias) {
-                const auto& bias_l = in_layouts[2];
-                bias_dims = onednn::convert_gemm_shape(bias_l.get_partial_shape(), rank, batched_dims_can_be_removed);
-            }
-        } else {
-            if (in0_l.count() != 0 && in1_l.count() != 0 && out_l.count() != 0) {
-                size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-                size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-                size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-                batched_dims_can_be_removed &= in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
-            } else {
-                // Can't reliably prove batch dims are all 1 for empty tensors; keep batch dims to preserve semantics.
-                batched_dims_can_be_removed = false;
-            }
-            if (gemm_with_bias) {
-                const auto& bias_l = in_layouts[2];
-                if (bias_l.count() != 0) {
-                    size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
-                    batched_dims_can_be_removed &= bias_batched_size == 1;
-                } else {
-                    batched_dims_can_be_removed = false;
-                }
-            }
-            in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
-            in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
-            out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
-            if (gemm_with_bias) {
-                // Apply the same batch-dim removal as src/dst so bias rank stays aligned
-                bias_dims = onednn::convert_gemm_tensor(in_layouts[2].get_tensor(), rank, batched_dims_can_be_removed);
-            }
-
-            if (in0_l.data_padding) {
-                dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-                in0_strides = onednn::get_strides(in0_padded_dims);
-                if (prim->transpose_input0) {
-                    std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
-                }
-            }
-
-            if (in1_l.data_padding) {
-                dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
-                in1_strides = onednn::get_strides(in1_padded_dims);
-                if (prim->transpose_input1)
-                    std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
-            }
-        }
-
         in0_dt = onednn::convert_data_type(in0_l.data_type);
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
+        in0_dims = onednn::convert_layout(in0_l, rank);
+        in1_dims = onednn::convert_layout(in1_l, rank);
+        out_dims = onednn::convert_layout(out_l, rank);
+
         in0_fmt = onednn::convert_gemm_data_format(in0_dims, in0_l.format);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims, in1_l.format);
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
+
+        if (in0_l.data_padding) {
+            in0_strides = onednn::get_strides(in0_l.get_padded_dims());
+            if (prim->transpose_input0) {
+                std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
+            }
+        }
+
+        if (in1_l.data_padding) {
+            in1_strides = onednn::get_strides(in1_l.get_padded_dims());
+            if (prim->transpose_input1)
+                std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
+        }
 
         // Check whether transpose_order increase sequential or not.
         // Return true when transpose_order is not 0, 1, 2, 3.
@@ -289,7 +253,7 @@ protected:
 
             // Convert order to int64_t vector for has_transpose_order_xy_only check
             std::vector<int64_t> order_int64(order.begin(), order.end());
-            
+
             // Check if the expanded order represents xy-only transpose
             if (has_transpose_order_xy_only(order_int64)) {
                 // Helper lambda to transpose format tag
@@ -414,7 +378,7 @@ protected:
             bias_dt = onednn::convert_data_type(bias_l.data_type);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
-        
+
         return true;  // Success
     }
 
