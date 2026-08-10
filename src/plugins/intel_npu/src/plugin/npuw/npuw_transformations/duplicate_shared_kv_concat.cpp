@@ -9,6 +9,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -82,34 +83,42 @@ void duplicate_for_extra_consumers(const KVBroadcastChain& chain) {
         new_concat_inputs.reserve(chain.concat->get_input_size());
         for (size_t ci = 0; ci < chain.concat->get_input_size(); ++ci) {
             if (chain.converts[ci]) {
-                new_concat_inputs.push_back(
-                    chain.converts[ci]->clone_with_new_inputs(chain.converts[ci]->input_values())->output(0));
+                auto new_cvt = chain.converts[ci]->clone_with_new_inputs(chain.converts[ci]->input_values());
+                copy_runtime_info(chain.converts[ci], new_cvt);
+                new_concat_inputs.push_back(new_cvt->output(0));
             } else {
                 new_concat_inputs.push_back(chain.concat->input_value(ci));
             }
         }
         auto new_concat = chain.concat->clone_with_new_inputs(new_concat_inputs);
+        copy_runtime_info(chain.concat, new_concat);
         ov::Output<ov::Node> data = new_concat->output(0);
 
         if (chain.unsqueeze) {
             ov::OutputVector inputs{data};
             for (size_t i = 1; i < chain.unsqueeze->get_input_size(); ++i)
                 inputs.push_back(chain.unsqueeze->input_value(i));
-            data = chain.unsqueeze->clone_with_new_inputs(inputs)->output(0);
+            auto new_unsqueeze = chain.unsqueeze->clone_with_new_inputs(inputs);
+            copy_runtime_info(chain.unsqueeze, new_unsqueeze);
+            data = new_unsqueeze->output(0);
         }
 
         if (chain.broadcast) {
             ov::OutputVector inputs{data};
             for (size_t i = 1; i < chain.broadcast->get_input_size(); ++i)
                 inputs.push_back(chain.broadcast->input_value(i));
-            data = chain.broadcast->clone_with_new_inputs(inputs)->output(0);
+            auto new_broadcast = chain.broadcast->clone_with_new_inputs(inputs);
+            copy_runtime_info(chain.broadcast, new_broadcast);
+            data = new_broadcast->output(0);
         }
 
         {
             ov::OutputVector inputs{data};
             for (size_t i = 1; i < chain.reshape->get_input_size(); ++i)
                 inputs.push_back(chain.reshape->input_value(i));
-            data = chain.reshape->clone_with_new_inputs(inputs)->output(0);
+            auto new_reshape = chain.reshape->clone_with_new_inputs(inputs);
+            copy_runtime_info(chain.reshape, new_reshape);
+            data = new_reshape->output(0);
         }
 
         consumers[idx].replace_source_output(data);
@@ -165,7 +174,10 @@ DuplicateSharedKVConcat::DuplicateSharedKVConcat() {
         }
 
         chain.converts.resize(matched_concat->get_input_size());
-        for (size_t i = 0; i < matched_concat->get_input_size(); ++i)
+        // Only past-KV inputs (all but the last) may have a Convert wrapper that needs
+        // to be cloned per consumer.  The final input is the current-KV projection and
+        // is always shared — leave converts[n-1] as nullptr.
+        for (size_t i = 0; i + 1 < matched_concat->get_input_size(); ++i)
             chain.converts[i] = ov::as_type_ptr<ov::op::v0::Convert>(matched_concat->get_input_node_shared_ptr(i));
 
         const size_t fan_out = chain.reshape->output(0).get_target_inputs().size();

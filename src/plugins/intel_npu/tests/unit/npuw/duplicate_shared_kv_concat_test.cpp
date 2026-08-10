@@ -23,9 +23,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 
-using namespace ov;
-using namespace ov::npuw::pass;
-
 namespace {
 
 std::shared_ptr<ov::op::v0::Constant> shape_const(const ov::Shape& s) {
@@ -99,7 +96,7 @@ std::shared_ptr<ov::Model> build_fanout_model(const std::string& kv_param_name,
 // Convenience wrapper: MatcherPass must run inside GraphRewrite.
 static bool run_pass(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<DuplicateSharedKVConcat>();
+    rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
     return rewr.run_on_model(model);
 }
 
@@ -205,7 +202,7 @@ TEST_F(DuplicateSharedKVConcatTest, Integration_SplitThenDuplicate) {
 
     // Step 1: seq=32 → block_0 + block_1 + current_k (3 params, 1 Concat, fan-out unchanged).
     ov::pass::Manager mgr;
-    mgr.register_pass<SplitKVCacheIntoBlocks>(/*block_size=*/16u, /*v_transposed=*/false);
+    mgr.register_pass<ov::npuw::pass::SplitKVCacheIntoBlocks>(/*block_size=*/16u, /*v_transposed=*/false);
     EXPECT_TRUE(mgr.run_passes(model));
     EXPECT_EQ(model->get_parameters().size(), 3u);
     EXPECT_EQ(count_ops<ov::op::v0::Concat>(model), 1u);
