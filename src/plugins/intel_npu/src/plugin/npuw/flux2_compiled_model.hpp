@@ -8,7 +8,7 @@
 #include <memory>
 #include <mutex>
 
-#include "npuw/compiled_model.hpp"
+#include "compiled_model.hpp"
 
 namespace ov::npuw {
 
