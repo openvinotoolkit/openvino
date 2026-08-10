@@ -243,12 +243,11 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_unsqueeze = ov::pass::pattern::optional<v0::Unsqueeze>({p_position_ids, any_input()});
     auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
 
-    // aten::select(dim=0, index=0) is lowered to a Gather with scalar index 0 along axis 0.
     auto p_index = wrap_type<v0::Constant>(value_matches("0"));
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
     auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto gather = m.get_match_root();
 
         auto reshape = std::make_shared<v1::Reshape>(gather->input_value(0),
