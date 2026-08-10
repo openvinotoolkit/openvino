@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 127,
+  "total": 128,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1242,6 +1242,17 @@
       "title": "CPU functional tests on ARM64 interrupted - suite count mismatch in parallel runner",
       "category": "Flaky Test",
       "signature_hash": "16d4ac149e87a952",
+      "pr_number": "37064"
+    },
+    {
+      "investigation_id": "2026-08-10-03-29-48-000-31352073292",
+      "run_id": "31352073292",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31352073292",
+      "workflow_name": "Android",
+      "timestamp": "2026-08-10T03:29:48Z",
+      "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+      "category": "Code Issue",
+      "signature_hash": "9ff022172665aa06",
       "pr_number": "37064"
     }
   ]
