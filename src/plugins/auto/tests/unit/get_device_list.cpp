@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;

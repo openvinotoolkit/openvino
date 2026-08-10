@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -17,6 +18,8 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -44,7 +47,16 @@ public:
     virtual ~IGraph() = default;
 
     virtual const NetworkMetadata& get_metadata() const;
-    virtual ze_graph_handle_t get_handle() const;
+    // Returns the underlying native handle. Concrete graphs return different handle types:
+    //   Graph        -> ze_graph_handle_t
+    //   DynamicGraph -> npu_vm_runtime_handle_t
+    // Callers must static_cast the result to the type matching the concrete graph implementation.
+    virtual void* get_handle() const;
+
+    // Returns true if the graph is executed through the VM runtime (dynamic graph), false otherwise.
+    virtual bool is_dynamic() const;
+
+    virtual BlobType get_blob_type() const;
 
     virtual void update_network_name(std::string_view name);
 

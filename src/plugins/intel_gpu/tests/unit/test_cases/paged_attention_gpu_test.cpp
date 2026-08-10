@@ -20,6 +20,31 @@ TEST_P(xattention_test, basic) {
     execute(p, p.run_reference);
 }
 
+// Subsequences with q_len in (1, SMALL_Q_THRESHOLD] and past_len > 0 are routed to the CM
+// pa_small_q kernel in split-mixed mode (the default GPU_PA_MIXED_ROUTE_MODE). Reaching CM at all
+// requires has_xattention, since ocl::PagedAttentionOpt is registered first and only bails out on
+// that flag.
+class cm_small_q_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(cm_small_q_test, basic) {
+    auto p = GetParam();
+    if (!check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required for CM paged attention tests, and the device must be Xe1 or later";
+
+    execute(p, p.run_reference);
+}
+
+// qq_bias on the CM kernels. smoke_qq_bias covers the same masks on the OCL path; these cases add
+// has_xattention so the CM kernels carry the mask instead - pa_small_q.cm for the small-q
+// subsequences and cm_pa_xe*.hpp for the rest.
+class cm_qq_bias_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(cm_qq_bias_test, basic) {
+    auto p = GetParam();
+    if (!check_cm_available())
+        GTEST_SKIP() << "CM JIT support is required for CM paged attention tests, and the device must be Xe1 or later";
+
+    execute(p, p.run_reference);
+}
+
 class xattention_invalid_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_invalid_test, throws_on_invalid_xattention_inputs) {
     auto p = GetParam();
@@ -67,6 +92,37 @@ TEST_P(qq_bias_test, basic) {
 static paged_attention_test_params disable_reference_compare(paged_attention_test_params p) {
     p.run_reference = false;
     return p;
+}
+
+// n x n speculative-decoding tree mask: query i may attend key j when j is i itself or one of its
+// ancestors in a binary tree (parent of j is (j - 1) / 2), which is the shape EAGLE-style drafts
+// produce. The diagonal is always set, so no query row ends up fully masked.
+static std::vector<uint8_t> make_tree_mask(int n) {
+    std::vector<uint8_t> mask(static_cast<size_t>(n) * static_cast<size_t>(n), 0);
+    for (int i = 0; i < n; i++) {
+        for (int j = i;; j = (j - 1) / 2) {
+            mask[static_cast<size_t>(i) * static_cast<size_t>(n) + static_cast<size_t>(j)] = 1;
+            if (j == 0)
+                break;
+        }
+    }
+    return mask;
+}
+
+// One entry per subsequence, in order; 0 means "this subsequence carries no mask" (which is what
+// the harness expects for past_len == 0). qq_bias_begins holds cumulative element offsets.
+static QueryToQueryAttentionDescriptor make_tree_qq_bias(const std::vector<int>& masked_q_lens) {
+    QueryToQueryAttentionDescriptor desc;
+    int offset = 0;
+    desc.qq_bias_begins.push_back(0);
+    for (int q_len : masked_q_lens) {
+        if (q_len > 0) {
+            desc.qq_bias.push_back(make_tree_mask(q_len));
+            offset += q_len * q_len;
+        }
+        desc.qq_bias_begins.push_back(offset);
+    }
+    return desc;
 }
 
 static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_images, size_t avg_img_len) {
@@ -138,6 +194,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_s
     // GQA prompt
     paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
 }));
+
+static paged_attention_test_params make_zero_key_regression_params(const ov::element::Type& kv_cache_precision) {
+    paged_attention_test_params p{{{32, 0}},
+                                  32,
+                                  8,
+                                  128,
+                                  128,
+                                  16,
+                                  0,
+                                  ENABLE_CACHE_COMPRESSION,
+                                  ov::internal::CacheQuantMode::BY_CHANNEL,
+                                  DYNAMIC_INPUT_PAD,
+                                  DISABLE_SCORES,
+                                  DISABLE_ROTATION,
+                                  DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision;
+    p.zero_key_data = true;
+    p.run_reference = false;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention,
+                         paged_attention_test,
+                         ::testing::Values(make_zero_key_regression_params(ov::element::u8),
+                                           make_zero_key_regression_params(ov::element::u4)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     /* with scores output, use SnapKV */
@@ -305,6 +386,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{1, 4200}}, 8, 2, 64, 64, 16, 8, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 8/2 + scores + sw=8, kv_group_size=4 -> QUERIES_PER_WI=4
     paged_attention_test_params{ {{1, 4200}}, 4, 2, 64, 64, 16, 8, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 4/2 + scores + sw=8, kv_group_size=2 -> QUERIES_PER_WI=2
     paged_attention_test_params{ {{1, 5000}}, 16, 4, 128, 128, 16, 16, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA 16/4 + scores + sw=16, k_head_size=128, kv_group_size=4
+
+    /* SWA block skip: decode with past_len >> sliding_window */
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 16, 32, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // decode, past_len=1024 >> sw=32
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, Gemma4-like config (sw=512)
+    paged_attention_test_params{ {{1, 4096}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, triggers GQA kernel path (context>=4096)
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode + KV compression + SWA
+    paged_attention_test_params{ {{1, 1024}, {1, 2048}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq GQA decode with SWA
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -512,6 +600,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::Values
     paged_attention_test_params{ {{5, 3}, {7, 3}, {9, 3}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} }, // multi-subsequence by-channel divergent [basic/112]
 }));
 
+INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_head_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    //////////////////////////////////////////////////////////////////////////////// single-seq + bypass xattention ////////////////////////////////////////////////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+
+    //////////////////////////////////////////////////////////////////////////////// single-seq + enable xattention ////////////////////////////////////////////////////////////////////////
+    // single-seq prefill + uncompressed cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + uncompressed cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq prefill + by_token i8 cache
+    paged_attention_test_params{ {{32, 0}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + by_token i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq prefill + by_channel i8 cache
+    paged_attention_test_params{ {{32, 0}},   4, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+    // single-seq generate + by_channel i8 cache
+    paged_attention_test_params{ {{1, 31}},   2, 2, 256, 256, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + bypass xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill-only
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} },
+    // multi-seq generate-only
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f}, std::vector<int>{128, 128} },
+    // multi-seq mixed
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.f, 100.f, 100.f}, std::vector<int>{128, 128, 128} },
+
+    //////////////////////////////////////////////////////////////////////////////// multi-seq + enable xattention ////////////////////////////////////////////////////////////////////////
+    // multi-seq prefill-only
+    paged_attention_test_params{ {{10, 0}, {30, 0}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} },
+    // multi-seq generate-only
+    paged_attention_test_params{ {{1, 34}, {1, 515}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f}, std::vector<int>{128, 128} },
+    // multi-seq mixed
+    paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 4, 2, 256, 256, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f, 0.9f, 0.9f}, std::vector<int>{128, 128, 128} },
+}));
+
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention_block_size, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // Valid values
     paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, true, std::vector<float>{0.9f}, std::vector<int>{128} },
@@ -595,6 +729,82 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
 
     // multi sequence with different qq bias patterns
     paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_small_q, cm_small_q_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // q_len sweep across the (1, SMALL_Q_THRESHOLD] window
+    paged_attention_test_params{ {{2, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{3, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{5, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{15, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{16, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },  // inclusive upper bound
+    paged_attention_test_params{ {{17, 34}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },  // control: just above the bound, must take the multi-token path
+
+    // past_len variations at a fixed q_len, including the KV block/partition boundaries
+    paged_attention_test_params{ {{8, 1}},    2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 15}},   2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 255}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 256}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 300}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 1023}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+
+    // GQA ratios and head sizes
+    paged_attention_test_params{ {{8, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 34}}, 8, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 34}}, 4, 2, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{5, 34}}, 28, 28, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+
+    // compressed KV cache, both quantization modes
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{16, 34}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+    paged_attention_test_params{ {{8, 300}}, 2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+
+    // small-q alongside the other routes the split-mixed path dispatches
+    paged_attention_test_params{ {{8, 34}, {1, 100}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128} },                       // small-q + single-token
+    paged_attention_test_params{ {{8, 34}, {32, 0}},   2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128} },                       // small-q + prefill
+    paged_attention_test_params{ {{4, 20}, {8, 34}, {16, 50}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128} },   // three small-q of different lengths
+    paged_attention_test_params{ {{2, 34}, {1, 515}, {40, 0}, {16, 7}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128, 128} },  // all four routes at once
+    paged_attention_test_params{ {{8, 34}, {1, 100}},  2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128} },
+
+    // dynamic input padding on the small-q route
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
+}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_cm_qq_bias, cm_qq_bias_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // single sequence, q_len sweep - all of these are small-q subsequences
+    paged_attention_test_params{ {{2, 32}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({2}) },
+    paged_attention_test_params{ {{4, 32}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({4}) },
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{16, 40}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({16}) },  // spec_num 16, the typical EAGLE draft width
+
+    // above the small-q bound: the mask is applied by the multi-token kernel instead
+    paged_attention_test_params{ {{17, 40}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({17}) },
+    paged_attention_test_params{ {{32, 40}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({32}) },
+
+    // past_len crossing the KV block and partition boundaries with the mask on
+    paged_attention_test_params{ {{8, 255}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 256}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 1023}}, 2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+
+    // GQA: the mask depends only on the query, so it must be shared correctly across the heads
+    // that replicate one KV head.
+    paged_attention_test_params{ {{8, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 34}}, 8, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 34}}, 4, 2, 128, 128, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+
+    // compressed KV cache, both quantization modes
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 34}},  2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{16, 40}}, 4, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128}, ov::element::dynamic, true, make_tree_qq_bias({16}) },
+
+    // multi-sequence: only the subsequences with past_len > 0 carry a mask
+    paged_attention_test_params{ {{8, 34}, {64, 0}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}, ov::element::dynamic, true, make_tree_qq_bias({8, 0}) },
+    paged_attention_test_params{ {{64, 0}, {8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}, ov::element::dynamic, true, make_tree_qq_bias({0, 8}) },
+    paged_attention_test_params{ {{4, 20}, {8, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f}, std::vector<int>{128, 128}, ov::element::dynamic, true, make_tree_qq_bias({4, 8}) },
+    paged_attention_test_params{ {{16, 40}, {1, 100}, {8, 34}}, 4, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}, ov::element::dynamic, true, make_tree_qq_bias({16, 1, 8}) },
+    paged_attention_test_params{ {{8, 34}, {32, 0}, {2, 16}},   2, 2, 64, 64, 256, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, true, std::vector<float>{100.0f, 100.0f, 100.0f}, std::vector<int>{128, 128, 128}, ov::element::dynamic, true, make_tree_qq_bias({8, 0, 2}) },
 }));
 
 // Performance-focused tests with larger sequence lengths, single/multi-subsequences, and CM v.s. OCL/micro path (which is triggered with xattention ON/OFF).

@@ -876,6 +876,137 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForQwen35) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
+// Verifies FP32 promotion for the direct MatMul -> Sin/Cos topology.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCos) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+    auto position_ids_gather = std::make_shared<ov::op::v8::Gather>(
+        position_ids_i32,
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}),
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}));
+    auto position_ids_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(
+        position_ids_gather,
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0}));
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids_unsqueeze, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(matmul, ov::element::i32);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, shape_of}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f32);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(sin->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(cos->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(shape_of->get_output_element_type(0), ov::element::i32);
+
+    for (const auto& trig_node : {std::static_pointer_cast<ov::Node>(sin),
+                                  std::static_pointer_cast<ov::Node>(cos)}) {
+        ASSERT_EQ(trig_node->get_users().size(), 1);
+        const auto restore_precision =
+            ov::as_type_ptr<ov::op::v0::Convert>(trig_node->get_users().front());
+        ASSERT_NE(restore_precision, nullptr);
+        EXPECT_EQ(restore_precision->get_output_element_type(0), ov::element::f16);
+    }
+}
+
+// Verifies that position_ids are detected when they feed the right-hand side of MatMul.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosWithPositionIdsOnRhs) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{4, 1});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(frequencies, position_ids_f16);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f32);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(sin->get_output_element_type(0), ov::element::f32);
+    EXPECT_EQ(cos->get_output_element_type(0), ov::element::f32);
+}
+
+// Verifies that a similarly shaped graph is ignored when its input is not position_ids.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosIgnoresUnrelatedInput) {
+    auto input_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    input_ids->set_friendly_name("input_ids");
+    auto input_ids_f16 = std::make_shared<ov::op::v0::Convert>(input_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{input_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f16);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(sin->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(cos->get_output_element_type(0), ov::element::f16);
+}
+
+// Verifies that promoting MatMul does not change another consumer of a shared Convert.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosPreservesSharedConvertConsumer) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto unrelated = std::make_shared<ov::op::v0::Result>(position_ids_f16);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, unrelated}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f32);
+    EXPECT_EQ(unrelated->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(unrelated->input_value(0).get_node_shared_ptr(), position_ids_f16);
+}
+
+// Verifies that the transformation is skipped when MatMul has an unrelated value consumer.
+TEST(IncreasePositionIdsPrecisionTest, DirectMatMulSinCosIgnoresExtraMatMulConsumer) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 4});
+    position_ids->set_friendly_name("position_ids");
+    auto position_ids_f16 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::f16);
+    auto frequencies = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{4, 4});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(position_ids_f16, frequencies);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    auto unrelated = std::make_shared<ov::op::v0::Result>(matmul);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{sin, cos, unrelated}, ov::ParameterVector{position_ids});
+
+    ov::pass::Manager manager;
+    manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(matmul->get_input_element_type(0), ov::element::f16);
+    EXPECT_EQ(matmul->get_input_element_type(1), ov::element::f16);
+    EXPECT_EQ(matmul->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(unrelated->get_input_element_type(0), ov::element::f16);
+}
+
 TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGPTOSS) {
     {
         auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ 3, -1, -1 });
@@ -1081,4 +1212,77 @@ TEST(IncreasePrecisionTest, IncreaseRMSInputPrecisionForQwenVLMerger) {
     auto rms_user = rms_m->get_users()[0];
     EXPECT_TRUE(ov::as_type_ptr<ov::op::v0::Convert>(rms_user) != nullptr)
         << "rms_m output should feed into Convert node";
+}
+
+// Gemma4 pattern (latest): MatMul(f16) -> Reshape(transpose) -> Concat -> Sin/Cos -> Reshape(unsqueeze) -> RoPE(f16 cos/sin)
+// The local / global attention RoPEs share a single position_ids Convert, so that Convert has two users.
+TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGemma4) {
+    // Builds one RoPE branch on top of the shared position_ids Convert.
+    // theta_idx only makes the frequency constants of the two branches distinct.
+    auto make_rope_branch = [](const ov::Output<ov::Node>& pos_ids_fp,
+                               const ov::Output<ov::Node>& rope_input,
+                               int theta_idx,
+                               bool promoted) {
+        auto freq_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 128, 1},
+                                                                 std::vector<float>(128, static_cast<float>(theta_idx + 1)));
+        auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 128, 1});
+        ov::Output<ov::Node> matmul_lhs = std::make_shared<ov::op::v3::Broadcast>(freq_const, shape_const);
+        if (promoted)
+            matmul_lhs = std::make_shared<ov::op::v0::Convert>(matmul_lhs, ov::element::f32);
+
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(matmul_lhs, pos_ids_fp);
+
+        // Reshape (acts as transpose) -> Concat -> Sin/Cos
+        auto reshape_tr_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{-1, 1, 128});
+        auto reshape_transpose = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_tr_const, false);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{reshape_transpose, reshape_transpose}, 2);
+        ov::Output<ov::Node> cos = std::make_shared<ov::op::v0::Cos>(concat);
+        ov::Output<ov::Node> sin = std::make_shared<ov::op::v0::Sin>(concat);
+
+        // RoPE stays in f16, so the promoted branch needs restore converts
+        if (promoted) {
+            cos = std::make_shared<ov::op::v0::Convert>(cos, ov::element::f16);
+            sin = std::make_shared<ov::op::v0::Convert>(sin, ov::element::f16);
+        }
+
+        // Reshape (acts as unsqueeze) -> RoPE
+        auto reshape_cos_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{-1, 1, 1, 256});
+        auto cos_reshape = std::make_shared<ov::op::v1::Reshape>(cos, reshape_cos_const, false);
+        auto reshape_sin_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<int32_t>{-1, 1, 1, 256});
+        auto sin_reshape = std::make_shared<ov::op::v1::Reshape>(sin, reshape_sin_const, false);
+
+        return std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos_reshape, sin_reshape},
+                                                        ov::op::internal::RoPE::Config());
+    };
+
+    {
+        // position_ids(i64) -> Convert(i32) -> Reshape[?,1,1] -> Convert(f16) -> { MatMul_local, MatMul_global }
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+        auto convert_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto reshape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{-1, 1, 1});
+        auto reshape_pos = std::make_shared<ov::op::v1::Reshape>(convert_i32, reshape_const, false);
+        auto convert_f16 = std::make_shared<ov::op::v0::Convert>(reshape_pos, ov::element::f16);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope_local = make_rope_branch(convert_f16, rope_input, 0, false);
+        auto rope_global = make_rope_branch(convert_f16, rope_input, 1, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rope_local, rope_global}, ov::ParameterVector{position_ids, rope_input});
+        manager.register_pass<IncreasePositionIdsPrecision>();
+    }
+    {
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+        auto convert_i32 = std::make_shared<ov::op::v0::Convert>(position_ids, ov::element::i32);
+        auto reshape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{-1, 1, 1});
+        auto reshape_pos = std::make_shared<ov::op::v1::Reshape>(convert_i32, reshape_const, false);
+        auto convert_f32_local = std::make_shared<ov::op::v0::Convert>(reshape_pos, ov::element::f32);
+        auto convert_f32_global = std::make_shared<ov::op::v0::Convert>(reshape_pos, ov::element::f32);
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope_local = make_rope_branch(convert_f32_local, rope_input, 0, true);
+        auto rope_global = make_rope_branch(convert_f32_global, rope_input, 1, true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope_local, rope_global}, ov::ParameterVector{position_ids, rope_input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

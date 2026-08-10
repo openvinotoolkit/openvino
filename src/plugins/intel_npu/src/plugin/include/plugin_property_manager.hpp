@@ -12,19 +12,16 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "metrics.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
 
 class PluginPropertyManager final {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
-                          const std::shared_ptr<Metrics>& metrics,
-                          const ov::SoPtr<IEngineBackend>& backend,
-                          Logger& logger);
+    PluginPropertyManager(const FilteredConfig& config, const ov::SoPtr<IEngineBackend>& backend, Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
 
@@ -47,7 +44,6 @@ private:
     PluginPropertyManager(const PluginPropertyManager& other);
     struct CopyState {
         FilteredConfig config;
-        std::shared_ptr<Metrics> metrics;
         ov::SoPtr<IEngineBackend> backend;
         Logger& logger;
         ov::intel_npu::CompilerType currentlyUsedCompiler;
@@ -66,7 +62,6 @@ private:
 
     mutable FilteredConfig _config;
 
-    std::shared_ptr<Metrics> _metrics;
     ov::SoPtr<IEngineBackend> _backend;
     Logger& _logger;
 

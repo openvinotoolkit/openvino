@@ -3,15 +3,19 @@
 //
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
+#include <future>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
-#include "openvino/util/common_util.hpp"
+#include "memory_prefetch.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/hash_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -302,9 +306,21 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t /*offset*/, size_t /*size*/) override {}
+    void hint_prefetch(size_t offset, size_t size) override;
+
+    void hint_prefetch_async(size_t offset, size_t size) override;
 
 private:
+    /**
+     * @brief Adopts futures detached from a util::PrefetchToken, reaping already-finished ones so
+     * the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
+     */
+    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks);
+
+    /** @brief Joins all outstanding background prefetch tasks. Must run before any teardown that
+     *  unmaps or frees the view, since a detached task may still be touching those pages. */
+    void wait_for_pending_prefetch() noexcept;
+
     /**
      * @brief Remaps a placeholder region by replacing it with a file-backed view.
      *
@@ -374,6 +390,10 @@ private:
      * the lock, so the VEH cannot fire on the same thread and re-enter try_remap_slot.
      */
     std::mutex m_slot_mutex;
+
+    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
+    std::mutex m_pending_prefetch_mutex;
+    std::vector<std::future<void>> m_pending_prefetch;
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
@@ -394,6 +414,10 @@ LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
 }
 
 MapHolder::~MapHolder() {
+    // Detached prefetch tasks may still be touching this mapping's pages; join them first,
+    // before any view is unmapped or VA space is released.
+    wait_for_pending_prefetch();
+
     if (m_view_base && m_total_va_size != 0) {
         // Placeholder path: unregister VEH, unmap all views, free all VA allocations.
         const auto& api = PlaceholderAPI::instance();
@@ -741,6 +765,69 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
 
     const auto proc = GetCurrentProcess();
     return remap_placeholder(proc, placeholder_base, placeholder_size);
+}
+
+namespace {
+
+// Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result.
+// Returns an empty region (m_length == 0) for a null/empty mapping, an offset at or past the end,
+// or a sub-page request.
+util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
+        return {};
+    }
+    const auto available = mapping_size - offset;
+    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
+    return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+}
+
+}  // namespace
+
+void MapHolder::adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
+    std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+    // Reap already-finished futures so the vector doesn't grow without bound across repeated
+    // hint_prefetch_async() calls over this mapping's lifetime.
+    m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                            m_pending_prefetch.end(),
+                                            [](std::future<void>& task) {
+                                                return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
+                                                                            std::future_status::ready;
+                                            }),
+                             m_pending_prefetch.end());
+    m_pending_prefetch.insert(m_pending_prefetch.end(),
+                              std::make_move_iterator(tasks.begin()),
+                              std::make_move_iterator(tasks.end()));
+}
+
+void MapHolder::wait_for_pending_prefetch() noexcept {
+    std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+    for (auto& task : m_pending_prefetch) {
+        if (task.valid()) {
+            task.wait();
+        }
+    }
+    m_pending_prefetch.clear();
+}
+
+void MapHolder::hint_prefetch(size_t offset, size_t size) {
+    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
+    if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
+        const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
+        const auto aligned_size =
+            util::align_size_up(region.m_length, static_cast<size_t>(util::get_system_page_size()));
+        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
+    }
+}
+
+void MapHolder::hint_prefetch_async(size_t offset, size_t size) {
+    if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
+        region.m_length > util::default_parallel_io_threshold) {
+        auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                             region.m_length,
+                                             util::prefetch_thread_count(region.m_length));
+        adopt_pending_prefetch(token.detach());
+    }
 }
 
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
