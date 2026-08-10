@@ -6852,6 +6852,39 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
     }
 }
 
+TEST_F(SDPAToPATest, SDPAToPA_GraniteMoeHybrid_EliminateDirectPaddingMaskGating) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+        auto hidden_states = make_param(PartialShape{DYN, DYN, 64}, element::f32, "hidden_states");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 2});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply = makeOP<v1::Multiply>({hidden_states, convert}, {{"auto_broadcast", "numpy"}});
+        auto weights = make_param(PartialShape{64, 64}, element::f32, "weights");
+        auto matmul = makeOP<v0::MatMul>({multiply, weights}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto result = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, hidden_states, weights});
+        model = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto hidden_states = make_param(PartialShape{DYN, DYN, 64}, element::f32, "hidden_states");
+        auto weights = make_param(PartialShape{64, 64}, element::f32, "weights");
+        auto matmul = makeOP<v0::MatMul>({hidden_states, weights}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto result = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({hidden_states, weights});
+        model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{params});
+    }
+}
+
 // Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
 // inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
 // (non-GQA) or the repeat_kv Unsqueeze-Broadcast-Reshape expansion (gqa == true). With per_channel,
