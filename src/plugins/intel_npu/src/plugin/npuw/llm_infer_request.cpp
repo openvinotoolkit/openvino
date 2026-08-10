@@ -1275,7 +1275,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
-                                               ov::SoPtr<ov::ITensor> token_type_ids,
                                                ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
@@ -1542,7 +1541,7 @@ void ov::npuw::LLMInferRequest::infer() {
         if (position_ids->get_shape().size() < 3) {
             trim_kvcache_for_speculative_decoding(position_ids);
         }
-        infer_generate(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
+        infer_generate(input_ids, attention_mask, position_ids, per_layer_inputs);
     }
 
     if (!position_ids_opt.has_value()) {
