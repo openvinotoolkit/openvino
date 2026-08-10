@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-10-11-50-38-787-31384341073",
+  "timestamp": "2026-08-10T11:52:18Z",
+  "run_id": "31384341073",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31384341073",
+  "workflow_name": "Android",
+  "pr_number": "37211",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37211",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "CMake configure fails: MODULE_LIBRARY targets cannot be linked into another target",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails - MODULE_LIBRARY cannot be linked"
+    },
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails - MODULE_LIBRARY cannot be linked"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to above failures"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries):\n  Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked\n  into another target.",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "The CMake configure step fails because plugin targets (openvino_auto_plugin, openvino_intel_gpu_plugin, openvino_intel_cpu_plugin, etc.) are MODULE_LIBRARY type, which cannot be linked into other targets via target_link_libraries. This is triggered in cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp). The PR changes files in src/plugins/intel_gpu which may have modified CMakeLists or plugin registration in a way that triggers this linking error on Android build targets (arm64 and x64).",
+  "reproduction_steps": "Run CMake configure for Android (arm64 or x64) with the PR changes applied.",
+  "recommended_actions": [
+    "Check if the PR modified any CMakeLists.txt files in intel_gpu plugin or related cmake files",
+    "Verify that plugin targets are not being linked as MODULE_LIBRARY where they should be SHARED",
+    "Review the ov_generate_plugins_hpp call in cmake/extra_modules.cmake:186 for the linking issue"
+  ],
+  "prevention_strategies": "Run Android build CMake configure in pre-merge CI for GPU plugin changes.",
+  "historical_context": "New pattern - first occurrence"
+}
