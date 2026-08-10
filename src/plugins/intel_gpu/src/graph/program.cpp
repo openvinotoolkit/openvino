@@ -103,7 +103,7 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <utility>
 #include <vector>
@@ -230,8 +230,7 @@ program::program(engine& engine, const ExecutionConfig& config)
     _layout_optimizer = std::make_unique<layout_optimizer>();
 }
 
-program::~program() {
-}
+program::~program() = default;
 
 void program::init_program() {
     set_options();
@@ -429,7 +428,7 @@ void program::prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes
         if (!found) {
             add_node_dependencies(node_ptr.get());
         }
-        if (node_ptr->dependencies.size() == 0)
+        if (node_ptr->dependencies.empty())
             inputs.push_back(node_ptr.get());
     }
 }
@@ -445,7 +444,7 @@ void program::prepare_nodes(topology const& topology) {
         if (node_ptr == nullptr)
             throw std::runtime_error("NULL pointer in nodes_map.");
         add_node_dependencies(node_ptr);
-        if (node_ptr->dependencies.size() == 0) {
+        if (node_ptr->dependencies.empty()) {
             inputs.push_back(node_ptr);
         }
     }
@@ -748,8 +747,8 @@ void program::transfer_memory_to_device() {
             allocation_type target_alloc_type = alloc_type;
             // usm_device memory does not provide performance benefits on the LNL platform
             if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
-                !(get_engine().get_device_info().arch >= gpu_arch::xe2 &&
-                  get_engine().get_device_info().dev_type == device_type::integrated_gpu)) {
+                (get_engine().get_device_info().arch < gpu_arch::xe2 ||
+                  get_engine().get_device_info().dev_type != device_type::integrated_gpu)) {
                 // Convert to usm_device for performance optimization
                 target_alloc_type = allocation_type::usm_device;
             }
@@ -781,7 +780,7 @@ program::nodes_ordering& program::get_processing_order() { return processing_ord
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
 
 const std::vector<primitive_id>& program::get_allocating_order(bool forced_update) {
-    if (!forced_update && allocating_order.size() > 0)
+    if (!forced_update && !allocating_order.empty())
         return allocating_order;
 
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
@@ -898,10 +897,7 @@ bool program::has_state_initializers(const std::string& variable_id, const primi
 
 bool program::contains_state(const std::string& variable_id) {
     auto it = state_initializers.find(variable_id);
-    if (it != state_initializers.end())
-        return true;
-    else
-        return false;
+    return it != state_initializers.end();
 }
 
 program_node& program::get_or_create(std::shared_ptr<primitive> prim) {
@@ -1280,11 +1276,11 @@ void program::fuse_nodes(program_node &fused_node,
         }
 
         fused_node.dependencies.push_back({dep, port});
-        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port).data_type);
+        local_desc.inputs.emplace_back(FusedInputType::EXTERNAL, fused_node.dependencies.size() - 1, dep->get_output_layout(port != 0).data_type);
         local_desc.deps.emplace_back(dep->id(), deps_idx++);
         dep->users.push_back(&fused_node);
     }
-    if (local_desc.deps.size()) {
+    if (!local_desc.deps.empty()) {
         local_desc.outer_dep_start_idx = orig_fused_node_num_deps;
     }
 
@@ -1308,7 +1304,7 @@ void program::fuse_nodes(program_node &fused_node,
     }
 
     // Remove all edges connected with peer node
-    while (peer_node.get_dependencies().size() > 0) {
+    while (!peer_node.get_dependencies().empty()) {
         auto& dep = peer_node.get_dependency(peer_node.get_dependencies().size() - 1);
         remove_connection(dep, peer_node);
     }

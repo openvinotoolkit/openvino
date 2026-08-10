@@ -98,8 +98,7 @@ struct loop_impl : typed_primitive_impl<loop> {
 
     loop_impl() : parent() {}
 
-    loop_impl(const loop_impl& other) : typed_primitive_impl<loop>(other),
-        _back_edges(other._back_edges) {}
+    loop_impl(const loop_impl& other) = default;
 
     explicit loop_impl(const loop_node& node) {
         set_node_params(node);
@@ -182,7 +181,8 @@ struct loop_impl : typed_primitive_impl<loop> {
             memory::ptr num_actual_iterations_mem = outer_network.get_primitive(instance.get_num_iterations_id())->output_memory_ptr();
             write_scalar_value(num_actual_iterations_mem, stream, current_iteration_idx);
 
-            instance.update_output_layout();
+            stream.wait_for_events(events);
+            instance.handle_zero_iterations();
             ev->set();
             return ev;
         }

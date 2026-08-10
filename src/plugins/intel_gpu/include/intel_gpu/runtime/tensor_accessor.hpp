@@ -65,7 +65,7 @@ private:
     MemoryMap m_memories;
     TensorsMap m_tensors;
 
-    mutable std::set<size_t> m_locked_memories = {};
+    mutable std::set<size_t> m_locked_memories;
 };
 
 class TensorAccessor final : public ov::ITensorAccessor {

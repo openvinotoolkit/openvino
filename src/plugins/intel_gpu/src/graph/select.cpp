@@ -135,7 +135,7 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
 
                     CLDNN_ERROR_BOOL(node.id(),
                                         "Sizes equal or broadcast is possible",
-                                        !(current_dim == output_tensor.raw[d] || current_dim == 1),
+                                        current_dim != output_tensor.raw[d] && current_dim != 1,
                                         "Invalid input shapes");
                 }
             }

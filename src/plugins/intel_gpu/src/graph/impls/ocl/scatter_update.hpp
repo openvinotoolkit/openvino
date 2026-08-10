@@ -63,10 +63,7 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
         if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types))
             return false;
 
-        if (!one_of(out_layout.data_type, supported_out_types))
-            return false;
-
-        return true;
+        return one_of(out_layout.data_type, supported_out_types);
     }
 };
 

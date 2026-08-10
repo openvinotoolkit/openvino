@@ -185,14 +185,10 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     };
 
     auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
-        if (ov::op::util::is_binary_elementwise_arithmetic(op) ||
+        return ov::op::util::is_binary_elementwise_arithmetic(op) ||
             ov::op::util::is_binary_elementwise_logical(op) ||
             ov::op::util::is_binary_elementwise_comparison(op) ||
-            is_btiwise(op)) {
-            return true;
-        } else {
-            return false;
-        }
+            is_btiwise(op);
     };
 
     auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
