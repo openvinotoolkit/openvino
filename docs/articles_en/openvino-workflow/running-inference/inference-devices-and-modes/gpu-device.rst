@@ -26,7 +26,7 @@ The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For
 Device Naming Convention
 #######################################
 
-* Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}``.
+* Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}`` (both Intel® and non-Intel GPUs are considered).
 * If the system has an integrated Intel® GPU, its ``id`` is always 0 (``GPU.0``).
 * If the system does not have an integrated Intel® GPU, devices are enumerated, starting from 0.
 * The order of GPUs is predefined: an integrated Intel® GPU is enumerated first, followed by discrete Intel® GPUs. The order of non-Intel® GPUs is not guaranteed.
