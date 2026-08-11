@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,11 +36,17 @@ inline bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& no
 
         auto in_convert = ov::as_type_ptr<ov::op::v0::Convert>(incoming_node);
 
-        if (in_convert && in_convert->get_users().size() == 1 && input_et.bitwidth() <= desired_et.bitwidth()) {
-            auto convert = std::make_shared<ov::op::v0::Convert>(incoming_node->input_value(0), desired_et);
-            convert->set_friendly_name(in_convert->get_friendly_name() + "_increase_precision_" + std::to_string(input_idx));
-            ov::copy_runtime_info(incoming_node, convert);
-            ov::replace_node(incoming_node, convert);
+        if (in_convert && input_et.bitwidth() <= desired_et.bitwidth()) {
+            auto convert = std::make_shared<ov::op::v0::Convert>(in_convert->input_value(0), desired_et);
+            convert->set_friendly_name(node->get_friendly_name() + "_increase_precision_" + std::to_string(input_idx));
+            ov::copy_runtime_info(in_convert, convert);
+            if (in_convert->get_users().size() == 1) {
+                // This node is the only user, so the original Convert can be dropped entirely.
+                ov::replace_node(in_convert, convert);
+            } else {
+                // The original Convert is kept for the remaining users; rewire only this input.
+                input.replace_source_output(convert);
+            }
         } else {
             auto convert = std::make_shared<ov::op::v0::Convert>(incoming_output, desired_et);
             convert->set_friendly_name(incoming_node->get_friendly_name() + "_increase_precision_" + std::to_string(input_idx));

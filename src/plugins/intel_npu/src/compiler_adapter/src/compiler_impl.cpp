@@ -548,34 +548,25 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     return result;
 }
 
-bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
+void VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
     _logger.debug("get_supported_options start");
     size_t str_size = 0;
-    try {
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                              vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
-                              _logHandle);
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
+                          _logHandle);
 
-        if (str_size == 0) {
-            _logger.debug("Option list size 0!");
-            return true;
-        }
-
-        _logger.debug("obtain list");
-        options.resize(str_size);
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
-                              vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
-                              _logHandle);
-
-        _logger.debug("Option list size %d, got option list", str_size);
-
-        return true;
-    } catch (const std::exception& e) {
-        // The API is only supported in new version, just add log here
-        _logger.debug("Exception in get_supported_options: %s", e.what());
+    if (str_size == 0) {
+        _logger.debug("Option list size 0!");
+        return;
     }
 
-    return false;
+    _logger.debug("obtain list");
+    options.resize(str_size);
+    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+                          vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
+                          _logHandle);
+
+    _logger.debug("Option list size %d, got option list", str_size);
 }
 
 bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {

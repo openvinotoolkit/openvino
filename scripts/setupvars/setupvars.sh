@@ -99,9 +99,22 @@ if command -v lsb_release >/dev/null 2>&1; then
     OS_NAME=$(lsb_release -i -s)
 fi
 
-PYTHON_VERSION_MAJOR="3"
-MIN_REQUIRED_PYTHON_VERSION_MINOR="10"
-MAX_SUPPORTED_PYTHON_VERSION_MINOR="14"
+get_available_python_versions () {
+    available_python_versions=""
+    ov_python_dir="$INTEL_OPENVINO_DIR/python/openvino"
+    if [ -d "$ov_python_dir" ]; then
+        for lib in "$ov_python_dir"/_pyopenvino.cpython-*.so; do
+            [ -e "$lib" ] || continue
+            ver_tag=$(basename "$lib" | sed -n 's/^_pyopenvino\.cpython-\([0-9][0-9]*\)[a-z]*-.*/\1/p')
+            [ -z "$ver_tag" ] && continue
+            ver_str="${ver_tag%"${ver_tag#?}"}.${ver_tag#?}"
+            case " $available_python_versions " in
+                *" $ver_str "*) ;;
+                *) available_python_versions="${available_python_versions:+$available_python_versions }$ver_str" ;;
+            esac
+        done
+    fi
+}
 
 check_python_version () {
     if [ -z "$python_version" ]; then
@@ -115,15 +128,28 @@ check_python_version () {
 
     # Strip non-numeric suffix from minor version (e.g., 14t -> 14)
     python_version_minor_numeric="${python_version_minor%%[!0-9]*}"
+    current_python_version="${python_version_major}.${python_version_minor_numeric}"
 
-    if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
-        [ "$python_version_minor_numeric" -lt "$MIN_REQUIRED_PYTHON_VERSION_MINOR" ] ||
-        [ "$python_version_minor_numeric" -gt "$MAX_SUPPORTED_PYTHON_VERSION_MINOR" ] ; then
-        echo "[setupvars.sh] WARNING: Unsupported Python version ${python_version}. Please install one of Python" \
-        "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
-        "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
-        unset python_version
-        return 0
+    get_available_python_versions
+
+    if [ -n "$available_python_versions" ]; then
+        version_supported=""
+        for v in $available_python_versions; do
+            if [ "$v" = "$current_python_version" ]; then
+                version_supported="yes"
+                break
+            fi
+        done
+        if [ -z "$version_supported" ]; then
+            echo "[setupvars.sh] WARNING: Unsupported Python version ${current_python_version}." \
+            "The OpenVINO Python API in this package is built for Python: ${available_python_versions}." \
+            "Please activate a Python environment with a matching version."
+            unset python_version
+            return 0
+        fi
+    else
+        echo "[setupvars.sh] WARNING: Could not detect which Python versions the OpenVINO Python API" \
+        "in this package was built for. The installed Python version will not be verified."
     fi
 
     if command -v python"$python_version" > /dev/null 2>&1; then
@@ -158,18 +184,21 @@ if [ -z "$python_version" ]; then
 fi
 
 if ! command -v python"$python_version_to_check" > /dev/null 2>&1; then
-    echo "[setupvars.sh] WARNING: Python is not installed. Please install one of Python" \
-    "${PYTHON_VERSION_MAJOR}.${MIN_REQUIRED_PYTHON_VERSION_MINOR} -" \
-    "${PYTHON_VERSION_MAJOR}.${MAX_SUPPORTED_PYTHON_VERSION_MINOR} (64-bit) from https://www.python.org/downloads/"
+    get_available_python_versions
+    if [ -n "$available_python_versions" ]; then
+        echo "[setupvars.sh] WARNING: Python is not installed. Please install one of Python" \
+        "${available_python_versions} (64-bit) from https://www.python.org/downloads/"
+    else
+        echo "[setupvars.sh] WARNING: Python is not installed." \
+        "Please install Python (64-bit) from https://www.python.org/downloads/"
+    fi
 else
     check_python_version
 fi
 
 unset python_version
 unset python_version_to_check
-unset PYTHON_VERSION_MAJOR
-unset MIN_REQUIRED_PYTHON_VERSION_MINOR
-unset MAX_SUPPORTED_PYTHON_VERSION_MINOR
+unset available_python_versions
 unset OS_NAME
 
 echo "[setupvars.sh] OpenVINO environment initialized"

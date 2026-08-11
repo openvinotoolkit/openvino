@@ -120,8 +120,8 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
 
     auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
         // Check all parameters except DataType
-        auto& input0_dims = input0.GetDims();
-        auto& input1_dims = input1.GetDims();
+        const auto& input0_dims = input0.GetDims();
+        const auto& input1_dims = input1.GetDims();
         bool same = input0.GetLayout() == input1.GetLayout() &&
                     input0.GetPaddedVal() == input1.GetPaddedVal() &&
                     input0.GetViewOffset() == input1.GetViewOffset() &&
@@ -165,7 +165,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
 
     auto Padded = [](const DataTensor& tensor) -> bool {
         bool is_padded = false;
-        auto& tensor_dims = tensor.GetDims();
+        const auto& tensor_dims = tensor.GetDims();
         for (size_t i = 0; i < tensor_dims.size(); i++) {
             is_padded |= tensor_dims[i].pad.Total() != 0;
         }
@@ -311,7 +311,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
     jit.Merge(GetOperationsJitConstants(params, use_vload, vec_size));
 
     std::string do_eltwise;
-    auto& operations = params.operations;
+    const auto& operations = params.operations;
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
         const auto &ew = operations[op_num];
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
@@ -485,11 +485,8 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
 }
 
 static inline bool IsBroadcastingPossibleInput(const DataTensor& input, const DataTensor& output) {
-    if ((input.LogicalSize() == 1) ||
-        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v)) {
-            return true;
-        }
-    return false;
+    return (input.LogicalSize() == 1) ||
+        (input.LogicalSize() == output.Feature().v && input.Feature().v == output.Feature().v);
 }
 
 static inline bool InputHasFeatureBroadcast(const eltwise_params& params, const size_t op_num, const size_t input_idx) {

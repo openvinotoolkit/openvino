@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -5,7 +9,7 @@
 
 namespace cldnn {
     struct WeightsReorderParams {
-        WeightsReorderParams() {}
+        WeightsReorderParams() = default;
 
         WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
             : _in_layout(in_layout),
@@ -62,7 +66,7 @@ namespace cldnn {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     namespace onednn {
         struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
-            WeightsReorderParamsOneDNN() : cldnn::WeightsReorderParams() {}
+            WeightsReorderParamsOneDNN() = default;
             WeightsReorderParamsOneDNN(const layout& in_layout,
                                        const layout& out_layout,
                                        const dnnl::memory::desc& in_desc,
@@ -95,6 +99,6 @@ namespace cldnn {
                 _out_desc = std::make_shared<dnnl::memory::desc>(out);
             }
         };
-    }
+    }  // namespace onednn
 #endif
-}
+}  // namespace cldnn

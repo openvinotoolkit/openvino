@@ -157,7 +157,7 @@ public:
         T sin_angle;
     };
 
-    ROIAlignRotatedOpDefPolicy() {}
+    ROIAlignRotatedOpDefPolicy() : rois{}, shape{}, spatial_scale{}, clockwise{} {}
 
     void init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool clockwise_) {
         rois = rois_;

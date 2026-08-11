@@ -25,6 +25,7 @@ class WhisperInferRequest;
 class LLMBlockKVCacheStrategy;
 class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
+struct MaskInfo;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -69,6 +70,7 @@ public:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
     LLMCompiledModel() = delete;
+    ~LLMCompiledModel() = default;
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
@@ -88,10 +90,12 @@ private:
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_encoder_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -134,6 +138,13 @@ private:
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
 
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
+
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 
@@ -142,6 +153,9 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+    // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
+    // routed to the dedicated KV/RoPE-free encoder embedding path.
+    bool m_is_encoder_embedding = false;
 
     // True when the original model exposed a "hidden_states" output that shared
     // its source tensor with the lm_head cut point. The cut removes that Result
