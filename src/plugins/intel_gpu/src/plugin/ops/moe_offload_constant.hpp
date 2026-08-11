@@ -84,14 +84,18 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
 
-/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 70].
+/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 100].
 /// Computes offloadable MoE routed-expert and fixed weight sizes from @p model,
 /// estimates available memory budget (device memory for dGPU, OS/tracked-memory
 /// budget for iGPU), and returns the percentage of routed-expert weights
 /// that should be streamed from disk. Returns 0 when everything fits or the
 /// model has no MoE.
 /// @param model    Transformed model containing MOECompressed op(s).
-/// @param engine   Target GPU engine used to query device info and probe allocations.
+/// @param engine   Target GPU engine used to query device info and tracked allocations.
 size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine);
+
+/// Resolves AUTO OFFLOAD_RATIO with an explicitly supplied memory budget.
+/// Intended for deterministic testing of the model weight accounting and ratio calculation.
+size_t resolve_auto_offload_ratio_for_budget(const ov::Model& model, uint64_t memory_budget);
 
 }  // namespace ov::intel_gpu
