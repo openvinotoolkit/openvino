@@ -38,15 +38,20 @@ if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    :: If GenAI is installed, export it as well.
    set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
 )
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+    set "ARCHDIR=arm64"
+) else (
+    set "ARCHDIR=intel64"
+)
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\Release;%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\Debug;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
 
    if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist (
-      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\intel64\vc14;%OPENVINO_LIB_PATHS%"
-   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14 (
-      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14;%OPENVINO_LIB_PATHS%"
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\%ARCHDIR%\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\%ARCHDIR%\vc14 (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\%ARCHDIR%\vc14;%OPENVINO_LIB_PATHS%"
    ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin (
       set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
    )
