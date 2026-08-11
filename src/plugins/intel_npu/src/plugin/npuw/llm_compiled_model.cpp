@@ -8,6 +8,7 @@
 #include "embedding/prepare_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
+#include "infer_request_utils.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -15,6 +16,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -801,6 +803,21 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Continuous prefill is opt-in and mutually exclusive with the hash prefix cache.
+    // The prefix cache restore step unconditionally overwrites num_stored_tokens and
+    // its helper hashes absolute token positions of a full prompt. Neither holds under
+    // the delta-input contract, so the combination fails compilation instead of
+    // silently misbehaving, mirroring the block-KV and prefix-caching exclusion.
+    m_enable_continuous_prefill = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
+    if (m_enable_continuous_prefill) {
+        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>(),
+                        "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and NPUW_LLM_ENABLE_PREFIX_CACHING "
+                        "cannot be enabled simultaneously. Continuous prefill receives delta-only "
+                        "inputs which the hash prefix cache cannot process. "
+                        "Please disable one of the two options.");
+        LOG_INFO("Continuous prefill is enabled");
+    }
+
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
@@ -1250,6 +1267,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
+    // SDPA gets its own independent Concat chain.  This enables TagSDPA/SDPADecomposed to
+    // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
+    // L13/L14 KV).
+    if ((prefill_attn_hfa || prefill_attn_pyramid) && !m_is_embedding) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
+        if (rewr.run_on_model(prefill_model)) {
+            LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1269,6 +1298,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     implement_properties();
+
+    if (m_enable_continuous_prefill && !compute_continuous_prefill_supported()) {
+        LOG_WARN("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set, but continuous prefill is not "
+                 "supported for this compiled model. NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED "
+                 "reports false and full-history behaviour stays in effect.");
+    }
+
     LOG_DEBUG("Done");
 }
 
@@ -1600,6 +1636,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         // Deserialize config
         stream & compiled->m_cfg;
         compiled->implement_properties();
+        // Not serialized. Recomputed from the deserialized config so older blobs stay loadable.
+        compiled->m_enable_continuous_prefill = compiled->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
 
         // Deserialize KV cache model variants
         stream & compiled->m_kvcache_sizes;
@@ -1657,11 +1695,72 @@ void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
+    // Static exclusions for continuous prefill. Every condition here is knowable at
+    // compile or import time. Per-turn limits like capacity, alignment and the
+    // watermark are applied dynamically by the propose/grant channel instead.
+    if (!m_enable_continuous_prefill) {
+        return false;  // opt-in feature
+    }
+    if (!m_use_chunk_prefill) {
+        return false;  // whole (STATIC) prefill has no continuation path
+    }
+    if (m_is_whisper || m_is_embedding || m_is_eagle) {
+        return false;  // out of scope pipelines
+    }
+    if (m_longrope_context_limit > 0u) {
+        return false;  // LongRoPE threshold can be crossed mid-generation
+    }
+    OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
+    const auto& prefill_inputs = m_prefill_compiled->inputs();
+    for (const auto& input : prefill_inputs) {
+        // A port can carry several names, so every one of them must clear the
+        // exclusions; get_any_name() could return one that hides a match.
+        for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_lincache(name)) {
+                return false;  // linear/hybrid state has no generate->prefill path
+            }
+            if (ov::npuw::util::matchLoRAMatMulAString(name) || ov::npuw::util::matchLoRAMatMulBString(name) ||
+                ov::npuw::util::matchLoRAMatMulAlphaString(name)) {
+                return false;  // adapter change is only detected after the caller sliced
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
+                return false;  // VLM is out of scope in v1
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
+                return false;  // token type ids are not routed through a continued prefill
+            }
+        }
+    }
+    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
+    // as a contiguous continuation and is excluded statically. A read-only property
+    // must never throw, so a dynamic rank is treated as unsupported rather than
+    // queried through PartialShape::size(), which asserts a static rank.
+    const auto position_ids_port =
+        ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
+    if (!position_ids_port.has_value()) {
+        return false;
+    }
+    const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+        return false;
+    }
+    // Every static exclusion above passed, but this change carries the protocol only:
+    // nothing attaches the coordinator to the variable state yet, so a proposal would
+    // throw. A capability the request cannot honour must never be advertised, so the
+    // answer stays false until the delta prefill path lands and lifts this.
+    return false;
+}
+
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
         name == ov::intel_npu::npuw::llm::generate_config.name()) {
         OPENVINO_THROW(name, " is write-only option!");
+    }
+
+    if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
+        return compute_continuous_prefill_supported();
     }
 
     auto&& configIterator = m_prop_to_opt.find(name);
@@ -1724,6 +1823,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
+                          BIND(npuw::llm::enable_continuous_prefill, NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
