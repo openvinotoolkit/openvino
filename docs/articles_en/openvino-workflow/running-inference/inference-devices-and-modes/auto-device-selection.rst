@@ -211,12 +211,13 @@ the following setup options:
 |                                              | (``[0, 100]``) to a relative performance score. AUTO ranks         |
 |                                              | candidate devices in ascending order of their interpolated score   |
 |                                              | at the current utilization and selects the one with the lowest     |
-|                                              | score. When set together with                                      |
-|                                              | ``devices_utilization_threshold``, devices exceeding their         |
-|                                              | threshold are excluded first, then the curve ranking is applied    |
-|                                              | to the remaining candidates. Allowed device keys:                  |
-|                                              | ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. Each device's       |
-|                                              | curve must have at least one entry.                                |
+|                                              | score. ``perf_curve_table`` has the highest priority: when it      |
+|                                              | covers at least one candidate device, selection is driven purely   |
+|                                              | by the curve ranking and ``devices_utilization_threshold`` is not  |
+|                                              | applied. If ``perf_curve_table`` does not cover any candidate      |
+|                                              | device, AUTO falls back to ``devices_utilization_threshold``.      |
+|                                              | Allowed device keys: ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. |
+|                                              | Each device's curve must have at least one entry.                  |
 |                                              |                                                                    |
 |                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                        |
 |                                              | ``"NPU": {0: 0.0, 100: 50.0}}``                                    |

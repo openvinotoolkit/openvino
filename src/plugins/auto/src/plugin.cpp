@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -744,49 +744,30 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
+    // perf_curve_table applies only when it covers at least one candidate device (by resolved key).
+    auto perf_curve_covers_any = [&perf_curve_table](const std::list<DeviceInformation>& devices) -> bool {
+        for (const auto& device : devices) {
+            const std::string base = ov::DeviceIDParser(device.device_name).get_device_name();
+            if (base == "GPU") {
+                if (perf_curve_table.count("iGPU") != 0 || perf_curve_table.count("dGPU") != 0) {
+                    return true;
+                }
+            } else if (perf_curve_table.count(base) != 0) {
+                return true;
+            }
+        }
+        return false;
+    };
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
-    } else if (!perf_curve_table.empty()) {
-        // When both perf_curve_table and utilization_thresholds are set, first remove devices that
-        // exceed their utilization threshold, then pick the best-scoring remaining candidate.
-        if (!utilization_thresholds.empty()) {
-            last_device = valid_devices.front();
-            auto it = valid_devices.begin();
-            while (it != valid_devices.end()) {
-                const auto threshold = find_utilization_threshold(it->device_name);
-                if (threshold.has_value()) {
-                    ov::DeviceIDParser parsed{it->device_name};
-                    std::string device_type;
-                    if (parsed.get_device_name() == "GPU") {
-                        try {
-                            device_type = get_core()
-                                              ->get_property(it->device_name, ov::device::type.name(), {})
-                                              .as<std::string>();
-                        } catch (const ov::Exception&) {
-                            // Unknown GPU type: keep device_type empty so utilization stays unavailable.
-                            device_type = "";
-                        }
-                    }
-                    const auto utilization = get_device_utilization(it->device_name, device_type);
-                    if (utilization.has_value() && utilization.value() >= threshold.value()) {
-                        LOG_DEBUG_TAG("[perf_curve+threshold] %s utilization %.1f exceeds threshold %u, excluded",
-                                      it->device_name.c_str(), utilization.value(), threshold.value());
-                        it = valid_devices.erase(it);
-                        continue;
-                    }
-                }
-                ++it;
-            }
-        }
-        if (valid_devices.empty()) {
-            ptr_select_device = &last_device;
-        } else {
-            perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table);
-            ptr_select_device =
-                perf_curve_sorted_devices.empty() ? &valid_devices.front() : &perf_curve_sorted_devices.front();
-        }
+    } else if (!perf_curve_table.empty() && perf_curve_covers_any(valid_devices)) {
+        // perf_curve_table has the highest priority: when it covers at least one candidate device,
+        // select purely by the perf curve ranking. utilization thresholds are not applied in this case.
+        perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table);
+        ptr_select_device =
+            perf_curve_sorted_devices.empty() ? &valid_devices.front() : &perf_curve_sorted_devices.front();
     } else {
         // select the higher priority device in case all of device utilization is exceeded the threshold.
         last_device = valid_devices.front();

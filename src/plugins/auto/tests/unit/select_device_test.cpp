@@ -655,6 +655,19 @@ TEST_F(SelectDeviceWithPerfCurveTablePrecedenceTest, perfCurveTableOverridesUtil
     plugin->unregister_priority(0, result.unique_name);
 }
 
+TEST_F(SelectDeviceWithPerfCurveTablePrecedenceTest, fallsBackToThresholdWhenPerfCurveDoesNotCover) {
+    std::string netPrecision = "FP32";
+    std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}};
+    // CPU (utilization 90) exceeds its threshold and must be excluded by the threshold fallback.
+    std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 50}};
+    // perf_curve_table covers only iGPU, none of the candidates -> AUTO falls back to threshold logic.
+    std::map<std::string, std::map<unsigned, float>> perfCurveTable = {{"iGPU", {{0, 0.f}, {100, 100.f}}}};
+
+    auto result = plugin->select_device(devices, netPrecision, 0, thresholds, perfCurveTable);
+    EXPECT_EQ(result.unique_name, "NPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
 // ------------------------------------------------------------------------------------------
 // sort_device_by_perf_curve() unit tests: verify score computation (exact match, interpolation),
 // stable ordering (scored-ascending first, unscored trailing in original relative order), and
