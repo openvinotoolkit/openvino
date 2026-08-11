@@ -428,6 +428,11 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                     }
                     curve[static_cast<unsigned>(utilization)] = score;
                 }
+                if (curve.empty()) {
+                    OPENVINO_THROW("The value type of ",
+                                   ov::intel_auto::perf_curve_table.name(),
+                                   " must be a non-empty dict[int in [0, 100], float] for each device");
+                }
                 perf_curve_table[device_key] = curve;
             }
             properties_to_cpp[property.first] = perf_curve_table;

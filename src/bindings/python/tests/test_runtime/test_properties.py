@@ -646,6 +646,9 @@ def test_properties_perf_curve_table():
     with pytest.raises(RuntimeError):
         intel_auto.perf_curve_table({"CPU": {0: True}})
 
+    with pytest.raises(RuntimeError):
+        intel_auto.perf_curve_table({"CPU": {}})
+
 
 def test_properties_streams():
     # Test extra Num class
