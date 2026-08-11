@@ -34,8 +34,8 @@ public:
 
 private:
     [[nodiscard]] RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
-                                                const MatMulWeightsSource& source,
-                                                const MemoryPtr& orig_src_mem_ptr) override;
+                                               const MatMulWeightsSource& source,
+                                               const MemoryPtr& orig_src_mem_ptr) override;
 };
 
 }  // namespace ov::intel_cpu::pass::aarch64

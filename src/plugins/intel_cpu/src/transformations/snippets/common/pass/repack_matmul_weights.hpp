@@ -63,8 +63,8 @@ protected:
      * @return Repacked weights memory with its CPU descriptor.
      */
     [[nodiscard]] virtual RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
-                                                        const MatMulWeightsSource& source,
-                                                        const MemoryPtr& orig_src_mem_ptr) = 0;
+                                                       const MatMulWeightsSource& source,
+                                                       const MemoryPtr& orig_src_mem_ptr) = 0;
 
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
