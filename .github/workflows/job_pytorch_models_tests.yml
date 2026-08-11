@@ -237,6 +237,19 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
+      # gemma4 requires a much newer transformers/optimum-intel than the other transformation
+      # tests, so it gets its own requirements file and runs last. optimum-intel pulls in a
+      # PyPI openvino release as a dependency, so PYTHONPATH points at the test archive's
+      # python bindings instead of relying on whatever pip installed to import openvino.
+      - name: Gemma4 PagedAttention Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/gemma4.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation_gemma4.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gemma4_tests.html --self-contained-html -v --tb=short
+        env:
+          TEST_DEVICE: CPU
+
       - name: Reformat unsupported ops file
         if: ${{ inputs.model_scope != 'precommit' && !cancelled()}}
         run: |
