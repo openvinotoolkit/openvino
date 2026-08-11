@@ -77,11 +77,12 @@ bool match_gemm_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
 
 // Shared skeleton for the ACL int8 dequantization tail feeding a FakeQuantize:
 //   FQMulAddPattern::ConvMulAdd -> TGemm -> Multiply -> Add -> FakeQuantize
-//   FQMulAddPattern::ConvAddMul -> TGemm -> Add -> Multiply -> FakeQuantize
+//   FQMulAddPattern::ConvAddMul -> TGemm -> Add -> Multiply -> Swish (optional) -> FakeQuantize
 // Requires the GEMM activation input type to equal the FakeQuantize output type
 template <class TGemm>
 bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
                                    FQMulAddPattern pattern,
+                                   bool optional_swish_allowed = false,
                                    const ov::pass::pattern::op::Predicate& act_pred = {},
                                    const std::function<bool(const std::shared_ptr<const ov::Node>&)>& extra = {}) {
     using namespace ov::pass::pattern;
@@ -96,9 +97,9 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
     auto addMul_gemm = wrap_type<TGemm>({any_input(act_pred), any_input()});
     auto addMul_add = wrap_type<ov::op::v1::Add>({addMul_gemm, any_input()});
     auto addMul_mul = wrap_type<ov::op::v1::Multiply>({addMul_add, any_input()});
-    auto addMul_act = optional<ov::op::v4::Swish>({addMul_mul});
+    auto addMul_fq_parent = optional_swish_allowed ? optional<ov::op::v4::Swish>({addMul_mul}) : addMul_mul;
     auto addMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({addMul_act, any_input(), any_input(), any_input(), any_input()});
+        wrap_type<ov::op::v0::FakeQuantize>({addMul_fq_parent, any_input(), any_input(), any_input(), any_input()});
     Matcher addMul_matcher(addMul_fq);
 
     const bool is_mul_add = (pattern == FQMulAddPattern::ConvMulAdd);

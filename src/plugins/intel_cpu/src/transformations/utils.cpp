@@ -54,7 +54,7 @@ std::shared_ptr<ov::Node> get_consumer(const ov::Output<const ov::Node>& output)
 }  // namespace
 
 bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& node, FQMulAddPattern pattern) {
-    return match_gemm_bias_fq_same_types<ov::op::v1::Convolution>(node, pattern);
+    return match_gemm_bias_fq_same_types<ov::op::v1::Convolution>(node, pattern, /* optional_swish_allowed = */ true);
 }
 
 bool match_conv_fq_same_types(const std::shared_ptr<const ov::Node>& node) {
@@ -107,6 +107,7 @@ bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node)
     };
     return match_gemm_bias_fq_same_types<ov::op::v0::MatMul>(node,
                                                              FQMulAddPattern::ConvAddMul,
+                                                             /* optional_swish_allowed = */ false,
                                                              type_matches_any({ov::element::i8, ov::element::u8}),
                                                              is_per_tensor_scale);
 }

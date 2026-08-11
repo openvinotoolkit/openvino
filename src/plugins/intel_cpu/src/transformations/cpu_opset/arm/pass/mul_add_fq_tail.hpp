@@ -29,7 +29,8 @@ namespace ov::intel_cpu {
 
 inline ov::Output<ov::Node> append_mul_add_fq_tail(ov::pass::pattern::op::Block* block,
                                                    const ov::Output<ov::Node>& gemm,
-                                                   bool require_int_fq_output) {
+                                                   bool require_int_fq_output,
+                                                   bool optional_swish_allowed = false) {
     using namespace ov::pass::pattern;
 
     auto multiply = wrap_type<ov::op::v1::Multiply>({gemm, any_input()});
@@ -37,18 +38,20 @@ inline ov::Output<ov::Node> append_mul_add_fq_tail(ov::pass::pattern::op::Block*
         return !type_matches(ov::element::i32)(output);
     });
     auto add = wrap_type<ov::op::v1::Add>({multiply, bias_const});
-    auto activation = optional<ov::op::v4::Swish>({add});
+    auto fq_parent = optional_swish_allowed ? optional<ov::op::v4::Swish>({add}) : add;
 
     ov::pass::pattern::op::Predicate predicate = require_int_fq_output
                                                      ? type_matches_any({ov::element::i8, ov::element::u8})
                                                      : ov::pass::pattern::op::Predicate();
     auto fake_quantize =
-        wrap_type<ov::op::v0::FakeQuantize>({activation, any_input(), any_input(), any_input(), any_input()}, predicate);
+        wrap_type<ov::op::v0::FakeQuantize>({fq_parent, any_input(), any_input(), any_input(), any_input()}, predicate);
 
     block->register_anchor("multiply", multiply);
     block->register_anchor("add", add);
     block->register_anchor("fake_quantize", fake_quantize);
-    block->register_anchor("activation", activation);
+    if (optional_swish_allowed) {
+        block->register_anchor("activation", fq_parent);
+    }
 
     return fake_quantize;
 }

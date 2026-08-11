@@ -41,7 +41,7 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
 
     auto conv = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{conv_u8, conv_i8});
 
-    auto fake_quantize = append_mul_add_fq_tail(this, conv, require_int_fq_output);
+    auto fake_quantize = append_mul_add_fq_tail(this, conv, require_int_fq_output, /* optional_swish_allowed = */ true);
 
     m_inputs = ov::OutputVector{conv};
     m_outputs = ov::OutputVector{fake_quantize};
