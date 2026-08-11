@@ -53,6 +53,12 @@ OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Outpu
 /// \return Shared pointer to constant data or nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
 
+/// \brief Checks whether the source is a Constant with zero elements.
+///
+/// \param source  Node output to check.
+/// \return        True if source is Constant and has empty shape, otherwise false.
+OPENVINO_API bool is_empty_constant_tensor(const Output<Node>& source);
+
 /// \brief Make scalar tensor which stores maximum value of ov::element::Type.
 /// \param et  Element type to get its maximum.
 /// \return Tensor with maximum value.
