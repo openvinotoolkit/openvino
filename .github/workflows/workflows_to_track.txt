@@ -65,5 +65,7 @@ name: Linux (Ubuntu 24.04, Python 3.12)
 name: Take Issue
 ==> ./windows_vs2022_release.yml <==
 name: Windows (VS 2022, Python 3.11, Release)
+==> ./windows_arm64_vs2022_release.yml <==
+name: Windows ARM64 (VS 2022, Python 3.11, Release)
 ==> ./coverity.yml <==
 name: Coverity (Ubuntu 20.04, Python 3.11)
