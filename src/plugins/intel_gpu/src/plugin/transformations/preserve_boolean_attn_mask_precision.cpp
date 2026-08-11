@@ -9,6 +9,7 @@
 
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {

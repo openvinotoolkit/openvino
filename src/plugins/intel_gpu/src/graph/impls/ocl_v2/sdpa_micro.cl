@@ -972,7 +972,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_copy(mask_tile, mask_tile_float);
 #endif
 #ifdef BOOLEAN_ATTN_MASK
-#define boolean_to_additive_mask(x) ((x) != 0.0f ? 0.0f : -INFINITY)
+#define boolean_to_additive_mask(x) ((x) != 0.0f ? 0.0f : INPUT0_VAL_MIN)
         tile_elementwise(mask_tile_float, boolean_to_additive_mask);
 #endif
 #ifdef LOG_2_E_MUL_SCALE
