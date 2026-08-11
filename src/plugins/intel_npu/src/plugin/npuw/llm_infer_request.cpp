@@ -1275,7 +1275,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                ov::SoPtr<ov::ITensor> attention_mask,
                                                ov::SoPtr<ov::ITensor> position_ids,
-                                               ov::SoPtr<ov::ITensor> token_type_ids,
                                                ov::SoPtr<ov::ITensor> per_layer_inputs) {
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
@@ -1324,11 +1323,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                      0);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
                                      0);
-            if (token_type_ids) {
-                uu::fill_tensor<int64_t>(
-                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids)),
-                    0);
-            }
 
             m_generate_initialized = true;
         }
@@ -1356,11 +1350,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     input_ids->get_byte_size(),
                     reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() -
                         input_ids->get_byte_size());
-
-        if (token_type_ids) {
-            auto kv_token_type_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::token_type_ids));
-            util::copy_to_right(token_type_ids, kv_token_type_ids);
-        }
 
         // NOTE: Attention mask pattern for generate model requires the set of "1"
         //       units of length of the current prompt on the right (for present
@@ -1552,7 +1541,7 @@ void ov::npuw::LLMInferRequest::infer() {
         if (position_ids->get_shape().size() < 3) {
             trim_kvcache_for_speculative_decoding(position_ids);
         }
-        infer_generate(input_ids, attention_mask, position_ids, token_type_ids, per_layer_inputs);
+        infer_generate(input_ids, attention_mask, position_ids, per_layer_inputs);
     }
 
     if (!position_ids_opt.has_value()) {
