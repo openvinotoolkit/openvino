@@ -92,7 +92,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     };
 
     auto broadcast_predicate_patternA = [](const ov::Output<ov::Node>& output) -> bool {
-        if (const auto broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
+        if (auto *const broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
             return true;
         return false;
     };
@@ -139,10 +139,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                         if (input_shape[i] != target_shape[i]) ++diff_cnt;
                     }
                     return diff_cnt == 1;
-                } else {
+                }
                     // For dynamic output shapes, check the target_shape pattern
                     return std::count_if(target_shape.begin(), target_shape.end(), [](int32_t s) { return s != 1; }) == 1;
-                }
         };
 
         // ── Pattern B path: bypass reshape→expand→reshape by rewiring SDPA inputs directly ──
