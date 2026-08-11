@@ -44,7 +44,7 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mnt/caches:/mnt/caches
-        - /home/runner/secrets/:/secrets:ro
+        - /opt/home/actions_runner/actions-runner/secrets/:/secrets:ro # HF auth token file (HF_TOKEN_PATH_LIN)
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - ${{ github.workspace }}:${{ github.workspace }}
       options: ${{ inputs.container-options }}
