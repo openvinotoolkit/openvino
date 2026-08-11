@@ -8,6 +8,7 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <type_traits>
 
@@ -15,20 +16,27 @@
 
 namespace ov::intel_cpu::kernel {
 
+enum class jit_selective_ssm_data_type : uint8_t {
+    f32,
+    f16,
+    bf16,
+};
+
 struct jit_selective_ssm_compile_params {
     size_t state_size = 0;
+    jit_selective_ssm_data_type data_type = jit_selective_ssm_data_type::f32;
 };
 
 struct jit_selective_ssm_call_args {
     const float* state_src = nullptr;
     float* state_dst = nullptr;
-    const float* B = nullptr;
-    const float* C = nullptr;
+    const void* B = nullptr;
+    const void* C = nullptr;
     float decay = 0.F;
     float delta = 0.F;
-    const float* x = nullptr;
+    const void* x = nullptr;
     size_t p_count = 0;
-    float* output = nullptr;
+    void* output = nullptr;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -52,6 +60,8 @@ private:
     const Xbyak::Reg64 reg_x = r12;
     const Xbyak::Reg64 reg_p_count = r13;
     const Xbyak::Reg64 reg_output = rax;
+    const Xbyak::Reg64 reg_tmp = r14;
+    const Xbyak::Reg64 reg_round = r15;
 
     const Vmm v_decay = Vmm(0);
     const Vmm v_input_scale = Vmm(1);
@@ -61,15 +71,23 @@ private:
     const Vmm v_B = Vmm(4);
     const Vmm v_C = Vmm(5);
 
-    const Xbyak::Xmm x_state = Xbyak::Xmm(6);
+    const Xbyak::Xmm x_state = Xbyak::Xmm(v_state.getIdx());
     const Xbyak::Xmm x_B = Xbyak::Xmm(7);
     const Xbyak::Xmm x_C = Xbyak::Xmm(8);
     const Xbyak::Xmm x_sum = Xbyak::Xmm(9);
     const Xbyak::Xmm x_tmp = Xbyak::Xmm(10);
 
+    [[nodiscard]] size_t data_size() const;
+    void load_data_vector(const Vmm& dst, const Xbyak::Reg64& base, size_t element_offset);
+    void load_data_xmm(const Xbyak::Xmm& dst, const Xbyak::Reg64& base, size_t element_offset);
+    void load_data_scalar(const Xbyak::Xmm& dst, const Xbyak::Reg64& base, size_t element_offset);
+    void broadcast_data(const Vmm& dst, const Xbyak::Reg64& base);
+    void store_data_scalar(const Xbyak::Reg64& base, const Xbyak::Xmm& value);
     void generate() override;
 };
 
-std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(size_t state_size, bool prefer_avx512);
+std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(size_t state_size,
+                                                               bool prefer_avx512,
+                                                               jit_selective_ssm_data_type data_type);
 
 }  // namespace ov::intel_cpu::kernel

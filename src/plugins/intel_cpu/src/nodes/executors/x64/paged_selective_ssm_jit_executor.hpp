@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "cpu_memory.h"
@@ -42,6 +43,7 @@ private:
     size_t m_cached_physical_blocks = 0;
     size_t m_cached_token_count = 0;
     size_t m_cached_sequence_count = 0;
+    uint8_t m_cached_data_type = 0xFF;
 };
 
 }  // namespace ov::intel_cpu

@@ -140,6 +140,65 @@ void run_selective_precision(const element::Type& precision, float tolerance) {
     }
 }
 
+template <typename DataT, typename IndexT>
+void run_paged_decode_precision(const element::Type& precision, const element::Type& index_precision, float tolerance) {
+    const PagedSelectiveSSMShape shape{1, 2, 3, 1, 4, 2, 2, 1};
+    const SelectiveSSMShape reference_shape{1, 1, 2, 3, 1, 4};
+    const auto A = cast_values<DataT>({-0.2F, -0.35F});
+    const auto dt = cast_values<DataT>(make_values(2, 0.015F, 0.12F));
+    const auto B = cast_values<DataT>(make_values(4, 0.02F, 0.1F));
+    const auto x = cast_values<DataT>(make_values(6, 0.025F, 0.05F));
+    const auto C = cast_values<DataT>(make_values(4, 0.018F, -0.02F));
+    const auto initial_state = cast_values<DataT>(make_values(24, 0.01F));
+    std::vector<DataT> state_table(48, static_cast<DataT>(7.F));
+    std::copy(initial_state.begin(), initial_state.end(), state_table.begin());
+    std::vector<DataT> output(6);
+    const std::vector<IndexT> subsequence_begins{0, 1};
+    const std::vector<IndexT> block_indices{0, 1};
+    const std::vector<IndexT> block_indices_begins{0, 2};
+    const std::vector<IndexT> processed{0};
+    const std::vector<IndexT> interval{2};
+    const auto cpu_parallel = make_parallel();
+    std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * 2 * 4);
+    std::vector<int32_t> owners(2);
+
+    paged_selective_ssm(A.data(),
+                        dt.data(),
+                        B.data(),
+                        x.data(),
+                        C.data(),
+                        state_table.data(),
+                        subsequence_begins.data(),
+                        block_indices.data(),
+                        block_indices_begins.data(),
+                        processed.data(),
+                        interval.data(),
+                        output.data(),
+                        shape,
+                        precision,
+                        index_precision,
+                        scratch.data(),
+                        2,
+                        owners.data(),
+                        cpu_parallel);
+
+    const auto expected = reference_selective_ssm(to_float(A),
+                                                  to_float(dt),
+                                                  to_float(B),
+                                                  to_float(x),
+                                                  to_float(C),
+                                                  to_float(initial_state),
+                                                  reference_shape);
+    for (size_t i = 0; i < output.size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(output[i]), expected.output[i], tolerance) << "output index " << i;
+    }
+    for (size_t i = 0; i < initial_state.size(); ++i) {
+        EXPECT_EQ(state_table[i], initial_state[i]) << "read block state index " << i;
+        EXPECT_NEAR(static_cast<float>(state_table[initial_state.size() + i]), expected.state[i], tolerance)
+            << "write block state index " << i;
+    }
+}
+
 TEST(SelectiveSSMKernel, SupportsF32F16AndBF16) {
     run_selective_precision<float>(element::f32, 1e-6F);
     run_selective_precision<float16>(element::f16, 2e-3F);
@@ -407,6 +466,11 @@ TEST(PagedSelectiveSSMKernel, DisabledCacheDoesNotWrite) {
     for (size_t i = 0; i < output.size(); ++i) {
         EXPECT_NEAR(static_cast<float>(output[i]), expected.output[i], 2e-2F) << "output index " << i;
     }
+}
+
+TEST(PagedSelectiveSSMKernel, PortableDecodeSupportsLowPrecisionsAndIndexWidths) {
+    run_paged_decode_precision<float16, int32_t>(element::f16, element::i32, 2e-3F);
+    run_paged_decode_precision<bfloat16, int64_t>(element::bf16, element::i64, 2e-2F);
 }
 
 TEST(PagedSelectiveSSMKernel, CoversAllCacheCasesAndPreservesSentinels) {

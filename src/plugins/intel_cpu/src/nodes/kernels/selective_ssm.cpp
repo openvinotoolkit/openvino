@@ -11,6 +11,7 @@
 #include <cstring>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -94,6 +95,111 @@ inline float initialize_state_and_reduce(float* state,
         result += updated_state * load(C + n);
     }
     return result;
+}
+
+template <typename DataT>
+inline float initialize_output_state_and_reduce(DataT* state,
+                                                const DataT* initial_state,
+                                                const DataT* B,
+                                                const DataT* C,
+                                                float decay,
+                                                float input_scale,
+                                                size_t state_size) {
+    float result0 = 0.F;
+    float result1 = 0.F;
+    float result2 = 0.F;
+    float result3 = 0.F;
+    size_t n = 0;
+    for (; n + 4 <= state_size; n += 4) {
+        const float updated_state0 = load(initial_state + n) * decay + input_scale * load(B + n);
+        const float updated_state1 = load(initial_state + n + 1) * decay + input_scale * load(B + n + 1);
+        const float updated_state2 = load(initial_state + n + 2) * decay + input_scale * load(B + n + 2);
+        const float updated_state3 = load(initial_state + n + 3) * decay + input_scale * load(B + n + 3);
+        store(state + n, updated_state0);
+        store(state + n + 1, updated_state1);
+        store(state + n + 2, updated_state2);
+        store(state + n + 3, updated_state3);
+        result0 += updated_state0 * load(C + n);
+        result1 += updated_state1 * load(C + n + 1);
+        result2 += updated_state2 * load(C + n + 2);
+        result3 += updated_state3 * load(C + n + 3);
+    }
+    float result = (result0 + result1) + (result2 + result3);
+    for (; n < state_size; ++n) {
+        const float updated_state = load(initial_state + n) * decay + input_scale * load(B + n);
+        store(state + n, updated_state);
+        result += updated_state * load(C + n);
+    }
+    return result;
+}
+
+template <typename StateOutT, typename StateInT, typename DataT>
+inline std::pair<float, float> update_state_pair_and_reduce(StateOutT* state0,
+                                                            StateOutT* state1,
+                                                            const StateInT* input_state0,
+                                                            const StateInT* input_state1,
+                                                            const DataT* B,
+                                                            const DataT* C,
+                                                            float decay,
+                                                            float input_scale0,
+                                                            float input_scale1,
+                                                            size_t state_size) {
+    float result00 = 0.F;
+    float result01 = 0.F;
+    float result02 = 0.F;
+    float result03 = 0.F;
+    float result10 = 0.F;
+    float result11 = 0.F;
+    float result12 = 0.F;
+    float result13 = 0.F;
+    size_t n = 0;
+    for (; n + 4 <= state_size; n += 4) {
+        const float b0 = load(B + n);
+        const float b1 = load(B + n + 1);
+        const float b2 = load(B + n + 2);
+        const float b3 = load(B + n + 3);
+        const float c0 = load(C + n);
+        const float c1 = load(C + n + 1);
+        const float c2 = load(C + n + 2);
+        const float c3 = load(C + n + 3);
+        const float updated00 = load(input_state0 + n) * decay + input_scale0 * b0;
+        const float updated01 = load(input_state0 + n + 1) * decay + input_scale0 * b1;
+        const float updated02 = load(input_state0 + n + 2) * decay + input_scale0 * b2;
+        const float updated03 = load(input_state0 + n + 3) * decay + input_scale0 * b3;
+        const float updated10 = load(input_state1 + n) * decay + input_scale1 * b0;
+        const float updated11 = load(input_state1 + n + 1) * decay + input_scale1 * b1;
+        const float updated12 = load(input_state1 + n + 2) * decay + input_scale1 * b2;
+        const float updated13 = load(input_state1 + n + 3) * decay + input_scale1 * b3;
+        store(state0 + n, updated00);
+        store(state0 + n + 1, updated01);
+        store(state0 + n + 2, updated02);
+        store(state0 + n + 3, updated03);
+        store(state1 + n, updated10);
+        store(state1 + n + 1, updated11);
+        store(state1 + n + 2, updated12);
+        store(state1 + n + 3, updated13);
+        result00 += updated00 * c0;
+        result01 += updated01 * c1;
+        result02 += updated02 * c2;
+        result03 += updated03 * c3;
+        result10 += updated10 * c0;
+        result11 += updated11 * c1;
+        result12 += updated12 * c2;
+        result13 += updated13 * c3;
+    }
+    float result0 = (result00 + result01) + (result02 + result03);
+    float result1 = (result10 + result11) + (result12 + result13);
+    for (; n < state_size; ++n) {
+        const float b = load(B + n);
+        const float c = load(C + n);
+        const float updated0 = load(input_state0 + n) * decay + input_scale0 * b;
+        const float updated1 = load(input_state1 + n) * decay + input_scale1 * b;
+        store(state0 + n, updated0);
+        store(state1 + n, updated1);
+        result0 += updated0 * c;
+        result1 += updated1 * c;
+    }
+    return {result0, result1};
 }
 
 template <typename DataT>
@@ -190,7 +296,26 @@ void selective_ssm_typed(const DataT* A,
                 const float decay = std::exp(A_head * delta);
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
-                for (size_t p = 0; p < p_count; ++p) {
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = local_state + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     state0,
+                                                                     state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
                     const float result =
@@ -211,7 +336,28 @@ void selective_ssm_typed(const DataT* A,
                 const float decay = std::exp(A_head * delta);
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
-                for (size_t p = 0; p < p_count; ++p) {
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = local_state + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const auto* input_state0 = recurrent_state + state_base + p * shape.state_size;
+                    const auto* input_state1 = input_state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     input_state0,
+                                                                     input_state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
                     const float result =
@@ -234,7 +380,26 @@ void selective_ssm_typed(const DataT* A,
                 const float decay = std::exp(A_head * delta);
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
-                for (size_t p = 0; p < p_count; ++p) {
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = local_state + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     state0,
+                                                                     state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
                     const float result =
@@ -450,23 +615,64 @@ void paged_selective_ssm_typed(const DataT* A,
             const auto group = head / heads_per_group;
             const auto logical_block_begin = static_cast<size_t>(block_indices_begins[sequence]);
             const auto read_block = static_cast<size_t>(block_indices[logical_block_begin]);
-            auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
             const auto state_slice = head * head_stride + p_begin * shape.state_size;
             const auto* initial_state = recurrent_state_table + read_block * block_stride + state_slice;
-
-            copy_state_to_float(local_state, initial_state, p_count * shape.state_size);
-
             const float A_head = load(A + head);
             const auto interval = cache_interval[sequence];
             const bool cache_enabled = interval > 0;
-            const uint64_t positive_interval = cache_enabled ? static_cast<uint64_t>(interval) : 1;
-            const uint64_t cache_offset =
-                cache_enabled ? static_cast<uint64_t>(num_processed_tokens[sequence]) % positive_interval : 0;
             auto token_head = token_begin * shape.num_heads + head;
             auto projection_base = (token_begin * shape.num_groups + group) * shape.state_size;
             auto x_base = token_head * shape.head_dim + p_begin;
             const auto projection_stride = shape.num_groups * shape.state_size;
             const auto x_stride = shape.num_heads * shape.head_dim;
+
+            if (token_end - token_begin == 1 && cache_enabled) {
+                const float delta = load(dt + token_head);
+                const float decay = std::exp(A_head * delta);
+                const auto* B_token = B + projection_base;
+                const auto* C_token = C + projection_base;
+                const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + 1]);
+                auto* state_destination = recurrent_state_table + write_block * block_stride + state_slice;
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = state_destination + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const auto* input_state0 = initial_state + p * shape.state_size;
+                    const auto* input_state1 = input_state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     input_state0,
+                                                                     input_state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
+                    const float input_scale = load(x + x_base + p) * delta;
+                    const float result = initialize_output_state_and_reduce(state_destination + p * shape.state_size,
+                                                                            initial_state + p * shape.state_size,
+                                                                            B_token,
+                                                                            C_token,
+                                                                            decay,
+                                                                            input_scale,
+                                                                            shape.state_size);
+                    store(output + x_base + p, result);
+                }
+                return;
+            }
+
+            auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * scratch_stride;
+            copy_state_to_float(local_state, initial_state, p_count * shape.state_size);
+            const uint64_t positive_interval = cache_enabled ? static_cast<uint64_t>(interval) : 1;
+            const uint64_t cache_offset =
+                cache_enabled ? static_cast<uint64_t>(num_processed_tokens[sequence]) % positive_interval : 0;
             // Track cache boundaries incrementally to keep integer division out of the token loop.
             uint64_t tokens_until_boundary = cache_enabled ? positive_interval - cache_offset : 0;
             size_t write_slot = 1;
@@ -476,17 +682,31 @@ void paged_selective_ssm_typed(const DataT* A,
                 const float decay = std::exp(A_head * delta);
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
-                for (size_t p = 0; p < p_count; ++p) {
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = local_state + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     state0,
+                                                                     state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
                     const float result =
                         update_state_and_reduce(state, B_token, C_token, decay, input_scale, shape.state_size);
                     store(output + x_base + p, result);
-                }
-                if (cache_enabled) {
-                    const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + write_slot]);
-                    auto* snapshot = recurrent_state_table + write_block * block_stride + state_slice;
-                    copy_state_from_float(snapshot, local_state, p_count * shape.state_size);
                 }
                 return;
             }
@@ -497,7 +717,26 @@ void paged_selective_ssm_typed(const DataT* A,
                 const auto* B_token = B + projection_base;
                 const auto* C_token = C + projection_base;
 
-                for (size_t p = 0; p < p_count; ++p) {
+                size_t p = 0;
+                for (; p + 1 < p_count; p += 2) {
+                    auto* state0 = local_state + p * shape.state_size;
+                    auto* state1 = state0 + shape.state_size;
+                    const float input_scale0 = load(x + x_base + p) * delta;
+                    const float input_scale1 = load(x + x_base + p + 1) * delta;
+                    const auto result = update_state_pair_and_reduce(state0,
+                                                                     state1,
+                                                                     state0,
+                                                                     state1,
+                                                                     B_token,
+                                                                     C_token,
+                                                                     decay,
+                                                                     input_scale0,
+                                                                     input_scale1,
+                                                                     shape.state_size);
+                    store(output + x_base + p, result.first);
+                    store(output + x_base + p + 1, result.second);
+                }
+                if (p < p_count) {
                     auto* state = local_state + p * shape.state_size;
                     const float input_scale = load(x + x_base + p) * delta;
                     const float result =
