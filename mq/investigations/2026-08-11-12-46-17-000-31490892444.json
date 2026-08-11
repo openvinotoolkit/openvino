@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-12-46-17-000-31490892444",
+  "timestamp": "2026-08-11T12:46:17Z",
+  "run_id": "31490892444",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31490892444",
+  "workflow_name": "Android",
+  "pr_number": "37317",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37317",
+  "author": "freddychiu",
+  "category": "Infrastructure",
+  "title": "Android CXX_Unit_Tests fails at Download CPU unit test binary step",
+  "signature": "download cpu unit test binary step failed|Infrastructure",
+  "signature_hash": "b9bb8c1499335214",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CXX_Unit_Tests",
+      "conclusion": "failure",
+      "symptom": "Step 'Download CPU unit test binary' failed; all subsequent test steps were skipped"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status job failed due to CXX_Unit_Tests failure"
+    }
+  ],
+  "key_errors": [
+    "CXX_Unit_Tests > Download CPU unit test binary: conclusion=failure (step 4, 2026-08-11T12:34:34Z)"
+  ],
+  "root_cause": "The 'Download CPU unit test binary' step in CXX_Unit_Tests failed, preventing the artifact from being retrieved. This is run attempt 2 \u2014 the same step likely failed on attempt 1 as well. The failure is in the artifact download infrastructure step, suggesting a transient runner or artifact store issue. No logs are accessible to confirm the exact error message, but this pattern (artifact download step failure with all subsequent steps skipped) is consistent with transient infrastructure issues. The PR changes only src/plugins/intel_cpu/src/node.cpp (ITT trace node name fix) and cannot cause an artifact download failure.",
+  "reproduction_steps": "N/A",
+  "recommended_actions": [
+    "Re-add the PR to the merge queue \u2014 this is a likely transient infrastructure failure unrelated to the code change.",
+    "If the failure recurs, investigate runner availability and artifact storage health."
+  ],
+  "prevention_strategies": "This class of transient artifact download failures is expected to self-resolve on re-queue. No code-level prevention is needed.",
+  "historical_context": "No prior pattern for this specific failure signature in the database. Similar ECONNREFUSED artifact download failures have been seen in other workflows (pattern c903843ea6da862b)."
+}

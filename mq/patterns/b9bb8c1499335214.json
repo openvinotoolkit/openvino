@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "download cpu unit test binary step failed|Infrastructure",
+  "signature_hash": "b9bb8c1499335214",
+  "title": "Android CXX_Unit_Tests fails at Download CPU unit test binary step",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-11T12:46:17Z",
+  "last_seen": "2026-08-11T12:46:17Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31490892444"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37317"
+  ],
+  "recent_timestamps": [
+    "2026-08-11T12:46:17Z"
+  ],
+  "rerun_search_string": "Download CPU unit test binary"
+}
