@@ -469,6 +469,19 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
+// Detect Gemma-4 E2B/E4B by the presence of "per_layer_inputs" model inputs
+bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& param : model->get_parameters()) {
+        if (param->get_friendly_name().find("per_layer_inputs") != std::string::npos) {
+            LOG_INFO("Detected cross-group KV sharing model (Gemma-4 E2B/E4B): "
+                     "found per_layer_inputs parameter - "
+                     << param->get_friendly_name());
+            return true;
+        }
+    }
+    return false;
+}
+
 // Detect if the model is a Mixture-of-Experts (MoE) architecture
 // by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
@@ -1139,6 +1152,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa || prefill_attn_dyn)) {
         prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
         merge_config_with(prefill_config, dyn_attn_opts);
+        // Gemma-4 E2B/E4B: the SWA<->Global boundary subgraphs (FFN tail + Global Q-proj
+        // prefix) appear in two structurally distinct variants depending on the K/V source
+        // of the preceding SWA layer:
+        //   Variant A (L3->L4, L8->L9, L13->L14): SWA layer uses its own group K/V  -> 3 instances
+        //   Variant B (L18->L19, L23->L24, L28->L29, L33->L34): SWA layer uses L13
+        //             borrowed K/V (cloned by DuplicateSharedKVConcat)              -> 4 instances
+        // Both variants fall below the default keep_blocks=5 threshold and remain as
+        // separate FCE compile units.  Lower to 3 so both are folded into REP and
+        // reused across their respective instances.
+        if (has_per_layer_inputs(prefill_model)) {
+            prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
+        }
     }
 
     if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {
