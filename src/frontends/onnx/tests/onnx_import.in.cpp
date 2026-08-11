@@ -626,6 +626,29 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset1) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset14_single_output) {
+    // Batch Normalization with training_mode=1 but only the "Y" output requested; the running statistics
+    // outputs must not be produced since they were not declared in the graph.
+    auto model = convert_model("batchnorm_training_mode_opset14_single_output.onnx");
+    EXPECT_EQ(model->get_output_size(), 1);
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
+    test_case.add_input<float>({1.f, 1.5f});                      // scale
+    test_case.add_input<float>({0.f, 1.f});                       // bias
+    test_case.add_input<float>({0.f, 3.f});                       // mean
+    test_case.add_input<float>({1.f, 1.5f});                      // var
+    test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
+                                         {-1.2247356f, 0.f, 1.2247356f, -0.83710337f, 1.f, 2.8371034f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_opset7_invalid_inputs_number) {
+    // BatchNormalization without the mean/var inputs must fail with a descriptive frontend error
+    // instead of an out-of-range access.
+    EXPECT_THROW(convert_model("batchnorm_opset7_invalid_inputs_number.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_f16) {
     // Batch Normalization in the training mode with a float16 input. ONNX requires the batch statistics
     // to be calculated in float, otherwise the accumulated sum overflows the float16 range.

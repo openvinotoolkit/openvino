@@ -144,7 +144,7 @@ ONNX_OP("BatchNormalization", OPSET_RANGE(1, 6), ai_onnx::opset_1::batch_norm);
 /*
      Opset 6 is skipped because there are no significant difference between opset1 and opset6.
      Found difference is:
-     1. In Training, the computation of ReduceMean and ReduceVar uses float
+     1. In Training, the mean and variance reductions use float
         to avoid overflow for float16 inputs.
  */
 
@@ -155,6 +155,11 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
+
+    CHECK_VALID_NODE(node,
+                     inputs.size() >= 5,
+                     "Cannot create OpenVINO batch norm with unsupported number of inputs: ",
+                     inputs.size());
     auto mean = inputs.at(3);
     auto var = inputs.at(4);
 
@@ -188,6 +193,11 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
+
+    CHECK_VALID_NODE(node,
+                     inputs.size() >= 5,
+                     "Cannot create OpenVINO batch norm with unsupported number of inputs: ",
+                     inputs.size());
     auto mean = inputs.at(3);
     auto var = inputs.at(4);
 
@@ -204,6 +214,9 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     }
 
     const auto bn = make_training_batch_norm(x, scale, bias, mean, var, epsilon, momentum);
+    if (node.get_outputs_size() == 1) {
+        return {bn.y};
+    }
     return {bn.y, bn.running_mean, bn.running_var};
 }
 ONNX_OP("BatchNormalization", OPSET_SINCE(14), ai_onnx::opset_14::batch_norm);
@@ -211,7 +224,7 @@ ONNX_OP("BatchNormalization", OPSET_SINCE(14), ai_onnx::opset_14::batch_norm);
 /*
      Opset 15 is skipped because there are no significant difference between opset14 and opset15.
      Found difference is:
-     1. In Training, the computation of ReduceMean and ReduceVar uses float
+     1. In Training, the mean and variance reductions use float
         to avoid overflow for float16 inputs.
  */
 
