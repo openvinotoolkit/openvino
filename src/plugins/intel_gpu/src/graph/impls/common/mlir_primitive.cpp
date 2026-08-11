@@ -65,7 +65,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
                 case allocation_type::usm_host:
                 case allocation_type::usm_shared:
                 case allocation_type::usm_device: {
-                    auto usm_ptr = mem->buffer_ptr();
+                    auto* usm_ptr = mem->buffer_ptr();
                     // Seems to only occur with Out-Of-Order queues sometimes. Can't reproduce this anymore, uncomment if needed.
                     // HACK: force move to device, can we do better than this?
                     // auto gpu_buff = dynamic_cast<cldnn::ocl::gpu_usm*>(mem.get());
@@ -111,7 +111,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         if (stream.get_queue_type() == QueueTypes::out_of_order) {
             std::vector<event::ptr> depends;
             depends.reserve(dependent_events.size());
-            for (auto& ev : dependent_events) {
+            for (const auto& ev : dependent_events) {
                 if (!ev) {
                     continue;
                 }
@@ -139,7 +139,7 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         if (!result_events.empty()) {
             std::vector<event::ptr> events;
             events.reserve(result_events.size());
-            for (auto event : result_events) {
+            for (auto* event : result_events) {
                 events.push_back(stream.create_base_event(event));
             }
             return stream.aggregate_events(events, true);
