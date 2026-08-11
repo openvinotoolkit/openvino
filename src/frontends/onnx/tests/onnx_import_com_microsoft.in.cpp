@@ -5812,9 +5812,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
     // On GPU the present cache comes back zeroed (attention output is correct); verified numerically exact on
     // CPU/INTERPRETER. The failure only reproduces in the full staging graph - the isolated present-write
     // subgraph (windowed_cache_end + Range + Slice + ScatterUpdate) lowers correctly on GPU on its own - so it
-    // is a GPU-plugin issue in the assembled dynamic graph, not a decomposition bug. Tracked as a GPU follow-up.
+    // is a GPU-plugin issue in the assembled dynamic graph, not a decomposition bug. Because the staging branch
+    // is chosen from the query's declared shape rather than its runtime length, a DYNAMIC-shape decode step
+    // (S==1 every call - see onnx_model_gqa_sliding_window_cache_bias below) hits this too, not only a genuine
+    // multi-token overflow: this regresses vs. the pre-staging in-place path, which GPU lowered correctly even
+    // under a dynamic shape (onnx_model_gqa_sliding_window_cache_bias_static exercises that same math via the
+    // statically-shaped decode path and passes on GPU). Parking this for the GPU plugin team / a follow-up PR.
     if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on CPU/INTERPRETER.";
+        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph (incl. plain dynamic-shape "
+                        "decode, not just multi-token overflow); verified correct on CPU/INTERPRETER. Parking "
+                        "this for the GPU plugin team / a follow-up PR.";
     }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache.onnx");
     // Query seqlen stays dynamic (static S>1 is rejected); the concrete S=6 is supplied at inference.
@@ -5930,7 +5937,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 // Reference from a NumPy port of the ORT windowed attention with matching symmetric i8 quant (scale 0.05).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_i8) {
     if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on CPU/INTERPRETER.";
+        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
+                        "CPU/INTERPRETER. Parking this for the GPU plugin team / a follow-up PR.";
     }
     auto model = convert_model("com.microsoft/gqa_i8kv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
@@ -6038,10 +6046,106 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_i8) {
 // fix. Reference from a NumPy port of the ORT windowed attention with the bias added on top of the mask.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias) {
     if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the windowed present cache in the full graph; verified correct on CPU/INTERPRETER.";
+        GTEST_SKIP() << "GPU zeroes the staging present cache for this dynamic-shape decode step (S==1, not "
+                        "an overflow - see onnx_model_gqa_sliding_window_cache_bias_static for the equivalent "
+                        "statically-shaped decode, which passes on GPU); verified correct on CPU/INTERPRETER. "
+                        "Parking this for the GPU plugin team / a follow-up PR.";
     }
     auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
+                    {"past_key", ov::PartialShape{1, 1, 4, 16}},
+                    {"past_value", ov::PartialShape{1, 1, 4, 16}},
+                    {"seqlens_k", ov::PartialShape{1, 1}},
+                    {"total_sequence_length", ov::PartialShape{}},
+                    {"attention_bias", ov::PartialShape{1, 2, -1, -1}}});
+
+    std::vector<float> qkv = {
+        -0.409918f, -1.472616f, -1.272063f, 0.536432f,  0.701476f,  -0.468557f, 0.508012f,  -0.153110f,
+        -0.920361f, 0.364511f,  -1.325552f, -0.401779f, -0.697116f, -1.366054f, 0.795789f,  -2.259170f,
+        -0.034037f, -0.913857f, -0.232962f, -0.927766f, -0.217008f, -1.340842f, 0.428897f,  0.963498f,
+        0.024545f,  0.111579f,  1.492562f,  -1.483122f, -0.587747f, 0.780439f,  -0.654738f, 0.681858f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f};
+    std::vector<float> past_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> past_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> attention_bias = {-0.601093f,
+                                         0.266510f,
+                                         0.943412f,
+                                         -1.137517f,
+                                         0.574652f,
+                                         -1.967467f,
+                                         -0.829262f,
+                                         -0.167970f,
+                                         -1.489794f,
+                                         -0.718190f,
+                                         0.337246f,
+                                         -0.547388f};
+    std::vector<int> seqlens_k = {5};
+    std::vector<int> total_sequence_length = {6};
+    std::vector<float> expected_output = {
+        -0.207152f, 0.065999f,  -0.268156f, 0.240977f,  1.308087f,  -1.140754f, -0.772150f, -0.051111f,
+        -0.352964f, -0.615658f, 1.310130f,  -1.507210f, -0.272832f, -0.196891f, -2.056902f, -0.189657f,
+        -0.168720f, 0.333403f,  0.048823f,  0.246786f,  0.893670f,  -0.782055f, -0.375439f, 0.078584f,
+        -0.488351f, -0.127635f, 0.659644f,  -1.441269f, -0.320520f, -0.246009f, -1.473656f, -0.058415f};
+    std::vector<float> expected_present_key = {
+        -1.406867f, 0.247150f,  -1.581185f, -1.019367f, 1.168421f,  -1.228651f, -0.035981f, -2.808661f,
+        1.618512f,  0.399450f,  -0.343382f, 0.209713f,  0.330807f,  -0.155474f, 0.082239f,  0.957242f,
+        0.787296f,  0.250248f,  -0.956235f, 0.920882f,  -0.354050f, -2.109005f, -1.141260f, -1.386253f,
+        -0.816221f, -1.845551f, 1.523713f,  1.646624f,  0.236272f,  -2.033496f, -0.046030f, -0.168550f,
+        0.336452f,  0.014522f,  -0.641391f, 0.440100f,  -1.277443f, -0.945281f, -0.522749f, -0.606303f,
+        -2.191509f, 0.813540f,  0.596884f,  -0.794280f, 0.517118f,  -0.437389f, 0.025289f,  -1.413691f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+    std::vector<float> expected_present_value = {
+        -0.796679f, 1.255151f,  -0.058188f, 0.347999f,  -0.740478f, 1.820294f,  0.032699f,  -1.397444f,
+        -0.897249f, 2.013965f,  0.260828f,  -0.099959f, -0.753026f, 0.097706f,  1.265982f,  0.044265f,
+        -0.229361f, -0.088520f, -0.451322f, 0.237621f,  1.547558f,  -1.348029f, -1.001390f, -0.126055f,
+        -0.274731f, -0.897663f, 1.686015f,  -1.545314f, -0.245275f, -0.168508f, -2.393932f, -0.265495f,
+        -0.098377f, 0.822830f,  0.628987f,  0.257416f,  0.135166f,  -0.125530f, 0.350659f,  0.315962f,
+        -0.736148f, 0.765591f,  -0.530937f, -1.320579f, -0.407804f, -0.335911f, -0.406144f, 0.181796f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,
+        0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f,  0.000000f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 64}, qkv);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_key);
+    test_case.add_input<float>(Shape{1, 1, 4, 16}, past_value);
+    test_case.add_input<int>(Shape{1, 1}, seqlens_k);
+    test_case.add_input<int>(Shape{}, total_sequence_length);
+    test_case.add_input<float>(Shape{1, 2, 1, 6}, attention_bias);
+    test_case.add_expected_output<float>(Shape{1, 1, 32}, expected_output);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_key);
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 16}, expected_present_value);
+    test_case.run_with_tolerance_as_fp();
+}
+
+// Same decode step as onnx_model_gqa_sliding_window_cache_bias (P=5, capacity 4, window 2, bias column
+// offset 3), but with a STATICALLY-known sequence_length == 1, so the decomposition takes the in-place
+// Gather + ScatterUpdate ("static_single_token") branch instead of staging: there K = present is the full
+// capacity-C buffer (kv_len == C == 4), narrower than the bias's total_sequence_length == 6 once the window
+// has evicted (end_after == kept + 1 == 3 < C), so the bias slice must be zero-padded up to C for the mask
+// Add to broadcast. Expects the identical result as the dynamic-shape decode test above.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_static) {
+    auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
+    model->reshape({{"query", ov::PartialShape{1, 1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
                     {"past_value", ov::PartialShape{1, 1, 4, 16}},
                     {"seqlens_k", ov::PartialShape{1, 1}},
@@ -6132,7 +6236,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias) {
 // decode branch above). Reference from a NumPy port of the ORT windowed attention.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_staging) {
     if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on CPU/INTERPRETER.";
+        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
+                        "CPU/INTERPRETER. Parking this for the GPU plugin team / a follow-up PR.";
     }
     auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},

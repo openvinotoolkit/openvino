@@ -458,6 +458,18 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
         std::shared_ptr<ov::Node> bias = register_new_node<v0::Squeeze>(external_bias, squeeze_axis);
         const auto bias_stop = register_new_node<v1::Add>(bias_col_offset, kv_len_1d);
         bias = register_new_node<v8::Slice>(bias, bias_col_offset, bias_stop, one, two);
+
+        // The bias only spans total_sequence_length columns, narrower than kv_len whenever K keeps unused
+        // trailing rows (a windowed cache below capacity, or a static full-length cache whose buffer
+        // exceeds the current total length) - the Slice above then clamps to that narrower width. Zero-pad
+        // back up to kv_len: the trailing gap is always past the causal/window edge (every branch above
+        // places resident/new rows before it), so its bias value is never read.
+        const auto bias_kv_len = get_dimensions(bias, {2});
+        const auto pad_amount = register_new_node<v1::Subtract>(kv_len_1d, bias_kv_len);
+        const auto pads_begin = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 0, 0}));
+        const auto pads_end = register_new_node<v0::Concat>(ov::OutputVector{zero, zero, pad_amount}, 0);
+        bias = register_new_node<v1::Pad>(bias, pads_begin, pads_end, typed_zero, ov::op::PadMode::CONSTANT);
+
         mask = register_new_node<v1::Add>(mask, bias);
     }
 
