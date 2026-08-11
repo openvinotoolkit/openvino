@@ -7167,16 +7167,16 @@ TEST(SDPAToPA, Gemma4_AttentionMaskBatchBroadcastRequiresBroadcastMatMulFusion) 
         // Q [B, 4, S, 128], K_cur/V_cur [B, 1, S, 128] via MatMul + Reshape + Transpose
         auto Q_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({512, 128}), MOCK_VALUE)},
                                        {{"transpose_a", false}, {"transpose_b", true}});
-        auto Q =
-            makeOP<v1::Transpose>({makeOP<v1::Reshape>({Q_mm, {0, 0, 4, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+        auto Q = makeOP<v1::Transpose>(
+            {makeOP<v1::Reshape>({Q_mm, {0, 0, 4, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
         auto K_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
                                        {{"transpose_a", false}, {"transpose_b", true}});
-        auto K_cur =
-            makeOP<v1::Transpose>({makeOP<v1::Reshape>({K_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+        auto K_cur = makeOP<v1::Transpose>(
+            {makeOP<v1::Reshape>({K_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
         auto V_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
                                        {{"transpose_a", false}, {"transpose_b", true}});
-        auto V_cur =
-            makeOP<v1::Transpose>({makeOP<v1::Reshape>({V_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+        auto V_cur = makeOP<v1::Transpose>(
+            {makeOP<v1::Reshape>({V_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
 
         // Rotary embedding: inv_freq is broadcast to the batch derived from attention_mask, then
         // combined with rotary_base to produce angles applied to Q.
