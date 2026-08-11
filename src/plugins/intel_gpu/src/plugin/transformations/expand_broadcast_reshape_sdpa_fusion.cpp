@@ -94,7 +94,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     };
 
     auto broadcast_predicate_patternA = [is_reshape_4d_to_5d](const ov::Output<ov::Node>& output) -> bool {
-        if (const auto broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
+        if (auto* const broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
             return is_reshape_4d_to_5d(broadcast->get_input_node_ptr(0));
         return false;
     };
@@ -148,13 +148,6 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         if (pattern_map.count(expand_key_m) > 0) {
             if (pattern_map.count(expand_value_m) == 0)
                 return false;
-
-            auto to_i32_shape = [](const ov::Shape& shape) -> std::vector<int32_t> {
-                std::vector<int32_t> result(shape.size());
-                std::transform(shape.begin(), shape.end(), result.begin(),
-                    [](size_t v) {return static_cast<int32_t>(v); });
-                return result;
-            };
 
             auto get_input_shape = [](const ov::Shape& shape) -> std::vector<int32_t> {
                 std::vector<int32_t> result(shape.size());
