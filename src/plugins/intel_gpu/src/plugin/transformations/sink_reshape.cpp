@@ -60,7 +60,8 @@ SinkReshape::SinkReshape() {
                     continue;
                 if (supported_conv_eltwise_post_ops_for_fuse(node)) {
                     return is_suitable_parent(input);
-                } else if (supported_conv_act_post_ops_for_fuse(node)) {
+                }
+                if (supported_conv_act_post_ops_for_fuse(node)) {
                     return is_suitable_parent(input);
                 }
                 return false;
@@ -71,8 +72,8 @@ SinkReshape::SinkReshape() {
         auto is_suitable_reshape = [](const std::shared_ptr<ov::Node>& node) -> bool {
             if (node->is_dynamic())
                 return false;
-            auto& in_ps = node->get_input_partial_shape(0);
-            auto& out_ps = node->get_output_partial_shape(0);
+            const auto& in_ps = node->get_input_partial_shape(0);
+            const auto& out_ps = node->get_output_partial_shape(0);
             if (in_ps.size() - out_ps.size() != 1)
                 return false;
             size_t mismatch_count = 0;

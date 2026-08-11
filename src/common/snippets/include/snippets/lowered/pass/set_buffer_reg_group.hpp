@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "openvino/core/rtti.hpp"
@@ -57,26 +58,21 @@ public:
 private:
     using BufferPool = std::vector<BufferExpressionPtr>;
     using BufferMap = std::map<BufferExpressionPtr, UnifiedLoopInfo::LoopPortInfo>;
-
-    /**
-     * @brief Get Buffer Index in Buffer set
-     * @param target the target Buffer expression
-     * @param pool set of Buffers from the Linear IR
-     * @return index of target Buffer expression in set
-     */
-    static size_t get_buffer_idx(const BufferExpressionPtr& target, const BufferPool& pool);
+    using BufferIndices = std::unordered_map<BufferExpressionPtr, size_t>;
     /**
      * @brief Create adjacency matrix for Buffer system. See comment in the method for more details.
      * @param loop_manager the loop manager
      * @param begin begin iterator
      * @param end end iterator
      * @param pool set of Buffers from the Linear IR
+     * @param buffer_indices map from Buffer expressions to adjacency matrix indices
      * @return adjacency matrix where True value means that Buffers are adjacent and cannot have the same ID
      */
     static std::vector<bool> create_adjacency_matrix(const LoopManagerPtr& loop_manager,
                                                      LinearIR::constExprIt begin,
                                                      LinearIR::constExprIt end,
-                                                     const BufferPool& pool);
+                                                     const BufferPool& pool,
+                                                     const BufferIndices& buffer_indices);
     /**
      * @brief Algorithm of Graph coloring where vertices are Buffers
      * @param buffers set of Buffers from the Linear IR
@@ -95,12 +91,14 @@ private:
      *            for its
      * @param rhs Pair where first value if Expression with second Buffer and second value is data pointer shift params
      *            for its
-     * @param buffers set of Buffers from the Linear IR
+     * @param buffer_indices map from Buffer expressions to adjacency matrix indices
+     * @param buffer_count adjacency matrix row size
      * @param adj Target adjacency matrix
      */
     static void update_adj_matrix(const BufferMap::value_type& lhs,
                                   const BufferMap::value_type& rhs,
-                                  const BufferPool& buffers,
+                                  const BufferIndices& buffer_indices,
+                                  size_t buffer_count,
                                   std::vector<bool>& adj);
 
     /**
