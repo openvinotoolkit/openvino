@@ -2597,6 +2597,31 @@ TEST(eval, evaluate_dynamic_scatter_update_one_elem_i32) {
     ASSERT_EQ(cval, out);
 }
 
+TEST(eval, evaluate_scatter_update_out_of_range_index_throws) {
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{1, 2};
+    const Shape updates_shape{1, 2, 3};
+
+    auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto arg2 = make_shared<ov::op::v0::Parameter>(element::i64, indices_shape);
+    auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, updates_shape);
+    auto arg4 = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+    auto scatter_update = make_shared<op::v3::ScatterUpdate>(arg1, arg2, arg3, arg4);
+    auto model = make_shared<Model>(OutputVector{scatter_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = ov::Tensor();
+    auto out_vector = ov::TensorVector{result_tensor};
+    // Index far outside `data_shape[0] == 3` range triggers an out-of-bounds write
+    // in the vulnerable implementation instead of being rejected.
+    auto in_vector =
+        ov::TensorVector{make_tensor<element::Type_t::f32>(data_shape, std::vector<float>(shape_size(data_shape))),
+                         make_tensor<element::Type_t::i64>(indices_shape, {1, static_cast<int64_t>(INT32_MAX)}),
+                         make_tensor<element::Type_t::f32>(updates_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
+                         make_tensor<element::Type_t::i64>({}, {0})};
+    OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
+                     ov::Exception,
+                     testing::HasSubstr("out of"));
+}
+
 TEST(eval, evaluate_softmax_8) {
     const Shape data_shape{1, 2};
     auto arg = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape::dynamic());
