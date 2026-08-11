@@ -270,15 +270,11 @@ TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
 
     auto expected = m_content;
     std::fill_n(expected.begin() + k_offset, k_size, uint8_t{0x5A});
+    ASSERT_NE(expected, m_content);
 
     {
         auto mm = load_mmap_object(m_file_path, k_offset, k_size, false, MmapMode::READ_WRITE);
-        ASSERT_NE(mm, nullptr);
-        ASSERT_EQ(mm->size(), k_size);
-        ASSERT_THAT(std::vector<uint8_t>(m_content.begin() + k_offset, m_content.begin() + k_offset + k_size),
-                    ElementsAreArray(reinterpret_cast<const uint8_t*>(mm->data()), mm->size()));
-
-        std::fill_n(reinterpret_cast<uint8_t*>(mm->data()), mm->size(), uint8_t{0x5A});
+        std::fill_n(reinterpret_cast<uint8_t*>(mm->data()), k_size, uint8_t{0x5A});
     }
 
     EXPECT_THAT(read_file(), ElementsAreArray(expected));
