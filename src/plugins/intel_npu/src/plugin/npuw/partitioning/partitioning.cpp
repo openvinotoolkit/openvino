@@ -877,6 +877,17 @@ void Partitioner::identifySubgraphs() {
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
                         group.sg._results.push_back(std::move(new_result));
                     }
+                } else {
+                    // This output is consumed only by node(s) within this very group (an
+                    // internal edge), so it does not cross the subgraph boundary and needs
+                    // no Result. Count it as handled, the same way as the optimized-out
+                    // cases above. Otherwise an output layer that mixes internal-only and
+                    // bound/foldable outputs (e.g. the Mamba shape-arithmetic Split feeding
+                    // aten::pad, whose external outputs all fold into Precalculated_Bound
+                    // constants on the consumer side) would never be counted as optimized
+                    // out which - combined with an empty _results - trips the
+                    // "No Results registered for group" assertion below.
+                    num_optimized_out++;
                 }
             }  // for (outputs)
             if (num_optimized_out == output_layer_ptr->outputs().size()) {
