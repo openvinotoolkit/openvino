@@ -99,9 +99,9 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: ${{ runner.os != 'macOS' }}
-          self-hosted-runner: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' && inputs.runner != 'windows-11-arm' }}
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
