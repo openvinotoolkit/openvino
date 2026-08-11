@@ -231,7 +231,7 @@ def test_accuracy_conformance(model_id, precision, device):
     print(f"Testing model: {model_path}, precision: {precision}, device: {actual_device}")
     target_model = load_model(task, model_path, actual_device, ov_config, hf, use_genai, dont_use_llamacpp)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
 
     use_chat_template = tokenizer is not None and tokenizer.chat_template is not None
 
