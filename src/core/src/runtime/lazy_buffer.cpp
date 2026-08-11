@@ -4,52 +4,234 @@
 
 #include "openvino/runtime/lazy_buffer.hpp"
 
-#include <csignal>
+#include <algorithm>
 #include <istream>
 #include <mutex>
 #include <utility>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
+
+#if defined(__linux__)
+#    include <fcntl.h>
+#    include <linux/userfaultfd.h>
+#    include <poll.h>
+#    include <sys/ioctl.h>
+#    include <sys/mman.h>
+#    include <sys/syscall.h>
+#    include <unistd.h>
+
+#    include <cerrno>
+#    include <thread>
+#endif
 
 namespace ov {
 namespace {
-std::once_flag g_sigsegv_handler_flag;
-struct sigaction g_old_sigsegv_action;
 
-std::vector<std::tuple<LazyBuffer*, std::uintptr_t, std::size_t>> g_reserved_regions;
+#if defined(__linux__)
 
-void sigsegv_handler(int signal, siginfo_t* info, void* context) {
-    for (const auto& [buf, reserved_ptr, reserved_size] : g_reserved_regions) {
-        const auto fault_addr_int = reinterpret_cast<std::uintptr_t>(info->si_addr);
+/// Delegates page faults on registered LazyBuffer regions to a single background thread via userfaultfd.
+class UffdManager {
+public:
+    static UffdManager& get() {
+        // Intentionally leaked: LazyBuffer instances may still be destroyed during static destruction.
+        static auto* const instance = new UffdManager();
+        return *instance;
+    }
 
-        if (fault_addr_int >= reserved_ptr && fault_addr_int < reserved_ptr + reserved_size) {
-            buf->hint_prefetch();
+    bool is_available() const noexcept {
+        return m_uffd != -1;
+    }
+
+    bool register_region(LazyBuffer* buffer, void* addr, size_t size) {
+        if (!is_available()) {
+            return false;
+        }
+
+        uffdio_register reg{};
+        reg.range.start = reinterpret_cast<__u64>(addr);
+        reg.range.len = size;
+        reg.mode = UFFDIO_REGISTER_MODE_MISSING;
+        if (ioctl(m_uffd, UFFDIO_REGISTER, &reg) == -1) {
+            return false;
+        }
+
+        std::lock_guard lock{m_mutex};
+        m_regions.push_back({buffer, reinterpret_cast<std::uintptr_t>(addr), size});
+        return true;
+    }
+
+    void unregister_region(LazyBuffer* buffer, void* addr, size_t size) noexcept {
+        if (!is_available()) {
             return;
+        }
+
+        {
+            std::lock_guard lock{m_mutex};
+            m_regions.erase(std::remove_if(m_regions.begin(),
+                                           m_regions.end(),
+                                           [buffer](const Region& region) {
+                                               return region.buffer == buffer;
+                                           }),
+                            m_regions.end());
+        }
+
+        uffdio_range range{};
+        range.start = reinterpret_cast<__u64>(addr);
+        range.len = size;
+        std::ignore = ioctl(m_uffd, UFFDIO_UNREGISTER, &range);
+    }
+
+    void relocate(LazyBuffer* from, LazyBuffer* to) noexcept {
+        if (!is_available()) {
+            return;
+        }
+
+        std::lock_guard lock{m_mutex};
+        for (auto& region : m_regions) {
+            if (region.buffer == from) {
+                region.buffer = to;
+                break;
+            }
         }
     }
 
-    // Chain to the previously registered handler.
-    if (g_old_sigsegv_action.sa_flags & SA_SIGINFO) {
-        g_old_sigsegv_action.sa_sigaction(signal, info, context);
-    } else if (g_old_sigsegv_action.sa_handler == SIG_DFL) {
-        // Restore the default disposition (terminate + core dump) and re-raise so
-        // the OS records the fault address and produces a core file normally.
-        std::signal(SIGSEGV, SIG_DFL);
-        std::raise(SIGSEGV);
-    } else if (g_old_sigsegv_action.sa_handler == SIG_IGN) {
-        // SIGSEGV cannot meaningfully be ignored: returning from the handler would
-        // resume the faulting instruction unchanged, triggering the same fault
-        // again and looping forever.  Force the default crash behaviour instead.
-        std::signal(SIGSEGV, SIG_DFL);
-        std::raise(SIGSEGV);
-    } else {
-        g_old_sigsegv_action.sa_handler(signal);
+    /// Populates the whole region at once, waking every thread blocked on any of its pages.
+    bool resolve_fault(void* addr, size_t size, const void* src) const noexcept {
+        uffdio_copy copy{};
+        copy.dst = reinterpret_cast<__u64>(addr);
+        copy.src = reinterpret_cast<__u64>(src);
+        copy.len = size;
+        if (ioctl(m_uffd, UFFDIO_COPY, &copy) != -1) {
+            return true;
+        }
+        // EEXIST means the pages were already installed by a concurrent resolution, but only if
+        // the whole range was actually copied; otherwise the copy aborted partway through.
+        return errno == EEXIST && copy.copy == static_cast<__s64>(size);
     }
+
+private:
+    struct Region {
+        LazyBuffer* buffer;
+        std::uintptr_t start;
+        size_t size;
+    };
+
+    UffdManager() {
+        m_uffd = static_cast<int>(syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY));
+        if (m_uffd == -1) {
+            // UFFD_USER_MODE_ONLY requires Linux 5.11.
+            m_uffd = static_cast<int>(syscall(SYS_userfaultfd, O_CLOEXEC | O_NONBLOCK));
+        }
+        if (m_uffd == -1) {
+            return;
+        }
+
+        uffdio_api api{};
+        api.api = UFFD_API;
+        if (ioctl(m_uffd, UFFDIO_API, &api) == -1) {
+            close(m_uffd);
+            m_uffd = -1;
+            return;
+        }
+
+        std::thread{[this] {
+            handle_faults();
+        }}.detach();
+    }
+
+    LazyBuffer* find_owner(std::uintptr_t fault_addr) {
+        std::lock_guard lock{m_mutex};
+        for (const auto& region : m_regions) {
+            if (fault_addr >= region.start && fault_addr < region.start + region.size) {
+                return region.buffer;
+            }
+        }
+        return nullptr;
+    }
+
+    void handle_faults() {
+        pollfd poll_fd{m_uffd, POLLIN, 0};
+        for (;;) {
+            if (poll(&poll_fd, 1, -1) == -1) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                return;
+            }
+
+            uffd_msg msg{};
+            const auto bytes_read = read(m_uffd, &msg, sizeof(msg));
+            if (bytes_read == -1) {
+                if (errno == EAGAIN || errno == EINTR) {
+                    continue;
+                }
+                return;
+            }
+            if (bytes_read != sizeof(msg) || msg.event != UFFD_EVENT_PAGEFAULT) {
+                continue;
+            }
+
+            const auto fault_addr = static_cast<std::uintptr_t>(msg.arg.pagefault.address);
+            if (auto* const buffer = find_owner(fault_addr)) {
+                try {
+                    buffer->hint_prefetch();
+                } catch (...) {
+                    // An unresolved fault would block the faulting thread forever, so drop the registration
+                    // and let it fail with SIGBUS instead.
+                    unregister_region(buffer, reinterpret_cast<void*>(fault_addr), 1);
+                }
+            }
+        }
+    }
+
+    int m_uffd{-1};
+    std::mutex m_mutex;
+    std::vector<Region> m_regions;
+};
+
+void* reserve_faulting(size_t size) noexcept {
+    auto* const addr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    return addr == MAP_FAILED ? nullptr : addr;
 }
+
+void release_faulting(void* addr, size_t size) noexcept {
+    std::ignore = munmap(addr, size);
+}
+
+bool page_faulting_available() noexcept {
+    return UffdManager::get().is_available();
+}
+
+#else
+
+void* reserve_faulting(size_t size) noexcept {
+    std::error_code ec;
+    auto* addr = util::vm_reserve(size, ec);
+    if (addr != nullptr) {
+        util::vm_commit(addr, size, ec);
+        if (ec) {
+            util::vm_release(addr, size);
+            addr = nullptr;
+        }
+    }
+    return addr;
+}
+
+void release_faulting(void* addr, size_t size) noexcept {
+    util::vm_release(addr, size);
+}
+
+bool page_faulting_available() noexcept {
+    return false;
+}
+
+#endif
 }  // namespace
 
 LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t byte_size)
@@ -74,97 +256,110 @@ LazyBuffer::LazyBuffer(std::filesystem::path file_path, size_t offset, size_t by
                     " for file: ",
                     m_file_path);
 
-    std::error_code ec;
-    m_aligned_buffer = static_cast<char*>(util::vm_reserve(m_byte_size, ec));
-    OPENVINO_ASSERT(m_aligned_buffer != nullptr, "Failed to reserve memory for LazyBuffer. Error: ", ec.message());
+    // userfaultfd operates on whole pages, so the reservation is rounded up while size() stays as requested.
+    const auto page_size = static_cast<size_t>(util::get_system_page_size());
+    m_mapped_size = util::align_size_up(std::max<size_t>(1, m_byte_size), page_size);
 
-    g_reserved_regions.emplace_back(this, reinterpret_cast<std::uintptr_t>(m_aligned_buffer), m_byte_size);
+    m_aligned_buffer = static_cast<char*>(reserve_faulting(m_mapped_size));
+    OPENVINO_ASSERT(m_aligned_buffer != nullptr, "Failed to reserve memory for LazyBuffer: ", m_file_path);
 
-    std::call_once(g_sigsegv_handler_flag, []() {
-        struct sigaction sa;
-        std::memset(&sa, 0, sizeof(sa));
-        sa.sa_sigaction = sigsegv_handler;
-        sa.sa_flags = SA_SIGINFO;
-        sigaction(SIGSEGV, &sa, &g_old_sigsegv_action);
-    });
+    const bool delegated =
+#if defined(__linux__)
+        UffdManager::get().register_region(this, m_aligned_buffer, m_mapped_size);
+#else
+        false;
+#endif
+    if (!delegated) {
+        // Without fault delegation the mapping reads as zeros, so the data has to be loaded up front.
+        try {
+            hint_prefetch();
+        } catch (...) {
+            release_faulting(m_aligned_buffer, m_mapped_size);
+            // The base destructor must not free memory which it did not allocate.
+            m_aligned_buffer = nullptr;
+            throw;
+        }
+    }
 }
 
 LazyBuffer::~LazyBuffer() {
-    g_reserved_regions.erase(std::remove_if(g_reserved_regions.begin(),
-                                            g_reserved_regions.end(),
-                                            [this](const auto& entry) {
-                                                return std::get<0>(entry) == this;
-                                            }),
-                             g_reserved_regions.end());
     if (m_aligned_buffer) {
-        util::vm_release(m_aligned_buffer, m_byte_size);
+#if defined(__linux__)
+        UffdManager::get().unregister_region(this, m_aligned_buffer, m_mapped_size);
+#endif
+        release_faulting(m_aligned_buffer, m_mapped_size);
         m_aligned_buffer = nullptr;
     }
     m_byte_size = 0;
+    m_mapped_size = 0;
 }
 
 LazyBuffer::LazyBuffer(LazyBuffer&& other) noexcept
     : AlignedBuffer(std::move(other)),
       m_file_path{std::move(other.m_file_path)},
       m_offset{std::exchange(other.m_offset, 0)},
+      m_mapped_size{std::exchange(other.m_mapped_size, 0)},
       m_loaded{other.m_loaded.exchange(false, std::memory_order_relaxed)} {
-    for (auto& [buf, ptr, size] : g_reserved_regions) {
-        if (buf == &other) {
-            buf = this;
-            break;
-        }
-    }
+#if defined(__linux__)
+    UffdManager::get().relocate(&other, this);
+#endif
 }
 
 LazyBuffer& LazyBuffer::operator=(LazyBuffer&& other) noexcept {
     if (this != &other) {
-        g_reserved_regions.erase(std::remove_if(g_reserved_regions.begin(),
-                                                g_reserved_regions.end(),
-                                                [this](const auto& entry) {
-                                                    return std::get<0>(entry) == this;
-                                                }),
-                                 g_reserved_regions.end());
         if (m_aligned_buffer) {
-            util::vm_release(m_aligned_buffer, m_byte_size);
+#if defined(__linux__)
+            UffdManager::get().unregister_region(this, m_aligned_buffer, m_mapped_size);
+#endif
+            release_faulting(m_aligned_buffer, m_mapped_size);
             m_aligned_buffer = nullptr;
         }
         AlignedBuffer::operator=(std::move(other));
         m_file_path = std::move(other.m_file_path);
         m_offset = std::exchange(other.m_offset, 0);
+        m_mapped_size = std::exchange(other.m_mapped_size, 0);
         m_loaded = other.m_loaded.exchange(false, std::memory_order_relaxed);
-        for (auto& [buf, ptr, size] : g_reserved_regions) {
-            if (buf == &other) {
-                buf = this;
-                break;
-            }
-        }
+#if defined(__linux__)
+        UffdManager::get().relocate(&other, this);
+#endif
     }
     return *this;
 }
 
 void LazyBuffer::hint_prefetch() const {
-    if (!m_loaded.load(std::memory_order_acquire)) {
-        std::lock_guard lock{m_loading};
-        if (m_loaded.load(std::memory_order_relaxed)) {
-            return;
-        }
-
-        std::error_code ec;
-        util::vm_commit(m_aligned_buffer, m_byte_size, ec);
-        OPENVINO_ASSERT(!ec, "Failed to commit memory for LazyBuffer. Error: ", ec.message());
-
-        try {
-            util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(m_offset));
-            std::istream file(&par_buf);
-            OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path);
-            file.read(m_aligned_buffer, m_byte_size);
-            OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
-            m_loaded.store(true, std::memory_order_release);
-        } catch (...) {
-            util::vm_decommit(m_aligned_buffer, m_byte_size);
-            throw;
-        }
+    if (m_loaded.load(std::memory_order_acquire)) {
+        return;
     }
+
+    std::lock_guard lock{m_loading};
+    if (m_loaded.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+#if defined(__linux__)
+    if (page_faulting_available()) {
+        // The page-rounded tail has to be zeroed because UFFDIO_COPY installs the whole reservation at once.
+        std::vector<char> staging(m_mapped_size, 0);
+        read_file_data(staging.data());
+
+        OPENVINO_ASSERT(UffdManager::get().resolve_fault(m_aligned_buffer, m_mapped_size, staging.data()),
+                        "Failed to resolve page fault for LazyBuffer: ",
+                        m_file_path);
+        m_loaded.store(true, std::memory_order_release);
+        return;
+    }
+#endif
+
+    read_file_data(m_aligned_buffer);
+    m_loaded.store(true, std::memory_order_release);
+}
+
+void LazyBuffer::read_file_data(char* destination) const {
+    util::ParallelReadStreamBuf par_buf(m_file_path, static_cast<std::streamoff>(m_offset));
+    std::istream file(&par_buf);
+    OPENVINO_ASSERT(file, "Failed to open file: ", m_file_path);
+    file.read(destination, m_byte_size);
+    OPENVINO_ASSERT(file, "Failed to read data from file: ", m_file_path);
 }
 
 void LazyBuffer::hint_evict() noexcept {
@@ -172,11 +367,19 @@ void LazyBuffer::hint_evict() noexcept {
 }
 
 void LazyBuffer::hint_evict(size_t offset, size_t size) noexcept {
+    if (!page_faulting_available()) {
+        // Without fault delegation the pages cannot be repopulated on access, so dropping them would lose data.
+        return;
+    }
+
     if (m_loaded.load(std::memory_order_acquire)) {
         try {
             std::lock_guard lock{m_loading};
             if (m_loaded.load(std::memory_order_relaxed)) {
-                util::vm_decommit(m_aligned_buffer, m_byte_size);
+#if defined(__linux__)
+                // Zapping the pages makes the region missing again, so the next access re-faults and reloads.
+                std::ignore = madvise(m_aligned_buffer, m_mapped_size, MADV_DONTNEED);
+#endif
                 m_loaded.store(false, std::memory_order_release);
             }
         } catch (...) {

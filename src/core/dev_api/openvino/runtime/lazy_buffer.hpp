@@ -51,8 +51,13 @@ protected:
     void hint_evict(size_t offset, size_t size) noexcept override;
 
 private:
+    /// Reads m_byte_size bytes of the file region into destination.
+    void read_file_data(char* destination) const;
+
     std::filesystem::path m_file_path;
     size_t m_offset{0};
+    /// Page-rounded size of the reservation backing m_aligned_buffer (m_byte_size stays the requested size).
+    size_t m_mapped_size{0};
 
     mutable std::atomic<bool> m_loaded{false};
     mutable std::mutex m_loading;

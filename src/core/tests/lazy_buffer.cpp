@@ -8,9 +8,11 @@
 
 #include <fstream>
 #include <string_view>
+#include <thread>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 using namespace testing;
 
@@ -241,5 +243,31 @@ TEST_F(LazyBufferTest, move_assignment_self_no_op) {
 
     EXPECT_EQ(buf.get_ptr<char>(), src_buf_ptr);
     EXPECT_EQ(buf.size(), buf_size);
+}
+
+TEST_F(LazyBufferTest, concurrent_faults_on_distinct_pages) {
+    constexpr size_t num_threads = 8;
+    const auto size = static_cast<size_t>(util::get_system_page_size()) * num_threads;
+    write_test_data(size);
+
+    LazyBuffer buffer{m_file_path, 0, size};
+    auto* const data_ptr = buffer.get_ptr<char>();
+
+    // Every thread first touches a different page, so the faults race on a single unloaded buffer.
+    const auto stride = size / num_threads;
+    std::vector<std::thread> readers;
+    std::vector<std::vector<char>> observed(num_threads);
+    for (size_t i = 0; i < num_threads; ++i) {
+        readers.emplace_back([&, i] {
+            observed[i].assign(data_ptr + i * stride, data_ptr + (i + 1) * stride);
+        });
+    }
+    for (auto& reader : readers) {
+        reader.join();
+    }
+
+    for (size_t i = 0; i < num_threads; ++i) {
+        EXPECT_THAT(observed[i], ElementsAreArray(m_test_data.data() + i * stride, stride)) << "thread " << i;
+    }
 }
 }  // namespace ov::test
