@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/broadcast_matmul_fusion.hpp"
-
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -17,6 +15,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/broadcast_matmul_fusion.hpp"
 
 namespace {
 
