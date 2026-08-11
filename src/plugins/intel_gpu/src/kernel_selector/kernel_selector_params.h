@@ -30,7 +30,7 @@ class JitConstants;
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct fuse_params {
-    virtual ~fuse_params() {}
+    virtual ~fuse_params() = default;
 
     KernelType GetType() const { return kType; }
 protected:
@@ -246,6 +246,7 @@ public:
 
         union DataTypesKey {
             struct val_t {
+                uint32_t uint2 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
@@ -258,6 +259,7 @@ public:
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
                 uint32_t BF16 : 1;
+                uint32_t F4E2M1 : 1;
                 uint32_t F8E4M3 : 1;
                 uint32_t F8E5M2 : 1;
                 uint32_t F8E8M0 : 1;
@@ -342,7 +344,7 @@ public:
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
     bool Support(const ParamsKey& k) const;
     bool isEnabledDifferentInputWeightsTypes() const {
-        return key.restrict.val.different_input_weights_types ? true : false;
+        return key.restrict.val.different_input_weights_types != 0;
     }
     ParamsKey Merge(const ParamsKey& k) const;
 
@@ -420,7 +422,7 @@ struct EngineInfo {
 // Params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct Params {
-    virtual ~Params() {}
+    virtual ~Params() = default;
 
     KernelType GetType() const { return kType; }
     virtual ParamsKey GetParamsKey() const;
@@ -554,13 +556,14 @@ struct FusedOpsConfiguration {
         int dims_num = static_cast<int>(bfzyx_idx_order.size());
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
-        } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
-            return 1;
-        } else if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
-            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
-        } else {
-            return -1;
         }
+        if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
+            return 1;
+        }
+        if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
+            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
+        }
+        return -1;
     }
 };
 
@@ -655,7 +658,7 @@ struct fused_operation_desc {
 // base_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
-    ~base_params() override {}
+    ~base_params() override = default;
 
     enum class ArgType {
         Input,

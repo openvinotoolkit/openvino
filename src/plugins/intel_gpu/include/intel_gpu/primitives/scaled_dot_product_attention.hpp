@@ -205,9 +205,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     size_t get_compression_scales_inputs_num() const {
         if (is_kv_compressed) {
             return 2;
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     size_t get_compression_zp_inputs_num() const {
@@ -215,9 +214,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
             quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
             quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             return 2;
-        } else {
-            return 0;
         }
+        return 0;
     }
 };
 }  // namespace cldnn
