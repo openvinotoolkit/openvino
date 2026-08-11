@@ -78,7 +78,9 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node, int64_t
     if (opset >= 13) {
         valid_types.emplace(ov::element::f16);
         valid_types.emplace(ov::element::bf16);
-        // MX block scales, added to DequantizeLinear in opset 24
+        // MX block scales (formally added to DequantizeLinear in opset 24) are grouped here
+        // with f16/bf16 rather than gated behind opset >= 24, consistent with bf16 above
+        // (only valid as a scale type since opset 19) already being accepted under opset >= 13.
         valid_types.emplace(ov::element::f8e8m0);
     }
 
@@ -211,22 +213,25 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             inputs.size());
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto precision = ai_onnx::opset_1::detail::get_dequantization_precision(node, scale);
-    const auto zero_point = ai_onnx::opset_1::detail::get_zero_point(inputs, precision);
 
     const auto& scale_shape = scale.get_partial_shape();
-    // per-tensor quantization, axis attribute ignored
-    if ((scale_shape.rank().is_static() && scale_shape.size() == 0) ||
-        (scale_shape.is_static() && shape_size(scale_shape.get_shape()) == 1)) {
-        if (!zero_point) {
-            return ai_onnx::opset_1::detail::dequantize_linear(node, 13);
-        }
-        const auto& zero_point_shape = zero_point->get_output_partial_shape(0);
-        if ((zero_point_shape.rank().is_static() && zero_point_shape.size() == 0) ||
-            (zero_point_shape.is_static() && shape_size(zero_point_shape.get_shape()) == 1)) {
-            return ai_onnx::opset_1::detail::dequantize_linear(node, 13);
-        }
+    // per-tensor quantization, axis attribute ignored. The zero point's shape (if present) is
+    // checked directly on the raw input so that get_dequantization_precision()/get_zero_point()
+    // (which perform output_dtype validation and may build a Convert node) run only once, on
+    // whichever path below actually needs their result.
+    bool is_per_tensor = (scale_shape.rank().is_static() && scale_shape.size() == 0) ||
+                         (scale_shape.is_static() && shape_size(scale_shape.get_shape()) == 1);
+    if (is_per_tensor && inputs.size() == 3 && !ov::op::util::is_null(inputs[2])) {
+        const auto& zero_point_shape = inputs[2].get_partial_shape();
+        is_per_tensor = (zero_point_shape.rank().is_static() && zero_point_shape.size() == 0) ||
+                        (zero_point_shape.is_static() && shape_size(zero_point_shape.get_shape()) == 1);
     }
+    if (is_per_tensor) {
+        return ai_onnx::opset_1::detail::dequantize_linear(node, 13);
+    }
+
+    const auto precision = ai_onnx::opset_1::detail::get_dequantization_precision(node, scale);
+    const auto zero_point = ai_onnx::opset_1::detail::get_zero_point(inputs, precision);
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x,
                                      scale,
