@@ -269,20 +269,33 @@ struct VirtualAddressMemory {
 };
 
 /**
+ * @brief Enum to define how a memory-mapped file is accessed by the plugin
+ * @ingroup ov_runtime_ocl_gpu_cpp_api
+ */
+enum class FileAccess {
+    READ = 0,       //!< Tensor data is only read from the file
+    READ_WRITE = 1  //!< Tensor data is also written back to the file; requires a writable file
+};
+
+/**
  * @brief File descriptor for wrapping tensor data memory-mapped from a file as a GPU plugin tensor.
  * The plugin memory-maps the file and keeps the mapping alive for the whole tensor lifetime,
  * so the file must not be modified until the returned tensor is destroyed.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 struct FileDescriptor {  // need to be merged with ov::intel_npu::FileDescriptor in future
-    explicit FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
+    explicit FileDescriptor(const std::filesystem::path& file_path,
+                            std::size_t offset_in_bytes = 0,
+                            FileAccess file_access = FileAccess::READ)
         : path(file_path),
-          offset(offset_in_bytes) {
+          offset(offset_in_bytes),
+          access(file_access) {
         OPENVINO_ASSERT(!file_path.empty(), "[GPU] Provided file path is empty.");
     }
 
-    std::filesystem::path path;  ///< File path
-    std::size_t offset = 0;      ///< Offset in bytes to read from the file
+    std::filesystem::path path;            ///< File path
+    std::size_t offset = 0;                ///< Offset in bytes to read from the file
+    FileAccess access = FileAccess::READ;  ///< Access mode of the mapping
 };
 
 /**

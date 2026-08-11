@@ -3112,9 +3112,6 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
 // the data and is varied to cover mmap allocation granularity boundaries.
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
 
-constexpr auto file_write_perms = std::filesystem::perms::owner_write | std::filesystem::perms::group_write |
-                                 std::filesystem::perms::others_write;
-
 class GpuRemoteTensorFromFile : public ::testing::TestWithParam<MmapFileMemoryParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MmapFileMemoryParams>& obj) {
@@ -3131,7 +3128,6 @@ protected:
 
     void TearDown() override {
         std::error_code ec;
-        std::filesystem::permissions(m_file_path, file_write_perms, std::filesystem::perm_options::add, ec);
         std::filesystem::remove(m_file_path, ec);
     }
 
@@ -3144,14 +3140,6 @@ protected:
             file.write(padding.data(), padding.size());
         }
         file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
-    }
-
-    // The plugin picks a read-write mapping only for files it is allowed to write to.
-    static void set_file_writable(const std::filesystem::path& path, bool writable) {
-        std::filesystem::permissions(
-            path,
-            file_write_perms,
-            writable ? std::filesystem::perm_options::add : std::filesystem::perm_options::remove);
     }
 
     static std::vector<float> make_values(std::size_t element_count) {
@@ -3176,8 +3164,6 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
     const auto input_values = make_values(element_count);
     write_data_at_offset(m_file_path, offset, input_values);
     ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + byte_size);
-    // A read-only file exercises the read-only mapping path.
-    set_file_writable(m_file_path, false);
 
     // Host pointers are imported in whole cachelines, so the destination buffer is padded accordingly.
     const std::size_t cacheline = core.get_property(target_device, ov::intel_gpu::cacheline_size);
@@ -3186,8 +3172,10 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
     std::fill_n(static_cast<char*>(output_ptr), output_buffer_size, 0);
 
     {
-        auto remote_input_tensor =
-            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{m_file_path, offset});
+        auto remote_input_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::FileAccess::READ});
         ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ocl::ClBufferTensor>());
         auto remote_output_tensor =
             ctx.create_tensor(ov::element::f32,
@@ -3221,12 +3209,12 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
     const auto input_values = make_values(element_count);
     write_data_at_offset(m_file_path, offset, std::vector<float>(element_count, 0.0f));
     ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + byte_size);
-    // A writable file is mapped read-write, so the GPU can write inference results back through the mapping.
-    set_file_writable(m_file_path, true);
 
     {
-        auto remote_output_tensor =
-            ctx.create_tensor(ov::element::f32, shape, ov::intel_gpu::FileDescriptor{m_file_path, offset});
+        auto remote_output_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::FileDescriptor{m_file_path, offset, ov::intel_gpu::FileAccess::READ_WRITE});
 
         auto model = make_copy_model(shape);
         auto compiled = core.compile_model(model, ctx);
