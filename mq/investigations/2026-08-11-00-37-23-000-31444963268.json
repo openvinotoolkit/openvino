@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-00-37-23-000-31444963268",
+  "timestamp": "2026-08-11T00:37:23Z",
+  "run_id": "31444963268",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31444963268",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "37300",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37300",
+  "author": "intelgaoxiong",
+  "category": "Infrastructure",
+  "title": "Clang-tidy Docker job fails at handle_docker action - transient Docker buildx/registry issue",
+  "signature": "handle docker action fails at set up docker buildx or docker image handling step|Infrastructure",
+  "signature_hash": "b8380b17909b11d9",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "handle_docker action step fails after 18 seconds at Set up Docker Buildx"
+    }
+  ],
+  "key_errors": [
+    "Job 'Docker' failed at step 'Run ./.github/actions/handle_docker' (step 5) after ~18 seconds",
+    "handle_docker action includes 'Set up Docker Buildx' using image from openvinogithubactions.azurecr.io",
+    "Logs inaccessible via API (security policy), duration of 18s indicates very early failure in Docker setup"
+  ],
+  "root_cause": "The Docker job in the Clang-tidy workflow failed at the 'Run ./.github/actions/handle_docker' step within 18 seconds. No Dockerfile changes were made in PR #37300 (NPUW optimization). The action sets up Docker Buildx using an image from the Azure Container Registry; a transient registry connectivity or image pull issue is the most likely cause. This is supported by the run automatically moving to attempt 2 (already queued), and similar historical patterns (Docker buildx builder boot fails, ACR OAuth token issues) in the investigation database.",
+  "reproduction_steps": "N/A - transient infrastructure failure",
+  "recommended_actions": [
+    "Wait for attempt 2 of the workflow run to complete; it is already running",
+    "If attempt 2 also fails, investigate Azure Container Registry connectivity from AKS runner aks-linux-4-cores-16gb-docker-build",
+    "Check openvinogithubactions.azurecr.io availability and Docker image moby/buildkit:buildx-stable-1 accessibility"
+  ],
+  "prevention_strategies": "Add retry logic in handle_docker action for Docker Buildx setup steps. Monitor ACR availability as an SLA dependency.",
+  "historical_context": "Previous similar patterns include 'Docker buildx builder boot fails - buildkit image not found in Azure Container Registry' (1 occurrence, 2026-07-15) and 'Docker build fails - Azure Container Registry OAuth token fetch refused' (1 occurrence, 2026-07-15)."
+}

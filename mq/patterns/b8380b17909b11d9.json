@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "handle docker action fails at set up docker buildx or docker image handling step|Infrastructure",
+  "signature_hash": "b8380b17909b11d9",
+  "title": "Clang-tidy Docker job fails at handle_docker action - transient Docker buildx/registry issue",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-11T00:37:23Z",
+  "last_seen": "2026-08-11T00:37:23Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31444963268"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37300"
+  ],
+  "recent_timestamps": [
+    "2026-08-11T00:37:23Z"
+  ],
+  "rerun_search_string": "set up docker buildx"
+}
