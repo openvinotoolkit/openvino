@@ -9,37 +9,17 @@
 
 #include "compare.hpp"
 #include "itt.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
+namespace op_util = ov::op::util;
 
 namespace ov::pass {
-
-namespace {
-
-bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs,
-                                    const std::shared_ptr<v0::FakeQuantize>& rhs) {
-    if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels() ||
-        lhs->get_auto_broadcast() != rhs->get_auto_broadcast()) {
-        return false;
-    }
-
-    for (size_t index = 1; index < lhs->get_input_size(); ++index) {
-        if (!ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
-                                   rhs->input_value(index).get_node_shared_ptr())) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-}  // namespace
 
 FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
     MATCHER_SCOPE(FakeQuantizeConcatFusion);
@@ -63,7 +43,7 @@ FakeQuantizeConcatFusion::FakeQuantizeConcatFusion() {
 
         for (const auto& concat_input : concat->input_values()) {
             const auto input_fq = ov::as_type_ptr<v0::FakeQuantize>(concat_input.get_node_shared_ptr());
-            if (!have_same_fake_quantize_params(input_fq, output_fq)) {
+            if (!op_util::have_same_fake_quantize_params(input_fq, output_fq)) {
                 return false;
             }
 

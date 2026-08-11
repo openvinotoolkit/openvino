@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import gc
 import logging
 import os
@@ -100,45 +103,19 @@ def setup_model(model_id):
 
     logger.info(f"Setting up model: {model_id}")
 
-    # Download original model
-    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
+    # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
+    model_cached = snapshot_download(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
-    # Save original model
+    # Cache original model for reuse in repeated test runs and potential future tests
+    # This improves efficiency when PYTEST_DO_NOT_CLEANUP is enabled
     model_path = get_model_path(model_id, "org")
     if not os.path.exists(model_path):
-        logger.info(f"Saving original model: {model_path}")
+        logger.info(f"Caching original model: {model_path}")
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
-
-    # Convert tokenizer for OpenVINO
-    ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
-
-    # Prepare INT8 model
-    int8_model_path = get_model_path(model_id, PREC_INT8)
-    if not os.path.exists(int8_model_path):
-        logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
-        ov_model.save_pretrained(int8_model_path)
-        tokenizer.save_pretrained(int8_model_path)
-        del ov_model
-        save_model(ov_tokenizer, os.path.join(int8_model_path, "openvino_tokenizer.xml"))
-        save_model(ov_detokenizer, os.path.join(int8_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
-
-    # Prepare INT4 model
-    int4_model_path = get_model_path(model_id, PREC_INT4)
-    if not os.path.exists(int4_model_path):
-        logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
-        quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
-        quantized_model = OVModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config)
-        quantized_model.save_pretrained(int4_model_path)
-        tokenizer.save_pretrained(int4_model_path)
-        del quantized_model
-        save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
-        save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
-    gc.collect()
 
     # Prepare ground truth data
     set_seed(42)
@@ -153,6 +130,40 @@ def setup_model(model_id):
             use_chat_template=use_chat_template
         )
         evaluator.dump_gt(gt_path)
+        del evaluator
+
+    del model
+    gc.collect()  # Free large base model before quantization steps
+
+    # Convert tokenizer for OpenVINO
+    ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
+
+    # Prepare INT8 model
+    int8_model_path = get_model_path(model_id, PREC_INT8)
+    if not os.path.exists(int8_model_path):
+        logger.info(f'Creating INT8 OpenVINO model: {int8_model_path}')
+        ov_model = OVModelForCausalLM.from_pretrained(model_cached, local_files_only=True, load_in_8bit=True)
+        ov_model.save_pretrained(int8_model_path)
+        tokenizer.save_pretrained(int8_model_path)
+        del ov_model
+        save_model(ov_tokenizer, os.path.join(int8_model_path, "openvino_tokenizer.xml"))
+        save_model(ov_detokenizer, os.path.join(int8_model_path, "openvino_detokenizer.xml"))
+
+    # Prepare INT4 model
+    int4_model_path = get_model_path(model_id, PREC_INT4)
+    if not os.path.exists(int4_model_path):
+        logger.info(f'Creating INT4 OpenVINO model: {int4_model_path}')
+        quantization_config = OVWeightQuantizationConfig(bits=4, ratio=0.8)
+        quantized_model = OVModelForCausalLM.from_pretrained(
+            model_cached,
+            local_files_only=True,
+            quantization_config=quantization_config,
+        )
+        quantized_model.save_pretrained(int4_model_path)
+        tokenizer.save_pretrained(int4_model_path)
+        del quantized_model
+        save_model(ov_tokenizer, os.path.join(int4_model_path, "openvino_tokenizer.xml"))
+        save_model(ov_detokenizer, os.path.join(int4_model_path, "openvino_detokenizer.xml"))
 
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)

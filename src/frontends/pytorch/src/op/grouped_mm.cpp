@@ -37,23 +37,15 @@ OutputVector translate_grouped_mm(const NodeContext& context) {
 
     // PyTorch provides mat_b as [G, K, N] (3D) or [total_tokens, N] (2D).
     // GroupedMatMul-17 expects [G, N, K] (3D) — N-first layout.
-    // If b is already a Transpose with the expected permutation, fold it by taking
-    // the input of that existing Transpose instead of stacking another one.
     const auto b_rank = b.get_partial_shape().rank();
     PYTORCH_OP_CONVERSION_CHECK(!b_rank.is_static() || b_rank.get_length() != 2,
                                 "grouped_mm: 2D × 2D (weight gradient) case is not supported.");
     if (b_rank.is_static() && b_rank.get_length() == 3) {
-        const std::vector<int32_t> expected_perm{0, 2, 1};
-        auto existing_transpose = ov::as_type_ptr<v1::Transpose>(b.get_node_shared_ptr());
-        auto existing_perm =
-            existing_transpose ? ov::as_type_ptr<v0::Constant>(existing_transpose->input_value(1).get_node_shared_ptr())
-                               : nullptr;
-        if (existing_perm && existing_perm->cast_vector<int32_t>() == expected_perm) {
-            b = existing_transpose->input_value(0);
-        } else {
-            auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{3}, expected_perm));
-            b = context.mark_node(std::make_shared<v1::Transpose>(b, perm));
-        }
+        // If the source graph already transposes the weights,
+        // the resulting sequence of Transposes is removed
+        // by the TransposeFuse pass during the frontend normalize stage.
+        auto perm = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {0, 2, 1}));
+        b = context.mark_node(std::make_shared<v1::Transpose>(b, perm));
     }
 
     Output<Node> result;

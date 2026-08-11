@@ -4,6 +4,8 @@
 
 #ifdef OV_GPU_WITH_OCL_RT
 
+#include <algorithm>
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -12,6 +14,7 @@
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
+#include "openvino/util/memory.hpp"
 
 #include "remote_tensor_tests/helpers.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -2784,6 +2787,119 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                                   ov::Coordinate{0, 1, 1, 0}, ov::Coordinate{4, 2, 2, 3}
                                                               })));
 
+namespace {
+// Sub-byte (i4) tensors can't be indexed per element, so fill/compare at byte granularity.
+void fill_bytes(ov::Tensor& tensor) {
+    auto* ptr = static_cast<uint8_t*>(tensor.data());
+    for (size_t i = 0; i < tensor.get_byte_size(); ++i) {
+        ptr[i] = static_cast<uint8_t>((i * 37 + 11) & 0xFF);
+    }
+}
+
+// Sub-byte copy is a flat whole-byte copy, so the padded tail nibble must round-trip byte-for-byte too.
+void expect_bytes_eq(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_byte_size(), actual.get_byte_size());
+    const auto* e = static_cast<const uint8_t*>(expected.data());
+    const auto* a = static_cast<const uint8_t*>(actual.data());
+    for (size_t i = 0; i < expected.get_byte_size(); ++i) {
+        ASSERT_EQ(e[i], a[i]) << "byte mismatch at offset " << i;
+    }
+}
+}  // namespace
+
+using RemoteTensorSubByteParams = std::tuple<ov::element::Type, RemoteTensorSharingType, ov::Shape>;
+
+struct RemoteTensorSubByte : ::testing::TestWithParam<RemoteTensorSubByteParams> {
+    static std::string getTestCaseName(const testing::TestParamInfo<RemoteTensorSubByteParams>& obj) {
+        const auto& [type, sharing_type, shape] = obj.param;
+        std::ostringstream result;
+        result << "type=" << type.get_type_name() << "_sharing=" << sharing_type << "_shape=";
+        for (size_t i = 0; i < shape.size(); ++i) {
+            result << (i ? "x" : "") << shape[i];
+        }
+        return result.str();
+    }
+};
+
+TEST_P(RemoteTensorSubByte, smoke_CopyFrom) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [type, sharing_type, shape] = GetParam();
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+
+    auto host_ref = ov::Tensor(type, shape);
+    fill_bytes(host_ref);
+
+    // host -> remote, then read back remote -> host
+    auto remote_dst = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_dst.copy_from(host_ref);
+    ASSERT_EQ(remote_dst.get_shape(), shape);
+
+    auto host_out = ov::Tensor(type, shape);
+    remote_dst.copy_to(host_out);
+    expect_bytes_eq(host_ref, host_out);
+
+    // remote -> remote
+    auto remote_src = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_from(host_ref);
+
+    auto remote_dst2 = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_dst2.copy_from(remote_src);
+    ASSERT_EQ(remote_dst2.get_shape(), shape);
+
+    auto host_out2 = ov::Tensor(type, shape);
+    remote_dst2.copy_to(host_out2);
+    expect_bytes_eq(host_ref, host_out2);
+}
+
+TEST_P(RemoteTensorSubByte, smoke_CopyTo) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const auto& [type, sharing_type, shape] = GetParam();
+
+    auto core = ov::Core();
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+
+    auto host_ref = ov::Tensor(type, shape);
+    fill_bytes(host_ref);
+
+    // remote -> remote via copy_to
+    auto remote_src = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_from(host_ref);
+
+    auto remote_dst = create_tensor(gpu_context, sharing_type, type, shape);
+    remote_src.copy_to(remote_dst);
+    ASSERT_EQ(remote_dst.get_shape(), shape);
+
+    auto host_out = ov::Tensor(type, shape);
+    remote_dst.copy_to(host_out);
+    expect_bytes_eq(host_ref, host_out);
+
+    // host -> remote via host.copy_to(remote)
+    auto remote_dst2 = create_tensor(gpu_context, sharing_type, type, shape);
+    host_ref.copy_to(remote_dst2);
+
+    auto host_out2 = ov::Tensor(type, shape);
+    remote_dst2.copy_to(host_out2);
+    expect_bytes_eq(host_ref, host_out2);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_copy_sub_byte,
+                         RemoteTensorSubByte,
+                         ::testing::Combine(::testing::Values(ov::element::i4, ov::element::u2),
+                                            ::testing::Values(RemoteTensorSharingType::PLUGIN_CL_TENSOR,
+                                                              RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
+                                                              RemoteTensorSharingType::PLUGIN_HOST_TENSOR),
+                                            ::testing::Values(ov::Shape{4, 16},
+                                                              ov::Shape{3, 5})),
+                         RemoteTensorSubByte::getTestCaseName);
+
 TEST(RemoteTensor, smoke_CanSetRoiRemoteTensor) {
 #if defined(ANDROID)
     GTEST_SKIP();
@@ -2947,4 +3063,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensorDataType, OVRemoteTensorDataType_Test
                                                               ov::element::Type_t::u16,
                                                               ov::element::Type_t::u32)),
                          OVRemoteTensorDataType_Test::getTestCaseName);
+
+TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    const size_t float_size = sizeof(float);
+    const ov::Shape shape{cacheline_size/float_size};
+    const size_t element_count = ov::shape_size(shape);
+    const size_t byte_size = element_count * sizeof(float);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    void* input_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+    void* output_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+
+    std::fill_n(static_cast<float*>(input_ptr), element_count, 2.0f);
+    std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
+
+    {
+        auto remote_input_tensor = ctx.create_tensor(ov::element::f32,
+                                                     shape,
+                                                     ov::intel_gpu::VirtualAddressMemory(input_ptr));
+        auto remote_output_tensor = ctx.create_tensor(ov::element::f32,
+                                                      shape,
+                                                      ov::intel_gpu::VirtualAddressMemory(output_ptr));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), remote_input_tensor);
+        infer_req.set_tensor(compiled.output(), remote_output_tensor);
+        infer_req.infer();
+
+        for (size_t i = 0; i < element_count; ++i) {
+            EXPECT_FLOAT_EQ(static_cast<float*>(output_ptr)[i], 2.0f) << "Mismatch at index " << i;
+        }
+    }
+
+    ov::util::aligned_free(input_ptr);
+    ov::util::aligned_free(output_ptr);
+}
+
 #endif  // OV_GPU_WITH_OCL_RT

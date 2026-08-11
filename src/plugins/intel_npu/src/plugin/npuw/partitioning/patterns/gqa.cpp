@@ -73,25 +73,29 @@ GQA::GQA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std:
         // output[1] (present_key): Slice -> Result (with Broadcast+ShapeOf harness).
         if (matched_gqa->get_output_size() > 1) {
             for (auto& target : matched_gqa->output(1).get_target_inputs()) {
-                auto slice = target.get_node()->shared_from_this();
-                if (ov::is_type<ov::op::v8::Slice>(slice)) {
-                    isolate_slice_with_harness(slice);
+                auto node = target.get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v8::Slice>(node)) {
+                    isolate_slice_with_harness(node);
                 }
             }
         }
 
         // output[2] (present_value): Slice -> Transpose -> Result (with Broadcast+ShapeOf harness).
+        // Also handles bare Transpose -> Result when no Slice is present (no slice_kv).
         if (matched_gqa->get_output_size() > 2) {
             for (auto& target : matched_gqa->output(2).get_target_inputs()) {
-                auto slice = target.get_node()->shared_from_this();
-                if (ov::is_type<ov::op::v8::Slice>(slice)) {
-                    isolate_slice_with_harness(slice);
-                    for (auto& t2 : slice->output(0).get_target_inputs()) {
+                auto node = target.get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v8::Slice>(node)) {
+                    isolate_slice_with_harness(node);
+                    for (auto& t2 : node->output(0).get_target_inputs()) {
                         auto trans = t2.get_node()->shared_from_this();
                         if (ov::is_type<ov::op::v1::Transpose>(trans)) {
                             isolate(trans);
                         }
                     }
+                } else if (ov::is_type<ov::op::v1::Transpose>(node)) {
+                    // No Slice (slice_kv not used): bare Transpose on present_value.
+                    isolate(node);
                 }
             }
         }

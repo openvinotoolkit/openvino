@@ -10,7 +10,6 @@
 #include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -56,6 +55,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
@@ -63,6 +63,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
@@ -80,9 +81,11 @@
 using namespace dnnl;
 
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 #define SET_SRC_DIM_VALUE(batch, channel, depth, height, width) \
     IB = batch;                                                 \
@@ -2139,11 +2142,11 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         // use BF16/FP16 output precision due to the possible accuracy loss. Therefore, for such mods, we will change
         // the output precision to FP32.
         if (ov::element::bf16 == output_prec) {
-            if (!mayiuse(avx512_core) || is_precision_sensitive_reduce(algorithm)) {
+            if (!ov::with_cpu_x86_avx512_core() || is_precision_sensitive_reduce(algorithm)) {
                 output_prec = ov::element::f32;
             }
         } else if (ov::element::f16 == output_prec) {
-            if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm)) {
+            if (!ov::with_cpu_x86_avx2() || is_precision_sensitive_reduce(algorithm)) {
                 output_prec = ov::element::f32;
             }
         }
@@ -2249,9 +2252,9 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     if (jit_mode) {
         impl_desc_type impl_type = impl_desc_type::jit_sse42;
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             impl_type = impl_desc_type::jit_avx512;
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             impl_type = impl_desc_type::jit_avx2;
         }
 
@@ -2259,18 +2262,18 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         if ((getInputShapeAtPort(REDUCE_DATA).getRank() == 4 || getInputShapeAtPort(REDUCE_DATA).getRank() == 5) &&
             getInputShapeAtPort(REDUCE_DATA).getMinDims()[1] > 1) {
             if (keep_dims) {
-                if (mayiuse(cpu::x64::avx512_core)) {
+                if (ov::with_cpu_x86_avx512_core()) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::nCsp16c, input_prec, output_prec, impl_type);
-                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
+                } else if (ov::with_cpu_x86_avx2() || ov::with_cpu_x86_sse42()) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp8c, LayoutType::nCsp8c, input_prec, output_prec, impl_type);
                 }
             } else {
-                if (mayiuse(cpu::x64::avx512_core)) {
+                if (ov::with_cpu_x86_avx512_core()) {
                     pushDesc(LayoutType::nspc, LayoutType::ncsp, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp16c, LayoutType::ncsp, input_prec, output_prec, impl_type);
-                } else if (mayiuse(cpu::x64::avx2) || mayiuse(cpu::x64::sse41)) {
+                } else if (ov::with_cpu_x86_avx2() || ov::with_cpu_x86_sse42()) {
                     pushDesc(LayoutType::nspc, LayoutType::ncsp, input_prec, output_prec, impl_type);
                     pushDesc(LayoutType::nCsp8c, LayoutType::ncsp, input_prec, output_prec, impl_type);
                 }
@@ -2417,7 +2420,7 @@ void Reduce::createPrimitive() {
     compile_post_kernel = false;
 #endif  // OPENVINO_ARCH_X86_64
 
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
     } else {
         blk_size = 8;
@@ -2579,7 +2582,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
             GET_PTR_N_PLN;
             if (!ReduceC && !ReduceD && ReduceW) {
                 size_t work_amount = ReduceH ? IH * IW : IW;
-                if (work_amount < blk_size && mayiuse(cpu::x64::avx2)) {
+                if (work_amount < blk_size && ov::with_cpu_x86_avx2()) {
                     size_t outer_size = ReduceH ? IC * ID : IC * ID * IH;
                     size_t inner_size = ReduceH ? IH * IW : IW;
                     size_t output_inner_size = ReduceH ? OH * OW : OW;
@@ -3418,9 +3421,9 @@ inline void Reduce::create_hybrid_working_memory() {
             return (rank == 4) ? memory::format_tag::nhwc : memory::format_tag::ndhwc;
         }
         if (rank == 4) {
-            return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+            return ov::with_cpu_x86_avx512_core() ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
         }
-        return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+        return ov::with_cpu_x86_avx512_core() ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
     }();
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims),
@@ -3836,7 +3839,7 @@ bool Reduce::canApplyJIT(const ov::element::Type& input_prec, const ov::element:
     static const ov::element::Type supportedPrecisions[] =
         {ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8};
 
-    return (mayiuse(cpu::x64::sse41)) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
+    return (ov::with_cpu_x86_sse42()) && (getInputShapeAtPort(REDUCE_DATA).getRank() <= 5 || jit_beyond_5D) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), input_prec) !=
                std::end(supportedPrecisions) &&
            std::find(std::begin(supportedPrecisions), std::end(supportedPrecisions), output_prec) !=

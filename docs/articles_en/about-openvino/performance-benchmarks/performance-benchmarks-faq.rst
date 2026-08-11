@@ -51,10 +51,6 @@ Performance Information F.A.Q.
         - DeepSeek, HF
         - Auto regressive language
         - 128K
-      * - `DeepSeek-R1-Distill-Qwen-1.5B <https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B>`__
-        - DeepSeek, HF
-        - Auto regressive language
-        - 128K
       * - `Gemma-3-4B-it <https://huggingface.co/google/gemma-3-4b-it>`__
         - Hugginface
         - Text-To-Text Decoder-only
@@ -63,11 +59,11 @@ Performance Information F.A.Q.
         - Hugginface
         - Reasoning, agentic and developer use cases.
         - 128K
+      * - `GPT-OSS-120B <https://huggingface.co/openai/gpt-oss-120b>`__
+        - Hugginface
+        - Reasoning, agentic and developer use cases.
+        - 128K
       * - `Llama-2-7b-chat <https://www.llama.com/>`__
-        - Meta AI
-        - Auto regressive language
-        - 4K
-      * - `Llama-3-8b <https://www.llama.com/>`__
         - Meta AI
         - Auto regressive language
         - 4K
@@ -95,6 +91,14 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 32K
+      * - `Qwen-3.6-27B <https://huggingface.co/Qwen/Qwen3.6-27B>`__
+        - Huggingface
+        - Causal Language with Vision Encoder
+        - 256K (up to 1M)
+      * - `Qwen-3-30B-A3B <https://huggingface.co/Qwen/Qwen3-30B-A3B>`__
+        - Huggingface
+        - Mix of Experts. Reasoning, agentic, multi-lingual
+        - 32K
       * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
@@ -103,6 +107,10 @@ Performance Information F.A.Q.
         - Hugginface
         - Latent Adversarial Diffusion Distillation Model
         - 256
+      * - `LTX-VIDEO <https://huggingface.co/Lightricks/LTX-Video>`__
+        - Hugginface
+        - DiT based video generation. Diffusion Transformer.
+        - up to 300
       * - `bert-base-cased <https://github.com/PaddlePaddle/PaddleNLP/tree/v2.1.1>`__
         - BERT
         - question / answer
@@ -125,6 +133,10 @@ Performance Information F.A.Q.
         - 1200x1200
       * - `yolov11 <https://github.com/ultralytics/ultralytics>`__
         - Yolov11
+        - object detection
+        - 640x640
+      * - `yolov26n <https://huggingface.co/openvision/yolo26-n>`__
+        - Yolov26 Nano
         - object detection
         - 640x640
 

@@ -11,6 +11,7 @@
 #include <tuple>
 #include <vector>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -105,6 +106,26 @@ void visit_path_forward(ov::Node* start_node,
             visited.insert(consumer);
         }
     }
+}
+
+bool have_same_fake_quantize_params(const std::shared_ptr<v0::FakeQuantize>& lhs,
+                                    const std::shared_ptr<v0::FakeQuantize>& rhs) {
+    if (!lhs || !rhs || lhs->get_levels() != rhs->get_levels() ||
+        lhs->get_auto_broadcast() != rhs->get_auto_broadcast()) {
+        return false;
+    }
+
+    for (size_t index = 1; index < lhs->get_input_size(); ++index) {
+        // compare_constants matches flattened values only, so the shapes are compared separately to
+        // avoid treating constants that broadcast differently (e.g. {1, 3, 1, 1} vs {3, 1}) as equal.
+        if (lhs->get_input_partial_shape(index) != rhs->get_input_partial_shape(index) ||
+            !ov::compare_constants(lhs->input_value(index).get_node_shared_ptr(),
+                                   rhs->input_value(index).get_node_shared_ptr())) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {

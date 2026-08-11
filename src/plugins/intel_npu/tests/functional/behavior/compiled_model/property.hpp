@@ -42,14 +42,25 @@ protected:
     ov::Any configValue;
     ov::Core ie;
 
+private:
+    std::optional<ov::test::utils::LoggerLevelGuard> _logGuard;
+
 public:
     void SetUp() override {
+        _logGuard.emplace(::intel_npu::Logger::global().level());
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
         OVCompiledModelPropertiesBase::SetUp();
+
         deviceName = std::get<0>(GetParam());
         std::tie(configKey, configValue) = std::get<1>(GetParam());
 
         model = ov::test::utils::make_conv_pool_relu();
+    }
+
+    void TearDown() override {
+        _logGuard.reset();
+        OVCompiledModelPropertiesBase::TearDown();
     }
     static std::string getTestCaseName(
         testing::TestParamInfo<std::tuple<std::string, std::pair<std::string, ov::Any>>> obj) {
@@ -240,6 +251,9 @@ TEST_P(ClassPluginPropertiesTestSuite4NPU, CanNotSetGetInexistentProperty) {
 using ClassPluginPropertiesTestSuite5NPU = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(ClassPluginPropertiesTestSuite5NPU, CanSetMutablePropertiesToCompiledModel) {
+    // Encryption callbacks require L0 graph ext version >= 1.17
+    NPU_SKIP_IF_GRAPH_EXT_LOWER_THAN(1, 17);
+
     // ie.set_property won't call plugin Engine::SetConfig due to empty string-ov::Plugin map from core_impl
     // workaround to overcome this is to call first ie.get_property which calls get_plugin() from core_impl and
     // populates plugin map
@@ -363,6 +377,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterSettingExtraConfigToGetProperty) 
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
@@ -394,6 +409,7 @@ TEST_P(CheckCompilerTypeProperty, CheckLogAfterGettingPropertyWithExtraConfig) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -430,6 +446,7 @@ TEST_P(CheckCompilerTypeProperty, SetRuntimeProperty) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -463,6 +480,7 @@ TEST_P(CheckCompilerTypeProperty, SetCompilerPropertyForDifferentCompiler) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -512,6 +530,7 @@ TEST_P(CheckCompilerTypeProperty, GetCompilerVersion) {
     std::string logs;
     std::mutex logs_mutex;
     ov::Core core;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
 
@@ -612,6 +631,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, ExpectedNoThrowFromImportWithCompiler
     ov::Core core_compile, core_import;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core_compile.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -694,6 +714,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerProperty) {
     ov::Core core_for_importing;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core_for_compiler.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -734,6 +755,7 @@ TEST_P(CheckCompilerPropertyWhenImporting, CheckImportWithCompilerPropertyAfterC
     ov::Core core;
     ov::CompiledModel compiled_model;
     std::stringstream export_stream;
+    ov::test::utils::LoggerLevelGuard levelGuard(::intel_npu::Logger::global().level());
 
     OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     OV_ASSERT_NO_THROW(compiled_model.export_model(export_stream));
@@ -775,9 +797,8 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
-    ov::log::Level previous_log_level = ov::log::Level::NO;
-    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
-    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
+    core.set_property(deviceName, ov::log::level(ov::log::Level::WARNING));
 
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
@@ -791,7 +812,6 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromSetProperty) {
         OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::enable_cpu_pinning(true)));
         OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, deviceName));
     }
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));
@@ -821,9 +841,7 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
     ov::Core core;
     ov::CompiledModel compiled_model;
 
-    ov::log::Level previous_log_level = ov::log::Level::NO;
-    OV_ASSERT_NO_THROW(previous_log_level = core.get_property(deviceName, ov::log::level));
-    core.set_property(deviceName, ov::log::level(ov::log::Level::INFO));
+    ov::test::utils::LoggerLevelGuard logGuard(ov::log::Level::WARNING);
 
     // Keep this std::function alive while logging is active.
     std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
@@ -834,10 +852,11 @@ TEST_P(CheckCpuPinning, CheckCompileModelWithCpuPinningFromCompileProperty) {
 
     {
         ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        OV_ASSERT_NO_THROW(compiled_model =
-                               core.compile_model(model, deviceName, {ov::hint::enable_cpu_pinning(true)}));
+        OV_ASSERT_NO_THROW(compiled_model = core.compile_model(
+                               model,
+                               deviceName,
+                               {ov::hint::enable_cpu_pinning(true), ov::log::level(ov::log::Level::WARNING)}));
     }
-    OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(previous_log_level)));
 
     bool enable_cpu_pinning = false;
     OV_ASSERT_NO_THROW(enable_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning));

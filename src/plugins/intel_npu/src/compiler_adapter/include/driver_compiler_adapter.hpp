@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -37,6 +40,11 @@ private:
     bool isCompilerOptionSupported(const FilteredConfig& config,
                                    const ze_graph_compiler_version_info_t& compilerVersion,
                                    const std::string& optionName) const;
+
+    // Fetches the runtime requirements of a compiled graph from the
+    // driver via zeDeviceGetRuntimeRequirements. Returns std::nullopt when the driver does not
+    // implement the extension, the handle is null, or the query fails.
+    std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

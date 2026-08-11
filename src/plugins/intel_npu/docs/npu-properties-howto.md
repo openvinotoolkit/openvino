@@ -1,4 +1,4 @@
-﻿# NPU Properties
+# NPU Properties
 What is a property from NPU Plugin's POV and Step-by-step guide on how to add one  
 Practical manual for NPU plugin properties
 

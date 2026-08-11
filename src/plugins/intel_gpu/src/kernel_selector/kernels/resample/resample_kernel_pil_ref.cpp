@@ -78,8 +78,15 @@ size_t getOutputVerticalSize(const resample_params& params) {
     return ExtractDim(params.outputs[0], params.axes[eVertical]).v;
 }
 
+bool IsIdentityResample(const resample_params& params) {
+    return getInputHorizontalSize(params, true) == getOutputHorizontalSize(params) &&
+           getInputVerticalSize(params, true) == getOutputVerticalSize(params);
+}
+
 bool NeedHorizontalPass(const resample_params& params) {
-    return getInputHorizontalSize(params, true) != getOutputHorizontalSize(params);
+    // Force a horizontal pass for identity resample (both axes unchanged) to avoid zero kernels.
+    return IsIdentityResample(params) ||
+           getInputHorizontalSize(params, true) != getOutputHorizontalSize(params);
 }
 
 bool NeedVerticalPass(const resample_params& params) {
@@ -113,7 +120,7 @@ std::size_t GetLastRow(const resample_params& params) {
 }
 
 DataTensor GetIntermediateBufferSize(const resample_params& params) {
-    auto& output = params.outputs[0];
+    const auto& output = params.outputs[0];
     auto layout = output.GetLayout();
     auto ybox_first = GetFirstRow(params);
     auto ybox_last = GetLastRow(params);
@@ -163,7 +170,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleHorizontal: {
-        auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
+        const auto& output = NeedVerticalPass(arg) ? GetIntermediateBufferSize(arg) : arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
@@ -180,7 +187,7 @@ ResampleKernelBase::DispatchData ResampleKernelPilRef::SetDefaultForKernel(Kerne
         return dispatchData;
     }
     case ResampleKernelPilRef::eResampleVertical: {
-        auto& output = arg.outputs[0];
+        const auto& output = arg.outputs[0];
         auto in_layout = arg.inputs[0].GetLayout();
         auto out_layout = arg.outputs[0].GetLayout();
         std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },

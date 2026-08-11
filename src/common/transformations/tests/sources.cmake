@@ -1,0 +1,316 @@
+set(OV_TRANSFORMATIONS_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
+
+set(TESTS_ROOT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/const_folding_for_if.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/const_folding_for_mvn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/const_folding_prior_box.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/hash_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/make_stateful_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/prelu_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/resolve_names_collisions.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sdpa_to_paged_attention_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/type_relaxed_tests.cpp
+)
+
+set(COMMON_OPTIMIZATIONS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/activations_scaling_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/adaptive_pool_to_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/add_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_eltwise_input_ranks.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_mixed_fp32_fp16_types_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/attention_mask_shape_replacer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/augru_cell_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/batch_to_space_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/binarize_weights.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_elementwise_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_matmul_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_transition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/change_placeholder_types_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/clamp_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/compress_float_constants_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/concat_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/concat_reduce_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/concat_to_broadcast_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/constants_reduce.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/conv_to_binary_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_compression_only_to_legacy_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_convertlike.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_divide.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_gather_matmuls_moe_block_to_moe_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_legacy_precision_attribute_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_nms_gather_path_to_unsigned_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_pagedattn_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_quantize_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_tiled_moe_block_to_gather_matmuls_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convert_u4_weights_zero_point_to_scalar.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/convolution_to_group_convolution_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/depth_to_space_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/dilated_convolution_converter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/dimension_tracking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/disable_precision_conversion_api_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/disable_shapeof_constant_folding_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/divide_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/dropout_with_random_uniform_replacer_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_duplicate_ti_inputs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_loop_inputs_outputs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_split_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_unsqueeze_gather.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/enable_shapeof_constant_folding.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/flush_fp32_subnormals_to_zero_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fold_subgraph_empty_inputs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fq_concat_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fq_eliminate_sequential_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fq_mul_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fq_reshape_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_clamp_and_fake_quantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_moe_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_rotary_positional_embeddings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fused_names_cleanup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gelu_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/glu_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/group_normalization_fusion_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/gru_cell_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/hsigmoid_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/hswish_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/interpolate_sequence_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/keep_constants_precision_and_add_converts_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/leaky_relu_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/lin_op_sequence_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/lora_subgraph_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/low_latency_v2_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/lstm_cell_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_precision_sensitive_shapeof_subgraphs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_rope_input_to_keep_in_mixed_precision_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_subgraph_to_keep_in_mixed_precision_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/matmul_const_transposes_extraction.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/matmul_multiply_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mish_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moc_transformations.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moe_transpose_weights_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/move_eltwise_up_data_movement_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mul_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mvn_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nearest_neighbor_upsampling_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nonzero_horizontal_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nop_elimination.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_l2_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/optimize_strided_slice_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pack_multi_head_attention_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pad_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_causal_conv1d_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/push_constant_to_subgraphs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/random_uniform_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/reduce_merge.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/reduce_reshape_fusion_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/relu_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/remove_concat_zero_dim_input_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/remove_multi_subgraph_op_dangling_params_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/reshape_prelu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/reshape_sequence_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/reverse_shape_and_type_infer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/rms_norm_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/sdpa_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/sdpa_scale_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/sdpa_to_vlsdpa_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/select_with_one_value_condition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/sequence_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/shared_ops_optimization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/shuffle_channels_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/simplify_second_input_of_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/simplify_shape_of_sub_graph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/skip_gather_before_transpose_and_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/softmax_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/softplus_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/space_to_batch_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/split_concat_pair_to_interpolate_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/split_squeeze_concat_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/strided_slice_reshape_concat_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/strides_optimization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/subtract_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/swish_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_reshape_elimination_for_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_sinking_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_to_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/weights_dequantize_to_fake_quantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/wrap_interpolate_into_transposes_test.cpp
+)
+
+set(CONTROL_FLOW_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/control_flow/unroll_if_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/control_flow/unroll_loop_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/control_flow/unroll_tensor_iterator_test.cpp
+)
+
+set(DECOMPOSITIONS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/low_precision_dequantize_decomposition_mark_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/rms_norm_decomposition_fuse_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decompositions/rope_decomposition_fuse_test.cpp
+)
+
+set(FP16_COMPRESSION_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/fp16_compression/disable_bf16_comp_ltx_rope_test.cpp
+)
+
+set(OFFLINE_TRANSFORMATIONS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/offline_transformations/pruning_test.cpp
+)
+
+set(OP_CONVERSIONS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/batch_norm_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/batch_to_space_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/bidirectional_sequences_decomposition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_avgpool_downgrade.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_bitwise_to_logical_bool_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_broadcast3_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_broadcast_to_tiles_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_convertpromotetypes_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_deformable_conv_v8_to_v1_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_offsets15_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_packed15_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_fc_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_0d_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_upgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_grouped_matmul_to_gather_matmul_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate11_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate1_to_interpolate4_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_maxpool_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_maxpool_upgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie_internal.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_multiclass_nms_upgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_mvn1_to_mvn6_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_nms9_to_nms_ie_internal_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_nms_to_nms_ie_internal_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_onehot16_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_pad12_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_pad_to_group_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_previous_nms_to_nms_5.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_previous_nms_to_nms_9.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_prior_box_v8_to_v0_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_reduce_to_pooling_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_reduce_to_reshape.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_roi_align_v3_to_v9_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_roi_align_v9_to_v3_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_scatter_elements_to_scatter_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_scatter_elements_update12_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_scatter_nd_update15_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_sequences_to_ti_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_shapeof3.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_shuffle_channels3_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_slicescatter_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_softmax_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_softmax_upgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_squeeze15_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_subtract.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_ti_to_sequences_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_topk11_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_topk3_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_weight_compressed_conv1x1_to_matmul_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_xor_to_logical_xor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/detection_output_downgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/detection_output_upgrade_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/einsum_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/eye_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/fake_convert_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/fq_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/gelu7_downgrade.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_normalization_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_query_attention_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hsigmoid_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hswish_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/log_softmax_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/mvn6_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/ngraph_depth_to_space_transform_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/ngraph_mode_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/normalize_l2_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l1_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l2_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/scaled_dot_product_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/sdpa_to_paged_attention_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/simplify_ctc_greedy_decoder_seq_len_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/softmax_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/softplus_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/softsign_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/unique_decomposition_test.cpp
+)
+
+set(SMART_RESHAPE_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/broadcast_const_range_replacement.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/lstm_states_broadcast.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/reshape_sinking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/shape_of_const_folding.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_mimicking_sbs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_proposal_scales.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_reshape_1d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_strided_slice_squeeze.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_sub_graph_ops.cpp
+)
+
+set(SYMBOLIC_TRANSFORMATIONS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/chained_maximum.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/dereshape_fullyconnected.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/dereshape_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/nop_broadcast.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/reshape_optimizations.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/symbolic_transformations/symbol_optimization.cpp
+)
+
+set(TRANSPOSE_SINKING_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_binary_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_common_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_concat_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_gather_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_general_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_reset_no_sinking_attribute.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_shape_of_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_split_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_squeeze_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_test_case.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_test_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_unary_test.cpp
+)
+
+set(UTILS_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/utils/compare_functions_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/compress_quantize_weights.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/convert_precision.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/primitives_priority_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils/utils_test.cpp
+)
+
+if(ENABLE_DEBUG_CAPS)
+    list(APPEND UTILS_TESTS_SRCS ${CMAKE_CURRENT_LIST_DIR}/utils/extract_subgraph_test.cpp)
+else()
+    list(APPEND OV_TRANSFORMATIONS_TESTS_CHECK_SOURCES_EXCLUDE_FILES
+        ${CMAKE_CURRENT_LIST_DIR}/utils/extract_subgraph_test.cpp
+    )
+endif()
+
+set(TRANSPOSE_SINKING_TESTS_HDRS
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_test_case.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transpose_sinking/ts_test_utils.hpp
+)
+
+set(OV_TRANSFORMATIONS_TESTS_SRCS
+    ${TESTS_ROOT_SRCS}
+    ${COMMON_OPTIMIZATIONS_TESTS_SRCS}
+    ${CONTROL_FLOW_TESTS_SRCS}
+    ${DECOMPOSITIONS_TESTS_SRCS}
+    ${FP16_COMPRESSION_TESTS_SRCS}
+    ${OFFLINE_TRANSFORMATIONS_TESTS_SRCS}
+    ${OP_CONVERSIONS_TESTS_SRCS}
+    ${SMART_RESHAPE_TESTS_SRCS}
+    ${SYMBOLIC_TRANSFORMATIONS_TESTS_SRCS}
+    ${TRANSPOSE_SINKING_TESTS_SRCS}
+    ${UTILS_TESTS_SRCS}
+    ${TRANSPOSE_SINKING_TESTS_HDRS}
+)

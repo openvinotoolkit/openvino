@@ -90,6 +90,13 @@ public:
 
     void evict_memory(const GraphDescriptor& graphDescriptor) const;
 
+    /**
+     * @brief Fetches the compatibility descriptor of a compiled graph.
+     * @return The descriptor string if the driver supports the feature and the graph carries one,
+     *         or `std::nullopt` otherwise.
+     */
+    std::optional<std::string> getCompatibilityDescriptor(ze_graph_handle_t graphHandle) const;
+
 private:
     void getMetadata(ze_graph_handle_t graphHandle,
                      uint32_t indexUsedByDriver,

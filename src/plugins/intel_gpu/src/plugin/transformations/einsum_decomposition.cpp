@@ -120,7 +120,7 @@ std::string generate_grouping_subscript(const std::string& input_subscript, cons
     }
 
     auto labels = ov::op::v7::Einsum::extract_labels(input_subscript);
-    std::string required_subscript = "";
+    std::string required_subscript;
     for (auto index : labels_inds) {
         required_subscript += labels[index];
     }
@@ -370,7 +370,7 @@ void reduce_input(EinsumDecomposition *einsum_decompose_ptr,
     std::set<int64_t> reduced_axes;
     const auto labels = ov::op::v7::Einsum::extract_labels(input_subscripts[input_ind]);
     auto label_dim_map = compute_label_dim_map(input_node.get_partial_shape().rank(), input_subscript);
-    std::string new_input_subscript = "";
+    std::string new_input_subscript;
 
     for (const auto& label : labels) {
         // check if the current label is met in the other input subscripts
@@ -481,7 +481,7 @@ ov::Output<ov::Node> build_multi_identity(EinsumDecomposition* einsum_decompose_
                                                   const std::vector<std::string>& repeated_labels,
                                                   const LabelDimMap& label_dim_map,
                                                   ov::NodeVector& subgraph_nodes) {
-    OPENVINO_ASSERT(repeated_labels.size() > 0);
+    OPENVINO_ASSERT(!repeated_labels.empty());
 
     const auto get_identity = [&](size_t idx) {
         const auto repeated_label_dims = label_dim_map.find(repeated_labels[idx]);
@@ -687,9 +687,9 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
     auto labels1 = ov::op::v7::Einsum::extract_labels(input_subscript1);
     auto& input_subscript2 = input_subscripts[input_ind2];
     auto labels2 = ov::op::v7::Einsum::extract_labels(input_subscript2);
-    std::string common_part = "";
-    std::string separate_part1 = "";
-    std::string separate_part2 = "";
+    std::string common_part;
+    std::string separate_part1;
+    std::string separate_part2;
     std::vector<int64_t> common_labels_inds1, common_labels_inds2;
     std::vector<int64_t> separate_labels_inds1, separate_labels_inds2;
     std::vector<int64_t> reduced_labels_inds1, reduced_labels_inds2;
@@ -866,8 +866,8 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
                 subgraph_nodes);
 
     // step 3. apply MatMul operation for formatted inputs
-    const bool transpose_a = (is_separate_first1 ? false : true);
-    const bool transpose_b = (is_separate_first2 ? true : false);
+    const bool transpose_a = (!is_separate_first1);
+    const bool transpose_b = (is_separate_first2);
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(matmul_operand1, matmul_operand2, transpose_a, transpose_b);
 
     // step 4. reshape back by unrolling dimensions corresponding to separate labels if needed

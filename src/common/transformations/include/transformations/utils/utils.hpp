@@ -26,6 +26,9 @@
 
 namespace ov {
 namespace op {
+namespace v0 {
+class FakeQuantize;
+}  // namespace v0
 namespace util {
 
 template <class T>
@@ -222,6 +225,18 @@ TRANSFORMATIONS_API void visit_path_forward(ov::Node* start_node,
                                             std::unordered_set<ov::Node*>& visited,
                                             std::function<void(ov::Node*)> func,
                                             std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
+ * \brief Checks whether two FakeQuantize ops share identical quantization parameters: the same number
+ * of levels, the same auto-broadcast spec, and equal input_low/input_high/output_low/output_high
+ * constants.
+ *
+ * \param lhs  The first FakeQuantize.
+ * \param rhs  The second FakeQuantize.
+ * \return true if both ops are valid and have identical parameters.
+ */
+TRANSFORMATIONS_API bool have_same_fake_quantize_params(const std::shared_ptr<ov::op::v0::FakeQuantize>& lhs,
+                                                        const std::shared_ptr<ov::op::v0::FakeQuantize>& rhs);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,

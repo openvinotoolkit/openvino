@@ -10,10 +10,20 @@
 #include "npuw_transformations/kv_axes_position.hpp"
 
 namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
+
+namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
 class WhisperInferRequest;
+class LLMBlockKVCacheStrategy;
+class LLMContinuousKVCacheStrategy;
 struct PrefixCacheRestorationContext;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
@@ -75,10 +85,15 @@ private:
     friend class LLMInferRequest;
     friend class WhisperInferRequest;
     friend class EmbeddingInferRequest;
+    friend class LLMBlockKVCacheStrategy;
+    friend class LLMContinuousKVCacheStrategy;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_encoder_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -100,6 +115,7 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
+    bool m_is_block_kv_cache = false;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_prefill_compiled;
     // This model is optional, so can be null.
@@ -118,6 +134,14 @@ private:
     bool m_enable_prefix_caching = false;
     uint64_t m_prefix_caching_block_size = 0;
     uint64_t m_prefix_caching_max_num_blocks = 0;
+    uint64_t m_longrope_context_limit = 0;
+
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
@@ -127,6 +151,9 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+    // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
+    // routed to the dedicated KV/RoPE-free encoder embedding path.
+    bool m_is_encoder_embedding = false;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(

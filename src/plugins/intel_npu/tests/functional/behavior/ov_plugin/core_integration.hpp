@@ -383,7 +383,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, NpuDeviceAllocMemSizeSameAfterDestroyInf
     ov::CompiledModel compiledModel;
     auto model = createModelWithLargeSize();
 
-    //Warm up inference to initialize driver scratch buffers
+    // Warm up inference to initialize driver scratch buffers
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
     auto inferRequest = compiledModel.create_infer_request();
     inferRequest.infer();

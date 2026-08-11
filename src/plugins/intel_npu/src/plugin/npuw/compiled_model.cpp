@@ -44,6 +44,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace {
@@ -347,6 +348,24 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
 
+    auto attn_isolation = [](auto properties) {
+        if (properties.count("NPUW_ATTN") > 0 && properties.at("NPUW_ATTN") != "STATIC") {
+            return true;
+        }
+
+        if (properties.count("NPUW_ONLINE_ISOLATE") > 0) {
+            auto val = properties.at("NPUW_ONLINE_ISOLATE").template as<std::string>();
+            return val == "ATTN" || val.find("attn") != std::string::npos;
+        }
+        return false;
+    };
+
+    if (attn_isolation(properties)) {
+        // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
+        // the attention isolation to work properly
+        ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    }
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
@@ -557,9 +576,29 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 compiledFunctions.insert({subgraph._funcall, id});
 
                 // For HFA, use the final tile model instead of the original SDPA model
-                // because the original SDPA model won't be compiled
+                // because the original SDPA model won't be compiled.
+                // Invariant: the prototype model must expose exactly the same number of
+                // results as the HFA tile model.  A mismatch means the prototype carries
+                // extra pass-through outputs (e.g. shared-KV block tensors routed to
+                // downstream subgraphs) that the tile model does not produce.  Allowing
+                // this silently would leave those output slots unregistered in
+                // m_funcall_result and cause an invalid-key crash at inference time.
                 if (fcn_template._host_flash_attention) {
-                    m_compiled_submodels[id].model = fcn_template._host_flash_attention.value()._final_tile_model;
+                    const auto& hfa = fcn_template._host_flash_attention.value();
+                    const size_t proto_outs = fcn_template._model->get_results().size();
+                    const size_t tile_outs = hfa._final_tile_model->outputs().size();
+                    if (proto_outs != tile_outs) {
+                        OPENVINO_THROW("NPUW HFA: subgraph[",
+                                       id,
+                                       "] prototype model has ",
+                                       proto_outs,
+                                       " result(s) but the HFA tile model has ",
+                                       tile_outs,
+                                       ".  The prototype carries extra outputs that would be silently"
+                                       " dropped, causing inference failures.  Ensure all shared-KV"
+                                       " fan-outs are resolved before HFA is applied.");
+                    }
+                    m_compiled_submodels[id].model = hfa._final_tile_model;
                 } else {
                     m_compiled_submodels[id].model = fcn_template._model;
                 }
@@ -2440,6 +2479,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
                           BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
                           BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
+                          BIND(npuw::partitioning::online::keep_block_tag, NPUW_ONLINE_KEEP_BLOCKS_TAGGED),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),

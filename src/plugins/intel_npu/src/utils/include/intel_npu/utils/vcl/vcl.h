@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #define VCL_COMPILER_VERSION_MAJOR 7
-#define VCL_COMPILER_VERSION_MINOR 7
+#define VCL_COMPILER_VERSION_MINOR 8
 #define VCL_PROFILING_VERSION_MAJOR 2
 #define VCL_PROFILING_VERSION_MINOR 0
 
@@ -262,19 +262,36 @@ DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate(v
                                                                                uint8_t** blobBuffer,
                                                                                uint64_t* blobSize);
 
-DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compiler_handle_t compiler,
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compiler_handle_t compiler,
+                                                                     vcl_executable_desc_t desc,
+                                                                     vcl_allocator2_t* allocator,
+                                                                     uint8_t** blobBuffer,
+                                                                     uint64_t* blobSize);
+
+DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compiler_handle_t compiler,
                                                                                 vcl_executable_desc_t desc,
                                                                                 vcl_allocator2_t* allocator,
                                                                                 uint8_t** blobBuffer,
-                                                                                uint64_t* blobSize);
+                                                                                uint64_t* blobSize,
+                                                                                uint8_t** compatibilityStringBuffer,
+                                                                                uint64_t* compatibilityStringSize);
 
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compiler_handle_t compiler,
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate4(vcl_compiler_handle_t compiler,
                                                                      vcl_executable_desc_t desc,
                                                                      vcl_allocator2_t* allocator,
                                                                      uint8_t** blobBuffer,
                                                                      uint64_t* blobSize,
-                                                                     uint8_t** compatibilityStringBuffer,
-                                                                     uint64_t* compatibilityStringSize);
+                                                                     vcl_executable_handle_t* executable);
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Returns the compatibility string associated with the provided executable (if available).
+/// @details If `compatibilityString` is NULL, returns the required buffer size (including the null terminator)
+///          in `compatibilityStringSize`.
+/// @note The handle can be returned by `vclExecutableCreate` or (as a dummy handle for this query) by
+///       `vclAllocatedExecutableCreate4`; the handle must be released with `vclExecutableDestroy`.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetCompatibilityString(vcl_executable_handle_t executable,
+                                                                           char* compatibilityStringBuffer,
+                                                                           uint64_t* compatibilityStringSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreateWSOneShot(vcl_compiler_handle_t compiler,
                                                                              vcl_executable_desc_t desc,

@@ -81,11 +81,7 @@ struct mvn : public primitive_base<mvn> {
 
     bool across_channels() const {
         int64_t channel_axis = 1;
-        if (std::find(reduction_axes.begin(), reduction_axes.end(), channel_axis) != reduction_axes.end()) {
-            return true;
-        } else {
-            return false;
-        }
+        return std::find(reduction_axes.begin(), reduction_axes.end(), channel_axis) != reduction_axes.end();
     }
 
     bool requires_alignment(const ov::PartialShape& shape) const {
@@ -102,5 +98,10 @@ struct mvn : public primitive_base<mvn> {
 
         return false;
     }
+
+    // Returns false when the given layout needs a reorder to planar before an aligned MVN (see requires_alignment):
+    // the normalized-axes flattening in mvn_impl::static_canonicalize_shapes is only valid for planar / single-fsv
+    // layouts.
+    bool is_aligned_layout_supported(const layout& input_layout) const;
 };
 }  // namespace cldnn

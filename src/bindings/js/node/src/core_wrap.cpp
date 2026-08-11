@@ -4,6 +4,8 @@
 
 #include "node/include/core_wrap.hpp"
 
+#include <exception>
+
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
@@ -107,8 +109,8 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     try {
-        ReadModelArgs* args = new ReadModelArgs(info);
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, args);
+        auto args = std::make_unique<ReadModelArgs>(info);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, std::move(args));
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
@@ -272,12 +274,7 @@ Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
     Napi::Object versions_object = Napi::Object::New(info.Env());
 
     for (const auto& dev : devices_map) {
-        Napi::Object device_properties = Napi::Object::New(info.Env());
-
-        device_properties.Set("buildNumber", Napi::String::New(info.Env(), dev.second.buildNumber));
-        device_properties.Set("description", Napi::String::New(info.Env(), dev.second.description));
-
-        versions_object.Set(dev.first, device_properties);
+        versions_object.Set(dev.first, cpp_to_js(info.Env(), dev.second));
     }
 
     return versions_object;

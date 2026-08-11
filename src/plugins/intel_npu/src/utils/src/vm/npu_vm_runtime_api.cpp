@@ -46,25 +46,22 @@ NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
     }
 
     try {
-#define nmr_symbol_statement(symbol) \
+#define nvm_symbol_statement(symbol) \
     this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol));
-        nmr_symbols_list();
-#undef nmr_symbol_statement
+        nvm_symbols_list();
+#undef nvm_symbol_statement
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }
 
-#define nmr_symbol_statement(symbol)                                                              \
+#define nvm_symbol_statement(symbol)                                                              \
     try {                                                                                         \
         this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol)); \
     } catch (const std::runtime_error&) {                                                         \
         this->symbol = nullptr;                                                                   \
     }
-#undef nmr_symbol_statement
-
-#define nmr_symbol_statement(symbol) symbol = this->symbol;
-    nmr_symbols_list();
-#undef nmr_symbol_statement
+    nvm_weak_symbols_list();
+#undef nvm_symbol_statement
 }
 
 void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {

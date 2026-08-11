@@ -50,7 +50,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -103,6 +103,8 @@ jobs:
       build-debian-packages: true
       build-contrib: true
       build-additional-python-packages: true
+      build-variant: 'levelzero'
+      store_artifacts: false
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'

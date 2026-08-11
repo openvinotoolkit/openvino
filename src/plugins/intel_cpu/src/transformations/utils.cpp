@@ -20,14 +20,18 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
@@ -59,8 +63,9 @@ bool match_fq_mul_conv_bias_same_types(const std::shared_ptr<const ov::Node>& no
     auto convAddMul_conv = wrap_type<ov::op::v1::Convolution>();
     auto convAddMul_add = wrap_type<ov::op::v1::Add>({convAddMul_conv, any_input()});
     auto convAddMul_mul = wrap_type<ov::op::v1::Multiply>({convAddMul_add, any_input()});
+    auto convAddMul_act = optional<ov::op::v4::Swish>({convAddMul_mul});
     auto convAddMul_fq =
-        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_mul, any_input(), any_input(), any_input(), any_input()});
+        wrap_type<ov::op::v0::FakeQuantize>({convAddMul_act, any_input(), any_input(), any_input(), any_input()});
     Matcher convAddMul_matcher(convAddMul_fq);
     auto matcher = (pattern == FQMulAddPattern::ConvMulAdd) ? convMulAdd_matcher : convAddMul_matcher;
     if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
@@ -116,6 +121,35 @@ bool match_acl_int8_conv_fq_chain(const std::shared_ptr<const ov::Node>& node) {
     return ov::is_type<const ov::op::v0::FakeQuantize>(node) &&
            any_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8) &&
            (match_conv_fq_same_types(node) || match_fq_mul_conv_bias_same_types(node, FQMulAddPattern::ConvAddMul));
+}
+
+bool match_acl_int8_matmul_fq_chain(const std::shared_ptr<const ov::Node>& node) {
+    if (!ov::is_type<const ov::op::v0::FakeQuantize>(node) ||
+        none_of(node->get_output_element_type(0), ov::element::Type_t::u8, ov::element::Type_t::i8)) {
+        return false;
+    }
+
+    auto matmul_m =
+        wrap_type<ov::op::v0::MatMul>({any_input(type_matches_any({ov::element::i8, ov::element::u8})), any_input()});
+    auto add_m = wrap_type<ov::op::v1::Add>({matmul_m, any_input()});
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({add_m, any_input()});
+    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({mul_m, any_input(), any_input(), any_input(), any_input()});
+    Matcher matcher(fq_m);
+    if (!matcher.match(std::const_pointer_cast<ov::Node>(node))) {
+        return false;
+    }
+
+    const auto& pattern_map = matcher.get_pattern_value_map();
+    const auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
+    if (matmul->get_input_element_type(0) != node->get_output_element_type(0)) {
+        return false;
+    }
+
+    const auto is_per_tensor_input = [](const ov::Output<ov::Node>& input) {
+        const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(input.get_node_shared_ptr());
+        return constant != nullptr && shape_size(constant->get_shape()) == 1;
+    };
+    return is_per_tensor_input(node->input_value(1)) && is_per_tensor_input(node->input_value(2));
 }
 
 bool is_acl_int8_avg_pool_lpt_skipped(const std::shared_ptr<const ov::Node>& node,
@@ -178,14 +212,22 @@ bool match_acl_int8_conv_add_multiply_chain(const std::shared_ptr<const ov::Node
         return false;
     }
 
-    // Accept Conv->FQ and Conv->Add->FQ only.
-    // Activations between bias and FQ are not supported here yet, some of them will be enabled later
+    // Accept Conv->FQ, Conv->Add->FQ, and Conv->Add->Swish->FQ (ACL i8/u8->f32 path).
     const auto second_consumer = get_consumer(add->output(0));
     if (!second_consumer) {
         return false;
     }
 
-    return ov::is_type<ov::op::v0::FakeQuantize>(second_consumer);
+    if (ov::is_type<ov::op::v0::FakeQuantize>(second_consumer)) {
+        return true;
+    }
+
+    if (ov::is_type<ov::op::v4::Swish>(second_consumer)) {
+        const auto third_consumer = get_consumer(second_consumer->output(0));
+        return third_consumer && ov::is_type<ov::op::v0::FakeQuantize>(third_consumer);
+    }
+
+    return false;
 }
 
 bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
