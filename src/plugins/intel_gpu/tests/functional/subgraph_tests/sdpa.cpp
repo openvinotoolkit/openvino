@@ -36,6 +36,7 @@ enum class GQAMode {
     ConcatBasedBroadcast = 1,
     DirectBroadcast = 2,
 };
+
 // validate the batch axis padding for sdpa_micro kernel.
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
