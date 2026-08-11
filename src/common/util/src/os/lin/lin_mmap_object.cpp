@@ -149,7 +149,7 @@ public:
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
         set_from_fd(fd, offset, size, mmap_mode);
-        m_id = util::get_id_for_file(path, offset, size);
+        m_id = (mmap_mode == MmapMode::READ_WRITE) ? no_mapping_id : util::get_id_for_file(path, offset, size);
     }
 
     void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ) {
@@ -176,8 +176,11 @@ public:
             }
             m_data = static_cast<char*>(m_mapped_view) + gap;
         }
-        m_id =
-            util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
+        // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
+        m_id = (mmap_mode == MmapMode::READ_WRITE)
+                   ? no_mapping_id
+                   : util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
+                                            {static_cast<uint64_t>(sb.st_dev), offset, size});
     }
 
     uint64_t get_id() const noexcept override {

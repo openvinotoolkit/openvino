@@ -651,6 +651,10 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     const size_t total_va_size = util::align_size_up(r_length, gran);
 
     set_id(file_handle, offset, size);
+    if (mode == MmapMode::READ_WRITE) {
+        // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
+        m_id = no_mapping_id;
+    }
 
     if (m_size == 0) {
         return;

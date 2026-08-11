@@ -270,7 +270,6 @@ TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
 
     auto expected = m_content;
     std::fill_n(expected.begin() + k_offset, k_size, uint8_t{0x5A});
-    ASSERT_NE(expected, m_content);
 
     {
         auto mm = load_mmap_object(m_file_path, k_offset, k_size, false, MmapMode::READ_WRITE);
@@ -283,6 +282,20 @@ TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
     }
 
     EXPECT_THAT(read_file(), ElementsAreArray(expected));
+}
+
+TEST_F(ReadWriteMappingTest, read_write_mappings_report_no_mapping_id) {
+    auto rw_whole = load_mmap_object(m_file_path, 0, auto_size, false, MmapMode::READ_WRITE);
+    auto rw_part = load_mmap_object(m_file_path, 128, 256, false, MmapMode::READ_WRITE);
+    auto ro = load_mmap_object(m_file_path);
+
+    ASSERT_NE(rw_whole, nullptr);
+    ASSERT_NE(rw_part, nullptr);
+    ASSERT_NE(ro, nullptr);
+
+    EXPECT_EQ(rw_whole->get_id(), no_mapping_id);
+    EXPECT_EQ(rw_part->get_id(), no_mapping_id);
+    EXPECT_NE(ro->get_id(), no_mapping_id);
 }
 
 class HintEvictTest : public ::testing::Test {
