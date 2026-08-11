@@ -4,7 +4,6 @@
 
 #include "repack_matmul_weights.hpp"
 
-#include <cstddef>
 #include <memory>
 #include <utility>
 
