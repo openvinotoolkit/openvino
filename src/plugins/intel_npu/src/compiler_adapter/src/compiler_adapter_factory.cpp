@@ -13,7 +13,7 @@ namespace intel_npu {
 ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
     std::string_view platform) const {
     if (platform == ov::intel_npu::Platform::NPU4000 || platform == ov::intel_npu::Platform::NPU5010 ||
-        platform == ov::intel_npu::Platform::NPU5020) {
+        platform == ov::intel_npu::Platform::NPU5020 || platform == ov::intel_npu::Platform::NPU6010) {
         return ov::intel_npu::CompilerType::PLUGIN;
     }
 

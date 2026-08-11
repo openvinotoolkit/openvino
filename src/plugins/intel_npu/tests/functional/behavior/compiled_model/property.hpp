@@ -301,7 +301,7 @@ using CheckCompilerTypeProperty = ClassExecutableNetworkGetPropertiesTestNPU;
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020", "6010"};
     bool is_plugin_compiler_platform = false;
     for (const auto& p : plugin_compiler_platforms) {
         if (platform.find(p) != std::string::npos) {
@@ -339,7 +339,7 @@ TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyFromCompiledModel) {
 
 TEST_P(CheckCompilerTypeProperty, CheckCompilerTypePropertyAfterSettingExtraConfigToGetProperty) {
     std::string platform = ov::test::utils::getTestsPlatformFromEnvironmentOr(deviceName);
-    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020"};
+    const std::vector<std::string> plugin_compiler_platforms = {"4000", "5010", "5020", "6010"};
     bool is_plugin_compiler_platform = false;
     for (const auto& p : plugin_compiler_platforms) {
         if (platform.find(p) != std::string::npos) {

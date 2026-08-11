@@ -54,7 +54,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::key_cache_precision.name()),
         RO_property(ov::value_cache_precision.name()),
         RO_property(ov::key_cache_group_size.name()),
-        RO_property(ov::value_cache_group_size.name())
+        RO_property(ov::value_cache_group_size.name()),
+        RO_property(ov::runtime_requirements.name())
     };
 
     ov::Core ie;
