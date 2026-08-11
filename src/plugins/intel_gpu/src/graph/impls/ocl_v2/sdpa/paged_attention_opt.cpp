@@ -1057,6 +1057,19 @@ protected:
 
         jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "writer") ? 1 : 0);
 
+        // Token-major i8 BY_CHANNEL. Separate from IS_KEY_TOKEN_MAJOR (which stays 0 for BY_CHANNEL) so
+        // that only this writer and sdpa_ocl_decode see the relaid-out page -- everything else keeps
+        // reading the d-major one. The page SIZE is identical either way, so none of the ADJUSTED_*
+        // values above change; only the in-page addressing does.
+        // i8 ONLY: an INT4 BY_CHANNEL page packs two tokens per byte along the axis this flips, so it
+        // keeps its own layout (and the predicate tests for i8 explicitly). XAttention is excluded too:
+        // its cache is built and read by the CM path, which does not know this layout.
+        const bool k_by_channel_token_major =
+            !desc->has_xattention &&
+            cldnn::paged_attention::k_by_channel_token_major_for(
+                params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type, is_key_by_channel);
+        jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
+
         return jit;
     }
 

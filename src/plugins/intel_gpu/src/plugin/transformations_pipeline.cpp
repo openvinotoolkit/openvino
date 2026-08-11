@@ -930,8 +930,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // Token-major K (same dim order as V and as XAttention). Uncompressed and i8/u8
                 // BY_TOKEN qualify; BY_CHANNEL and INT4 inline scale/zp along the axis this flips.
                 // See paged_attention::k_token_major_for().
-                const bool k_token_major = cldnn::paged_attention::k_token_major_for(
-                    kv_cache_precision, key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+                const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+                const bool k_token_major =
+                    cldnn::paged_attention::k_token_major_for(kv_cache_precision, is_by_channel) ||
+                    cldnn::paged_attention::k_by_channel_token_major_for(kv_cache_precision, is_by_channel);
                 kv_cache_config.keyCacheDimOrder = k_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);

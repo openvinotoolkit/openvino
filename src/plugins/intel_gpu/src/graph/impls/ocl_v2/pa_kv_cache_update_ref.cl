@@ -136,6 +136,33 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 #define COMP_K_OFFSET PAGED_ATTENTION_BLOCK_SIZE
 #endif
 #define NUM_HEAD_SIZE_GROUPS K_HEAD_SIZE / SUBGROUP_SIZE
+
+// Where channel `c`'s data and its (scale, zp) pair live inside a K page, as BYTE offsets from the
+// page base. This is the only thing that differs between the two BY_CHANNEL layouts, so expressing
+// every by-channel access through these three keeps one code path for both.
+//
+//   d-major (upstream)   [k_head_size columns][block_size + 4]: a column is contiguous, and its pair
+//                        sits inline at the end of it.
+//   token-major (opt-in) [block_size + 4 rows][k_head_size]: rows 0..block_size-1 are the tokens with
+//                        a k_head_size pitch -- exactly the BY_TOKEN data geometry -- and the pairs
+//                        follow the data as one per-channel array. Only sdpa_ocl_decode reads this;
+//                        see paged_attention::k_by_channel_token_major_for() for why it is separate.
+//
+// The page SIZE is k_head_size * (block_size + 4) either way, so page bases are untouched.
+#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+    #if IS_INT4_COMPRESSED
+        // INT4 packs two TOKENS per byte along the axis this layout makes the row pitch, so the two are
+        // incompatible. The host predicate tests for i8, so reaching here means host and kernel drifted.
+        #error "pa_kv_cache_update_ref.cl: token-major BY_CHANNEL is i8 only, not INT4"
+    #endif
+    #define BC_DATA_OFF(page, c)  ((page) + (c))
+    #define BC_TOKEN_STRIDE       K_HEAD_SIZE
+    #define BC_COMP_OFF(page, c)  ((page) + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + 2 * (c) * (uint)sizeof(INPUT0_TYPE))
+#else
+    #define BC_DATA_OFF(page, c)  ((page) + (c) * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE)
+    #define BC_TOKEN_STRIDE       1
+    #define BC_COMP_OFF(page, c)  ((page) + (c) * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + COMP_K_OFFSET)
+#endif
 inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,
                                     const uint in_data_pitch,
@@ -150,9 +177,11 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
     int head_size_offset = SUBGROUP_SIZE * get_group_id(2) * num_head_size_groups;
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
-        const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
+        // out_data_pitch is the caller's d-major column pitch; BC_* derive both layouts from the page
+        // base instead, so it goes unused when the token-major one is selected.
+        const uint data_off = BC_DATA_OFF(out_data_offset, (uint)hidden_idx);
         // Read original scale and zp
-        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
+        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[BC_COMP_OFF(out_data_offset, (uint)hidden_idx)]);
         const INPUT0_TYPE orig_scale = comp_ptr[0];
         const INPUT0_TYPE orig_zp = comp_ptr[1];
         INPUT0_TYPE max_value = INPUT0_VAL_MIN;
@@ -173,7 +202,18 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
         //        but when the block size becomes different, this part should be updated as well
-        OUT_DATA_VEC prev_cache_data_vec = VLOAD(0, out_data + out_offset_per_wi);
+        #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+        // Token-major puts a channel's tokens K_HEAD_SIZE bytes apart, so the contiguous vload16 turns
+        // into PAGED_ATTENTION_BLOCK_SIZE separate reads. They are not scattered, though: lane ==
+        // channel, so each read is contiguous ACROSS the subgroup where the vload16 was contiguous
+        // within a lane. And this runs on one block per (sequence, kv head) per step, so it is bounded.
+        OUT_DATA_VEC prev_cache_data_vec;
+        unroll_for (uint t = 0; t < PAGED_ATTENTION_BLOCK_SIZE; ++t) {
+            prev_cache_data_vec[t] = out_data[data_off + t * BC_TOKEN_STRIDE];
+        }
+        #else
+        OUT_DATA_VEC prev_cache_data_vec = VLOAD(0, out_data + data_off);
+        #endif
         #undef READ_SIZE
         #undef VLOAD
         #undef DATA_VEC
@@ -202,7 +242,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
 
             for (uint token = 0; token < token_pos_in_block + new_tokens_num; ++token) {
                 OUTPUT_TYPE quantized = convert_char_rte(cache_data_vec_decompressed[token] * scale + zp);
-                out_data[out_offset_per_wi + token] = quantized;
+                out_data[data_off + token * BC_TOKEN_STRIDE] = quantized;
             }
             comp_ptr[0] = 1.0/scale;
             comp_ptr[1] = zp;
@@ -329,10 +369,12 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
         #undef ACCUMULATOR_TYPE
 
-        // Quantize and save each hidden dim
+        // Quantize and save each hidden dim. `out_offset` walks head-size groups, so this lane's channel
+        // is i * SUBGROUP_SIZE + sglid; BC_* turn that into byte offsets for whichever layout is active.
+        const uint channel_idx = i * SUBGROUP_SIZE + sglid;
         uint out_offset_per_wi = out_offset + sglid * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         // store comp_data
-        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
+        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[BC_COMP_OFF(out_data_offset, channel_idx)]);
 
         #if IS_INT4_COMPRESSED
             // Token-axis packing: one scale/zp per column (head dim)
@@ -351,9 +393,10 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             comp_ptr[0] = 1.0 / scale;
             comp_ptr[1] = zp;
 
+            const uint data_off = BC_DATA_OFF(out_data_offset, channel_idx);
             for (uint token_num = 0; token_num < tokens_num; token_num++) {
                 OUTPUT_TYPE res = convert_char_rte(input_data[token_num] * scale + zp);
-                out_data[out_offset_per_wi + token_num] = res;
+                out_data[data_off + token_num * BC_TOKEN_STRIDE] = res;
             }
             out_offset += ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * SUBGROUP_SIZE;
         #endif

@@ -376,8 +376,9 @@ struct PagedAttentionManager {
     bool k_cache_token_major() const {
         const auto precision = is_int4_kv_cache() ? kv_cache_precision
                                                   : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
-        return cldnn::paged_attention::k_token_major_for(precision,
-                                                         key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+        const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+        return cldnn::paged_attention::k_token_major_for(precision, is_by_channel) ||
+               cldnn::paged_attention::k_by_channel_token_major_for(precision, is_by_channel);
     }
 
     cldnn::memory::ptr get_key_cache_memory() {
@@ -482,7 +483,18 @@ struct PagedAttentionManager {
                                 }
                             }
                         } else {
+                            // i8 BY_CHANNEL. The page is adjusted_head_size * adjusted_block_size bytes
+                            // in either layout, so only the addressing inside it differs:
+                            //   d-major     [k_head_size columns][block_size + 4] -- a column's tokens
+                            //               are contiguous and its (scale, zp) pair sits inline at the end
+                            //   token-major [block_size rows][k_head_size] of data, exactly the BY_TOKEN
+                            //               data geometry, followed by one (scale, zp) pair per CHANNEL.
+                            //               This is what sdpa_ocl_decode reads; see
+                            //               paged_attention::k_by_channel_token_major_for().
+                            const bool k_tm = k_cache_token_major();
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
+                                size_t output_block_offset = (start_block_idx + block_idx) * num_kv_heads * adjusted_head_size * adjusted_block_size +
+                                                             head_idx * adjusted_head_size * adjusted_block_size;
                                 for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
                                     std::vector<ov::float16> token_block(block_size);
                                     for (int token_idx = 0; token_idx < last_token_idx; ++token_idx) {
@@ -491,11 +503,20 @@ struct PagedAttentionManager {
                                             *(key_data[i].data() + input_token_offset * num_kv_heads * k_head_size + head_idx * k_head_size + k_head_size_idx);
                                     }
                                     auto [quantized_data, scale, zp] = quantize_data(token_block.data(), last_token_idx, true);
-                                    size_t output_block_offset = (start_block_idx + block_idx) * num_kv_heads * adjusted_head_size * adjusted_block_size +
-                                                                 head_idx * adjusted_head_size * adjusted_block_size;
-                                    size_t output_offset = output_block_offset + k_head_size_idx * adjusted_block_size;
-                                    set_values(test_stream, memory, quantized_data.data(), last_token_idx, output_offset);
-                                    size_t comp_offset = (output_offset + block_size) / 2;
+                                    size_t comp_offset;
+                                    if (k_tm) {
+                                        // A channel's tokens are k_head_size apart, so they go one at a time.
+                                        for (int token_idx = 0; token_idx < last_token_idx; ++token_idx) {
+                                            set_values(test_stream, memory, quantized_data.data() + token_idx, 1,
+                                                       output_block_offset + static_cast<size_t>(token_idx) * k_head_size + k_head_size_idx);
+                                        }
+                                        comp_offset = (output_block_offset + static_cast<size_t>(k_head_size) * block_size) / 2 +
+                                                      2 * static_cast<size_t>(k_head_size_idx);
+                                    } else {
+                                        size_t output_offset = output_block_offset + k_head_size_idx * adjusted_block_size;
+                                        set_values(test_stream, memory, quantized_data.data(), last_token_idx, output_offset);
+                                        comp_offset = (output_offset + block_size) / 2;
+                                    }
                                     set_values(test_stream, memory, &scale, 1, comp_offset);
                                     set_values(test_stream, memory, &zp, 1, comp_offset + 1);
                                 }
@@ -1651,10 +1672,13 @@ public:
                         }
                     }
                 } else {
-                    // I8/U8 BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+4]
-                    // Each dimension quantized across all tokens in block
+                    // I8/U8 BY_CHANNEL, each channel quantized across the block's tokens. Two layouts,
+                    // same page size (k_head_size * (block_size + 4)) -- see get_key_cache_memory():
+                    //   d-major     [k_head_size][block_size + 4], pair inline at the end of a column
+                    //   token-major [block_size][k_head_size] data, then a per-channel pair array
                     cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int adj_block_size = pam.block_size + 4;
+                    const bool k_tm = pam.k_cache_token_major();
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1666,14 +1690,18 @@ public:
 
                             for (int dim = 0; dim < pam.k_head_size; dim++) {
                                 // Read scale and zero-point for this dimension
-                                const size_t scale_offset = cache_base + static_cast<size_t>(dim) * adj_block_size + pam.block_size;
+                                const size_t scale_offset =
+                                    k_tm ? cache_base + static_cast<size_t>(pam.k_head_size) * pam.block_size + 4 * static_cast<size_t>(dim)
+                                         : cache_base + static_cast<size_t>(dim) * adj_block_size + pam.block_size;
                                 ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
                                 ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset + 2]);
 
                                 // Dequantize all tokens for this dimension
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
-                                    const size_t cache_offset = cache_base + static_cast<size_t>(dim) * adj_block_size + token_offset;
+                                    const size_t cache_offset =
+                                        k_tm ? cache_base + static_cast<size_t>(token_offset) * pam.k_head_size + dim
+                                             : cache_base + static_cast<size_t>(dim) * adj_block_size + token_offset;
                                     const size_t output_offset =
                                         static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size + dim;
 
@@ -1907,8 +1935,13 @@ public:
             for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
                 const size_t block_head_offset =
                     (static_cast<size_t>(physical_block) * p.num_kv_heads + head) * p.k_head_size * adjusted_block_size;
+                // Token-major BY_CHANNEL (i8 only) moves the pairs out of the columns and into a
+                // trailing per-channel array; see paged_attention::k_by_channel_token_major_for().
+                const bool k_tm = !is_int4 && pam->k_cache_token_major();
                 for (size_t dim = 0; dim < static_cast<size_t>(p.k_head_size); ++dim) {
-                    const size_t scale_offset = block_head_offset + dim * adjusted_block_size + quantized_values;
+                    const size_t scale_offset =
+                        k_tm ? block_head_offset + static_cast<size_t>(p.k_head_size) * p.block_size + 4 * dim
+                             : block_head_offset + dim * adjusted_block_size + quantized_values;
                     ov::float16 stored_inv_scale;
                     std::memcpy(&stored_inv_scale, cache_bytes.data() + scale_offset, sizeof(stored_inv_scale));
                     const float inv_scale = static_cast<float>(stored_inv_scale);
