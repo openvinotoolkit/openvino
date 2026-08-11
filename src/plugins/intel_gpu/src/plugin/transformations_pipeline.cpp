@@ -130,6 +130,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_selective_ssm.hpp"
 #include "transformations/common_optimizations/glu_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
@@ -671,6 +672,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
+        manager.register_pass<ov::pass::SelectiveSSMFusion>();
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 

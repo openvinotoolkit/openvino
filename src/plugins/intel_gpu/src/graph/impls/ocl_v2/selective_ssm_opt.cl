@@ -8,6 +8,12 @@
 
 #define SSM_MAX_HEAD_DIM_BLOCK 4
 
+#if SSM_JIT && !SSM_JIT_HAS_HEAD_DIM_TAIL
+#    define SSM_P_VALID(p) 1
+#else
+#    define SSM_P_VALID(p) ((p) < head_dim)
+#endif
+
 KERNEL(selective_ssm_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* A,
@@ -21,17 +27,37 @@ KERNEL(selective_ssm_opt)(
     int head_dim_block,
     __local float* work) {
     const size_t lane = get_local_id(0);
-    const size_t lws = get_local_size(0);
-    const size_t p_base = get_group_id(0) * (size_t)head_dim_block;
+    const size_t runtime_lws = get_local_size(0);
     const size_t h = get_global_id(1);
     const size_t b = get_global_id(2);
 
     const size_t batch = INPUT3_BATCH_NUM;
     const size_t seq_len = INPUT3_FEATURE_NUM;
-    const size_t num_heads = INPUT3_SIZE_Y;
-    const size_t head_dim = INPUT3_SIZE_X;
-    const size_t num_groups = INPUT2_SIZE_Y;
-    const size_t state_size = INPUT2_SIZE_X;
+    const size_t runtime_num_heads = INPUT3_SIZE_Y;
+    const size_t runtime_head_dim = INPUT3_SIZE_X;
+    const size_t runtime_num_groups = INPUT2_SIZE_Y;
+    const size_t runtime_state_size = INPUT2_SIZE_X;
+#if SSM_JIT
+    const size_t num_heads = SSM_JIT_NUM_HEADS;
+    const size_t head_dim = SSM_JIT_HEAD_DIM;
+    const size_t num_groups = SSM_JIT_NUM_GROUPS;
+    const size_t state_size = SSM_JIT_STATE_SIZE;
+    const size_t lws = SSM_JIT_LWS;
+    const int block = SSM_JIT_HEAD_DIM_BLOCK;
+
+    if (runtime_lws != lws || head_dim_block != block ||
+        runtime_num_heads != num_heads || runtime_head_dim != head_dim ||
+        runtime_num_groups != num_groups || runtime_state_size != state_size)
+        return;
+#else
+    const size_t num_heads = runtime_num_heads;
+    const size_t head_dim = runtime_head_dim;
+    const size_t num_groups = runtime_num_groups;
+    const size_t state_size = runtime_state_size;
+    const size_t lws = runtime_lws;
+    const int block = head_dim_block;
+#endif
+    const size_t p_base = get_group_id(0) * (size_t)block;
 
     if (INPUT0_BATCH_NUM != num_heads ||
         INPUT1_BATCH_NUM != batch || INPUT1_FEATURE_NUM != seq_len || INPUT1_SIZE_Y != num_heads ||
@@ -43,7 +69,7 @@ KERNEL(selective_ssm_opt)(
         return;
 
     if (b >= batch || h >= num_heads || p_base >= head_dim || num_groups == 0 ||
-        num_heads % num_groups != 0 || head_dim_block <= 0 || head_dim_block > SSM_MAX_HEAD_DIM_BLOCK)
+        num_heads % num_groups != 0 || block <= 0 || block > SSM_MAX_HEAD_DIM_BLOCK)
         return;
 
     const size_t heads_per_group = num_heads / num_groups;
@@ -51,11 +77,11 @@ KERNEL(selective_ssm_opt)(
     const float A_value = SSM_TO_FLOAT(A[INPUT0_GET_INDEX(h, 0, 0, 0)]);
     // Keep recurrent state in FP32 across tokens; cast only when writing output.
     __local float* local_state = work;
-    __local float* reduction = work + (size_t)head_dim_block * state_size;
+    __local float* reduction = work + (size_t)block * state_size;
 
-    for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+    for (int p_offset = 0; p_offset < block; ++p_offset) {
         const size_t p = p_base + (size_t)p_offset;
-        if (p >= head_dim)
+        if (!SSM_P_VALID(p))
             continue;
         for (size_t n = lane; n < state_size; n += lws) {
             const size_t state_idx = INPUT5_GET_INDEX(b, h, p, n);
@@ -71,9 +97,9 @@ KERNEL(selective_ssm_opt)(
         float x_values[SSM_MAX_HEAD_DIM_BLOCK];
         float partial[SSM_MAX_HEAD_DIM_BLOCK];
 
-        for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+        for (int p_offset = 0; p_offset < block; ++p_offset) {
             const size_t p = p_base + (size_t)p_offset;
-            x_values[p_offset] = p < head_dim ? SSM_TO_FLOAT(x[INPUT3_GET_INDEX(b, t, h, p)]) : 0.0f;
+            x_values[p_offset] = SSM_P_VALID(p) ? SSM_TO_FLOAT(x[INPUT3_GET_INDEX(b, t, h, p)]) : 0.0f;
             partial[p_offset] = 0.0f;
         }
 
@@ -82,9 +108,9 @@ KERNEL(selective_ssm_opt)(
             const size_t c_idx = INPUT4_GET_INDEX(b, t, g, n);
             const float b_value = SSM_TO_FLOAT(B[b_idx]);
             const float c_value = SSM_TO_FLOAT(C[c_idx]);
-            for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+            for (int p_offset = 0; p_offset < block; ++p_offset) {
                 const size_t p = p_base + (size_t)p_offset;
-                if (p >= head_dim)
+                if (!SSM_P_VALID(p))
                     continue;
                 const size_t local_idx = (size_t)p_offset * state_size + n;
                 const float new_state = fma(local_state[local_idx], dA,
@@ -94,13 +120,13 @@ KERNEL(selective_ssm_opt)(
             }
         }
 
-        for (int p_offset = 0; p_offset < head_dim_block; ++p_offset)
+        for (int p_offset = 0; p_offset < block; ++p_offset)
             reduction[(size_t)p_offset * lws + lane] = partial[p_offset];
         barrier(CLK_LOCAL_MEM_FENCE);
 
         for (size_t offset = lws / 2; offset > 0; offset /= 2) {
             if (lane < offset) {
-                for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+                for (int p_offset = 0; p_offset < block; ++p_offset) {
                     const size_t reduction_idx = (size_t)p_offset * lws + lane;
                     reduction[reduction_idx] += reduction[reduction_idx + offset];
                 }
@@ -109,17 +135,17 @@ KERNEL(selective_ssm_opt)(
         }
 
         if (lane == 0) {
-            for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+            for (int p_offset = 0; p_offset < block; ++p_offset) {
                 const size_t p = p_base + (size_t)p_offset;
-                if (p < head_dim)
+                if (SSM_P_VALID(p))
                     output[OUTPUT_GET_INDEX(b, t, h, p)] = TO_OUTPUT_TYPE(reduction[(size_t)p_offset * lws]);
             }
         }
     }
 
-    for (int p_offset = 0; p_offset < head_dim_block; ++p_offset) {
+    for (int p_offset = 0; p_offset < block; ++p_offset) {
         const size_t p = p_base + (size_t)p_offset;
-        if (p >= head_dim)
+        if (!SSM_P_VALID(p))
             continue;
         for (size_t n = lane; n < state_size; n += lws) {
             const size_t local_idx = (size_t)p_offset * state_size + n;
@@ -127,3 +153,6 @@ KERNEL(selective_ssm_opt)(
         }
     }
 }
+
+#undef SSM_P_VALID
+#undef SSM_MAX_HEAD_DIM_BLOCK

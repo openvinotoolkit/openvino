@@ -40,6 +40,54 @@ size_t get_head_dim_block(const size_t head_dim, const size_t state_size, const 
     return block;
 }
 
+struct SSMJitConfig {
+    bool enabled = false;
+    size_t num_heads = 0;
+    size_t head_dim = 0;
+    size_t num_groups = 0;
+    size_t state_size = 0;
+    size_t lws = 1;
+    size_t head_dim_block = 1;
+};
+
+bool get_static_dim(const ov::PartialShape& shape, const size_t index, size_t& value) {
+    if (shape.rank().is_dynamic() || index >= shape.size() || shape[index].is_dynamic())
+        return false;
+
+    value = shape[index].get_length();
+    return true;
+}
+
+SSMJitConfig get_jit_config(const RuntimeParams& params) {
+    SSMJitConfig config;
+    const auto& x_shape = params.get_input_layout(3).get_partial_shape();
+    const auto& B_shape = params.get_input_layout(2).get_partial_shape();
+    if (!get_static_dim(x_shape, 2, config.num_heads) || !get_static_dim(x_shape, 3, config.head_dim) || !get_static_dim(B_shape, 2, config.num_groups) ||
+        !get_static_dim(B_shape, 3, config.state_size) || config.num_heads == 0 || config.head_dim == 0 || config.num_groups == 0 || config.state_size == 0 ||
+        config.num_heads % config.num_groups != 0) {
+        return config;
+    }
+
+    config.lws = get_lws(config.state_size, params.get_device_info());
+    config.head_dim_block = get_head_dim_block(config.head_dim, config.state_size, config.lws, params.get_device_info());
+    config.enabled = true;
+    return config;
+}
+
+void add_jit_config(JitConstants& jit, const SSMJitConfig& config) {
+    jit.make("SSM_JIT", config.enabled ? 1 : 0);
+    if (!config.enabled)
+        return;
+
+    jit.make("SSM_JIT_NUM_HEADS", config.num_heads);
+    jit.make("SSM_JIT_HEAD_DIM", config.head_dim);
+    jit.make("SSM_JIT_NUM_GROUPS", config.num_groups);
+    jit.make("SSM_JIT_STATE_SIZE", config.state_size);
+    jit.make("SSM_JIT_LWS", config.lws);
+    jit.make("SSM_JIT_HEAD_DIM_BLOCK", config.head_dim_block);
+    jit.make("SSM_JIT_HAS_HEAD_DIM_TAIL", config.head_dim % config.head_dim_block != 0 ? 1 : 0);
+}
+
 void set_head_dim_block_scalar(KernelData& kd, const size_t block) {
     kd.params.scalars.clear();
     scalar_desc desc;
@@ -57,6 +105,7 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
         const bool is_bf16 = params.get_input_layout(0).data_type == ov::element::bf16;
         jit.make("SSM_TO_FLOAT(v)", is_bf16 ? "_convert_as_bfloat16_float(v)" : "convert_float(v)");
+        add_jit_config(jit, get_jit_config(params));
         return jit;
     }
 
