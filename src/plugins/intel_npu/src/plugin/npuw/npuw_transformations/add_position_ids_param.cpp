@@ -72,13 +72,13 @@ public:
         ov::pass::MultiMatcher::Callback callback = [=, &new_params](const auto& m) {
             // NOTE: Range that mimics `position_ids` is consumed by RoPE operation, but might as well be used for
             //       Causal Mask creation (via LessEqual, ex.: transformers==5.0.0) and Gated Short Convolution Block's
-            //       ScatterNDUpdate operation (ex.: transformers==4.57.6). The rewrite below only rewires the RoPE 
+            //       ScatterNDUpdate operation (ex.: transformers==4.57.6). The rewrite below only rewires the RoPE
             //       path and ScatterNDUpdate path (if exists) to use new `position_ids` parameter.
             //       For static shapes case, it is not right to use actual `position_ids` for the second argument of
             //       LessEqual operation (=Q range) in creation of the causal mask. This setup will only allow positions
-            //       from the left till the real current positions in the sequence (inclusively), while our current items
-            //       are lied at the right end of the static `input_ids` after a whole window of padding.
-            //       Thus, the Range should be preserved for Causal Mask creation.
+            //       from the left till the real current positions in the sequence (inclusively), while our current
+            //       items are lied at the right end of the static `input_ids` after a whole window of padding. Thus,
+            //       the Range should be preserved for Causal Mask creation.
             auto& pattern_to_output = m.at(cos).front();
 
             auto range_node = pattern_to_output.at(range).get_node_shared_ptr();
