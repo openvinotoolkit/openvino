@@ -125,7 +125,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
         val = (OUTPUT_TYPE)0;
     }
 #else
-    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : TO_OUTPUT_TYPE(0);
+    val = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : OUTPUT_VAL_ZERO;
 #endif
 #else
     OUTPUT_VEC_TYPE val = 0;
@@ -135,7 +135,7 @@ KERNEL(reorder_weights_opt)(const __global INPUT0_TYPE* input, __global OUTPUT_T
             val[b] = TO_OUTPUT_TYPE(input[input_idx]);
         }
 #else
-        val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : TO_OUTPUT_TYPE(0);
+        val[b] = valid_lane ? TO_OUTPUT_TYPE(input[input_idx]) : OUTPUT_VAL_ZERO;
 #endif
         input_idx += PITCH;
     }
