@@ -154,7 +154,7 @@ install(TARGETS ${TARGET_NAME}
 
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_options_cache_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_supported_options_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_graph_options_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model_test.cpp

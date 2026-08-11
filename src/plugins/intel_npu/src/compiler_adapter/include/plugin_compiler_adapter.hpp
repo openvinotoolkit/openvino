@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "compiler_impl.hpp"
+#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -21,6 +22,7 @@ namespace intel_npu {
 class PluginCompilerAdapter final : public ICompilerAdapter {
 public:
     PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                          const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache = nullptr,
                           const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
@@ -34,14 +36,13 @@ public:
     std::vector<std::string> get_supported_options() const override;
 
     bool is_option_supported(const std::string& optName,
-                             const std::optional<std::string>& optValue = std::nullopt,
-                             const std::optional<uint32_t>& compilerSupportVersion = std::nullopt) const override;
+                             const std::optional<std::string>& optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-
+    std::shared_ptr<CompilerSupportedOptionsCache> _optionsCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<VCLCompilerImpl> _compiler;
 

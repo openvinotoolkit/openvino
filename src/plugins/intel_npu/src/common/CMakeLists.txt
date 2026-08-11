@@ -6,7 +6,7 @@ set(TARGET_NAME "openvino_npu_common")
 
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_adapter_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_options_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_supported_options_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/filtered_config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
@@ -17,7 +17,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/network_metadata.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/npu.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/parser_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_options_cache.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/device_helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/filtered_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/igraph.cpp

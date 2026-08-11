@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 
+#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -19,7 +20,8 @@ namespace intel_npu {
 
 class DriverCompilerAdapter final : public ICompilerAdapter {
 public:
-    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                          const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache = nullptr);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                     const FilteredConfig& config) const override;
@@ -32,8 +34,7 @@ public:
     std::vector<std::string> get_supported_options() const override;
 
     bool is_option_supported(const std::string& optName,
-                             const std::optional<std::string>& optValue = std::nullopt,
-                             const std::optional<uint32_t>& compilerSupportVersion = std::nullopt) const override;
+                             const std::optional<std::string>& optValue = std::nullopt) const override;
 
     uint32_t get_version() const override;
 
@@ -44,6 +45,7 @@ private:
     std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+    std::shared_ptr<CompilerSupportedOptionsCache> _optionsCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     ze_device_graph_properties_t _compilerProperties = {};

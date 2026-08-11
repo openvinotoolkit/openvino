@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "graph.hpp"
-#include "intel_npu/common/compiler_options_cache.hpp"
+#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -64,8 +64,10 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
 
 }  // namespace
 
-DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache)
     : _zeroInitStruct(zeroInitStruct),
+      _optionsCache(optionsCache),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize DriverCompilerAdapter start");
 
@@ -329,7 +331,9 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
             compilerOpts.push_back(option);
         }
 
-        CompilerOptionsCache::setSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+        if (_optionsCache) {
+            _optionsCache->setSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+        }
         return compilerOpts;
     }
 
@@ -345,25 +349,23 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
         return {};
     }
 
-    cacheSetSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+    if (_optionsCache) {
+        _optionsCache->setSupportedOptions(ov::intel_npu::CompilerType::DRIVER, compilerOpts);
+    }
     return compilerOpts;
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
-                                                const std::optional<std::string>& optValue,
-                                                const std::optional<uint32_t>& compilerSupportVersion) const {
-    if (CompilerOptionsCache::isOptionSupported(ov::intel_npu::CompilerType::DRIVER,
-                                                optName,
-                                                optValue,
-                                                compilerSupportVersion)) {
+                                                const std::optional<std::string>& optValue) const {
+    if (_optionsCache && _optionsCache->isOptionSupported(ov::intel_npu::CompilerType::DRIVER, optName, optValue)) {
         return true;
     }
 
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     if (isOptionSupported.has_value()) {
         const bool supported = isOptionSupported.value();
-        if (supported) {
-            CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
+        if (supported && _optionsCache) {
+            _optionsCache->addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, optValue);
         }
 
         return supported;
@@ -374,8 +376,8 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     for (const auto& prop : _supportedPropertiesWithVersions) {
         if (prop.name == optName) {
             const bool supported = isVersionSupportedByCompiler(prop.version, compilerVersion);
-            if (supported) {
-                CompilerOptionsCache::addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, std::nullopt);
+            if (supported && _optionsCache) {
+                _optionsCache->addSupportedOption(ov::intel_npu::CompilerType::DRIVER, optName, std::nullopt);
             }
             return supported;
         }

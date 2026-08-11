@@ -4,13 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
-
-#include "intel_npu/common/compiler_options_cache.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 
@@ -43,27 +36,9 @@ public:
     virtual uint32_t get_version() const = 0;
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(const std::string& optName,
-                                     const std::optional<std::string>& optValue = std::nullopt,
-                                     const std::optional<uint32_t>& compilerSupportVersion = std::nullopt) const = 0;
+                                     const std::optional<std::string>& optValue = std::nullopt) const = 0;
 
     virtual ~ICompilerAdapter() = default;
-
-protected:
-    static void cacheAddSupportedOption(const ov::intel_npu::CompilerType& compilerType,
-                                        const std::string& optionName,
-                                        const std::optional<std::string>& optionValue = std::nullopt) {
-        CompilerOptionsCache::addSupportedOption(compilerType, optionName, optionValue);
-    }
-
-    static void cacheSetSupportedOptions(const ov::intel_npu::CompilerType& compilerType,
-                                         const std::vector<std::string>& supportedOptions) {
-        CompilerOptionsCache::setSupportedOptions(compilerType, supportedOptions);
-    }
-
-    static void cacheSetLegacyCompilerVersion(const ov::intel_npu::CompilerType& compilerType,
-                                              uint32_t compilerVersion) {
-        CompilerOptionsCache::setLegacyCompilerVersion(compilerType, compilerVersion);
-    }
 };
 
 }  // namespace intel_npu
