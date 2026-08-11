@@ -683,6 +683,8 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     }
 
+    AdjustGlobalWorkSizes(params, dispatchData);
+
     auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
     // TODO: can be potentially improved for GPUs with support of LWS > 256

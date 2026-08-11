@@ -1492,6 +1492,67 @@ TEST(crop_gpu, basic_in1x176x52x52_crop_b_fs_yx_fsv16) {
     }
 }
 
+TEST(crop_gpu, static_ref_zeros_dirty_feature_padding_fsv16) {
+    constexpr size_t input_feature_count = 170;
+    constexpr size_t output_feature_count = 85;
+    constexpr size_t spatial_size = 80;
+    constexpr size_t feature_block_size = 16;
+    constexpr size_t physical_feature_count = 96;
+
+    auto& engine = get_test_engine();
+    const layout input_layout{data_types::f16,
+                              format::b_fs_yx_fsv16,
+                              tensor(1, input_feature_count, spatial_size, spatial_size)};
+    auto input = engine.allocate_memory(input_layout);
+    set_values(input, std::vector<ov::float16>(input_layout.get_linear_size(), ov::float16(1.0f)));
+
+    topology topology(cldnn::input_layout("input", input_layout),
+                      crop("crop",
+                           input_info("input"),
+                           tensor(1, output_feature_count, spatial_size, spatial_size),
+                           tensor(0, output_feature_count, 0, 0)));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"crop", {format::b_fs_yx_fsv16, "generic_eltwise_ref", impl_types::ocl}},
+    }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto crop_inst = network.get_primitive("crop");
+    ASSERT_NE(crop_inst->get_impl(), nullptr);
+    ASSERT_FALSE(crop_inst->can_be_optimized());
+    ASSERT_NE(network.get_primitive_info("crop").find("generic_eltwise_ref"), std::string::npos);
+
+    auto crop_output = crop_inst->output_memory_ptr();
+    ASSERT_NE(crop_output, nullptr);
+    ASSERT_EQ(crop_output->get_layout().get_linear_size(), physical_feature_count * spatial_size * spatial_size);
+    set_values(crop_output,
+               std::vector<ov::float16>(crop_output->get_layout().get_linear_size(), ov::float16(7.0f)));
+
+    auto outputs = network.execute();
+    auto output = outputs.at("crop").get_memory();
+    ASSERT_TRUE(engine.is_the_same_buffer(*crop_output, *output));
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const auto get_offset = [&](size_t feature, size_t y, size_t x) {
+        return ((feature / feature_block_size * spatial_size + y) * spatial_size + x) * feature_block_size +
+               feature % feature_block_size;
+    };
+
+    for (size_t y = 0; y < spatial_size; ++y) {
+        for (size_t x = 0; x < spatial_size; ++x) {
+            // SAFE indexing would wrap padding work-items 85..95 onto logical features 0..10.
+            for (size_t feature = 0; feature < physical_feature_count - output_feature_count; ++feature)
+                ASSERT_EQ(output_ptr[get_offset(feature, y, x)], ov::float16(1.0f));
+
+            for (size_t feature = output_feature_count; feature < physical_feature_count; ++feature)
+                ASSERT_EQ(output_ptr[get_offset(feature, y, x)], ov::float16(0.0f));
+        }
+    }
+}
+
 TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     auto& engine = get_test_engine();
 

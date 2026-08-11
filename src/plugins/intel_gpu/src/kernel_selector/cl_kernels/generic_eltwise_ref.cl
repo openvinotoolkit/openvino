@@ -12,6 +12,14 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
+#define GET_RAW_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_RAW)(idx_order)
+
+#if ZERO_OUTPUT_FEATURE_PADDING
+    #define GET_FEATURE_GWS_SIZE(logical_size) OUTPUT_FEATURE_GWS_SIZE
+#else
+    #define GET_FEATURE_GWS_SIZE(logical_size) (logical_size)
+#endif
+
 KERNEL(eltwise)(
     OPTIONAL_SHAPE_INFO_ARG
     INPUTS_DECLS
@@ -152,8 +160,8 @@ KERNEL(eltwise)(
         const uint d1 = get_global_id(0);
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
         const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1];
-        const uint d4 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
-        const uint d5 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
+        const uint d4 = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
+        const uint d5 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
     #endif
@@ -171,11 +179,18 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = get_global_id(1);
-        const uint d3 = (uint)get_global_id(2) % OUTPUT_SIZES[2];
-        const uint d4 = (uint)get_global_id(2) / OUTPUT_SIZES[2];
+        const uint d3 = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
+        const uint d4 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
     #endif
+#endif
+
+#if ZERO_OUTPUT_FEATURE_PADDING
+    if (OUTPUT_FEATURE_INDEX >= OUTPUT_FEATURE_NUM) {
+        output[GET_RAW_INDEX(OUTPUT,, OUTPUT_IDX_ORDER)] = OUTPUT_VAL_ZERO;
+        return;
+    }
 #endif
 
     ACCUMULATOR_TYPE res;

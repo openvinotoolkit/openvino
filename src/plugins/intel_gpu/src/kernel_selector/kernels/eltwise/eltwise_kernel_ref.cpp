@@ -6,6 +6,42 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+namespace {
+size_t GetSingleFeatureBlockSize(DataLayout layout) {
+    switch (layout) {
+        case DataLayout::b_fs_yx_fsv2:
+        case DataLayout::b_fs_zyx_fsv2:
+            return 2;
+        case DataLayout::b_fs_yx_fsv4:
+        case DataLayout::b_fs_zyx_fsv4:
+            return 4;
+        case DataLayout::b_fs_yx_fsv8:
+        case DataLayout::b_fs_zyx_fsv8:
+            return 8;
+        case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::b_fs_zyx_fsv16:
+            return 16;
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::b_fs_zyx_fsv32:
+            return 32;
+        default:
+            return 0;
+    }
+}
+
+bool ShouldZeroOutputFeaturePadding(const eltwise_params& params) {
+    const auto& output = params.outputs[0];
+    const auto feature_block_size = GetSingleFeatureBlockSize(output.GetLayout());
+    return !params.is_shape_agnostic &&
+           params.operations.size() == 1 &&
+           params.operations[0].mode == EltwiseMode::ASSIGN &&
+           feature_block_size != 0 &&
+           !output.Feature().is_dynamic &&
+           !output.Feature().pad.is_dynamic &&
+           output.Feature().pad.Total() == 0 &&
+           output.Feature().v % feature_block_size != 0;
+}
+}  // namespace
 
 ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -58,6 +94,15 @@ KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/) c
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
+    if (ShouldZeroOutputFeaturePadding(params)) {
+        const auto& output = params.outputs[0];
+        const auto aligned_feature_size = Align(output.Feature().v, GetSingleFeatureBlockSize(output.GetLayout()));
+        const auto feature_channel_idx = DataTensor::Channelndex(output.GetLayout(), Tensor::DataChannelName::FEATURE);
+        jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", 1));
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_GWS_SIZE", aligned_feature_size));
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_INDEX", "d" + std::to_string(feature_channel_idx + 1)));
+    }
+
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
@@ -95,5 +140,18 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
     }
 
     return jit;
+}
+
+void EltwiseKernelRef::AdjustGlobalWorkSizes(const eltwise_params& params, DispatchData& dispatch_data) const {
+    if (!ShouldZeroOutputFeaturePadding(params))
+        return;
+
+    const auto& output = params.outputs[0];
+    const auto aligned_feature_size = Align(output.Feature().v, GetSingleFeatureBlockSize(output.GetLayout()));
+    if (params.layoutBased || params.int8_quantization || params.broadcast) {
+        dispatch_data.gws[1] = aligned_feature_size;
+    } else {
+        dispatch_data.gws[2] = aligned_feature_size * output.Batch().v;
+    }
 }
 }  // namespace kernel_selector

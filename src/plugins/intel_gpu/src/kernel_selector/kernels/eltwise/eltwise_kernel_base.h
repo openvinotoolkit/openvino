@@ -109,6 +109,7 @@ protected:
     virtual JitConstants MakeIndexJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual JitConstants MakeInputDeclsJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual DispatchData SetDefault(const eltwise_params& params) const;
+    virtual void AdjustGlobalWorkSizes(const eltwise_params&, DispatchData&) const {}
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const eltwise_params &params) const;
 

@@ -28,5 +28,6 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
+    void AdjustGlobalWorkSizes(const eltwise_params& params, DispatchData& dispatch_data) const override;
 };
 }  // namespace kernel_selector
