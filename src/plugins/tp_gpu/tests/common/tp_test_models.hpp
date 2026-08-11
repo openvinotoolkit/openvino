@@ -7,12 +7,14 @@
 
 #pragma once
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 namespace ov::tp_gpu::tests {
 
@@ -192,6 +194,172 @@ inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& conf
 
     auto result = std::make_shared<ov::op::v1::Add>(residual, down);
     return std::make_shared<ov::Model>(ov::OutputVector{result}, sinks, ov::ParameterVector{data}, "TPTestBlock");
+}
+
+/// The same block with PagedAttention in place of SDPA, laid out the way
+/// `SDPAToPagedAttention` leaves a converted model.
+///
+/// Two things about that layout matter to the rewriter and are reproduced
+/// faithfully here, because assuming otherwise has already cost a debugging
+/// round:
+///   * the operands are flattened with a fully relative `[0, -1]` and the
+///     result is restored with `[0, 1, -1, ShapeOf(key)[-1]]`, so no head count
+///     is written in the graph;
+///   * the head counts live in the op's rt_info instead, and the GPU plugin
+///     reads them from there.
+///
+/// The cache parameters are left open in shape and precision, as the converted
+/// model leaves them: whoever allocates the cache decides both.
+inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& config) {
+    const auto q_features = config.num_heads * config.head_dim;
+    const auto kv_features = config.num_kv_heads * config.head_dim;
+
+    // Tokens come first and the batch axis sits second, which is the layout a
+    // converted model carries: continuous batching flattens every sequence of
+    // a step into one token run. It also makes the `[0, -1]` flattening below
+    // produce a static head dimension, which is what the GPU plugin reads the
+    // query head count from.
+    auto data = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32,
+        ov::PartialShape{ov::Dimension::dynamic(), 1, static_cast<int64_t>(config.hidden)});
+    data->set_friendly_name("input");
+    // Named, because a paged-attention model is driven by name: the metadata
+    // ports have no meaningful order to a caller.
+    data->output(0).set_names({"input"});
+
+    auto q = make_projection(data, config.hidden, q_features, config, config.with_bias, 1);
+    auto k = make_projection(data, config.hidden, kv_features, config, config.with_bias, 2);
+    auto v = make_projection(data, config.hidden, kv_features, config, config.with_bias, 3);
+
+    // Heads are formed and transposed exactly as in the SDPA block -- that is
+    // where rotary embeddings would sit -- and only then flattened for the op.
+    auto q_heads = transpose_heads(reshape_to_heads(q, config.num_heads, config.head_dim));
+    auto k_heads = transpose_heads(reshape_to_heads(k, config.num_kv_heads, config.head_dim));
+    auto v_heads = transpose_heads(reshape_to_heads(v, config.num_kv_heads, config.head_dim));
+
+    auto flatten = [](const ov::Output<ov::Node>& heads) {
+        auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{0, -1});
+        return std::make_shared<ov::op::v1::Reshape>(transpose_heads(heads), shape, /*special_zero=*/true);
+    };
+
+    auto cache_parameter = [](const std::string& name) {
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::dynamic, ov::PartialShape::dynamic(4));
+        parameter->set_friendly_name(name);
+        parameter->output(0).set_names({name});
+        return parameter;
+    };
+    auto metadata_parameter = [](const std::string& name, const ov::PartialShape& shape) {
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape);
+        parameter->set_friendly_name(name);
+        parameter->output(0).set_names({name});
+        return parameter;
+    };
+
+    auto key_cache = cache_parameter("key_cache.0");
+    auto value_cache = cache_parameter("value_cache.0");
+    auto past_lens = metadata_parameter("past_lens", ov::PartialShape{ov::Dimension::dynamic()});
+    auto subsequence_begins = metadata_parameter("subsequence_begins", ov::PartialShape{ov::Dimension::dynamic()});
+    auto block_indices = metadata_parameter("block_indices", ov::PartialShape{ov::Dimension::dynamic()});
+    auto block_indices_begins =
+        metadata_parameter("block_indices_begins", ov::PartialShape{ov::Dimension::dynamic()});
+    auto max_context_len = metadata_parameter("max_context_len", ov::PartialShape{});
+
+    auto scalar_i32 = [](int32_t value) {
+        return ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, std::vector<int32_t>{value});
+    };
+    auto empty_i32 = []() {
+        return ov::op::v0::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
+    };
+    auto empty_f32 = []() {
+        return ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, std::vector<float>{});
+    };
+
+    ov::OutputVector arguments{
+        flatten(q_heads),                                                  // 0  query
+        flatten(k_heads),                                                  // 1  key
+        flatten(v_heads),                                                  // 2  value
+        key_cache,                                                         // 3
+        value_cache,                                                       // 4
+        past_lens,                                                         // 5
+        subsequence_begins,                                                // 6
+        block_indices,                                                     // 7
+        block_indices_begins,                                              // 8
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{},
+                                     std::vector<float>{1.0f / std::sqrt(static_cast<float>(config.head_dim))}),
+        scalar_i32(0),                                                     // 10 sliding_window
+        empty_f32(),                                                       // 11 alibi_slopes
+        max_context_len,                                                   // 12
+        empty_i32(),                                                       // 13 score_aggregation_window
+        empty_i32(),                                                       // 14 rotated_block_indices
+        empty_i32(),                                                       // 15 rotation_deltas
+        empty_f32(),                                                       // 16 rotation_trig_lut
+        empty_f32(),                                                       // 17 xattention_threshold
+        scalar_i32(0),                                                     // 18 xattention_block_size
+        scalar_i32(0),                                                     // 19 xattention_stride
+        empty_f32(),                                                       // 20 sinks
+        scalar_i32(0),                                                     // 21 adaptive_rkv_start_size
+        empty_i32(),                                                       // 22 adaptive_rkv_evictable_sizes
+        empty_i32(),                                                       // 23 diversity_block_set_indices
+        empty_i32(),                                                       // 24 diversity_block_set_indices_begins
+        empty_i32(),                                                       // 25 token_type_ids
+        ov::op::v0::Constant::create(ov::element::u8, ov::Shape{0}, std::vector<uint8_t>{}),  // 26 qq_bias
+        empty_i32(),                                                       // 27 qq_bias_begins
+    };
+
+    auto attention = std::make_shared<ov::op::PagedAttentionExtension>(arguments);
+    // All four entries the conversion records: the pass that sizes the cache
+    // needs every one of them, and it sizes the value cache from num_v_heads.
+    attention->get_rt_info()["num_k_heads"] = static_cast<size_t>(config.num_kv_heads);
+    attention->get_rt_info()["num_v_heads"] = static_cast<size_t>(config.num_kv_heads);
+    attention->get_rt_info()["k_head_size"] = static_cast<size_t>(config.head_dim);
+    attention->get_rt_info()["v_head_size"] = static_cast<size_t>(config.head_dim);
+
+    // [tokens, heads * head_dim] -> [tokens, 1, heads, head_dim], with the head
+    // dimension left to -1 and head_dim taken off the key operand, which is how
+    // the conversion writes it.
+    auto key_shape = std::make_shared<ov::op::v3::ShapeOf>(k_heads, ov::element::i64);
+    auto last_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{-1});
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto head_dim = std::make_shared<ov::op::v0::Unsqueeze>(
+        std::make_shared<ov::op::v8::Gather>(key_shape, last_axis, gather_axis),
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0}));
+
+    auto restored = std::make_shared<ov::op::v1::Reshape>(
+        attention->output(0),
+        std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{0}),
+                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}),
+                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1}),
+                             head_dim},
+            0),
+        /*special_zero=*/true);
+
+    // Back to [tokens, batch, hidden] for the out projection. Dimension 1 is
+    // the batch axis, which stays put, so the head and head_dim axes are the
+    // ones folded together.
+    auto merged = ov::op::v0::Constant::create(ov::element::i64,
+                                               ov::Shape{3},
+                                               std::vector<int64_t>{0, 1, static_cast<int64_t>(q_features)});
+    auto attention_out =
+        std::make_shared<ov::op::v1::Reshape>(transpose_heads(restored), merged, /*special_zero=*/true);
+
+    auto out_proj = make_projection(attention_out, q_features, config.hidden, config, false, 4);
+    auto residual = std::make_shared<ov::op::v1::Add>(data, out_proj);
+
+    auto up = make_projection(residual, config.hidden, config.intermediate, config, false, 6);
+    std::shared_ptr<ov::Node> mlp_body = std::make_shared<ov::op::v4::Swish>(up);
+    if (config.gated_mlp) {
+        auto gate = make_projection(residual, config.hidden, config.intermediate, config, false, 5);
+        mlp_body = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(gate), up);
+    }
+    auto down = make_projection(mlp_body, config.intermediate, config.hidden, config, false, 7);
+
+    auto result = std::make_shared<ov::op::v1::Add>(residual, down);
+    return std::make_shared<ov::Model>(ov::OutputVector{result},
+                                       ov::ParameterVector{data, key_cache, value_cache, past_lens,
+                                                           subsequence_begins, block_indices,
+                                                           block_indices_begins, max_context_len},
+                                       "TPTestPagedAttentionBlock");
 }
 
 }  // namespace ov::tp_gpu::tests

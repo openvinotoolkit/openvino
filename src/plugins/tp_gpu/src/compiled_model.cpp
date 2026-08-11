@@ -6,6 +6,7 @@
 
 #include "infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
 #include "tp_blob.hpp"
 
 namespace ov {
@@ -30,6 +31,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(m_rank_compiled.size() == m_device_names.size(),
                     "[TP_GPU] ", m_rank_compiled.size(), " rank models against ",
                     m_device_names.size(), " device names");
+
+    m_cache_controller = CacheController::create(m_rank_compiled);
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
@@ -114,7 +117,12 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::loaded_from_cache.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
         };
-        for (const auto& property : m_rank_compiled.front()->get_property(name).as<std::vector<ov::PropertyName>>()) {
+        if (m_cache_controller) {
+            properties.emplace_back(paged_attention_cache_controller.name(), ov::PropertyMutability::RO);
+        }
+
+        const auto rank_properties = m_rank_compiled.front()->get_property(name);
+        for (const auto& property : rank_properties.as<std::vector<ov::PropertyName>>()) {
             const auto known = std::find(properties.begin(), properties.end(), property);
             if (known == properties.end()) {
                 properties.emplace_back(property, ov::PropertyMutability::RO);
@@ -129,6 +137,14 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 
     if (name == ov::execution_devices.name()) {
         return m_device_names;
+    }
+
+    if (name == paged_attention_cache_controller.name()) {
+        // Absent on models that do not use a paged-attention cache: a caller
+        // finding nothing here has to keep allocating the cache itself.
+        OPENVINO_ASSERT(m_cache_controller,
+                        "[TP_GPU] This model has no paged-attention cache to hand over");
+        return std::static_pointer_cast<IPagedAttentionCacheController>(m_cache_controller);
     }
 
     return m_rank_compiled.front()->get_property(name);

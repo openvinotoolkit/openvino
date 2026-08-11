@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "openvino/runtime/icompiled_model.hpp"
+#include "cache_controller.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "tp_l0_shared_context.hpp"
 
@@ -53,6 +54,11 @@ public:
     /// replicated and can be fanned out as is.
     const std::vector<std::string>& get_sharded_state_ids() const { return m_sharded_state_ids; }
 
+    /// The paged-attention cache this model owns, or null when the model does
+    /// not use one.  Shared by every infer request of this model: one cache,
+    /// one scheduler driving it.
+    const CacheControllerPtr& get_cache_controller() const { return m_cache_controller; }
+
     /// The rank rendezvous, Level Zero command lists and shared scratch arena
     /// support one outer inference at a time.  Rank execution inside that
     /// inference remains parallel.
@@ -73,6 +79,7 @@ private:
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
     std::vector<std::string> m_sharded_state_ids;
+    CacheControllerPtr m_cache_controller;
     bool m_loaded_from_cache{false};
     mutable std::mutex m_inference_mutex;
 };

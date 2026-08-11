@@ -9,6 +9,11 @@
 // refactoring of the computation, so the two must agree up to the reordering of
 // the AllReduce summation.
 //
+// What varies between cases is the sharding: MLP shape, bias, weight layout,
+// quantization group alignment, head split.  Attention is here to make the
+// block realistic, not as the subject -- these blocks use SDPA, and the
+// PagedAttention formulation has its own suite in paged_attention_test.cpp.
+//
 // Needs two or more GPUs; the suite skips otherwise.
 
 #include <gtest/gtest.h>

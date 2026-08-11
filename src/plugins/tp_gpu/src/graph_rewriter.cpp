@@ -1143,8 +1143,44 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     // it in reshapes that are entirely relative -- `[0, -1]` flattening the
     // operands, and `Concat([0], [1], [-1], ShapeOf(key)[-1])` restoring the
     // heads afterwards -- so once the projections are sharded those reshapes
-    // already carry the local head count.  The op reads the kv head count off
-    // the cache tensor bound at runtime, not off the graph.
+    // already carry the local head count.
+    //
+    // What the graph does not carry is the kv head count: the conversion
+    // records it in the op's rt_info, and both the pass that sizes the cache
+    // and the GPU plugin read it from there while deriving the query head
+    // count from the (already sharded) operand. Leaving it whole makes the two
+    // disagree -- and leaving only the value entry whole sizes the value cache
+    // for heads this rank does not own.
+    if (plan.attention_backend == ShardingPlan::AttentionBackend::PA) {
+        static constexpr const char* kv_head_keys[] = {"num_k_heads", "num_v_heads"};
+
+        size_t localized = 0;
+        for (const auto& op : cloned->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::PagedAttentionExtension>(op))
+                continue;
+            auto& rt_info = op->get_rt_info();
+            for (const auto* key : kv_head_keys) {
+                auto entry = rt_info.find(key);
+                if (entry == rt_info.end())
+                    continue;
+                OPENVINO_ASSERT(entry->second.as<int64_t>() == static_cast<int64_t>(plan.num_kv_heads),
+                                "[TP_GPU] '", op->get_friendly_name(), "' declares ",
+                                entry->second.as<int64_t>(), " for '", key, "' where the model has ",
+                                plan.num_kv_heads, " kv heads");
+                entry->second = static_cast<size_t>(local_kv_heads);
+                ++localized;
+            }
+        }
+
+        // Absent on models whose conversion did not record the geometry; the
+        // plugin then reads it off the cache tensor, which is already local.
+        OPENVINO_ASSERT(localized == 0 ||
+                            localized == std::size(kv_head_keys) * static_cast<size_t>(plan.num_layers),
+                        "[TP_GPU] Localized ", localized, " kv head counts over ", plan.num_layers,
+                        " PagedAttention layers; expected ",
+                        std::size(kv_head_keys) * static_cast<size_t>(plan.num_layers),
+                        ". Model may not be supported.");
+    }
 
     // ------------------------------------------------------------------
     // 2c) Patch the post-SDPA Reshape that flattens [B,S,heads,head_dim] back

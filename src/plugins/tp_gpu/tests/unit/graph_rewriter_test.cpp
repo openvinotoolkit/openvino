@@ -221,4 +221,154 @@ TEST_P(TPGraphRewriterSharding, LocalizesEveryKvCacheInitializer) {
     EXPECT_EQ(checked, 2u) << "expected one initializer per KV cache";
 }
 
+// ---------------------------------------------------------------------------
+// PagedAttention (continuous batching)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// KV heads rank `rank` owns: whole heads, remainder spread over the first ranks.
+int64_t expected_local_kv_heads(const BlockConfig& config, uint32_t rank, uint32_t world_size) {
+    const auto base = config.num_kv_heads / world_size;
+    const auto remainder = config.num_kv_heads % world_size;
+    return static_cast<int64_t>(base + (rank < remainder ? 1 : 0));
+}
+
+std::vector<std::shared_ptr<ov::Node>> paged_attention_nodes(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op))
+            nodes.push_back(op);
+    }
+    return nodes;
+}
+
+}  // namespace
+
+TEST(TPGraphRewriterPagedAttention, RecognizesPagedAttentionAsTheAnchor) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_paged_attention_block(config));
+
+    EXPECT_EQ(plan.attention_backend, ShardingPlan::AttentionBackend::PA);
+    EXPECT_EQ(plan.num_layers, 1);
+    EXPECT_EQ(plan.num_heads, static_cast<int>(config.num_heads));
+    EXPECT_EQ(plan.num_kv_heads, static_cast<int>(config.num_kv_heads));
+    EXPECT_EQ(plan.head_dim, static_cast<int>(config.head_dim));
+    // Seven projections: q, k, v, o, gate, up, down.
+    EXPECT_EQ(plan.linears.size(), 7u);
+}
+
+TEST(TPGraphRewriterPagedAttention, SdpaBlockIsStillRecognizedAsSdpa) {
+    // The anchor drives whether the KV broadcast is demanded, so a plan that
+    // mislabels the backend fails in a confusing place much later.
+    auto plan = GraphRewriter::analyze(make_transformer_block(BlockConfig{}));
+    EXPECT_EQ(plan.attention_backend, ShardingPlan::AttentionBackend::SDPA);
+}
+
+TEST_P(TPGraphRewriterSharding, PagedAttentionModelShardsForEveryRank) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    // PagedAttention has no KV broadcast to re-shape; demanding one used to
+    // abort the whole compilation here.
+    ASSERT_NO_THROW(rewrite_all_ranks(model, plan, world_size));
+}
+
+TEST_P(TPGraphRewriterSharding, LocalizesPagedAttentionKvHeadCount) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
+
+        auto nodes = paged_attention_nodes(rank_model);
+        ASSERT_EQ(nodes.size(), 1u);
+
+        // The GPU plugin reads the kv head count from here and derives the
+        // query head count from the operand; the pass that sizes the cache
+        // reads the value entry separately. Leaving either whole makes them
+        // disagree with the sharded operands.
+        const auto& rt_info = nodes.front()->get_rt_info();
+        for (const char* key : {"num_k_heads", "num_v_heads"}) {
+            auto entry = rt_info.find(key);
+            ASSERT_NE(entry, rt_info.end()) << key;
+            EXPECT_EQ(entry->second.as<int64_t>(), expected_local_kv_heads(config, rank, world_size))
+                << key << " rank=" << rank << " world_size=" << world_size;
+        }
+
+        // Head size is per head and does not shard.
+        EXPECT_EQ(rt_info.at("k_head_size").as<int64_t>(), static_cast<int64_t>(config.head_dim));
+        EXPECT_EQ(rt_info.at("v_head_size").as<int64_t>(), static_cast<int64_t>(config.head_dim));
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LocalizesPagedAttentionOperands) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
+        auto attention = paged_attention_nodes(rank_model).front();
+
+        const int64_t local_kv = expected_local_kv_heads(config, rank, world_size);
+        const int64_t local_q = local_kv * static_cast<int64_t>(config.num_heads / config.num_kv_heads);
+        const auto head_dim = static_cast<int64_t>(config.head_dim);
+
+        // Nothing in the graph names a head count -- the operands are flattened
+        // relatively -- so the shapes are what proves the sharding landed.
+        EXPECT_EQ(attention->get_input_partial_shape(0)[1].get_length(), local_q * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_input_partial_shape(1)[1].get_length(), local_kv * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_input_partial_shape(2)[1].get_length(), local_kv * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_output_partial_shape(0)[1].get_length(), local_q * head_dim) << "rank=" << rank;
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LeavesPagedAttentionCachePortsToTheRuntime) {
+    const uint32_t world_size = GetParam();
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+
+    // The cache is not described in the graph: the plugin that allocates it
+    // decides its shape and precision. A rewriter that "helpfully" pinned
+    // either would fight whoever binds the tensors.
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size)) {
+        size_t cache_ports = 0;
+        for (const auto& parameter : rank_model->get_parameters()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name.rfind("key_cache.", 0) != 0 && name.rfind("value_cache.", 0) != 0)
+                continue;
+            ++cache_ports;
+            EXPECT_TRUE(parameter->get_element_type().is_dynamic()) << name;
+            EXPECT_TRUE(parameter->get_output_partial_shape(0).is_dynamic()) << name;
+        }
+        EXPECT_EQ(cache_ports, 2u);
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, InsertsCollectivesOnPagedAttentionModel) {
+    const uint32_t world_size = GetParam();
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+
+    // Same two row-parallel projections as the SDPA block: the attention
+    // formulation does not change where the sums have to be reduced.
+    EXPECT_EQ(GraphRewriter::count_collectives(plan), 2);
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp_gpu::op::TPAllReduce::get_type_info_static()), 2u);
+}
+
+TEST(TPGraphRewriterPagedAttention, ReportsNoShardedStatesForPagedAttention) {
+    // A converted model keeps no ReadValue/Assign, so there is no per-rank
+    // state to gather or scatter -- the cache took that role.
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+    EXPECT_TRUE(GraphRewriter::sharded_state_ids(model, plan).empty());
+}
+
 }  // namespace ov::tp_gpu::tests
