@@ -65,7 +65,7 @@ public:
 
     /// @return Raw data pointer of the current buffer, for alias detection.
     void* rawPtr() const {
-        auto& mem = m_buffers[m_buff_idx];
+        const auto& mem = m_buffers[m_buff_idx];
         return mem ? mem->buffer_ptr() : nullptr;
     }
 
