@@ -274,7 +274,7 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithBroadcast::get_subgraph() const {
                                                               m_input_types,
                                                               with_mul,
                                                               is_with_reshape,
-                                                              true);
+                                                              is_with_reshape);
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {

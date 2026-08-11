@@ -96,7 +96,7 @@ void tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVect
     for (auto input : interm_op->inputs()) {
         const auto broadcast = input.get_source_output().get_node_shared_ptr();
         // TODO: Can we reuse AppropriateForSubgraph here? Seems like it's huge check for Broadcast
-        if (is_numpy_broadcast(broadcast) && broadcast->get_output_target_inputs(0).size() == 1) {
+        if (ov::snippets::utils::is_numpy_broadcast(broadcast) && broadcast->get_output_target_inputs(0).size() == 1) {
             // TODO: Add support of Broadcast with ShapeOf subgraph on second input
             if (!ov::is_type<ov::op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr())) {
                 continue;

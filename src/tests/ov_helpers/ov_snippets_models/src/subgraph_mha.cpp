@@ -106,6 +106,8 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
     auto add_input = addParam->output(0);
     if (with_broadcast) {
+        OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                        "MHAFunction with broadcast requires a static MatMul output shape");
         const auto target_shape =
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
         add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
@@ -205,6 +207,8 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     auto add_input = addParam->output(0);
     if (with_broadcast) {
+        OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                        "MHAFunction with broadcast requires a static MatMul output shape");
         const auto target_shape =
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
         add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
