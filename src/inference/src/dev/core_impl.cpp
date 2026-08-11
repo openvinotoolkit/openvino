@@ -825,7 +825,7 @@ std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::st
     if (entry->winner_idx)
         return entry->winner_idx;
 
-    // Highest score wins; ties resolve to registry order (lowest candidate index, i.e. ZE first).
+    // Highest score wins; ties resolve to registry order (the lowest candidate index).
     // Any runtime override is already baked into the scores by the plugin, so core stays generic.
     std::optional<size_t> winner;
     ov::DeviceCompatibilityScore best = ov::PROBE_SCORE_INCOMPATIBLE;

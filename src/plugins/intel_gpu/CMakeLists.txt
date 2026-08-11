@@ -176,10 +176,10 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 endfunction()
 
 if(GPU_RT_TYPE STREQUAL "COMBINED")
-    # Two libraries under one device name (a dispatch group): ZE is the default-named
-    # library (listed first / tie-winner), OCL is suffixed. Both opt into DISPATCH_GROUP.
-    ov_gpu_build_stack(ZE  ""     ${TARGET_NAME}      DISPATCH_GROUP)
+    # Two libraries under one device name (a dispatch group). OCL is registered first so the merged
+    # device ids follow its enumeration, as today; ZE keeps the default-named targets tests link.
     ov_gpu_build_stack(OCL "_ocl" ${TARGET_NAME}_ocl  DISPATCH_GROUP)
+    ov_gpu_build_stack(ZE  ""     ${TARGET_NAME}      DISPATCH_GROUP)
 else()
     ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
 endif()
