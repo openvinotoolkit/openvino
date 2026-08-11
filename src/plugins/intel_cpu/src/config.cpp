@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -21,6 +20,7 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -33,7 +33,6 @@
 namespace ov::intel_cpu {
 
 using namespace ov::threading;
-using namespace dnnl::impl::cpu::x64;
 
 Config::Config() {
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -524,7 +523,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
 #    endif
 #endif
-            if (mayiuse(avx512_core_bf16)) {
+            if (ov::with_cpu_x86_bfloat16()) {
                 inferencePrecision = ov::element::bf16;
             }
         } else {

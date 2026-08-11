@@ -5,7 +5,6 @@
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -31,12 +30,6 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
     return row * col_num + col;
 }
 }  // namespace
-
-size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, const BufferPool& pool) {
-    const auto iter = std::find(pool.cbegin(), pool.cend(), target);
-    assert(iter != pool.cend() && "Buffer wasn't find in Buffer system of Subgraph");
-    return std::distance(pool.cbegin(), iter);
-}
 
 bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs_info,
                                                 const UnifiedLoopInfo::LoopPortInfo& rhs_info) {
@@ -77,25 +70,26 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
 
 void SetBufferRegGroup::update_adj_matrix(const BufferMap::value_type& lhs,
                                           const BufferMap::value_type& rhs,
-                                          const BufferPool& buffers,
+                                          const BufferIndices& buffer_indices,
+                                          size_t buffer_count,
                                           std::vector<bool>& adj) {
-    const auto size = buffers.size();
-    const auto lhs_idx = get_buffer_idx(lhs.first, buffers);
-    const auto rhs_idx = get_buffer_idx(rhs.first, buffers);
+    const auto lhs_idx = buffer_indices.at(lhs.first);
+    const auto rhs_idx = buffer_indices.at(rhs.first);
     // Already adjacent - skip
-    if (adj[index(size, rhs_idx, lhs_idx)]) {
+    if (adj[index(buffer_count, rhs_idx, lhs_idx)]) {
         return;
     }
 
     if (are_adjacent(lhs, rhs)) {
-        adj[index(size, rhs_idx, lhs_idx)] = adj[index(size, lhs_idx, rhs_idx)] = true;
+        adj[index(buffer_count, rhs_idx, lhs_idx)] = adj[index(buffer_count, lhs_idx, rhs_idx)] = true;
     }
 }
 
 std::vector<bool> SetBufferRegGroup::create_adjacency_matrix(const LoopManagerPtr& loop_manager,
                                                              LinearIR::constExprIt begin,
                                                              LinearIR::constExprIt end,
-                                                             const BufferPool& pool) {
+                                                             const BufferPool& pool,
+                                                             const BufferIndices& buffer_indices) {
     // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
     // they are called as adjacent
@@ -121,14 +115,14 @@ std::vector<bool> SetBufferRegGroup::create_adjacency_matrix(const LoopManagerPt
             // these Buffers are adjacent
             for (auto neighbour_it = std::next(buffer_it); neighbour_it != buffer_loop_neighbours.cend();
                  ++neighbour_it) {
-                update_adj_matrix(*buffer_it, *neighbour_it, pool, adj);
+                update_adj_matrix(*buffer_it, *neighbour_it, buffer_indices, size, adj);
             }
             // Buffers which are connected to the current Loop with zero ptr shifts and Buffers which are inside this
             // Loop - must be adjacent: after each the Loop iteration GPR will be shifted using ptr increment of Buffer
             // outside. But if inner Buffers have the same GPR - it means that these Buffers will work with shifted
             // memory.
             for (const auto& inner_it : buffers_loop_inside) {
-                update_adj_matrix(*buffer_it, inner_it, pool, adj);
+                update_adj_matrix(*buffer_it, inner_it, buffer_indices, size, adj);
             }
         }
     }
@@ -249,9 +243,14 @@ bool SetBufferRegGroup::run(LinearIR& linear_ir,
               [](const BufferExpressionPtr& lhs, const BufferExpressionPtr& rhs) {
                   return lhs->get_exec_num() < rhs->get_exec_num();
               });
+    BufferIndices buffer_indices;
+    buffer_indices.reserve(buffer_pool.size());
+    for (size_t i = 0; i < buffer_pool.size(); ++i) {
+        buffer_indices.emplace(buffer_pool[i], i);
+    }
 
     // Creation of Adj matrix
-    auto adj = create_adjacency_matrix(linear_ir.get_loop_manager(), begin, end, buffer_pool);
+    auto adj = create_adjacency_matrix(linear_ir.get_loop_manager(), begin, end, buffer_pool, buffer_indices);
 
     // Graph coloring algorithm
     const auto color_groups = coloring(buffer_pool, adj);

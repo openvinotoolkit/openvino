@@ -86,7 +86,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                 int next_axis = -1;
                 size_t currentRank = 0;
                 int axe_idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
+                for (const auto& axis : primitive->axes_mapping) {
                     prev_axis = next_axis;
                     next_axis = static_cast<int>(axis);
 
@@ -103,7 +103,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                 // insert 1 to extend dimensions by axes_mapping
                 ov::Shape tmp_shape;
                 size_t idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
+                for (const auto& axis : primitive->axes_mapping) {
                     if (idx == axis) {
                         tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
                         idx += 1;
