@@ -58,6 +58,8 @@ private:
     size_t m_offset{0};
     /// Page-rounded size of the reservation backing m_aligned_buffer (m_byte_size stays the requested size).
     size_t m_mapped_size{0};
+    /// Set when the reservation is served by the page fault handler, so it can be evicted and reloaded on demand.
+    bool m_delegated{false};
 
     mutable std::atomic<bool> m_loaded{false};
     mutable std::mutex m_loading;
