@@ -1871,4 +1871,3 @@ TEST(pattern, wrap_type_strict_matches_subset_of_outputs) {
     TestMatcher tm;
     ASSERT_TRUE(tm.match(concat_p, concat));
 }
-
