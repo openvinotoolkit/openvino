@@ -14,6 +14,7 @@
 
 namespace ov::intel_gpu::mlir {
 
+// TODO: add signed/unsigned integers support
 struct ConvertRelu {
     Operation* operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);

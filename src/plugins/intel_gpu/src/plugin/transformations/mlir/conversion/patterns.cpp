@@ -332,6 +332,7 @@ BinaryEltwisePattern<OVOp, LinalgOp>::BinaryEltwisePattern(const std::set<elemen
     : BinaryEltwisePatternBase(OVOp::get_type_info_static(), ConvertBinaryEltwise<LinalgOp>(), element_types) {}
 
 // Explicit template instantiations
+// TODO: add signed/unsigned integers support
 template class BinaryEltwisePattern<v1::Add, linalg::AddOp>;
 template class BinaryEltwisePattern<v1::Subtract, linalg::SubOp>;
 template class BinaryEltwisePattern<v1::Multiply, linalg::MulOp>;

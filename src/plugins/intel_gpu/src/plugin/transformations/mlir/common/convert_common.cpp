@@ -43,6 +43,13 @@ Type importPrecision(MLIRContext* ctx, const ov::element::Type& precision) {
         return Float16Type::get(ctx);
     case ov::element::Type_t::bf16:
         return BFloat16Type::get(ctx);
+    // FIXME: Distinguishing between signed and unsigned integers (and integer
+    // handling overall) is not properly supported by the MLIR path at the moment:
+    // sign-factor is lost here and everything downstream treats the value as signed
+    // (linalg named ops build signed arith payloads, e.g. linalg.div -> arith.divsi).
+    // Actual data computation is only tested on float types; the integer types are kept
+    // mainly for 'technical' values like axes, shapes and indices. Unsigned values that do not
+    // fit into the signed range of the same bit width may silently produce incorrect results.
     case ov::element::Type_t::i64:
     case ov::element::Type_t::u64:
         return IntegerType::get(ctx, 64);

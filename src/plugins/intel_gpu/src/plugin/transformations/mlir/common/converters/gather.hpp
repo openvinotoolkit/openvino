@@ -16,6 +16,7 @@
 
 namespace ov::intel_gpu::mlir {
 
+// TODO: add signed/unsigned integers support
 struct ConvertGather {
     Operation* operator()(ConversionContext& context, NodePtr node) {
         // TODO: support batch attribute

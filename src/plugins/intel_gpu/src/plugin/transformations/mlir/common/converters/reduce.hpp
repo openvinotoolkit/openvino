@@ -110,6 +110,8 @@ struct ConvertReduce {
     }
 
 private:
+    // FIXME: mlir::Type does not carry the 'isUnsigned' information at this level, so we have
+    // to use the ov::element::Type instead (TODO: add tests for the integer case).
     Value create_init_value(::mlir::OpBuilder& builder, ::mlir::Location loc, ::mlir::Type type) {
         if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMax>) {
             if (type.isFloat()) {
@@ -136,6 +138,8 @@ private:
         }
     }
 
+    // FIXME: mlir::Type does not carry the 'isUnsigned' information at this level, so we have
+    // to use the ov::element::Type instead (TODO: add tests for the integer case).
     Value create_payload_op(::mlir::OpBuilder& builder, ::mlir::Location loc, Value lhs, Value rhs, ::mlir::Type type) {
         if constexpr (std::is_same_v<OVOp, ov::op::v1::ReduceMax>) {
             if (type.isFloat()) {
