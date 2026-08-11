@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-01-22-14-000-31443907795",
+  "timestamp": "2026-08-11T01:22:14Z",
+  "run_id": "31443907795",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31443907795",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37080",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37080",
+  "author": "aobolensk",
+  "category": "Configuration",
+  "title": "Conformance (API) Pack Artifacts fails - tar file changed as we read it",
+  "signature": "tar file changed as we read it|Configuration",
+  "signature_hash": "c0643d23262bbd29",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Conformance (API)",
+      "conclusion": "failure",
+      "symptom": "Pack Conformance Artifacts step exits with code 1 due to tar archiving its own output file"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because Conformance (API) failed"
+    }
+  ],
+  "key_errors": [
+    "tar: conformance_artifacts.tar.gz: file changed as we read it",
+    "##[error]Process completed with exit code 1.",
+    "ERROR:xml_merge_tool:/__w/openvino/openvino/install/conformance_artifacts/report/parallel/report_api_6272_1786408085923835095.xml is incorrect! Error to get a xml root"
+  ],
+  "root_cause": "The 'Pack Conformance Artifacts' step runs 'tar -cvf - * | pigz > conformance_artifacts.tar.gz' from within the CONFORMANCE_ARTIFACTS_DIR. Because the output file conformance_artifacts.tar.gz is created inside the same directory being archived, tar detects the file changed while it was reading it, causing a non-zero exit code. This is a well-known tar self-reference anti-pattern. An additional non-critical warning arises from an XML file with an invalid root that the xml_merge_tool logs as an error but does not block. The PR changes (Snippets buffer adjacency optimization) are unrelated to this CI configuration issue.",
+  "reproduction_steps": "Run: pushd CONFORMANCE_ARTIFACTS_DIR && tar -cvf - * | pigz > conformance_artifacts.tar.gz; tar will warn 'file changed as we read it' and exit with code 1 because the output file is inside the archived directory.",
+  "recommended_actions": [
+    "Fix the tar command to write the output outside the source directory, e.g.: tar -cvf - -C ${CONFORMANCE_ARTIFACTS_DIR} . | pigz > /tmp/conformance_artifacts.tar.gz && mv /tmp/conformance_artifacts.tar.gz ${CONFORMANCE_ARTIFACTS_DIR}/",
+    "Alternatively, exclude the output file: tar --exclude=conformance_artifacts.tar.gz -cvf - * | pigz > conformance_artifacts.tar.gz",
+    "Re-add PR #37080 to the merge queue as the failure is unrelated to its changes"
+  ],
+  "prevention_strategies": "In CI workflow steps that archive a directory, always write the archive output to a path outside the source directory, or use --exclude to skip the output file. Add a CI linter check for tar commands that write into their own source directory.",
+  "historical_context": "Same signature was observed on 2026-07-28 in run 30356512752 (Conformance OP job). This is the second occurrence."
+}
