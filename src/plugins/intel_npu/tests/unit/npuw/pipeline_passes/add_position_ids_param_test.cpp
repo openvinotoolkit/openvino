@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "npuw_transformations/add_position_ids_param.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -26,7 +27,11 @@
 #include "openvino/op/unsqueeze.hpp"
 
 namespace {
-std::shared_ptr<ov::Model> build_model_with_lfm2_like_pattern() {
+// offset_positions selects the transformers>=5.4 shape, where Range starts from zero and the past
+// length is added on top of it rather than being folded into Range's start.
+// with_clamp controls the Gated Short Convolution Block's Clamp consumer on Range, which newer
+// exports drop altogether.
+std::shared_ptr<ov::Model> build_model_with_lfm2_like_pattern(bool offset_positions = false, bool with_clamp = true) {
     // Range: start=0, stop=seq_len, step=1  (mimics position_ids generation)
     auto start = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
     auto stop = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {128});
@@ -34,9 +39,18 @@ std::shared_ptr<ov::Model> build_model_with_lfm2_like_pattern() {
     auto range = std::make_shared<ov::op::v4::Range>(start, stop, step, ov::element::i64);
     range->set_friendly_name("range");
 
+    // transformers>=5.4: past length added after the Range instead of folded into its start
+    ov::Output<ov::Node> positions = range->output(0);
+    if (offset_positions) {
+        auto past_len = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {8});
+        auto offset_add = std::make_shared<ov::op::v1::Add>(range, past_len);
+        offset_add->set_friendly_name("positions_offset_add");
+        positions = offset_add->output(0);
+    }
+
     // Unsqueeze: add batch dim [seq_len] → [1, seq_len]
     auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(range, unsqueeze_axes);
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(positions, unsqueeze_axes);
     unsqueeze->set_friendly_name("unsqueeze_batch");
 
     // Unsqueeze1: add feature dim [1, seq_len] → [1, 1, seq_len]
@@ -94,11 +108,13 @@ std::shared_ptr<ov::Model> build_model_with_lfm2_like_pattern() {
 
     // Optional Clamp consumer on Range (simulates Gated Short Convolution indexing in LFM2).
     // Real LFM2 path: Range -> Clamp -> Add -> Mod -> Unsqueeze -> ScatterNDUpdate
-    auto clamp = std::make_shared<ov::op::v0::Clamp>(range, 0, 2);
-    clamp->set_friendly_name("conv_clamp");
-    auto clamp_result = std::make_shared<ov::op::v0::Result>(clamp);
-    clamp_result->set_friendly_name("clamp_result");
-    results.push_back(clamp_result);
+    if (with_clamp) {
+        auto clamp = std::make_shared<ov::op::v0::Clamp>(range, 0, 2);
+        clamp->set_friendly_name("conv_clamp");
+        auto clamp_result = std::make_shared<ov::op::v0::Result>(clamp);
+        clamp_result->set_friendly_name("clamp_result");
+        results.push_back(clamp_result);
+    }
 
     return std::make_shared<ov::Model>(results, params, "model_with_lfm2_like_pattern");
 }
@@ -281,5 +297,100 @@ TEST(AddPositionIdsParamTest, ReapplyDoesNotModifyGraph) {
         << "Second pass should not add duplicate parameters";
     EXPECT_EQ(model->get_ops().size(), ops_after_first)
         << "Second pass should not add duplicate operations";
+}
+
+// --- transformers>=5.4: Range -> Add(past_len) -> Unsqueeze -> Unsqueeze -> Convert -> RoPE ---
+// The offset moved out of Range, so the pass matches through an optional Add. These models also
+// give the causal mask its own Range and have no Clamp path.
+TEST(AddPositionIdsParamTest, OffsetAddRopePathUsesPositionIds) {
+    auto model = build_model_with_lfm2_like_pattern(true /*offset_positions*/, false /*with_clamp*/);
+
+    EXPECT_FALSE(has_parameter_named(model, "position_ids"));
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_TRUE(has_parameter_named(model, "position_ids"));
+
+    // Walk back from MatMul: position_ids → Unsqueeze → Convert → MatMul, no Add in between
+    std::shared_ptr<ov::Node> matmul_node;
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() == std::string("MatMul")) {
+            matmul_node = op;
+            break;
+        }
+    }
+    ASSERT_NE(matmul_node, nullptr) << "MatMul not found in model";
+
+    auto walk = matmul_node->input_value(1).get_node_shared_ptr();
+    bool found_position_ids = false;
+    for (int depth = 0; depth < 5; ++depth) {  // limit walk depth
+        if (walk->get_type_name() == std::string("Parameter")) {
+            found_position_ids = walk->output(0).get_names().count("position_ids") > 0;
+            break;
+        }
+        if (walk->get_input_size() == 0) {
+            break;
+        }
+        walk = walk->input_value(0).get_node_shared_ptr();
+    }
+    EXPECT_TRUE(found_position_ids) << "MatMul (RoPE path) should be fed by position_ids, not Add(Range, past_len)";
+}
+
+// The Range must survive for Causal Mask creation even though the RoPE consumer it used to be
+// identified by is now the Add rather than the Unsqueeze.
+TEST(AddPositionIdsParamTest, OffsetAddPreservesRangeForCausalMask) {
+    auto model = build_model_with_lfm2_like_pattern(true /*offset_positions*/, false /*with_clamp*/);
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+
+    EXPECT_GE(count_ops_of_type(model, "Range"), 1u) << "Range node should be preserved for causal mask";
+
+    bool found_range_as_le_input = false;
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() != std::string("LessEqual")) {
+            continue;
+        }
+        std::set<ov::Node*> visited;
+        std::queue<ov::Node*> to_visit;
+        for (size_t inp = 0; inp < op->get_input_size(); ++inp) {
+            to_visit.push(op->input_value(inp).get_node());
+        }
+        while (!to_visit.empty()) {
+            auto* n = to_visit.front();
+            to_visit.pop();
+            if (!visited.insert(n).second) {
+                continue;
+            }
+            if (std::string(n->get_type_name()) == "Range") {
+                found_range_as_le_input = true;
+                break;
+            }
+            for (size_t i = 0; i < n->get_input_size(); ++i) {
+                to_visit.push(n->input_value(i).get_node());
+            }
+        }
+    }
+    EXPECT_TRUE(found_range_as_le_input) << "Range should still feed the causal mask LessEqual";
+}
+
+// Clamp rewiring now keys off the Clamp itself rather than off skipping the RoPE consumer, so it
+// has to keep working when the positions reach RoPE through an Add.
+TEST(AddPositionIdsParamTest, OffsetAddWithClampReplacesClampInput) {
+    auto model = build_model_with_lfm2_like_pattern(true /*offset_positions*/, true /*with_clamp*/);
+
+    ASSERT_NO_THROW(ov::npuw::AddPositionIdsParam().run_on_model(model));
+    EXPECT_TRUE(has_parameter_named(model, "position_ids"));
+    ASSERT_EQ(count_ops_of_type(model, "Clamp"), 1u) << "Test model should have a Clamp to rewire";
+
+    for (const auto& op : model->get_ops()) {
+        if (op->get_type_name() != std::string("Clamp")) {
+            continue;
+        }
+        auto producer = op->input_value(0).get_node_shared_ptr();
+        ASSERT_EQ(std::string(producer->get_type_name()), "Squeeze")
+            << "Clamp should be fed by Squeeze(position_ids), not " << producer->get_type_name();
+
+        auto squeeze_input = producer->input_value(0).get_node_shared_ptr();
+        ASSERT_EQ(std::string(squeeze_input->get_type_name()), "Parameter");
+        EXPECT_TRUE(squeeze_input->output(0).get_names().count("position_ids") > 0)
+            << "Squeeze should be fed by position_ids parameter";
+    }
 }
 }  // namespace

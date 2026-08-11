@@ -102,11 +102,8 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             return false;
 
         // oneDNN only supports asymmetric weights quantization by scalar zero-points
-        if (conv_node.weights_zero_points_term() &&
-            conv_node.weights_zero_points().get_output_layout().count() != 1)
-            return false;
-
-        return true;
+        return !conv_node.weights_zero_points_term() ||
+            conv_node.weights_zero_points().get_output_layout().count() == 1;
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override;

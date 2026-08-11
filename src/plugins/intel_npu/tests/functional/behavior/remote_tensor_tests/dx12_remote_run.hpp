@@ -10,11 +10,13 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
+#include "ov_infer_request/infer_request_dynamic_utils.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef _WIN32
@@ -29,58 +31,14 @@ using CompilationParams = std::tuple<std::string,  // Device name
 namespace ov {
 namespace test {
 namespace behavior {
-class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase,
-                           public testing::WithParamInterface<CompilationParams> {
+class DX12SharedHeapHelper {
 protected:
-    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
-    ov::AnyMap configuration;
-    std::shared_ptr<ov::Model> ov_model;
-
     Microsoft::WRL::ComPtr<ID3D12Device> device;
     Microsoft::WRL::ComPtr<ID3D12Heap> heap = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> placed_resources = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> comitted_resource;
 
     HANDLE shared_mem = nullptr;
-
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
-        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
-        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-
-        std::ostringstream result;
-        result << "targetDevice=" << targetDevice << "_";
-        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
-        if (!configuration.empty()) {
-            for (auto& configItem : configuration) {
-                result << "configItem=" << configItem.first << "_";
-                configItem.second.print(result);
-            }
-        }
-
-        return result.str();
-    }
-
-    void SetUp() override {
-        std::tie(target_device, configuration) = this->GetParam();
-
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        OVPluginTestBase::SetUp();
-        ov_model = getDefaultNGraphFunctionForTheDeviceNPU();
-
-        createDevice();
-    }
-
-    void TearDown() override {
-        if (!configuration.empty()) {
-            utils::PluginCache::get().reset();
-        }
-
-        APIBaseTest::TearDown();
-    }
 
     void createDevice() {
         auto res = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(device.ReleaseAndGetAddressOf()));
@@ -203,9 +161,55 @@ public:
     }
 };
 
+class DX12RemoteRunTests : public ov::test::behavior::OVPluginTestBase,
+                           public testing::WithParamInterface<CompilationParams>,
+                           protected DX12SharedHeapHelper {
+protected:
+    std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
+    ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> ov_model;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<CompilationParams>& obj) {
+        std::string targetDevice;
+        ov::AnyMap configuration;
+        std::tie(targetDevice, configuration) = obj.param;
+        std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
+        targetDevice = ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+
+        std::ostringstream result;
+        result << "targetDevice=" << targetDevice << "_";
+        result << "targetPlatform=" << ov::test::utils::getTestsPlatformFromEnvironmentOr(targetDevice) << "_";
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+            }
+        }
+
+        return result.str();
+    }
+
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        std::tie(target_device, configuration) = this->GetParam();
+
+        OVPluginTestBase::SetUp();
+        ov_model = getDefaultNGraphFunctionForTheDeviceNPU();
+
+        createDevice();
+    }
+
+    void TearDown() override {
+        if (!configuration.empty()) {
+            utils::PluginCache::get().reset();
+        }
+
+        APIBaseTest::TearDown();
+    }
+};
+
 TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
-    // Skip test according to plugin specific disabled_test_patterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
@@ -229,9 +233,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuf) {
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
-TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
-    // Skip test according to plugin specific disabled_test_patterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBufChangingTensors) {
     ov::CompiledModel compiled_model;
     ov::InferRequest inference_request;
 
@@ -274,6 +276,7 @@ TEST_P(DX12RemoteRunTests, CheckRemoteTensorSharedBuChangingTensors) {
     OV_ASSERT_NO_THROW(inference_request.infer());
 
     delete[] random_buffer_tensor;
+    delete[] output_random_buffer_tensor;
 }
 
 TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
@@ -328,6 +331,54 @@ TEST_P(DX12RemoteRunTests, CheckOutputDataFromMultipleRuns) {
 
     delete[] output_data_one;
     delete[] output_data_two;
+}
+
+// Runs a dynamically-shaped model with a DX12-shared-heap backed remote tensor as input.
+class DX12RemoteRunDynamicTests : public InferRequestDynamicTests, protected DX12SharedHeapHelper {
+protected:
+    void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        InferRequestDynamicTests::SetUp();
+        createDevice();
+    }
+};
+
+TEST_P(DX12RemoteRunDynamicTests, InferDynamicNetworkRemoteTensor) {
+    const std::string inputName = "Parameter_1";
+    const std::string outputName = "Relu_2";
+
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[inputName] = {ov::Dimension(1, inOutShapes[1].first[0]),
+                         ov::Dimension(1, inOutShapes[1].first[1]),
+                         ov::Dimension(1, inOutShapes[1].first[2])};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+
+    auto context = ie->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    auto compiled_model = ie->compile_model(function, target_device, configuration);
+
+    // infer the same shape twice to exercise reuse of the compiled model across remote tensors
+    const std::vector<ov::Shape> vectorShapes{inOutShapes[0].first, inOutShapes[0].first};
+    for (auto& shape : vectorShapes) {
+        ov::Tensor in_tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, 100, 0);
+
+        const auto byte_size = ov::util::get_memory_size(ov::element::f32, shape_size(shape));
+
+        createResources(byte_size);
+        void* mem = nullptr;
+        auto res = comitted_resource->Map(0, nullptr, &mem);
+        ASSERT_FALSE(FAILED(res)) << "Map failed.";
+        memcpy(mem, in_tensor.data(), byte_size);
+        comitted_resource->Unmap(0, nullptr);
+        copyResources(byte_size);
+
+        auto remote_tensor = context.create_tensor(ov::element::f32, shape, shared_mem);
+
+        ov::InferRequest req;
+        OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+        OV_ASSERT_NO_THROW(req.set_tensor(inputName, remote_tensor));
+        OV_ASSERT_NO_THROW(req.infer());
+        OV_ASSERT_NO_THROW(checkOutputFP16(in_tensor, req.get_tensor(outputName)));
+    }
 }
 
 }  // namespace behavior

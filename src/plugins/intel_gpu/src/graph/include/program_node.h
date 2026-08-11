@@ -86,7 +86,7 @@ public:
     bool is_shape_infer_dep() const {
         if (!myprog.is_new_shape_infer())
             return false;
-        for (auto u : users) {
+        for (auto* u : users) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
                 if (u->get_dependencies().size() <= dep_idx) {
                     continue;
@@ -105,7 +105,7 @@ public:
     bool is_fused_dep(size_t dep_idx) const;
 
     bool has_fused_dep() const {
-        for (auto& fused : get_fused_primitives()) {
+        for (const auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return true;
         }
@@ -115,7 +115,7 @@ public:
     int32_t get_first_fused_dep_idx() const {
         if (!has_fused_dep())
             return -1;
-        for (auto& fused : get_fused_primitives()) {
+        for (const auto& fused : get_fused_primitives()) {
             if (fused.has_outer_dep())
                 return fused.outer_dep_start_idx;
         }
@@ -218,7 +218,7 @@ public:
     // At least the following scenarios are not allocating from memory pool:
     // 1. constant nodes
     // 2. read_value nodes that are optimized out to reuse from Variables.
-    bool may_use_mempool() const { return !(is_constant() || (is_type<read_value>() && optimized)); }
+    bool may_use_mempool() const { return !is_constant() && (!is_type<read_value>() || !optimized); }
 
     template <class PType>
     bool have_user_with_type() const {
@@ -295,7 +295,7 @@ public:
     bool is_valid_output_layout(size_t idx = 0) const { return valid_output_layouts[idx]; }
     bool is_all_valid_output_layouts() const {
         for (auto l : valid_output_layouts) {
-            if (l == false) return false;
+            if (!l) return false;
         }
         return true;
     }
@@ -427,7 +427,7 @@ public:
 
     size_t get_fused_inputs_count() const {
         size_t count = 0;
-        for (auto& fp : get_fused_primitives()) {
+        for (const auto& fp : get_fused_primitives()) {
             count += fp.deps.size();
         }
         return count;
@@ -479,9 +479,8 @@ public:
         });
         if (iter != deps.end()) {
             return iter->idx;
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     bool can_use(impl_types impl_type) const;
