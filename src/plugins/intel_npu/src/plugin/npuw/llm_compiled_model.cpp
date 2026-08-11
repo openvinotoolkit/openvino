@@ -4,9 +4,11 @@
 #include "llm_compiled_model.hpp"
 
 #include "embedding/embedding_infer_request.hpp"
+#include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
+#include "infer_request_utils.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -14,6 +16,7 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -672,8 +675,11 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
         LOG_DEBUG("Successfully compiled generate variant with size: " << kv_size);
     }
 
-    // Keep the original compiled model for backward compatibility (using the largest size)
-    m_kvcache_compiled = m_generate_compiled_variants.back();
+    // Keep the original compiled model for backward compatibility (using the largest size).
+    // Encoder embedding models have no generate variants (prefill-only); leave it null.
+    if (!m_generate_compiled_variants.empty()) {
+        m_kvcache_compiled = m_generate_compiled_variants.back();
+    }
 }
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -768,10 +774,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // If chunk size covers the entire prompt, just follow the static behavior.
     // Otherwise, use chunking and align the prompt size to the chunk size.
     if (m_use_chunk_prefill) {
-        OPENVINO_ASSERT(
-            !ov::npuw::util::has_input(model, "token_type_ids") || !ov::npuw::util::has_input(model, "inputs_embeds"),
-            "Chunking is not implemented for Gemma model family yet. "
-            "Please set NPUW_LLM_PREFILL_HINT to 'STATIC'");
         if (m_prefill_chunk_size >= max_prompt_len) {
             m_use_chunk_prefill = false;
         } else {
@@ -801,9 +803,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
-    LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
-    LOG_VERB("Maximum prompt length: " << max_prompt_len);
+    // Continuous prefill is opt-in and mutually exclusive with the hash prefix cache.
+    // The prefix cache restore step unconditionally overwrites num_stored_tokens and
+    // its helper hashes absolute token positions of a full prompt. Neither holds under
+    // the delta-input contract, so the combination fails compilation instead of
+    // silently misbehaving, mirroring the block-KV and prefix-caching exclusion.
+    m_enable_continuous_prefill = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
+    if (m_enable_continuous_prefill) {
+        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>(),
+                        "NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and NPUW_LLM_ENABLE_PREFIX_CACHING "
+                        "cannot be enabled simultaneously. Continuous prefill receives delta-only "
+                        "inputs which the hash prefix cache cannot process. "
+                        "Please disable one of the two options.");
+        LOG_INFO("Continuous prefill is enabled");
+    }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
@@ -816,8 +829,45 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
     if (m_is_embedding) {
-        LOG_DEBUG("Text-embedding model rebuild");
-        ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
+        // Both embedding flavours only ever prefill; what differs is how they attend. An
+        // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
+        // reconstruct, which is what lets it prefill in chunks. A bidirectional encoder (BERT:
+        // xiaobu, bge, Conan) attends over the whole sequence at once and has no KV cache to
+        // rebuild, so it runs as a single static forward instead. The check keys on the KV-cache
+        // concat on the SDPA key input; log the verdict at INFO so a model that lands on the wrong
+        // side of it (an unusual decoder topology, say) is diagnosable from the logs.
+        m_is_encoder_embedding = ov::npuw::util::is_encoder_embedding_model(kvcache_model);
+        LOG_INFO("Text-embedding model classified as "
+                 << (m_is_encoder_embedding ? "bidirectional encoder: whole-sequence forward, no KV cache"
+                                            : "autoregressive decoder: causal mask and reconstructed KV cache"));
+        if (m_is_encoder_embedding) {
+            LOG_DEBUG("Encoder (bidirectional) text-embedding model: no graph rebuild needed");
+            // A bidirectional encoder attends over the whole sequence at once; chunked prefill is
+            // semantically invalid for it. Force a single whole-sequence forward.
+            m_use_chunk_prefill = false;
+            // The encoder uses a learned absolute position table of size max_position_embeddings.
+            // The static sequence length must not exceed it, otherwise the position embedding
+            // (clamped to the table) won't broadcast against the token embedding and compilation
+            // fails. Clamp here so the default NPUW_LLM_MAX_PROMPT_LEN (which is sized for LLMs and
+            // is typically larger, e.g. 1024) does not break a 512-position BERT out of the box.
+            if (auto max_pos = ov::npuw::util::get_max_position_embeddings(kvcache_model)) {
+                if (max_prompt_len > *max_pos) {
+                    LOG_WARN("NPUW_LLM_MAX_PROMPT_LEN ("
+                             << max_prompt_len << ") exceeds the model's max_position_embeddings (" << *max_pos
+                             << "); clamping the static sequence length to " << *max_pos << ".");
+                    max_prompt_len = *max_pos;
+                    // Write the clamp back so the reported property matches what actually got
+                    // compiled. GenAI reads NPUW_LLM_MAX_PROMPT_LEN off the compiled model to
+                    // decide how long a prompt it may submit, and a stale larger value would let
+                    // it send one this model cannot take, failing at infer time instead of here.
+                    m_cfg.update({{"NPUW_LLM_MAX_PROMPT_LEN", std::to_string(max_prompt_len)}});
+                }
+            }
+            ov::npuw::util::validate_encoder_embedding_model(kvcache_model);
+        } else {
+            LOG_DEBUG("Text-embedding model rebuild");
+            ov::npuw::util::PrepareTextEmbeddingModel(seq_len_dim).run_on_model(kvcache_model);
+        }
     } else {
         LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
@@ -826,6 +876,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
+
+    // Reported after the embedding branch, since an encoder embedding model turns chunking off and
+    // may clamp the prompt length. Logging earlier would print values that never took effect.
+    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
+    LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
+    LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     ov::npuw::LoraStatefulToStatelessPass().run_on_model(kvcache_model);
 
@@ -906,8 +962,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
-    // Create generate model variants with different sizes
-    auto generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
+    // Create generate model variants with different sizes.
+    // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
+    // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
+    // built/compiled. Only the (whole-sequence) prefill model is used at inference time.
+    std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
+    if (!m_is_encoder_embedding) {
+        generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
+    } else {
+        LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
+    }
 
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
@@ -1203,6 +1267,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    // Duplicate shared K/V broadcast chains in the prefill model so that each downstream
+    // SDPA gets its own independent Concat chain.  This enables TagSDPA/SDPADecomposed to
+    // isolate and convert each SDPA to HFA independently (e.g. Gemma-4 L15–L34 reuse
+    // L13/L14 KV).
+    if ((prefill_attn_hfa || prefill_attn_pyramid) && !m_is_embedding) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::pass::DuplicateSharedKVConcat>();
+        if (rewr.run_on_model(prefill_model)) {
+            LOG_INFO("DuplicateSharedKVConcat applied to prefill model");
+        }
+    }
+
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
@@ -1222,6 +1298,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     implement_properties();
+
+    if (m_enable_continuous_prefill && !compute_continuous_prefill_supported()) {
+        LOG_WARN("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set, but continuous prefill is not "
+                 "supported for this compiled model. NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED "
+                 "reports false and full-history behaviour stays in effect.");
+    }
+
     LOG_DEBUG("Done");
 }
 
@@ -1321,7 +1404,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache;
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding;
 
         // Write config
         stream & m_cfg;
@@ -1361,16 +1444,19 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         write_model_meta(raw_stream);
     }
 
-    // Serialize bank name
-    const auto& kv_bank = m_kvcache_compiled->get_weights_bank();
-    const auto& p_bank = m_prefill_compiled->get_weights_bank();
-    NPUW_ASSERT(kv_bank && p_bank && kv_bank == p_bank && "Prefill and KVCache models' weight bank should be shared!");
+    // Serialize bank name. Prefill and kvcache have to share a bank, so either one names it. An
+    // encoder embedding model is prefill-only, and then there is no kvcache model to compare
+    // against and the prefill bank is simply the only one.
+    const auto& bank = m_prefill_compiled->get_weights_bank();
+    NPUW_ASSERT(bank && "Prefill model should have a weights bank!");
+    NPUW_ASSERT((!m_kvcache_compiled || m_kvcache_compiled->get_weights_bank() == bank) &&
+                "Prefill and KVCache models' weight bank should be shared!");
     auto stream = Stream::writer(raw_stream);
-    auto bank_name = kv_bank->get_name();
+    auto bank_name = bank->get_name();
     stream & bank_name;
 
     if (!is_weightless) {
-        stream&* kv_bank;
+        stream&* bank;
     }
 
     LOG_INFO("Done.");
@@ -1454,7 +1540,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             stream&* bank;
 
-            compiled->m_kvcache_compiled->set_weights_bank(bank);
+            // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
+            if (compiled->m_kvcache_compiled) {
+                compiled->m_kvcache_compiled->set_weights_bank(bank);
+            }
             for (const auto& compiled_variant : compiled->m_generate_compiled_variants) {
                 compiled_variant->set_weights_bank(bank);
                 compiled_variant->reconstruct_closure();
@@ -1542,11 +1631,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache;
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
 
         // Deserialize config
         stream & compiled->m_cfg;
         compiled->implement_properties();
+        // Not serialized. Recomputed from the deserialized config so older blobs stay loadable.
+        compiled->m_enable_continuous_prefill = compiled->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();
 
         // Deserialize KV cache model variants
         stream & compiled->m_kvcache_sizes;
@@ -1604,11 +1695,72 @@ void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
+    // Static exclusions for continuous prefill. Every condition here is knowable at
+    // compile or import time. Per-turn limits like capacity, alignment and the
+    // watermark are applied dynamically by the propose/grant channel instead.
+    if (!m_enable_continuous_prefill) {
+        return false;  // opt-in feature
+    }
+    if (!m_use_chunk_prefill) {
+        return false;  // whole (STATIC) prefill has no continuation path
+    }
+    if (m_is_whisper || m_is_embedding || m_is_eagle) {
+        return false;  // out of scope pipelines
+    }
+    if (m_longrope_context_limit > 0u) {
+        return false;  // LongRoPE threshold can be crossed mid-generation
+    }
+    OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
+    const auto& prefill_inputs = m_prefill_compiled->inputs();
+    for (const auto& input : prefill_inputs) {
+        // A port can carry several names, so every one of them must clear the
+        // exclusions; get_any_name() could return one that hides a match.
+        for (const auto& name : input.get_names()) {
+            if (ov::npuw::util::starts_with_past_lincache(name)) {
+                return false;  // linear/hybrid state has no generate->prefill path
+            }
+            if (ov::npuw::util::matchLoRAMatMulAString(name) || ov::npuw::util::matchLoRAMatMulBString(name) ||
+                ov::npuw::util::matchLoRAMatMulAlphaString(name)) {
+                return false;  // adapter change is only detected after the caller sliced
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::inputs_embeds) {
+                return false;  // VLM is out of scope in v1
+            }
+            if (name == ov::npuw::LLMInferRequest::layer_names::token_type_ids) {
+                return false;  // token type ids are not routed through a continued prefill
+            }
+        }
+    }
+    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
+    // as a contiguous continuation and is excluded statically. A read-only property
+    // must never throw, so a dynamic rank is treated as unsupported rather than
+    // queried through PartialShape::size(), which asserts a static rank.
+    const auto position_ids_port =
+        ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
+    if (!position_ids_port.has_value()) {
+        return false;
+    }
+    const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+        return false;
+    }
+    // Every static exclusion above passed, but this change carries the protocol only:
+    // nothing attaches the coordinator to the variable state yet, so a proposal would
+    // throw. A capability the request cannot honour must never be advertised, so the
+    // answer stays false until the delta prefill path lands and lifts this.
+    return false;
+}
+
 ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const {
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (name == ov::intel_npu::npuw::llm::prefill_config.name() ||
         name == ov::intel_npu::npuw::llm::generate_config.name()) {
         OPENVINO_THROW(name, " is write-only option!");
+    }
+
+    if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
+        return compute_continuous_prefill_supported();
     }
 
     auto&& configIterator = m_prop_to_opt.find(name);
@@ -1625,7 +1777,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
     if (m_is_whisper) {
         return non_const_this->create_whisper_infer_request();
     } else if (m_is_embedding) {
-        return non_const_this->create_embedding_infer_request();
+        return m_is_encoder_embedding ? non_const_this->create_encoder_embedding_infer_request()
+                                      : non_const_this->create_embedding_infer_request();
     } else {
         return non_const_this->create_llm_infer_request();
     }
@@ -1644,6 +1797,11 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whispe
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_embedding_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::EmbeddingInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_encoder_embedding_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::EncoderEmbeddingInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
@@ -1665,6 +1823,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
+                          BIND(npuw::llm::enable_continuous_prefill, NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),

@@ -387,6 +387,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*InterpolateLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*MatMulLayerCPUTest.*CompareWithRefs.*)"),
             std::regex(R"(.*MatmulWeightsDecompression.*CompareWithRefs.*)"),
+            std::regex(R"(.*Conv1x1WeightCompressedToMatmulTest.*)"),
             std::regex(R"(.*MvnLayerCPUTest.*CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)"),
             std::regex(R"(.*NonInputInPlaceTest.*CompareWithRefs.*)"),
             std::regex(R"(.*OVClassCompiledModelGetPropertyTest_EXEC_DEVICES.*CanGetExecutionDeviceInfo.*)"),
@@ -488,7 +489,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
             std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
-            std::regex(R"(.*smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
             std::regex(R"(.*_enforceSnippets=1.*)"),
@@ -517,7 +517,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
             std::regex(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)"),
             // Tests to be enabled on ARM64
-            std::regex(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)"),
             std::regex(R"(smoke_Snippets_GroupNormalization.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
@@ -687,10 +686,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
         if (!ov::intel_cpu::hasArmISASupport(ov::intel_cpu::ArmISA::DOTPROD)) {
-            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_Kleidiai.*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights(Grp)?_Kleidiai.*)"));
         }
         if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
             patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed.*)"));
+            patterns.emplace_back(std::regex(R"(.*Conv1x1WeightCompressedToMatmul.*)"));
         }
         // Accuracy issue in case of odd K
         patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed_CornerCases.*WET=i4.*)"));

@@ -88,10 +88,12 @@ private:
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_embedding_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_encoder_embedding_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -134,6 +136,13 @@ private:
     uint64_t m_prefix_caching_max_num_blocks = 0;
     uint64_t m_longrope_context_limit = 0;
 
+    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
+    // mutually exclusive with hash prefix caching, which fails compilation.
+    bool m_enable_continuous_prefill = false;
+    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
+    // compiled model state. Not serialized, recomputed identically after import.
+    bool compute_continuous_prefill_supported() const;
+
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;
 
@@ -142,6 +151,9 @@ private:
     size_t m_decomposed_sdpa_size = 0;
 
     bool m_is_embedding = false;
+    // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
+    // routed to the dedicated KV/RoPE-free encoder embedding path.
+    bool m_is_encoder_embedding = false;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(

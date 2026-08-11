@@ -53,11 +53,10 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
         m_map[key] = new_it;
         ++m_total_experts;
         return {to_filled_no, false};
-    } else {
-        move_to_end(it->second);
-        const bool is_hit = m_filled_list[it->second->lru_expert_no];
-        return {it->second->lru_expert_no, is_hit};
     }
+    move_to_end(it->second);
+    const bool is_hit = m_filled_list[it->second->lru_expert_no];
+    return {it->second->lru_expert_no, is_hit};
 }
 
 }  // namespace ov::intel_gpu::ocl::moe

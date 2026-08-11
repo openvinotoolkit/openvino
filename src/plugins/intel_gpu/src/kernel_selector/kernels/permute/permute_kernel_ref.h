@@ -16,7 +16,7 @@ public:
     using Parent = PermuteKernelBase;
     using Parent::Parent;
     PermuteKernelRef() : PermuteKernelBase("permute_ref") {}
-    virtual ~PermuteKernelRef() {}
+    ~PermuteKernelRef() override = default;
 
     bool Validate(const Params& p) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

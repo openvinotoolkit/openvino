@@ -243,6 +243,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |FusedMatMul                                             |1                       |1                               |                                |
 |com.microsoft           |FusedMatMulActivation                                   |                        |1                               |                                |
 |com.microsoft           |GatedRelativePositionBias                               |                        |1                               |                                |
+|com.microsoft           |GatherBlockQuantized                                    |1                       |1                               |                                |
 |com.microsoft           |GatherND                                                |1                       |1                               |                                |
 |com.microsoft           |Gelu                                                    |1                       |1                               |                                |
 |com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |

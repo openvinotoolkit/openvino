@@ -60,7 +60,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
-        for (auto& desc : impl_param.fused_desc) {
+        for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
                 output_fmt = desc.output_layout.format;
             }
@@ -146,7 +146,7 @@ void permute_inst::update_output_memory() {
     if (input_memory_ptr() == nullptr)
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
+    if (!_outputs.empty() && static_cast<bool>(_outputs[0])
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 

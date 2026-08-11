@@ -274,11 +274,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
                 return true;
             }
 
-            if (m_indirect && !is_query) {
-                return true;
-            }
-
-            return false;
+            return m_indirect && !is_query;
         };
 
         if (m_indirect) {

@@ -20,8 +20,7 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_b,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
-    : ov::op::v0::MatMul()
-    , m_order_a(order_a)
+    : m_order_a(order_a)
     , m_order_b(order_b)
     , m_order_c(order_c)
     , m_output_type(output_type) {
@@ -103,11 +102,10 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
     auto out_shapes = ov::op::v0::shape_infer(ov::as_type<const ov::op::v0::MatMul>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
-    if (order_c.size() > 0) {
+    if (!order_c.empty()) {
         return { transpose_pshape(out_shapes[0], order_c) };
-    } else {
-        return { out_shapes[0] };
     }
+    return {out_shapes[0]};
 }
 
 }  // namespace ov::intel_gpu::op
