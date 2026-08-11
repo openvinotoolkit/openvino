@@ -425,6 +425,34 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
     EXPECT_TRUE(is_valid) << error_msg;
 }
 
+/**
+ * @brief An inflated size in a Const's <data> element must be rejected before
+ * any weights buffer dereference;
+ */
+TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
+    {
+        auto c = std::make_shared<Constant>(element::f32, Shape{5}, std::vector<float>(5, 1.0f));
+        auto input = std::make_shared<Parameter>(element::f32, Shape{5});
+        ov::serialize(std::make_shared<Model>(OutputVector{std::make_shared<Add>(input, c)}, ParameterVector{input}),
+                      m_out_xml_path,
+                      m_out_bin_path);
+    }
+
+    // Inflate the Const's <data size> — that is what parse_weightless_cache_attribute
+    // reads to populate WeightlessCacheAttribute.original_size
+    pugi::xml_document doc;
+    ASSERT_EQ(doc.load_file(m_out_xml_path.string().c_str()).status, pugi::status_ok);
+    for (auto& layer : doc.child("net").child("layers").children("layer")) {
+        if (std::string(layer.attribute("type").value()) == "Const") {
+            layer.child("data").attribute("size").set_value(uint64_t{0x1000000000ULL});
+        }
+    }
+    doc.save_file(m_out_xml_path.string().c_str());
+
+    // .bin is ~20 bytes; injected size (~68 GB) must be rejected before any dereference
+    EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
+}
+
 TEST(StrToContainer, FloatVectorWithInfAndNan) {
     {
         std::vector<float> result;

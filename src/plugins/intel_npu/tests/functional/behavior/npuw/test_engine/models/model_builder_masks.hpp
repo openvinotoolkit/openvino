@@ -116,6 +116,25 @@ ov::Output<ov::Node> make_sliding_window_mask_gemma4(const ov::Output<ov::Node>&
                                                      ov::element::Type /*unused*/,
                                                      size_t window_size);
 
+/// Sliding window + causal mask, Gemma-4 shape as exported after the
+/// transformers 5.5 lowering change (matches NPUW's
+/// Gemma4UnifiedSlidingMaskMatcher). Same as the variant above except the past
+/// offset reaches the Q-side Add indirectly: cache_position is built as
+/// Range(past_kv_len, past_kv_len + seq_len) and its first element is selected,
+/// so the Add sees Gather(Range(..), 0) instead of past_kv_len itself.
+ov::Output<ov::Node> make_sliding_window_mask_gemma4_unified(const ov::Output<ov::Node>& seq_source,
+                                                             const ov::Output<ov::Node>& attention_mask,
+                                                             ov::element::Type /*unused*/,
+                                                             size_t window_size);
+
+/// Same as make_sliding_window_mask_gemma4_unified but selecting
+/// cache_position[1], which is NOT past_kv_len. Used to check the matcher
+/// leaves such a subgraph alone instead of shifting the window.
+ov::Output<ov::Node> make_sliding_window_mask_gemma4_unified_nonzero_select(const ov::Output<ov::Node>& seq_source,
+                                                                            const ov::Output<ov::Node>& attention_mask,
+                                                                            ov::element::Type /*unused*/,
+                                                                            size_t window_size);
+
 /// Sliding window mask, legacy Phi-3 / transformers 4.51 shape (matches NPUW's
 /// OldPhi3SlidingMaskMatcher). INVERTED boolean domain combined via BitwiseOr
 /// (true = masked out): Greater(K, Q.T) | LessEqual(K, Q.T - window), with the

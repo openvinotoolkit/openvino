@@ -25,6 +25,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/binarize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_elementwise_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_matmul_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/broadcast_transition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/change_placeholder_types_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/clamp_fusion.cpp
@@ -223,6 +224,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/fq_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/gelu7_downgrade.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_normalization_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/group_query_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hsigmoid_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/hswish_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/log_softmax_decomposition_test.cpp
