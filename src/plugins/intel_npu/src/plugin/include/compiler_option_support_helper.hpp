@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -20,7 +20,7 @@ class CompilerOptionSupportHelper final {
 public:
     explicit CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend);
 
-    const std::shared_ptr<CompilerSupportedOptionsCache>& getCompilerSupportedOptionsCache() const;
+    const std::shared_ptr<OptionSupportCache>& getOptionSupportCache() const;
 
     bool isOptionSupported(ov::intel_npu::CompilerType compilerType,
                            const std::string& optionName,
@@ -28,7 +28,7 @@ public:
 
 private:
     const ov::SoPtr<IEngineBackend> _backend;
-    std::shared_ptr<CompilerSupportedOptionsCache> _supportedOptionsCache;
+    std::shared_ptr<OptionSupportCache> _optionSupportCache;
 
     std::atomic<bool> _driverSupportedOptionsLoaded{false};
     std::atomic<bool> _pluginSupportedOptionsLoaded{false};

@@ -7,17 +7,22 @@
 #include <memory>
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
-#include "intel_npu/common/compiler_supported_options_cache.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 
 namespace intel_npu {
 
+namespace {
+OptionSupportCache::CacheKey toCacheKey(const ov::intel_npu::CompilerType compilerType) {
+    return static_cast<OptionSupportCache::CacheKey>(compilerType);
+}
+}  // namespace
+
 CompilerOptionSupportHelper::CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend)
     : _backend(backend),
-      _supportedOptionsCache(std::make_shared<CompilerSupportedOptionsCache>()) {}
+      _optionSupportCache(std::make_shared<OptionSupportCache>()) {}
 
-const std::shared_ptr<CompilerSupportedOptionsCache>& CompilerOptionSupportHelper::getCompilerSupportedOptionsCache()
-    const {
-    return _supportedOptionsCache;
+const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptionSupportCache() const {
+    return _optionSupportCache;
 }
 
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
@@ -27,7 +32,7 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     const auto getCompiler = [&]() -> ICompilerAdapter* {
         if (compiler == nullptr) {
             try {
-                compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _supportedOptionsCache);
+                compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
             } catch (...) {
                 return nullptr;
             }
@@ -44,7 +49,8 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
         return compilerPtr->is_option_supported(optionName, optionValue);
     }
 
-    if (_supportedOptionsCache->isOptionSupported(compilerType, optionName, optionValue)) {
+    const auto cacheKey = toCacheKey(compilerType);
+    if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
         return true;
     }
 
@@ -58,7 +64,7 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
                                            : _pluginSupportedOptionsLoaded;
     if (!optionsLoaded.exchange(true)) {
         compilerPtr->get_supported_options();
-        if (_supportedOptionsCache->isOptionSupported(compilerType, optionName, optionValue)) {
+        if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
             return true;
         }
     }

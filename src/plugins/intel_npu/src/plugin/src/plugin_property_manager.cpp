@@ -150,7 +150,7 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
         auto tempCompiler = compilerFactory.getCompiler(backend,
                                                         compilerType,
                                                         std::string_view{},
-                                                        optionSupportHelper.getCompilerSupportedOptionsCache());
+                                                        optionSupportHelper.getOptionSupportCache());
         return tempCompiler->is_option_supported(ov::compatibility_check.name());
     } catch (...) {
         return false;
@@ -200,10 +200,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     CompilerAdapterFactory factory;
     auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
     try {
-        auto compiler = factory.getCompiler(backend,
-                                            compilerType,
-                                            std::string_view{},
-                                            optionSupportHelper.getCompilerSupportedOptionsCache());
+        auto compiler =
+            factory.getCompiler(backend, compilerType, std::string_view{}, optionSupportHelper.getOptionSupportCache());
 
         auto result =
             compiler->is_option_supported(ov::compatibility_check.name(), std::make_optional(compatibilityDescriptor));
@@ -442,7 +440,7 @@ void PluginPropertyManager::registerProperties() const {
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
         CompilerAdapterFactory factory;
-        auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform, _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+        auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform, _compilerOptionSupportHelper->getOptionSupportCache());
 
         return dummyCompiler->get_version();
     });
@@ -589,7 +587,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
         compiler = factory.getCompiler(_backend,
                                        compilerType,
                                        compilationPlatform,
-                                       _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+                                       _compilerOptionSupportHelper->getOptionSupportCache());
 
         if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
               compilationPlatform == _currentlyUsedPlatform)) {
@@ -694,7 +692,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
             compiler = factory.getCompiler(_backend,
                                            compilerType,
                                            compilationPlatform,
-                                           _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+                                           _compilerOptionSupportHelper->getOptionSupportCache());
         } catch (const std::exception& ex) {
             if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
                 OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
@@ -793,7 +791,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
         compiler = factory.getCompiler(_backend,
                                        compilerType,
                                        compilationPlatform,
-                                       _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+                                       _compilerOptionSupportHelper->getOptionSupportCache());
     } catch (const std::exception& ex) {
         if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
             return false;

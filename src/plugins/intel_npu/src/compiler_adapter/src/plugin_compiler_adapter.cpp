@@ -9,9 +9,9 @@
 
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
-#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -28,11 +28,16 @@
 
 namespace intel_npu {
 
+namespace {
+constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+}
+
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                             const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache,
+                                             const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
-      _optionsCache(optionsCache),
+      _optionSupportCache(optionSupportCache),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
@@ -314,23 +319,23 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         compilerOpts.push_back(option);
     }
 
-    if (_optionsCache) {
-        _optionsCache->setSupportedOptions(ov::intel_npu::CompilerType::PLUGIN, compilerOpts);
+    if (_optionSupportCache) {
+        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
     }
     return compilerOpts;
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    if (_optionsCache && _optionsCache->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN, optname, optValue)) {
+    if (_optionSupportCache && _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname, optValue)) {
         return true;
     }
 
     const bool hasValue = optValue.has_value();
     const std::string value = hasValue ? optValue.value() : "";
     if (_compiler->is_option_supported(optname, optValue)) {
-        if (_optionsCache) {
-            _optionsCache->addSupportedOption(ov::intel_npu::CompilerType::PLUGIN, optname, optValue);
+        if (_optionSupportCache) {
+            _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, optValue);
         }
         _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
                       optname.c_str(),

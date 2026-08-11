@@ -24,7 +24,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
     ov::intel_npu::CompilerType& compilerType,
     std::string_view platform,
-    const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache) const {
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
     const auto device = engineBackend != nullptr ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
@@ -34,7 +34,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
                 if (_pluginCompilerIsPresent) {
                     try {
                         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                                       optionsCache,
+                                                                       optionSupportCache,
                                                                        device->getDeviceProperties());
                     } catch (...) {
                         _pluginCompilerIsPresent = false;
@@ -53,11 +53,11 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
         if (device == nullptr) {
-            return std::make_unique<PluginCompilerAdapter>(nullptr, optionsCache);
+            return std::make_unique<PluginCompilerAdapter>(nullptr, optionSupportCache);
         }
 
         return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                       optionsCache,
+                                                       optionSupportCache,
                                                        device->getDeviceProperties());
     } else if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
         if (device == nullptr) {
@@ -72,7 +72,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
-        return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs(), optionsCache);
+        return std::make_unique<DriverCompilerAdapter>(engineBackend->getInitStructs(), optionSupportCache);
     } else {
         OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
     }

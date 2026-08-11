@@ -347,7 +347,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
-                                        _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -715,7 +715,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
-                                        _compilerOptionSupportHelper->getCompilerSupportedOptionsCache());
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {

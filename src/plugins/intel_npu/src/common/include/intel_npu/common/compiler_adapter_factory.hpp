@@ -8,9 +8,9 @@
 #include <memory>
 #include <string_view>
 
-#include "intel_npu/common/compiler_supported_options_cache.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -23,7 +23,7 @@ public:
         const ov::SoPtr<IEngineBackend>& engineBackend,
         ov::intel_npu::CompilerType& compilerType,
         std::string_view platform,
-        const std::shared_ptr<CompilerSupportedOptionsCache>& optionsCache = nullptr) const;
+        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
 private:
     inline static std::atomic<bool> _pluginCompilerIsPresent{true};
