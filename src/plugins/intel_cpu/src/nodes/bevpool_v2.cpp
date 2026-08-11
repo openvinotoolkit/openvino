@@ -4,8 +4,6 @@
 
 #include "bevpool_v2.h"
 
-#include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -21,6 +19,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/bevpool_v2.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
@@ -70,8 +69,9 @@ void BevPoolV2::getSupportedDescriptors() {
 }
 
 void BevPoolV2::initSupportedPrimitiveDescriptors() {
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 
     auto cf_prc = getOriginalInputPrecisionAtPort(CF_IDX);
     auto dw_prc = getOriginalInputPrecisionAtPort(DW_IDX);
@@ -135,7 +135,7 @@ void BevPoolV2::executeImpl() {
         }
 
         for (uint32_t c = 0; c < m_output_channels; ++c) {
-            float acc = 0.f;
+            float acc = 0.F;
             for (int64_t i = start; i < end; ++i) {
                 const auto dw_index = static_cast<int64_t>(idx_data[i]);
                 if (dw_index < 0 || dw_index >= dw_len) {

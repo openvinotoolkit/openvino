@@ -171,10 +171,7 @@ bool support_opt_kernel(const kernel_impl_params& params) {
     }
 
     // First-pass heuristic: use blocked kernels when channels and interval workload are large enough.
-    if (output_channels < BlockSize || interval_count < 8)
-        return false;
-
-    return true;
+    return output_channels >= BlockSize && interval_count >= 8;
 }
 
 class BevPoolV2Impl : public PrimitiveImplOCL {
@@ -200,7 +197,7 @@ public:
         cldnn::stream& stream = instance.get_network().get_stream();
         stream.enqueue_barrier();
 
-        auto output_evt = instance.output_memory_ptr(0)->fill(stream, false);
+        auto output_evt = instance.output_memory_ptr(0)->fill(stream);
         std::vector<cldnn::event::ptr> deps(events);
         deps.push_back(output_evt);
 
