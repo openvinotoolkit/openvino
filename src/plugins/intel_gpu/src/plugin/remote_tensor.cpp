@@ -458,7 +458,7 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-    return is_shared() && !is_surface();
+    return is_shared() && m_mem_type != TensorType::BT_SURF_SHARED;
 }
 
 void RemoteTensorImpl::update_hash() {
