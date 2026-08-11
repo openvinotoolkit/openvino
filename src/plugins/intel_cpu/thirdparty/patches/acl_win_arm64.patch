@@ -1,0 +1,170 @@
+From ea6f53d39aeeba26d00f8c7ad762880998c0a0aa Mon Sep 17 00:00:00 2001
+From: Harish Raja Selvan <harish.rajaselvan@multicorewareinc.com>
+Date: Tue, 28 Jul 2026 16:21:09 +0530
+Subject: [PATCH 1/2] Enable MSVC ARM64 support for AArch64 code paths
+
+---
+ arm_compute/core/QuantizationInfo.h           |  6 +++---
+ .../function_info/ActivationLayerInfo.h       | 19 +++++++++++--------
+ .../runtime/NEON/functions/NEReorderLayer.h   |  2 +-
+ src/core/helpers/LUTManager.h                 |  8 ++++----
+ 4 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/arm_compute/core/QuantizationInfo.h b/arm_compute/core/QuantizationInfo.h
+index e0d3e0481..d00ae713a 100644
+--- a/arm_compute/core/QuantizationInfo.h
++++ b/arm_compute/core/QuantizationInfo.h
+@@ -699,11 +699,11 @@ inline UniformQuantizationInfo compute_requantization_scale_offset(const Uniform
+     // then compute the new offset in the float domain,
+     // finally we convert it back as int32_t
+ 
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+     constexpr RoundingPolicy rounding_policy = RoundingPolicy::TO_NEAREST_EVEN;
+-#else  //__aarch64__
++#else  //__aarch64__ || _M_ARM64
+     constexpr RoundingPolicy rounding_policy = RoundingPolicy::TO_NEAREST_UP;
+-#endif //__aarch64__
++#endif //__aarch64__ || _M_ARM64
+ 
+     offset_to_apply -=
+         arm_compute::round(static_cast<float>(uqinfo_in.offset) * uqinfo_in.scale / uqinfo_out.scale, rounding_policy);
+diff --git a/arm_compute/function_info/ActivationLayerInfo.h b/arm_compute/function_info/ActivationLayerInfo.h
+index 7a73bb4af..410b85aa1 100644
+--- a/arm_compute/function_info/ActivationLayerInfo.h
++++ b/arm_compute/function_info/ActivationLayerInfo.h
+@@ -35,9 +35,12 @@
+ #include <array>
+ #include <memory>
+ 
+-#ifdef __aarch64__
++#if defined(__aarch64__)
+ #include <arm_neon.h>
+-#endif // __arch64__
++#elif defined(_M_ARM64)
++#include <cstdint>
++using float16_t = uint16_t;
++#endif // __aarch64__ || _M_ARM64
+ 
+ namespace arm_compute
+ {
+@@ -68,11 +71,11 @@ public:
+     typedef arm_compute::ActivationFunction ActivationFunction;
+ 
+     /** Lookup table  */
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+     // TODO (COMPMID-7511): delegate to LUTManager
+     using LookupTable256   = std::array<qasymm8_t, 256>;
+     using LookupTable65536 = std::array<float16_t, 65536>;
+-#endif // __aarch64__
++#endif // __aarch64__ || _M_ARM64
+ 
+     ActivationLayerInfo() = default;
+     /** Default Constructor
+@@ -106,7 +109,7 @@ public:
+         return _enabled;
+     }
+ 
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+     const LookupTable256 &lut() const
+     {
+         return _lut;
+@@ -125,7 +128,7 @@ public:
+     {
+         _lut_fp16 = lut;
+     }
+-#endif // __aarch64__
++#endif // __aarch64__ || _M_ARM64
+ 
+     // The < and == are added to be able to use this data type as an attribute for LUTInfo
+     friend bool operator<(const ActivationLayerInfo &l, const ActivationLayerInfo &r)
+@@ -150,10 +153,10 @@ private:
+     float              _b       = {};
+     bool               _enabled = {false};
+ 
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+     LookupTable256                    _lut = {};
+     std::shared_ptr<LookupTable65536> _lut_fp16{nullptr};
+-#endif // __aarch64__
++#endif // __aarch64__ || _M_ARM64
+ };
+ } // namespace arm_compute
+ #endif // ACL_ARM_COMPUTE_FUNCTION_INFO_ACTIVATIONLAYERINFO_H
+diff --git a/arm_compute/runtime/NEON/functions/NEReorderLayer.h b/arm_compute/runtime/NEON/functions/NEReorderLayer.h
+index 096a16349..d1d4bc3d6 100644
+--- a/arm_compute/runtime/NEON/functions/NEReorderLayer.h
++++ b/arm_compute/runtime/NEON/functions/NEReorderLayer.h
+@@ -25,7 +25,7 @@
+ #ifndef ACL_ARM_COMPUTE_RUNTIME_NEON_FUNCTIONS_NEREORDERLAYER_H
+ #define ACL_ARM_COMPUTE_RUNTIME_NEON_FUNCTIONS_NEREORDERLAYER_H
+ 
+-#if defined(__aarch64__)
++#if defined(__aarch64__) || defined(_M_ARM64)
+ 
+ /** @file
+  * @publicapi
+diff --git a/src/core/helpers/LUTManager.h b/src/core/helpers/LUTManager.h
+index eca9472f4..bc19a1701 100644
+--- a/src/core/helpers/LUTManager.h
++++ b/src/core/helpers/LUTManager.h
+@@ -34,10 +34,10 @@
+ 
+ namespace arm_compute
+ {
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+ using LookupTable256   = std::array<float, 256>;
+ using LookupTable65536 = std::array<float16_t, 65536>;
+-#endif // __aarch64__
++#endif // __aarch64__ || _M_ARM64
+ 
+ enum class LUTType
+ {
+@@ -88,7 +88,7 @@ public:
+     LUTManager() = default;
+ 
+     static LUTManager &get_instance();
+-#ifdef __aarch64__
++#if defined(__aarch64__) || defined(_M_ARM64)
+     template <typename T>
+     std::shared_ptr<T> get_lut_table(LUTInfo info);
+ 
+@@ -98,7 +98,7 @@ private:
+ 
+     std::map<LUTInfo, std::weak_ptr<LookupTable256>>   map_fp32{};
+     std::map<LUTInfo, std::weak_ptr<LookupTable65536>> map_fp16{};
+-#endif // __aarch64__
++#endif // __aarch64__ || _M_ARM64
+ };
+ 
+ } // namespace arm_compute
+-- 
+2.50.1.windows.1
+ 
+From 562ae5feb2ad43692fb475fc51f51cd6d41516f9 Mon Sep 17 00:00:00 2001
+From: Harish Raja Selvan <harish.rajaselvan@multicorewareinc.com>
+Date: Wed, 5 Aug 2026 12:56:50 +0530
+Subject: [PATCH 2/2] SConstruct: set ASCOM/ASPPCOM for clang-cl on Windows
+ 
+---
+ SConstruct | 2 ++
+ 1 file changed, 2 insertions(+)
+ 
+diff --git a/SConstruct b/SConstruct
+index e4cdc184b..c2b90a3fd 100644
+--- a/SConstruct
++++ b/SConstruct
+@@ -456,6 +456,8 @@ if env['os'] == 'windows':
+     env['RANLIB'] = "llvm-ranlib"
+     env['AS'] = env['CC']
+     env['ASFLAGS'] = []
++    env['ASCOM'] = '$AS $ASFLAGS /c /Fo$TARGET $SOURCES'
++    env['ASPPCOM'] = '$AS $ASPPFLAGS /c /Fo$TARGET $SOURCES'
+ elif env['os'] == 'android':
+     # If --target is specified in the NDK, we need to relay it to the assembler
+     # See https://developer.android.com/ndk/guides/other_build_systems#overview
+-- 
+2.50.1.windows.1

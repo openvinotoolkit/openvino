@@ -134,6 +134,24 @@ elseif(NOT TARGET arm_compute::arm_compute)
     set(ARM_COMPUTE_SCONS_JOBS "8" CACHE STRING "Number of parallel threads to build ARM Compute Library")
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
 
+    if(MSVC64)
+        set(ACL_PATCH_FILE "${intel_cpu_thirdparty_SOURCE_DIR}/patches/acl_win_arm64.patch")
+        if(EXISTS ${ACL_PATCH_FILE})
+            execute_process(COMMAND git apply --reverse --check --ignore-whitespace ${ACL_PATCH_FILE}
+                            WORKING_DIRECTORY ${ARM_COMPUTE_SOURCE_DIR}
+                            RESULT_VARIABLE patch_already_applied OUTPUT_QUIET ERROR_QUIET)
+            if(NOT patch_already_applied EQUAL 0)
+                message(STATUS "Applying ACL patch: ${ACL_PATCH_FILE}")
+                execute_process(COMMAND git apply --ignore-whitespace ${ACL_PATCH_FILE}
+                                WORKING_DIRECTORY ${ARM_COMPUTE_SOURCE_DIR}
+                                RESULT_VARIABLE apply_result)
+                if(NOT apply_result EQUAL 0)
+                    message(FATAL_ERROR "Failed to apply ACL patch. Please check if the patch is valid.")
+                endif()
+            endif()
+        endif()
+    endif()
+
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
     # Find SCons build tool
@@ -291,12 +309,12 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
         elseif(MSVC64)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.20)
-                set(local_extra_cxx_flags "${local_extra_cxx_flags} $<IF:$<CONFIG:Release>,/MD,/MDd>")
+                set(local_extra_cxx_flags "${local_extra_cxx_flags} $<IF:$<CONFIG:Release>,/MD,/MDd> /D_USE_STD_VECTOR_ALGORITHMS=0")
             else()
                 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-                    set(local_extra_cxx_flags "${local_extra_cxx_flags} /MDd")
+                    set(local_extra_cxx_flags "${local_extra_cxx_flags} /MDd /D_USE_STD_VECTOR_ALGORITHMS=0")
                 else()
-                    set(local_extra_cxx_flags "${local_extra_cxx_flags} /MD")
+                    set(local_extra_cxx_flags "${local_extra_cxx_flags} /MD /D_USE_STD_VECTOR_ALGORITHMS=0")
                 endif()
             endif()
         endif()
@@ -410,7 +428,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     # Compiler cache
-    if(CMAKE_CXX_COMPILER_LAUNCHER)
+    # Skip on Windows ARM64: ccache fails on ACL's SCons response-file (@file) invocations
+    if(CMAKE_CXX_COMPILER_LAUNCHER AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|arm64"))
         ov_arm_compute_add_option("compiler_cache" "${CMAKE_CXX_COMPILER_LAUNCHER}")
     endif()
 
@@ -478,8 +497,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         BUILD_BYPRODUCTS ${ARM_COMPUTE_BUILD_DIR}/${arm_compute}
         INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${ARM_COMPUTE_SOURCE_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
-                ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
+                ${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}
+                ${ARM_COMPUTE_BUILD_DIR}/${arm_compute}
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARM_COMPUTE_SOURCE_DIR}/build
         LOG_BUILD ${ENABLE_DEBUG_CAPS}
     )
