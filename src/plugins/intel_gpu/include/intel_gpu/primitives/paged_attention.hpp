@@ -82,6 +82,35 @@ struct paged_attention : public primitive_base<paged_attention> {
         return is_i8_u8 && !is_key_by_channel;
     }
 
+    // Staging switch for a TOKEN-MAJOR i8 BY_CHANNEL K page, where the per-channel scale/zp pairs move
+    // out of the columns and into a trailing region:
+    //     rows 0..block_size-1        the tokens, row pitch k_head_size  (as BY_TOKEN)
+    //     k_head_size*block_size ..   k_head_size interleaved (scale, zp) f16 pairs, indexed by channel
+    // The page SIZE is unchanged -- k_head_size * (block_size + 4) either way -- so nothing about the
+    // allocation or the tensor's element count moves; only the in-page addressing does.
+    //
+    // Deliberately SEPARATE from k_token_major(): exactly two kernels understand this layout, the
+    // pa_kv_cache_update writer and sdpa_ocl_decode. k_token_major_for() keeps returning false for
+    // BY_CHANNEL so pa_sdpa_opt, rotate, reorder and micro all keep reading the upstream d-major page
+    // and need no change -- which also means that with this switch on, every OTHER K-cache consumer is
+    // INVALID. MIXED (pa_multi_token), rotation, cache reorder, adaptive R-KV and a scores output all
+    // read K, so this is only valid for a prefill + generate run.
+    // TODO: retire together with k_token_major() once sdpa_ocl covers the mixed stage too and the
+    // BY_CHANNEL page can flip unconditionally.
+    static bool k_by_channel_token_major() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR");
+            return env != nullptr && env[0] == '1';
+        }();
+        return enabled;
+    }
+
+    // i8 only, not is_i8_u8: sdpa_ocl_decode widens the stored byte as SIGNED. Testing for i8 also
+    // excludes INT4 for free, since an int4 cache carries a u8/u4 layout dtype and never i8.
+    static bool k_by_channel_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
+        return k_by_channel_token_major() && is_key_by_channel && key_cache_precision == ov::element::i8;
+    }
+
     paged_attention() : primitive_base("", {}) {}
 
     paged_attention(const primitive_id& id,
