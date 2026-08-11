@@ -54,6 +54,10 @@ bool IGraph::is_dynamic() const {
     return false;
 }
 
+BlobType IGraph::get_blob_type() const {
+    return BlobType::ELF;
+}
+
 void IGraph::update_network_name(std::string_view) {
     OPENVINO_THROW("update_network_name not implemented");
 }

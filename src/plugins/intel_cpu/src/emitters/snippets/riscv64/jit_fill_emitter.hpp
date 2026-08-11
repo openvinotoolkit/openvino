@@ -44,8 +44,12 @@ private:
         return offset == 0;
     }
 
-    bool is_optimized() const {
-        return is_full_reg() && fill_value == static_cast<uint32_t>(0x0);
+    bool is_mask_imm() const {
+        return offset > 0 && offset - 1 <= 15;
+    }
+
+    bool is_zero_fill() const {
+        return fill_value == static_cast<uint32_t>(0x0);
     }
 
     size_t offset = 0;

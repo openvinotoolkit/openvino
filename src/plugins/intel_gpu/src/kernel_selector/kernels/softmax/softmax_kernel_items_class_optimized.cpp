@@ -90,7 +90,7 @@ DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_
 SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(const softmax_params& params) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    auto& input = params.inputs[0];
+    const auto& input = params.inputs[0];
 
     const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.outputs[0]);
 

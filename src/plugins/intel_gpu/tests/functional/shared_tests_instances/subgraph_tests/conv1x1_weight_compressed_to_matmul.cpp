@@ -12,6 +12,7 @@ using ov::test::Conv1x1WeightCompressedToMatmulTest;
 using ov::test::InputShape;
 
 const std::vector<ov::element::Type> weights_precisions = {ov::element::i4, ov::element::i8};
+const ov::AnyMap config = {};
 
 const Conv1x1ExpectedOpCounts op_counts_1x1{{"Convolution", 0}, {"FullyConnected", 1}, {"Transpose", 0}, {"Reshape", 1}};
 
@@ -26,6 +27,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1x1),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
@@ -40,6 +42,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1x1),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
@@ -56,6 +59,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1xW),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
