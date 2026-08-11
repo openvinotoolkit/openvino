@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-10-15-36-000-31478842603",
+  "timestamp": "2026-08-11T10:15:36Z",
+  "run_id": "31478842603",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31478842603",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "37301",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37301",
+  "author": "pereanub",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation CPU functional tests fail on attempt 1 - logs inaccessible, re-run already in progress on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed; logs inaccessible due to secrecy policy (attempt 1)"
+    }
+  ],
+  "key_errors": [
+    "Job: CPU functional tests / CPU functional tests (attempt 1) - FAILED at step 'Intel CPU plugin func tests (parallel)' after ~4 minutes",
+    "Logs inaccessible - 403 secrecy policy blocks log download",
+    "Run attempt 2 already in progress at time of investigation"
+  ],
+  "root_cause": "The ARM64 CPU functional tests job failed during the parallel test runner step in attempt 1. Detailed logs are inaccessible due to the secrecy policy, preventing precise root cause identification. A second attempt was automatically triggered and is currently in progress. This matches a recurring Infrastructure pattern seen previously on the ARM64 cross-compilation workflow.",
+  "reproduction_steps": "N/A - infrastructure/runner issue not reproducible locally",
+  "recommended_actions": [
+    "Wait for attempt 2 to complete",
+    "If attempt 2 also fails, investigate runner health on aks-linux-16-cores-arm",
+    "Re-queue PR if attempt 2 completes successfully"
+  ],
+  "prevention_strategies": "Monitor ARM64 runner stability; ensure adequate resources for parallel CPU functional tests on ARM64 cross-compilation runners.",
+  "historical_context": "Pattern 44dec04115b12f89 (count: 4) - 'Linux ARM64 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2' was previously seen on runs 30435558411, 30366211388, 30351149892, 30156795631. All were Infrastructure category and resolved on retry."
+}
