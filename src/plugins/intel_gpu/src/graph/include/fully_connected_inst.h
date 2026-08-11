@@ -58,9 +58,8 @@ public:
             auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
             OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
             return weights_mem;
-        } else {
-            return dep_memory_ptr(1);
         }
+        return dep_memory_ptr(1);
     }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
