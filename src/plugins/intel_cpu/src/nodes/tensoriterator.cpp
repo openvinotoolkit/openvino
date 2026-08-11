@@ -686,12 +686,11 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
+    const bool has_executed = max_num_iter != 0 && continue_cond;
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);
     }
-
-    bool has_executed = false;
 
     // use  "i != max_num_iter" only to allow "-1" works like infinite loop
     for (int i = 0; i != max_num_iter && continue_cond; i++) {
@@ -701,7 +700,6 @@ void TensorIterator::execute(const dnnl::stream& strm) {
         }
 
         sub_graph.Infer();
-        has_executed = true;
 
         continue_cond = (continue_cond_check->getStatus() != 0);
 
@@ -725,7 +723,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
-    bool has_executed = false;
+    const bool has_executed = max_num_iter != 0 && continue_cond;
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);
@@ -742,7 +740,6 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
         }
 
         sub_graph.Infer();
-        has_executed = true;
 
         continue_cond = (continue_cond_check->getStatus() != 0);
 
@@ -936,10 +933,8 @@ int TensorIterator::getInitialValueInputPort(const PortMap& outputMapRule) const
     return input_rule->from;
 }
 
-// In case the body has not been executed at all (zero trip count or false initial execution condition)
-// the value of a loop carried dependency is still its initial value, so the output has to be filled from
-// the corresponding node input directly. The body output memory cannot be used here: it has neither a
-// valid shape (it is left undefined, which used to be nullified to zeros) nor valid data.
+// If the body never executed, a loop carried dependency keeps its initial value: fill the output from
+// the corresponding node input directly, since the body output memory has neither a valid shape nor data.
 bool TensorIterator::fillOutputByInitialValue(const dnnl::stream& strm, const PortMap& outputMapRule) {
     const auto initial_value_port = getInitialValueInputPort(outputMapRule);
     if (initial_value_port == -1) {

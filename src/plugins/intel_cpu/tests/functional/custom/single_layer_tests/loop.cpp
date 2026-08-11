@@ -456,7 +456,8 @@ protected:
 };
 
 using LoopZeroIterationsParams = typename std::tuple<int64_t,  // TripCount
-                                                     bool>;    // Execution condition
+                                                     bool,     // Execution condition
+                                                     bool>;    // Static shapes
 
 // Loop which may not execute its body at all: either the trip count is zero or the initial execution
 // condition is false. A loop carried dependency output (a body output which is connected back to a merged
@@ -464,7 +465,10 @@ using LoopZeroIterationsParams = typename std::tuple<int64_t,  // TripCount
 // to be taken from the corresponding node input. Otherwise the output shape is nullified to zeros and the
 // following eltwise fails on shape infer.
 //
-//    Parameter(input, dynamic)   Parameter(exec_cond)
+// With static shapes and a constant execution condition the node itself is fully static, exercising
+// TensorIterator::execute() instead of executeDynamicImpl().
+//
+//    Parameter(input)   Parameter or Constant(exec_cond)
 //        |             \                 /
 //        |              Loop(trip_count, exec_cond)   body: Add(body_param, 1.f) --+
 //        |                    |                                 ^                 |
@@ -476,26 +480,41 @@ class LoopZeroIterationsCPUTest : public testing::WithParamInterface<LoopZeroIte
                                   virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<LoopZeroIterationsParams>& obj) {
-        const auto& [trip_count, exec_cond] = obj.param;
+        const auto& [trip_count, exec_cond, static_shapes] = obj.param;
         std::ostringstream result;
-        result << "trip_count=" << trip_count << "_exec_cond=" << exec_cond;
+        result << "trip_count=" << trip_count << "_exec_cond=" << exec_cond << "_static_shapes=" << static_shapes;
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        const auto& [trip_count, exec_cond] = this->GetParam();
+        const auto& [trip_count, exec_cond, static_shapes] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         // the body is executed only if both the trip count and the execution condition allow it
         executed_iterations = exec_cond ? trip_count : 0;
 
-        InputShape input_shape = {{-1, -1, -1}, {{2, 3, 4}, {1, 5, 5}}};  // infer more than once
-        InputShape exec_cond_shape = {{1}, {{1}, {1}}};
-        init_input_shapes({input_shape, exec_cond_shape});
+        if (static_shapes) {
+            init_input_shapes({{{2, 3, 4}, {{2, 3, 4}}}});
+        } else {
+            InputShape input_shape = {{-1, -1, -1}, {{2, 3, 4}, {1, 5, 5}}};  // infer more than once
+            InputShape exec_cond_shape = {{1}, {{1}, {1}}};
+            init_input_shapes({input_shape, exec_cond_shape});
+        }
 
         auto input = std::make_shared<ov::op::v0::Parameter>(netType, inputDynamicShapes[0]);
-        // the execution condition is a parameter to keep the loop output shape dynamic
-        auto exec_condition = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[1]);
+        ov::ParameterVector params = {input};
+
+        // a constant execution condition (with static shapes) keeps the node static; a parameter one
+        // keeps the loop output shape dynamic
+        ov::Output<ov::Node> exec_condition;
+        if (static_shapes) {
+            exec_condition = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{1}, exec_cond);
+        } else {
+            auto exec_condition_param =
+                std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, inputDynamicShapes[1]);
+            params.push_back(exec_condition_param);
+            exec_condition = exec_condition_param;
+        }
         auto trip_count_input = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, trip_count);
 
         // Body: the loop carried value is incremented by 1 on each iteration
@@ -515,13 +534,11 @@ protected:
         // the consumer of the loop output is the actual victim of a wrong output shape
         auto add = std::make_shared<ov::op::v1::Add>(loop_out, input);
         auto result = std::make_shared<ov::op::v0::Result>(add);
-        function = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                               ov::ParameterVector{input, exec_condition},
-                                               "loop_zero_iterations");
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, params, "loop_zero_iterations");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
-        const auto& [trip_count, exec_cond] = this->GetParam();
+        const auto& [trip_count, exec_cond, static_shapes] = this->GetParam();
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
@@ -531,9 +548,11 @@ protected:
         inputs.insert({funcInputs[0].get_node_shared_ptr(),
                        ov::test::utils::create_and_fill_tensor(netType, targetInputStaticShapes[0], in_data)});
 
-        ov::Tensor exec_cond_tensor(ov::element::boolean, targetInputStaticShapes[1]);
-        *exec_cond_tensor.data<bool>() = exec_cond;
-        inputs.insert({funcInputs[1].get_node_shared_ptr(), exec_cond_tensor});
+        if (!static_shapes) {
+            ov::Tensor exec_cond_tensor(ov::element::boolean, targetInputStaticShapes[1]);
+            *exec_cond_tensor.data<bool>() = exec_cond;
+            inputs.insert({funcInputs[1].get_node_shared_ptr(), exec_cond_tensor});
+        }
     }
 
     // the reference implementation of Loop does not support zero iterations at all (it throws), so the
@@ -779,11 +798,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoopForConcat,
                          LoopLayerCPUTest::getTestCaseName);
 
 // trip_count == 0 and exec_cond == false both lead to zero iterations, exec_cond == true with a non zero
-// trip count is the control case where the body is really executed
+// trip count is the control case where the body is really executed. Dynamic shapes drive executeDynamicImpl().
 INSTANTIATE_TEST_SUITE_P(smoke_LoopZeroIterations,
                          LoopZeroIterationsCPUTest,
                          ::testing::Combine(::testing::Values(static_cast<int64_t>(0), static_cast<int64_t>(3)),
-                                            ::testing::Values(false, true)),
+                                            ::testing::Values(false, true),
+                                            ::testing::Values(false)),
+                         LoopZeroIterationsCPUTest::getTestCaseName);
+
+// zero trip count with a constant exec_cond and static shapes keeps the node static, exercising execute()
+// instead of executeDynamicImpl()
+INSTANTIATE_TEST_SUITE_P(smoke_LoopZeroIterationsStatic,
+                         LoopZeroIterationsCPUTest,
+                         ::testing::Combine(::testing::Values(static_cast<int64_t>(0)),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true)),
                          LoopZeroIterationsCPUTest::getTestCaseName);
 
 }  // namespace

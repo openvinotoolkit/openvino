@@ -196,13 +196,8 @@ private:
     std::unordered_map<std::pair<int, int>, std::shared_ptr<PortMapHelper>, PortMapHasher>
         first_mappers;  /// < Applied once before loop
 
-    /**
-     * Pair of helpers to fill one node output port when the loop is over.
-     * 'mapper' takes the value produced by the body on the last executed iteration, while
-     * 'zeroIterMapper' takes the initial value of the corresponding loop carried dependency
-     * (merged input) and is used when the body has not been executed at all. It stays empty
-     * for the output ports which are not loop carried dependencies.
-     */
+    /// Fills one output port once the loop is over: 'mapper' uses the last executed iteration's value, while
+    /// 'zeroIterMapper' (set only for loop carried dependencies) falls back to the initial merged input value.
     struct LastPortMapper {
         std::shared_ptr<PortMapHelper> mapper;
         std::shared_ptr<PortMapHelper> zeroIterMapper;
