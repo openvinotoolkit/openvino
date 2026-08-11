@@ -607,6 +607,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             // and retrieve its sequence dimension via the virtual interface.
                             const auto dim_opt = pyramid->kv_param_dim(pyramid_id, input_idx);
                             const bool is_kv_param = dim_opt.has_value();
+                            const auto lut_dim_opt = pyramid->longrope_lut_dim(pyramid_id, input_idx);
+                            const bool is_longrope_lut = lut_dim_opt.has_value();
                             if (is_mask) {
                                 // Mask requires context-dependent construction — defer to prologue()
                                 io.inputs.at(input_idx) = tensor;
@@ -678,6 +680,49 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                static_cast<uint32_t>(dim),
                                                                                static_cast<uint32_t>(dim));
                                         }
+                                    }
+                                }
+                            } else if (is_longrope_lut) {
+                                // LongRoPE unrotated-K-cache full-range LUT Parameter
+                                // (npuw_lr_full_cos/npuw_lr_full_sin - see CacheRawKeyPattern,
+                                // pre_compute.cpp). Row i of the OUTER (host-populated) tensor
+                                // equals absolute position i for the PAST portion (left-aligned,
+                                // same as past_key_values) - but the PRESENT portion (this
+                                // bucket's own new tokens, from k_embed) is a graph-structural
+                                // Concat tail: it ALWAYS sits at the outer tensor's LAST
+                                // `present_len` rows, regardless of which bucket/chunk this is
+                                // (mirrors process_longrope_lut's own tail-at-the-end convention
+                                // in llm_infer_request.cpp) - NOT at rows [past_len,
+                                // context_length). So this needs the SAME two-piece past+present
+                                // splice as the mask (see prologue() above), not a simple prefix.
+                                const auto dim = lut_dim_opt.value();
+                                const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
+                                const auto context_length = pyramid->get_context_length(pyramid_id);
+                                const auto present_len = pyramid->query_size_at(pyramid_id);
+                                const auto past_len = context_length - present_len;
+                                const auto& input_shape = tensor->get_shape();
+                                if (static_cast<int64_t>(input_shape[dim]) == static_cast<int64_t>(context_length)) {
+                                    // Exact match (e.g. the last/largest pyramid model) - bind directly.
+                                    ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                } else {
+                                    const auto& dst = ctx.target_request->get_tensor(iport);
+                                    const auto full_len = input_shape[dim];
+                                    if (past_len > 0) {
+                                        const auto& past_dst = ov::npuw::util::view(dst, dim, 0, past_len);
+                                        const auto& past_src = ov::npuw::util::view(tensor, dim, 0, past_len);
+                                        ov::npuw::util::copy_tensor_by_dim(past_src,
+                                                                           past_dst,
+                                                                           static_cast<uint32_t>(dim),
+                                                                           static_cast<uint32_t>(dim));
+                                    }
+                                    if (present_len > 0) {
+                                        const auto& present_dst = ov::npuw::util::view(dst, dim, past_len, present_len);
+                                        const auto& present_src =
+                                            ov::npuw::util::view(tensor, dim, full_len - present_len, present_len);
+                                        ov::npuw::util::copy_tensor_by_dim(present_src,
+                                                                           present_dst,
+                                                                           static_cast<uint32_t>(dim),
+                                                                           static_cast<uint32_t>(dim));
                                     }
                                 }
                             } else {

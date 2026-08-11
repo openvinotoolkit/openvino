@@ -12,6 +12,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"  // pattern::op::Or
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -199,6 +200,35 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
 
     auto concat1 = opp::wrap_type<ov::op::v0::Concat>(kv_concat_pred);
 
+    // Optional alternative: the K-cache Concat may be immediately followed by a
+    // "rotate raw K at attention time" chain instead of feeding the GQA-expansion
+    // directly - this is what CacheRawKeyPattern (pre_compute.cpp) inserts when the
+    // KV-cache stores the pre-RoPE key (NPUW_LLM_LONGROPE_UNROTATED_KV). It splits the
+    // raw concat into rotary-first-half/rotary-second-half/passthrough via a single
+    // VariadicSplit, applies rotate_half+cos/sin (cos/sin extended with identity
+    // values on the passthrough dims, so no separate passthrough handling or
+    // reassembly Concat is needed - the terminal node is a plain Add) - mirroring
+    // the per-token RoPE-apply formula, just operating on the whole (past+current)
+    // K instead of only the current token(s). When present, its output (not
+    // concat1) is what actually feeds the GQA-expansion/MatMul, and its nodes must
+    // be isolated together with the rest of the attention block so Pyramid/HFA/
+    // Dynamic attention (and their KV-size variants) still see one contiguous,
+    // correctly-sized attention subgraph.
+    //
+    // Only the stable anchor (concat1 -> Multiply -> Add) is pattern-matched here -
+    // wrap_type<VariadicSplit> pattern placeholders only ever expose ONE output slot
+    // (see WrapType's ctor, which only calls set_output_type(0, ...)), so referencing
+    // a specific split output index like ->output(1)/->output(2) on a *pattern* node
+    // throws "node index is out of range" at pattern-construction time - unlike a
+    // real (already-matched) VariadicSplit node, which genuinely has multiple
+    // outputs. The rest of the chain (rotate_half Concat, neg Multiply, the
+    // VariadicSplit itself) is found by a plain imperative walk in the callback
+    // instead, once k_for_attention has actually matched a real node.
+    auto k_mul_cos_full = opp::wrap_type<ov::op::v1::Multiply>({concat1, opp::any_input()});
+    auto k_for_attention = opp::wrap_type<ov::op::v1::Add>({k_mul_cos_full, opp::any_input()});
+
+    auto k_source = std::make_shared<opp::op::Or>(ov::OutputVector{concat1, k_for_attention});
+
     // GQA optional nodes — require single consumer so shared KV (e.g. Gemma4) does not
     // accidentally match: if any expansion node is shared across multiple heads the
     // predicate fails and the optional is treated as absent, causing the overall pattern
@@ -206,7 +236,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     auto single_user = [](const ov::Output<ov::Node>& output) {
         return output.get_target_inputs().size() == 1;
     };
-    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()}, single_user);
+    auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({k_source, opp::any_input()}, single_user);
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
     auto reshape1 = opp::optional<ov::op::v1::Reshape>({broadcast1, opp::any_input()}, single_user);
 
@@ -264,6 +294,61 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         // Isolate Concat nodes with all their Convert inputs
         isolate_concat_with_inputs(concat1);
         isolate_concat_with_inputs(concat2);
+
+        // Isolate the optional "rotate raw K at attention time" chain, if matched
+        // (see CacheRawKeyPattern in pre_compute.cpp) - it sits between concat1 and
+        // the GQA-expansion and must stay in the same isolated group. Only
+        // k_mul_cos_full/k_for_attention are pattern-matched (see comment above);
+        // the rest (mul_sin, rotate_half Concat, neg Multiply, VariadicSplit) is
+        // found by a plain imperative walk from k_for_attention's 2nd input, since
+        // it's only reachable once k_for_attention has matched a REAL node with a
+        // real (not pattern-placeholder) input/output structure.
+        isolate_matched(k_mul_cos_full);
+        auto k_for_attention_iter = node_to_output.find(k_for_attention);
+        if (k_for_attention_iter != node_to_output.end()) {
+            auto isolate_node = [&](const std::shared_ptr<ov::Node>& node) {
+                if (node && node_to_gptr->count(node)) {
+                    node_to_gptr->at(node)->isolate(isol_tag);
+                }
+            };
+            // The f16 npuw_lr_full_cos/sin Parameters are converted to K's element type
+            // by a per-layer Convert. That Convert must land in THIS attention group,
+            // otherwise the group's input would be the Convert's output instead of the
+            // named Parameter and Pyramid's per-bucket LUT reshape could not find it.
+            auto isolate_lut_convert = [&](const std::shared_ptr<ov::Node>& mul_node) {
+                if (mul_node && mul_node->get_input_size() > 1) {
+                    auto lut_in = mul_node->input_value(1).get_node_shared_ptr();
+                    if (ov::is_type<ov::op::v0::Convert>(lut_in)) {
+                        isolate_node(lut_in);
+                    }
+                }
+            };
+
+            auto add_node = k_for_attention_iter->second.get_node_shared_ptr();
+            isolate_node(add_node);
+            // add_node = Add(mul_cos_full, mul_sin_full) - walk the mul_sin_full side.
+            isolate_lut_convert(add_node->input_value(0).get_node_shared_ptr());
+            auto mul_sin_node = add_node->input_value(1).get_node_shared_ptr();
+            isolate_node(mul_sin_node);
+            isolate_lut_convert(mul_sin_node);
+            if (mul_sin_node->get_input_size() > 0) {
+                // mul_sin_node = Multiply(rotate_half_full, sin) - rotate_half_full is a
+                // Concat(neg, split_out0, split_out2); isolate it and everything feeding it
+                // (the neg Multiply and the VariadicSplit, reached via any of its inputs).
+                auto rotate_half_node = mul_sin_node->input_value(0).get_node_shared_ptr();
+                isolate_node(rotate_half_node);
+                for (size_t i = 0; i < rotate_half_node->get_input_size(); ++i) {
+                    auto in_node = rotate_half_node->input_value(i).get_node_shared_ptr();
+                    isolate_node(in_node);
+                    // in_node is either the neg Multiply (whose own input(0) is the
+                    // VariadicSplit) or the VariadicSplit directly (for the other two
+                    // Concat inputs) - isolate one hop further either way.
+                    if (in_node->get_input_size() > 0) {
+                        isolate_node(in_node->input_value(0).get_node_shared_ptr());
+                    }
+                }
+            }
+        }
 
         // Isolate all other matched nodes in the pattern
         isolate_matched(unsqueeze1);
