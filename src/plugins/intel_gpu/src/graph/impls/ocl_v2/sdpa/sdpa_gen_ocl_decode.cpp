@@ -153,16 +153,16 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (!kv_f16 && !kv_i8) {
         return false;
     }
-    // BY_CHANNEL appends a scale/zp pair to every COLUMN of the K page, so its page is inherently
-    // d-major and none of the reads below apply. (k_token_major_for() rejects it as well, but only
-    // while token-major is still opt-in.) V is always BY_TOKEN.
-    if (kv_i8 && desc->is_key_by_channel) {
-        return false;
-    }
-
     // The KQ B operand is 16 consecutive head dims of ONE key, so the K page must be
     // [block_size, k_head_size] (token-major). A d-major page interleaves keys along that axis.
-    if (!paged_attention::k_token_major_for(ov::element::Type(key_cache.data_type), desc->is_key_by_channel)) {
+    //
+    // Upstream BY_CHANNEL is d-major (it appends a scale/zp pair to every COLUMN), so
+    // k_token_major_for() rejects it; it qualifies only under its own staging switch, which relays the
+    // per-channel comp to the end of the page and flips the writer to match. V is always BY_TOKEN.
+    const auto key_cache_dt = ov::element::Type(key_cache.data_type);
+    const bool k_token_major = paged_attention::k_token_major_for(key_cache_dt, desc->is_key_by_channel) ||
+                               paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel);
+    if (!k_token_major) {
         return false;
     }
 
@@ -232,16 +232,25 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
 
-    // i8 BY_TOKEN cache. ADJUSTED_* is the PAGE stride: the data region keeps a plain head_size row
-    // pitch and the extra elements hold the page's two trailing per-token f16 arrays (scale then zp),
-    // so this is head_size + 2 * sizeof(f16) rather than a wider row. Equal to head_size when
-    // uncompressed, which is what keeps the f16 path byte-identical. Same derivation as
+    // i8 cache. The K page stride is ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE, the
+    // same pair paged_attention_opt.cpp jits: the data region always keeps a plain head_size row pitch,
+    // and the comp region grows whichever of the two factors it is INDEXED BY.
+    //   uncompressed    (head_size,     block_size)      no comp at all; keeps the f16 path identical
+    //   i8 BY_TOKEN     (head_size + 4, block_size)      one (scale, zp) pair per token  -> wider row
+    //   i8 BY_CHANNEL   (head_size,     block_size + 4)  one pair per channel -> 4 more head_size rows
+    // Both come to the same +4 because a pair is 2 * sizeof(f16) = 4 bytes. Same derivation as
     // paged_attention_opt.cpp's scales_zp_size, from the KEY input's precision.
+    // V is BY_TOKEN in every mode (valueCacheQuantBychannel is unconditionally false), so its stride
+    // stays paired with the plain block size.
     const bool is_kv_compressed = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type == ov::element::i8;
     jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
+    const bool is_key_by_channel = is_kv_compressed && desc->is_key_by_channel;
+    jit.make("IS_KEY_BY_CHANNEL", is_key_by_channel ? 1 : 0);
     const auto& kv_input_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
     const size_t scales_zp_size = is_kv_compressed ? 2 * ov::element::Type(kv_input_dt).size() : 0;
-    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+    jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + (is_key_by_channel ? 0 : scales_zp_size));
+    jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE",
+             paged_attention::block_size + (is_key_by_channel ? scales_zp_size : 0));
     jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
 
     jit.make("HEADS_NUM", desc->heads_num);
