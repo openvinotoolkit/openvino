@@ -29,6 +29,13 @@ enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2,
 // Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)
 enum class GQAMultiTokensKernel : uint8_t { NONE = 0, SMALL_Q = 1, FALLBACK = 2 };
 
+// Split-K partition size of the 2nd+ token path, and the type its softmax intermediates
+// (exp_sums / max_logits / tmp_out) are stored in. Every stage-0 kernel that feeds
+// paged_attention_opt.cl's SDPA_STAGE_1 finalization must agree with it on both, and the internal
+// buffers are sized from them -- hence one definition here rather than one per implementation file.
+inline constexpr size_t pa_seq_len_partition_size = 256;
+inline constexpr ov::element::Type pa_softmax_accumulator_type = ov::element::f32;
+
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;
@@ -41,6 +48,10 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
     GQAMultiTokensKernel gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
+    // GENERATE stage runs sdpa_ocl_decode instead of pa_single_token / pa_gqa_single_token. Kept
+    // separate from use_micro_sdpa on purpose: that flag also suppresses the exp_sums / max_logits /
+    // tmp_out internal buffers (get_internal_buffer_descs), which sdpa_ocl_decode needs.
+    bool use_ocl_decode = false;
     size_t query_block_size = 16;
 };
 
