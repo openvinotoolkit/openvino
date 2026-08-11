@@ -5,8 +5,10 @@ without recompiling.
 
 Two independent knobs:
 
-- `OV_CPU_MAX_ISA` — OV CPU kernels (`with_cpu_x86_*` getters).
-- `ONEDNN_MAX_CPU_ISA` — oneDNN primitives.
+- `OV_CPU_MAX_ISA` — dispatch based on `with_cpu_x86_*` getters.
+- `ONEDNN_MAX_CPU_ISA` — oneDNN primitives, plus any dispatch based on
+  `dnnl::impl::cpu::x64::mayiuse()` and CPU plugin jit kernels inheriting
+  `dnnl::impl::cpu::x64::jit_generator_t` (practically almost all x64 jit kernels).
 
 ## Usage
 
@@ -16,11 +18,11 @@ Cap everything — set both to the same value:
 OV_CPU_MAX_ISA=<isa> ONEDNN_MAX_CPU_ISA=<isa> binary ...
 ```
 
-Cap one side only — attributes a regression to OV kernels vs oneDNN primitives:
+Cap one side only — narrows down which dispatch path causes a regression:
 
 ```sh
-OV_CPU_MAX_ISA=AVX2 binary ...        # OV kernels capped, oneDNN unrestricted
-ONEDNN_MAX_CPU_ISA=AVX2 binary ...    # oneDNN capped, OV kernels unrestricted
+OV_CPU_MAX_ISA=AVX2 binary ...        # with_cpu_x86_* dispatch capped, oneDNN/jit unrestricted
+ONEDNN_MAX_CPU_ISA=AVX2 binary ...    # oneDNN/jit capped, with_cpu_x86_* dispatch unrestricted
 ```
 
 Not cross-validated — consistency is the user's responsibility. OV cannot
