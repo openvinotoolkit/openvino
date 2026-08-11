@@ -328,9 +328,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         #endif
     #endif
 #else
-    uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
+    /* Layout pitches are physical KEY/VAL elements (bytes for packed INT4), while the
+       micro-kernel leading dimensions use logical elements (nibbles for i4/u4). */
+    uint ldk = (TRANSPOSE_K ? KEY_S3 : KEY_S2) * KEY_ELEMENTS_PER_BYTE;
     uint ldq = QRY_S2;
-    uint ldv = VAL_S2;
+    uint ldv = VAL_S2 * VAL_ELEMENTS_PER_BYTE;
     uint lda = DST_S2;
 #endif
 
@@ -408,9 +410,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #endif
 #else
-    K += (KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET) / KEY_ELEMENTS_PER_BYTE;
+    /* KEY_OFF/VAL_OFF and offsets address the physical byte-backed layouts. */
+    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     Q += (QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET);
-    V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
+    V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
     uint ldmsk = MSK_S2;

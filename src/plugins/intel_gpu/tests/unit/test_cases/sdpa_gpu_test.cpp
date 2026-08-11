@@ -615,6 +615,7 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
 }
 
 static void run_compressed_kv_sdpa_test(int bit_width,
+                                        bool asymmetric,
                                         int batch,
                                         int q_num_heads,
                                         int kv_num_heads,
@@ -625,20 +626,46 @@ static void run_compressed_kv_sdpa_test(int bit_width,
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
+    OPENVINO_ASSERT(bit_width != 4 || head_size % 2 == 0, "INT4 KV packing requires an even head size");
+    const int packed_head_size = bit_width == 4 ? head_size / 2 : head_size;
 
-    // Random Q and original (float) K/V. bfyx physical layout {batch, seq, heads, head_size}.
+    // Q and original float K/V use [batch, heads, sequence, head_size].
     auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -1.0f, 1.0f);
     auto k_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
     auto v_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
 
-    auto k_q = quantize_kv_per_channel(k_orig, batch, seq_kv, kv_num_heads, head_size, bit_width, /*seq_major=*/false, nullptr, /*symmetric=*/true);
-    auto v_q = quantize_kv_per_channel(v_orig, batch, seq_kv, kv_num_heads, head_size, bit_width, /*seq_major=*/false, nullptr, /*symmetric=*/true);
+    auto k_q = quantize_kv_per_channel(k_orig,
+                                       batch,
+                                       seq_kv,
+                                       kv_num_heads,
+                                       head_size,
+                                       bit_width,
+                                       /*seq_major=*/false,
+                                       nullptr,
+                                       /*symmetric=*/!asymmetric);
+    auto v_q = quantize_kv_per_channel(v_orig,
+                                       batch,
+                                       seq_kv,
+                                       kv_num_heads,
+                                       head_size,
+                                       bit_width,
+                                       /*seq_major=*/false,
+                                       nullptr,
+                                       /*symmetric=*/!asymmetric);
 
     const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
     const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
-    const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_hs}, data_types::i8, format::bfyx);
+    // INT4 stores two adjacent head-dimension values in each byte: [B, H, S, D/2].
+    const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_head_size}, data_types::i8, format::bfyx);
     const layout comp_layout({batch, kv_num_heads, 1, head_size}, data_types::f16, format::bfyx);
+
+    const ov::Shape expected_packed_shape = {static_cast<size_t>(batch),
+                                             static_cast<size_t>(kv_num_heads),
+                                             static_cast<size_t>(seq_kv),
+                                             static_cast<size_t>(packed_head_size)};
+    ASSERT_EQ(kv_packed_layout.get_shape(), expected_packed_shape);
+    ASSERT_EQ(k_q.packed.size(), ov::shape_size(expected_packed_shape));
+    ASSERT_EQ(v_q.packed.size(), ov::shape_size(expected_packed_shape));
 
     auto q_mem = engine.allocate_memory(q_layout);
     set_values(q_mem, q_data);
@@ -676,15 +703,23 @@ static void run_compressed_kv_sdpa_test(int bit_width,
         auto v_mem = engine.allocate_memory(kv_packed_layout);
         auto k_comp_mem = engine.allocate_memory(comp_layout);
         auto v_comp_mem = engine.allocate_memory(comp_layout);
+        auto k_zp_mem = asymmetric ? engine.allocate_memory(comp_layout) : nullptr;
+        auto v_zp_mem = asymmetric ? engine.allocate_memory(comp_layout) : nullptr;
         set_values(k_mem, k_q.packed);
         set_values(v_mem, v_q.packed);
         set_values(k_comp_mem, k_q.scales);
         set_values(v_comp_mem, v_q.scales);
+        if (asymmetric) {
+            set_values(k_zp_mem, k_q.zero_points);
+            set_values(v_zp_mem, v_q.zero_points);
+        }
 
         scaled_dot_product_attention::QuantizationAttributes qa;
-        qa.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
-        qa.quantization_dt = ov::element::i8;
+        qa.quantization_type = asymmetric ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric
+                                          : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+        qa.quantization_dt = bit_width == 4 ? (asymmetric ? ov::element::u4 : ov::element::i4) : ov::element::i8;
         qa.scale_dt = ov::element::f16;
+        qa.zp_dt = ov::element::f16;
         qa.group_sizes = {1, 1, UINT64_MAX, 1};
         qa.scales_zp_output_order = {0, 1, 2, 3};
         qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
@@ -695,12 +730,16 @@ static void run_compressed_kv_sdpa_test(int bit_width,
         topo.add(input_layout("v", kv_packed_layout));
         topo.add(input_layout("k_scale", comp_layout));
         topo.add(input_layout("v_scale", comp_layout));
+        std::vector<input_info> inputs = {
+            input_info("q"), input_info("k"), input_info("v"), input_info("k_scale"), input_info("v_scale")};
+        if (asymmetric) {
+            topo.add(input_layout("k_zp", comp_layout));
+            topo.add(input_layout("v_zp", comp_layout));
+            inputs.emplace_back("k_zp");
+            inputs.emplace_back("v_zp");
+        }
 
-        // Inputs: Q, K, V, key_scales, value_scales (no separate zp for InterleavedScalesZP).
-        auto prim = scaled_dot_product_attention("sdpa",
-                                                 {input_info("q"), input_info("k"), input_info("v"),
-                                                  input_info("k_scale"), input_info("v_scale")},
-                                                true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
+        auto prim = scaled_dot_product_attention("sdpa", inputs, true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
@@ -715,6 +754,10 @@ static void run_compressed_kv_sdpa_test(int bit_width,
         net->set_input_data("v", v_mem);
         net->set_input_data("k_scale", k_comp_mem);
         net->set_input_data("v_scale", v_comp_mem);
+        if (asymmetric) {
+            net->set_input_data("k_zp", k_zp_mem);
+            net->set_input_data("v_zp", v_zp_mem);
+        }
         return net->execute().at("result").get_memory();
     };
 
@@ -755,7 +798,8 @@ static void run_compressed_kv_sdpa_test(int bit_width,
         dump_result_txt("fake data_ref_" + std::to_string(bit_width) + ".txt", ref_mem, ref_ptr);
         dump_result_txt("fake data_opt_" + std::to_string(bit_width) + ".txt", opt_mem, opt_ptr);
     }
-    ASSERT_GE(sim, 0.95f) << "bit_width=" << bit_width << " cosine similarity too low: " << sim;
+    ASSERT_GE(sim, 0.95f) << "bit_width=" << bit_width << ", asymmetric=" << asymmetric
+                          << " cosine similarity too low: " << sim;
 }
 
 static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
@@ -980,17 +1024,24 @@ static void run_compressed_kv_sdpa_gqa_test(int bit_width) {
 
 
 
-/** no support yet */
-TEST(sdpa_gpu_compressed_kv, int4) {
-    run_compressed_kv_sdpa_test(4, 1, 40, 10, 512, 512, 128);
+TEST(sdpa_gpu_compressed_kv, int4_symmetric) {
+    run_compressed_kv_sdpa_test(4, false, 1, 40, 10, 512, 512, 128);
 }
 
-TEST(sdpa_gpu_compressed_kv, int8_no_gqa) {
-    run_compressed_kv_sdpa_test(8, /*batch=*/1, /*q_num_heads=*/40, /*kv_num_heads=*/40, /*seq_q=*/512, /*seq_kv=*/512, /*head_size=*/128);
+TEST(sdpa_gpu_compressed_kv, int4_asymmetric) {
+    run_compressed_kv_sdpa_test(4, true, 1, 40, 10, 512, 512, 128);
 }
 
-TEST(sdpa_gpu_compressed_kv, int8_gqa) {
-    run_compressed_kv_sdpa_test(8, /*batch=*/1, /*q_num_heads=*/40, /*kv_num_heads=*/10, /*seq_q=*/512, /*seq_kv=*/512, /*head_size=*/128);
+TEST(sdpa_gpu_compressed_kv, int8_symmetric) {
+    run_compressed_kv_sdpa_test(8, false, 1, 40, 10, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_compressed_kv, int8_symmetric_no_gqa) {
+    run_compressed_kv_sdpa_test(8, false, 1, 40, 40, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_compressed_kv, int8_asymmetric) {
+    run_compressed_kv_sdpa_test(8, true, 1, 40, 10, 512, 512, 128);
 }
 
 TEST(sdpa_gpu_compressed_kv_gqa, int8) {
