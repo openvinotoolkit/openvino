@@ -5,11 +5,11 @@
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/async_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/executor.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/metadata.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/metrics.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/property_registration.hpp
@@ -17,12 +17,12 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/transformations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/extension.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/metadata.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
@@ -43,6 +43,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/embedding_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/embedding_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/encoder_embedding_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/encoder_embedding_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/prepare_embedding_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/prepare_embedding_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/redirect_new_kv_to_output.cpp
@@ -67,6 +69,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_eagle3_extension.cpp
@@ -136,6 +139,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp

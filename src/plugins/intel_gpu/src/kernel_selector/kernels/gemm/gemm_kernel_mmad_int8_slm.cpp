@@ -91,8 +91,8 @@ inline size_t GemmKernelMMADslmInt8::GetMmadOperationsNumber(const GemmTuningDat
 }
 
 inline bool GemmKernelMMADslmInt8::HasLeftovers(const GemmTuningData& tuning_data) const {
-    return tuning_data.size_m % tuning_data.slm_tile_size || tuning_data.size_n % tuning_data.slm_tile_size ||
-           tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor);
+    return ((tuning_data.size_m % tuning_data.slm_tile_size) != 0u) || ((tuning_data.size_n % tuning_data.slm_tile_size) != 0u) ||
+           ((tuning_data.size_k % (tuning_data.slm_tile_size * tuning_data.slm_decimation_factor)) != 0u);
 }
 
 GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::SetTuningParams(const gemm_params& params) const {
@@ -140,10 +140,9 @@ KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params) 
 
     if ((mmad_operations_number >= 1024 * 1024 * 1024) || (tuning_data.size_m == 384 && tuning_data.size_k == 384 && tuning_data.size_n == 64))
         return FORCE_PRIORITY_2;
-    else if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
+    if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    else
-        return FORCE_PRIORITY_5;
+    return FORCE_PRIORITY_5;
 }
 
 bool GemmKernelMMADslmInt8::Validate(const Params& params) const {

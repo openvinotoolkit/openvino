@@ -98,12 +98,11 @@ struct condition_impl : typed_primitive_impl<condition> {
                 }
                 GPU_DEBUG_LOG << "    set output layout : " << output_layout.to_short_string() << std::endl;
                 instance.set_output_layout(output_layout, out_idx);
-                instance.set_output_memory(output_mem_ptr, out_idx);
+                instance.set_output_memory(output_mem_ptr, out_idx != 0u);
                 instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
-        } else {
-            // Set input memory of inner network before its execution
+        }  // Set input memory of inner network before its execution
             for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
                 const primitive_id& input_external_id = instance.dependencies().at(mem_idx).first->id();
                 auto iter = branch.input_map.find(input_external_id);
@@ -131,7 +130,6 @@ struct condition_impl : typed_primitive_impl<condition> {
                                   << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
                 }
             }
-        }
 
         auto sub_net_results = executed_net->execute(events);
         // Update output layout of impl_param in condition_inst

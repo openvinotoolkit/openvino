@@ -88,8 +88,8 @@ JitConstants ConcatenationKernelRef::GetJitConstants(const concatenation_params&
                                                         Tensor::DataChannelName::Y,
                                                         Tensor::DataChannelName::X };
 
-    std::string input_dims_order = "";
-    std::string output_dims_order = "";
+    std::string input_dims_order;
+    std::string output_dims_order;
 
     for (size_t i = 0; i < dims_id.size(); ++i) {
         std::string separator = i == dims_id.size() - 1 ? "" : ",";

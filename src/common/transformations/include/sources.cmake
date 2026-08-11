@@ -1,0 +1,390 @@
+set(TRANSFORMATIONS_VISIBILITY_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations_visibility.hpp
+)
+
+set(DECOMPOSITIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/low_precision_dequantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/rms_norm.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/decompositions/rope.hpp
+)
+
+set(OV_OPS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/augru_cell.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/augru_sequence.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/dynamic_quantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/fully_connected.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/fully_connected_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/fully_connected_quantized.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/fully_connected_quantized_legacy.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/gather_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/gather_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/gather_matmul_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/generate_proposals_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/glu.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/grouped_matmul_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/lora_subgraph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/multiclass_nms_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/opset_private_tbl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rms.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rotary_positional_embeddings.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/type_relaxed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/vl_sdpa.hpp
+)
+
+set(TRANSFORMATIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_precision.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/flush_fp32_subnormals_to_zero.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/hash.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/init_node_info.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/resolve_names_collisions.hpp
+)
+
+set(COMMON_OPTIMIZATIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/activations_scaling.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/adaptive_pool_to_reduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/add_fake_quantize_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/align_eltwise_input_ranks.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/augru_cell_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/batch_to_space_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/binarize_weights.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_elementwise_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_matmul_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_transition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/change_placeholder_types.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/clamp_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/common_optimizations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/compress_float_constants.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/concat_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/concat_reduce_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/concat_to_broadcast.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/constants_reduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/conv_mul_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/conv_to_binary_conv.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/convert_quantize_dequantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/convert_u4_weights_zero_point_to_scalar.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/convolution_to_group_convolution_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/depth_to_space_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dilated_convolution_converter.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dimension_tracking.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/disable_random_uniform_constant_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/disable_shapeof_constant_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/divide_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_unsqueeze_gather.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/enable_shapeof_constant_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fold_subgraph_empty_inputs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_concat_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_eliminate_sequential.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_mul_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_reshape_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_clamp_and_fake_quantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_moe_experts.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fused_names_cleanup.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gelu_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/glu_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/group_normalization_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/gru_cell_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/hsigmoid_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/hswish_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/interpolate_sequence_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/leaky_relu_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lin_op_sequence_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lora_subgraph_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lstm_cell_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/matmul_const_transposes_extraction.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/matmul_multiply_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mish_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/moc_legacy_transformations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/moc_transformations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/moe_op_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/moe_transpose_weights.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/move_eltwise_up_data_movement.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/move_fc_reshape_to_weights.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_conv_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mul_fake_quantize_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mvn_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nearest_neighbor_upsampling_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/optimize_strided_slice.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/prelu_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_through_reduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pull_transpose_through_fq.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/push_constant_to_subgraph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/random_uniform_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/reduce_merge.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/reduce_reshape_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/relu_fake_quantize_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/remove_concat_zero_dim_input.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/remove_filtering_boxes_by_size.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/reshape_prelu.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/reshape_sequence_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/reverse_shape_and_type_infer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/ric_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/rms_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/sdpa_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/sdpa_scale_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/select_with_one_value_condition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/sequence_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/shared_ops_optimization.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/shuffle_channels_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/simplify_shape_of_sub_graph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/skip_gather_before_transpose_and_reshape.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/softmax_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/softplus_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/softplus_to_mish_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/space_to_batch_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/split_squeeze_concat_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/strides_optimization.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/subtract_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/swish_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/transpose_sinking.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/transpose_to_reshape.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/wrap_interpolate_into_transposes.hpp
+)
+
+set(CONTROL_FLOW_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/control_flow/unroll_if.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/control_flow/unroll_tensor_iterator.hpp
+)
+
+set(FP16_COMPRESSION_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_compression_only_to_legacy.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_legacy_precision_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_floatpoint_range.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp
+)
+
+set(LOW_PRECISION_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/low_precision/mark_dequantization_subgraph.hpp
+)
+
+set(OP_CONVERSIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/batch_norm_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/bidirectional_sequences_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_avgpool_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_batch_to_space.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_bitwise_to_logical_bool.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_broadcast3.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_broadcast_to_tiles.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_convertlike.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_convertpromotetypes.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_depth_to_space.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_divide.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_offsets15_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_embedding_bag_packed15_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_fc_to_quantized_legacy.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_0d.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_matmul_to_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_to_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gather_upgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gelu.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate11_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_maxpool_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_maxpool_upgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_mod.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_upgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_mvn1_to_mvn6.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_negative.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_one_hot_v16_to_v1.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_pad12_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_pad_to_group_conv.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_previous_nms_to_nms_5.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_previous_nms_to_nms_9.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_prior_box_v8_to_v0.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_reduce_to_pooling.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_reduce_to_reshape.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_roi_align_v3_to_v9.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_roi_align_v9_to_v3.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_scatter_elements_to_scatter.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_shapeof3.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_shuffle_channels3.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_slice_to_strided_slice.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_slicescatter.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_softmax_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_softmax_upgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_space_to_batch.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_space_to_depth.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_squeeze15_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_subtract.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_ti_to_sequences.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_topk11_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_topk3.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_xor_to_logical_xor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/detection_output_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/detection_output_upgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/einsum_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/eye_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/fake_convert_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/fq_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/gelu7_downgrade.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/group_normalization_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/group_query_attention_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/gru_cell_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/hard_sigmoid_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/hsigmoid_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/hswish_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/log_softmax_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/lstm_cell_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/mvn6_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/normalize_l2_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/reduce_l1_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/reduce_l2_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/rnn_cell_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/softmax_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/softplus_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/softsign_decomposition.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/unique_decomposition.hpp
+)
+
+set(OPSET_CONVERSIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/opset_conversions/convert_opset2_to_opset1.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/opset_conversions/convert_opset3_to_opset2.hpp
+)
+
+set(PAGED_ATTENTION_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/state_management_pattern.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/total_sequence_length_pattern.hpp
+)
+
+set(PATTERN_BLOCKS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/compressed_weights_block.hpp
+)
+
+set(RT_INFO_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/attributes.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/decompression.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/dequantization_node.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/disable_constant_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/disable_precision_conversion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/fused_names_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/is_shape_subgraph.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/keep_const_precision.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/nms_selected_indices.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/nonconvertible_divide.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/old_api_map_element_type_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/old_api_map_order_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/original_precision_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/preprocessing_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/primitives_priority_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/strides_property.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/rt_info/transpose_sinking_attr.hpp
+)
+
+set(SMART_RESHAPE_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/broadcast_const_range_replacement.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/lstm_states_broadcast.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/matmul_sr.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/shape_of_const_folding.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/smart_reshape.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/strided_slice_squeeze.hpp
+)
+
+set(SYMBOLIC_TRANSFORMATIONS_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/chained_maximum.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/dereshape_matmul.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/nop_broadcast.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/reshape_optimizations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/symbol_optimization.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/symbolic_optimizations.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/symbolic_transformations/utils.hpp
+)
+
+set(TRANSPOSE_SINKING_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_base.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_binary.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_concat.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_cumsum.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_data_movement.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_fuse.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_gather.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_general.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_interpolate.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_reduction.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_reset_no_sinking_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_shape_of.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_slice.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_split.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_squeeze.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_tile.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_unary.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_unsqueeze.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sinking/ts_utils.hpp
+)
+
+set(UTILS_HEADERS
+    # ENABLE_DEBUG_CAPS is ON
+    $<$<BOOL:${ENABLE_DEBUG_CAPS}>:${CMAKE_CURRENT_LIST_DIR}/transformations/utils/extract_subgraph.hpp>
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/utils/gen_pattern.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/utils/print_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/utils/utils.hpp
+)
+
+set(PUBLIC_HEADERS
+    ${TRANSFORMATIONS_VISIBILITY_HEADERS}
+    ${DECOMPOSITIONS_HEADERS}
+    ${OV_OPS_HEADERS}
+    ${TRANSFORMATIONS_HEADERS}
+    ${COMMON_OPTIMIZATIONS_HEADERS}
+    ${CONTROL_FLOW_HEADERS}
+    ${FP16_COMPRESSION_HEADERS}
+    ${LOW_PRECISION_HEADERS}
+    ${OP_CONVERSIONS_HEADERS}
+    ${OPSET_CONVERSIONS_HEADERS}
+    ${PAGED_ATTENTION_HEADERS}
+    ${PATTERN_BLOCKS_HEADERS}
+    ${RT_INFO_HEADERS}
+    ${SMART_RESHAPE_HEADERS}
+    ${SYMBOLIC_TRANSFORMATIONS_HEADERS}
+    ${TRANSPOSE_SINKING_HEADERS}
+    ${UTILS_HEADERS}
+)

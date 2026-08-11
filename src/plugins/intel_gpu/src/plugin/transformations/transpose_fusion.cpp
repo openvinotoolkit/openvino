@@ -16,6 +16,8 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -42,9 +44,8 @@ bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_tran
     cldnn::format fmt_dummy = cldnn::format::bfyx;
     if (is_output_transpose) {
         return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_output_order_onednn(target_order, fmt_dummy);
-    } else {
-        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
     }
+    return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
 }
 
 bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad, bool is_output_transpose = false) {
@@ -79,6 +80,7 @@ TransposeFusion::TransposeFusion(bool supports_immad) {
     add_matcher<TransposeMatMulMatcher>(supports_immad);
     add_matcher<TransposeSDPAMatcher>();
     add_matcher<TransposeVLSDPAMatcher>();
+    add_matcher<TransposeSplitMatcher>();
 }
 
 TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
@@ -323,7 +325,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
     // Don't convert MatMul -> Gemm if no transpose input found as
     // CreateMatMulOp factory can now insert extra transpose which improves the performance
     auto matmul_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        auto node = output.get_node();
+        auto* node = output.get_node();
         if (node->is_dynamic())
             return true;
 
@@ -470,6 +472,127 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_i
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(transpose_c_m, "TransposeMatMulTransposeMatcher");
     this->register_matcher(m, callback);
+}
+
+// TransposeSplitMatcher: Optimize Transpose+Split pattern from Qwen-VL Vision Merger
+//
+// Background:
+// This pattern appears in Qwen-VL Vision Merger models (Qwen2-VL, Qwen2.5-VL, Qwen3-VL, etc.)
+// where a combined QKV tensor
+// with shape [-1, 3, num_head, head_size] needs to be split into separate Q, K, V tensors.
+// The original framework uses Transpose to move the channel dimension to the front,
+// then splits along that dimension.
+//
+// Original Pattern (from Qwen-VL Vision Merger):
+//   Parameter[-1, 3, H, S] → Transpose[1,0,2,3] → [3, -1, H, S]
+//     → Split(axis=0, num_splits=3) → 3x [1, -1, H, S]
+//     → Reshape[0] → [-1, H, S] → RoPE → VLSDPA
+//     → Reshape[1] → [-1, H, S] → RoPE ↗
+//     → Reshape[2] → [-1, H, S] -------↗
+//
+// Optimized Pattern:
+//   Parameter[-1, 3, H, S] → Split(axis=1, num_splits=3) → 3x [-1, 1, H, S]
+//     → Reshape[0] → [-1, H, S] → RoPE → VLSDPA
+//     → Reshape[1] → [-1, H, S] → RoPE ↗
+//     → Reshape[2] → [-1, H, S] -------↗
+//
+// Benefits:
+// - Eliminates unnecessary Transpose operation (saves memory bandwidth and kernel launch)
+// - Produces functionally equivalent results: both patterns extract the same 3 slices
+//   from the channel dimension, just with different intermediate shapes
+// - Reshape operations following the Split automatically adapt to the new input shape
+//
+// Applicability:
+// - Input shape: [-1, C, H, S] where C is strictly 3 (not dynamic)
+// - Transpose order: [1, 0, 2, 3] (swaps first two dimensions only)
+// - Split axis: 0 (after transpose, which corresponds to dim 1 before transpose)
+// - num_splits: 3 (matching the channel count)
+//
+TransposeSplitMatcher::TransposeSplitMatcher() {
+    // Pattern: Parameter[-1, 3, H, S] -> Transpose[3, -1, H, S] -> Split(axis=0) -> 3x[1, -1, H, S]
+    // Optimize to: Parameter[-1, 3, H, S] -> Split(axis=1) -> 3x[-1, 1, H, S]
+
+    auto input_m = any_input();
+    auto transpose_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto transpose_m = wrap_type<ov::op::v1::Transpose>({input_m, transpose_order_m});
+    auto split_axis_m = wrap_type<ov::op::v0::Constant>();
+    auto split_m = wrap_type<ov::op::v1::Split>({transpose_m, split_axis_m});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        auto split = ov::as_type_ptr<ov::op::v1::Split>(pattern_map.at(split_m).get_node_shared_ptr());
+        auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(pattern_map.at(transpose_m).get_node_shared_ptr());
+        auto input_node = pattern_map.at(input_m).get_node_shared_ptr();
+
+        if (!split || !transpose || transformation_callback(split)) {
+            return false;
+        }
+
+        // Get transpose order
+        auto transpose_order_const = ov::as_type_ptr<ov::op::v0::Constant>(
+            pattern_map.at(transpose_order_m).get_node_shared_ptr());
+        if (!transpose_order_const) {
+            return false;
+        }
+        auto transpose_order = transpose_order_const->cast_vector<int64_t>();
+
+        // Get split axis
+        auto split_axis_const = ov::as_type_ptr<ov::op::v0::Constant>(
+            pattern_map.at(split_axis_m).get_node_shared_ptr());
+        if (!split_axis_const) {
+            return false;
+        }
+        auto split_axis_vec = split_axis_const->cast_vector<int64_t>();
+        if (split_axis_vec.size() != 1) {
+            return false;
+        }
+        int64_t split_axis = split_axis_vec[0];
+
+        // Get input shape
+        auto input_pshape = input_node->get_output_partial_shape(0);
+        if (input_pshape.rank().is_dynamic() || input_pshape.rank().get_length() != 4) {
+            return false;
+        }
+
+        // Check conditions for the optimization:
+        // 1. Input shape: [-1, 3, H, S] where dim[1] is strictly 3
+        // 2. Transpose order: [1, 0, 2, 3] (swaps first two dimensions)
+        // 3. Split axis: 0 (after transpose, splitting the "3" dimension)
+        // 4. num_splits: 3
+
+        // Condition 1: Check dim[1] is strictly 3
+        if (input_pshape[1].is_dynamic() || input_pshape[1].get_length() != 3) {
+            return false;
+        }
+
+        // Condition 2: Check transpose order is [1, 0, 2, 3]
+        std::vector<int64_t> expected_transpose_order = {1, 0, 2, 3};
+        if (transpose_order != expected_transpose_order) {
+            return false;
+        }
+
+        // Condition 3: Check split axis is 0 (after transpose)
+        if (split_axis != 0) {
+            return false;
+        }
+
+        // Condition 4: Check num_splits is 3
+        if (split->get_num_splits() != 3) {
+            return false;
+        }
+
+        // Create new Split that operates directly on axis=1 of the input (before transpose)
+        // This produces 3 outputs of shape [-1, 1, H, S] instead of [1, -1, H, S]
+        auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, split->get_num_splits());
+         ov::copy_runtime_info(m.get_matched_nodes(), new_split);
+         ov::replace_node(split, new_split);
+        return true;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(split_m, "TransposeSplitMatcher");
+    this->register_matcher(matcher, callback);
 }
 
 }  // namespace ov::intel_gpu
