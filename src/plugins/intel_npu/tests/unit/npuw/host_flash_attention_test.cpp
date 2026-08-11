@@ -167,7 +167,7 @@ TEST(HostFlashAttentionFromTest, NonFused_MaskTileAtIndexSixInBothModels) {
 }
 
 TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInFinalTileOnly) {
-    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, true);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->_tile_model->inputs().size(), 6u);
     EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
@@ -285,9 +285,9 @@ std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUE
 //   q         [1,8,16,64]  mask_tile [1,1,16,16]
 // ============================================================================
 
-// Fused path — regular tile (6 inputs, no mask); v_tile in normal layout
+// Fused path with mask skipping enabled — regular tile (6 inputs, no mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, Fused_RegularTileInputShapes) {
-    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, true);
     ASSERT_TRUE(result.has_value());
     // [past_acc, past_max, past_d, k_tile, v_tile, q]
     const std::vector<ov::Shape> expected_inputs = {
@@ -395,9 +395,9 @@ TEST(HostFlashAttentionFromTest, VSeqDimIsTwoForNormalModel) {
     EXPECT_EQ(result->_v_seq_dim, 2u);
 }
 
-// Fused regular tile: v_tile in transposed layout [B, H, head_dim, tile]
+// Fused regular tile with mask skipping enabled: v_tile in transposed layout [B, H, head_dim, tile]
 TEST(HostFlashAttentionTransposedVTest, Fused_RegularTileVTileIsTransposed) {
-    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true, true);
     ASSERT_TRUE(result.has_value());
     const std::vector<ov::Shape> expected = {
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
