@@ -491,7 +491,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
         jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
     } else {
         if (CheckInputsOutputNoPitchSameDims(params) &&
-            !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+            !params.layoutBased && !params.int8_quantization && !params.broadcast) {
             jit.AddConstant(MakeJitConstant(out_idx_order, "d1"));
         } else {
             size_t out_c = DataTensor::ChannelsCount(params.outputs[0].GetLayout());
@@ -530,7 +530,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
             jit.AddConstant(MakeJitConstant(idx_order, "d1"));
         } else {
             if (CheckInputsOutputNoPitchSameDims(params) &&
-                !(params.layoutBased || params.int8_quantization || params.broadcast)) {
+                !params.layoutBased && !params.int8_quantization && !params.broadcast) {
                 jit.AddConstant(MakeJitConstant(idx_order, "d1"));
             } else {
                 size_t in_c = DataTensor::ChannelsCount(params.inputs[i].GetLayout());

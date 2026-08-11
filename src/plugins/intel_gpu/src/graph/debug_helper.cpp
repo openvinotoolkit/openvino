@@ -32,6 +32,8 @@ float convert_element(float f) { return f; }
 
 float convert_element(ov::float16 h) { return static_cast<float>(h); }
 
+float convert_element(ov::bfloat16 h) { return static_cast<float>(h); }
+
 size_t get_x_pitch(const layout& layout) {
     try {
         auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
@@ -121,6 +123,8 @@ std::pair<float, float> validate_data_range(memory::ptr mem, stream& stream, con
         return __validate_data_range<float>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::f16)
         return __validate_data_range<ov::float16>(mem, stream, data_layout, info);
+    else if (data_type == cldnn::data_types::bf16)
+        return __validate_data_range<ov::bfloat16>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::i8)
         return __validate_data_range<int8_t>(mem, stream, data_layout, info);
     else if (data_type == cldnn::data_types::u8)
@@ -272,6 +276,8 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<float>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f16)
         dump<ov::float16>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::bf16)
+        dump<ov::bfloat16>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i64)
         dump<int64_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i32)
@@ -284,6 +290,8 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<ov::float8_e5m2>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f8e4m3)
         dump<ov::float8_e4m3>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::f4e2m1)
+        dump<ov::float4_e2m1>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::f8e8m0)
         dump<ov::float8_e8m0>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::boolean)
@@ -316,10 +324,7 @@ bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iterati
     if (dump_iteration.empty())
         return true;
 
-    if (dump_iteration.find(iteration) == std::end(dump_iteration))
-        return false;
-
-    return true;
+    return dump_iteration.find(iteration) != std::end(dump_iteration);
 }
 
 std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) {
