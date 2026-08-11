@@ -97,7 +97,6 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         if (const auto broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
             return is_reshape_4d_to_5d(broadcast->get_input_node_ptr(0));
         return false;
-
     };
 
     auto concat_k_expand_m = wrap_type<ov::op::v0::Concat>(concat_expand_pred);
