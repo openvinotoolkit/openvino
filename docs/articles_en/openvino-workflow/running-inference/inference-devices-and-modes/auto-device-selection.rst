@@ -212,10 +212,12 @@ the following setup options:
 |                                              | candidate devices in ascending order of their interpolated score   |
 |                                              | at the current utilization and selects the one with the lowest     |
 |                                              | score. ``perf_curve_table`` has the highest priority: when it      |
-|                                              | covers at least one candidate device, selection is driven purely   |
-|                                              | by the curve ranking and ``devices_utilization_threshold`` is not  |
-|                                              | applied. If ``perf_curve_table`` does not cover any candidate      |
-|                                              | device, AUTO falls back to ``devices_utilization_threshold``.      |
+|                                              | produces a valid score for at least one candidate device           |
+|                                              | (i.e., utilization is available and within the curve key range),   |
+|                                              | selection is driven purely by the curve ranking and                |
+|                                              | ``devices_utilization_threshold`` is not applied. If               |
+|                                              | ``perf_curve_table`` fails to score any candidate, AUTO falls back |
+|                                              | to ``devices_utilization_threshold``.                              |
 |                                              | Allowed device keys: ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. |
 |                                              | Each device's curve must have at least one entry.                  |
 |                                              |                                                                    |
