@@ -4,8 +4,10 @@ numpy
 onnxruntime
 requests
 torch
-torchvision
-sympy
+torchvision; platform_machine == 'arm64' and python_version >= '3.9'
+torchvision; platform_machine != 'arm64'
+sympy; platform_machine == 'arm64' and python_version >= '3.9'
+sympy; platform_machine != 'arm64'
 transformers
 packaging
 pillow
@@ -13,4 +15,4 @@ pytest
 defusedxml
 # Tensorflow depends on Keras without version constraint, Keras update to 3.14.0 caused Tensorflow Lite Layer Tests failure
 keras<=3.13.2
-tensorflow
+tensorflow; platform_system != 'Windows' or platform_machine != 'ARM64'
