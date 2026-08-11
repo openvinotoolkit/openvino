@@ -410,6 +410,37 @@ TEST(GGUFOps, ViewPassThroughKeepsProducerName) {
     EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
 }
 
+// The norm axis is the literal -1, so a dynamic token dim must still convert and run.
+TEST(GGUFOps, NormDynamicShape) {
+    const float eps = 1e-5f;
+    const size_t cols = 4;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NORM")
+                     .input("x", ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(cols)})
+                     .output("out", ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(cols)})
+                     .attr<float>("eps", eps)
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, -2, 0, 2, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, cols}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t r = 0; r < 2; ++r) {
+        float mean = 0.f;
+        for (size_t c = 0; c < cols; ++c)
+            mean += x[r * cols + c];
+        mean /= cols;
+        float var = 0.f;
+        for (size_t c = 0; c < cols; ++c)
+            var += (x[r * cols + c] - mean) * (x[r * cols + c] - mean);
+        var /= cols;
+        float inv = 1.0f / std::sqrt(var + eps);
+        for (size_t c = 0; c < cols; ++c)
+            expected[r * cols + c] = (x[r * cols + c] - mean) * inv;
+    }
+    expect_near(out, expected, 1e-4f);
+}
+
 // L2 norm over the last axis: x / max(sqrt(sum(x^2)), eps).
 TEST(GGUFOps, L2Norm) {
     const float eps = 1e-12f;
