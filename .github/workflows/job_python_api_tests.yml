@@ -114,7 +114,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).Python_API.test && inputs.python-version != '3.14t' }} # Explanation for `3.14t` is in the 178162 ticket
         run: |
           python3 -m pip uninstall -y numpy
-          python3 -m pip install "numpy~=1.26.0"
+          python3 -m pip install numpy==1.26.4 packaging==26.3
           python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/:$LD_LIBRARY_PATH

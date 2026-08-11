@@ -88,7 +88,7 @@ jobs:
       - name: Install Python API tests dependencies
         run: |
           # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
+          python3 -m pip install execnet==2.1.2 iniconfig==2.3.0 packaging==26.3 pluggy==1.6.0 psutil==7.2.2 Pygments==2.20.0 pytest==9.1.1 pytest-xdist==3.8.0
           python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
 
       - name: Install Python Layer tests dependencies and for OVC unit tests

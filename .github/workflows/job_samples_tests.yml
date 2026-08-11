@@ -133,7 +133,7 @@ jobs:
           # Install Python benchmark_app by installing openvino-*.whl
           python3 -m pip install --ignore-installed PyYAML -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt
           # Install pytest-timeout to abort hanging samples and dump tracebacks
-          python3 -m pip install pytest-timeout==2.4.0
+          python3 -m pip install iniconfig==2.3.0 packaging==26.3 pluggy==1.6.0 Pygments==2.20.0 pytest==9.1.1 pytest-timeout==2.4.0
           export LD_LIBRARY_PATH=${IE_APP_PATH}:$LD_LIBRARY_PATH
 
           source ${INSTALL_DIR}/setupvars.sh
