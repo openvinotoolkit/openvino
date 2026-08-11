@@ -35,7 +35,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    int64_t v_head_size = -1, k_head_size = -1;
+    int64_t v_head_size = 0, k_head_size = 0;
 
     if (is_paged_attention) {
         auto desc = params.typed_desc<paged_attention>();
@@ -129,6 +129,9 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             }
         }
     }
+
+    OPENVINO_ASSERT(k_head_size > 0 && v_head_size > 0,
+                    "SDPA: invalid head sizes for JIT constants generation");
 
     if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
