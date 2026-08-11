@@ -193,8 +193,8 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
-| ``ov::intel_auto::devices_utilization_       | **Type**: ``dict[str, int]``                                       |
-| threshold``                                  |                                                                    |
+| ``ov::intel_auto::``                         | **Type**: ``dict[str, int]``                                       |
+| ``devices_utilization_threshold``            |                                                                    |
 |                                              | Per-device utilization thresholds (in percent, ``[0, 100]``).      |
 |                                              | AUTO skips a candidate device whose current utilization is at or   |
 |                                              | above its threshold and selects the next available device. Keys    |
@@ -219,7 +219,7 @@ the following setup options:
 |                                              | Allowed device keys: ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. |
 |                                              | Each device's curve must have at least one entry.                  |
 |                                              |                                                                    |
-|                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                        |
+|                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                         |
 |                                              | ``"NPU": {0: 0.0, 100: 50.0}}``                                    |
 |                                              |                                                                    |
 |                                              | The default value is empty (curve ranking disabled).               |

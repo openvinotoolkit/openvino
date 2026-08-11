@@ -42,7 +42,8 @@ public:
     MOCK_METHOD((std::list<DeviceInformation>),
                 sort_device_by_perf_curve,
                 ((const std::list<DeviceInformation>&),
-                 (const std::map<std::string, std::map<unsigned, float>>&)),
+                 (const std::map<std::string, std::map<unsigned, float>>&),
+                 size_t*),
                 (override));
     MOCK_METHOD((std::vector<DeviceInformation>),
                 parse_meta_devices,

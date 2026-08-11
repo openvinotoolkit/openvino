@@ -701,7 +701,7 @@ protected:
 };
 
 TEST_P(SortDeviceByPerfCurveTest, sortDeviceByPerfCurve) {
-    auto result = plugin->sort_device_by_perf_curve(inputDevices, perfCurveTable);
+    auto result = plugin->sort_device_by_perf_curve(inputDevices, perfCurveTable, nullptr);
     std::vector<std::string> actualOrder;
     for (const auto& device : result) {
         actualOrder.push_back(device.unique_name);

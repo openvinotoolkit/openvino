@@ -128,8 +128,9 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
 
     ON_CALL(*plugin, sort_device_by_perf_curve)
         .WillByDefault([this](const std::list<DeviceInformation>& validDevices,
-                              const std::map<std::string, std::map<unsigned, float>>& perfCurveTable) {
-            return plugin->Plugin::sort_device_by_perf_curve(validDevices, perfCurveTable);
+                              const std::map<std::string, std::map<unsigned, float>>& perfCurveTable,
+                              size_t* out_scored_count) {
+            return plugin->Plugin::sort_device_by_perf_curve(validDevices, perfCurveTable, out_scored_count);
         });
 
     ON_CALL(*plugin, get_valid_device)

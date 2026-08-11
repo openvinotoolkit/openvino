@@ -763,12 +763,16 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
     } else if (!perf_curve_table.empty() && perf_curve_covers_any(valid_devices)) {
-        // perf_curve_table has the highest priority: when it covers at least one candidate device,
-        // select purely by the perf curve ranking. utilization thresholds are not applied in this case.
-        perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table);
-        ptr_select_device =
-            perf_curve_sorted_devices.empty() ? &valid_devices.front() : &perf_curve_sorted_devices.front();
-    } else {
+        // perf_curve_table has the highest priority, but only when it produces at least one scored
+        // device. If all candidates miss a utilization reading or a valid curve entry, fall through
+        // to the utilization-threshold path so those thresholds are still honoured.
+        size_t scored_count = 0;
+        perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table, &scored_count);
+        if (scored_count > 0) {
+            ptr_select_device = &perf_curve_sorted_devices.front();
+        }
+    }
+    if (!ptr_select_device) {
         // select the higher priority device in case all of device utilization is exceeded the threshold.
         last_device = valid_devices.front();
         for (const auto& item : utilization_thresholds)
@@ -859,7 +863,8 @@ float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, flo
 
 std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         const std::list<DeviceInformation>& valid_devices,
-        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table) {
+        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table,
+        size_t* out_scored_count) {
     std::vector<std::pair<DeviceInformation, std::optional<float>>> scored;
     scored.reserve(valid_devices.size());
     for (const auto& device : valid_devices) {
@@ -914,6 +919,9 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
     const auto boundary = std::stable_partition(scored.begin(), scored.end(), [](const auto& item) {
         return item.second.has_value();
     });
+    if (out_scored_count) {
+        *out_scored_count = static_cast<size_t>(std::distance(scored.begin(), boundary));
+    }
     std::stable_sort(scored.begin(), boundary, [](const auto& a, const auto& b) {
         return a.second.value() < b.second.value();
     });

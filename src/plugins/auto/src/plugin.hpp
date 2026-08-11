@@ -65,7 +65,8 @@ public:
                   const std::map<std::string, std::map<unsigned, float>>& perf_curve_table = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
         const std::list<DeviceInformation>& valid_devices,
-        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table);
+        const std::map<std::string, std::map<unsigned, float>>& perf_curve_table,
+        size_t* out_scored_count = nullptr);
     void unregister_priority(const unsigned int& priority, const std::string& device_name);
     void register_priority(const unsigned int& priority, const std::string& device_name);
 
