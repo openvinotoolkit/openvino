@@ -20,8 +20,7 @@ public:
     std::vector<size_t> get_shape_infer_dependencies() const override {
         if (this->get_dependencies().size() == 3)
             return {1, 2};
-        else
-            return {1};
+        return {1};
     }
 };
 

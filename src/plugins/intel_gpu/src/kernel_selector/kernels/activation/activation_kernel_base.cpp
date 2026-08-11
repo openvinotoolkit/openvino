@@ -72,7 +72,7 @@ bool ActivationKernelBase::Validate(const Params& p) const {
     }
     const activation_params& orgParams = static_cast<const activation_params&>(p);
 
-    for (auto& fused_op : orgParams.fused_ops) {
+    for (const auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
