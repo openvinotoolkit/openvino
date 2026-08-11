@@ -46,9 +46,10 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     // See paged_attention::k_token_major_for().
     const auto& cfg_kv_precision = p.get_config().get_kv_cache_precision();
     const bool is_int4_cache = cfg_kv_precision == ov::element::u4 || cfg_kv_precision == ov::element::i4;
-    const bool k_token_major = cldnn::paged_attention::k_token_major_for(
-        is_int4_cache ? cfg_kv_precision : op->get_input_element_type(3),
-        p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+    const bool is_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+    const auto k_cache_precision = is_int4_cache ? cfg_kv_precision : op->get_input_element_type(3);
+    const bool k_token_major = cldnn::paged_attention::k_token_major_for(k_cache_precision, is_by_channel) ||
+                               cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_by_channel);
     const auto k_head_size_idx = (prim.has_xattention || k_token_major) ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
