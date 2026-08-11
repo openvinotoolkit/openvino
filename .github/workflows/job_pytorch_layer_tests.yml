@@ -107,7 +107,17 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
+      - name: Setup MSVC dev environment
+      # required so pip builds old numpy wihout errors
+        if: ${{ runner.os == 'Windows' && runner.arch == 'ARM64' }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
       - name: Install Pytorch Layer tests dependencies
+        env:
+          CC: cl
+          CXX: cl
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch

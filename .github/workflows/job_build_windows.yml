@@ -21,6 +21,11 @@ on:
         description: 'A string of options passed to CMake'
         type: string
         required: true
+      target-arch:
+        description: 'Target CPU architecture, e.g., "x86_64" or "arm64"'
+        type: string
+        required: false
+        default: 'x86_64'
       build-additional-python-wheels:
         description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.10-3.13 installed'
         type: boolean
@@ -45,7 +50,7 @@ env:
 
 jobs:
   Build:
-    timeout-minutes: 180
+    timeout-minutes: 240
     defaults:
       run:
         shell: pwsh
@@ -107,7 +112,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           product_type: ${{ env.PRODUCT_TYPE }}
-          target_arch: 'x86_64'
+          target_arch: ${{ inputs.target-arch }}
           build_type: ${{ inputs.build-type }}
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
@@ -144,13 +149,17 @@ jobs:
           # For getting rid of SSL issues during model downloading for unit tests
           python3 -m pip install certifi==2026.7.22 packaging==26.3
 
+      - name: Install scons (required for ARM Compute Library build)
+        if: ${{ inputs.target-arch == 'arm64' }}
+        run: python3 -m pip install scons
+
       #
       # Build
       #
 
       - name: Setup ccache
         uses: ./openvino/.github/actions/cache
-        if: ${{ inputs.build-type != 'Debug' }}
+        if: ${{ inputs.build-type != 'Debug' && inputs.target-arch != 'arm64' }}
         with:
           save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
           cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
@@ -160,20 +169,42 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
+      - name: Setup ccache (ARM64)
+        if: ${{ inputs.build-type != 'Debug' && inputs.target-arch == 'arm64' }}
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++ (ARM64)
+        if: ${{ inputs.target-arch == 'arm64' }}
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: arm64
+
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
-        if: ${{ contains(inputs.build-variant, 'vs2022') }}
+        if: ${{ inputs.target-arch != 'arm64' && contains(inputs.build-variant, 'vs2022') }}
         with:
           toolset: "14.42" # v2022
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++ for VS 2026
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
-        if: ${{ inputs.build-variant == 'vs2026' }}
+        if: ${{ inputs.target-arch != 'arm64' && inputs.build-variant == 'vs2026' }}
         with:
           toolset: "14.50" # v2026
 
       - name: Set SSL_CERT_FILE for model downloading for unit tests
         run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
+
+      - name: Install ccache (ARM64)
+        if: ${{ inputs.target-arch == 'arm64' }}
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          save: false
+          restore: false
 
       - name: CMake configure
         env:
@@ -195,6 +226,13 @@ jobs:
         if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --show-stats'
 
+      - name: Save ccache
+        if: ${{ inputs.build-type != 'Debug' && inputs.target-arch == 'arm64' && always() }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
@@ -209,7 +247,7 @@ jobs:
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.10
-        if: ${{ inputs.build-additional-python-wheels }}
+        if: ${{ inputs.build-additional-python-wheels && inputs.target-arch != 'arm64' }}
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.10'
@@ -250,7 +288,7 @@ jobs:
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
-          $pyVersions = '3.10', '3.11', '3.12', '3.13', '3.14'
+          $pyVersions = if ('${{ inputs.target-arch }}' -eq 'arm64') { '3.11', '3.12', '3.13', '3.14' } else { '3.10', '3.11', '3.12', '3.13', '3.14' }
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
