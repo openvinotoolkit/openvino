@@ -245,7 +245,6 @@ set(OPSET_CONVERSIONS_SOURCES
 )
 
 set(PAGED_ATTENTION_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp

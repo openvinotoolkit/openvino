@@ -61,6 +61,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/common_optimizations/broadcast_matmul_fusion.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
@@ -7134,6 +7135,141 @@ TEST(SDPAToPA, Gemma4_PerLayerSlidingWindow) {
     auto sw_1 = ov::as_type_ptr<v0::Constant>(pa_nodes[1]->input_value(10).get_node_shared_ptr());
     ASSERT_NE(sw_1, nullptr) << "Layer 1 sliding_window should be a Constant";
     EXPECT_EQ(sw_1->cast_vector<int32_t>()[0], 0);
+}
+
+TEST(SDPAToPA, Gemma4_AttentionMaskBatchBroadcastRequiresBroadcastMatMulFusion) {
+    // Gemma-style rotary embedding derives its batch dim from attention_mask via
+    // attention_mask -> ShapeOf -> Gather -> Concat -> Broadcast -> MatMul. SDPAToPagedAttention
+    // unconditionally removes the attention_mask parameter and asserts it has zero remaining
+    // consumers, so this pattern must be detached beforehand by the common
+    // ov::pass::BroadcastMatMulFusion transformation (the replacement for the reverted
+    // AttentionMaskShapeReplacer), matching how a full compile pipeline (which always runs
+    // MOCTransformations) would behave.
+    const int batch = 2;
+
+    auto build_model = [&]() {
+        auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+        auto position_ids = make_param(PartialShape{batch, DYN}, element::i64, "position_ids");
+        auto attention_mask = make_param(PartialShape{batch, DYN}, element::i64, "attention_mask");
+        auto input_ids = make_param(PartialShape{batch, DYN}, element::i64, "input_ids");
+        auto rotary_base = make_param(PartialShape{batch, 4, 1}, element::f32, "rotary_base");
+        auto params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids, rotary_base});
+
+        // Batch size for KV-cache init shape
+        auto shape_ids = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+        auto batch_dim = makeOP<v8::Gather>({shape_ids, {0}, 0}, {{"batch_dims", 0}});
+
+        // Embedding: input_ids → hidden [B, S, 128]
+        auto embed_w = makeConst(element::f32, ov::Shape({32000, 128}), MOCK_VALUE);
+        auto hidden = makeOP<v8::Gather>({embed_w, makeOP<v0::Convert>({input_ids}, {{"destination_type", "i32"}}), 0},
+                                         {{"batch_dims", 0}});
+
+        // Q [B, 4, S, 128], K_cur/V_cur [B, 1, S, 128] via MatMul + Reshape + Transpose
+        auto Q_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({512, 128}), MOCK_VALUE)},
+                                       {{"transpose_a", false}, {"transpose_b", true}});
+        auto Q =
+            makeOP<v1::Transpose>({makeOP<v1::Reshape>({Q_mm, {0, 0, 4, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+        auto K_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
+                                       {{"transpose_a", false}, {"transpose_b", true}});
+        auto K_cur =
+            makeOP<v1::Transpose>({makeOP<v1::Reshape>({K_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+        auto V_mm = makeOP<v0::MatMul>({hidden, makeConst(element::f32, ov::Shape({128, 128}), MOCK_VALUE)},
+                                       {{"transpose_a", false}, {"transpose_b", true}});
+        auto V_cur =
+            makeOP<v1::Transpose>({makeOP<v1::Reshape>({V_mm, {0, 0, 1, 128}}, {{"special_zero", true}}), {0, 2, 1, 3}});
+
+        // Rotary embedding: inv_freq is broadcast to the batch derived from attention_mask, then
+        // combined with rotary_base to produce angles applied to Q.
+        auto inv_freq = makeConst(element::f32, ov::Shape({1, 1, 4}), MOCK_VALUE);
+        auto am_shape = makeOP<v3::ShapeOf>({attention_mask}, {{"output_type", "i64"}});
+        auto am_batch = makeOP<v8::Gather>({am_shape, {0}, 0}, {{"batch_dims", 0}});
+        auto inv_freq_target = makeOP<v0::Concat>({am_batch, {1l}, {4l}}, {{"axis", 0}});
+        auto inv_freq_bcast = makeOP<v3::Broadcast>({inv_freq, inv_freq_target}, {{"mode", "bidirectional"}});
+
+        auto rope_angles =
+            makeOP<v0::MatMul>({inv_freq_bcast, rotary_base}, {{"transpose_a", false}, {"transpose_b", false}});
+        auto rope_sin_unsq = makeOP<v0::Unsqueeze>({makeOP<v0::Sin>({rope_angles}), 3});
+        Q = makeOP<v1::Multiply>({Q, rope_sin_unsq}, {{"auto_broadcast", "numpy"}});
+
+        // KV cache: ReadValue(init) → Gather(beam_idx) → Concat(cur)
+        auto k_init_shape = makeOP<v0::Concat>({batch_dim, {1l}, {0l}, {128l}}, {{"axis", 0}});
+        auto k_read = makeOP<v6::ReadValue>(
+            {makeOP<v3::Broadcast>({0.0f, k_init_shape}, {{"mode", "numpy"}})},
+            {{"variable_id", "k_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+        auto k_past = makeOP<v8::Gather>({k_read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto k_concat = makeOP<v0::Concat>({k_past, K_cur}, {{"axis", -2}});
+
+        auto v_init_shape = makeOP<v0::Concat>({batch_dim, {1l}, {0l}, {128l}}, {{"axis", 0}});
+        auto v_read = makeOP<v6::ReadValue>(
+            {makeOP<v3::Broadcast>({0.0f, v_init_shape}, {{"mode", "numpy"}})},
+            {{"variable_id", "v_cache"}, {"variable_type", "f32"}, {"variable_shape", PartialShape{DYN, 1, DYN, 128}}});
+        auto v_past = makeOP<v8::Gather>({v_read, beam_idx, 0}, {{"batch_dims", 0}});
+        auto v_concat = makeOP<v0::Concat>({v_past, V_cur}, {{"axis", -2}});
+
+        // GQA broadcast: K/V [B, 1, S, 128] → [B, 4, S, 128]
+        auto k_unsqueeze = makeOP<v0::Unsqueeze>({k_concat, 2});
+        auto k_shape = makeOP<v3::ShapeOf>({k_concat}, {{"output_type", "i64"}});
+        auto k_gather_dims = makeOP<v8::Gather>({k_shape, {0, 1}, 0}, {{"batch_dims", 0}});
+        auto k_gather_dims2 = makeOP<v8::Gather>({k_shape, {2, 3}, 0}, {{"batch_dims", 0}});
+        auto k_bcast_shape = makeOP<v0::Concat>({k_gather_dims, {4l}, k_gather_dims2}, {{"axis", 0}});
+        auto K = makeOP<v1::Reshape>(
+            {makeOP<v3::Broadcast>({k_unsqueeze, k_bcast_shape}, {{"mode", "bidirectional"}}), {0, 4, -1, 128}},
+            {{"special_zero", true}});
+        auto V = makeOP<v1::Reshape>(
+            {makeOP<v3::Broadcast>({makeOP<v0::Unsqueeze>({v_concat, 2}), k_bcast_shape}, {{"mode", "bidirectional"}}),
+             {0, 4, -1, 128}},
+            {{"special_zero", true}});
+
+        // Purely causal mask (no attention_mask contribution besides the rotary batch broadcast)
+        auto ShapeOf_pos = makeOP<v3::ShapeOf>({position_ids}, {{"output_type", "i64"}});
+        auto Gather_cur = makeOP<v8::Gather>({ShapeOf_pos, 1, 0}, {{"batch_dims", 0}});
+        auto Reshape_cur = makeOP<v1::Reshape>({Gather_cur, {1}}, {{"special_zero", false}});
+        auto Squeeze_cur = makeOP<v0::Squeeze>({Reshape_cur, 0});
+        auto Gather_past =
+            makeOP<v8::Gather>({makeOP<v3::ShapeOf>({k_past}, {{"output_type", "i64"}}), 2, 0}, {{"batch_dims", 0}});
+        auto total_len = makeOP<v1::Add>({Squeeze_cur, Gather_past}, {{"auto_broadcast", "numpy"}});
+
+        auto Range_kv = makeOP<v4::Range>({0, total_len, 1}, {{"output_type", "i64"}});
+        auto Unsqueeze_kv2 =
+            makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({Range_kv, 0}), 1}), 2});
+        auto kv_idx = makeOP<v0::Convert>({Unsqueeze_kv2}, {{"destination_type", "f32"}});
+
+        auto Range_q_start = makeOP<v1::Add>({Gather_past, Gather_cur}, {{"auto_broadcast", "numpy"}});
+        auto Range_q = makeOP<v4::Range>({Gather_past, Range_q_start, 1}, {{"output_type", "f32"}});
+        auto q_idx = makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({makeOP<v0::Unsqueeze>({Range_q, 0}), 1}), 3});
+
+        auto causal_le = makeOP<v1::LessEqual>({kv_idx, q_idx}, {{"auto_broadcast", "numpy"}});
+        auto causal_mask = makeOP<v1::Select>({causal_le, 0.0f, -65504.0f}, {{"auto_broadcast", "numpy"}});
+
+        auto sdpa = makeOP<v13::ScaledDotProductAttention>({Q, K, V, causal_mask}, {{"causal", false}});
+        return std::make_shared<ov::Model>(OutputVector{std::make_shared<v0::Result>(sdpa)}, params);
+    };
+
+    {
+        // Without the common transformation, attention_mask still feeds the rotary Broadcast
+        // when SDPAToPagedAttention tries to remove it, so the conversion must fail.
+        auto model = build_model();
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        EXPECT_THROW(pass_manager.run_passes(model), ov::Exception);
+    }
+    {
+        // Running BroadcastMatMulFusion beforehand detaches the rotary Broadcast from
+        // attention_mask, and SDPAToPagedAttention succeeds.
+        auto model = build_model();
+        ov::pass::Manager pass_manager;
+        pass_manager.register_pass<ov::pass::BroadcastMatMulFusion>();
+        pass_manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        pass_manager.run_passes(model);
+
+        std::shared_ptr<ov::op::PagedAttentionExtension> pa;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (auto node = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+                pa = node;
+            }
+        }
+        ASSERT_NE(pa, nullptr) << "SDPAToPagedAttention did not produce PagedAttentionExtension";
+    }
 }
 
 TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
