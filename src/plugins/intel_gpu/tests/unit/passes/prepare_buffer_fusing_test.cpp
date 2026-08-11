@@ -2576,6 +2576,80 @@ TEST(prepare_buffer_fusing, in_place_crop_along_feature_runtime_updates_reshape_
     assert_reshape_padded("reshape2", 2);
 }
 
+TEST(prepare_buffer_fusing, in_place_crop_along_feature_reshape_scales_feature_padding) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    constexpr int64_t tokens = 4;
+    constexpr int64_t qkv_parts = 3;
+    constexpr int64_t num_heads = 16;
+    constexpr int64_t head_size = 96;
+    constexpr int64_t hidden_size = num_heads * head_size;
+    constexpr int64_t qkv_size = qkv_parts * hidden_size;
+
+    const layout input_layout_dynamic{ov::PartialShape{-1, qkv_size}, data_types::f16, format::bfyx};
+    auto input_mem = engine.allocate_memory({{tokens, qkv_size}, data_types::f16, format::bfyx});
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto split_lengths_mem = engine.allocate_memory({{qkv_parts}, data_types::i64, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{1}, data_types::f16, format::bfyx});
+
+    const auto input_data = rg.generate_random_1d<ov::float16>(tokens * qkv_size, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(split_lengths_mem, {hidden_size, hidden_size, hidden_size});
+    set_values<ov::float16>(scale_mem, {ov::float16(1.f)});
+
+    topology topo(
+        input_layout("input", input_layout_dynamic),
+        data("axis", axis_mem),
+        data("split_lengths", split_lengths_mem),
+        data("scale", scale_mem),
+        crop("value_split",
+             {input_info("input"), input_info("axis"), input_info("split_lengths")},
+             tensor(1),
+             tensor(0),
+             crop_ngraph_op_mode::variadic_split,
+             2,
+             1),
+        reshape("value_view",
+                input_info("value_split"),
+                false,
+                {1, -1, num_heads, head_size},
+                ov::PartialShape{1, -1, num_heads, head_size},
+                reshape::reshape_mode::base),
+        eltwise("value", {input_info("value_view"), input_info("scale")}, eltwise_mode::prod),
+        reorder("result", input_info("value"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    const auto outputs = net.execute();
+
+    ASSERT_TRUE(net.get_primitive("value_split")->can_be_optimized());
+
+    const auto& value_layout = net.get_primitive("value_view")->get_output_layout();
+    const auto& value_padding = value_layout.data_padding;
+    ASSERT_TRUE(value_padding._dynamic_dims_mask[2]);
+    ASSERT_EQ(value_padding._lower_size[2], 2 * num_heads);
+    ASSERT_EQ(value_padding._upper_size[2], 0);
+    ASSERT_EQ(static_cast<int64_t>(value_layout.get_pitches()[1]), qkv_size);
+    ASSERT_EQ(static_cast<int64_t>(value_layout.get_linear_offset()), 2 * hidden_size);
+
+    const auto output_mem = outputs.at("result").get_memory();
+    mem_lock<ov::float16, mem_lock_type::read> output_data(output_mem, get_test_stream());
+    ASSERT_EQ(output_data.size(), static_cast<size_t>(tokens * hidden_size));
+    for (int64_t token = 0; token < tokens; token++) {
+        for (int64_t feature = 0; feature < hidden_size; feature++) {
+            const auto output_idx = static_cast<size_t>(token * hidden_size + feature);
+            const auto input_idx = static_cast<size_t>(token * qkv_size + 2 * hidden_size + feature);
+            ASSERT_EQ(output_data[output_idx], input_data[input_idx]) << "Mismatch at token " << token << ", feature " << feature;
+        }
+    }
+}
+
 // =============================================================================
 // UNIT TEST: build-time and runtime must agree on which axis carries the
 //            dyn-pad mask for the TransposeSplitMatcher pattern.
