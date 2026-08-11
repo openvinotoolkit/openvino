@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -23,9 +24,9 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
-#    include <windows.h>
-#elif defined(__linux__)
-#    include <unistd.h>
+#    include <dxgi1_4.h>
+#    include <wrl/client.h>
+#    pragma comment(lib, "dxgi.lib")
 #endif
 
 namespace ov::intel_gpu {
@@ -111,26 +112,73 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
 
 namespace {
 
-// Returns the amount of currently-free physical system RAM in bytes, or 0 if unavailable.
-// Used only on integrated GPUs, where device "global memory" is shared with system RAM.
-uint64_t get_free_system_ram_bytes() {
 #if defined(_WIN32)
-    MEMORYSTATUSEX status;
-    status.dwLength = sizeof(status);
-    if (GlobalMemoryStatusEx(&status)) {
-        return static_cast<uint64_t>(status.ullAvailPhys);
+bool is_luid_empty(const ov::device::LUID& luid) {
+    return std::all_of(luid.luid.begin(), luid.luid.end(), [](uint8_t value) { return value == 0; });
+}
+
+bool match_luid(const ::LUID& dxgi_luid, const ov::device::LUID& ov_luid) {
+    return std::memcmp(&dxgi_luid, ov_luid.luid.data(), sizeof(dxgi_luid)) == 0;
+}
+
+uint64_t query_dxgi_available_video_memory_bytes(const ov::device::LUID& luid) {
+    if (is_luid_empty(luid))
+        return 0;
+
+    using Microsoft::WRL::ComPtr;
+
+    ComPtr<IDXGIFactory4> factory;
+    if (FAILED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory))))
+        return 0;
+
+    ComPtr<IDXGIAdapter3> selected_adapter;
+    for (UINT adapter_index = 0;; ++adapter_index) {
+        ComPtr<IDXGIAdapter> adapter;
+        if (factory->EnumAdapters(adapter_index, &adapter) == DXGI_ERROR_NOT_FOUND)
+            break;
+
+        DXGI_ADAPTER_DESC desc{};
+        if (FAILED(adapter->GetDesc(&desc)))
+            continue;
+
+        if (!match_luid(desc.AdapterLuid, luid))
+            continue;
+
+        if (SUCCEEDED(adapter.As(&selected_adapter)))
+            break;
     }
-    return 0;
-#elif defined(__linux__)
-    const long pages = sysconf(_SC_AVPHYS_PAGES);
-    const long page_size = sysconf(_SC_PAGE_SIZE);
-    if (pages > 0 && page_size > 0) {
-        return static_cast<uint64_t>(pages) * static_cast<uint64_t>(page_size);
+
+    if (!selected_adapter)
+        return 0;
+
+    uint64_t available_bytes = 0;
+    for (UINT node_id = 0;; ++node_id) {
+        DXGI_QUERY_VIDEO_MEMORY_INFO info{};
+        if (selected_adapter->QueryVideoMemoryInfo(node_id, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info) != S_OK)
+            break;
+
+        if (info.Budget > info.CurrentUsage)
+            available_bytes += static_cast<uint64_t>(info.Budget - info.CurrentUsage);
     }
-    return 0;
+
+    return available_bytes;
+}
 #else
+uint64_t query_dxgi_available_video_memory_bytes(const ov::device::LUID&) {
     return 0;
+}
 #endif
+
+uint64_t estimate_available_tracked_device_memory_bytes(const cldnn::engine& engine, uint64_t upper_bound) {
+    uint64_t used_bytes = 0;
+    for (const auto& stat : engine.get_memory_statistics()) {
+        used_bytes += stat.second;
+    }
+
+    if (used_bytes >= upper_bound)
+        return 0;
+
+    return upper_bound - used_bytes;
 }
 
 // Recursively accumulates weight-constant bytes across the model and any subgraphs.
@@ -157,7 +205,8 @@ void accumulate_weight_bytes(const ov::Model& model,
 
 }  // namespace
 
-size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_info& info) {
+size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine) {
+    const auto& info = engine.get_device_info();
     uint64_t w_total = 0;
     uint64_t w_moe = 0;
     std::unordered_set<const ov::Node*> visited;
@@ -169,14 +218,22 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
         return 0;
     }
 
-    // Memory budget: device memory for dGPU; for iGPU cap by currently-free system RAM since
-    // the device "global memory" is shared with (and overstated relative to) actual free RAM.
+    // Memory budget: device memory for dGPU. For iGPU, prefer OS budget if available and
+    // otherwise use the GPU plugin's tracked allocations, as AUTO_BATCH does.
     uint64_t m_budget = info.max_global_mem_size;
     const bool is_igpu = info.dev_type == cldnn::device_type::integrated_gpu;
+    std::string budget_source = "device_info";
     if (is_igpu) {
-        const uint64_t free_ram = get_free_system_ram_bytes();
-        if (free_ram > 0) {
-            m_budget = std::min<uint64_t>(m_budget, free_ram);
+        const uint64_t dxgi_budget = query_dxgi_available_video_memory_bytes(info.luid);
+        if (dxgi_budget > 0) {
+            m_budget = std::min<uint64_t>(m_budget, dxgi_budget);
+            budget_source = "dxgi_budget";
+        } else {
+            const uint64_t tracked_budget = estimate_available_tracked_device_memory_bytes(engine, m_budget);
+            if (tracked_budget > 0) {
+                m_budget = tracked_budget;
+                budget_source = "tracked_mem_stats";
+            }
         }
     }
     if (m_budget == 0) {
@@ -186,26 +243,22 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, const cldnn::device_in
 
     const uint64_t w_fixed = w_total - w_moe;
 
-    const double fit_safety = 0.95;
-    const double kv_runtime_conversation = w_total * 0.1;  // ~10% of total weights may be used for runtime allocations
+    const double fit_safety = 0.85;
     const double budget_for_moe =
-        static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed) - kv_runtime_conversation;
+        static_cast<double>(m_budget) * fit_safety - static_cast<double>(w_fixed);
 
     size_t ratio;
     if (budget_for_moe >= static_cast<double>(w_moe)) {
         ratio = 0;  // everything fits, no offload needed
-    } else if (budget_for_moe <= 0.0) {
-        ratio = 70;  // extreme pressure: keep one slot resident (100 is invalid)
     } else {
         const double resident_fraction = budget_for_moe / static_cast<double>(w_moe);
-        const long r = std::lround((1.0 - resident_fraction) * 100.0);
-        ratio = static_cast<size_t>(std::clamp<long>(r, 0, 70));
+        ratio = std::lround((1.0 - resident_fraction) * 100.0);
     }
 
-    GPU_DEBUG_INFO << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+    std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
                    << " m_budget=" << m_budget
+                   << " budget_source=" << budget_source
                    << " w_total=" << w_total
-                   << " kv_runtime_conversation=" << static_cast<long long>(kv_runtime_conversation)
                    << " w_moe=" << w_moe
                    << " w_fixed=" << w_fixed
                    << " budget_for_moe=" << static_cast<long long>(budget_for_moe)

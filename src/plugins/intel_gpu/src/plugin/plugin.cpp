@@ -279,7 +279,7 @@ void resolve_auto_offload_ratio_if_needed(ExecutionConfig& config,
     }
     if (requested != ov::intel_gpu::OFFLOAD_RATIO_AUTO)
         return;
-    const size_t resolved = resolve_auto_offload_ratio(*transformed_model, context->get_engine().get_device_info());
+    const size_t resolved = resolve_auto_offload_ratio(*transformed_model, context->get_engine());
     config.set_user_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))}, OptionVisibility::RELEASE);
 }
 }  // namespace
