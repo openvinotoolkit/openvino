@@ -284,10 +284,63 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
     for (const auto& output : compiled_model->outputs()) {
         allocate_port(output);
     }
+
+    // Remember which user inputs the cache owns, so infer() leaves them alone.
+    if (const auto& controller = m_compiled_model->get_cache_controller()) {
+        std::unordered_set<std::string> cache_names;
+        for (const auto& port : controller->ports(0)) {
+            cache_names.insert(port.get_names().begin(), port.get_names().end());
+        }
+        const auto& inputs = compiled_model->inputs();
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            for (const auto& name : inputs[i].get_names()) {
+                if (cache_names.count(name) != 0) {
+                    m_cache_input_indices.insert(i);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void InferRequest::bind_cache() {
+    const auto& controller = m_compiled_model->get_cache_controller();
+    if (!controller) {
+        return;
+    }
+    OPENVINO_ASSERT(controller->get_num_allocated_blocks() > 0,
+                    "[TP_GPU] The paged-attention cache has not been allocated. Allocate it through "
+                    "the compiled model's cache controller before inferring.");
+    if (controller->generation() == m_bound_cache_generation) {
+        return;
+    }
+
+    for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
+        const auto& ports = controller->ports(rank);
+        const auto& tensors = controller->tensors(rank);
+        for (size_t i = 0; i < ports.size(); ++i) {
+            m_rank_requests[rank]->set_tensor(ports[i], tensors[i]);
+        }
+    }
+    m_bound_cache_generation = controller->generation();
+}
+
+void InferRequest::check_tensors() const {
+    const auto& inputs = m_compiled_model->inputs();
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        // Cache ports stay empty on purpose: the plugin owns that memory and
+        // binds its per-rank slices straight to the rank requests.
+        if (m_cache_input_indices.count(i) != 0) {
+            continue;
+        }
+        check_tensor(inputs[i], get_tensor(inputs[i]));
+    }
+    for (const auto& output : m_compiled_model->outputs()) {
+        check_tensor(output, get_tensor(output));
+    }
 }
 
 void InferRequest::infer() {
-    // A CompiledModel owns one coordinator shared by all of its requests.
     // Serialize complete outer inferences so two requests cannot mix ranks
     // in the same rendezvous epoch or overwrite shared L0 command lists.
     [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
@@ -304,11 +357,18 @@ void InferRequest::infer() {
     const auto& rank0_inputs = m_rank_requests[0]->get_compiled_model()->inputs();
 
     for (size_t i = 0; i < user_inputs.size(); ++i) {
+        // Cache ports are not the caller's to fill: the cache belongs to the
+        // plugin, sliced by kv head, and each rank gets its own slice below.
+        if (m_cache_input_indices.count(i) != 0) {
+            continue;
+        }
         auto tensor = get_tensor(user_inputs[i]);
         for (auto& req : m_rank_requests) {
             req->set_tensor(rank0_inputs[i], tensor);
         }
     }
+
+    bind_cache();
 
     auto t1 = clock::now();
 
