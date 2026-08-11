@@ -3234,7 +3234,7 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
     }
 }
 
-std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
+static std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
 #ifdef _WIN32
     // Windows maps file views with 64K allocation granularity
     const std::size_t mmap_granularity = 65536;
