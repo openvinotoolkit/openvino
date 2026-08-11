@@ -101,8 +101,6 @@ public:
         return m_kv_cache_bit_width != 0 && m_k_quant_type != GroupQueryAttentionQuantType::NONE;
     }
 
-    bool has_input(size_t input_position) const;
-
 private:
     int64_t m_num_heads = 0;
     int64_t m_kv_num_heads = 0;

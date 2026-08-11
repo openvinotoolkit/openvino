@@ -5,6 +5,7 @@
 #include "decompose_gqa.hpp"
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
@@ -57,9 +58,14 @@ public:
         const auto rotary_interleaved = node->get_rotary_interleaved();
         // TODO: add softcap support
 
+        const auto has_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) {
+            const auto pos = static_cast<size_t>(input_pos);
+            return pos < node->get_input_size() && !ov::util::is_empty_constant_tensor(node->input_value(pos));
+        };
+
         const auto get_input = [&](ov::op::internal::GroupQueryAttentionInputs input_pos) -> ov::Output<ov::Node> {
             const auto original_pos = static_cast<int64_t>(input_pos);
-            const bool exists = node->has_input(original_pos);
+            const bool exists = has_input(input_pos);
             OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
             return node->input_value(static_cast<size_t>(original_pos));
         };

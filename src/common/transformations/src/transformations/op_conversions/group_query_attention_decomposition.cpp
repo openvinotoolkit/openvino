@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
@@ -90,9 +91,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto smooth_softmax = node->get_smooth_softmax();
     // TODO: add softcap support
 
+    const auto has_input = [&](const GQAInputs input_pos) {
+        const auto pos = static_cast<size_t>(input_pos);
+        return (pos < node->get_input_size()) && !ov::util::is_empty_constant_tensor(node->input_value(pos));
+    };
+
     const auto get_input = [&](const GQAInputs input_pos) -> ov::Output<ov::Node> {
         const auto original_pos = static_cast<size_t>(input_pos);
-        const bool exists = node->has_input(original_pos);
+        const bool exists = has_input(input_pos);
         OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
         return node->input_value(original_pos);
     };
@@ -151,7 +157,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         // Check if position_ids is provided (optional input), using actual input index
-        if (node->has_input(static_cast<size_t>(GQAInputs::POSITION_IDS))) {
+        if (has_input(GQAInputs::POSITION_IDS)) {
             // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
             // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
             const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
@@ -316,7 +322,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     ov::Output<ov::Node> external_bias;
-    if (node->has_input(static_cast<size_t>(GQAInputs::ATTENTION_BIAS))) {
+    if (has_input(GQAInputs::ATTENTION_BIAS)) {
         external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
     const auto mask = make_attention_mask(curr_seqlen_scalar,
@@ -332,7 +338,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = node->has_input(static_cast<size_t>(GQAInputs::HEAD_SINK));
+    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
     if (has_head_sink || smooth_softmax) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {

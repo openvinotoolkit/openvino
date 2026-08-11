@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov::op::internal {
 
@@ -118,7 +118,7 @@ void GroupQueryAttention::validate_and_infer_types() {
                                  const std::vector<element::Type>& allowed_types,
                                  bool required = true) {
         const auto pos = static_cast<size_t>(input);
-        const bool present = has_input(pos);
+        const bool present = (pos < get_input_size()) && !ov::util::is_empty_constant_tensor(input_value(pos));
         NODE_VALIDATION_CHECK(this,
                               !required || present,
                               "GroupQueryAttention requires ",
@@ -291,15 +291,6 @@ void GroupQueryAttention::validate_and_infer_types() {
     for (auto&& port : {1, 2}) {
         set_output_type(port, kv_cache_type, kv_shape);
     }
-}
-
-bool GroupQueryAttention::has_input(size_t input_position) const {
-    if (input_position >= get_input_size()) {
-        return false;
-    }
-    const auto input_node = input_value(input_position).get_node_shared_ptr();
-    const auto constant = ov::as_type_ptr<v0::Constant>(input_node);
-    return !(constant && ov::shape_size(constant->get_shape()) == 0);
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
