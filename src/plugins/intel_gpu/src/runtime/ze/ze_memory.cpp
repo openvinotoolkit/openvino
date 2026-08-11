@@ -298,6 +298,10 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
 }
 
 void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
+    if (stream.is_recording()) {
+        stream.stop_recording();
+        GPU_DEBUG_TRACE << "[GPU] Memory lock interrupted recording" << std::endl;
+    }
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
@@ -628,6 +632,10 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_r
 }
 
 void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
+    if (stream.is_recording()) {
+        stream.stop_recording();
+        GPU_DEBUG_TRACE << "[GPU] Memory lock interrupted recording" << std::endl;
+    }
     auto& zero_stream = downcast<const ze_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {

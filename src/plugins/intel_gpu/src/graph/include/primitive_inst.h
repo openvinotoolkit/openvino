@@ -299,7 +299,8 @@ public:
     bool get_flag(size_t flag) const;
     void reset_flags();
 
-    void reset_events();
+    void clear_events();
+    void reset_out_event();
 
     void prepare_primitive();
     void execute();

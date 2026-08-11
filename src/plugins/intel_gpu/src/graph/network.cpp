@@ -239,6 +239,11 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     , _shape_predictor(new ShapePredictor(&program->get_engine(), program->get_config().get_shape_predictor_settings())) {
     if (!_internal) {
         net_id = get_unique_net_id();
+        if (get_config().get_record_replay()) {
+            OPENVINO_ASSERT(_stream->supports_recording(), "[GPU] Stream recording is not supported by the current stream implementation.");
+            _enable_stream_recording = true;
+            _cmd_list = _stream->create_command_list();
+        }
     }
 
     calculate_weights_cache_capacity();
@@ -404,8 +409,16 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
     }
     auto input = std::static_pointer_cast<input_layout_inst>(primitive_inst);
-    const bool was_unallocated = !input->output_memory_ptr();
+    const auto prev_mem = input->output_memory_ptr();
+    const bool was_unallocated = !prev_mem;
     auto ev = input->set_data(data, need_to_check_memory_to_set);
+
+    const auto new_mem = input->output_memory_ptr();
+    const bool same_buffer = prev_mem && new_mem &&
+                             get_engine().is_the_same_buffer(*prev_mem, *new_mem) &&
+                             prev_mem->get_layout().compatible(new_mem->get_layout());
+    if (!same_buffer)
+        invalidate_stream_recording();
 
     if (was_unallocated) {
         // The initial set_arguments() skipped nodes whose dep buffer was null —
@@ -563,6 +576,13 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::vector<event::ptr> ret_ev;
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
+
+    const auto prev_out = p_inst->output_memory_ptr();
+    const bool same_output_buffer = prev_out && mem_new &&
+                                    get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
+                                    prev_out->get_layout().compatible(mem_new->get_layout());
+    if (!same_output_buffer)
+        invalidate_stream_recording();
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end())
@@ -789,6 +809,7 @@ void network::reset_output_remote_memory_ptrs() {
 void network::invalidate_output_memory_chain(const primitive_id& id) {
     auto p_inst = find_primitive(id);
     p_inst->clear_output_memory();
+    invalidate_stream_recording();
 
     auto o_iter = _output_chains.find(id);
     if (o_iter != _output_chains.end()) {
@@ -853,6 +874,7 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
+    invalidate_stream_recording();
     for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
         invalidate_ext_block_compute_nodes(prim_id);
     }
@@ -939,6 +961,23 @@ bool network::has_event(const primitive_id& id) const {
 }
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
+    auto &net_stream = get_stream();
+    bool started_recording = false;
+    if (_enable_stream_recording) {
+        if (!events.empty()) {
+            static_cast<void>(net_stream.enqueue_marker(events));
+        }
+        if (_is_recording_valid) {
+            for (auto& inst : _exec_order) {
+                inst->reset_out_event();
+            }
+            net_stream.enqueue_command_list(_cmd_list);
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] Replayed last iteration" << std::endl;
+            return;
+        }
+        net_stream.start_recording(_cmd_list);
+        started_recording = true;
+    }
     set_arguments();
 
     // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
@@ -952,9 +991,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         NODE_DEBUG(*inst);
         OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
-        inst->reset_events();
+        inst->clear_events();
 
-        if (inst->is_input()) {
+        if (!started_recording && inst->is_input()) {
             inst->add_dep_events(events);
         }
 
@@ -963,18 +1002,27 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
-            get_stream().flush();
+            net_stream.flush();
+    }
+    if (started_recording) {
+        auto cmd_list = net_stream.stop_recording();
+        _is_recording_valid = (cmd_list == _cmd_list);
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] Stream recording " << (_is_recording_valid ? "succeeded" : "failed") << std::endl;
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    get_stream().flush();
+    net_stream.flush();
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {
         inst->reset_flags();
     }
+}
+
+void network::invalidate_stream_recording() {
+    _is_recording_valid = false;
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

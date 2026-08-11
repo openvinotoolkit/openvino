@@ -4,6 +4,7 @@
 
 #include "ze_event.hpp"
 #include "ze/ze_common.hpp"
+#include "ze_base_event_factory.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -18,6 +19,10 @@ void ze_event::reset() {
 }
 
 void ze_event::wait_impl() {
+    if (m_factory.get_stream().is_recording()) {
+        m_factory.get_stream().stop_recording();
+        GPU_DEBUG_TRACE << "[GPU] Event wait interrupted recording" << std::endl;
+    }
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 

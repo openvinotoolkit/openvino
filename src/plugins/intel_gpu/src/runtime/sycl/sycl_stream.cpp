@@ -225,5 +225,28 @@ void sycl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_outpu
     }
 }
 
+bool sycl_stream::supports_recording() const {
+    return false;
+}
+command_list::ptr sycl_stream::create_command_list() const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void sycl_stream::start_recording(command_list::ptr cmd_list) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+bool sycl_stream::is_recording() const {
+    return false;
+}
+
+command_list::ptr sycl_stream::stop_recording() const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+void sycl_stream::enqueue_command_list(command_list::ptr cmd_list) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 }  // namespace sycl
 }  // namespace cldnn

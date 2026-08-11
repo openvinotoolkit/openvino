@@ -5,7 +5,6 @@
 #pragma once
 
 #include "intel_gpu/runtime/event.hpp"
-#include "ze_base_event_factory.hpp"
 #include "ze_common.hpp"
 
 #include <chrono>

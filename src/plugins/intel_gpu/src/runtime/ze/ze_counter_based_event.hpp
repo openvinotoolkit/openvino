@@ -9,7 +9,7 @@
 
 namespace cldnn {
 namespace ze {
-
+struct ze_base_event_factory;
 
 // ze counter based event.
 // Signaled state is inferred from the number of tasks completed on device.
