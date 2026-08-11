@@ -39,6 +39,16 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
 
     std::shared_ptr<ov::Node> op;
     shape_infer_function shape_infer_f;
+
+    void save(BinaryOutputBuffer& /*ob*/) const override {
+        OPENVINO_THROW("[GPU] Compiled model export / model caching is not supported for models with MLIR "
+                       "(Graph Compiler) subgraphs. Disable GPU_ENABLE_MLIR to use ov::cache_dir or export_model()");
+    }
+
+    void load(BinaryInputBuffer& /*ib*/) override {
+        OPENVINO_THROW("[GPU] Import of a compiled model containing MLIR (Graph Compiler) subgraphs "
+                       "is not supported");
+    }
 };
 
 }  // namespace cldnn

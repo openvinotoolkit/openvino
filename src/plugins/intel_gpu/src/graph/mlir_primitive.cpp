@@ -31,6 +31,10 @@ std::vector<layout> mlir_primitive_inst::calc_output_layouts(mlir_primitive_node
         input_shapes.push_back(l.get<ShapeType>());
     }
 
+    OPENVINO_ASSERT(prim->shape_infer_f,
+                    "[GPU] Shape inference function is not set for mlir_primitive '", prim->id,
+                    "'. MLIR (Graph Compiler) subgraphs do not support export / model caching");
+
     std::vector<ov::PartialShape> output_shapes = prim->shape_infer_f(input_shapes);
 
     std::vector<layout> out_layouts;

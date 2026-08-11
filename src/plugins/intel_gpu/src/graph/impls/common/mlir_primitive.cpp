@@ -41,6 +41,8 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
         auto& stream = instance.get_network().get_stream();
         const auto& prim = instance.node->get_primitive();
         const auto& op = prim->op;
+        OPENVINO_ASSERT(op,
+                        "[GPU] MLIROp is not set for mlir_primitive '", prim->id);
 
         ov::TensorVector input_gpu_tensors;
         ov::TensorVector output_gpu_tensors;
