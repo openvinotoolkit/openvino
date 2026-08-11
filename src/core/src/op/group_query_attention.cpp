@@ -127,6 +127,10 @@ void GroupQueryAttention::validate_and_infer_types() {
                               pos,
                               ") to be present");
 
+        if (!present) {
+            return;
+        }
+
         const auto& pshape = get_input_partial_shape(pos);
         const auto& rank = pshape.rank();
         const bool rank_ok = rank.is_dynamic() || allowed_ranks.size() == 0 ||
