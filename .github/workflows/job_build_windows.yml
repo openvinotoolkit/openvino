@@ -90,8 +90,8 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          use-pip-proxy: 'true'
-          self-hosted-runner: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
 
       - name: Setup NodeJS
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
@@ -223,9 +223,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.12'
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.13
@@ -233,9 +233,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.13'
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14
@@ -243,9 +243,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14'
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
 
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
@@ -285,9 +285,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.14t'
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
           allow-prereleases: 'true'
 
       - name: Build additional Python wheels - Python 3.14t
@@ -355,9 +355,9 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          use-pip-proxy: 'true'
+          use-pip-proxy: ${{ inputs.runner != 'windows-11-arm' }}
           set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
+          self-hosted-runner: ${{ inputs.runner != 'windows-11-arm' }}
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
