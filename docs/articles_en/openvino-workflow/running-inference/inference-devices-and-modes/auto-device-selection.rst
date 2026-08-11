@@ -193,6 +193,36 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::devices_utilization_       | **Type**: ``dict[str, int]``                                       |
+| threshold``                                  |                                                                    |
+|                                              | Per-device utilization thresholds (in percent, ``[0, 100]``).      |
+|                                              | AUTO skips a candidate device whose current utilization is at or   |
+|                                              | above its threshold and selects the next available device. Keys    |
+|                                              | are device names (e.g. ``"CPU"``, ``"GPU.0"``); values are the     |
+|                                              | corresponding threshold percent.                                   |
+|                                              |                                                                    |
+|                                              | Example: ``{"CPU": 80, "GPU": 70}``                                |
+|                                              |                                                                    |
+|                                              | The default value is empty (no threshold applied).                 |
++----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::perf_curve_table``         | **Type**: ``dict[str, dict[int, float]]``                          |
+|                                              |                                                                    |
+|                                              | Per-device performance curve mapping utilization percent           |
+|                                              | (``[0, 100]``) to a relative performance score. AUTO ranks         |
+|                                              | candidate devices in ascending order of their interpolated score   |
+|                                              | at the current utilization and selects the one with the lowest     |
+|                                              | score. When set together with                                      |
+|                                              | ``devices_utilization_threshold``, devices exceeding their         |
+|                                              | threshold are excluded first, then the curve ranking is applied    |
+|                                              | to the remaining candidates. Allowed device keys:                  |
+|                                              | ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. Each device's       |
+|                                              | curve must have at least one entry.                                |
+|                                              |                                                                    |
+|                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                        |
+|                                              | ``"NPU": {0: 0.0, 100: 50.0}}``                                    |
+|                                              |                                                                    |
+|                                              | The default value is empty (curve ranking disabled).               |
++----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
