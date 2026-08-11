@@ -4,12 +4,19 @@
 
 #include "fold_const.hpp"
 
+#include "../../logging.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -21,6 +28,20 @@ namespace patterns {
 namespace util {
 
 namespace {
+// Guard used ONLY by FoldEltwiseOfConsts. Shape-compute arithmetic (e.g. a split
+// size expressed as `total - other`) operates on individual dimension sizes,
+// i.e. scalar integer values, which are later Unsqueeze'd and Concat'ed into the
+// split_lengths vector. Restricting the folder to scalar integer operands means
+// it can never touch a (multi-element) weight quantization/decompression
+// constant - so no size heuristic is needed and weightless caching / DCOFF stay
+// intact.
+bool is_scalar_integer_const(const ov::Output<ov::Node>& in) {
+    if (!in.get_element_type().is_integral())
+        return false;
+    const auto& pshape = in.get_partial_shape();
+    return pshape.is_static() && ov::shape_size(pshape.to_shape()) == 1;
+}
+
 // If every input to `node` is an ov::op::v0::Constant and every output shape
 // is statically known, evaluate the node and return one folded Constant per
 // output port.  Returns true on success; `replacements` is populated.
@@ -111,6 +132,26 @@ FoldConcatOfConsts::FoldConcatOfConsts() {
     });
 }
 
+FoldEltwiseOfConsts::FoldEltwiseOfConsts() {
+    auto const_lhs = opp::wrap_type<ov::op::v0::Constant>();
+    auto const_rhs = opp::wrap_type<ov::op::v0::Constant>();
+    auto eltwise = opp::wrap_type<ov::op::v1::Subtract, ov::op::v1::Add, ov::op::v1::Multiply, ov::op::v1::Divide>(
+        {const_lhs, const_rhs});
+
+    register_matcher(std::make_shared<opp::Matcher>(eltwise, "FoldEltwiseOfConsts"), [](opp::Matcher& m) {
+        auto node = m.get_match_root();
+        // Self-contained weight-safety guard (not shared with the other folders):
+        // only fold when both operands are scalar integer constants.
+        if (!is_scalar_integer_const(node->input_value(0)) || !is_scalar_integer_const(node->input_value(1)))
+            return false;
+        ov::OutputVector replacements;
+        if (!fold_if_all_const(node, replacements))
+            return false;
+        ov::replace_node(node, replacements);
+        return true;
+    });
+}
+
 bool FoldShapeComputeChain::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<FoldShapeOf>();
@@ -118,6 +159,37 @@ bool FoldShapeComputeChain::run_on_model(const std::shared_ptr<ov::Model>& model
     rewr.add_matcher<FoldUnsqueezeOfConst>();
     rewr.add_matcher<FoldConcatOfConsts>();
     return rewr.run_on_model(model);
+}
+
+void foldShapeComputeChainsForConstAttrs(const std::shared_ptr<ov::Model>& model) {
+    const bool needs_shape_fold = [&] {
+        for (const auto& node : model->get_ordered_ops()) {
+            if (!ov::is_type<ov::op::v1::VariadicSplit>(node)) {
+                continue;
+            }
+            if (!ov::is_type<ov::op::v0::Constant>(node->input_value(2).get_node_shared_ptr())) {
+                return true;
+            }
+        }
+        return false;
+    }();
+    if (!needs_shape_fold) {
+        return;
+    }
+    LOG_INFO("Found VariadicSplit with non-constant split_lengths; folding shape-compute "
+             "chains before online partitioning.");
+    // Local rewrite (NOT the shared FoldShapeComputeChain, which the MoE path in
+    // llm_compiled_model.cpp also uses): the shape-compute-chain matchers plus the
+    // opt-in FoldEltwiseOfConsts so a Subtract/Add step (split size = total - other)
+    // also collapses. Scoping it here keeps every other constant-folding caller
+    // untouched.
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<FoldShapeOf>();
+    rewr.add_matcher<FoldGatherOfConst>();
+    rewr.add_matcher<FoldUnsqueezeOfConst>();
+    rewr.add_matcher<FoldEltwiseOfConsts>();
+    rewr.add_matcher<FoldConcatOfConsts>();
+    rewr.run_on_model(model);
 }
 
 }  // namespace util
