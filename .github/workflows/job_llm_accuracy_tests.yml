@@ -80,14 +80,9 @@ jobs:
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          name: openvino_wheels
+          pattern: 'openvino_{wheels,tokenizers_wheel}'
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO artifacts (tokenizers_wheel)
-        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
-        with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
 
       - name: Setup Python 3.12
         uses: ./.github/actions/setup_python
