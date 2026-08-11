@@ -164,6 +164,23 @@ private:
             // uniformly.  The placeholder order {0,2,1,3} will be overwritten to
             // {0,2,3,1} by transpose_matmul_b.
             if (ov::is_type<ov::op::v1::Reshape>(matched_node_transpose)) {
+                // Only accept a Reshape that is semantically a genuine MQA fake-transpose:
+                //   [B, Snew, 1, D] → [B, 1, Snew, D]
+                // i.e. 4D→4D, axes 1 and 2 are swapped, and the swapped-out dim equals 1
+                // (num_kv_heads==1).  Any other Reshape (e.g. 3D→4D in negative tests)
+                // must be rejected so the matcher does not fire.
+                const auto& in_shape = matched_node_transpose->input_value(0).get_partial_shape();
+                const auto& out_shape = matched_node_transpose->get_output_partial_shape(0);
+                const bool is_mqa_fake_transpose =
+                    in_shape.rank().is_static() && in_shape.rank().get_length() == 4 && out_shape.rank().is_static() &&
+                    out_shape.rank().get_length() == 4 && in_shape[0].compatible(out_shape[0]) &&  // B unchanged
+                    in_shape[3].compatible(out_shape[3]) &&                                        // D unchanged
+                    in_shape[1].compatible(out_shape[2]) &&                    // Snew swapped to dim 2
+                    in_shape[2].compatible(out_shape[1]) &&                    // kv_heads swapped to dim 1
+                    in_shape[2].is_static() && in_shape[2].get_length() == 1;  // kv_heads==1
+                if (!is_mqa_fake_transpose) {
+                    return false;
+                }
                 LOG_DEBUG("GQA: matched 'transpose' is a Reshape (num_kv_heads==1); replacing with Transpose");
                 auto data_input = matched_node_transpose->input_value(0);
                 auto placeholder_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3});
