@@ -852,8 +852,20 @@ float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, flo
                        max_key,
                        "]");
     }
-    auto hi_it = curve.lower_bound(static_cast<unsigned>(std::ceil(utilization)));
+    auto hi_it = curve.lower_bound(static_cast<unsigned>(utilization));
+    // Advance past any key exactly equal to the truncated value when utilization has a fractional part,
+    // so hi_it always points to a key strictly greater than utilization (the upper bracket).
+    while (hi_it != curve.end() && static_cast<float>(hi_it->first) < utilization) {
+        ++hi_it;
+    }
+    if (hi_it == curve.end()) {
+        // Floating-point imprecision put utilization just above max_key; clamp to last entry.
+        return curve.rbegin()->second;
+    }
     if (static_cast<float>(hi_it->first) == utilization) {
+        return hi_it->second;
+    }
+    if (hi_it == curve.begin()) {
         return hi_it->second;
     }
     auto lo_it = std::prev(hi_it);
@@ -868,11 +880,11 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         const std::map<std::string, std::map<unsigned, float>>& perf_curve_table,
         size_t* out_scored_count) {
     // Use (index, score) pairs to avoid copying DeviceInformation during sorting.
-    const std::vector<DeviceInformation*> device_ptrs = [&] {
-        std::vector<DeviceInformation*> v;
+    const std::vector<const DeviceInformation*> device_ptrs = [&] {
+        std::vector<const DeviceInformation*> v;
         v.reserve(valid_devices.size());
         for (const auto& d : valid_devices) {
-            v.push_back(const_cast<DeviceInformation*>(&d));
+            v.push_back(&d);
         }
         return v;
     }();
