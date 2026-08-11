@@ -420,13 +420,13 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     OPENVINO_THROW("Unsupported property: ", name);
 }
 
-static void write_header(std::ostream& modelStream, const std::string& m_runtime_requirements) {
+static void write_header(std::ostream& modelStream, const std::string& runtime_requirements) {
     modelStream.write(reinterpret_cast<const char*>(&runtime_requirements_magic), sizeof(runtime_requirements_magic));
     modelStream.write(reinterpret_cast<const char*>(&runtime_requirements_version),
                       sizeof(runtime_requirements_version));
-    uint64_t reqs_size = m_runtime_requirements.size();
+    uint64_t reqs_size = runtime_requirements.size();
     modelStream.write(reinterpret_cast<const char*>(&reqs_size), sizeof(reqs_size));
-    modelStream.write(m_runtime_requirements.data(), reqs_size);
+    modelStream.write(runtime_requirements.data(), reqs_size);
 }
 
 void CompiledModel::export_model(std::ostream& modelStream) const {
