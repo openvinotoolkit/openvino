@@ -283,7 +283,9 @@ KERNEL (reorder_data)(
     #elif defined(UINT2_OUTPUT)
         OUTPUT_TYPE val_char = __TO_OUTPUT_REORDER_TYPE(res_tmp);
         int val_i32 = convert_int(val_char);
-        val_i32 = clamp(val_i32, 0, 3);
+        #if !CONVERT_TRUNCATE
+            val_i32 = clamp(val_i32, 0, 3);
+        #endif
         uint val_u32 = (uint)(val_i32 & 0x03);
 
         volatile __global uint* output_u32 = (volatile __global uint*)output;

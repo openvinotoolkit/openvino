@@ -4998,6 +4998,60 @@ TEST(reorder_gpu_i4, basic_uint4_bf16)
     run_reorder_uint4<ov::bfloat16>({32, 1, 1, 1});
 }
 
+template <typename T>
+static void run_reorder_uint2(const ov::Shape in_shape) {
+    auto& engine = get_test_engine();
+
+    layout in_layout({in_shape, data_types::u2, format::bfyx});
+    auto input = engine.allocate_memory(in_layout);
+
+    std::vector<uint8_t> input_data = {
+        0xe4, 0x1b, 0x39, 0x93, 0x00, 0x55, 0xaa, 0xff,
+    };
+
+    set_values(input, input_data);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), format::bfyx, element_type_to_data_type(ov::element::from<T>())));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    std::vector<T> expected_data = {
+        0, 1, 2, 3, 3, 2, 1, 0,
+        1, 2, 3, 0, 3, 0, 1, 2,
+        0, 0, 0, 0, 1, 1, 1, 1,
+        2, 2, 2, 2, 3, 3, 3, 3,
+    };
+
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(expected_data.size(), output_ptr.size());
+    for (size_t idx = 0; idx < output_ptr.size(); idx++)
+        ASSERT_EQ(expected_data[idx], output_ptr[idx]);
+}
+
+TEST(reorder_gpu_u2, basic_uint2)
+{
+    run_reorder_uint2<ov::float16>({32, 1, 1, 1});
+}
+
+TEST(reorder_gpu_u2, basic_uint2_bf16)
+{
+    run_reorder_uint2<ov::bfloat16>({32, 1, 1, 1});
+}
+
 static uint8_t pack_int4(int8_t a, int8_t b) {
     uint8_t packed_a = (a & 0xF) << 4;
     uint8_t packed_b = (b & 0xF);
