@@ -362,6 +362,7 @@ TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     }
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
@@ -397,7 +398,8 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     };
 
     std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
-    for (int query = 0; query < seq_length; ++query) {
+    // Keep one row fully masked to cover finite softmax behavior for this edge case.
+    for (int query = 1; query < seq_length; ++query) {
         mask[query * seq_length + selected_key(query)] = 1;
     }
     set_values(mask_mem, mask);
@@ -446,6 +448,14 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
             for (int feature = 0; feature < head_size; ++feature) {
                 const size_t output_idx = ((head * seq_length + query) * head_size) + feature;
                 const size_t value_idx = ((selected_key(query) * num_heads + head) * head_size) + feature;
+                ASSERT_TRUE(std::isfinite(static_cast<float>(ref_data[output_idx])));
+                ASSERT_TRUE(std::isfinite(static_cast<float>(micro_data[output_idx])));
+                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]),
+                            static_cast<float>(micro_data[output_idx]),
+                            1e-3f);
+                if (query == 0) {
+                    continue;
+                }
                 const float expected = static_cast<float>(value_data[value_idx]);
                 ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, 1e-3f);
                 ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, 1e-3f);
@@ -453,6 +463,7 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
         }
     }
 }
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 TEST(sdpa_gpu_custom, boolean_mask_opt_matches_reference) {
     auto& engine = get_test_engine();
