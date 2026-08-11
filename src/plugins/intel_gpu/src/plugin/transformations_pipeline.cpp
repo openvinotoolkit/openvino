@@ -333,7 +333,8 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
                     return true;
-                } else if (are_converts_from_decompression(child_consumers)) {
+                }
+                if (are_converts_from_decompression(child_consumers)) {
                     return true;
                 }
             }
@@ -719,7 +720,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
             [](const_node_ptr& node) -> bool {
-                auto next_node = node->get_output_target_inputs(0).begin()->get_node();
+                auto* next_node = node->get_output_target_inputs(0).begin()->get_node();
                 if (is_type<ov::op::v0::Convert>(next_node)) {
                     next_node = next_node->get_output_target_inputs(0).begin()->get_node();
                 }
@@ -1127,11 +1128,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
             if (ov::as_type_ptr<const ov::op::v0::RNNCell>(node)) {
                 return false;
-            } else if (ov::as_type_ptr<const ov::op::v3::GRUCell>(node)) {
+            }
+            if (ov::as_type_ptr<const ov::op::v3::GRUCell>(node)) {
                 return false;
-            } else if (const auto &lstm_cell = ov::as_type_ptr<const ov::op::v4::LSTMCell>(node)) {
+            }
+            if (const auto& lstm_cell = ov::as_type_ptr<const ov::op::v4::LSTMCell>(node)) {
                 return false;
-            } else if (const auto &lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
+            }
+            if (const auto& lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
                 return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
             return false;
@@ -1152,7 +1156,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (ov::as_type_ptr<const ov::op::v5::RNNSequence>(node)) {
                 return false;
-            } else if (const auto &gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
+            }
+            if (const auto& gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
                 return gru_seq->get_clip() == 0.0f &&
                     gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
@@ -1161,7 +1166,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                         gru_seq->get_input_node_shared_ptr(2)) ||
                     is_batch_one_with_dynamic_seq_len) &&
                     gru_seq->get_linear_before_reset();
-            } else if (const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
+            }
+            if (const auto& lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 if (!data_pshape[1].is_static())
                     return false;
                 return (lstm_seq->get_clip() == 0.0f &&
@@ -1204,7 +1210,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [](const_node_ptr &node) -> bool {
                 const auto mvn = ov::as_type_ptr<const ov::op::v6::MVN>(node);
                 if (mvn != nullptr && node->get_input_size() == 2) {
-                    if (auto axes_node = ov::as_type<ov::op::v0::Constant>(mvn->get_input_node_ptr(1))) {
+                    if (auto* axes_node = ov::as_type<ov::op::v0::Constant>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
                         ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
@@ -1248,7 +1254,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
                 if (axes.size() == 1 && axes[0] == 1) {
                     return true;
-                } else if (axes.size() == inputRank - 1) {
+                }
+                if (axes.size() == inputRank - 1) {
                     auto sortAxes = axes;
                     std::sort(sortAxes.begin(), sortAxes.end());
                     for (size_t i = 0; i < sortAxes.size(); i++) {
@@ -1414,7 +1421,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->set_callback<FuseConvertTransformation>([&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::opset1::Multiply>(node)) {
                 return ov::is_type<ov::opset1::Multiply>(node) && is_decompression_multiply(node, device_info.supports_immad);
-            } else if (ov::is_type<ov::opset1::Subtract>(node)) {
+            }
+            if (ov::is_type<ov::opset1::Subtract>(node)) {
                 const auto& consumers = node->get_output_target_inputs(0);
                 if (consumers.size() == 1) {
                     const auto consumer = consumers.begin()->get_node()->shared_from_this();
@@ -1703,8 +1711,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (dyn_quan_single >= 0) {
                         if (fc_count != dyn_quan_single)
                             return true;
-                        else
-                            GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
+                        GPU_DEBUG_COUT << "Try to apply dyn_quan only to " << root->get_friendly_name() << std::endl;
                     }
                 }
 

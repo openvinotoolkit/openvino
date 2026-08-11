@@ -61,7 +61,7 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto get_max_simd_size = [](const RuntimeParams& params) {
             size_t max_simd_size = fsv;
-            for (auto& simd_size : params.get_device_info().supported_simd_sizes) {
+            for (const auto& simd_size : params.get_device_info().supported_simd_sizes) {
                 max_simd_size = std::max(max_simd_size, simd_size);
             }
             return max_simd_size;

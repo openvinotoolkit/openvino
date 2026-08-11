@@ -31,7 +31,7 @@ public:
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                               const FilteredConfig& config) const override;
 
-    std::optional<std::vector<std::string>> get_supported_options() const override;
+    std::vector<std::string> get_supported_options() const override;
 
     bool is_option_supported(const std::string& optName,
                              const std::optional<std::string>& optValue = std::nullopt) const override;

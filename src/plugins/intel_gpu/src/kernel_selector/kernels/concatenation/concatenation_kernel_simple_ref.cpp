@@ -82,7 +82,8 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
              same_layout == DataLayout::b_fs_zyx_fsv32 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
             || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
-        } else if (cur_layout != same_layout) {
+        }
+        if (cur_layout != same_layout) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
