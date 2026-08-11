@@ -8,9 +8,6 @@ endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-# disable strict check for memory register size in Xbyak to avoid compilation errors on some platforms
-add_definitions(-DXBYAK_STRICT_CHECK_MEM_REG_SIZE=0)
-
 if (OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
@@ -277,6 +274,9 @@ endif()
 # TODO: XBYAK64 should be used only for x64. Have to enable it for all the architectures for now
 # since many files include x64 related headers unconditionally.
 add_definitions(-DXBYAK64)
+
+# disable strict check for memory register size in Xbyak to avoid compilation errors on some platforms
+add_definitions(-DXBYAK_STRICT_CHECK_MEM_REG_SIZE=0)
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
