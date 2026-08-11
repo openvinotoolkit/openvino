@@ -487,10 +487,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         auto_s_context->m_utilization_thresholds.insert(device_utilization_thresholds.begin(),
                                                         device_utilization_thresholds.end());
     }
+    // Values are already validated by PerfCurveTableValidator when the property is set, so no re-check here.
     auto perf_curve_table = load_config.get_property(ov::intel_auto::perf_curve_table);
     if (!perf_curve_table.empty()) {
         auto_s_context->m_perf_curve_table = perf_curve_table;
-        LOG_DEBUG_TAG("perf_curve_table configured with %zu device curve(s)", perf_curve_table.size());
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
