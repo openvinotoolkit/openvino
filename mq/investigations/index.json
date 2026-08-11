@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 146,
+  "total": 147,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1430,6 +1430,17 @@
       "category": "Infrastructure",
       "signature_hash": "b9bb8c1499335214",
       "pr_number": "37317"
+    },
+    {
+      "investigation_id": "2026-08-11-16-45-46-000-31512034471",
+      "run_id": "31512034471",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31512034471",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-08-11T16:45:46Z",
+      "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
+      "category": "Infrastructure",
+      "signature_hash": "44dec04115b12f89",
+      "pr_number": "36980"
     }
   ]
 }

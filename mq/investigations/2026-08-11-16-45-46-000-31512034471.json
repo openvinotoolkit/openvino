@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-16-45-46-000-31512034471",
+  "timestamp": "2026-08-11T16:45:46Z",
+  "run_id": "31512034471",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31512034471",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "36980",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36980",
+  "author": "EgorDuplensky",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Build job failed in attempt 1; logs not accessible (secrecy policy); attempt 2 auto-triggered and in progress"
+    }
+  ],
+  "key_errors": [
+    "Job ID 93848577641 (Build / Build) concluded: failure",
+    "No log content available - logs filtered by secrecy policy",
+    "Run is on attempt 2 (in_progress), consistent with infrastructure re-run pattern"
+  ],
+  "root_cause": "The ARM64 cross-compilation workflow's Build job failed in attempt 1 with no accessible log content. This is a recurring infrastructure pattern on the Linux ARM64 cross-compilation workflow where attempt 1 fails due to runner/infrastructure issues and attempt 2 is automatically triggered. The second attempt (run_attempt=2) is currently in_progress. No code-level error could be identified from the logs.",
+  "reproduction_steps": "N/A - infrastructure issue not reproducible locally",
+  "recommended_actions": [
+    "Wait for attempt 2 to complete - it is already in progress",
+    "If attempt 2 also fails, check runner health and re-queue the PR manually",
+    "No code changes required - this is an infrastructure flake"
+  ],
+  "prevention_strategies": "Monitor ARM64 runner stability. Consider increasing runner pool or adding retry logic at the job level.",
+  "historical_context": "This is occurrence 6 of a known recurring pattern (hash 44dec04115b12f89). Previous occurrences: 2026-07-25, 2026-08-11 (this run). Pattern has been seen 5 times before across different PRs."
+}
