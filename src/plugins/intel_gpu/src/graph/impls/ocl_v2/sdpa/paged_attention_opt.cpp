@@ -26,14 +26,15 @@
 #include "paged_attention_inst.h"
 #include "primitive_inst.h"
 #include "sdpa_base.hpp"
+#include "sdpa_gen_ocl_decode.hpp"
 #include "sdpa_gen_opt.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
 
-constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
+constexpr ov::element::Type softmax_accumulator_type = pa_softmax_accumulator_type;
 constexpr size_t paged_attention_block_size = 16;
-constexpr size_t seq_len_partition_size = 256;
+constexpr size_t seq_len_partition_size = pa_seq_len_partition_size;
 constexpr size_t subgroup_size = 16;
 constexpr size_t u4_elems_per_byte = 2;
 
@@ -1367,6 +1368,9 @@ public:
     Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
     Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
+    // GENERATE stage alternative to pa_single_token / pa_gqa_single_token; feeds the same
+    // pa_single_token_finalization. Only added when SDPAOclDecodeGenerator::supported().
+    Stage::Ptr pa_sdpa_ocl_decode = make_stage<SDPAOclDecodeGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
     const char* env = std::getenv("TEST_USE_SDPA_OCL");
@@ -1397,6 +1401,12 @@ public:
         add_stage(pa_gqa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
+
+        // supported() must be decidable from the descriptor / config / environment alone, because an
+        // added stage gets COMPILED regardless of whether it is ever dispatched.
+        if (SDPAOclDecodeGenerator::supported(params)) {
+            add_stage(pa_sdpa_ocl_decode, params);
+        }
 
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
@@ -1573,7 +1583,11 @@ public:
 
         rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
 
-        if (rt_params->stage == PagedAttentionStage::GENERATE) {
+        // has_stage() rather than supported() alone: the stage is only compiled when the ctor saw
+        // the same predicate, and dispatching an unbuilt stage would crash.
+        rt_params->use_ocl_decode = rt_params->stage == PagedAttentionStage::GENERATE && has_stage(pa_sdpa_ocl_decode);
+
+        if (rt_params->stage == PagedAttentionStage::GENERATE && !rt_params->use_ocl_decode) {
             if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
             } else {
@@ -1625,7 +1639,11 @@ public:
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
-            if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
+            if (rt_params->use_ocl_decode) {
+                // GENERATE only (set in update_rt_params); writes the same per-partition
+                // intermediates, so the finalization below still applies.
+                res_event = {execute_stage(res_event, instance, pa_sdpa_ocl_decode)};
+            } else if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
