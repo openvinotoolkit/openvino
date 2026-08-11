@@ -2739,19 +2739,25 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         };
         internal_mem_k->redefineDesc(reset_desc(S));
         internal_mem_v->redefineDesc(reset_desc(SV));
+        // The cache buffer is reused here because it is large enough in total elements, but the scale/zp
+        // buffer is laid out per batch, so it has to follow the new shape instead of being reinterpreted
         if (is_quantized_cache(kvcache_precision)) {
-            auto& old_scale_zp_k = m_k_state->get_scale_zp();
-            auto& old_scale_zp_v = m_v_state->get_scale_zp();
-            // only dim0, dim1 need change
-            // LBHS
-            old_scale_zp_k.m_strides[0] =
-                m_key_quant_param.isByChannel ? H * B * S : H * B * S / m_key_quant_param.groupSize * 2;
-            old_scale_zp_k.m_strides[1] =
-                m_key_quant_param.isByChannel ? H * S : H * S / m_key_quant_param.groupSize * 2;
-            old_scale_zp_v.m_strides[0] =
-                m_value_quant_param.isByChannel ? H * B * SV : H * B * SV / m_value_quant_param.groupSize * 2;
-            old_scale_zp_v.m_strides[1] =
-                m_value_quant_param.isByChannel ? H * SV : H * SV / m_value_quant_param.groupSize * 2;
+            auto reset_scale_zp = [&](const SDPAQuantParam& quant_param, size_t hidden_states, size_t cache_max_size) {
+                // Size it to the token capacity of the reused cache buffer, because later decode steps grow the
+                // cache in place and never revisit this branch
+                const size_t capacity_L = cache_max_size / (B * H * hidden_states);
+                PlainTensor scale_zp;
+                scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
+                                                              hidden_states,
+                                                              B,
+                                                              H,
+                                                              std::max(capacity_L, (L0 + L1) * 2),
+                                                              order,
+                                                              real_order));
+                return scale_zp;
+            };
+            m_k_state->set_scale_zp(reset_scale_zp(m_key_quant_param, S, m_k_state->internal_state_max_size()));
+            m_v_state->set_scale_zp(reset_scale_zp(m_value_quant_param, SV, m_v_state->internal_state_max_size()));
         }
     }
     if (need_redefine) {
