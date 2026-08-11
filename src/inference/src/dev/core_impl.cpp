@@ -1663,11 +1663,15 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
 void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
                                    const std::string& device_name,
                                    const ov::AnyMap& properties) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
     if (device_name.find('.') != std::string::npos) {
         OPENVINO_THROW("Device name must not contain dot '.' symbol");
     }
+
+    // Device lock before the global one, in get_plugin_impl's order: appending a candidate must not
+    // race a concurrent first load, which would insert a pre-append instance afterwards.
+    add_mutex(device_name);
+    std::lock_guard<std::mutex> dev_lock(get_mutex(device_name));
+    std::lock_guard<std::mutex> lock(get_mutex());
 
     // Another library under an already-registered name appends a dispatch-group candidate; the
     // enumeration probe picks the winner per device. (Proxy plugins keep their own handling.)
