@@ -49,8 +49,22 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
     // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
-    const auto k_quant_type = node.get_attribute_value<std::string>("k_quant_type", "NONE");
-    const auto v_quant_type = node.get_attribute_value<std::string>("v_quant_type", "NONE");
+    const auto parse_quant_type = [&](const std::string& quant_type_name) {
+        using QuantType = ov::op::internal::GroupQueryAttentionQuantType;
+        if (quant_type_name == "NONE") {
+            return QuantType::NONE;
+        }
+        if (quant_type_name == "PER_TENSOR") {
+            return QuantType::PER_TENSOR;
+        }
+        if (quant_type_name == "PER_CHANNEL") {
+            return QuantType::PER_CHANNEL;
+        }
+        FRONT_END_GENERAL_CHECK(false, "GroupQueryAttention: unsupported quant type '", quant_type_name, "'.");
+        return QuantType::NONE;
+    };
+    const auto k_quant_type = parse_quant_type(node.get_attribute_value<std::string>("k_quant_type", "NONE"));
+    const auto v_quant_type = parse_quant_type(node.get_attribute_value<std::string>("v_quant_type", "NONE"));
     // Sliding-window / softcap / smooth-softmax attributes (com.microsoft spec). Default to no-op values,
     // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
     const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
@@ -146,7 +160,7 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     OutputVector ov_op_inputs;
 
     const auto make_empty_optional_input = []() {
-        return v0::Constant::create<float>(ov::element::f32, ov::Shape{0}, {})->output(0);
+        return v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {})->output(0);
     };
 
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {

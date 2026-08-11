@@ -50,7 +50,7 @@ ov::OutputVector make_valid_gqa_quant_args(const element::Type& kv_type,
                                            const element::Type& scale_type = element::f32) {
     using ov::op::v0::Constant;
     using ov::op::v0::Parameter;
-    const auto empty = Constant::create(element::f32, Shape{0}, {});
+    const auto empty = Constant::create(element::dynamic, Shape{0}, {});
 
     const auto query = std::make_shared<Parameter>(element::f32, PartialShape{1, 6, 4, 8});
     const auto key = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 4, 8});
@@ -177,6 +177,7 @@ TEST(type_prop, group_query_attention_rotary_inputs_static_shapes) {
 
 TEST(type_prop, group_query_attention_kv_cache_int8_per_tensor) {
     const auto args = make_valid_gqa_quant_args(element::i8, 8);
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
     const auto op = std::make_shared<op::internal::GroupQueryAttention>(args,
                                                                         6,
                                                                         2,
@@ -184,8 +185,8 @@ TEST(type_prop, group_query_attention_kv_cache_int8_per_tensor) {
                                                                         false,
                                                                         false,
                                                                         8,
-                                                                        "PER_TENSOR",
-                                                                        "PER_TENSOR");
+                                                                        quantize_type,
+                                                                        quantize_type);
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_element_type(1), element::i8);
@@ -198,40 +199,50 @@ TEST(type_prop, group_query_attention_kv_cache_int8_per_tensor) {
 TEST(type_prop, group_query_attention_kv_cache_uint4_not_supported) {
     // u4 is not in the allowed past_key/past_value type list; remove this when u4 support is added.
     const auto args = make_valid_gqa_quant_args(element::u4, 4);
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
     OV_EXPECT_THROW(
         std::ignore = std::make_shared<
-            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 4, "PER_CHANNEL", "PER_CHANNEL"),
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 4, quantize_type, quantize_type),
         ov::NodeValidationFailure,
         HasSubstr("past_key"));
 }
 
 TEST(type_prop, group_query_attention_kv_cache_mismatched_quant_types) {
     const auto args = make_valid_gqa_quant_args(element::i8, 8);
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<
-            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, "PER_TENSOR", "PER_CHANNEL"),
-        ov::NodeValidationFailure,
-        HasSubstr("matching k_quant_type and v_quant_type"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(
+                        args,
+                        6,
+                        2,
+                        1.0f,
+                        false,
+                        false,
+                        8,
+                        op::internal::GroupQueryAttentionQuantType::PER_TENSOR,
+                        op::internal::GroupQueryAttentionQuantType::PER_CHANNEL),
+                    ov::NodeValidationFailure,
+                    HasSubstr("matching k_quant_type and v_quant_type"));
 }
 
 TEST(type_prop, group_query_attention_kv_cache_mismatched_past_types) {
     auto args = make_valid_gqa_quant_args(element::i8, 8);
     args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] =
         std::make_shared<op::v0::Parameter>(element::u8, PartialShape{1, 2, 5, 8});
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
 
     OV_EXPECT_THROW(
         std::ignore = std::make_shared<
-            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, "PER_TENSOR", "PER_TENSOR"),
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, quantize_type, quantize_type),
         ov::NodeValidationFailure,
         HasSubstr("past_key and past_value element types to match"));
 }
 
 TEST(type_prop, group_query_attention_quantized_kv_requires_quantized_cache_type) {
     const auto args = make_valid_gqa_quant_args(element::f32, 8);
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
 
     OV_EXPECT_THROW(
         std::ignore = std::make_shared<
-            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, "PER_TENSOR", "PER_TENSOR"),
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, quantize_type, quantize_type),
         ov::NodeValidationFailure,
         HasSubstr("quantized KV cache element type"));
 }

@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -10,7 +11,7 @@
 
 namespace ov::op::internal {
 
-enum class GroupQueryAttentionInputs : int64_t {
+enum class GroupQueryAttentionInputs : size_t {
     QUERY = 0,                  // Q (mandatory)
     KEY = 1,                    // K (mandatory)
     VALUE = 2,                  // V (mandatory)
@@ -28,6 +29,12 @@ enum class GroupQueryAttentionInputs : int64_t {
     // Positions 14-15 are reserved (QK-Norm, not supported)
 };
 
+enum class GroupQueryAttentionQuantType {
+    NONE,
+    PER_TENSOR,
+    PER_CHANNEL,
+};
+
 // This is an experimental operation that is implemented in the plugins.
 class OPENVINO_API GroupQueryAttention : public Op {
 public:
@@ -41,8 +48,8 @@ public:
                         bool do_rotary,
                         bool rotary_interleaved,
                         int64_t kv_cache_bit_width = 0,
-                        const std::string& k_quant_type = "NONE",
-                        const std::string& v_quant_type = "NONE",
+                        GroupQueryAttentionQuantType k_quant_type = GroupQueryAttentionQuantType::NONE,
+                        GroupQueryAttentionQuantType v_quant_type = GroupQueryAttentionQuantType::NONE,
                         int64_t local_window_size = -1,
                         bool sliding_window_cache = false,
                         bool smooth_softmax = false);
@@ -68,10 +75,10 @@ public:
     int64_t get_kv_cache_bit_width() const {
         return m_kv_cache_bit_width;
     }
-    const std::string& get_k_quant_type() const {
+    GroupQueryAttentionQuantType get_k_quant_type() const {
         return m_k_quant_type;
     }
-    const std::string& get_v_quant_type() const {
+    GroupQueryAttentionQuantType get_v_quant_type() const {
         return m_v_quant_type;
     }
     // Mistral-style local (sliding-window) attention. -1 disables the window (pure causal); a value
@@ -91,10 +98,10 @@ public:
     }
     // KV cache is quantized when a bit width is set and a K quantization scheme is selected.
     bool is_kv_quantized() const {
-        return m_kv_cache_bit_width != 0 && m_k_quant_type != "NONE";
+        return m_kv_cache_bit_width != 0 && m_k_quant_type != GroupQueryAttentionQuantType::NONE;
     }
 
-    bool has_input(int64_t input_position) const;
+    bool has_input(size_t input_position) const;
 
 private:
     int64_t m_num_heads = 0;
@@ -103,8 +110,8 @@ private:
     bool m_do_rotary = false;
     bool m_rotary_interleaved = false;
     int64_t m_kv_cache_bit_width = 0;
-    std::string m_k_quant_type = "NONE";
-    std::string m_v_quant_type = "NONE";
+    GroupQueryAttentionQuantType m_k_quant_type = GroupQueryAttentionQuantType::NONE;
+    GroupQueryAttentionQuantType m_v_quant_type = GroupQueryAttentionQuantType::NONE;
     int64_t m_local_window_size = -1;
     bool m_sliding_window_cache = false;
     bool m_smooth_softmax = false;

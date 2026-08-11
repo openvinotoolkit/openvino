@@ -91,10 +91,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // TODO: add softcap support
 
     const auto get_input = [&](const GQAInputs input_pos) -> ov::Output<ov::Node> {
-        const auto original_pos = static_cast<int64_t>(input_pos);
+        const auto original_pos = static_cast<size_t>(input_pos);
         const bool exists = node->has_input(original_pos);
         OPENVINO_ASSERT(exists, "Missing required GroupQueryAttention input at original position ", original_pos);
-        return node->input_value(static_cast<size_t>(original_pos));
+        return node->input_value(original_pos);
     };
 
     auto Q = get_input(GQAInputs::QUERY);
@@ -151,7 +151,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         ov::Output<ov::Node> position_ids =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
         // Check if position_ids is provided (optional input), using actual input index
-        if (node->has_input(static_cast<int64_t>(GQAInputs::POSITION_IDS))) {
+        if (node->has_input(static_cast<size_t>(GQAInputs::POSITION_IDS))) {
             // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
             // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
             const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
@@ -316,7 +316,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
 
     ov::Output<ov::Node> external_bias;
-    if (node->has_input(static_cast<int64_t>(GQAInputs::ATTENTION_BIAS))) {
+    if (node->has_input(static_cast<size_t>(GQAInputs::ATTENTION_BIAS))) {
         external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
     const auto mask = make_attention_mask(curr_seqlen_scalar,
@@ -332,7 +332,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = node->has_input(static_cast<int64_t>(GQAInputs::HEAD_SINK));
+    const bool has_head_sink = node->has_input(static_cast<size_t>(GQAInputs::HEAD_SINK));
     if (has_head_sink || smooth_softmax) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
@@ -569,15 +569,16 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     return output.get_node_shared_ptr();
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_scale(const ov::Output<ov::Node>& scale,
-                                                                                    int64_t kv_num_heads,
-                                                                                    const std::string& quant_type) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_scale(
+    const ov::Output<ov::Node>& scale,
+    int64_t kv_num_heads,
+    ov::op::internal::GroupQueryAttentionQuantType quant_type) {
     // The KV cache is laid out as [batch, kv_num_heads, seq_len, head_size]. Reshape the flat scale so it
     // broadcasts along that layout. A fully static target shape is used (no -1 wildcard) so the result stays
     // static-shaped for plugins (e.g. NPU) that require static shapes. A fresh shape Constant is built per
     // call so no two GQA layers alias it.
     std::vector<int64_t> target_shape;
-    if (quant_type == "PER_CHANNEL") {
+    if (quant_type == ov::op::internal::GroupQueryAttentionQuantType::PER_CHANNEL) {
         // Per-channel scale has kv_num_heads * head_size elements, head-major (scale[kv_head * head_size + ch]).
         // Reshape to [1, kv_num_heads, 1, head_size] to broadcast over batch and seq. head_size is derived from
         // the (static) scale length when known, otherwise falls back to a -1 wildcard.
@@ -601,7 +602,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
     const ov::Output<ov::Node>& scale,
     int64_t kv_num_heads,
     int64_t kv_cache_bit_width,
-    const std::string& quant_type,
+    ov::op::internal::GroupQueryAttentionQuantType quant_type,
     const ov::element::Type& compute_type) {
     // Symmetric dequantization matching ONNX Runtime MLAS/CUDA QDQ. The actual Convert(->float) * scale
     // (optionally - zero_point) chain is built via the shared ov::decomposition::low_precision_dequantize
@@ -643,12 +644,13 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::dequantize
     return dequant.get_node_shared_ptr();
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(const ov::Output<ov::Node>& current,
-                                                                                  const ov::Output<ov::Node>& scale,
-                                                                                  int64_t kv_num_heads,
-                                                                                  int64_t kv_cache_bit_width,
-                                                                                  const std::string& quant_type,
-                                                                                  const ov::element::Type& cache_type) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::quantize_kv(
+    const ov::Output<ov::Node>& current,
+    const ov::Output<ov::Node>& scale,
+    int64_t kv_num_heads,
+    int64_t kv_cache_bit_width,
+    ov::op::internal::GroupQueryAttentionQuantType quant_type,
+    const ov::element::Type& cache_type) {
     // Symmetric quantize-on-write: q = clamp(round(x * inv_scale)). Rounding is round-half-to-even to match the
     // ONNX Runtime MLAS/CUDA reference (std::rintf). Clamp is applied before the narrowing Convert to avoid
     // overflow on out-of-range values. inv_scale mirrors MLAS SafeInvScale: a zero scale maps to 1.0 so the step

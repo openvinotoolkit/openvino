@@ -21,6 +21,7 @@ using namespace ov::intel_gpu;
 namespace {
 
 using ov::op::internal::GroupQueryAttention;
+using ov::op::internal::GroupQueryAttentionQuantType;
 
 // k_scale / v_scale are inputs 12 / 13 of GroupQueryAttention.
 constexpr size_t k_scale_idx = 12;
@@ -50,9 +51,12 @@ std::shared_ptr<ov::Model> make_gqa_model(bool quantized) {
     add_param(5, ov::element::i32, ov::PartialShape{1});            // seqlens_k
     add_param(6, ov::element::i32, ov::PartialShape{1});            // total_sequence_length
     for (size_t i = 7; i <= 11; ++i)                                // empty Constants are treated as absent optional inputs by has_input()
-        args[i] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{0}, {});
+        args[i] = ov::op::v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
     add_param(k_scale_idx, ov::element::f32, ov::PartialShape{1});  // k_scale
     add_param(v_scale_idx, ov::element::f32, ov::PartialShape{1});  // v_scale
+
+    // Keep this test compatible with both string-based and enum-based quant type APIs.
+    const auto quant_type = quantized ? GroupQueryAttentionQuantType::PER_CHANNEL : GroupQueryAttentionQuantType::NONE;
 
     auto gqa = std::make_shared<GroupQueryAttention>(args,
                                                      /*num_heads*/ 2,
@@ -61,8 +65,8 @@ std::shared_ptr<ov::Model> make_gqa_model(bool quantized) {
                                                      /*do_rotary*/ false,
                                                      /*rotary_interleaved*/ false,
                                                      /*kv_cache_bit_width*/ quantized ? 8 : 0,
-                                                     /*k_quant_type*/ quantized ? "PER_CHANNEL" : "NONE",
-                                                     /*v_quant_type*/ quantized ? "PER_CHANNEL" : "NONE");
+                                                     /*k_quant_type*/ quant_type,
+                                                     /*v_quant_type*/ quant_type);
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gqa->output(0)),
                              std::make_shared<ov::op::v0::Result>(gqa->output(1)),

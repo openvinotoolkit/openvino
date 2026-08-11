@@ -7,10 +7,38 @@
 #include <algorithm>
 
 #include "itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::op::internal {
+
+namespace {
+const char* quant_type_to_string(GroupQueryAttentionQuantType quant_type) {
+    switch (quant_type) {
+    case GroupQueryAttentionQuantType::NONE:
+        return "NONE";
+    case GroupQueryAttentionQuantType::PER_TENSOR:
+        return "PER_TENSOR";
+    case GroupQueryAttentionQuantType::PER_CHANNEL:
+        return "PER_CHANNEL";
+    }
+    OPENVINO_THROW("Unsupported GroupQueryAttentionQuantType enum value");
+}
+
+GroupQueryAttentionQuantType quant_type_from_string(const std::string& quant_type) {
+    if (quant_type == "NONE") {
+        return GroupQueryAttentionQuantType::NONE;
+    }
+    if (quant_type == "PER_TENSOR") {
+        return GroupQueryAttentionQuantType::PER_TENSOR;
+    }
+    if (quant_type == "PER_CHANNEL") {
+        return GroupQueryAttentionQuantType::PER_CHANNEL;
+    }
+    OPENVINO_THROW("Unsupported GroupQueryAttention quant type: ", quant_type);
+}
+}  // namespace
 
 GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t num_heads,
@@ -19,8 +47,8 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          bool do_rotary,
                                          bool rotary_interleaved,
                                          int64_t kv_cache_bit_width,
-                                         const std::string& k_quant_type,
-                                         const std::string& v_quant_type,
+                                         GroupQueryAttentionQuantType k_quant_type,
+                                         GroupQueryAttentionQuantType v_quant_type,
                                          int64_t local_window_size,
                                          bool sliding_window_cache,
                                          bool smooth_softmax)
@@ -89,7 +117,7 @@ void GroupQueryAttention::validate_and_infer_types() {
                                  std::initializer_list<int64_t> allowed_ranks,
                                  const std::vector<element::Type>& allowed_types,
                                  bool required = true) {
-        const auto pos = static_cast<int64_t>(input);
+        const auto pos = static_cast<size_t>(input);
         const bool present = has_input(pos);
         NODE_VALIDATION_CHECK(this,
                               !required || present,
@@ -98,11 +126,8 @@ void GroupQueryAttention::validate_and_infer_types() {
                               " (ONNX input ",
                               pos,
                               ") to be present");
-        if (!present) {
-            return false;
-        }
 
-        const auto& pshape = get_input_partial_shape(static_cast<size_t>(input));
+        const auto& pshape = get_input_partial_shape(pos);
         const auto& rank = pshape.rank();
         const bool rank_ok = rank.is_dynamic() || allowed_ranks.size() == 0 ||
                              std::any_of(allowed_ranks.begin(), allowed_ranks.end(), [&](int64_t allowed_rank) {
@@ -115,7 +140,7 @@ void GroupQueryAttention::validate_and_infer_types() {
                               " rank to be one of the allowed values, got shape ",
                               pshape);
 
-        const auto& type = get_input_element_type(static_cast<size_t>(input));
+        const auto& type = get_input_element_type(pos);
         const bool type_ok = type.is_dynamic() || allowed_types.size() == 0 ||
                              std::find(allowed_types.begin(), allowed_types.end(), type) != allowed_types.end();
         NODE_VALIDATION_CHECK(this,
@@ -124,7 +149,6 @@ void GroupQueryAttention::validate_and_infer_types() {
                               input_name(input),
                               " element type to be one of the allowed values, got ",
                               type);
-        return true;
     };
 
     const auto integral_types = []() {
@@ -240,13 +264,14 @@ void GroupQueryAttention::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == m_v_quant_type,
                               "GroupQueryAttention requires matching k_quant_type and v_quant_type, got: ",
-                              m_k_quant_type,
+                              quant_type_to_string(m_k_quant_type),
                               " and ",
-                              m_v_quant_type);
+                              quant_type_to_string(m_v_quant_type));
         NODE_VALIDATION_CHECK(this,
-                              m_k_quant_type == "PER_TENSOR" || m_k_quant_type == "PER_CHANNEL",
+                              m_k_quant_type == GroupQueryAttentionQuantType::PER_TENSOR ||
+                                  m_k_quant_type == GroupQueryAttentionQuantType::PER_CHANNEL,
                               "GroupQueryAttention supports k/v quant types: {PER_TENSOR, PER_CHANNEL}, got: ",
-                              m_k_quant_type);
+                              quant_type_to_string(m_k_quant_type));
 
         check_input(GroupQueryAttentionInputs::K_SCALE, {0, 1}, {element::f32, element::f16}, true);
         check_input(GroupQueryAttentionInputs::V_SCALE, {0, 1}, {element::f32, element::f16}, true);
@@ -268,19 +293,21 @@ void GroupQueryAttention::validate_and_infer_types() {
     }
 }
 
-bool GroupQueryAttention::has_input(int64_t input_position) const {
-    if (input_position < 0 || input_position >= static_cast<int64_t>(get_input_size())) {
+bool GroupQueryAttention::has_input(size_t input_position) const {
+    if (input_position >= get_input_size()) {
         return false;
     }
-    const auto input_node = input_value(static_cast<size_t>(input_position)).get_node_shared_ptr();
+    const auto input_node = input_value(input_position).get_node_shared_ptr();
     const auto constant = ov::as_type_ptr<v0::Constant>(input_node);
     return !(constant && ov::shape_size(constant->get_shape()) == 0);
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
+    std::string k_quant_type = quant_type_to_string(m_k_quant_type);
+    std::string v_quant_type = quant_type_to_string(m_v_quant_type);
     visitor.on_attribute("do_rotary", m_do_rotary);
-    visitor.on_attribute("k_quant_type", m_k_quant_type);
+    visitor.on_attribute("k_quant_type", k_quant_type);
     visitor.on_attribute("kv_cache_bit_width", m_kv_cache_bit_width);
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("local_window_size", m_local_window_size);
@@ -289,7 +316,9 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("smooth_softmax", m_smooth_softmax);
-    visitor.on_attribute("v_quant_type", m_v_quant_type);
+    visitor.on_attribute("v_quant_type", v_quant_type);
+    m_k_quant_type = quant_type_from_string(k_quant_type);
+    m_v_quant_type = quant_type_from_string(v_quant_type);
     return true;
 }
 

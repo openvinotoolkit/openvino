@@ -40,7 +40,7 @@ constexpr int64_t HEAD_SIZE = 16;
 
 std::shared_ptr<op::v0::Constant> make_absent_optional_input() {
     // Optional ONNX inputs are represented as an empty tensor.
-    return op::v0::Constant::create(element::f32, Shape{0}, {});
+    return op::v0::Constant::create(element::dynamic, Shape{0}, {});
 }
 
 // Chainable so each test case reads as a one-liner without C++20 designated initializers.
@@ -112,7 +112,8 @@ struct GqaParams {
 std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     const auto f32 = element::f32;
     const int64_t stored_head = p.kv_cache_bit_width == 4 ? HEAD_SIZE / 2 : HEAD_SIZE;  // 4-bit packs 2/byte
-    const std::string quant = p.kv_cache_bit_width == 0 ? "NONE" : "PER_TENSOR";
+    const auto quant = p.kv_cache_bit_width == 0 ? op::internal::GroupQueryAttentionQuantType::NONE
+                                                 : op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
 
     OutputVector args;
     ParameterVector params;
@@ -194,8 +195,8 @@ std::shared_ptr<GroupQueryAttention> make_gqa_op(const Dimension& batch,
                                                  /*do_rotary*/ false,
                                                  /*rotary_interleaved*/ false,
                                                  /*kv_cache_bit_width*/ 0,
-                                                 "NONE",
-                                                 "NONE",
+                                                 op::internal::GroupQueryAttentionQuantType::NONE,
+                                                 op::internal::GroupQueryAttentionQuantType::NONE,
                                                  local_window_size,
                                                  sliding_window_cache,
                                                  /*smooth_softmax*/ false);
