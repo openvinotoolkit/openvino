@@ -36,8 +36,7 @@ void OptionSupportCache::addSupportedOption(const CacheKey key,
     }
 }
 
-void OptionSupportCache::setSupportedOptions(const CacheKey key,
-                                             const std::vector<std::string>& supportedOptions) {
+void OptionSupportCache::setSupportedOptions(const CacheKey key, const std::vector<std::string>& supportedOptions) {
     std::lock_guard<std::mutex> lock(_mutex);
     auto& optionSupportState = getStateForKey(key);
 

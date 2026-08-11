@@ -24,8 +24,7 @@ public:
                             const std::string& optionName,
                             const std::optional<std::string>& optionValue = std::nullopt);
 
-    void setSupportedOptions(CacheKey key,
-                             const std::vector<std::string>& supportedOptions);
+    void setSupportedOptions(CacheKey key, const std::vector<std::string>& supportedOptions);
 
 private:
     struct KeyOptionsState final {

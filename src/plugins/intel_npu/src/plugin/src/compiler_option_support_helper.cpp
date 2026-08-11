@@ -28,34 +28,17 @@ const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptio
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                                     const std::string& optionName,
                                                     const std::optional<std::string>& optionValue) {
-    std::unique_ptr<ICompilerAdapter> compiler;
-    const auto getCompiler = [&]() -> ICompilerAdapter* {
-        if (compiler == nullptr) {
-            try {
-                compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
-            } catch (...) {
-                return nullptr;
-            }
-        }
-        return compiler.get();
-    };
-
-    // Resolve PREFER_PLUGIN to a concrete compiler type before cache lookup.
-    if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        auto* compilerPtr = getCompiler();
-        if (compilerPtr == nullptr) {
-            return false;
-        }
-        return compilerPtr->is_option_supported(optionName, optionValue);
-    }
-
+    OPENVINO_ASSERT(compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN,
+                    "Expected concrete compiler type before cache lookup");
     const auto cacheKey = toCacheKey(compilerType);
     if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
         return true;
     }
 
-    auto* compilerPtr = getCompiler();
-    if (compilerPtr == nullptr) {
+    std::unique_ptr<ICompilerAdapter> compiler;
+    try {
+        compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
+    } catch (...) {
         return false;
     }
 
@@ -63,13 +46,13 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
                                            ? _driverSupportedOptionsLoaded
                                            : _pluginSupportedOptionsLoaded;
     if (!optionsLoaded.exchange(true)) {
-        compilerPtr->get_supported_options();
+        compiler->get_supported_options();
         if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
             return true;
         }
     }
 
-    return compilerPtr->is_option_supported(optionName, optionValue);
+    return compiler->is_option_supported(optionName, optionValue);
 }
 
 }  // namespace intel_npu

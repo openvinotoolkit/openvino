@@ -440,7 +440,7 @@ void PluginPropertyManager::registerProperties() const {
             _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
         CompilerAdapterFactory factory;
-        auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform, _compilerOptionSupportHelper->getOptionSupportCache());
+        auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
 
         return dummyCompiler->get_version();
     });
