@@ -84,10 +84,9 @@ public:
                     if (broadcast) {
                         params.broadcast = true;
                         break;
-                    } else {
-                        params.layoutBased = true;
-                        break;
                     }
+                    params.layoutBased = true;
+                    break;
                 }
             }
         }

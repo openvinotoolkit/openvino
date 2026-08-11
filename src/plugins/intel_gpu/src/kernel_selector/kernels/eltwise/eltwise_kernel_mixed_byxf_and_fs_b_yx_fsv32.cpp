@@ -149,8 +149,7 @@ KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(c
         (p.outputs[0].GetLayout() ==
          p.inputs[1].GetLayout())) {  // There is no need for reordering kernel, better use something more optimal
         return FORCE_PRIORITY_9;
-    } else {  // There is need for byxf/fsv32 reordering kernel use this one
+    }  // There is need for byxf/fsv32 reordering kernel use this one
         return FORCE_PRIORITY_2;
-    }
 }
 }  // namespace kernel_selector

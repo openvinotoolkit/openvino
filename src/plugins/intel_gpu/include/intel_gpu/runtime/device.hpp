@@ -43,11 +43,11 @@ public:
 inline size_t get_device_priority(const cldnn::device_info& info) {
     if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {
         return 0;
-    } else if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
-        return 1;
-    } else {
-        return std::numeric_limits<size_t>::max();
     }
+    if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+        return 1;
+    }
+    return std::numeric_limits<size_t>::max();
 }
 
 inline std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list) {

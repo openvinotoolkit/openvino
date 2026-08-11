@@ -349,7 +349,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 can_be_merged = false;
                 break;
             }
-            auto target_node = output.get_target_inputs().begin()->get_node();
+            auto* target_node = output.get_target_inputs().begin()->get_node();
             if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
                 can_be_merged = false;
                 break;
@@ -380,7 +380,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             ov::NodeVector fused_mul_nodes;
             output_split->input(0).replace_source_output(new_mul);
             for (auto& output : output_split->outputs()) {
-                auto target_node = output.get_target_inputs().begin()->get_node();
+                auto* target_node = output.get_target_inputs().begin()->get_node();
                 fused_mul_nodes.push_back(target_node->shared_from_this());
                 ov::replace_output_update_name(target_node->output(0), output);
             }
