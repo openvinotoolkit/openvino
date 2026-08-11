@@ -6,6 +6,7 @@
 
 #include <regex>
 #include <unordered_map>
+#include <utility>
 
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
@@ -171,6 +172,32 @@ struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> temps;
 };
 
+// The KV sequence axes for a src/dst tensor pair, mirroring copy_kvcache(): with
+// heterogeneous layers the global V-transposition flags may be wrong per tensor,
+// and the sequence axis is the only dimension where the two shapes differ. Falls
+// back to the flag-derived dims when the shapes do not disambiguate.
+std::pair<uint32_t, uint32_t> detect_kv_seq_dims(const ov::SoPtr<ov::ITensor>& src,
+                                                 const ov::SoPtr<ov::ITensor>& dst,
+                                                 uint32_t flag_src_dim,
+                                                 uint32_t flag_dst_dim) {
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    if (src_shape.size() == dst_shape.size()) {
+        uint32_t diff_count = 0u;
+        uint32_t diff_dim = 0u;
+        for (uint32_t d = 0; d < src_shape.size(); ++d) {
+            if (src_shape[d] != dst_shape[d]) {
+                ++diff_count;
+                diff_dim = d;
+            }
+        }
+        if (diff_count == 1u) {
+            return {diff_dim, diff_dim};
+        }
+    }
+    return {flag_src_dim, flag_dst_dim};
+}
+
 }  // anonymous namespace
 
 std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continued_prefill(uint32_t keep,
@@ -212,8 +239,9 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
             const auto present_name =
                 std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
             const bool is_value = present_name.find("value") != std::string::npos;
-            const uint32_t src_dim = (is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
-            const uint32_t dst_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const uint32_t flag_src_dim = (is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
+            const uint32_t flag_dst_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const auto [src_dim, dst_dim] = detect_kv_seq_dims(src, dst, flag_src_dim, flag_dst_dim);
             OPENVINO_ASSERT(src->get_shape()[src_dim] >= keep && dst->get_shape()[dst_dim] >= keep,
                             "Continued prefill: KV extent of ",
                             name,
@@ -266,8 +294,9 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             const auto present_name =
                 std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
             const bool is_value = present_name.find("value") != std::string::npos;
-            const uint32_t src_dim = (is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
-            const uint32_t dst_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const uint32_t flag_src_dim = (is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
+            const uint32_t flag_dst_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const auto [src_dim, dst_dim] = detect_kv_seq_dims(src, dst, flag_src_dim, flag_dst_dim);
 
             const bool aliased = src->data() == dst->data();
             const bool same_layout = aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
@@ -298,15 +327,16 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
             const auto present_name =
                 std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
             const bool is_value = present_name.find("value") != std::string::npos;
-            const uint32_t kv_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const uint32_t flag_dim = (is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
 
             auto present = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(present_name));
             auto past = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(name));
+            const auto [src_dim, dst_dim] = detect_kv_seq_dims(present, past, flag_dim, flag_dim);
 
-            auto src_slice = uu::make_tensor_slice(present, kv_dim, chunk - plan.present_tokens, chunk);
+            auto src_slice = uu::make_tensor_slice(present, src_dim, chunk - plan.present_tokens, chunk);
             auto dst_slice =
-                uu::make_tensor_slice(past, kv_dim, plan.past_tokens, plan.past_tokens + plan.present_tokens);
-            uu::copy_tensor_by_dim(src_slice, dst_slice, kv_dim, kv_dim);
+                uu::make_tensor_slice(past, dst_dim, plan.past_tokens, plan.past_tokens + plan.present_tokens);
+            uu::copy_tensor_by_dim(src_slice, dst_slice, src_dim, dst_dim);
         });
     }
     // Otherwise the prefill past inputs already hold the whole preserved prefix.

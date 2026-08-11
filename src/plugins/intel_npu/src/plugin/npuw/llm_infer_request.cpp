@@ -1326,6 +1326,8 @@ void ov::npuw::LLMInferRequest::infer_continued_prefill(ov::SoPtr<ov::ITensor> i
     std::unique_ptr<ContinuedPrefillPlan> plan;
     try {
         OPENVINO_ASSERT(m_npuw_llm_compiled_model->m_use_chunk_prefill, "Continued prefill requires chunked prefill.");
+        OPENVINO_ASSERT(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == delta_len,
+                        "Continued prefill: the delta length does not fit the 32-bit token counters.");
         OPENVINO_ASSERT(delta_len >= 1u, "Continued prefill: the delta must not be empty.");
         const uint64_t total = static_cast<uint64_t>(keep) + delta_len;
         OPENVINO_ASSERT(total <= kvcache_desc.max_prompt_size,

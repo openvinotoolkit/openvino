@@ -1799,17 +1799,25 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
             }
         }
     }
-    // Position ids must form a single linear sequence: 3-D M-RoPE cannot be validated
-    // as a contiguous continuation and is excluded statically. A read-only property
-    // must never throw, so a dynamic rank is treated as unsupported rather than
-    // queried through PartialShape::size(), which asserts a static rank.
+    // The request-level API must carry position ids: the prefill submodel gains them
+    // from AddPositionIdsParam even when the original model has none, and a
+    // synthesized sequence cannot express a continuation start.
+    if (!ov::npuw::util::find_port_by_name(inputs(), ov::npuw::LLMInferRequest::layer_names::position_ids)
+             .has_value()) {
+        return false;
+    }
+    // Position ids must be the exact [batch, seq] sequence the runtime validation
+    // accepts: 3-D M-RoPE cannot be validated as a contiguous continuation. A
+    // read-only property must never throw, so a dynamic rank is treated as
+    // unsupported rather than queried through PartialShape::size(), which asserts
+    // a static rank.
     const auto position_ids_port =
         ov::npuw::util::find_port_by_name(prefill_inputs, ov::npuw::LLMInferRequest::layer_names::position_ids);
     if (!position_ids_port.has_value()) {
         return false;
     }
     const auto& position_ids_rank = position_ids_port.value().get_partial_shape().rank();
-    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() >= 3) {
+    if (position_ids_rank.is_dynamic() || position_ids_rank.get_length() != 2) {
         return false;
     }
     if (m_is_block_kv_cache) {
