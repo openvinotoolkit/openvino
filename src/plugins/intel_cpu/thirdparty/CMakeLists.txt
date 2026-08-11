@@ -35,6 +35,12 @@ endfunction()
 function(ov_build_kleidiai_static)
     set(BUILD_SHARED_LIBS OFF)
     set(KLEIDIAI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+    if(MSVC AND AARCH64)
+        string(REPLACE "/D_ARM64_DISTINCT_NEON_TYPES" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+        string(REPLACE "/D_ARM64_DISTINCT_NEON_TYPES" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    endif()
+
     add_subdirectory(kleidiai EXCLUDE_FROM_ALL)
 endfunction()
 
