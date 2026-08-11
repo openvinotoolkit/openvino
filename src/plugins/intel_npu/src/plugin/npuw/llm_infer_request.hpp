@@ -21,6 +21,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -187,6 +188,7 @@ protected:
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
 };
 
 }  // namespace npuw
