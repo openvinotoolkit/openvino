@@ -13,6 +13,7 @@
 #include <cassert>
 #include <mutex>
 #include <memory>
+#include <variant>
 
 namespace cldnn {
 namespace ze {
@@ -82,6 +83,25 @@ protected:
     size_t _width;
     size_t _height;
     bool _needs_write_back;
+};
+
+struct gpu_dx_buffer : public gpu_usm {
+    gpu_dx_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params);
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
+private:
+    void* _device;
+    void* _resource;
+};
+
+struct gpu_media_buffer : public gpu_image2d {
+    using dx_texture_t = void*;
+    using va_surface_t = uint32_t;
+    gpu_media_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params);
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
+private:
+    void* _device;
+    std::variant<dx_texture_t, va_surface_t> _surface;
+    uint32_t _plane;
 };
 
 }  // namespace ze

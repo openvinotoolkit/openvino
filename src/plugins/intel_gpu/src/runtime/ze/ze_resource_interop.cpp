@@ -4,27 +4,35 @@
 
 #include "ze_resource_interop.hpp"
 
-namespace {
-    void expect_dx_buffer_import_support(ze_device_handle_t ze_device) {
-        ze_device_external_memory_properties_t props = {
-            ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES,
-            nullptr,
-        };
-        OV_ZE_EXPECT(zeDeviceGetExternalMemoryProperties(ze_device, &props));
-        OPENVINO_ASSERT(props.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_D3D11_TEXTURE != 0,
-                        "[GPU] Level Zero device does not support importing DirectX buffers.");
-    }
+#include <map>
 
-    void expect_va_surface_import_support(ze_device_handle_t ze_device) {
+namespace {
+void expect_dx_buffer_import_support(ze_device_handle_t ze_device) {
+    static std::map<ze_device_handle_t, bool> cache;
+    if (cache.find(ze_device) == cache.end()) {
         ze_device_external_memory_properties_t props = {
             ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES,
             nullptr,
         };
         OV_ZE_EXPECT(zeDeviceGetExternalMemoryProperties(ze_device, &props));
-        OPENVINO_ASSERT(props.imageImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF != 0,
-                        "[GPU] Level Zero device does not support importing VA-API surfaces.");
+        cache[ze_device] = (props.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_D3D11_TEXTURE) != 0;
     }
+    OPENVINO_ASSERT(cache[ze_device], "[GPU] Level Zero device does not support importing DirectX buffers.");
 }
+
+void expect_va_surface_import_support(ze_device_handle_t ze_device) {
+    static std::map<ze_device_handle_t, bool> cache;
+    if (cache.find(ze_device) == cache.end()) {
+        ze_device_external_memory_properties_t props = {
+            ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES,
+            nullptr,
+        };
+        OV_ZE_EXPECT(zeDeviceGetExternalMemoryProperties(ze_device, &props));
+        cache[ze_device] = (props.imageImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) != 0;
+    }
+    OPENVINO_ASSERT(cache[ze_device], "[GPU] Level Zero device does not support importing VA-API surfaces.");
+}
+}  // namespace
 
 namespace cldnn::ze {
 ze_driver_resource ze_import_driver(cl_device_id ocl_device) {
@@ -79,8 +87,15 @@ ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context) {
     return resource;
 }
 
-ze_usm_resource ze_import_usm_from_dx_buffer(void* dx_buffer, ze_context_resource context) {
-    //TODO
+ze_usm_resource ze_import_usm_from_dx_buffer(void* dx_buffer, ze_context_resource context, ze_device_resource device) {
+    expect_dx_buffer_import_support(device.handle());
+    ze_external_memory_import_win32_handle_t import_win32 = {
+        ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
+        nullptr,
+        ZE_EXTERNAL_MEMORY_TYPE_FLAG_D3D12_RESOURCE,
+        dx_buffer,
+        nullptr,
+    };
 }
 
 ze_image_resource ze_import_image(cl_mem ocl_image) {
@@ -91,8 +106,8 @@ ze_image_resource ze_import_image(cl_mem ocl_image) {
     return resource;
 }
 
-ze_image_resource ze_import_image_from_va_surface(void* va_surface) {
-    //TODO
+ze_image_resource ze_import_image_from_va_surface(void* va_surface, ze_device_resource device) {
+    expect_va_surface_import_support(device.handle());
 }
 
 void ze_export_ocl_device(ze_device_resource device) {
