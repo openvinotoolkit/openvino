@@ -58,9 +58,7 @@ public:
 private:
     using BufferPool = std::vector<BufferExpressionPtr>;
     using BufferMap = std::map<BufferExpressionPtr, UnifiedLoopInfo::LoopPortInfo>;
-    // Note: keyed by raw pointer (not BufferExpressionPtr) so building this map only requires copying
-    // trivial pointers rather than shared_ptr instances. This also avoids a GCC 15 -Warray-bounds false
-    // positive that fires when shared_ptr elements are copied into an unordered container's hash nodes.
+    // Here we use raw pointers to avoid GCC 15 -Warray-bounds false positive check
     using BufferIndices = std::unordered_map<const BufferExpression*, size_t>;
     /**
      * @brief Create adjacency matrix for Buffer system. See comment in the method for more details.
