@@ -135,6 +135,10 @@ MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize)
       _logger("NPUBlobMetadata", Logger::global().level()),
       _source() {}
 
+std::optional<BlobType> MetadataBase::get_blob_type() const {
+    return std::nullopt;
+}
+
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, const std::optional<OpenvinoVersion>& ovVersion)
     : MetadataBase{METADATA_VERSION_2_0, blobSize},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)} {}
@@ -218,6 +222,29 @@ Metadata<METADATA_VERSION_2_6>::Metadata(uint64_t blobSize,
                                      blobSizeAfterEncryption},
       _compatibilityDescriptor{compatibilityDescriptor} {
     _version = METADATA_VERSION_2_6;
+}
+
+Metadata<METADATA_VERSION_2_7>::Metadata(uint64_t blobSize,
+                                         const std::optional<OpenvinoVersion>& ovVersion,
+                                         const std::optional<std::vector<uint64_t>>& initSizes,
+                                         const std::optional<int64_t> batchSize,
+                                         const std::optional<std::vector<ov::Layout>>& inputLayouts,
+                                         const std::optional<std::vector<ov::Layout>>& outputLayouts,
+                                         const std::optional<uint32_t> compilerVersion,
+                                         const std::optional<uint64_t>& blobSizeAfterEncryption,
+                                         const std::optional<std::string_view> compatibilityDescriptor,
+                                         BlobType blobType)
+    : Metadata<METADATA_VERSION_2_6>{blobSize,
+                                     ovVersion,
+                                     initSizes,
+                                     batchSize,
+                                     inputLayouts,
+                                     outputLayouts,
+                                     compilerVersion,
+                                     blobSizeAfterEncryption,
+                                     compatibilityDescriptor},
+      _blobType(blobType) {
+    _version = METADATA_VERSION_2_7;
 }
 
 void MetadataBase::read(std::istream& stream) {
@@ -411,6 +438,22 @@ void Metadata<METADATA_VERSION_2_6>::read() {
     }
 }
 
+void Metadata<METADATA_VERSION_2_7>::read() {
+    Metadata<METADATA_VERSION_2_6>::read();
+
+    uint8_t blobType;
+    read_data_from_source(reinterpret_cast<char*>(&blobType), sizeof(blobType));
+    const auto type = static_cast<BlobType>(blobType);
+    OPENVINO_ASSERT(type == BlobType::ELF || type == BlobType::LLVM || type == BlobType::BYTECODE,
+                    "Invalid blob type in NPU blob metadata: ",
+                    static_cast<uint32_t>(blobType));
+    _blobType = type;
+}
+
+std::optional<BlobType> Metadata<METADATA_VERSION_2_7>::get_blob_type() const {
+    return _blobType;
+}
+
 void Metadata<METADATA_VERSION_2_0>::read_as_text() {
     const auto it = _textAttrs.find(MetadataTextKeys::OV);
     if (it == _textAttrs.end()) {
@@ -538,6 +581,13 @@ void Metadata<METADATA_VERSION_2_6>::write_without_footer(std::ostream& stream) 
     }
 }
 
+void Metadata<METADATA_VERSION_2_7>::write_without_footer(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_6>::write_without_footer(stream);
+
+    const auto blobType = static_cast<uint8_t>(_blobType);
+    stream.write(reinterpret_cast<const char*>(&blobType), sizeof(blobType));
+}
+
 void Metadata<METADATA_VERSION_2_0>::write_as_text(std::ostream& stream) {
     const uint16_t meta_major = MetadataBase::get_major(_version);
     const uint16_t meta_minor = MetadataBase::get_minor(_version);
@@ -601,6 +651,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
     case METADATA_VERSION_2_6:
         logger.debug("Creating a metadata object of version 2.6");
         return std::make_unique<Metadata<METADATA_VERSION_2_6>>(blobSize);
+    case METADATA_VERSION_2_7:
+        logger.debug("Creating a metadata object of version 2.7");
+        return std::make_unique<Metadata<METADATA_VERSION_2_7>>(blobSize);
     default:
         OPENVINO_THROW("Metadata version is not supported! Imported blob metadata version: ",
                        MetadataBase::get_major(version),
