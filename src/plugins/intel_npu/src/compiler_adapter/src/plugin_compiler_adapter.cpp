@@ -271,7 +271,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(model),
         localConfig,
         /* persistentBlob = */ true,
-        std::move(compatibilityDescriptor));  // exporting the blob shall be available in such a scenario
+        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

@@ -42,7 +42,7 @@ public:
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
                     const bool blobIsPersistent = false,
-                    std::optional<std::string> compatibilityDescriptor = std::nullopt);
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
