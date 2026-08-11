@@ -126,8 +126,10 @@ static std::optional<std::string> getVCLCompatibilityString(vcl_executable_handl
         OPENVINO_THROW("Returned compatibility string size exceeds the allocated buffer size");
     }
 
-    if (compatibilityStringSize > 0 && compatibilityString[compatibilityStringSize - 1] == '\0') {
-        compatibilityString.resize(compatibilityStringSize - 1);
+    const size_t outSize = static_cast<size_t>(compatibilityStringSize);
+    compatibilityString.resize(outSize);
+    if (outSize > 0 && compatibilityString[outSize - 1] == '\0') {
+        compatibilityString.resize(outSize - 1);
     }
     return compatibilityString;
 }
