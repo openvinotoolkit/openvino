@@ -9,6 +9,7 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <transformations/utils/utils.hpp>
 #include <unordered_map>
@@ -744,7 +745,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
-    // perf_curve_table applies only when it covers at least one candidate device (by resolved key).
+    // Conservative GPU pre-filter: if the table has any iGPU/dGPU entry the GPU candidate *may* score;
+    // actual iGPU vs dGPU resolution happens inside sort_device_by_perf_curve via ov::device::type.
     auto perf_curve_covers_any = [&perf_curve_table](const std::list<DeviceInformation>& devices) -> bool {
         for (const auto& device : devices) {
             const std::string base = ov::DeviceIDParser(device.device_name).get_device_name();
@@ -865,10 +867,19 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         const std::list<DeviceInformation>& valid_devices,
         const std::map<std::string, std::map<unsigned, float>>& perf_curve_table,
         size_t* out_scored_count) {
-    std::vector<std::pair<DeviceInformation, std::optional<float>>> scored;
-    scored.reserve(valid_devices.size());
-    for (const auto& device : valid_devices) {
-        std::optional<float> score;
+    // Use (index, score) pairs to avoid copying DeviceInformation during sorting.
+    const std::vector<DeviceInformation*> device_ptrs = [&] {
+        std::vector<DeviceInformation*> v;
+        v.reserve(valid_devices.size());
+        for (const auto& d : valid_devices) {
+            v.push_back(const_cast<DeviceInformation*>(&d));
+        }
+        return v;
+    }();
+    const size_t n = device_ptrs.size();
+    std::vector<std::optional<float>> scores(n);
+    for (size_t i = 0; i < n; ++i) {
+        const auto& device = *device_ptrs[i];
         ov::DeviceIDParser parsed{device.device_name};
         std::string lookup_key = parsed.get_device_name();
         std::string device_type;
@@ -904,7 +915,7 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
                                   device.device_name.c_str());
                 } else {
                     try {
-                        score = interpolate_perf_score(curve_it->second, utilization.value());
+                        scores[i] = interpolate_perf_score(curve_it->second, utilization.value());
                     } catch (const ov::Exception& ex) {
                         LOG_DEBUG_TAG("[%s] perf_curve_table score computation failed: %s. Treat as no-score",
                                       device.device_name.c_str(),
@@ -913,21 +924,22 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
                 }
             }
         }
-        scored.emplace_back(device, score);
     }
-    // Devices with a score are kept ahead of devices without one, both groups keep their original relative order.
-    const auto boundary = std::stable_partition(scored.begin(), scored.end(), [](const auto& item) {
-        return item.second.has_value();
+    // Sort indices: scored devices ascending, unscored devices trailing in original order.
+    std::vector<size_t> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    const auto boundary_it = std::stable_partition(order.begin(), order.end(), [&scores](size_t i) {
+        return scores[i].has_value();
     });
     if (out_scored_count) {
-        *out_scored_count = static_cast<size_t>(std::distance(scored.begin(), boundary));
+        *out_scored_count = static_cast<size_t>(std::distance(order.begin(), boundary_it));
     }
-    std::stable_sort(scored.begin(), boundary, [](const auto& a, const auto& b) {
-        return a.second.value() < b.second.value();
+    std::stable_sort(order.begin(), boundary_it, [&scores](size_t a, size_t b) {
+        return scores[a].value() < scores[b].value();
     });
     std::list<DeviceInformation> result;
-    for (auto& item : scored) {
-        result.push_back(std::move(item.first));
+    for (size_t idx : order) {
+        result.push_back(*device_ptrs[idx]);
     }
     return result;
 }
