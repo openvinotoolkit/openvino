@@ -1457,8 +1457,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             }
 
             auto to_int32 = [](size_t value) {
-                OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                                "[GPU] SDPA micro scalar value exceeds int32 range");
+                OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "[GPU] SDPA micro scalar value exceeds int32 range");
                 return static_cast<int32_t>(value);
             };
 

@@ -130,8 +130,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         }
     }
 
-    OPENVINO_ASSERT(k_head_size > 0 && v_head_size > 0,
-                    "SDPA: invalid head sizes for JIT constants generation");
+    OPENVINO_ASSERT(k_head_size > 0 && v_head_size > 0, "SDPA: invalid head sizes for JIT constants generation");
 
     if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
         jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
