@@ -134,6 +134,7 @@ kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel GemmCopyBCompiledKernelI8::get_sele
                 kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
                 kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm};
     }
+#if !defined(_MSC_VER)
     OV_CPU_JIT_EMITTER_ASSERT(ov::with_cpu_arm_dotprod(), "KAI i8 GEMM requires ARM DotProd or I8MM");
     return {kai_get_m_step_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod,
             kai_get_n_step_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod,
@@ -146,6 +147,9 @@ kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel GemmCopyBCompiledKernelI8::get_sele
             kai_get_dst_offset_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod,
             kai_get_dst_size_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod,
             kai_run_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod};
+#else
+    OPENVINO_THROW("KAI i8 GEMM with DotProd is not supported with MSVC");
+#endif
 }
 
 template <auto rhs_pack_kxn, auto rhs_pack_nxk, typename UkernelT>
