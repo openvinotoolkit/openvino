@@ -24,12 +24,12 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
 }
 
 ContextType get_default_context_type() {
-    #ifdef OV_GPU_WITH_ZE_RT
+    #ifdef OV_GPU_DEFAULT_ZE_RT
         return ContextType::ZE;
-    #elif defined(OV_GPU_WITH_OCL_RT)
+    #elif defined(OV_GPU_DEFAULT_OCL_RT)
         return ContextType::OCL;
     #else
-        #error "Expected OpenVINO GPU runtime macros to be defined"
+        #error "The selected default GPU runtime does not yet define a public remote context type"
     #endif
 }
 

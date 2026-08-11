@@ -7,26 +7,30 @@
 namespace cldnn {
 
 engine_types get_default_engine_type() {
-#ifdef OV_GPU_WITH_ZE_RT
+#ifdef OV_GPU_DEFAULT_ZE_RT
     return engine_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
+#elif defined(OV_GPU_DEFAULT_OCL_RT)
     return engine_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL_RT)
+#elif defined(OV_GPU_DEFAULT_SYCL_RT)
     return engine_types::sycl;
+#elif defined(OV_GPU_DEFAULT_VULKAN_RT)
+    return engine_types::vulkan;
 #else
-    #error "Expected OpenVINO GPU runtime macros to be defined"
+    #error "Expected an OpenVINO default GPU runtime macro to be defined"
 #endif
 }
 
 runtime_types get_default_runtime_type() {
-#ifdef OV_GPU_WITH_ZE_RT
+#ifdef OV_GPU_DEFAULT_ZE_RT
     return runtime_types::ze;
-#elif defined(OV_GPU_WITH_OCL_RT)
+#elif defined(OV_GPU_DEFAULT_OCL_RT)
     return runtime_types::ocl;
-#elif defined(OV_GPU_WITH_SYCL_RT)
+#elif defined(OV_GPU_DEFAULT_SYCL_RT)
     return runtime_types::sycl;
+#elif defined(OV_GPU_DEFAULT_VULKAN_RT)
+    return runtime_types::vulkan;
 #else
-    #error "Expected OpenVINO GPU runtime macros to be defined"
+    #error "Expected an OpenVINO default GPU runtime macro to be defined"
 #endif
 }
 }  // namespace cldnn
