@@ -21,19 +21,19 @@ const std::vector<std::regex>& disabled_test_patterns() {
     auto get_patterns = []() {
         std::vector<std::regex> patterns{
             // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
-            std::regex(R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)"),
+            std::regex(R"(.*(BF|bf)16.*(jit_avx[^5]|jit_sse).*)"),
             // TODO: Incorrect blob sizes for node BinaryConvolution_X
             std::regex(R"(.*BinaryConvolutionLayerTest.*)"),
             // TODO: 53618. BF16 gemm ncsp convolution crash
             std::regex(R"(.*_GroupConv.*_inFmts=nc.*_primitive=jit_gemm.*ENFORCE_BF16=YES.*)"),
             // TODO: 157596 convolution bf16 leftover test case
             std::regex(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*ndhwc.*jit_avx512_dw.*INFERENCE_PRECISION_HINT=bf16.*)"),
-            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\((1|2)\.6(4|7)\.7\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
-            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[1\.\.200\.64\.\?\]_TS=\(\(2\.64\.7\)_\(1\.64\.5\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
-            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\?\.6(4|7)\.1\.\.200\]_TS=\(\(2\.6(4|7)\.7\)_\(1\.6(4|7)\.9\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
-            std::regex(R"(smoke_GroupConv_brgemm_2D_BF16/GroupConvolutionLayerCPUTest\.CompareWithRefs/IS=\[\]_TS=\(\(1\.64\.7\.7\)_\)_K\(3\.3\)_S\(2\.2\)_PB\((0|1)\.(0|1)\)_PE\(0\.0\)_D=\(2\.2\)_O=64_G=2_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=brgconv_avx512_amx_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
+            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\x5B\x5D_TS=\(\((1|2)\.6(4|7)\.7\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
+            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\x5B1\.\.200\.64\.\?\x5D_TS=\(\(2\.64\.7\)_\(1\.64\.5\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
+            std::regex(R"(smoke_Conv_1D_1x1_BF16/ConvolutionLayerCPUTest\.CompareWithRefs/IS=\x5B\?\.6(4|7)\.1\.\.200\x5D_TS=\(\(2\.6(4|7)\.7\)_\(1\.6(4|7)\.9\)_\)_K\(1\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=63_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=jit_avx512_1x1_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
+            std::regex(R"(smoke_GroupConv_brgemm_2D_BF16/GroupConvolutionLayerCPUTest\.CompareWithRefs/IS=\x5B\x5D_TS=\(\(1\.64\.7\.7\)_\)_K\(3\.3\)_S\(2\.2\)_PB\((0|1)\.(0|1)\)_PE\(0\.0\)_D=\(2\.2\)_O=64_G=2_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=nhwc_outFmts=nhwc_primitive=brgconv_avx512_amx_.*PluginConf_INFERENCE_PRECISION_HINT=bf16)"),
             std::regex(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)"),
-            std::regex(R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\[\].*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)"),
+            std::regex(R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\x5B\x5D.*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)"),
             // TODO: 56827. Sporadic test failures
             std::regex(R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.*TS=\(\(.\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)"),
             // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -96,9 +96,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*(1.7.5.3|2.6.3.10).*_interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=(f32|i32)_gridPrc=f32_.*)"),
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*5.3.2.13.*_interpMode=BICUBIC_padMode=REFLECTION_alignCorners=True_dataPrc=f32_gridPrc=f32_.*)"),
             std::regex(R"(.*smoke_static/GridSampleLayerTestCPU.CompareWithRefs/.*_TS=.*2.1.6.16.*_interpMode=NEAREST_padMode=(BORDER|REFLECTION)_alignCorners=(True|False)_dataPrc=(f32|i32)_gridPrc=f32_.*)"),
-            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\[2..15.\?.\?.\?\]_\[\?.3.7.2\]\)_.*_interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=f32_gridPrc=f32_.*)"),
-            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\[\?.\?.\?.\?\]_\[\?.\?.\?.\?\]\).*interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=f32_gridPrc=f32_.*)"),
-            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\[\?.3.\?.\?\]_\[\?.\?.\?.2\]\).*interpMode=BICUBIC_padMode=REFLECTION_alignCorners=True_dataPrc=f32_gridPrc=f32_.*)"),
+            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\x5B2..15.\?.\?.\?\x5D_\x5B\?.3.7.2\x5D\)_.*_interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=f32_gridPrc=f32_.*)"),
+            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\x5B\?.\?.\?.\?\x5D_\x5B\?.\?.\?.\?\x5D\).*interpMode=NEAREST_padMode=REFLECTION_alignCorners=False_dataPrc=f32_gridPrc=f32_.*)"),
+            std::regex(R"(.*smoke_dynamic/GridSampleLayerTestCPU.CompareWithRefs/IS=\(\x5B\?.3.\?.\?\x5D_\x5B\?.\?.\?.2\x5D\).*interpMode=BICUBIC_padMode=REFLECTION_alignCorners=True_dataPrc=f32_gridPrc=f32_.*)"),
             // AdaptiveAvgPool is converted into Reduce op for suitable parameters. CPU Reduce impl doesn't support non
             // planar layout for 3D case
             std::regex(R"(.*StaticAdaPoolAvg3DLayoutTest.*OS=\(1\).*_inFmts=(nwc|nCw16c|nCw8c).*)"),
@@ -139,11 +139,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 126095
             std::regex(R"(^smoke_Multinomial(?:Static|Dynamic)+(?:Log)*.*seed_g=0_seed_o=0.*device=CPU.*)"),
             // Issue: 129931
-            std::regex(R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})"),
+            std::regex(R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\x5B.*,3,16,16\x5D_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\x5B1\x5D_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\x5B6,1,1,1\x5D_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})"),
             // TODO: 141068
             std::regex(R"(smoke_Snippets_FQDecomposition.*netPRC=f16_D=CPU.*)"),
             // Issue: 160734
-            std::regex(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)"),
+            std::regex(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\x5B(1|4),3,16,16\x5D_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\x5B1\x5D_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\x5B1\x5D_\{ -18.7 \}_\{ 18.7 \}\}.*)"),
             // Issue: 160735
             std::regex(R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*TS=\{\((10.4.20.32.2|1.120.128.1.2)\)\}.*Precision=f32.*signal_size=\(\).*)"),
             // by calc abs_threshold with expected value
@@ -157,17 +157,17 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_FakeQuantizePerChannel.*/FakeQuantizeLayerTest.Inference.*TS=.*11.10.22.19.*LEVELS=(255|256).*netPRC=f32.*)"),
             std::regex(R"(.*smoke_MVN_5D/Mvn6LayerTest.Inference.*TS=.*3.4.2.5.*LEVELS=255.*netPRC=f16.*)"),
             std::regex(R"(.*smoke_static/ConvertFqRnnToQuantizedRnn.*2.1.5.*2.1.1.*2.1.1.*)"),
-            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=sizes_IS=\[?.2..20.?.?\]_TS.*1.17.4.4.*2.3.10.12.*1.17.4.4.*Sizes.*4.4.*10.20.*10.4.*PARAMETER.*0.0.0.0.*0.0.1.1.*2.3.*)"),
+            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=sizes_IS=\x5B?.2..20.?.?\x5D_TS.*1.17.4.4.*2.3.10.12.*1.17.4.4.*Sizes.*4.4.*10.20.*10.4.*PARAMETER.*0.0.0.0.*0.0.1.1.*2.3.*)"),
             std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/.*_netType=bf16.*)"),
-            std::regex(R"(.*smoke_FuseScaleShiftAndFakeQuantize/FuseScaleShiftAndFakeQuantizeTest.CompareWithRefs/.*Scale=\[ 30 \]_Shift=\[ 17 \]_Intervals=\[ -1 \],\[ 5 \],\[ -5 \],\[ 1 \].*)"),
+            std::regex(R"(.*smoke_FuseScaleShiftAndFakeQuantize/FuseScaleShiftAndFakeQuantizeTest.CompareWithRefs/.*Scale=\x5B 30 \x5D_Shift=\x5B 17 \x5D_Intervals=\x5B -1 \x5D,\x5B 5 \x5D,\x5B -5 \x5D,\x5B 1 \x5D.*)"),
             std::regex(R"(.*smoke_QuantizedConvolutionBatchNorm.*/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize.*)"),
-            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=0_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(0|3).*)"),
-            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(5|3|0).*)"),
-            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\[4,3,210\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)"),
-            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{1\}_OS=\[500\]_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)"),
+            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\x5B4,3,210\x5D_Min=-50_Max=0_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(0|3).*)"),
+            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\x5B4,3,210\x5D_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=8_OperationalSeed=(5|3|0).*)"),
+            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{3\}_OS=\x5B4,3,210\x5D_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)"),
+            std::regex(R"(.*smoke_Param/RandomUniformLayerTestCPU.CompareWithRefs/IS=\{1\}_OS=\x5B500\x5D_Min=-50_Max=50_ShapePrc=.*_OutPrc=f32_GlobalSeed=0_OperationalSeed=5.*)"),
             std::regex(R"(.*smoke.*/RNNCellCPUTest.CompareWithRefs.*activations=.*relu.*INFERENCE_PRECISION_HINT=bf16.*)"),
-            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=sizes_IS=\[\?.2..20.\?.\?\]_TS=\(1.17.4.4\)_\(2.3.10.12\)_\(1.17.4.4\)_Sizes=\(4.4\)_\(10.20\)_\(10.4\)_PARAMETER.*P.*.1.1.*.*)"),
-            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=scales_IS=\[\?.2..20.\?.\?\]_TS=\(1.11.4.4\)_\(2.7.6.5\)_\(1.11.4.4\)_Scales=\(1.25.0.75\)_CONSTANT_.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\).*)"),
+            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=sizes_IS=\x5B\?.2..20.\?.\?\x5D_TS=\(1.17.4.4\)_\(2.3.10.12\)_\(1.17.4.4\)_Sizes=\(4.4\)_\(10.20\)_\(10.4\)_PARAMETER.*P.*.1.1.*.*)"),
+            std::regex(R"(.*smoke_InterpolateBicubicPillow_Layout_Test/InterpolateLayerCPUTest.CompareWithRefs/ShapeCalcMode=scales_IS=\x5B\?.2..20.\?.\?\x5D_TS=\(1.11.4.4\)_\(2.7.6.5\)_\(1.11.4.4\)_Scales=\(1.25.0.75\)_CONSTANT_.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\).*)"),
             std::regex(R"(.*smoke_Conv_Sum_Broadcast_BF16/ConvSumInPlaceTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)"),
             std::regex(R"(.*smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*InterpolateMode=cubic_ShapeCalcMode=scales_CoordinateTransformMode=(pytorch_half_pixel|half_pixel).*netType=f32.*)"),
             std::regex(R"(.*smoke_basic/PermConvPermConcat.CompareWithRefs/IS=\(1.1.8.16\)_KS=\(1.5\)_OC=.*_ET=f32_targetDevice=CPU.*)"),
@@ -175,7 +175,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_BasicNegative/RangeAddSubgraphTest.*Step=-0.1_ET=f16.*)"),
             std::regex(R"(.*smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest.CompareWithRefs.*bf16.*)"),
             std::regex(R"(.*smoke_FQLayerDQBias_4D.*FQLayerDQBias.smoke_CompareWithRefs.*_TS=\(\(1.3.64.64\)_\)_layer_type=MatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_ConvMul/ConvEltwise.CompareWithRefImpl/IS\[0\]=\(1.10.16.16\)_IS\[1\]=\(1.10.16.16\)_Op=Multiply_#N=6_#S=1.*)"),
+            std::regex(R"(.*smoke_Snippets_ConvMul/ConvEltwise.CompareWithRefImpl/IS\x5B0\x5D=\(1.10.16.16\)_IS\x5B1\x5D=\(1.10.16.16\)_Op=Multiply_#N=6_#S=1.*)"),
             std::regex(R"(.*smoke_InterpolateBicubicPillow_LayoutAlign_Test/InterpolateLayerCPUTest.CompareWithRefs/.*Sizes=\(6.8\).*)"),
             std::regex(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_.*TS0=\(\((106|246|245|510|1022)\)\).*)"),
             std::regex(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\((1022.64|24.39|126.32|510.64)\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false_primitive=jit_avx2.*)"),
@@ -184,32 +184,32 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\((20.126|20.510|20.1022)\)\)_constAxes=true_axes=\(\(1\)\)_isInverse=false_primitive=jit_avx512.*)"),
             std::regex(R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=f32.*signal_size=\(\).*)"),
             std::regex(R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference.*TS=\{\(1.120.128.1.2\)\}_Precision=f32_Axes=\(2.1\)_signal_size=\(\)_Inverse=0.*)"),
-            std::regex(R"(.*smoke_FakeQuantizeLayerCPUTest_4D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\[\?.\?.\?.\?\]_TS=\(\(4.16.6.7\)\).*inPrec=f32.*LEVELS=255.*)"),
-            std::regex(R"(.*smoke_FakeQuantizeLayerCPUTest_5D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\[\?.\?.\?.\?.\?\]_TS=\(\((4|3).16.6.7.8\)\).*inPrec=f32.*LEVELS=255.*)"),
+            std::regex(R"(.*smoke_FakeQuantizeLayerCPUTest_4D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\x5B\?.\?.\?.\?\x5D_TS=\(\(4.16.6.7\)\).*inPrec=f32.*LEVELS=255.*)"),
+            std::regex(R"(.*smoke_FakeQuantizeLayerCPUTest_5D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\x5B\?.\?.\?.\?.\?\x5D_TS=\(\((4|3).16.6.7.8\)\).*inPrec=f32.*LEVELS=255.*)"),
             std::regex(R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos/FakeQuantizeLayerCPUTest.CompareWithRefs/IS.*\(\((4.5.6.7|1.1.6.7|1.1.6.1|1.5.1.6)\)\)_inPrec=f32.*LEVELS=255.*)"),
             std::regex(R"(.*smoke_CompareWithRefs/LRNLayerCPUTest.CompareWithRefs/f32_IS.*axes=\(1.2.3\).*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(9.16.32.126\)\)_constAxes=true_axes=\(\((0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0.1.2.3|3.2|_2._1|0.1|1)\)\).*isInverse=false.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0|_2._1|0.1.2.3)\)_.*isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(9.16.32.126\)\)_constAxes=true_axes=\(\((0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0.1.2.3|3.2|_2._1|0.1|1)\)\).*isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0|_2._1|0.1.2.3)\)_.*isInverse=false.*)"),
             std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=.*_TS0=\(\(1.192.36.64\)_.*constAxes=false.*isInverse=false.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(46.10.128.65\)\)_constAxes=true_axes=\(\((1.0|0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*primitive=jit_avx512.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(10.46.128.65\)\)_constAxes=true_axes=\(\((0.1|1.2)\)\).*isInverse=false.*primitive=jit_avx512.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\?.192.36.64\]_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(46.10.128.65\)\)_constAxes=true_axes=\(\((1.0|0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*primitive=jit_avx512.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(10.46.128.65\)\)_constAxes=true_axes=\(\((0.1|1.2)\)\).*isInverse=false.*primitive=jit_avx512.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\?.192.36.64\x5D_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)"),
             std::regex(R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)"),
             // Issue: 138520
-            std::regex(R"(.*smoke_MM_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.5\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.50\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(3.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[.*\]_\[.*\]_TS=\(\(1.5.32\)_\(1.5.32\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[..60...60...60\]_\[14.10\]_TS=\(\(1.3.14\)_\(1.7.14\)\)_\(\(14.10\)_\(14.10\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\]_\[\]_TS=\(\(1.32.120\)\)_\(\(120.5.*\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\[\?.\?.50\]_\[50.7\]_TS=\(\(1.2.50\)_\(1.10.50\)_\(1.2.50\)_\(2.2.50\)\)_\(\(50.7\)_\(50.7\)_\(50.7\)_\(50.7\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*smoke_MM_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
-            std::regex(R"(.*(nightly|smoke)_MM_Brgemm_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\]_\[\]_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)"),
-            std::regex(R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\[\?.\?\]_\[\?.33\]_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)"),
+            std::regex(R"(.*smoke_MM_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\x5B\x5D_\x5B\x5D_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\x5D_\x5B\x5D_TS=\(\(1.32.120\)\)_\(\(120.5\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\x5D_\x5B\x5D_TS=\(\(1.32.120\)\)_\(\(120.50\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\x5D_\x5B\x5D_TS=\(\(1.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\x5D_\x5B\x5D_TS=\(\(3.1.120\)\)_\(\(120.120\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B.*\x5D_\x5B.*\x5D_TS=\(\(1.5.32\)_\(1.5.32\)\).*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B..60...60...60\x5D_\x5B14.10\x5D_TS=\(\(1.3.14\)_\(1.7.14\)\)_\(\(14.10\)_\(14.10\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\x5D_\x5B\x5D_TS=\(\(1.32.120\)\)_\(\(120.5.*\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*nightly_FC_3D_BF16/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=\x5B\?.\?.50\x5D_\x5B50.7\x5D_TS=\(\(1.2.50\)_\(1.10.50\)_\(1.2.50\)_\(2.2.50\)\)_\(\(50.7\)_\(50.7\)_\(50.7\)_\(50.7\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*smoke_MM_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\x5B\?.\?\x5D_\x5B\?.33\x5D_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=jit_gemm.*)"),
+            std::regex(R"(.*(nightly|smoke)_MM_Brgemm_Static/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\x5B\x5D_\x5B\x5D_TS=\(\(55.12\)\)_\(\(12.55\)\)_.*config=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)"),
+            std::regex(R"(.*smoke_MM_Brgemm_Dynamic_Fusing/MatMulLayerCPUTest.CompareWithRefs/MatMul_IS=\x5B\?.\?\x5D_\x5B\?.33\x5D_TS=\(\(16.12\)_\(33.7\)_\(16.12\)\)_\(\(12.33\)_\(7.33\)_\(12.33\)\)_transpose_a=0_transpose_b=0_secondaryInputType=PARAMETER_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPUconfig=\(INFERENCE_PRECISION_HINT=bf16_\)_Fused=Multiply\(PerChannel\)_primitive=brgemm_avx512.*)"),
             // Issue: 140389
             std::regex(R"(.*FQLayerDQBias.smoke_CompareWithRefs.*)"),
             std::regex(R"(.*smoke_matmulBrgemmInt8/MatmulBrgemmInt8Test.CompareWithRefs.*MatMul.*InputType=i8_OutputType=i8.*)"),
@@ -218,8 +218,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_Snippets_BroadcastSelect_Dynamic.*)"),
             // Issue: 141705
             std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/.*trip_count=5_exec_cond=1_netType=i8.*)"),
-            std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[\?.1.\?\]_TS=\(10.1.10\)_\(1.1.1\)_\(1.1.1\)_\(5.1.3\)_Input1_IS=\[\?.\?.\?\]_TS=.*_Input2_IS=\[\?.1.\?\]_.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)"),
-            std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[1..10.1.1..10\]_.*_Input1_IS=\[1..8.1.1..8\]_.*_Input2_IS=\[1..10.\?.1..10\]_TS=.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)"),
+            std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\x5B\?.1.\?\x5D_TS=\(10.1.10\)_\(1.1.1\)_\(1.1.1\)_\(5.1.3\)_Input1_IS=\x5B\?.\?.\?\x5D_TS=.*_Input2_IS=\x5B\?.1.\?\x5D_.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)"),
+            std::regex(R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\x5B1..10.1.1..10\x5D_.*_Input1_IS=\x5B1..8.1.1..8\x5D_.*_Input2_IS=\x5B1..10.\?.1..10\x5D_TS=.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)"),
             // Issue: 142997
             std::regex(R"(.*smoke_TestsROIAlign.*)"),
             // Issue: 136881
@@ -272,11 +272,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // This transformation is disabled on CPU
             std::regex(R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)"),
             // Disabled due to sporadic failures in CI, Issue: 157267
-            std::regex(R"(.*smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\)_TS.*2.4.4.1.*eltwise_op_type=(Sum|Mod|SqDiff|Prod)_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).*)"),
+            std::regex(R"(.*smoke_CompareWithRefs_4D_Blocked_Blocked_Fusing\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\x5B\x5D_\)_TS.*2.4.4.1.*eltwise_op_type=(Sum|Mod|SqDiff|Prod)_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).*)"),
             std::regex(R"(.*smoke_CachingSupportCase_CPU\/CompileModelCacheTestBase.CompareWithRefImpl\/SplitConvConcatNestedInBranchNestedOut_i16_batch1_CPU.*)"),
-            std::regex(R"(.*smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\[\]_\)_TS=.*2.17.6.5.1.*_.*1.17.1.1.4.*_\)_eltwise_op_type=Sub_secondary_input_type=CONSTANT_opType=VECTOR_model_type=bf16_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nCdhw16c.nCdhw16c_outFmts=nCdhw16c_enforceSnippets=0.*)"),
-            std::regex(R"(.*.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\[\]_\)_TS=\(\(2.4.4.1\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).Sigmoid.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)"),
-            std::regex(R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\[\]_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)"),
+            std::regex(R"(.*smoke_CompareWithRefs_5D_MemOrder_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\x5B\x5D_\x5B\x5D_\)_TS=.*2.17.6.5.1.*_.*1.17.1.1.4.*_\)_eltwise_op_type=Sub_secondary_input_type=CONSTANT_opType=VECTOR_model_type=bf16_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nCdhw16c.nCdhw16c_outFmts=nCdhw16c_enforceSnippets=0.*)"),
+            std::regex(R"(.*.*smoke_CompareWithRefs_4D_Fusing_Blocked_Blocked\/EltwiseLayerCPUTest.CompareWithRefs\/IS=\(\x5B\x5D_\)_TS=\(\(2.4.4.1\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic_trgDev=CPU_config_item=INFERENCE_PRECISION_HINT=f32_inFmts=nChw16c.nChw16c_outFmts=nChw16c_Fused=FakeQuantize\(PerChannel\).Sigmoid.FakeQuantize\(PerTensor\)_enforceSnippets=0.*)"),
+            std::regex(R"(.*smoke_Conv_1D_GEMM_FP32\/ConvolutionLayerCPUTest.CompareWithRefs\/IS=\x5B\x5D_TS=\(\(2.12.7\)_\)_K\(3\)_S\(2\)_PB\(1\)_PE\(0\)_D=\(1\)_O=6_AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm_Fused=Relu.*)"),
             // fp32 floor for bf16 models: conversion issue
             std::regex(R"(.*smoke.*ActivationLayerCPUTest.*CompareWithRefs/(Floor|Ceiling)_.*netPRC=bf16.*)"),
             // Issue: 170623
@@ -284,7 +284,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
 
             // Disabled due to dependency on tests execution order, issue: 178036
 #if !(defined(__APPLE__) && defined(__MACH__)) && (defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM))
-            std::regex(R"(.*smoke_ScaledAttn_CPU\/ScaledAttnLayerCPUTest.CompareWithRefs\/netPRC=f32_IS=\[\?.8.\?.64]_\[\?.8.\?.64]_\[\?.1.\?.\?\]_TS=\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.1.1.100\)_\(1.1.1.1\)_\(2.1.1.10\)_\(2.1.10.10\)_is_causal=0_has_attn=0_has_scale=0_trgDev=CPU_primitive=ref_any.*)"),
+            std::regex(R"(.*smoke_ScaledAttn_CPU\/ScaledAttnLayerCPUTest.CompareWithRefs\/netPRC=f32_IS=\x5B\?.8.\?.64\x5D_\x5B\?.8.\?.64\x5D_\x5B\?.1.\?.\?\x5D_TS=\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.8.100.64\)_\(1.8.1.64\)_\(2.8.10.64\)_\(2.8.10.64\)_\(1.1.1.100\)_\(1.1.1.1\)_\(2.1.1.10\)_\(2.1.10.10\)_is_causal=0_has_attn=0_has_scale=0_trgDev=CPU_primitive=ref_any.*)"),
 #endif
 #if defined(OPENVINO_ARCH_X86)
             std::regex(R"(.*DetectionOutputLayerTest.*)"),
@@ -336,6 +336,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 168490
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
+            // MatMul gemm_acl backend does not support Sqrt/PRelu post-op fusion
+            std::regex(R"(.*MatMul.*Fused=(Sqrt|PRelu).*primitive=gemm_acl.*)"),
+
 #endif
 #if defined(OPENVINO_ARCH_ARM)
             // GatherMatmul is not supported on 32-bit ARM
@@ -527,15 +530,15 @@ const std::vector<std::regex>& disabled_test_patterns() {
 #endif
 #if defined(_WIN32)
             std::regex(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)"),
-            std::regex(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=\}_fq_on_weights=\{_255_\[1,1,1,1\]_\{ -12.7 \}_\{ 12.7 \}\}.*)"),
-            std::regex(R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_dynamic_\[\]_f32__\{\}_\{\}__\{ 0.01, 0.1, 1 \}_f32_\[1,3\]_1_1_.*)"),
+            std::regex(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\x5B(1|4),3,16,16\x5D_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\x5B1,1,1,1\x5D_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=\}_fq_on_weights=\{_255_\x5B1,1,1,1\x5D_\{ -12.7 \}_\{ 12.7 \}\}.*)"),
+            std::regex(R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_dynamic_\x5B\x5D_f32__\{\}_\{\}__\{ 0.01, 0.1, 1 \}_f32_\x5B1,3\x5D_1_1_.*)"),
             std::regex(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_.*)"),
             std::regex(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_backprop_quantize_type=(quantize_dequantize_intervals|compressed_weights_intervals).*)"),
-            std::regex(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)"),
-            std::regex(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)"),
-            std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=dynamic_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)"),
-            std::regex(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)"),
+            std::regex(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\x5B(1|8|1,1,1),4,12,2\x5D_level=256_shape=\x5B\x5D_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)"),
+            std::regex(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\x5B(1|8|1,1,1),4,12,2\x5D_level=256_shape=\x5B\x5D_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)"),
+            std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\x5B\?.\?.\?\x5D_\(\x5B1,1,4096\x5D\)_weights_shape=\x5B4096,4096\x5D_group_size=128_weights_precision=nf4_decompression_precision=f16_scale_precision=dynamic_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)"),
+            std::regex(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\x5B\x5D_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)"),
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
             // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
@@ -565,8 +568,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_MHAQuant.*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
 #    if defined(OPENVINO_ARCH_ARM64)
-            std::regex(R"(.*smoke_Snippets_GatedMLP_f32.*InputShape=\[\]_\(\[1\.32\.1024\]\).*)"),
-            std::regex(R"(.*smoke_Snippets_MatMulTransposeB.*IS\[0\]=\[\]_.*T\[0\]=f32.*)"),
+            std::regex(R"(.*smoke_Snippets_GatedMLP_f32.*InputShape=\x5B\x5D_\(\x5B1\.32\.1024\x5D\).*)"),
+            std::regex(R"(.*smoke_Snippets_MatMulTransposeB.*IS\x5B0\x5D=\x5B\x5D_.*T\x5B0\x5D=f32.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias.*)"),
 #    endif
 #endif
@@ -601,7 +604,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHA.*FP16.*)"));
         } else {
             // Skip failing FP16 MHA tests on ARM64 due to low accuracy (FP16 accumulator is used in Gemm)
-            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHAWOTransposeEnforceFP16/MHAWOTranspose\.CompareWithRefImpl.*IS\[0\]=\[\?\.\?\.\?\.\?\].*IS\[1\]=\[\?\.\?\.\?\.\?\].*IS\[2\]=\[\?\.\?\.\?\.\?\].*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHAWOTransposeEnforceFP16/MHAWOTranspose\.CompareWithRefImpl.*IS\x5B0\x5D=\x5B\?\.\?\.\?\.\?\x5D.*IS\x5B1\x5D=\x5B\?\.\?\.\?\.\?\x5D.*IS\x5B2\x5D=\x5B\?\.\?\.\?\.\?\x5D.*)"));
         }
         if (!ov::with_cpu_x86_avx512_core_amx_int8()) {
             // TODO: Issue 92895
@@ -696,6 +699,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
         }
         // Accuracy issue in case of odd K
         patterns.emplace_back(std::regex(R"(.*smoke_GroupedMatMul_Compressed_CornerCases.*WET=i4.*)"));
+        // ACL NEConvolutionLayer does not support dynamic shapes with per-channel quantization + fused Swish
+        patterns.emplace_back(std::regex(R"(.*smoke_ConvAndFQ_withSwish_CPU.*IS=\x5B\?\.3\.\?\.2\x5D.*perChannelWeightsScale=1.*)"));
         if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
             // Skip fp16 tests for paltforms that don't support fp16 precision
             patterns.emplace_back(std::regex(R"(.*INFERENCE_PRECISION_HINT=(F|f)16.*)"));
@@ -707,9 +712,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
 #ifdef SNIPPETS_LIBXSMM_TPP
         if (!ov::with_cpu_x86_avx512_core_amx()) {
             // Issue: 165178
-            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\[\]_TS=\(\(.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHA.*IS\[0\]=\[\]_\(.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\[0\]=\[\]_TS\[0\]=\(\(.*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_Softmax/Softmax\.CompareWithRefImpl/IS=\x5B\x5D_TS=\(\(.*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHA.*IS\x5B0\x5D=\x5B\x5D_\(.*)"));
+            patterns.emplace_back(std::regex(R"(.*smoke_Snippets_TransposeSoftmax/TransposeSoftmax\.CompareWithRefImpl/IS\x5B0\x5D=\x5B\x5D_TS\x5B0\x5D=\(\(.*)"));
         }
 #endif
 
