@@ -471,7 +471,7 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     x = vmaxq_f32(x, min_input);
 
     const auto z = vmlaq_f32(shift, x, inv_ln2);
-    auto n = z - shift;
+    auto n = vsubq_f32(z, shift);
 
     const auto r_hi = vfmaq_f32(x, n, neg_ln2_hi);
     const auto r = vfmaq_f32(r_hi, n, neg_ln2_lo);
@@ -482,9 +482,9 @@ inline float32x4_t exp_ps_neon_f32(const float32x4_t& src) {
     const auto n_int_bias = vaddq_s32(n_int, exponent_bias);
     const auto scale = vreinterpretq_f32_s32(vshlq_n_s32(n_int_bias, 23));  // 2^(n-1)
 
-    const auto r2 = r * r;
+    const auto r2 = vmulq_f32(r, r);
 
-    const auto p1 = c1 * r;
+    const auto p1 = vmulq_f32(c1, r);
     const auto p23 = vfmaq_f32(c2, c3, r);
     const auto p45 = vfmaq_f32(c4, c5, r);
     const auto p2345 = vfmaq_f32(p23, p45, r2);
@@ -508,16 +508,28 @@ inline float32x4_t loadq_f32(const float* a) {
     return vld1q_f32(a);
 }
 inline float32x4_t loadq_f32(const ov::float16* a) {
-    const auto* a_fp16 = reinterpret_cast<const float16_t*>(a);
-    return vcvt_f32_f16(vld1_f16(a_fp16));
+    #if defined(_MSC_VER)
+        float tmp[4];
+        for (int i = 0; i < 4; i++) tmp[i] = static_cast<float>(a[i]);
+        return vld1q_f32(tmp);
+    #else
+        const auto* a_fp16 = reinterpret_cast<const float16_t*>(a);
+        return vcvt_f32_f16(vld1_f16(a_fp16));
+    #endif
 }
 inline void storeq_f32(float* a, float32x4_t b) {
     vst1q_f32(a, b);
 }
 inline void storeq_f32(ov::float16* a, float32x4_t b) {
-    float16x4_t v_f16 = vcvt_f16_f32(b);
-    vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
-}
+    #if defined(_MSC_VER)
+        float tmp[4];
+        vst1q_f32(tmp, b);
+        for (int i = 0; i < 4; i++) a[i] = ov::float16(tmp[i]);
+    #else
+        float16x4_t v_f16 = vcvt_f16_f32(b);
+        vst1_f16(reinterpret_cast<float16_t*>(a), v_f16);
+    #endif
+    }
 inline void storeq_f32(ov::bfloat16* a, float32x4_t b) {
     uint32x4_t v_int32 = vreinterpretq_u32_f32(b);
     uint16x4_t v_bf16 = vshrn_n_u32(v_int32, 16);
@@ -1046,13 +1058,10 @@ float dot_product(const TA* a,
                 group_sum += vaddvq_f32(v_f3);
 
             } else if constexpr (std::is_same_v<TA, ov::float16>) {
-                float16x8_t v_la0 = vld1q_f16(reinterpret_cast<const float16_t*>(a) + i + offset + 0);
-                float16x8_t v_la1 = vld1q_f16(reinterpret_cast<const float16_t*>(a) + i + offset + 8);
-
-                float32x4_t v_a0 = vcvt_f32_f16(vget_low_f16(v_la0));
-                float32x4_t v_a1 = vcvt_f32_f16(vget_high_f16(v_la0));
-                float32x4_t v_a2 = vcvt_f32_f16(vget_low_f16(v_la1));
-                float32x4_t v_a3 = vcvt_f32_f16(vget_high_f16(v_la1));
+                float32x4_t v_a0 = loadq_f32(a + i + offset + 0);
+                float32x4_t v_a1 = loadq_f32(a + i + offset + 4);
+                float32x4_t v_a2 = loadq_f32(a + i + offset + 8);
+                float32x4_t v_a3 = loadq_f32(a + i + offset + 12);
 
                 v_f0 = vmulq_f32(v_f0, v_a0);
                 v_f1 = vmulq_f32(v_f1, v_a1);
@@ -1185,15 +1194,12 @@ inline void multiply_scalar(const float* a, T* a_dst, const float val, const siz
 
 #if defined(OPENVINO_ARCH_ARM64)
 inline void multiply_scalar(ov::float16* a, float* a_dst, const ov::float16 val, const size_t size) {
-    float16x4_t v_a_f16;
     float32x4_t v_a, v_res;
     float32x4_t v_val = vdupq_n_f32(static_cast<float>(val));
     size_t i = 0;
 
     for (; i + vec_len_f16_neon <= size; i += vec_len_f16_neon) {
-        v_a_f16 = vld1_f16(reinterpret_cast<const float16_t*>(a + i));
-        v_a = vcvt_f32_f16(v_a_f16);
-
+        v_a = loadq_f32(a + i);
         v_res = vmulq_f32(v_a, v_val);
 
         vst1q_f32(reinterpret_cast<float*>(a_dst + i), v_res);
