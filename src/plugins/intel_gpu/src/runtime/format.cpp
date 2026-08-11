@@ -310,7 +310,7 @@ const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt
     return sizes_for_dims;
 }
 
-format format::find_format(const std::vector<uint64_t>& order,
+format format::find_format(const std::vector<size_t>& order,
                            const std::vector<std::pair<size_t, int>>& block_sizes,
                            bool is_weights,
                            bool is_grouped,
