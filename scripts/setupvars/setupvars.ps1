@@ -14,7 +14,8 @@ if (Test-Path -Path "$Env:OpenVINO_DIR/OpenVINOGenAIConfig.cmake")
     # If GenAI is installed, export it as well.
     $Env:OpenVINOGenAI_DIR = $Env:OpenVINO_DIR
 }
-$Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
+$arch = if ($Env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "intel64" }
+$Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/$arch/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/$arch/Debug;$Env:OPENVINO_LIB_PATHS"
 
 # TBB
 if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")
@@ -22,11 +23,11 @@ if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")
     $prefix = ""
     if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist")
     {
-        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist/intel64/vc14"
+        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist/$arch/vc14"
     }
-    elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/intel64/vc14")
+    elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/$arch/vc14")
     {
-        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/intel64/vc14"
+        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/$arch/vc14"
     }
     elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin")
     {
