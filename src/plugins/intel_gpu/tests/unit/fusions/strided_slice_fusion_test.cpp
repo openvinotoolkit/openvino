@@ -56,6 +56,7 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 
 #define CASE_STRIDED_SLICE_F16_1 { 1, 8, 1, 1 },  { 1, 3, 2, 2 }, data_types::f16, format::bfyx
+#define CASE_STRIDED_SLICE_BF16_1 { 1, 8, 1, 1 },  { 1, 3, 2, 2 }, data_types::bf16, format::bfyx
 
 
 class strided_slice_activation : public StridedSliceFusingsTest {};
@@ -80,7 +81,7 @@ TEST_P(strided_slice_activation, basic) {
     }
 
     add_topologies(
-        reorder("reorder_bfyx", input_info(before_name), format::bfyx, data_types::f16));
+        reorder("reorder_bfyx", input_info(before_name), format::bfyx, p.input_type));
 
     tolerance = 1e-5f;
     execute(p);
@@ -90,4 +91,45 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, strided_slice_activation, ::testing::Value
     strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 2, 4, {{ activation_func::clamp, { } }, { activation_func::exp, { } }} },
     strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 2, 3, {{ activation_func::logistic, { } } } },
     strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, 3, {{ activation_func::hyperbolic_tan, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_BF16_1, 2, 2, 4, {{ activation_func::clamp, { } }, { activation_func::exp, { } }} },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_BF16_1, 2, 2, 3, {{ activation_func::logistic, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_BF16_1, 2, 3, 3, {{ activation_func::hyperbolic_tan, { } } } },
+}));
+
+// StridedSlice with new_axis_mask set: a new length-1 dimension is inserted and the kernel
+// takes the NEW_AXIS_MODE path, which copies input to output verbatim. This test verifies that
+// a fused activation is still applied on that path (it must not be silently dropped).
+class strided_slice_new_axis_activation : public StridedSliceFusingsTest {};
+TEST_P(strided_slice_new_axis_activation, basic) {
+    std::vector<int64_t> begin_data = { 0, 0, 0, 0 };
+    std::vector<int64_t> end_data = { 1, 8, 1, 1 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
+
+    auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        // new_axis_mask = { 1 } inserts a length-1 axis at position 0, producing a 5D output.
+        strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data,
+                      {}, {}, { 1 }, {}, {}, { 1, 1, 8, 1, 1 })
+    );
+
+    std::string before_name = "strided_slice";
+    for (auto& act_item : p.activation_func_list) {
+        std::string act_name = "actv_" + activation_type_to_str(act_item.first);
+        add_topologies(activation(act_name, input_info(before_name), act_item.first, act_item.second));
+        before_name = act_name;
+    }
+
+    add_topologies(
+        reorder("reorder_bfyx", input_info(before_name), format::bfyx, p.input_type));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, strided_slice_new_axis_activation, ::testing::ValuesIn(std::vector<strided_slice_test_params>{
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 2, 3, {{ activation_func::exp, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_BF16_1, 2, 2, 3, {{ activation_func::exp, { } } } },
 }));

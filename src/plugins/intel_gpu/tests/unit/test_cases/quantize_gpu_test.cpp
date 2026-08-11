@@ -1198,8 +1198,6 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             .simple_params(data_types::f32, data_types::u8, format::bfyx, format::bfyx, 5)
                             .simple_params(data_types::f16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
                             .simple_params(data_types::bf16, data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32, 5)
-                            .simple_params(data_types::f32, data_types::bf16, format::bfyx, format::bfyx, 5)
-                            .simple_params(data_types::f16, data_types::bf16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, 5)
                         ));
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

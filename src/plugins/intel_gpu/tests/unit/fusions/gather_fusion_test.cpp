@@ -107,6 +107,14 @@ public:
 #define CASE_GATHER_FP16_6 { 3, 2, 2 }, { 2, 3 }, { 2, 3, 2, 2 }, 0, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GATHER_FP16_7 { 2, 5, 2, 4 }, { 3, 2, 1}, { 2, 3, 2, 1, 2, 4 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
+#define CASE_GATHER_BF16_1 { 2, 3, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 4, 1 }, 0, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_2 { 3, 2, 2, 1 }, { 2, 3, 1, 1 }, { 2, 3, 2, 2 }, 0, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_3 { 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 3, 2, 2, 1 }, 1, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_4 { 5, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 2, 3, 2 }, 2, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_5 { 2, 3, 2, 1 }, { 3, 1, 1, 1 }, { 2, 3, 3, 1 }, 2, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_6 { 3, 2, 2 }, { 2, 3 }, { 2, 3, 2, 2 }, 0, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_BF16_7 { 2, 5, 2, 4 }, { 3, 2, 1}, { 2, 3, 2, 1, 2, 4 }, 1, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
+
 #define CASE_GATHER_5D_FP32_1 { 2, 3, 1, 4, 1 }, { 4, 1, 1, 1 }, { 4, 3, 1, 4, 1 }, 0, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_GATHER_5D_FP32_2 { 2, 3, 2, 2, 2 }, { 2, 1, 1, 1 }, { 2, 2, 2, 2, 2 }, 1, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_GATHER_5D_FP32_3 { 5, 3, 2, 2, 2 }, { 3, 1, 1, 1 }, { 5, 3, 2, 3, 2 }, 3, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
@@ -118,6 +126,12 @@ public:
 #define CASE_GATHER_5D_FP16_3 { 2, 3, 3, 3, 1 }, { 1, 2, 1, 1 }, { 2, 3, 3, 1, 2 }, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 3, 1, 1 }, { 3, 2, 2, 3, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+
+#define CASE_GATHER_5D_BF16_1 { 3, 2, 1, 2, 1 }, { 2, 1, 1, 1 }, { 2, 2, 1, 2, 1 }, 0, data_types::bf16, format::bfzyx, data_types::bf16, format::bfzyx
+#define CASE_GATHER_5D_BF16_2 { 1, 3, 1, 2, 1 }, { 2, 1, 1, 1 }, { 1, 2, 1, 2, 1 }, 1, data_types::bf16, format::bfzyx, data_types::bf16, format::bfzyx
+#define CASE_GATHER_5D_BF16_3 { 2, 3, 3, 3, 1 }, { 1, 2, 1, 1 }, { 2, 3, 3, 1, 2 }, 3, data_types::bf16, format::bfzyx, data_types::bf16, format::bfzyx
+#define CASE_GATHER_5D_BF16_4 { 3, 2, 2, 2, 2 }, { 2, 3, 1, 1 }, { 3, 2, 2, 3, 2 }, 2, data_types::bf16, format::bfzyx, data_types::bf16, format::bfzyx
+#define CASE_GATHER_5D_BF16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::bf16, format::bfzyx, data_types::bf16, format::bfzyx
 
 #define CASE_GATHER_INT8_1    { 2, 3, 4, 1 }, { 4 }, { 4, 3, 4, 1 }, 0, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
@@ -165,6 +179,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_quantize, ::testing::ValuesIn(std::
     gather_test_params{ CASE_GATHER_5D_FP16_3, 2, 3 },
     gather_test_params{ CASE_GATHER_5D_FP16_4, 2, 3 },
     gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 3 },
+
+    gather_test_params{ CASE_GATHER_BF16_1, 2, 3 },
+    gather_test_params{ CASE_GATHER_BF16_2, 2, 3 },
+    gather_test_params{ CASE_GATHER_BF16_3, 2, 3 },
+    gather_test_params{ CASE_GATHER_BF16_4, 2, 3 },
+    gather_test_params{ CASE_GATHER_BF16_5, 2, 3 },
+
+    gather_test_params{ CASE_GATHER_5D_BF16_1, 2, 3 },
+    gather_test_params{ CASE_GATHER_5D_BF16_2, 2, 3 },
+    gather_test_params{ CASE_GATHER_5D_BF16_3, 2, 3 },
+    gather_test_params{ CASE_GATHER_5D_BF16_4, 2, 3 },
+    gather_test_params{ CASE_GATHER_5D_BF16_5, 2, 3 },
 }));
 
 class gather_eltwise_activation : public GatherPrimitiveFusingTest {};
@@ -208,6 +234,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation, ::testing::Valu
     gather_test_params{ CASE_GATHER_5D_FP16_3, 2, 4 },
     gather_test_params{ CASE_GATHER_5D_FP16_4, 2, 4 },
     gather_test_params{ CASE_GATHER_5D_FP16_5, 2, 4 },
+
+    gather_test_params{ CASE_GATHER_BF16_1, 2, 4 },
+    gather_test_params{ CASE_GATHER_BF16_2, 2, 4 },
+    gather_test_params{ CASE_GATHER_BF16_3, 2, 4 },
+    gather_test_params{ CASE_GATHER_BF16_4, 2, 4 },
+    gather_test_params{ CASE_GATHER_BF16_5, 2, 4 },
+
+    gather_test_params{ CASE_GATHER_5D_BF16_1, 2, 4 },
+    gather_test_params{ CASE_GATHER_5D_BF16_2, 2, 4 },
+    gather_test_params{ CASE_GATHER_5D_BF16_3, 2, 4 },
+    gather_test_params{ CASE_GATHER_5D_BF16_4, 2, 4 },
+    gather_test_params{ CASE_GATHER_5D_BF16_5, 2, 4 },
 }));
 
 class gather_eltwise_activation_dynamic : public GatherPrimitiveFusingTest {};
@@ -235,11 +273,15 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation_dynamic, ::testi
     gather_test_params{ CASE_GATHER_FP32_6, 4, 6 },
     gather_test_params{ CASE_GATHER_FP16_6, 4, 7 },
     gather_test_params{ CASE_GATHER_FP16_7, 5, 8 },
+    gather_test_params{ CASE_GATHER_BF16_6, 4, 7 },
+    gather_test_params{ CASE_GATHER_BF16_7, 5, 8 },
     gather_test_params{ CASE_GATHER_INT8_1, 4, 7 },
 }));
 
 #define CASE_GATHER_RANK_DECREASE_FP16 { 1, 2, 4, 4, 8 }, { }, { 1, 4, 4, 8 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfyx
 #define CASE_GATHER_RANK_INCREASE_FP16 { 2, 5, 2, 4 }, { 3, 2, 1 }, { 2, 3, 2, 1, 2, 4 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_RANK_DECREASE_BF16 { 1, 2, 4, 4, 8 }, { }, { 1, 4, 4, 8 }, 1, data_types::bf16, format::bfzyx, data_types::bf16, format::bfyx
+#define CASE_GATHER_RANK_INCREASE_BF16 { 2, 5, 2, 4 }, { 3, 2, 1 }, { 2, 3, 2, 1, 2, 4 }, 1, data_types::bf16, format::bfyx, data_types::bf16, format::bfyx
 
 class gather_rank_change_fusing : public GatherPrimitiveFusingTest {
 public:
@@ -373,4 +415,6 @@ TEST_P(gather_rank_change_fusing, quantize_per_tensor) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_rank_change_fusing, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_RANK_DECREASE_FP16, 2, 3 },
     gather_test_params{ CASE_GATHER_RANK_INCREASE_FP16, 2, 3 },
+    gather_test_params{ CASE_GATHER_RANK_DECREASE_BF16, 2, 3 },
+    gather_test_params{ CASE_GATHER_RANK_INCREASE_BF16, 2, 3 },
 }));
