@@ -102,6 +102,17 @@ CommonDispatchData ComputeDispatch(const OptChoices& c) {
 
 }  // namespace
 
+// The X-broadcast block-write path compiles the kernel with intel_reqd_sub_group_size(16)
+// and uses DT_OUTPUT_BLOCK_WRITE8, so advertise the sub-group requirements. Without this
+// the impl could be selected on a device lacking sub-group support and fail at JIT-compile
+// time instead of falling back to the ref kernel.
+DeviceFeaturesKey BroadcastKernelOpt::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    return k;
+}
+
 bool BroadcastKernelOpt::Validate(const Params& params) const {
     const auto& p = static_cast<const broadcast_params&>(params);
     const auto& input = p.inputs[0];
