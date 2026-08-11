@@ -28,6 +28,33 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 }
 #define is_between FUNC_CALL(is_between)
 
+// Same "always load, mask afterward" trick as the original kernel (see the
+// comment on LOAD_INPUT below for why): substitute a safe in-bounds fallback
+// position (0,0) when the true position would be out-of-bounds, and zero the
+// contribution out in INTERPOLATE below instead of branching around the load.
+#define PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD(x_n, y_n)                \
+    const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);               \
+    const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);               \
+    const int y_topleft = (int)floor(y_d);                             \
+    const int x_topleft = (int)floor(x_d);                             \
+    const grid_et dy = y_d - y_topleft;                                \
+    const grid_et dx = x_d - x_topleft;                                \
+                                                                        \
+    const bool y0_valid = is_between(y_topleft, 0, INPUT0_SIZE_Y);     \
+    const bool y1_valid = is_between(y_topleft + 1, 0, INPUT0_SIZE_Y); \
+    const bool x0_valid = is_between(x_topleft, 0, INPUT0_SIZE_X);     \
+    const bool x1_valid = is_between(x_topleft + 1, 0, INPUT0_SIZE_X); \
+                                                                        \
+    const bool v00_valid = y0_valid && x0_valid;                       \
+    const bool v01_valid = y0_valid && x1_valid;                       \
+    const bool v10_valid = y1_valid && x0_valid;                       \
+    const bool v11_valid = y1_valid && x1_valid;                       \
+                                                                        \
+    const int y0c = y0_valid ? y_topleft : 0;                          \
+    const int y1c = y1_valid ? (y_topleft + 1) : 0;                    \
+    const int x0c = x0_valid ? x_topleft : 0;                          \
+    const int x1c = x1_valid ? (x_topleft + 1) : 0;
+
 // WARNING: This loads may read from 'wrong' location
 // (in sense that is has nothing to do with
 // sampling point being calculated) - this is done
@@ -116,32 +143,7 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
         const grid_et x_n = grid[INPUT1_GET_INDEX(n, h, w, 0)];
         const grid_et y_n = grid[INPUT1_GET_INDEX(n, h, w, 1)];
 
-        const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);
-        const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);
-        const int y_topleft = (int)floor(y_d);
-        const int x_topleft = (int)floor(x_d);
-        const grid_et dy = y_d - y_topleft;
-        const grid_et dx = x_d - x_topleft;
-
-        const bool y0_valid = is_between(y_topleft, 0, INPUT0_SIZE_Y);
-        const bool y1_valid = is_between(y_topleft + 1, 0, INPUT0_SIZE_Y);
-        const bool x0_valid = is_between(x_topleft, 0, INPUT0_SIZE_X);
-        const bool x1_valid = is_between(x_topleft + 1, 0, INPUT0_SIZE_X);
-
-        const bool v00_valid = y0_valid && x0_valid;
-        const bool v01_valid = y0_valid && x1_valid;
-        const bool v10_valid = y1_valid && x0_valid;
-        const bool v11_valid = y1_valid && x1_valid;
-
-        // Same "always load, mask afterward" trick as the original kernel (see its
-        // comment on avoiding warp-divergence from conditional loads): substitute a
-        // safe in-bounds fallback position (0,0) when the true position would be
-        // out-of-bounds, and zero the contribution out in the blend below instead of
-        // branching around the load itself.
-        const int y0c = y0_valid ? y_topleft : 0;
-        const int y1c = y1_valid ? (y_topleft + 1) : 0;
-        const int x0c = x0_valid ? x_topleft : 0;
-        const int x1c = x1_valid ? (x_topleft + 1) : 0;
+        PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD(x_n, y_n);
 
 #pragma unroll
         for (int c = 0; c < OUTPUT_FEATURE_NUM; ++c) {
@@ -157,3 +159,4 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
 #undef STORE
 #undef INTERPOLATE
 #undef LOAD_INPUT
+#undef PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD
