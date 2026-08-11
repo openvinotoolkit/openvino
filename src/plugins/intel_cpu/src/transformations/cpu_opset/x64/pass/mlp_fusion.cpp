@@ -5,7 +5,6 @@
 #include "mlp_fusion.hpp"
 
 #include <memory>
-#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -225,15 +225,14 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             return false;
         }
 
-        LLMMLPNode::Config config{
-            .act = ov::is_type<Swish>(pattern_map.at(mlp_gate_act).get_node()) ? LLMMLPNode::ACT_FN::SILU
-                                                                               : LLMMLPNode::ACT_FN::GELU,
-            .gate_up_quantized = is_gate_up_quantized_int8,
-            .down_quantized = is_down_proj_int8,
-            .hidden_size = static_cast<int>(down_size),
-            .up_size = static_cast<int>(up_size),
-            .gate_up_type = gate_up_type,
-        };
+        LLMMLPNode::Config config{};
+        config.act = ov::is_type<Swish>(pattern_map.at(mlp_gate_act).get_node()) ? LLMMLPNode::ACT_FN::SILU
+                                                                                 : LLMMLPNode::ACT_FN::GELU;
+        config.gate_up_quantized = is_gate_up_quantized_int8;
+        config.down_quantized = is_down_proj_int8;
+        config.hidden_size = static_cast<int>(down_size);
+        config.up_size = static_cast<int>(up_size);
+        config.gate_up_type = gate_up_type;
 
         OutputVector new_args{src, gate_proj_w, up_proj_w, down_proj_w};
         if (is_gate_up_quantized_int8) {
