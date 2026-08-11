@@ -105,9 +105,11 @@ jobs:
           python3 -m pip install pytest-html
 
       - name: LLM accuracy ${{ inputs.device }} tests
+        env:
+          DEVICE: ${{ inputs.device }}
         run: |
           python3 -m pytest ${LLM_TEST_DIR}/accuracy_conformance.py \
-            -k ${{ inputs.device }} \
+            -k "$DEVICE" \
             --tb native \
             --log-level INFO \
             --log-cli-level ERROR \
