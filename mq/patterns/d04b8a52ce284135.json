@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "android build docker handle_docker step failed|Infrastructure",
+  "signature_hash": "d04b8a52ce284135",
+  "title": "Android Docker handle_docker step failed on merge-queue run",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-11T01:01:40Z",
+  "last_seen": "2026-08-11T01:01:40Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31447607131"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37147"
+  ],
+  "recent_timestamps": [
+    "2026-08-11T01:01:40Z"
+  ],
+  "rerun_search_string": "handle_docker"
+}

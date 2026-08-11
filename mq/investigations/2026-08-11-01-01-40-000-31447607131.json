@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-11-01-01-40-000-31447607131",
+  "timestamp": "2026-08-11T01:01:40Z",
+  "run_id": "31447607131",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31447607131",
+  "workflow_name": "Android",
+  "pr_number": "37147",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37147",
+  "author": "dylanneve1",
+  "category": "Infrastructure",
+  "title": "Android Docker handle_docker step failed on merge-queue run",
+  "signature": "android build docker handle_docker step failed|Infrastructure",
+  "signature_hash": "d04b8a52ce284135",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Run ./.github/actions/handle_docker step failed (attempt 1)"
+    }
+  ],
+  "key_errors": [
+    "Job: Docker (id 93645121231), attempt 1",
+    "Failed step: Run ./.github/actions/handle_docker",
+    "Workflow re-run (attempt 2) is currently in progress and Docker job succeeded"
+  ],
+  "root_cause": "The Docker job failed on the first run attempt during the handle_docker composite action step. No logs are accessible due to security policy, but the workflow was automatically re-run (attempt 2) and the Docker job completed successfully on the second attempt. This is consistent with a transient infrastructure issue such as a Docker registry pull timeout, ephemeral runner failure, or container initialization problem.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible locally",
+  "recommended_actions": [
+    "Workflow already re-running on attempt 2; monitor for successful completion",
+    "If attempt 2 also fails, investigate Docker registry or runner health"
+  ],
+  "prevention_strategies": "Infrastructure-level Docker failures are typically self-healing. No code changes required.",
+  "historical_context": "Docker infrastructure failures are common in CI; transient pull/init issues resolve on re-run."
+}
