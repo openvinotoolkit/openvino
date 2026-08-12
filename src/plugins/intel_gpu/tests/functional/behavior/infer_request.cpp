@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <atomic>
+#include <thread>
+#include <vector>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -90,6 +94,197 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferRequestIOPrecision,
                                  ::testing::Values(ov::Shape{1, 50}),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          InferRequestIOPrecision::getTestCaseName);
+
+static std::shared_ptr<ov::Model> makeStaticInputModel(ov::Shape& shape_out) {
+    const ov::Shape shape{1, 64};
+    shape_out = shape;
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    param->set_friendly_name("static_input");
+    param->output(0).get_tensor().set_names({"static_input"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+}
+
+// Static input must be inferable when set_tensor() is never called.
+TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    OV_ASSERT_NO_THROW(request.infer());
+
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+    OV_ASSERT_NO_THROW(request.get_output_tensor(0));
+}
+
+// get_tensor() before infer() must also materialize the lazy slot.
+TEST(TensorTest, smoke_lazyAllocStaticInputGetTensorBeforeInfer) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    ov::Tensor in;
+    OV_ASSERT_NO_THROW(in = request.get_input_tensor(0));
+    ASSERT_EQ(in.get_shape(), shape);
+    ASSERT_NE(in.data(), nullptr);
+
+    OV_ASSERT_NO_THROW(request.infer());
+}
+
+// AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
+// by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
+TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
+    constexpr int kBatch = 4;
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    // Non-zero timeout so requests are actually batched together (same value used in
+    // auto_batch/tests/functional/behavior/ov_plugin/auto_batching_tests.cpp).
+    auto compiled_model = core.compile_model(model,
+                                             "BATCH:" + std::string(ov::test::utils::DEVICE_GPU) +
+                                                 "(" + std::to_string(kBatch) + ")",
+                                             ov::auto_batch_timeout(1000));
+
+    std::vector<ov::InferRequest> requests;
+    for (int i = 0; i < kBatch; ++i) {
+        requests.push_back(compiled_model.create_infer_request());
+    }
+
+    // Distinct value per slot: an offset bug would mix these together.
+    for (int i = 0; i < kBatch; ++i) {
+        ov::Tensor in;
+        OV_ASSERT_NO_THROW(in = requests[i].get_input_tensor(0));
+        ASSERT_EQ(in.get_shape(), shape);
+        auto* in_data = in.data<float>();
+        ASSERT_NE(in_data, nullptr);
+        std::fill_n(in_data, in.get_size(), static_cast<float>(i + 1));
+    }
+
+    for (auto& req : requests) {
+        OV_ASSERT_NO_THROW(req.start_async());
+    }
+    for (auto& req : requests) {
+        OV_ASSERT_NO_THROW(req.wait());
+    }
+
+    // Relu(i+1) == i+1; a corrupted shared buffer would mix values across slots.
+    for (int i = 0; i < kBatch; ++i) {
+        ov::Tensor out;
+        OV_ASSERT_NO_THROW(out = requests[i].get_output_tensor(0));
+        ASSERT_EQ(out.get_shape(), shape);
+        const auto* data = out.data<float>();
+        ASSERT_NE(data, nullptr);
+        for (size_t j = 0; j < out.get_size(); ++j) {
+            ASSERT_FLOAT_EQ(data[j], static_cast<float>(i + 1)) << "slot " << i << " element " << j;
+        }
+    }
+}
+
+static std::shared_ptr<ov::Model> makeDynamicInputModel() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                         ov::PartialShape{1, ov::Dimension::dynamic()});
+    param->set_friendly_name("dyn_input");
+    param->output(0).get_tensor().set_names({"dyn_input"});
+    auto relu = std::make_shared<ov::op::v0::Relu>(param);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(relu)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
+}
+
+TEST(TensorTest, smoke_eagerAllocDynamicInputInfer) {
+    auto model = makeDynamicInputModel();
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    auto request = compiled_model.create_infer_request();
+
+    // Eagerly allocated: accessing the tensor before set/infer must not throw.
+    OV_ASSERT_NO_THROW(request.get_input_tensor(0));
+
+    const ov::Shape concrete{1, 8};
+    ov::Tensor input(ov::element::f32, concrete);
+    OV_ASSERT_NO_THROW(request.set_input_tensor(0, input));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    ov::Tensor out;
+    OV_ASSERT_NO_THROW(out = request.get_output_tensor(0));
+    ASSERT_EQ(out.get_shape(), concrete);
+}
+
+// Many threads race on the first get_tensor() of a fresh request; ensure_input_allocated()'s
+// lock must collapse them into a single allocation so all threads observe the same buffer.
+TEST(TensorTest, smoke_lazyAllocStaticInputConcurrentFirstGetTensorRace) {
+    ov::Shape shape;
+    auto model = makeStaticInputModel(shape);
+
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+
+    constexpr int kThreads = 8;
+    constexpr int kIterations = 100;
+
+    std::atomic<bool> failed{false};
+
+    for (int iter = 0; iter < kIterations && !failed.load(); ++iter) {
+        // Fresh request re-arms the race for each iteration.
+        auto request = compiled_model.create_infer_request();
+
+        std::atomic<int> ready{0};
+        std::atomic<bool> go{false};
+        std::vector<const void*> observed(kThreads, nullptr);
+
+        std::vector<std::thread> threads;
+        threads.reserve(kThreads);
+        for (int t = 0; t < kThreads; ++t) {
+            threads.emplace_back([&, t] {
+                ready.fetch_add(1, std::memory_order_acq_rel);
+                while (!go.load(std::memory_order_acquire)) {
+                    std::this_thread::yield();
+                }
+                try {
+                    auto in = request.get_input_tensor(0);
+                    if (in.get_shape() != shape || in.data() == nullptr) {
+                        failed.store(true);
+                    }
+                    observed[t] = in.data();
+                } catch (...) {
+                    // Any exception on the concurrent first-touch materialization is a failure.
+                    failed.store(true);
+                }
+            });
+        }
+
+        // Release all threads at once to maximize contention.
+        while (ready.load(std::memory_order_acquire) < kThreads) {
+            std::this_thread::yield();
+        }
+        go.store(true, std::memory_order_release);
+
+        for (auto& th : threads) {
+            th.join();
+        }
+
+        // All racers must observe the same buffer.
+        const void* first = observed[0];
+        for (int t = 1; t < kThreads; ++t) {
+            if (observed[t] != first) {
+                failed.store(true);
+            }
+        }
+    }
+
+    ASSERT_FALSE(failed.load());
+}
 
 TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
     auto core = ov::Core();

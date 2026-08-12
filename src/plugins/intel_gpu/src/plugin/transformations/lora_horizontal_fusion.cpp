@@ -57,10 +57,10 @@ LoRAHorizontalFusion::LoRAHorizontalFusion() {
             const auto& variable_alpha =
                 ov::as_type_ptr<ov::op::util::ReadValueBase>(multiply->get_input_node_shared_ptr(alpha_idx));                 check(variable_alpha)
 
-            const auto& variable_a = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));     check(variable_a)
+            const auto& variable_a = ov::as_type_ptr<ov::op::util::ReadValueBase>(matmul1->get_input_node_shared_ptr(1));
 
             #undef check
-            return true;
+            return variable_a != nullptr;
         };
 
         for (const auto& user : split_node->get_users()) {
