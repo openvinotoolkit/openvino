@@ -149,7 +149,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     }
 
     try {
-        for (auto& c : conf) {
+        for (const auto& c : conf) {
             std::string fused_ops;
             std::string fused_ops_preload;
             std::string fused_ops_calc;
@@ -260,10 +260,10 @@ DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Par
     const auto& casted_params = static_cast<const base_params&>(params);
 
     std::vector<Datatype> tensor_types;
-    for (auto& t : casted_params.inputs) {
+    for (const auto& t : casted_params.inputs) {
         tensor_types.push_back(t.GetDType());
     }
-    for (auto& t : casted_params.outputs) {
+    for (const auto& t : casted_params.outputs) {
         tensor_types.push_back(t.GetDType());
     }
 
