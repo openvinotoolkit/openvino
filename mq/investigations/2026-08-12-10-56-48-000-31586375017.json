@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-10-56-48-000-31586375017",
+  "timestamp": "2026-08-12T10:56:48Z",
+  "run_id": "31586375017",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31586375017",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37302",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37302",
+  "author": "akashchi",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 CPU functional tests fail on attempt 1 - re-run already in progress on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Intel CPU plugin func tests (parallel) step failed after ~4 minutes"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to CPU functional tests failure"
+    }
+  ],
+  "key_errors": [
+    "Job: CPU functional tests / CPU functional tests (attempt 1) - FAILED at step 'Intel CPU plugin func tests (parallel)'",
+    "run_attempt: 2 is already in_progress - attempt 1 logs inaccessible (secrecy policy blocks log download)"
+  ],
+  "root_cause": "The Linux ARM64 workflow run 31586375017 failed on attempt 1 during the 'Intel CPU plugin func tests (parallel)' step. The CI Doctor was triggered by the attempt 1 failure but the pre-downloaded job logs are empty (no detailed error log available due to secrecy policy filtering). This run already has attempt 2 in progress, indicating an automatic re-run was already triggered. This is a recurring Infrastructure pattern on ARM64 where attempt 1 fails with CPU functional test errors and attempt 2 is auto-started.",
+  "reproduction_steps": "N/A - transient infrastructure failure on ARM64 runner, not reproducible locally",
+  "recommended_actions": [
+    "Monitor attempt 2 of run 31586375017 to confirm it passes",
+    "If attempt 2 also fails, investigate the CPU functional test logs on ARM64 for test-specific failures"
+  ],
+  "prevention_strategies": "The ARM64 CPU functional tests occasionally fail on attempt 1 due to infrastructure instability on AKS ARM64 runners. Attempt 2 typically succeeds. No code changes are needed.",
+  "historical_context": "This is the 7th occurrence of this Infrastructure pattern (signature hash 44dec04115b12f89). Prior occurrences: runs 31512034471, 31478842603, 30435558411, 30366211388, 30351149892, 30156795631."
+}
