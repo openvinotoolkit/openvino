@@ -320,7 +320,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
-        if (ov::npuw::batched::requested(llm_compiled_model)) {
+        if (ov::npuw::batched::requested(config)) {
             // Single-shot scoring pipelines (text rerank / embedding) may submit
             // batched [N, ...] inputs, while the LLM pipeline pins everything to a
             // static batch of 1. The batched element unrolls such an infer row by
