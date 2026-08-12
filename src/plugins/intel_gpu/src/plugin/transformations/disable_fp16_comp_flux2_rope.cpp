@@ -65,22 +65,23 @@ DisableFP16CompFlux2RoPEPattern::DisableFP16CompFlux2RoPEPattern() {
     auto t_sin = any_input();
 
     auto x1 = wrap_type<v1::Reshape>({x, any_input()});
-    auto split = wrap_type<v1::Split>({x1, -1}, {{"num_splits", 2}});
-    split->set_output_size(2);
+    auto split_out0 = wrap_type<v1::Split>({x1, -1}, output_index_matches(0), {{"num_splits", 2}});
+    auto split_out1 = wrap_type<v1::Split>({x1, -1}, output_index_matches(1), {{"num_splits", 2}});
 
     // The negation of one split half is optionally wrapped in Squeeze/Unsqueeze
     // depending on which transformations ran before this pass (see RoPEFusionFlux).
-    auto opt_squeeze = optional<v0::Squeeze>({split->output(1), -1});
-    auto x1_1_neg = wrap_type<v1::Multiply>({opt_squeeze, -1}, {{"auto_broadcast", "numpy"}});
+    auto opt_squeeze = optional<v0::Squeeze>({split_out1, -1});
+    // Broadcast mode is not part of the RoPE fingerprint; topology and Split/Concat attrs are.
+    auto x1_1_neg = wrap_type<v1::Multiply>({opt_squeeze, -1});
     auto opt_squeeze_1 = optional<v0::Squeeze>({x1_1_neg, -1});
     auto opt_unsqueeze = optional<v0::Unsqueeze>({opt_squeeze_1, -1});
 
-    auto x2 = wrap_type<v0::Concat>({opt_unsqueeze, split->output(0)}, {{"axis", -1}});
+    auto x2 = wrap_type<v0::Concat>({opt_unsqueeze, split_out0}, {{"axis", -1}});
     auto x3 = wrap_type<v1::Reshape>({x2, any_input()});
 
-    auto y1 = wrap_type<v1::Multiply>({x, t_cos}, {{"auto_broadcast", "numpy"}});
-    auto y2 = wrap_type<v1::Multiply>({x3, t_sin}, {{"auto_broadcast", "numpy"}});
-    auto result = wrap_type<v1::Add>({y1, y2}, {{"auto_broadcast", "numpy"}});
+    auto y1 = wrap_type<v1::Multiply>({x, t_cos});
+    auto y2 = wrap_type<v1::Multiply>({x3, t_sin});
+    auto result = wrap_type<v1::Add>({y1, y2});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root()))
