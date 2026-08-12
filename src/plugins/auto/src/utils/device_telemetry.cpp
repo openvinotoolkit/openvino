@@ -69,8 +69,7 @@ public:
             // IGPU may be reported under either IGPUUtilization or GPUUtilization; fall back to the latter.
             const bool igpu_fallback_attempted = metric_it == performance.end() && metric_key_view == k_igpu_utilization_metric;
             if (igpu_fallback_attempted) {
-                static const std::string igpu_fallback_key{k_igpu_utilization_fallback_metric};
-                metric_it = performance.find(igpu_fallback_key);
+                metric_it = performance.find(std::string{k_igpu_utilization_fallback_metric});
             }
             if (metric_it == performance.end()) {
                 if (igpu_fallback_attempted) {
@@ -84,7 +83,8 @@ public:
                 return std::nullopt;
             }
             if (!metric_it->is_number()) {
-                LOG_WARNING_TAG("TelemetryClient: Performance value for key %s is not a number", metric_key.c_str());
+                const auto& resolved_metric_key = metric_it.key();
+                LOG_WARNING_TAG("TelemetryClient: Performance value for key %s is not a number", resolved_metric_key.c_str());
                 return std::nullopt;
             }
             float value = metric_it->get<float>();
