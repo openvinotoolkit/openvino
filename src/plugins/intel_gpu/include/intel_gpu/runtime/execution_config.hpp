@@ -21,6 +21,19 @@ struct ExecutionConfig : public ov::PluginConfig {
     explicit ExecutionConfig(const ov::AnyMap& properties) : ExecutionConfig() { set_property(properties); }
     explicit ExecutionConfig(const ov::AnyMap::value_type& property) : ExecutionConfig() { set_property(property); }
 
+    void set_property(const ov::AnyMap& properties);
+    void set_user_property(const ov::AnyMap& properties, OptionVisibility allowed_visibility = OptionVisibility::ANY);
+
+    template <typename... Properties>
+    ov::util::EnableIfAllStringAny<void, Properties...> set_property(Properties&&... properties) {
+        set_property(ov::AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <typename... Properties>
+    ov::util::EnableIfAllStringAny<void, Properties...> set_user_property(Properties&&... properties) {
+        set_user_property(ov::AnyMap{std::forward<Properties>(properties)...});
+    }
+
     // Default operators copy config as is including finalized flag state
     // In case if the config need updates after finalization clone() method shall be used as it resets finalized flag value.
     // That's needed to avoid unexpected options update as we call finalization twice: in transformation pipeline
