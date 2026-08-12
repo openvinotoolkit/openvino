@@ -116,19 +116,53 @@
 #define K_TILES     (K_HEAD_SIZE / DPAS_K)
 #define V_TILES     (V_HEAD_SIZE / SUBGROUP_SIZE)
 
-// Byte offset from a page base to the comp region that follows the data rows. Identical for both
-// quant modes -- only its CONTENT differs:
+// Row pitch of a page's DATA region, in elements of the cache dtype. head_size for f16 and i8, but a
+// u4 page packs two head dims into one byte and its layout dtype is u8, so the pitch is NOT
+// derivable from head_size and sizeof() -- the host has to jit it.
+//   K u4 BY_CHANNEL: exactly K_HEAD_SIZE/2, deliberately NOT aligned up. 16*(h/2) + 4*h == 12*h is
+//                    what makes the token-major page a byte-exact fit into the allocation the
+//                    upstream d-major page already has; Align(h/2,16) overflows it at h % 32 != 0.
+//   V u4 BY_TOKEN:   Align(V_HEAD_SIZE/2, 16), and 16*PV + 64 == 16*(PV+4). Aligning is free here
+//                    (the +4 comp slack absorbs it) and keeps the pitch a multiple of 16.
+#ifndef K_ROW_ELEMS
+#    define K_ROW_ELEMS K_HEAD_SIZE
+#endif
+#ifndef V_ROW_ELEMS
+#    define V_ROW_ELEMS V_HEAD_SIZE
+#endif
+#define K_ROW_BYTES (K_ROW_ELEMS * (int)sizeof(INPUT1_TYPE))
+#define V_ROW_BYTES (V_ROW_ELEMS * (int)sizeof(INPUT2_TYPE))
+
+// Offset from a page base to the comp region that follows the data rows, in cache-dtype elements
+// (which is bytes in every compressed mode). Identical for all of them -- only the CONTENT differs:
 //   BY_TOKEN   two per-token f16 arrays, scale at [token], zp at [PAGED_ATTENTION_BLOCK_SIZE + token].
 //              Same place kv_cache_update's quantize_and_save_per_token writes them.
 //   BY_CHANNEL K_HEAD_SIZE interleaved (scale, zp) f16 pairs, one per channel, so the pair for channel
-//              d is the single DWORD at [d].
-#define K_COMP_OFF (K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE)
-#define V_COMP_OFF (V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE)
+//              d is the single DWORD at [d]. Unchanged by the packing: u4 halves the DATA region, not
+//              the comp region, which is why K_ROW_ELEMS rather than K_HEAD_SIZE is the multiplier.
+#define K_COMP_OFF (K_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
+#define V_COMP_OFF (V_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
+
+// How many head-dim tiles one V read's byte columns cover the LOW nibbles of. u4 packs head dim d
+// into byte (d % V_ROW_ELEMS), low nibble for d < V_ROW_ELEMS and high above it (the "split"
+// convention), so a read at byte column base V_TILE_COL(cd) hands lane c head dim cd*16 + c for
+// every cd -- lane == head dim in both halves, which is what the DPAS N axis requires and what
+// adjacent (2b, 2b+1) packing could not give. V_TILES <= 2 * V_READS by construction.
+#if IS_KV_U4
+#    define V_READS       (V_ROW_ELEMS / SUBGROUP_SIZE)
+#    define V_TILE_COL(t) (((t) >= V_READS ? (t) - V_READS : (t)) * SUBGROUP_SIZE)
+#else
+#    define V_READS       V_TILES
+#    define V_TILE_COL(t) ((t) * SUBGROUP_SIZE)
+#endif
 
 // How many DPAS tiles one transposed K read covers. The builtin always hands each lane 8 dwords of
-// its own key's row; that is DPAS_K halves (one tile) for f16 but 32 bytes (two tiles) for i8. Only
-// the block-read path can pair them -- the per-lane fallback loads one tile's worth by construction.
-#if IS_KV_COMPRESSED && USE_2D_BLOCK_IO_K
+// its own key's row; that is DPAS_K halves (one tile) for f16, 32 bytes (two tiles) for i8, and 32
+// bytes == 64 nibbles (four tiles) for u4. Only the block-read path can pair them -- the per-lane
+// fallback loads one tile's worth by construction.
+#if IS_KV_U4 && USE_2D_BLOCK_IO_K
+#    define K_TILES_PER_READ 4
+#elif IS_KV_COMPRESSED && USE_2D_BLOCK_IO_K
 #    define K_TILES_PER_READ 2
 #else
 #    define K_TILES_PER_READ 1
@@ -149,13 +183,38 @@
 // quantize it, since f16 has a 1.0 ulp at 1152 and the writer's zp (-min*scale - 128) is not an
 // integer. That is also why the V operand keeps a plain widen: its zp must be subtracted per element,
 // so it has no float correction to hide the bias in.
-#define K_WIDEN_BIAS 1152.0f
+//
+// u4 uses the same idea one size down:
+//     as_half(0x6400 | n) == 1024.0 + n   exactly, for every nibble n in [0, 15]
+// (0x6400 is 1024.0h = 2^10, and half has a 10-bit mantissa, so its ulp there is exactly 1.0 and the
+// low four mantissa bits ARE the nibble). Still pure dword arithmetic, and one source dword now
+// carries 8 head dims instead of 4, so it yields 4 VNNI dwords instead of 2. K keeps the upstream
+// ADJACENT nibble order -- byte b holds channel 2b in the low nibble and 2b+1 in the high -- which is
+// exactly the (2i, 2i+1) pairing a VNNI dword wants, so one byte becomes one output dword with no
+// cross-byte movement and the depth order stays natural (no Q permutation).
+#if IS_KV_U4
+#    define K_WIDEN_BIAS 1024.0f
+#else
+#    define K_WIDEN_BIAS 1152.0f
+#endif
 #define K_WIDEN_DWORDS(dst, src, tiles)                                                              \
     unroll_for(uint u = 0; u < (tiles); ++u) {                                                       \
         unroll_for(uint j = 0; j < DPAS_K / 4; ++j) {                                                \
             const uint w_ = (src);                                                                   \
             (dst)[j * 2 + 0] = as_int((( w_        & 0x000000FFu) | ((w_ & 0x0000FF00u) << 8)) ^ 0x64806480u); \
             (dst)[j * 2 + 1] = as_int((((w_ >> 16) & 0x000000FFu) | ((w_ >> 8) & 0x00FF0000u)) ^ 0x64806480u); \
+        }                                                                                            \
+    }
+// DPAS_K / 8 source dwords per tile (8 head dims each), 4 output dwords per source dword.
+#define K_WIDEN_U4_DWORDS(dst, src, tiles)                                                           \
+    unroll_for(uint u = 0; u < (tiles); ++u) {                                                       \
+        unroll_for(uint j = 0; j < DPAS_K / 8; ++j) {                                                \
+            const uint w_ = (src);                                                                   \
+            unroll_for(uint b_ = 0; b_ < 4; ++b_) {                                                  \
+                const uint p_ = w_ >> (8 * b_);                                                      \
+                (dst)[j * 4 + b_] =                                                                  \
+                    as_int(((p_ & 0x0000000Fu) | ((p_ & 0x000000F0u) << 12)) | 0x64006400u);         \
+            }                                                                                        \
         }                                                                                            \
     }
 
@@ -219,27 +278,29 @@
 // so the descriptor arithmetic is dtype-independent and sizeof(INPUT1_TYPE) covers the rest.
 #define PREFETCH_K_TILE(page_off, read)                                                   \
     intel_sub_group_2d_block_prefetch_32b_16r8x1c((__global void*)(key_cache + (page_off)), \
-                                                  K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE),   \
+                                                  K_ROW_BYTES,                              \
                                                   PAGED_ATTENTION_BLOCK_SIZE,               \
-                                                  K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE),   \
+                                                  K_ROW_BYTES,                              \
                                                   (int2)((read) * 8, 0))
 
 #if IS_KV_COMPRESSED
 // Matches the 8-bit VNNI-transform read below. x is in elements (bytes here), and a multiple of
-// SUBGROUP_SIZE satisfies the spec's "multiple of four for 8-bit data" rule on coord.x.
+// SUBGROUP_SIZE satisfies the spec's "multiple of four for 8-bit data" rule on coord.x. For u4 two
+// tiles share one byte column, so V_TILE_COL folds the high half back onto its low twin -- the
+// prefetch for tile cd and for cd + V_READS is deliberately the same line.
 #    define PREFETCH_V_TILE(page_off, value_tile)                                                  \
         intel_sub_group_2d_block_prefetch_8b_32r16x1c((__global void*)(value_cache + (page_off)),   \
-                                                      V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),      \
+                                                      V_ROW_BYTES,                                 \
                                                       PAGED_ATTENTION_BLOCK_SIZE,                  \
-                                                      V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),      \
-                                                      (int2)((value_tile) * SUBGROUP_SIZE, 0))
+                                                      V_ROW_BYTES,                                 \
+                                                      (int2)(V_TILE_COL(value_tile), 0))
 #else
 #    define PREFETCH_V_TILE(page_off, value_tile)                                                  \
         intel_sub_group_2d_block_prefetch_16b_16r16x1c((__global void*)(value_cache + (page_off)), \
-                                                       V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),     \
+                                                       V_ROW_BYTES,                                \
                                                        PAGED_ATTENTION_BLOCK_SIZE,                 \
-                                                       V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),     \
-                                                       (int2)((value_tile) * SUBGROUP_SIZE, 0))
+                                                       V_ROW_BYTES,                                \
+                                                       (int2)(V_TILE_COL(value_tile), 0))
 #endif
 
 #if Q_PER_WG == 1
@@ -304,10 +365,23 @@
 #    error "sdpa_ocl_decode.cl: BY_CHANNEL must leave ADJUSTED_K_HEAD_SIZE == K_HEAD_SIZE"
 #endif
 #if (K_TILES % K_TILES_PER_READ) != 0
-// The i8 transposed read covers two tiles, so the head dim must divide into whole pairs. Implied by
-// the block2d pitch rule the host gates on (K_HEAD_SIZE % 64 == 0 for a 1-byte cache), but a drift
-// between host and kernel must be loud rather than silently dropping the last tile.
+// The i8 transposed read covers two tiles and the u4 one four, so the head dim must divide into whole
+// groups. Implied by the block2d pitch rule the host gates on (K_ROW_BYTES % 64 == 0, i.e.
+// K_HEAD_SIZE % 64 for i8 and % 128 for u4), but a drift between host and kernel must be loud rather
+// than silently dropping the last tiles.
 #    error "sdpa_ocl_decode.cl: K_TILES must be a multiple of K_TILES_PER_READ"
+#endif
+#if IS_KV_U4 && !IS_KV_COMPRESSED
+#    error "sdpa_ocl_decode.cl: IS_KV_U4 requires IS_KV_COMPRESSED"
+#endif
+#if IS_KV_U4 && !IS_KEY_BY_CHANNEL
+// A u4 PA cache is BY_CHANNEL for K and BY_TOKEN for V; execution_config.cpp rejects 4-bit BY_TOKEN
+// keys outright, so there is no u4 BY_TOKEN K path to write and none is implemented here.
+#    error "sdpa_ocl_decode.cl: a u4 key cache must be BY_CHANNEL"
+#endif
+#if IS_KV_U4 && ((K_HEAD_SIZE % 2) != 0 || (V_ROW_ELEMS % SUBGROUP_SIZE) != 0)
+// K_ROW_ELEMS is K_HEAD_SIZE/2 exactly, and V_TILE_COL assumes whole byte-column groups.
+#    error "sdpa_ocl_decode.cl: u4 needs an even K_HEAD_SIZE and V_ROW_ELEMS a multiple of SUBGROUP_SIZE"
 #endif
 #if V_HEAD_SIZE % SUBGROUP_SIZE != 0
 #    error "sdpa_ocl_decode.cl: V_HEAD_SIZE must be a multiple of the DPAS N dimension"
@@ -578,19 +652,24 @@ KERNEL(sdpa_ocl_decode)(
         unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
             int8 kb[K_TILES_PER_READ];
 #if USE_2D_BLOCK_IO_K
-            // Surface = the page: [PAGED_ATTENTION_BLOCK_SIZE keys, K_HEAD_SIZE] row-major, so the
-            // pitch is K_HEAD_SIZE (NOT the whole-cache stride) in BYTES. x is in dwords for a 32b
-            // read, and one read is 8 of them for both precisions -- DPAS_K halves for f16,
-            // K_TILES_PER_READ * DPAS_K bytes for i8 -- which is why this call is dtype-independent
-            // and only the unpack below branches.
+            // Surface = the page: [PAGED_ATTENTION_BLOCK_SIZE keys, K_ROW_ELEMS] row-major, so the
+            // pitch is the ROW (NOT the whole-cache stride) in BYTES. x is in dwords for a 32b read,
+            // and one read is 8 of them for every precision -- DPAS_K halves for f16,
+            // K_TILES_PER_READ * DPAS_K bytes for i8, the same 32 bytes as 64 nibbles for u4 -- which
+            // is why this call is dtype-independent and only the unpack below branches.
             uint8 kt;
             intel_sub_group_2d_block_read_transpose_32b_16r8x1c((__global void*)(key_cache + k_page_off[g]),
-                                                               K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE),
+                                                               K_ROW_BYTES,
                                                                PAGED_ATTENTION_BLOCK_SIZE,
-                                                               K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE),
+                                                               K_ROW_BYTES,
                                                                (int2)(r * 8, 0),
                                                                (private uint*)&kt);
-    #if IS_KV_COMPRESSED
+    #if IS_KV_U4
+            // 32 bytes in ADDRESS order == channels (r*64 .. r*64+63) ascending, since byte i holds
+            // channels 2i and 2i+1. Tile u therefore owns bytes (8u .. 8u+7) of the window, i.e.
+            // source dwords 2u and 2u+1 -- DPAS_K/8 of them.
+            K_WIDEN_U4_DWORDS(kb[u], kt[u * (DPAS_K / 8) + j], K_TILES_PER_READ);
+    #elif IS_KV_COMPRESSED
             // 32 signed bytes in ADDRESS order, so byte i is head dim (r*32 + i) and the operand is
             // just those bytes widened to halves: two per dword, ascending depth, no shuffle.
             K_WIDEN_DWORDS(kb[u], kt[u * (DPAS_K / 4) + j], K_TILES_PER_READ);
@@ -601,12 +680,16 @@ KERNEL(sdpa_ocl_decode)(
             // Same operand, one per-lane load: lane owns key `lane` of the page and the DPAS_K head
             // dims it needs are contiguous there. Always inside the page (lane < block size), so no
             // bounds check is needed.
-    #if IS_KV_COMPRESSED
+    #if IS_KV_U4
+            // DPAS_K nibbles == DPAS_K/2 bytes == 2 dwords for one tile (K_TILES_PER_READ is 1 here).
+            const uint2 kw = as_uint2(vload8(0, key_cache + k_page_off[g] + lane * K_ROW_ELEMS + r * (DPAS_K / 2)));
+            K_WIDEN_U4_DWORDS(kb[u], kw[j], 1);
+    #elif IS_KV_COMPRESSED
             // DPAS_K bytes == 4 dwords, so the same dword widen applies; only the source differs.
-            const uint4 kw = as_uint4(vload16(0, key_cache + k_page_off[g] + lane * K_HEAD_SIZE + r * DPAS_K));
+            const uint4 kw = as_uint4(vload16(0, key_cache + k_page_off[g] + lane * K_ROW_ELEMS + r * DPAS_K));
             K_WIDEN_DWORDS(kb[u], kw[j], 1);
     #else
-            const ushort16 kv = vload16(0, (const __global ushort*)(key_cache + k_page_off[g] + lane * K_HEAD_SIZE + r * DPAS_K));
+            const ushort16 kv = vload16(0, (const __global ushort*)(key_cache + k_page_off[g] + lane * K_ROW_ELEMS + r * DPAS_K));
             kb[0] = as_int8(as_short16(kv));
     #endif
 #endif
@@ -842,32 +925,57 @@ KERNEL(sdpa_ocl_decode)(
             // and the zp subtract, dword i already holds keys (2i, 2i+1).
             uint8 vt;
             intel_sub_group_2d_block_read_transform_8b_32r16x1c((__global void*)(value_cache + v_page_off),
-                                                               V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),
+                                                               V_ROW_BYTES,
                                                                PAGED_ATTENTION_BLOCK_SIZE,
-                                                               V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),
-                                                               (int2)(cd * SUBGROUP_SIZE, 0),
+                                                               V_ROW_BYTES,
+                                                               (int2)(V_TILE_COL(cd), 0),
                                                                (private uint*)&vt);
+        #if IS_KV_U4
+            // Same transform, but lane == BYTE column, and the split packing puts head dim
+            // V_TILE_COL(cd) + lane in the low nibble and that dim + V_ROW_ELEMS in the high one --
+            // i.e. exactly tile cd for cd < V_READS and cd otherwise. So the lane == head dim
+            // property survives and only the nibble select is new. Tiles cd and cd + V_READS read
+            // the same line, which the L1 absorbs; pairing them into one read is a later step.
+            const uchar16 vpk = as_uchar16(vt.lo);
+            const uchar16 vnb = (cd < V_READS) ? (vpk & (uchar16)0x0F) : (vpk >> (uchar16)4);
+            vb = as_int8(convert_half16(vnb) - vzp);
+        #else
             vb = as_int8(convert_half16(as_char16(vt.lo)) - vzp);
+        #endif
     #else
             intel_sub_group_2d_block_read_transform_16b_16r16x1c((__global void*)(value_cache + v_page_off),
-                                                                V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),
+                                                                V_ROW_BYTES,
                                                                 PAGED_ATTENTION_BLOCK_SIZE,
-                                                                V_HEAD_SIZE * (int)sizeof(INPUT2_TYPE),
-                                                                (int2)(cd * SUBGROUP_SIZE, 0),
+                                                                V_ROW_BYTES,
+                                                                (int2)(V_TILE_COL(cd), 0),
                                                                 (private uint*)&vb);
     #endif
 #else
             // Hand-built VNNI operand: dword `key_pair` packs keys (2*key_pair, 2*key_pair+1) of
-            // this lane's head dim. The row pitch is V_HEAD_SIZE for both precisions -- the page's
+            // this lane's head dim. The row pitch is V_ROW_ELEMS for every precision -- the page's
             // trailing scale/zp arrays sit after the data, not inside each row.
+    #if IS_KV_U4
+            // One packed byte per lane holds this tile's dim and its twin V_ROW_ELEMS above; the same
+            // V_TILE_COL fold as the block read picks the byte, and cd picks the nibble.
+            const uint v_byte = V_TILE_COL(cd) + lane;
+    #endif
             unroll_for(uint key_pair = 0; key_pair < DPAS_K / 2; ++key_pair) {
-                const INPUT2_TYPE v0 = value_cache[v_page_off + (size_t)(2 * key_pair) * V_HEAD_SIZE + value];
-                const INPUT2_TYPE v1 = value_cache[v_page_off + (size_t)(2 * key_pair + 1) * V_HEAD_SIZE + value];
-    #if IS_KV_COMPRESSED
+    #if IS_KV_U4
+                const INPUT2_TYPE p0 = value_cache[v_page_off + (size_t)(2 * key_pair) * V_ROW_ELEMS + v_byte];
+                const INPUT2_TYPE p1 = value_cache[v_page_off + (size_t)(2 * key_pair + 1) * V_ROW_ELEMS + v_byte];
+                const INPUT0_TYPE v0 = (INPUT0_TYPE)((cd < V_READS) ? (p0 & 0x0F) : (p0 >> 4));
+                const INPUT0_TYPE v1 = (INPUT0_TYPE)((cd < V_READS) ? (p1 & 0x0F) : (p1 >> 4));
+                vb[key_pair] = as_int((MAKE_VECTOR_TYPE(INPUT0_TYPE, 2))(v0 - vzp[2 * key_pair],
+                                                                        v1 - vzp[2 * key_pair + 1]));
+    #else
+                const INPUT2_TYPE v0 = value_cache[v_page_off + (size_t)(2 * key_pair) * V_ROW_ELEMS + value];
+                const INPUT2_TYPE v1 = value_cache[v_page_off + (size_t)(2 * key_pair + 1) * V_ROW_ELEMS + value];
+        #if IS_KV_COMPRESSED
                 vb[key_pair] = as_int((MAKE_VECTOR_TYPE(INPUT0_TYPE, 2))((INPUT0_TYPE)v0 - vzp[2 * key_pair],
                                                                         (INPUT0_TYPE)v1 - vzp[2 * key_pair + 1]));
-    #else
+        #else
                 vb[key_pair] = as_int((MAKE_VECTOR_TYPE(INPUT0_TYPE, 2))(v0, v1));
+        #endif
     #endif
             }
 #endif

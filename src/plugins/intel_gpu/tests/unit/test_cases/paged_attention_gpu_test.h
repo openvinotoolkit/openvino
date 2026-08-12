@@ -432,7 +432,30 @@ struct PagedAttentionManager {
                             // block_size dim is packed: 2 u4 tokens per byte along innermost dim.
                             // Comp region at [d, block_size/2..block_size/2+3]: 2 fp16 = inv_scale, zp per head dim d.
                             const int packed_block = block_size / 2;
+                            // Two layouts, same page SIZE (k_head_size * adjusted_block_size == 12*h):
+                            //   d-major (upstream)   [k_head_size columns][block_size/2 packed tokens +
+                            //                        4] -- a column's tokens are contiguous and its
+                            //                        (inv_scale, zp) pair sits inline at the end of it.
+                            //   token-major (opt-in) [block_size rows][k_head_size/2] packed CHANNEL
+                            //                        pairs (channel 2b low nibble, 2b+1 high), then one
+                            //                        (inv_scale, zp) pair per CHANNEL. Only
+                            //                        pa_kv_cache_update and sdpa_ocl_decode know it;
+                            //                        see paged_attention::k_by_channel_token_major_for().
+                            const bool k_tm = k_cache_token_major();
+                            const int packed_head = k_head_size / 2;
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
+                                const size_t block_offset =
+                                    static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * k_head_size * adjusted_block_size +
+                                    head_idx * k_head_size * adjusted_block_size;
+                                // Token-major scatters a channel's bytes across the token rows and makes
+                                // adjacent channels share a byte, so the page is staged whole and written
+                                // once rather than a column at a time.
+                                std::vector<uint8_t> page;
+                                std::vector<ov::float16> page_comp;
+                                if (k_tm) {
+                                    page.assign(static_cast<size_t>(packed_head) * block_size, 0);
+                                    page_comp.assign(static_cast<size_t>(k_head_size) * 2, ov::float16(0.f));
+                                }
                                 for (int d = 0; d < k_head_size; d++) {
                                     // Gather values for this head dim across all tokens in this block
                                     std::vector<float> vals(block_size, 0.f);
@@ -457,10 +480,22 @@ struct PagedAttentionManager {
                                         int v = static_cast<int>(std::nearbyint(vals[t] * scale + zp_val));
                                         q[t] = static_cast<uint8_t>(std::max(0, std::min(15, v)));
                                     }
+                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
+                                    ov::float16 fp16_zp = static_cast<float>(zp_val);
 
-                                    const size_t block_offset =
-                                        static_cast<size_t>(start_block_idx + block_idx) * num_kv_heads * k_head_size * adjusted_block_size +
-                                        head_idx * k_head_size * adjusted_block_size;
+                                    if (k_tm) {
+                                        for (int t = 0; t < last_token_idx; ++t) {
+                                            uint8_t& b = page[static_cast<size_t>(t) * packed_head + d / 2];
+                                            if (d % 2 == 0)
+                                                b = static_cast<uint8_t>((b & 0xF0u) | (q[t] & 0x0Fu));
+                                            else
+                                                b = static_cast<uint8_t>((b & 0x0Fu) | ((q[t] & 0x0Fu) << 4));
+                                        }
+                                        page_comp[2 * d + 0] = inv_scale_val;
+                                        page_comp[2 * d + 1] = fp16_zp;
+                                        continue;
+                                    }
+
                                     const size_t row_offset = block_offset + d * adjusted_block_size;
 
                                     // Pack 2 u4 tokens per byte: token t0 in lower nibble, t1 in upper nibble
@@ -476,10 +511,15 @@ struct PagedAttentionManager {
 
                                     // Write comp: 2 fp16 (inv_scale, zp) at row_offset + packed_block
                                     const size_t comp_offset_fp16 = (row_offset + packed_block) / 2;
-                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
-                                    ov::float16 fp16_zp = static_cast<float>(zp_val);
                                     set_values(test_stream, memory, &inv_scale_val, 1, comp_offset_fp16 + 0);
                                     set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + 1);
+                                }
+                                if (k_tm) {
+                                    set_values(test_stream, memory, page.data(), page.size(), block_offset);
+                                    // Comp region follows the data rows: k_head_size interleaved
+                                    // (inv_scale, zp) f16 pairs indexed by channel.
+                                    set_values(test_stream, memory, page_comp.data(), page_comp.size(),
+                                               (block_offset + static_cast<size_t>(packed_head) * block_size) / 2);
                                 }
                             }
                         } else {
@@ -705,6 +745,32 @@ struct PagedAttentionManager {
                             const size_t block_base =
                                 (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(head_idx)) *
                                 block_stride;
+
+                            // Under the by-channel token-major staging switch the V page is relaid out
+                            // too: the (scale, zp) pair moves out of every row into trailing per-token
+                            // arrays, which drops the row pitch from packed+4 to packed (a multiple of
+                            // 16, hence 2D-block-readable), and the nibbles switch to the SPLIT
+                            // convention -- byte b holds dim b and dim b + packed -- which is what keeps
+                            // lane == head dim after the reader's VNNI transform. Page SIZE is unchanged
+                            // (16*packed + 64 == 16*(packed+4)). See pa_kv_cache_update_ref.cl's
+                            // IS_VALUE_U4_TOKEN_MAJOR.
+                            const bool v_tm = k_cache_token_major();
+                            if (v_tm) {
+                                const size_t row_base = block_base + static_cast<size_t>(token_idx) * static_cast<size_t>(packed_head_size);
+                                for (int b = 0; b < packed_head_size; b++) {
+                                    int q0 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[b]) * scale_val + zp_val));
+                                    int q1 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[b + packed_head_size]) * scale_val + zp_val));
+                                    q0 = std::max(0, std::min(15, q0));
+                                    q1 = std::max(0, std::min(15, q1));
+                                    uint8_t packed_byte = static_cast<uint8_t>((q0 & 0xFu) | (static_cast<uint8_t>(q1 & 0xFu) << 4));
+                                    set_values(test_stream, memory, &packed_byte, 1, row_base + static_cast<size_t>(b));
+                                }
+                                const size_t comp_f16_base =
+                                    (block_base + static_cast<size_t>(packed_head_size) * static_cast<size_t>(block_size)) / 2;
+                                set_values(test_stream, memory, &inv_scale_fp16, 1, comp_f16_base + static_cast<size_t>(token_idx));
+                                set_values(test_stream, memory, &zp_fp16, 1, comp_f16_base + static_cast<size_t>(block_size) + static_cast<size_t>(token_idx));
+                                continue;
+                            }
 
                             // Token base: each token occupies adjusted_head_size bytes (inline comp)
                             const size_t token_base = block_base + static_cast<size_t>(token_idx) * static_cast<size_t>(adjusted_head_size);
