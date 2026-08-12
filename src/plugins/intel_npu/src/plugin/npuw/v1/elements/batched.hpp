@@ -18,9 +18,8 @@ namespace ov::npuw::batched {
 
 // True when the given compiled model is tagged for batched single-shot scoring --
 // currently the text rerank and text embedding pipelines. The tag is read from the
-// model's own properties (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED, recorded in its config
-// and serialized with it into the blob), which is what lets CompiledModel::create()
-// decide identically at both NPUW entry points.
+// model's own properties (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED). The compile entry
+// point uses this to decide the wrap explicitly.
 bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 
 // A compiled-model decorator that adds batched (batch > 1) execution on top of an
@@ -47,13 +46,6 @@ bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 // wrapper from the indicator alone, with no entry point deciding anything.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
-    // Factory used by the NPUW entry points. Returns the inner model unwrapped
-    // when it is not tagged for batched scoring (see requested()), keeping the
-    // untagged path zero-overhead -- the same convention as the other elements'
-    // create() no-op paths.
-    static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
-                                                            const std::shared_ptr<const ov::IPlugin>& plugin);
-
     // Deserializes a blob written by export_model(). Consumes the batched header,
     // imports the nested inner blob and wraps it.
     static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
