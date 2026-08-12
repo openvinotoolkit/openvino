@@ -41,9 +41,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     bool enable_parameter_weights) {
     const size_t final_weights_rank = batched_weights ? 3 : 2;
 
-    // Constant weights/params: fold the group dims by materializing a reshaped Constant.
     auto combine_groups_constant = [has_transpose, grouped, final_weights_rank](
                                        const std::shared_ptr<v0::Constant>& constant) -> std::shared_ptr<ov::Node> {
+        OPENVINO_ASSERT(constant != nullptr);
         const auto& current_shape = constant->get_shape();
         if (current_shape.size() <= final_weights_rank) {
             return constant;
@@ -79,8 +79,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         return new_constant;
     };
 
-    // Parameter weights/params: shapes are only known at runtime, so fold the group dims with a
-    // Reshape instead of materializing a Constant.
     auto combine_groups_params = [has_transpose, grouped, final_weights_rank, &result_nodes](
                                      const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
         const auto& ps = node->get_output_partial_shape(0);
@@ -110,8 +108,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
         return reshape;
     };
 
-    // Without parameter weights every input is a Constant. With parameter weights an input may be
-    // a Parameter (dynamic shapes -> runtime Reshape) or still a Constant (fold at build time).
     auto combine_groups = [&combine_groups_constant, &combine_groups_params, enable_parameter_weights](
                               const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
         auto constant = ov::as_type_ptr<v0::Constant>(node);
@@ -244,13 +240,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
-        // Weights/scale are static here: constants always are, and CompressedWeightsBlock requires
-        // static shapes for the parameter-weights case (has_static_shape predicate).
-        const auto& weights_pshape = fc->get_input_partial_shape(1);
-        const auto& scale_pshape = weights_block->get_anchor("mul_const", pattern_map).value().get_partial_shape();
-        const auto weights_shape = weights_pshape.to_shape();
+        const auto& weights_shape = fc->get_input_shape(1);
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
-        const auto scale_shape = scale_pshape.to_shape();
+        auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
         bool grouped = scale_shape.size() == weights_shape.size() + 1;
         ov::NodeVector result_nodes;
         const auto [fc_input_b, fc_input_scale, fc_input_zp] = process_compressed_weights(weights_block,

@@ -50,13 +50,9 @@ ov::pass::ConvertGatherMatmulToGatherMatmulCompressed::ConvertGatherMatmulToGath
         }
 
         bool has_transpose = weights_block->get_anchor("transpose", pattern_map).has_value();
-        // Weights/scale are static here: constants always are, and CompressedWeightsBlock requires
-        // static shapes for the parameter-weights case (has_static_shape predicate).
-        const auto& weights_pshape = bgm->get_input_partial_shape(1);
-        const auto& scale_pshape = weights_block->get_anchor("mul_const", pattern_map).value().get_partial_shape();
-        const auto weights_shape = weights_pshape.to_shape();
+        const auto& weights_shape = bgm->get_input_shape(1);
         bool batched_weights = weights_shape.size() == 3 && weights_shape[0] > 1;
-        const auto scale_shape = scale_pshape.to_shape();
+        auto scale_shape = weights_block->get_anchor("mul_const", pattern_map).value().get_shape();
         bool grouped = scale_shape.size() == weights_shape.size() + 1;
 
         ov::NodeVector result_nodes;

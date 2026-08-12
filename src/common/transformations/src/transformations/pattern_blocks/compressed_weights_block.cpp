@@ -34,9 +34,6 @@ ov::pass::pattern::op::CompressedWeightsBlock::CompressedWeightsBlock(
     const std::set<size_t>& supported_weights_ranks,
     bool enable_parameter_weights)
     : Block({}, {}, "CompressedWeightsBlock") {
-    // For the parameter-weights case, require static shapes: downstream group folding in
-    // ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights() needs them.
-    // Constants are always static, so the predicate is only added on the Parameter-capable branch.
     auto weights =
         enable_parameter_weights
             ? wrap_type<v0::Constant, v0::Parameter>(ov::pass::pattern::type_matches_any(supported_weights_types) &&
