@@ -28,10 +28,6 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 }
 #define is_between FUNC_CALL(is_between)
 
-// Same "always load, mask afterward" trick as the original kernel (see the
-// comment on LOAD_INPUT below for why): substitute a safe in-bounds fallback
-// position (0,0) when the true position would be out-of-bounds, and zero the
-// contribution out in INTERPOLATE below instead of branching around the load.
 #define PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD(x_n, y_n)                \
     const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);               \
     const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);               \
