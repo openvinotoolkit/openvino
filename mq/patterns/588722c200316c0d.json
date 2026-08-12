@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "smoke scaledattndynamic4d gpu scaledattnlayergputest comparewithref killed by signal sigsegv|Code Issue",
+  "signature_hash": "588722c200316c0d",
+  "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-08-12T06:33:16Z",
+  "last_seen": "2026-08-12T06:33:16Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31565607750"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37369"
+  ],
+  "recent_timestamps": [
+    "2026-08-12T06:33:16Z"
+  ],
+  "rerun_search_string": null
+}

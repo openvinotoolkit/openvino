@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-06-33-16-000-31565607750",
+  "timestamp": "2026-08-12T06:33:16Z",
+  "run_id": "31565607750",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31565607750",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37369",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37369",
+  "author": "alvoron",
+  "category": "Code Issue",
+  "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
+  "signature": "smoke scaledattndynamic4d gpu scaledattnlayergputest comparewithref killed by signal sigsegv|Code Issue",
+  "signature_hash": "588722c200316c0d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs killed by SIGSEGV"
+    }
+  ],
+  "key_errors": [
+    "[38791/41389] smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=f16_IS=[?.20.?.64]_..._is_causal=0_has_attn=0_is_attn_const=1_has_scale=0_is_scale_const=1_with_transpose1_has_sink=0_ killed by signal SIGSEGV (945 ms)",
+    "FAILED TESTS (1/41389):",
+    "945 ms: /__w/openvino/openvino/install/tests/ov_gpu_func_tests smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/..."
+  ],
+  "root_cause": "The iGPU functional test for GPU ScaledAttention (4D dynamic, f16, 20 heads, 64 head_size, no attention mask, with transpose, non-causal) crashes with SIGSEGV. This PR fixes an out-of-bounds read in CreateGatherOpBase() in the GPU plugin, but the failing test is ScaledAttnLayerGPUTest which appears unrelated to Gather. The SIGSEGV may indicate that the Gather OOB fix (accessing out_shape_original beyond bounds on the new shape-infer path) is inadvertently corrupting memory that affects the ScaledAttn kernel execution path. The PR modifies gather.cpp which handles shape inference for the Gather->Crop lowering optimization; an incorrect shape comparison could corrupt memory used by subsequent operations including attention kernels.",
+  "reproduction_steps": "Run: ov_gpu_func_tests --gtest_filter='smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=f16_IS=[?.20.?.64]_[?.20.?.64]_[?.20.?.64]_[?.1.?.?]_..._is_causal=0_has_attn=0_is_attn_const=1_has_scale=0_is_scale_const=1_with_transpose1_has_sink=0_' on an iGPU device",
+  "recommended_actions": [
+    "Review the OOB fix in src/plugins/intel_gpu/src/plugin/ops/gather.cpp to ensure out_shape_original comparison is bounds-safe",
+    "Run the full iGPU ScaledAttn test suite locally with the PR change to reproduce the crash",
+    "Check if the SIGSEGV is deterministic or flaky by re-running the test multiple times",
+    "If the crash is deterministic, the PR likely introduces a memory corruption bug that must be fixed before merging"
+  ],
+  "prevention_strategies": "GPU plugin changes that modify shape inference paths should include targeted ScaledAttn regression tests, as memory layout changes can affect seemingly unrelated kernels.",
+  "historical_context": "First occurrence of this specific SIGSEGV in smoke_ScaledAttnDynamic4D_GPU."
+}
