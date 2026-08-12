@@ -16,11 +16,11 @@
 
 namespace ov::npuw::batched {
 
-// True when the given compiled model is tagged for batched single-shot scoring --
-// currently the text rerank and text embedding pipelines. The tag is read from the
-// model's own properties (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED). The compile entry
-// point uses this to decide the wrap explicitly.
-bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
+// True when the compile properties tag the model for batched single-shot scoring
+// (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED) -- currently the text rerank and text
+// embedding pipelines. The compile entry point uses this to decide the wrap
+// explicitly. Import needs no such decision, the blob indicator carries it.
+bool requested(const ov::AnyMap& properties);
 
 // A compiled-model decorator that adds batched (batch > 1) execution on top of an
 // inner compiled model that only supports a batch size of 1 (as NPUW's LLM
