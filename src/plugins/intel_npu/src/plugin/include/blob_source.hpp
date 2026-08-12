@@ -18,9 +18,9 @@ namespace intel_npu {
  */
 class BlobSource {
 public:
-    BlobSource(std::istream& source, const ov::log::Level log_level = Logger::global().level());
+    explicit BlobSource(std::istream& source, const ov::log::Level log_level = Logger::global().level());
 
-    BlobSource(const ov::Tensor& source, const ov::log::Level log_level = Logger::global().level());
+    explicit BlobSource(const ov::Tensor& source, const ov::log::Level log_level = Logger::global().level());
 
     void copy_from_source(void* destination, const size_t size);
 
@@ -28,13 +28,19 @@ public:
 
     ov::Tensor get_roi_tensor_from_source(const size_t size);
 
-    void move_cursor(const std::streamoff offset, const std::ios_base::seekdir reference = std::ios::beg);
+    void move_cursor(const int64_t offset, const std::ios_base::seekdir reference = std::ios::beg);
 
-    std::streampos get_cursor() const;
+    size_t get_cursor() const;
 
-    size_t get_size() const;
+    size_t get_total_size() const;
+
+    size_t get_remaining_size() const;
 
 private:
+    BlobSource(const std::variant<std::reference_wrapper<std::istream>,
+                                  std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>& source,
+               const ov::log::Level log_level);
+
     std::variant<std::reference_wrapper<std::istream>, std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>
         m_source;
     size_t m_size;
