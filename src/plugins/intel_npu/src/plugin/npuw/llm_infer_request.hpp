@@ -32,6 +32,7 @@ namespace npuw {
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    ~LLMInferRequest() override;
 
     void infer() override;
 
@@ -178,6 +179,10 @@ protected:
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
+
+    // Cached once - profiling_enabled() is a call_once + static read, too much for
+    // the per-inference run-boundary check
+    const bool m_llm_perf_on = ov::npuw::profiling_enabled();
 
     // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
     std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;

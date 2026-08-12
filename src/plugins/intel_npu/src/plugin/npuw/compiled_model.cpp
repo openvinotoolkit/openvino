@@ -439,7 +439,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     ctx.subgraph_patterns = &combined_subgraph_patterns.value();
 
     ov::npuw::Partitioning partitioning;
-    m_profile["partitioning"].record([&]() {
+    m_profile.record("partitioning", [&]() {
         partitioning = getPartitioning(model, m_cfg, ctx);
     });
 
@@ -811,6 +811,8 @@ void ov::npuw::CompiledModel::init_profiling() {
     // to be called from contructors
     m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = m_name + "/compilation";
+    // Compilation statistics must survive a run boundary - they are collected once
+    m_profile.profile_scope = ov::npuw::perf::Scope::Compilation;
 }
 
 bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,

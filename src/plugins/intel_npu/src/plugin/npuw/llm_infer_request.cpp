@@ -383,8 +383,19 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_generate_initialized = false;
 
-    m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_llm_profile.report_on_die = m_llm_perf_on;
     m_llm_profile.area = "LLM/execution";
+    m_llm_profile.profile_scope = ov::npuw::perf::Scope::Execution;
+
+    // Profiling is supported for one NPUW pipeline at a time - a run boundary here
+    // resets the Execution statistics of every registered profile in the process.
+    if (m_llm_perf_on) {
+        ov::npuw::perf::register_run_boundary_owner(this);
+    }
+}
+
+ov::npuw::LLMInferRequest::~LLMInferRequest() {
+    ov::npuw::perf::unregister_run_boundary_owner(this);
 }
 
 bool ov::npuw::LLMInferRequest::use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const {
@@ -934,7 +945,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
-        m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
+        m_llm_profile.record("1/prefill:3a.prepare_chunk", [&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
             if (enable_prefix_caching && cache_context.restore_prefix_cache) {
                 prefix_caching_helper->populate_attention_mask_for_restored_cache(attention_mask,
@@ -1047,11 +1058,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
         });
 
-        m_llm_profile["1/prefill:3b.infer"].record([&]() {
+        m_llm_profile.record("1/prefill:3b.infer", [&]() {
             m_prefill_request->infer();
         });
 
-        m_llm_profile["1/prefill:3c.post_chunk"].record([&]() {
+        m_llm_profile.record("1/prefill:3c.post_chunk", [&]() {
             // Accumulate Eagle3 last_hidden_state from this chunk
             if (m_eagle3_ext.is_eagle3_model()) {
                 m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
@@ -1071,7 +1082,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-        m_llm_profile["1/prefill:3d.update_kvcache"].record([&]() {
+        m_llm_profile.record("1/prefill:3d.update_kvcache", [&]() {
             // Finalise KV state after inference via strategy.
             m_kvcache_strategy->on_prefill_chunk_done(static_cast<uint32_t>(current_prompts_len), is_last_chunk);
             // Do not copy last computed chunk and preserve it in present k/v layer.
@@ -1110,7 +1121,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
     LOG_DEBUG("Calling inference for prefill model in a single launch.");
     LOG_BLOCK();
 
-    m_llm_profile["1/prefill:3a.prepare"].record([&]() {
+    m_llm_profile.record("1/prefill:3a.prepare", [&]() {
         // NB: padded_input can be either fp32(VLM) or i64(LLM)
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
@@ -1155,7 +1166,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         }
     });
 
-    m_llm_profile["1/prefill:3b.infer"].record([&]() {
+    m_llm_profile.record("1/prefill:3b.infer", [&]() {
         m_prefill_request->infer();
     });
 
@@ -1184,18 +1195,18 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        "\"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
     }
 
-    m_llm_profile["1/prefill:1.prepare_for_new_conversation"].record([&]() {
+    m_llm_profile.record("1/prefill:1.prepare_for_new_conversation", [&]() {
         prepare_for_new_conversation(prompt_length);
     });
 
     process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
 
-    m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
+    m_llm_profile.record("1/prefill:2.apply_lora", [&]() {
         apply_lora();
     });
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
-    m_llm_profile["1/prefill:3.infer"].record([&]() {
+    m_llm_profile.record("1/prefill:3.infer", [&]() {
         if (use_chunk_prefill) {
             infer_chunked_prefill(input_ids,
                                   attention_mask,
@@ -1215,7 +1226,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["1/prefill:4.lm_head"].record([&]() {
+    m_llm_profile.record("1/prefill:4.lm_head", [&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
@@ -1272,7 +1283,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                                         kvcache_desc.dim);
     }
 
-    m_llm_profile["N/generate:1.prepare"].record([&]() {
+    m_llm_profile.record("N/generate:1.prepare", [&]() {
         if (!m_generate_initialized) {
             LOG_DEBUG("Copy kv-cache from prefill to generate model.");
             if (kvcache_desc.num_stored_tokens > 0) {
@@ -1346,14 +1357,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
     });
 
-    m_llm_profile["N/generate:2.infer"].record([&]() {
+    m_llm_profile.record("N/generate:2.infer", [&]() {
         m_kvcache_request->infer();
     });
     kvcache_desc.num_stored_tokens += input_tokens_len;
 
     // Shared post-infer KV cache update for both lm_head and non-lm_head paths.
     auto do_update_kvcache = [&]() {
-        m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
+        m_llm_profile.record("N/generate:3.update_kvcache", [&]() {
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 m_kvcache_strategy->on_generate_step_done(input_tokens_len);
             }
@@ -1364,10 +1375,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
         do_update_kvcache();
-        m_llm_profile["N/generate:4.copy_lincache"].record([&]() {
+        m_llm_profile.record("N/generate:4.copy_lincache", [&]() {
             copy_lincache(m_kvcache_request, m_kvcache_request, m_kvcache_out_ports, m_kvcache_in_ports);
         });
-        m_llm_profile["N/generate:5.lm_head"].record([&]() {
+        m_llm_profile.record("N/generate:5.lm_head", [&]() {
             m_lm_head_request->wait();
             LOG_DEBUG("Calling inference for LM head model -- done.");
 
@@ -1375,7 +1386,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         });
     } else {
         do_update_kvcache();
-        m_llm_profile["N/generate:4.copy_lincache"].record([&]() {
+        m_llm_profile.record("N/generate:4.copy_lincache", [&]() {
             copy_lincache(m_kvcache_request, m_kvcache_request, m_kvcache_out_ports, m_kvcache_in_ports);
         });
 
@@ -1427,7 +1438,6 @@ void ov::npuw::LLMInferRequest::infer() {
         type_ids_port.has_value()) {
         token_type_ids = get_tensor(type_ids_port.value());
     }
-
     auto visual_pos_masks = ov::npuw::util::TensorPtr();
     if (auto port = ov::npuw::util::find_port_by_name(inputs, layer_names::visual_pos_masks); port.has_value()) {
         visual_pos_masks = get_tensor(port.value());
@@ -1464,6 +1474,18 @@ void ov::npuw::LLMInferRequest::infer() {
         // where we need to do prefill on each user input.
         m_first_position_id = position_ids->data<int64_t>()[0];
         m_first_run = false;
+    }
+
+    // Run boundary: a call that starts at the conversation's first position begins a new
+    // conversation. This covers both the prefill-started case and a conversation whose
+    // first prompt is a single token (which takes the generate path), and is false for
+    // normal decode steps and speculative multi-token continuations.
+    // NB: num_stored_tokens cannot be used here - prepare_for_new_conversation() zeroes it
+    // *during* the prefill, so at this point it still holds the previous conversation's value.
+    // Snapshot only: all formatting happens once, at destruction.
+    if (ov::npuw::perf::compiled_in && m_llm_perf_on &&
+        position_ids->data<int64_t>()[0] == m_first_position_id) {
+        ov::npuw::perf::snapshot_and_reset_all(ov::npuw::perf::Scope::Execution);
     }
 
     // NB: Check the sequence length provided for input_ids

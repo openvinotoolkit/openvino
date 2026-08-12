@@ -87,6 +87,26 @@ public:
         return needs_copy(idx);
     }
 
+    bool perf_enabled() const {
+        return m_perf_on;
+    }
+
+    // Resolves (and caches) the profiling tag of a submodel. Attention sub-entries
+    // hang under it, so two distinct attention subgraphs never collapse into one.
+    // Only valid when perf_enabled().
+    const std::string& perf_submodel_tag(std::size_t idx);
+
+    // Resolves a tag against this request's execution profile ONCE. The returned
+    // handle stays valid for the request's lifetime; nullptr when profiling is off.
+    ov::npuw::perf::metric_ptr perf_handle(const std::string& tag);
+
+    // Attribution table, indexed by the _real_ subgraph id. A runtime behavior's
+    // prepare() hook publishes here which metric the next run of that subgraph
+    // should additionally be attributed to (e.g. the selected pyramid level).
+    // Read - not consumed - by the generic subgraph timer, so all calls of a
+    // repeating prototype are counted. Cleared at the start of every infer().
+    void set_perf_attribution(std::size_t real_idx, ov::npuw::perf::metric_ptr m);
+
 protected:
     int64_t m_history_size = 0;
 
@@ -207,11 +227,25 @@ protected:
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     using B = ov::npuw::perf::counter<ov::npuw::perf::Bytes>;
 
+    // Cached once, in the constructor - profiling_enabled() is a call_once + static
+    // read, too much for a hot path. Not const only so tests can force it on.
+    bool m_perf_on = false;
+
     MS m_ms_unpack;
     ov::npuw::perf::Profile<MS> m_profile;
     mutable ov::npuw::perf::Profile<B> m_footprint;  // mutable due to lazy I/O allocation in get_tensor()
 
-    std::string profile_tag(std::size_t idx) const;
+    // Per-submodel profiling handles/tags, indexed by the _real_ submodel id (so all
+    // calls of the same function body accumulate under a single entry). Built lazily.
+    ov::npuw::perf::tag_cache m_perf_submodel_tags;
+    ov::npuw::perf::tag_cache m_perf_device_tags;
+    ov::npuw::perf::ms_handles m_perf_submodel;
+    ov::npuw::perf::ms_handles m_perf_device;
+    ov::npuw::perf::ms_handles m_perf_attribution;
+
+    ov::npuw::perf::metric_ptr perf_submodel_handle(std::size_t idx);
+    ov::npuw::perf::metric_ptr perf_device_handle(std::size_t idx);
+    const std::string& perf_device_tag(std::size_t idx);
 
     // Various name/dump formatting methods
     // TODO: These methods should probably go to CompiledModel
