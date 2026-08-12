@@ -4,7 +4,6 @@
 
 #include "openvino/op/scatter_update.hpp"
 
-#include <memory>
 #include <vector>
 
 #include "base_reference_test.hpp"
@@ -560,6 +559,12 @@ std::vector<ScatterUpdate3Params> generateScatterUpdateNegativeAxisParams() {
     }
     return combinedParams;
 }
+
+class ReferenceScatterUpdate6LayerNegativeTest : public ReferenceScatterUpdate6LayerTest {};
+
+TEST_P(ReferenceScatterUpdate6LayerNegativeTest, CompareWithHardcodedRefs) {
+    OV_EXPECT_THROW(Exec(), ov::Exception, testing::HasSubstr("is out of bounds for axis"));
+}
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_With_Hardcoded_Refs,
@@ -572,28 +577,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate_Negative_Axis_With_Hardcoded_Refs,
                          ::testing::ValuesIn(generateScatterUpdateNegativeAxisParams()),
                          ReferenceScatterUpdate6LayerTest::getTestCaseName);
 
-TEST(smoke_ScatterUpdate_, evaluate_scatter_update_out_of_range_index_throws) {
-    const ov::Shape data_shape{3, 3};
-    const ov::Shape indices_shape{1, 2};
-    const ov::Shape updates_shape{1, 2, 3};
-
-    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, data_shape);
-    auto arg2 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, indices_shape);
-    auto arg3 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, updates_shape);
-    auto arg4 = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
-    auto scatter_update = std::make_shared<ov::op::v3::ScatterUpdate>(arg1, arg2, arg3, arg4);
-    auto model =
-        std::make_shared<ov::Model>(ov::OutputVector{scatter_update}, ov::ParameterVector{arg1, arg2, arg3, arg4});
-    auto result_tensor = ov::Tensor();
-    auto out_vector = ov::TensorVector{result_tensor};
-    // Index far outside `data_shape[0] == 3` range triggers an out-of-bounds write
-    // in the vulnerable implementation instead of being rejected.
-    auto in_vector = ov::TensorVector{
-        CreateTensor(data_shape, ov::element::Type_t::f32, std::vector<float>(shape_size(data_shape))),
-        CreateTensor<int64_t>(indices_shape, ov::element::Type_t::i64, {1, static_cast<int64_t>(INT32_MAX)}),
-        CreateTensor<float>(updates_shape, ov::element::Type_t::f32, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
-        CreateTensor<int64_t>({}, ov::element::Type_t::i64, {0})};
-    OV_EXPECT_THROW(model->evaluate(out_vector, in_vector), ov::Exception, testing::HasSubstr("out of"));
-}
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterUpdate_out_of_range_index_throws,
+    ReferenceScatterUpdate6LayerNegativeTest,
+    ::testing::Values(
+        Builder{}
+            .data({{3, 3}, ov::element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0}})
+            .indices({{1, 2},
+                      ov::element::Type_t::i64,
+                      std::vector<int64_t>{1, static_cast<int64_t>(std::numeric_limits<int64_t>::max())}})
+            .updates({{1, 2, 3}, ov::element::f32, std::vector<float>{1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}})
+            .axis({{1}, ov::element::i64, std::vector<int64_t>{0}})
+            .expected({{3, 3}, ov::element::f32, std::vector<float>{0, 0, 0, 0, 0, 0, 0, 0, 0}})),
+    ReferenceScatterUpdate6LayerNegativeTest::getTestCaseName);
 
 }  // namespace reference_tests
