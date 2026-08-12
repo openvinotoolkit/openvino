@@ -300,7 +300,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
         for (const auto& name : all_names) {
-            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
+            // Quantized KV aux inputs (scale/zero-point) carry a prefix, e.g.
+            // "DynamicQuantize/0/past_key_values/key/scale", so match the marker anywhere
+            // in the name rather than only at the start to include them in the copy set.
+            if (name.find(layer_names::past_key_values) != std::string::npos) {
                 m_kvcache_past_names.push_back(name);
                 break;
             }

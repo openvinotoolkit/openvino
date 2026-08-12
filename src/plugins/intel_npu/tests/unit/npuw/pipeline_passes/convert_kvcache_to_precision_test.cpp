@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <map>
 #include <cstring>
 #include <optional>
@@ -80,6 +81,10 @@ public:
     bool use_chunk_prefill() const {
         return m_use_chunk_prefill;
     }
+
+    uint64_t prefill_chunk_size() const {
+        return m_prefill_chunk_size;
+    }
 };
 
 class TestableLLMInferRequest final : public ov::npuw::LLMInferRequest {
@@ -88,6 +93,12 @@ public:
         : ov::npuw::LLMInferRequest(compiled_model), m_testable_model(compiled_model) {}
 
     using ov::npuw::LLMInferRequest::copy_kvcache;
+    using ov::npuw::LLMInferRequest::update_kvcache_for;
+    using ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache;
+
+    const std::vector<std::string>& kvcache_past_names() const {
+        return m_kvcache_past_names;
+    }
 
     void prepare_non_chunked_copy() {
         auto& desc = m_testable_model->kvcache_desc();
@@ -115,6 +126,39 @@ public:
                                                           desc.max_prompt_size);
         auto dst_view = ov::npuw::util::make_tensor_slice(dst_tensor, gen_kv_dim, 0u, desc.num_stored_tokens);
         return {src_view, dst_view};
+    }
+
+    void prepare_chunked_copy(uint32_t num_stored_tokens, uint64_t tokens_in_present_chunk) {
+        auto& desc = m_testable_model->kvcache_desc();
+        ASSERT_TRUE(m_testable_model->use_chunk_prefill());
+        ASSERT_GT(m_testable_model->prefill_chunk_size(), 0u);
+        ASSERT_GT(desc.max_prompt_size, 0u);
+        desc.num_stored_tokens = num_stored_tokens;
+        m_tokens_in_present_chunk = tokens_in_present_chunk;
+    }
+
+    uint64_t prefill_chunk_size() const {
+        return m_testable_model->prefill_chunk_size();
+    }
+
+    bool past_kv_bound() const {
+        return m_past_kv_bound;
+    }
+
+    // The unit-test harness has no NPU core, so the temp buffer allocated by the chunked
+    // copy_kvcache() backup path (m_past_kv_bound) must live on CPU.
+    void use_cpu_pre_alloc() {
+        m_pre_alloc_device = "CPU";
+    }
+
+    // Returns {pre_kv_dim, gen_kv_dim} used by copy_kvcache() for the given output name.
+    std::pair<uint32_t, uint32_t> kv_dims(const std::string& output_name) const {
+        const auto& desc = m_testable_model->kvcache_desc();
+        const auto is_value_tensor = output_name.find("value") != std::string::npos;
+        const auto kv_dim = [&](bool v_transposed) {
+            return (is_value_tensor && v_transposed) ? 3u : desc.dim;
+        };
+        return {kv_dim(desc.v_tensors_transposed_pre), kv_dim(desc.v_tensors_transposed_gen)};
     }
 
     const ov::npuw::LLMInferBaseRequest::PortsMap& prefill_in_ports() const {
@@ -147,6 +191,16 @@ private:
 
 bool is_kv_name(std::string_view name) {
     return ov::npuw::util::isKVCacheName(std::string(name));
+}
+
+ov::Tensor slice_to_host(const ov::SoPtr<ov::ITensor>& view) {
+    ov::Tensor host(view->get_element_type(), view->get_shape());
+    view->copy_to(ov::get_tensor_impl(host)._ptr);
+    return host;
+}
+
+bool is_aux_kv_name(const std::string& name) {
+    return name.find("scale") != std::string::npos || name.find("zp") != std::string::npos;
 }
 
 const std::map<ov::element::Type, std::map<std::string, ov::element::Type>>& precision_key_input_matrix() {
@@ -670,6 +724,233 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheCopiesQuantizedAuxTensorsBy
 
         EXPECT_EQ(std::memcmp(src_host.data(), dst_host.data(), src_host.get_byte_size()), 0)
             << "copy_kvcache did not copy bytes for pair: " << pair.output_name << " -> " << pair.input_name;
+    }
+}
+
+// Chunked-prefill counterpart of the test above. Exercises the two-part chunked copy_kvcache()
+// path (past chunks + last present chunk, incl. the m_past_kv_bound backup) for quantized aux
+// tensors (scale/zero-point), verifying that every KV output is mapped to its past input by name.
+TEST_F(ConvertKVCacheToPrecisionPassTest, ChunkedCopyKvCacheCopiesQuantizedAuxTensorsByNameMapping) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::i8);
+    props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+    props["NPUW_LLM_PREFILL_CHUNK_SIZE"] = "32";
+    auto compiled = create_testable_model(props, recorder);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_TRUE(compiled->use_chunk_prefill());
+
+    TestableLLMInferRequest request(compiled);
+    // No NPU core in the unit-test harness; keep the chunked backup buffer on CPU.
+    request.use_cpu_pre_alloc();
+
+    const auto chunk_size = static_cast<uint32_t>(request.prefill_chunk_size());
+    ASSERT_GT(chunk_size, 0u);
+    const auto max_prompt = compiled->kvcache_desc().max_prompt_size;
+    ASSERT_GT(max_prompt, 1u);
+
+    // Model the tail of a chunked prefill: the last chunk holds a single token, and at least
+    // one full prior chunk already sits in the past buffer (tokens_in_past > 0 exercises part 1).
+    const uint32_t tokens_in_present = 1u;
+    const uint32_t tokens_in_past = std::min(chunk_size, max_prompt - tokens_in_present);
+    ASSERT_GT(tokens_in_past, 0u);
+    const uint32_t num_stored = tokens_in_past + tokens_in_present;
+    request.prepare_chunked_copy(num_stored, tokens_in_present);
+
+    std::unordered_set<std::string> input_names;
+    for (const auto& [name, _] : request.kvcache_in_ports()) {
+        input_names.insert(name);
+    }
+
+    auto to_host = [](const ov::SoPtr<ov::ITensor>& view) {
+        ov::Tensor host(view->get_element_type(), view->get_shape());
+        view->copy_to(ov::get_tensor_impl(host)._ptr);
+        return host;
+    };
+
+    struct ChunkPair {
+        std::string output_name;
+        std::string input_name;
+        ov::Tensor expected_past;     // prefill past [0, tokens_in_past)  -> gen past head
+        ov::Tensor expected_present;  // prefill present [C - M, C)        -> gen past tail
+    };
+    std::vector<ChunkPair> pairs;
+
+    uint8_t pattern_seed = 11u;
+    for (const auto& [output_name, _] : request.kvcache_out_ports()) {
+        if (!is_kv_name(output_name)) {
+            continue;
+        }
+        const auto resolved_input = resolve_kv_input_name_for_test(output_name, input_names);
+        ASSERT_TRUE(resolved_input.has_value()) << "No past KV input mapped for output: " << output_name;
+        const auto& input_name = resolved_input.value();
+        if (request.prefill_in_ports().find(input_name) == request.prefill_in_ports().end()) {
+            continue;
+        }
+
+        auto present_tensor = request.prefill_request()->get_tensor(request.prefill_out_ports().at(output_name));
+        auto gen_past_tensor = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(input_name));
+        auto prefill_past_tensor = request.prefill_request()->get_tensor(request.prefill_in_ports().at(input_name));
+        if (present_tensor->get_byte_size() == 0 || gen_past_tensor->get_byte_size() == 0) {
+            continue;
+        }
+
+        const auto [pre_kv_dim, gen_kv_dim] = request.kv_dims(output_name);
+
+        // Distinct patterns: A fills gen past (and, when m_past_kv_bound, the aliased prefill past),
+        // B fills prefill present, so the part-2 assertion below can't pass by coincidence.
+        ov::Tensor gen_fill(gen_past_tensor->get_element_type(), gen_past_tensor->get_shape());
+        std::memset(gen_fill.data(), pattern_seed, gen_fill.get_byte_size());
+        ov::get_tensor_impl(gen_fill)->copy_to(gen_past_tensor._ptr);
+
+        ov::Tensor present_fill(present_tensor->get_element_type(), present_tensor->get_shape());
+        std::memset(present_fill.data(), static_cast<int>(pattern_seed + 5), present_fill.get_byte_size());
+        ov::get_tensor_impl(present_fill)->copy_to(present_tensor._ptr);
+        pattern_seed = static_cast<uint8_t>(pattern_seed + 13);
+
+        auto past_src = ov::npuw::util::make_tensor_slice(prefill_past_tensor, pre_kv_dim, 0u, tokens_in_past);
+        auto present_src =
+            ov::npuw::util::make_tensor_slice(present_tensor, pre_kv_dim, chunk_size - tokens_in_present, chunk_size);
+        pairs.push_back({output_name, input_name, to_host(past_src), to_host(present_src)});
+    }
+
+    ASSERT_FALSE(pairs.empty()) << "No KV output/input pairs found for chunked copy_kvcache test";
+
+    ASSERT_NO_THROW(request.copy_kvcache());
+
+    for (const auto& pair : pairs) {
+        auto gen_past_tensor = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(pair.input_name));
+        const auto gen_kv_dim = request.kv_dims(pair.output_name).second;
+        auto past_dst = ov::npuw::util::make_tensor_slice(gen_past_tensor, gen_kv_dim, 0u, tokens_in_past);
+        auto present_dst =
+            ov::npuw::util::make_tensor_slice(gen_past_tensor, gen_kv_dim, tokens_in_past, num_stored);
+
+        ov::Tensor past_host(past_dst->get_element_type(), past_dst->get_shape());
+        ov::Tensor present_host(present_dst->get_element_type(), present_dst->get_shape());
+        past_dst->copy_to(ov::get_tensor_impl(past_host)._ptr);
+        present_dst->copy_to(ov::get_tensor_impl(present_host)._ptr);
+
+        ASSERT_EQ(past_host.get_byte_size(), pair.expected_past.get_byte_size())
+            << "Past-chunk byte-size mismatch for pair: " << pair.output_name << " -> " << pair.input_name;
+        ASSERT_EQ(present_host.get_byte_size(), pair.expected_present.get_byte_size())
+            << "Present-chunk byte-size mismatch for pair: " << pair.output_name << " -> " << pair.input_name;
+
+        EXPECT_EQ(std::memcmp(past_host.data(), pair.expected_past.data(), past_host.get_byte_size()), 0)
+            << "chunked copy_kvcache corrupted past chunk for pair: " << pair.output_name << " -> " << pair.input_name;
+        EXPECT_EQ(std::memcmp(present_host.data(), pair.expected_present.data(), present_host.get_byte_size()), 0)
+            << "chunked copy_kvcache did not copy present chunk for pair: " << pair.output_name << " -> "
+            << pair.input_name;
+    }
+}
+
+// Per generate-step KV update: update_kvcache_for() appends the newly produced token's KV from the
+// generate present outputs into the past inputs, including quantized aux (scale/zero-point) tensors.
+TEST_F(ConvertKVCacheToPrecisionPassTest, UpdateKvCacheForCopiesQuantizedAuxTensorsByNameMapping) {
+    RecordingFactory recorder;
+    auto compiled = create_testable_model(make_kv_precision_props(ov::element::i8), recorder);
+    ASSERT_NE(compiled, nullptr);
+    TestableLLMInferRequest request(compiled);
+
+    auto& desc = compiled->kvcache_desc();
+    ASSERT_GT(desc.max_prompt_size, 0u);
+    const uint32_t num_tokens = 1u;
+    const uint32_t num_stored = desc.max_prompt_size;
+    desc.num_stored_tokens = num_stored;
+
+    struct UpdatePair {
+        std::string output_name;
+        std::string input_name;
+        ov::Tensor expected_tail;  // generate present [src_seq - num_tokens, src_seq)
+    };
+    std::vector<UpdatePair> pairs;
+    bool saw_aux = false;
+
+    uint8_t seed = 23u;
+    for (const auto& input_name : request.kvcache_past_names()) {
+        const auto output_name = ov::npuw::util::past_key_values_to_present_name(input_name);
+        if (request.kvcache_out_ports().find(output_name) == request.kvcache_out_ports().end() ||
+            request.kvcache_in_ports().find(input_name) == request.kvcache_in_ports().end()) {
+            continue;
+        }
+        auto present = request.kvcache_request()->get_tensor(request.kvcache_out_ports().at(output_name));
+        auto past = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(input_name));
+        if (present->get_byte_size() == 0 || past->get_byte_size() == 0) {
+            continue;
+        }
+        saw_aux = saw_aux || is_aux_kv_name(input_name);
+
+        ov::Tensor present_fill(present->get_element_type(), present->get_shape());
+        std::memset(present_fill.data(), seed, present_fill.get_byte_size());
+        ov::get_tensor_impl(present_fill)->copy_to(present._ptr);
+        ov::Tensor past_fill(past->get_element_type(), past->get_shape());
+        std::memset(past_fill.data(), static_cast<int>(seed + 7), past_fill.get_byte_size());
+        ov::get_tensor_impl(past_fill)->copy_to(past._ptr);
+        seed = static_cast<uint8_t>(seed + 13);
+
+        const auto gen_kv_dim = request.kv_dims(output_name).second;
+        const auto src_seq = static_cast<uint32_t>(present->get_shape()[gen_kv_dim]);
+        auto present_tail = ov::npuw::util::make_tensor_slice(present, gen_kv_dim, src_seq - num_tokens, src_seq);
+        pairs.push_back({output_name, input_name, slice_to_host(present_tail)});
+    }
+    ASSERT_FALSE(pairs.empty()) << "No KV output/input pairs found for update_kvcache_for test";
+    ASSERT_TRUE(saw_aux) << "i8 KV cache must expose scale/zero-point past inputs";
+
+    ASSERT_NO_THROW(request.update_kvcache_for(request.kvcache_request(),
+                                               request.kvcache_in_ports(),
+                                               request.kvcache_out_ports(),
+                                               num_tokens,
+                                               desc.v_tensors_transposed_gen));
+
+    for (const auto& pair : pairs) {
+        auto past = request.kvcache_request()->get_tensor(request.kvcache_in_ports().at(pair.input_name));
+        const auto gen_kv_dim = request.kv_dims(pair.output_name).second;
+        auto dst_tail = ov::npuw::util::make_tensor_slice(past, gen_kv_dim, num_stored - num_tokens, num_stored);
+        auto actual = slice_to_host(dst_tail);
+        ASSERT_EQ(actual.get_byte_size(), pair.expected_tail.get_byte_size()) << pair.input_name;
+        EXPECT_EQ(std::memcmp(actual.data(), pair.expected_tail.data(), actual.get_byte_size()), 0)
+            << "update_kvcache_for did not append new-token KV for: " << pair.output_name << " -> " << pair.input_name;
+    }
+}
+
+// on_reset()/clear_chunk_prefill_kv_cache() zero-fill the prefill past KV inputs; the broadened
+// past-name set means quantized aux (scale/zero-point) inputs must be cleared as well.
+TEST_F(ConvertKVCacheToPrecisionPassTest, ClearChunkPrefillZeroFillsQuantizedAuxPastTensors) {
+    RecordingFactory recorder;
+    ov::AnyMap props = make_kv_precision_props(ov::element::i8);
+    props["NPUW_LLM_PREFILL_HINT"] = "DYNAMIC";
+    props["NPUW_LLM_PREFILL_CHUNK_SIZE"] = "32";
+    auto compiled = create_testable_model(props, recorder);
+    ASSERT_NE(compiled, nullptr);
+    TestableLLMInferRequest request(compiled);
+
+    std::vector<std::string> filled;
+    bool saw_aux = false;
+    for (const auto& input_name : request.kvcache_past_names()) {
+        if (request.prefill_in_ports().find(input_name) == request.prefill_in_ports().end()) {
+            continue;
+        }
+        auto past = request.prefill_request()->get_tensor(request.prefill_in_ports().at(input_name));
+        if (past->get_byte_size() == 0) {
+            continue;
+        }
+        saw_aux = saw_aux || is_aux_kv_name(input_name);
+        ov::Tensor fill(past->get_element_type(), past->get_shape());
+        std::memset(fill.data(), 0xAB, fill.get_byte_size());
+        ov::get_tensor_impl(fill)->copy_to(past._ptr);
+        filled.push_back(input_name);
+    }
+    ASSERT_FALSE(filled.empty()) << "No prefill past KV inputs found to clear";
+    ASSERT_TRUE(saw_aux) << "i8 KV cache must expose scale/zero-point past inputs";
+
+    ASSERT_NO_THROW(request.clear_chunk_prefill_kv_cache());
+
+    for (const auto& input_name : filled) {
+        auto past = request.prefill_request()->get_tensor(request.prefill_in_ports().at(input_name));
+        auto host = slice_to_host(past);
+        const auto* bytes = static_cast<const uint8_t*>(host.data());
+        const bool all_zero = std::all_of(bytes, bytes + host.get_byte_size(), [](uint8_t b) {
+            return b == 0u;
+        });
+        EXPECT_TRUE(all_zero) << "clear_chunk_prefill_kv_cache left non-zero bytes in: " << input_name;
     }
 }
 
