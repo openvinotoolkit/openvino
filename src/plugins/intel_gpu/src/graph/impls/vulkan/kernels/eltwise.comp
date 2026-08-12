@@ -21,6 +21,7 @@ layout(set = 0, binding = 3) readonly buffer Metadata {
 const uint max_rank = 8;
 const uint header_words = 4;
 const uint tensor_words = max_rank * 2 + 1;
+const uint linear_storage_flag = 1;
 
 uint tensor_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
     uint base = header_words + tensor_index * tensor_words;
@@ -63,6 +64,15 @@ void main() {
         return;
     }
 
+    uint mode = metadata.values[1];
+    if ((metadata.values[3] & linear_storage_flag) != 0) {
+        uint input0_offset = metadata.values[header_words + max_rank * 2] + linear_index;
+        uint input1_offset = metadata.values[header_words + tensor_words + max_rank * 2] + linear_index;
+        uint output_offset = metadata.values[header_words + 2 * tensor_words + max_rank * 2] + linear_index;
+        output_data.values[output_offset] = apply_operation(input0_data.values[input0_offset], input1_data.values[input1_offset], mode);
+        return;
+    }
+
     uint rank = metadata.values[2];
     uint output_base = header_words + 2 * tensor_words;
     uint coordinates[max_rank];
@@ -78,5 +88,5 @@ void main() {
     uint output_offset = tensor_offset(2, coordinates, rank);
     output_data.values[output_offset] = apply_operation(input0_data.values[input0_offset],
                                                         input1_data.values[input1_offset],
-                                                        metadata.values[1]);
+                                                        mode);
 }

@@ -27,6 +27,7 @@ constexpr uint32_t tensor_words = max_rank * 2 + 1;
 constexpr uint32_t tensor_count = 3;
 constexpr uint32_t metadata_words = header_words + tensor_count * tensor_words;
 constexpr uint32_t local_work_group_size = 64;
+constexpr uint32_t linear_storage_flag = 1U;
 
 bool is_supported_mode(eltwise_mode mode) {
     return one_of(
@@ -41,6 +42,16 @@ bool is_supported_format(format::type fmt) {
 uint32_t checked_u32(size_t value, const char* description) {
     OPENVINO_ASSERT(value <= std::numeric_limits<uint32_t>::max(), "[GPU][Vulkan] Eltwise ", description, " exceeds the 32-bit shader metadata range");
     return static_cast<uint32_t>(value);
+}
+
+bool has_dense_storage(const layout& tensor_layout) {
+    return !static_cast<bool>(tensor_layout.data_padding) &&
+           tensor_layout.bytes_count() == tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
+}
+
+bool can_use_linear_storage(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
+    return has_dense_storage(input0_layout) && has_dense_storage(input1_layout) && has_dense_storage(output_layout) && input0_layout.identical(output_layout) &&
+           input1_layout.identical(output_layout);
 }
 
 void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, uint32_t tensor_index, const layout& tensor_layout, uint32_t output_rank) {
@@ -73,6 +84,7 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
     metadata[0] = checked_u32(output_layout.count(), "element count");
     metadata[1] = static_cast<uint32_t>(instance.get_typed_desc<eltwise>()->mode);
     metadata[2] = output_rank;
+    metadata[3] = can_use_linear_storage(input0_layout, input1_layout, output_layout) ? linear_storage_flag : 0U;
     write_tensor_metadata(metadata, 0, input0_layout, output_rank);
     write_tensor_metadata(metadata, 1, input1_layout, output_rank);
     write_tensor_metadata(metadata, 2, output_layout, output_rank);
