@@ -84,23 +84,7 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 
 // ====================================================================
 //
-// GRID SAMPLE KERNEL (layout-agnostic data/output addressing)
-//
-// Same batched grid-coordinate-caching strategy as the original bfyx-only
-// kernel (decode each spatial location's sampling coordinates once, reuse
-// across all channels -- this is the actual performance win over the
-// reference kernel, which redoes this math redundantly per (n,c,h,w)
-// thread). The only change is that `data`/`output` element addresses now go
-// through INPUT0_GET_INDEX/OUTPUT_GET_INDEX -- the kernel_selector's
-// standard layout-aware indexing macros (same ones grid_sample_ref.cl uses)
-// -- instead of the previous hand-rolled `base + c * H * W` planar-only
-// arithmetic, so this kernel works correctly for any layout the tensor
-// actually has (bfyx, b_fs_yx_fsv16, ...), not just bfyx. `grid` (input1)
-// keeps the original flat block-cached access pattern unchanged: it's a
-// [N,H,W,2] auxiliary tensor, not a feature-map subject to the same
-// blocked-layout optimization decisions as `data`, so this loop's core
-// optimization (reading a whole block of grid values as one contiguous
-// stream) is unaffected either way.
+// GRID SAMPLE KERNEL
 //
 // ====================================================================
 
@@ -129,17 +113,6 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
         const int h = globalThisThreadHW / OUTPUT_SIZE_X;
         const int w = globalThisThreadHW % OUTPUT_SIZE_X;
 
-        // Layout-aware grid read (was: raw contiguous-block pointer arithmetic, which assumed
-        // `grid` is always a simple planar [N,H,W,2] buffer). That assumption broke once `data`
-        // (and therefore, coupled through the layout optimizer, `grid`) could be laid out in a
-        // blocked format like b_fs_yx_fsv16 -- silently corrupting these reads. INPUT1_GET_INDEX
-        // is layout-aware regardless of what `grid`'s actual runtime layout is. Axis mapping
-        // (n, h, w, c) -- not (n, c, h, w) -- matches grid_sample_ref.cl's own established
-        // convention for this tensor's real [N,H,W,2] shape (OpenVINO's generic 4D tensor
-        // descriptor maps dims positionally to batch/feature/y/x regardless of what they
-        // semantically represent, so dim1=H is "feature", dim2=W is "y", dim3=2 is "x" here).
-        // This does trade away the batched block-cached grid read for a per-thread lookup, but
-        // only for these 2 reads -- the channel loop below (the actual hot path) is unaffected.
         const grid_et x_n = grid[INPUT1_GET_INDEX(n, h, w, 0)];
         const grid_et y_n = grid[INPUT1_GET_INDEX(n, h, w, 1)];
 
