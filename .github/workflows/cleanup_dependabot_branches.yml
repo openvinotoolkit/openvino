@@ -40,10 +40,13 @@ jobs:
         timeout-minutes: 15
         with:
           # Inside a called workflow a bare checkout targets the calling
-          # repository, which does not contain the cleanup script, so the
-          # source of the script is pinned here. Runs of this repository's own
-          # workflow keep using the ref they were started from, so script
-          # changes can still be tested by dispatching from a branch.
+          # repository, which does not contain the cleanup script, so the source
+          # of the script is pinned here. Runs of this repository's own workflow
+          # keep using the ref they were started from, so script changes can
+          # still be tested by dispatching from a branch. Callers always get the
+          # script from master: no context exposes the commit a reusable workflow
+          # was read from, so pinning this workflow with @<sha> pins the workflow
+          # but not the script it runs.
           repository: openvinotoolkit/openvino
           ref: ${{ github.repository == 'openvinotoolkit/openvino' && github.ref || 'master' }}
           sparse-checkout: '.github/scripts/dependabot_cleanup'
@@ -65,16 +68,18 @@ jobs:
           # repository with contents:write and pull-requests:read. That account is
           # a repository admin, a role the ruleset bypass list already covers.
           GITHUB_TOKEN: ${{ secrets.DEPENDABOT_CLEANUP_TOKEN }}
-          # Real deletions happen only when dry_run is explicitly off: on the
-          # weekly schedule, where there are no inputs at all and the value is
-          # empty, on a manual run with the checkbox unchecked, and when a
-          # calling workflow passed false. Every other case, including an
-          # unrecognised value, stays a dry run. The comparison against the
-          # string is there because a boolean handed over by a calling workflow
-          # can arrive as a string rather than as a real boolean.
+          # Deleting for real needs a dry_run that is off and a trigger allowed to
+          # delete, which means the weekly schedule or a manual dispatch. Anything
+          # else stays a dry run, including for callers, whose own event is what
+          # shows up here: a caller's cron and its manual runs can delete, a caller
+          # driven by a pull request or a push cannot. That check comes first
+          # because a trigger without inputs leaves dry_run empty, which must not
+          # be read as an explicit "off" outside the schedule.
+          # dry_run is compared against the string too: a boolean from a calling
+          # workflow can arrive as one.
           # The "<cond> && 'false' || 'true'" shape is safe because both sides are
           # non-empty strings, so it never falls through to the wrong value.
-          DRY_RUN: ${{ (!inputs.dry_run || inputs.dry_run == 'false') && 'false' || 'true' }}
+          DRY_RUN: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && (!inputs.dry_run || inputs.dry_run == 'false') && 'false' || 'true' }}
         run: |
           python3 ${{ github.workspace }}/.github/scripts/dependabot_cleanup/cleanup_dependabot_branches.py \
             --repository-name ${GITHUB_REPOSITORY}
