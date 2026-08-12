@@ -14,6 +14,9 @@
 #ifdef OV_GPU_WITH_SYCL_RT
 #include "sycl/sycl_engine_factory.hpp"
 #endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_VULKAN_RT
+#    include "vulkan/vulkan_engine_factory.hpp"
+#endif
 
 #include <string>
 #include <vector>
@@ -232,6 +235,7 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     add_stat(allocation_type::usm_host);
     add_stat(allocation_type::usm_shared);
     add_stat(allocation_type::usm_device);
+    add_stat(allocation_type::vulkan_buffer);
     return statistics;
 }
 
@@ -283,6 +287,11 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
         ret = ze::create_ze_engine(device, runtime_type);
         break;
 #endif
+#ifdef OV_GPU_WITH_VULKAN_RT
+    case engine_types::vulkan:
+        ret = vulkan::create_vulkan_engine(device, runtime_type);
+        break;
+#endif
     default:
         throw std::runtime_error("Invalid engine type");
     }
@@ -324,7 +333,8 @@ bool engine::check_allocatable(const layout& layout, allocation_type type) {
                         "or set ov::intel_gpu::hint::enable_large_allocations config property to true.");
     }
 
-    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
+    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host) +
+                    get_used_device_memory(allocation_type::vulkan_buffer);
     auto exceed_available_mem_size = (layout.bytes_count() + used_mem > get_max_memory_size());
 
     // When dynamic shape upper bound makes bigger buffer, then return false.

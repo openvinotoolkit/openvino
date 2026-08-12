@@ -52,6 +52,10 @@ public:
         return _compute_queue_family;
     }
 
+    std::mutex& get_queue_mutex() {
+        return _queue_mutex;
+    }
+
 private:
     void initialize_info();
 
@@ -64,6 +68,7 @@ private:
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};
     mutable std::mutex _init_mutex;
+    std::mutex _queue_mutex;
 };
 
 }  // namespace vulkan
