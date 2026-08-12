@@ -9,7 +9,7 @@
 #include <string>
 
 #include "backends_registry.hpp"
-#include "blob_format_importers.hpp"
+#include "blob_source.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -70,9 +70,7 @@ private:
      */
     bool should_import_raw_blob(const ov::AnyMap& properties) const;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const std::unique_ptr<IBlobFormatImporter>& blobFormatHandler,
-                                                     FilteredConfig& localConfig,
-                                                     ov::AnyMap& localProperties) const;
+    std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
