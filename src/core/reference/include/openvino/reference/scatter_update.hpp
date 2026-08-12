@@ -96,8 +96,8 @@ static void scatter_update(const char* input_data,
         const size_t indices_idx =
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_in_strides.begin(), uint64_t(0));
         int64_t slice_index = indices[indices_idx];
-        const auto axis_size = static_cast<int64_t>(data_shape[axis]);
-        OPENVINO_ASSERT(slice_index >= 0 && slice_index < axis_size,
+        const auto axis_size = data_shape[axis];
+        OPENVINO_ASSERT(slice_index >= 0 && static_cast<uint64_t>(slice_index) < axis_size,
                         "ScatterUpdate indices value ",
                         slice_index,
                         " is out of bounds for axis ",
