@@ -20,7 +20,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from github import Github
@@ -50,6 +50,8 @@ _MERGE_QUEUE_TIMELINE_EVENTS = {
     "added_to_merge_queue": True,
     "removed_from_merge_queue": False,
 }
+
+MergeQueueStatus = Literal["in_queue", "not_in_queue", "merged", "unknown"]
 
 
 
@@ -118,7 +120,7 @@ def _merge_queue_via_graphql(gh: "Github", owner: str, repo: str, branch: str, p
     if data.get("errors"):
         print(f"GraphQL merge-queue lookup returned errors: {data['errors']}")
         return None
-    merge_queue = ((data.get("data") or {}).get("repository") or {}).get("mergeQueue")
+    merge_queue = data.get("data", {}).get("repository", {}).get("mergeQueue")
     if merge_queue is None:
         return None
     nodes = (merge_queue.get("entries") or {}).get("nodes") or []
@@ -143,7 +145,7 @@ def _merge_queue_via_timeline(pull: "PullRequest") -> bool | None:
     return latest_state
 
 
-def merge_queue_status(gh: "Github", repo: "Repository", pull: "PullRequest") -> str:
+def merge_queue_status(gh: "Github", repo: "Repository", pull: "PullRequest") -> MergeQueueStatus:
     """Resolve a PR's **current** merge-queue membership deterministically.
 
     Returns one of ``in_queue`` / ``not_in_queue`` / ``merged`` / ``unknown``.
