@@ -11,6 +11,16 @@ layout(set = 0, binding = 0) readonly buffer Input0 {
 layout(set = 0, binding = 1) writeonly buffer Output {
     uint8_t values[];
 } output_data;
+#elif ELTWISE_SCALAR_CONSTANT
+layout(set = 0, binding = 0) readonly buffer TensorInput {
+    uint8_t values[];
+} tensor_input_data;
+#define input0_data tensor_input_data
+#define input1_data tensor_input_data
+
+layout(set = 0, binding = 1) writeonly buffer Output {
+    uint8_t values[];
+} output_data;
 #elif ELTWISE_DENSE
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
@@ -37,7 +47,7 @@ layout(set = 0, binding = 2) writeonly buffer Output {
 } output_data;
 #endif
 
-#if ELTWISE_UNARY
+#if ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
 layout(set = 0, binding = 2) readonly buffer Metadata {
 #else
 layout(set = 0, binding = 3) readonly buffer Metadata {
@@ -47,7 +57,7 @@ layout(set = 0, binding = 3) readonly buffer Metadata {
 
 #if ELTWISE_DENSE
 #define packed_output_data output_data
-#elif ELTWISE_UNARY
+#elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
 layout(set = 0, binding = 3) writeonly buffer PackedOutput {
     uint values[];
 } packed_output_data;
@@ -79,7 +89,7 @@ layout(constant_id = specialization_input0_type_id) const uint selected_input0_t
 layout(constant_id = specialization_input1_type_id) const uint selected_input1_type = type_f32;
 layout(constant_id = specialization_output_type_id) const uint selected_output_type = type_f32;
 layout(constant_id = specialization_storage_flags_id) const uint selected_storage_flags = 0;
-#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR || ELTWISE_SCALAR_CONSTANT
 layout(constant_id = specialization_elements_per_invocation_id) const uint selected_elements_per_invocation = 1;
 #endif
 
@@ -251,6 +261,41 @@ float signed_u64_to_float(uvec2 value) {
 float unsigned_u64_to_float(uvec2 value) {
     return float(value.y) * 4294967296.0 + float(value.x);
 }
+
+#if ELTWISE_SCALAR_CONSTANT
+uint scalar_constant_input_index() {
+    return (selected_storage_flags & storage_scalar_constant_input0_flag) != 0 ? tensor_input0 : tensor_input1;
+}
+
+uvec2 scalar_constant_bits(uint type) {
+    uint metadata_base = header_words + scalar_constant_input_index() * tensor_words;
+    uvec2 value = uvec2(metadata.values[metadata_base], metadata.values[metadata_base + max_rank]);
+    if (type == type_i64) {
+        return value;
+    }
+    if (type == type_i32) {
+        return sign_extend(value.x, 32);
+    }
+    if (type == type_i16) {
+        return sign_extend(value.x, 16);
+    }
+    if (type == type_i8) {
+        return sign_extend(value.x, 8);
+    }
+    return uvec2(value.x, 0);
+}
+
+float scalar_constant_float(uint type) {
+    uvec2 value = scalar_constant_bits(type);
+    if (type == type_f32) {
+        return uintBitsToFloat(value.x);
+    }
+    if (type == type_f16) {
+        return unpackHalf2x16(value.x).x;
+    }
+    return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
+}
+#endif
 
 float load_float_0(uint element_offset, uint type) {
     uint offset = element_offset * scalar_size(type);
@@ -659,9 +704,15 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uint input1_type = selected_input1_type;
 #endif
     uint output_type = selected_output_type;
+#if ELTWISE_SCALAR_CONSTANT
+    uint scalar_input_index = scalar_constant_input_index();
+    uint tensor_input_index = scalar_input_index == tensor_input0 ? tensor_input1 : tensor_input0;
+    uint tensor_input_offset;
+#else
     uint input0_offset;
 #if !ELTWISE_UNARY
     uint input1_offset;
+#endif
 #endif
 #if ELTWISE_DENSE
     input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
@@ -670,9 +721,13 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 #else
     uint rank = metadata.values[metadata_rank];
     if ((selected_storage_flags & storage_linear_flag) != 0) {
+#if ELTWISE_SCALAR_CONSTANT
+        tensor_input_offset = metadata.values[header_words + tensor_input_index * tensor_words + max_rank * 2] + linear_index;
+#else
         input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
 #if !ELTWISE_UNARY
         input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
+#endif
 #endif
         output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
     } else {
@@ -684,14 +739,36 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
             coordinates[axis] = remainder % dimension;
             remainder /= dimension;
         }
+#if ELTWISE_SCALAR_CONSTANT
+        tensor_input_offset = storage_element_offset(tensor_input_index, coordinates, rank);
+#else
         input0_offset = storage_element_offset(tensor_input0, coordinates, rank);
 #if !ELTWISE_UNARY
         input1_offset = storage_element_offset(tensor_input1, coordinates, rank);
+#endif
 #endif
         output_offset = storage_element_offset(tensor_output, coordinates, rank);
     }
 #endif
 
+#if ELTWISE_SCALAR_CONSTANT
+    if (is_float_type(input0_type)) {
+        float lhs = scalar_input_index == tensor_input0 ? scalar_constant_float(input0_type) : load_float_0(tensor_input_offset, input0_type);
+        float rhs = scalar_input_index == tensor_input1 ? scalar_constant_float(input1_type) : load_float_1(tensor_input_offset, input1_type);
+        if (is_boolean_mode(mode)) {
+            return uvec2(apply_float_boolean(lhs, rhs, mode) ? 1 : 0, 0);
+        }
+        return float_output_bits(apply_float(lhs, rhs, mode), output_type);
+    } else {
+        uvec2 lhs = scalar_input_index == tensor_input0 ? scalar_constant_bits(input0_type) : load_integer_0(tensor_input_offset, input0_type);
+        uvec2 rhs = scalar_input_index == tensor_input1 ? scalar_constant_bits(input1_type) : load_integer_1(tensor_input_offset, input1_type);
+        bool signed_type = is_signed_type(input0_type);
+        if (is_boolean_mode(mode)) {
+            return uvec2(apply_integer_boolean(lhs, rhs, mode, signed_type) ? 1 : 0, 0);
+        }
+        return apply_integer(lhs, rhs, mode, signed_type);
+    }
+#else
     if (is_float_type(input0_type)) {
         float lhs = load_float_0(input0_offset, input0_type);
 #if ELTWISE_UNARY
@@ -716,6 +793,7 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
         return apply_integer(lhs, rhs, mode, signed_type);
 #endif
     }
+#endif
 }
 
 void store_element(uint output_offset, uint output_size, uvec2 value) {
@@ -739,7 +817,7 @@ void main() {
     uint output_type = selected_output_type;
     uint output_size = scalar_size(output_type);
     bool pack_output = output_size < 4 && (selected_storage_flags & storage_packed_output_flag) != 0;
-#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR || ELTWISE_SCALAR_CONSTANT
     uint elements_per_invocation = selected_elements_per_invocation;
 #else
     uint elements_per_invocation = pack_output ? 4 / output_size : 1;
@@ -753,7 +831,7 @@ void main() {
     uvec2 first_value = evaluate_element(first_element, first_output_offset);
     if (!pack_output) {
         store_element(first_output_offset, output_size, first_value);
-#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR || ELTWISE_SCALAR_CONSTANT
         for (uint vector_index = 1; vector_index < elements_per_invocation; ++vector_index) {
             uint element_index = first_element + vector_index;
             if (element_index >= element_count) {

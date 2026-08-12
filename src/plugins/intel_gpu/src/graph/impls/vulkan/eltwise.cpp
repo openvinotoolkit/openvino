@@ -10,11 +10,14 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
+#include "data_inst.h"
 #include "eltwise_broadcast_vector_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
+#include "eltwise_scalar_constant_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
 #include "eltwise_unary_spirv.hpp"
@@ -44,6 +47,12 @@ enum class kernel_kind : uint8_t {
     broadcast_scalar,
     broadcast_vector,
     unary,
+    scalar_constant,
+};
+
+struct scalar_constant {
+    shader_abi::tensor_index input_index = shader_abi::tensor_index::input1;
+    std::array<uint32_t, 2> bits{};
 };
 
 bool is_supported_mode(eltwise_mode mode) {
@@ -204,6 +213,31 @@ bool has_dense_storage(const layout& tensor_layout) {
            tensor_layout.bytes_count() == tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
 }
 
+std::optional<scalar_constant> get_scalar_constant(const program_node& node) {
+    for (uint32_t input_index = shader_abi::index(shader_abi::tensor_index::input0); input_index <= shader_abi::index(shader_abi::tensor_index::input1);
+         ++input_index) {
+        const auto& dependency = node.get_dependency(input_index);
+        const auto& input_layout = dependency.get_output_layout(false);
+        if (!dependency.is_type<data>() || !dependency.is_constant() || input_layout.is_dynamic() || input_layout.count() != 1 ||
+            input_layout.get_linear_offset() != 0 || !has_dense_storage(input_layout)) {
+            continue;
+        }
+
+        scalar_constant result;
+        result.input_index = static_cast<shader_abi::tensor_index>(input_index);
+        const auto value_size = data_type_traits::size_of(input_layout.data_type);
+        OPENVINO_ASSERT(value_size <= sizeof(result.bits), "[GPU][Vulkan] Eltwise scalar constant exceeds the supported storage size");
+        mem_lock<uint8_t, mem_lock_type::read> constant_data{dependency.as<data>().get_attached_memory_ptr(), node.get_program().get_stream()};
+        std::memcpy(result.bits.data(), constant_data.data(), value_size);
+        return result;
+    }
+    return std::nullopt;
+}
+
+bool can_use_scalar_linear_storage(const layout& tensor_layout, const layout& output_layout) {
+    return has_dense_storage(tensor_layout) && has_dense_storage(output_layout) && tensor_layout.count() == output_layout.count();
+}
+
 bool can_use_linear_storage(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
     return has_dense_storage(input0_layout) && has_dense_storage(input1_layout) && has_dense_storage(output_layout) && input0_layout.identical(output_layout) &&
            input1_layout.identical(output_layout);
@@ -221,6 +255,10 @@ uint32_t output_elements_per_invocation(const layout& output_layout) {
 uint32_t dense_elements_per_invocation(const layout& output_layout) {
     const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
     return checked_u32(std::max<size_t>(1, dense_vector_bytes / scalar_size), "dense vector width");
+}
+
+uint32_t scalar_constant_elements_per_invocation(const layout& output_layout) {
+    return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) ? broadcast_vector_width : output_elements_per_invocation(output_layout);
 }
 
 bool can_use_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
@@ -331,7 +369,7 @@ uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& meta
     return rank;
 }
 
-std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance) {
+std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance, const std::optional<scalar_constant>& scalar) {
     const auto desc = instance.get_typed_desc<eltwise>();
     const auto input_count = instance.inputs_memory_count();
     OPENVINO_ASSERT(input_count == (is_unary_mode(desc->mode) ? 1 : 2), "[GPU][Vulkan] Eltwise received an unexpected input count");
@@ -347,9 +385,17 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
     metadata[shader_abi::index(shader_abi::metadata_field::element_count)] = checked_u32(output_layout.count(), "element count");
     metadata[shader_abi::index(shader_abi::metadata_field::mode)] = shader_abi::value(shader_mode_code(desc->mode));
     metadata[shader_abi::index(shader_abi::metadata_field::rank)] = output_rank;
+    const auto scalar_tensor_index =
+        scalar.has_value() && scalar->input_index == shader_abi::tensor_index::input0 ? shader_abi::tensor_index::input1 : shader_abi::tensor_index::input0;
+    const auto& scalar_tensor_layout = scalar_tensor_index == shader_abi::tensor_index::input0 ? input0_layout : input1_layout;
     metadata[shader_abi::index(shader_abi::metadata_field::flags)] =
-        (can_use_linear_storage(input0_layout, input1_layout, output_layout) ? shader_abi::value(shader_abi::storage_flag::linear) : 0U) |
-        (output_elements_per_invocation(output_layout) > 1 ? shader_abi::value(shader_abi::storage_flag::packed_output) : 0U);
+        ((scalar.has_value() ? can_use_scalar_linear_storage(scalar_tensor_layout, output_layout)
+                             : can_use_linear_storage(input0_layout, input1_layout, output_layout))
+             ? shader_abi::value(shader_abi::storage_flag::linear)
+             : 0U) |
+        (output_elements_per_invocation(output_layout) > 1 ? shader_abi::value(shader_abi::storage_flag::packed_output) : 0U) |
+        (scalar.has_value() && scalar->input_index == shader_abi::tensor_index::input0 ? shader_abi::value(shader_abi::storage_flag::scalar_constant_input0)
+                                                                                       : 0U);
     metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(scalar_type_code(input0_layout.data_type));
     metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(scalar_type_code(input1_layout.data_type));
     metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(scalar_type_code(output_layout.data_type));
@@ -366,6 +412,11 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
     write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
     metadata[shader_abi::index(shader_abi::metadata_field::rank)] = collapse_metadata_dimensions(metadata, output_rank);
+    if (scalar.has_value()) {
+        const auto scalar_metadata_base = header_words + shader_abi::index(scalar->input_index) * tensor_words;
+        metadata[scalar_metadata_base] = scalar->bits[0];
+        metadata[scalar_metadata_base + max_rank] = scalar->bits[1];
+    }
     return metadata;
 }
 
@@ -382,6 +433,9 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::unary) {
         spirv = eltwise_unary_spirv;
         spirv_size = sizeof(eltwise_unary_spirv);
+    } else if (kind == kernel_kind::scalar_constant) {
+        spirv = eltwise_scalar_constant_spirv;
+        spirv_size = sizeof(eltwise_scalar_constant_spirv);
     }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
@@ -395,9 +449,13 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::vulkan::eltwise_impl)
 
-    eltwise_impl() : eltwise_impl(kernel_kind::broadcast_scalar) {}
+    eltwise_impl() : eltwise_impl(kernel_kind::broadcast_scalar, std::nullopt) {}
 
-    explicit eltwise_impl(kernel_kind kind) : parent("vulkan_eltwise"), _kernel_source(make_kernel_source(kind)), _kernel_kind(kind) {}
+    eltwise_impl(kernel_kind kind, std::optional<scalar_constant> scalar)
+        : parent("vulkan_eltwise"),
+          _kernel_source(make_kernel_source(kind)),
+          _kernel_kind(kind),
+          _scalar_constant(std::move(scalar)) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
@@ -416,11 +474,26 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     void save(BinaryOutputBuffer& buffer) const override {
         parent::save(buffer);
         buffer << make_data(&_kernel_kind, sizeof(_kernel_kind));
+        const bool has_scalar_constant = _scalar_constant.has_value();
+        buffer << make_data(&has_scalar_constant, sizeof(has_scalar_constant));
+        if (has_scalar_constant) {
+            buffer << make_data(&_scalar_constant->input_index, sizeof(_scalar_constant->input_index));
+            buffer << make_data(_scalar_constant->bits.data(), sizeof(_scalar_constant->bits));
+        }
     }
 
     void load(BinaryInputBuffer& buffer) override {
         parent::load(buffer);
         buffer >> make_data(&_kernel_kind, sizeof(_kernel_kind));
+        bool has_scalar_constant = false;
+        buffer >> make_data(&has_scalar_constant, sizeof(has_scalar_constant));
+        if (has_scalar_constant) {
+            _scalar_constant.emplace();
+            buffer >> make_data(&_scalar_constant->input_index, sizeof(_scalar_constant->input_index));
+            buffer >> make_data(_scalar_constant->bits.data(), sizeof(_scalar_constant->bits));
+        } else {
+            _scalar_constant.reset();
+        }
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
@@ -473,7 +546,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         OPENVINO_ASSERT(instance.get_intermediates_memories().size() == 1, "[GPU][Vulkan] Eltwise metadata buffer was not allocated");
 
         auto& stream = instance.get_network().get_stream();
-        const auto metadata = make_metadata(instance);
+        const auto metadata = make_metadata(instance, _scalar_constant);
         auto metadata_memory = instance.get_intermediates_memories().front();
         if (!_metadata_initialized || metadata != _cached_metadata) {
             metadata_memory->copy_from(stream, metadata.data(), true);
@@ -490,12 +563,16 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const bool use_dense_kernel = _kernel_kind == kernel_kind::dense;
         const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
         const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
+        const bool use_scalar_constant_kernel = _kernel_kind == kernel_kind::scalar_constant;
+        OPENVINO_ASSERT(use_scalar_constant_kernel == _scalar_constant.has_value(),
+                        "[GPU][Vulkan] Scalar Eltwise kernel and constant metadata are inconsistent");
         OPENVINO_ASSERT(!use_dense_kernel || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
                         "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
                         "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
         const auto elements_per_invocation = use_dense_kernel              ? dense_elements_per_invocation(output_layout)
                                              : use_broadcast_vector_kernel ? broadcast_vector_width
+                                             : use_scalar_constant_kernel  ? scalar_constant_elements_per_invocation(output_layout)
                                                                            : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
@@ -511,11 +588,15 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             {shader_abi::index(shader_abi::specialization_id::output_type), metadata[shader_abi::index(shader_abi::metadata_field::output_type)]},
             {shader_abi::index(shader_abi::specialization_id::storage_flags), metadata[shader_abi::index(shader_abi::metadata_field::flags)]},
         };
-        if (use_dense_kernel || use_broadcast_vector_kernel) {
+        if (use_dense_kernel || use_broadcast_vector_kernel || use_scalar_constant_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
         }
         descriptor.arguments = {{argument_desc::Types::INPUT, 0}};
-        if (!use_unary_kernel) {
+        if (use_scalar_constant_kernel) {
+            descriptor.arguments.front().index = _scalar_constant->input_index == shader_abi::tensor_index::input0
+                                                     ? shader_abi::index(shader_abi::tensor_index::input1)
+                                                     : shader_abi::index(shader_abi::tensor_index::input0);
+        } else if (!use_unary_kernel) {
             descriptor.arguments.push_back({argument_desc::Types::INPUT, 1});
         }
         descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
@@ -537,6 +618,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 private:
     std::shared_ptr<kernel_string> _kernel_source;
     kernel_kind _kernel_kind = kernel_kind::broadcast_scalar;
+    std::optional<scalar_constant> _scalar_constant;
     std::vector<kernel::ptr> _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
@@ -582,17 +664,24 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     const auto& input0_layout = params.get_input_layout(0);
     const auto& input1_layout = input_count == 1 ? input0_layout : params.get_input_layout(1);
     kernel_kind kind = kernel_kind::broadcast_scalar;
+    std::optional<scalar_constant> scalar;
     if (is_unary_mode(node.as<eltwise>().get_primitive()->mode)) {
         kind = kernel_kind::unary;
     } else if (!params.is_dynamic()) {
         const auto& output_layout = params.get_output_layout(0);
-        if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
+        scalar = get_scalar_constant(node);
+        if (scalar.has_value() && output_layout.count() >= broadcast_vector_min_elements) {
+            kind = kernel_kind::scalar_constant;
+        } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
             kind = kernel_kind::dense;
         } else if (can_use_broadcast_vector_kernel(output_layout)) {
             kind = kernel_kind::broadcast_vector;
         }
+        if (kind != kernel_kind::scalar_constant) {
+            scalar.reset();
+        }
     }
-    return std::make_unique<eltwise_impl>(kind);
+    return std::make_unique<eltwise_impl>(kind, std::move(scalar));
 }
 
 }  // namespace vulkan
