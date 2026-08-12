@@ -207,9 +207,12 @@ static FlashAttentionResults execute_fused_flash_attention(const HFATileF32Nodes
     auto past_sum_squeezed = std::make_shared<ov::op::v0::Squeeze>(f32_nodes.past_d_f32, squeeze);
     past_sum_squeezed->set_friendly_name("past_sum_squeezed");
 
+    const bool use_mask = is_last_tile || static_cast<bool>(f32_nodes.mask_tile_f32);
+    OPENVINO_ASSERT(!is_last_tile || f32_nodes.mask_tile_f32,
+                    "Final fused HFA tile requires mask input, but mask_tile_f32 is missing");
+
     std::shared_ptr<ov::intel_npu::op::FlashAttentionTile> flash_attn_tile;
-    if (is_last_tile) {
-        // Use mask for final tile to ensure proper masking of the last KV block
+    if (use_mask) {
         flash_attn_tile = std::make_shared<ov::intel_npu::op::FlashAttentionTile>(q_input,
                                                                                   k_input,
                                                                                   v_for_attn,
