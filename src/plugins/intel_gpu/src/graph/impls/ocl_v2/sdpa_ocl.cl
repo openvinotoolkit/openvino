@@ -31,15 +31,34 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  define MASK_IS_FULL_2D  (MASK_KIND == 2)
 #endif
 
+// Row pitch of a K / V cache page's DATA region, in elements of the cache dtype. That is HEAD_SIZE
+// for f16 and i8 -- so those paths preprocess to exactly what they were and the host does not jit
+// these at all -- but a u4 page packs two values per byte while its layout dtype is u8, so the pitch
+// is NOT derivable from HEAD_SIZE and sizeof() and the host has to supply it:
+//   K u4 BY_CHANNEL  exactly HEAD_SIZE/2, deliberately NOT aligned up. 16*(h/2) data bytes + 4*h comp
+//                    bytes == 12*h is what makes the token-major page a byte-exact fit into the
+//                    allocation the upstream d-major INT4 page already has; aligning the pitch up
+//                    would overflow that page whenever h % 32 != 0.
+//   V u4 BY_TOKEN    Align(HEAD_SIZE/2, SUBGROUP_SIZE). Aligning is free here because the trailing
+//                    comp slack absorbs it (16*PV + 64 == 16*(PV+4)), and it keeps the pitch a
+//                    multiple of 16 for every head size.
+// Matches sdpa_ocl_decode.cl's K_ROW_ELEMS / V_ROW_ELEMS and the writer's phys_{k,v}_head_size.
+#ifndef PA_K_ROW_ELEMS
+#  define PA_K_ROW_ELEMS HEAD_SIZE
+#endif
+#ifndef PA_V_ROW_ELEMS
+#  define PA_V_ROW_ELEMS HEAD_SIZE
+#endif
+
 // In-page addressing for a paged-attention K cache, in K elements. d-major pages
 // ([.., k_head_size, block_size]) make the tokens of one head dim contiguous; token-major ones
 // ([.., block_size, k_head_size]) make one token's head dims contiguous, matching the V cache.
 // The scalar-gather branches below express every read as
 // (head * PA_K_HIDDEN_STRIDE + token * PA_K_TOKEN_STRIDE) so one code path serves both -- they are
 // the fallback whenever the block-read pitch rule fails, which for a token-major cache means
-// head 48/80 (f16) or head 32/48/80/96 (i8).
+// head 48/80 (f16), head 32/48/80/96 (i8) or head % 128 != 0 (u4).
 #if IS_PA_K_TOKEN_MAJOR
-#  define PA_K_TOKEN_STRIDE  HEAD_SIZE
+#  define PA_K_TOKEN_STRIDE  PA_K_ROW_ELEMS
 #  define PA_K_HIDDEN_STRIDE 1
 #else
 #  define PA_K_TOKEN_STRIDE  1
@@ -65,23 +84,74 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  endif
 #endif
 
-// Byte offset from a K page base to the comp region that follows the data rows. Same place for both
-// quant modes -- only its CONTENT differs:
+// Offset from a K / V page base to the comp region that follows the data rows, in cache-dtype
+// elements (which is bytes in every compressed mode). Same place for every quant mode -- only the
+// CONTENT differs:
 //   BY_TOKEN   two per-token f16 arrays, scale at [token], zp at [PAGED_ATTENTION_BLOCK_SIZE + token]
 //   BY_CHANNEL HEAD_SIZE interleaved (scale, zp) f16 pairs, so channel c's pair is the DWORD at [c]
+// The packing shrinks the DATA region, not the comp region, which is why the multiplier is
+// PA_*_ROW_ELEMS rather than HEAD_SIZE.
 // Matches pa_kv_cache_update_ref.cl's BC_COMP_OFF / quantize_and_save_per_token.
 #if IS_PAGED_ATTENTION
-#  define PA_K_COMP_OFF ((size_t)HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE)
+#  define PA_K_COMP_OFF ((size_t)PA_K_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
+#  define PA_V_COMP_OFF ((size_t)PA_V_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
+#endif
+
+// ---------------------------------------------------------------------------------------------
+// u4 (INT4) token-major BY_CHANNEL K cache: the DPAS depth axis is PERMUTED.
+//
+// This kernel's KQ A operand is K itself, so lane == head dim (the DPAS depth index) -- the exact
+// mirror of sdpa_ocl_decode.cl, where K is the B operand and lane == token. The K page uses the
+// upstream ADJACENT nibble order (byte b holds channel 2b in the low nibble, 2b+1 in the high), which
+// the writer is forced into: NUM_K_HEAD_SIZE_PARTITIONS splits the channel range across WORKGROUPS,
+// so a split-at-k/2 convention would put a byte's two channels in different workgroups and race.
+//
+// A byte column is therefore a channel PAIR, so the 8b VNNI-transform read -- whose lane IS the byte
+// column -- hands lane L channels (2L, 2L+1) of the window, never the contiguous (base + L) a DPAS
+// tile wants. No lane-local rearrangement can fix that; only a cross-lane shuffle could.
+//
+// The way out is that depth is a CONTRACTION axis: permuting it identically in A and B leaves
+// sum_d K[key][d] * Q[query][d] unchanged. So both operands adopt this labelling, in which tile db
+// of the pair covering the 32-channel window win = (db>>1)*32 owns the even channels for db even and
+// the odd ones for db odd:
+//
+//     PA_K_U4_CHANNEL(db, L) = win + 2L + (db & 1)          byte = win/2 + L,  nibble = db & 1
+//
+// Every consumer then falls out cheaply:
+//   - the 2D read at byte column win/2 lands exactly this, one read per tile PAIR;
+//   - the per-lane fallback addresses byte (win/2 + L) -- LANE-CONTIGUOUS, i.e. better coalesced
+//     than the natural order would be, and the nibble select is lane-uniform;
+//   - the per-channel comp is one vload2 per window, serving both tiles of the pair at once;
+//   - Q pays the whole cost, ONCE per workgroup, in the SLM staging loop below.
+// ---------------------------------------------------------------------------------------------
+#if IS_PA_K_U4
+#  define PA_K_U4_WIN(db)        (((db) >> 1) * (2 * DPAS_K))
+#  define PA_K_U4_PAR(db)        ((db) & 1)
+#  define PA_K_U4_CHANNEL(db, l) (PA_K_U4_WIN(db) + 2 * (int)(l) + PA_K_U4_PAR(db))
+#endif
+
+// V keeps the SPLIT convention instead (byte b holds dim b and dim b + PA_V_ROW_ELEMS), because V is
+// the S*V B operand where lane == head dim as well -- with adjacent packing a lane would own two
+// different dims and no DPAS N axis could express it. So a read at the folded byte column hands lane
+// c head dim base + c in BOTH halves, and the whole S*V tile loop, vb indexing and output store are
+// unchanged; only the column fold and a nibble select are new. Both are the identity for i8/f16, so
+// those paths preprocess to exactly what they were.
+#if IS_PA_K_U4
+#  define PA_V_U4_HI(base)  ((base) >= PA_V_ROW_ELEMS)
+#  define PA_V_U4_COL(base) (PA_V_U4_HI(base) ? ((base) - PA_V_ROW_ELEMS) : (base))
+#else
+#  define PA_V_U4_HI(base)  0
+#  define PA_V_U4_COL(base) (base)
 #endif
 
 // Host/kernel drift guards for the token-major BY_CHANNEL K page. Each of these would otherwise
 // silently read the wrong bytes rather than fail to build.
 #if IS_PA_K_BY_CHANNEL
 #  if !IS_PA_KV_COMPRESSED
-#    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL requires a compressed (i8) K cache"
+#    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL requires a compressed (i8 or u4) K cache"
 #  endif
 #  if !IS_PA_K_TOKEN_MAJOR
-// The data region must be [block_size tokens, HEAD_SIZE]; upstream BY_CHANNEL is d-major and its
+// The data region must be [block_size tokens, PA_K_ROW_ELEMS]; upstream BY_CHANNEL is d-major and its
 // comp lives inline at the end of every column, which nothing below can address.
 #    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL is only valid for the token-major BY_CHANNEL page"
 #  endif
@@ -90,6 +160,27 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE), not its row pitch. A host that added the BY_TOKEN +4 here
 // would put every page base 4 * block_size bytes too far apart.
 #    error "sdpa_ocl.cl: BY_CHANNEL must leave ADJUSTED_K_HEAD_SIZE == HEAD_SIZE"
+#  endif
+#endif
+
+#if IS_PA_K_U4
+#  if !IS_PA_K_BY_CHANNEL
+// A u4 PA key cache is always BY_CHANNEL -- execution_config.cpp asserts against 4-bit BY_TOKEN keys
+// -- so there is no u4 BY_TOKEN path to write and none is implemented.
+#    error "sdpa_ocl.cl: IS_PA_K_U4 requires the token-major BY_CHANNEL page"
+#  endif
+#  if (HEAD_SIZE % 2) != 0
+// PA_K_ROW_ELEMS is HEAD_SIZE/2 exactly, with no rounding anywhere.
+#    error "sdpa_ocl.cl: u4 needs an even HEAD_SIZE"
+#  endif
+#  if (DKS % 2) != 0
+// The depth permutation pairs DPAS tiles (2g, 2g+1) over a 32-channel window. DKS is D_MAX/DPAS_K and
+// D_MAX is a power of two >= 32, so this always holds -- it is here to make a drift loud.
+#    error "sdpa_ocl.cl: u4 needs an even DKS so the depth tiles pair up"
+#  endif
+#  if (PA_V_ROW_ELEMS % SUBGROUP_SIZE) != 0
+// PA_V_U4_COL folds whole 16-wide byte-column groups, which assumes the split point is one.
+#    error "sdpa_ocl.cl: u4 needs PA_V_ROW_ELEMS to be a multiple of SUBGROUP_SIZE"
 #  endif
 #endif
 
@@ -276,8 +367,64 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int q_block = tile / DKS;   // 0..q_blocks-1
         const int db      = tile % DKS;   // 0..DKS-1
         const int query_base = wg_j0 + q_block * SUBGROUP_SIZE;
-        const int head_base = db * DPAS_K;
         uint8 q_pack;
+#if IS_PA_K_U4
+        // The u4 K page forces a permuted depth axis (see PA_K_U4_CHANNEL): chunk db holds the even
+        // channels of its 32-channel window for db even and the odd ones for db odd. Q is the other
+        // operand of the same contraction, so it has to adopt the identical labelling -- and the
+        // cheapest place to pay for that is here, in the staging that runs ONCE per workgroup, rather
+        // than per k0 tile in the KQ loop.
+        //
+        // A chunk therefore spans 32 consecutive channels instead of DPAS_K, read as two windows w0/w1
+        // (the block read returns 8 dwords == 16 halves). Both parities read the same 32 channels, so
+        // Q's staging traffic doubles -- irrelevant next to K/V, and nothing downstream changes.
+        //
+        // The deinterleave is pure dword arithmetic: w0 dword m holds channels (win+2m, win+2m+1) as
+        // (low, high), and q_pack dword j must hold channels (win+4j+par, win+4j+2+par), i.e. half
+        // `par` of dwords 2j and 2j+1 of the same window. Three ops per output dword, 8 dwords.
+        const int u4_win = PA_K_U4_WIN(db);
+        const int u4_par = PA_K_U4_PAR(db);
+        uint8 w0, w1;
+    #if USE_2D_BLOCK_IO_Q
+        if (query_base + SUBGROUP_SIZE <= q && u4_win + 2 * DPAS_K <= d) {
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
+                (global void *)Q, QD_w, QD_h, QD_p,
+                (int2)(u4_win / 2, query_base), (private uint *)&w0);
+            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
+                (global void *)Q, QD_w, QD_h, QD_p,
+                (int2)(u4_win / 2 + DPAS_K / 2, query_base), (private uint *)&w1);
+        } else
+    #endif
+        {
+            const int query = query_base + lane;
+            ushort16 qv0 = (ushort16)0;
+            ushort16 qv1 = (ushort16)0;
+            if (query < q) {
+                const global ushort *q_row = (const global ushort *)(Q + (size_t)query * ldq + u4_win);
+                if (u4_win + 2 * DPAS_K <= d) {
+                    qv0 = vload16(0, q_row);
+                    qv1 = vload16(1, q_row);
+                } else {
+                    #pragma unroll
+                    for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
+                        if (u4_win + head_offset < d)
+                            qv0[head_offset] = q_row[head_offset];
+                        if (u4_win + DPAS_K + head_offset < d)
+                            qv1[head_offset] = q_row[DPAS_K + head_offset];
+                    }
+                }
+            }
+            w0 = as_uint8(as_short16(qv0));
+            w1 = as_uint8(as_short16(qv1));
+        }
+        #pragma unroll
+        for (int j = 0; j < 8; ++j) {
+            const uint a = (j < 4) ? w0[2 * j] : w1[2 * (j - 4)];
+            const uint b = (j < 4) ? w0[2 * j + 1] : w1[2 * (j - 4) + 1];
+            q_pack[j] = u4_par ? ((a >> 16) | (b & 0xFFFF0000u)) : ((a & 0x0000FFFFu) | (b << 16));
+        }
+#else
+        const int head_base = db * DPAS_K;
 #if USE_2D_BLOCK_IO_Q
         if (query_base + SUBGROUP_SIZE <= q && head_base + DPAS_K <= d) {
             intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
@@ -302,6 +449,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
             q_pack = as_uint8(as_short16(qv));
         }
+#endif
         intel_sub_group_block_write8(
             (local uint *)&Q_slm[((db * q_blocks + q_block) * Q_DWORDS) * SUBGROUP_SIZE], q_pack);
     }
@@ -460,6 +608,37 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         PA_K_PAGE_STRIDE +
                 PA_K_COMP_OFF);
             const bool sc_valid = (key_base + kg * SUBGROUP_SIZE) < k;
+        #if IS_PA_K_U4
+            // The permuted depth labelling makes this CHEAPER than the i8 one, not dearer: tiles 2g
+            // and 2g+1 want the comp dwords for channels (win + 2L) and (win + 2L + 1), which are
+            // ADJACENT, so one uint2 per-lane load covers the whole pair. Across the subgroup that is
+            // 16 lanes x 8 bytes over one contiguous 128-byte span -- fully coalesced, and half as
+            // many messages as i8's one block read per tile.
+            // Same two guards as i8: the window can run past HEAD_SIZE when HEAD_SIZE is not a
+            // multiple of 2*DPAS_K (the comp region is exactly HEAD_SIZE dwords, so an unguarded read
+            // walks into the next page), and a key group at/past k had its page clamped to 0, whose
+            // comp bytes are then arbitrary -- sc = zp = 0 keeps the dequant finite, which is all the
+            // masked-out score needs.
+            #pragma unroll
+            for (int g = 0; g < DKS / 2; ++g) {
+                const int u4_win = g * (2 * DPAS_K);
+                uint2 pair2 = (uint2)(0u, 0u);
+                if (u4_win + 2 * DPAS_K <= HEAD_SIZE) {
+                    if (sc_valid)
+                        pair2 = vload2(lane, k_comp_ch + u4_win);
+                } else {
+                    const int c0 = u4_win + 2 * (int)lane;
+                    pair2.s0 = (sc_valid && c0 < HEAD_SIZE) ? k_comp_ch[c0] : 0u;
+                    pair2.s1 = (sc_valid && c0 + 1 < HEAD_SIZE) ? k_comp_ch[c0 + 1] : 0u;
+                }
+                const half2 sc_zp0 = as_half2(pair2.s0);
+                const half2 sc_zp1 = as_half2(pair2.s1);
+                k_pa_sc_ch[kg][2 * g + 0] = sc_zp0.s0;
+                k_pa_zp_ch[kg][2 * g + 0] = sc_zp0.s1;
+                k_pa_sc_ch[kg][2 * g + 1] = sc_zp1.s0;
+                k_pa_zp_ch[kg][2 * g + 1] = sc_zp1.s1;
+            }
+        #else
             #pragma unroll
             for (int db = 0; db < DKS; ++db) {
                 uint pair = 0u;
@@ -472,6 +651,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 k_pa_sc_ch[kg][db] = sc_zp.s0;
                 k_pa_zp_ch[kg][db] = sc_zp.s1;
             }
+        #endif
         }
     #elif IS_PA_KV_COMPRESSED
         // Same hoist, applied to the i8 cache's per-key scale/zp. They live in the two trailing f16
@@ -605,10 +785,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int kp_rows = min((int)PAGED_ATTENTION_BLOCK_SIZE, k - kg_key0);
                 if (kp_rows > 0) {
                     uint kt[8];
+                    #if IS_PA_K_U4
+                    // Same builtin, half the surface: the row is PA_K_ROW_ELEMS bytes and a byte
+                    // column is a CHANNEL PAIR, so one read at byte column PA_K_U4_WIN(db)/2 covers
+                    // 32 channels == the tile pair (db, db^1) under the permuted labelling. The
+                    // partner tile re-issues the identical read and the L1 absorbs it; folding the
+                    // pair into one read would have to hoist k_raw out of the db loop, which at
+                    // head 128 is 128 extra ushorts of live state -- deferred, exactly as the V-tile
+                    // pairing is in sdpa_ocl_decode.cl.
+                    // x is in elements (bytes here) and PA_K_U4_WIN(db)/2 is a multiple of
+                    // SUBGROUP_SIZE, which satisfies the spec's "multiple of four for 8-bit data".
+                    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+                        (global void *)(K + ((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
+                                                PA_K_PAGE_STRIDE),
+                        PA_K_ROW_ELEMS, kp_rows, PA_K_ROW_ELEMS, (int2)(PA_K_U4_WIN(db) / 2, 0),
+                        (private uint *)&kt[0]);
+                    #else
                     intel_sub_group_2d_block_read_transform_8b_32r16x1c(
                         (global void *)(K + ((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
                                                 PA_K_PAGE_STRIDE),
                         d, kp_rows, HEAD_SIZE, (int2)(db * DPAS_K, 0), (private uint *)&kt[0]);
+                    #endif
                     #if IS_PA_K_BY_CHANNEL
                     // Per-channel scale/zp are per LANE, so they leave the key loop entirely: one pair
                     // for the whole (page, head-dim tile) instead of BY_TOKEN's broadcast per key.
@@ -625,7 +822,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             const half k_sc = sub_group_broadcast(k_pa_sc_lane[kg], u * 4 + bb);
                             const half k_zp = sub_group_broadcast(k_pa_zp_lane[kg], u * 4 + bb);
                             #endif
+                            #if IS_PA_K_U4
+                            // The nibble select is lane-UNIFORM (the parity is the tile's, not the
+                            // lane's), so it folds into the shift amount rather than a per-lane sel.
+                            // Unsigned by construction: the int4 quantizer clamps to [0, 15] with
+                            // zp = -min*scale, so there is no CHAR_MIN and no sign extension.
+                            const uint kb_ = (w >> (bb * 8)) & 0xFFu;
+                            const half deq_k =
+                                ((half)(PA_K_U4_PAR(db) ? (kb_ >> 4) : (kb_ & 0x0Fu)) - k_zp) * k_sc;
+                            #else
                             const half deq_k = ((half)(char)((w >> (bb * 8)) & 0xFFu) - k_zp) * k_sc;
+                            #endif
                             k_raw[krel / DPAS_ROWS][krel % DPAS_ROWS] = as_ushort(deq_k);
                         }
                     }
@@ -645,7 +852,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // not used here -- it pays off when amortised over a wide transform read, whereas this
             // gather already costs one message per key, and (q - zp) * scale on a plain char->half
             // convert keeps the arithmetic identical to the reference dequant.
+            #if IS_PA_K_U4
+            // Permuted depth (see PA_K_U4_CHANNEL): head IS still the channel index, so the `head < d`
+            // guard below is unchanged, but two channels share a byte so the ADDRESS is head >> 1.
+            // Consecutive lanes then hit consecutive bytes -- better coalesced than the natural
+            // labelling, where lane pairs would collide on one byte.
+            const int head = PA_K_U4_CHANNEL(db, lane);
+            const int head_addr = head >> 1;
+            #else
             const int head = db * DPAS_K + lane;
+            const int head_addr = head;
+            #endif
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 k_raw[mb] = (ushort8)0;
@@ -653,7 +870,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // the head vary here.
                 const size_t mb_page_base =
                     ((size_t)k_page[mb] * KV_HEADS_NUM + b0_kv) * PA_K_PAGE_STRIDE +
-                    (size_t)head * PA_K_HIDDEN_STRIDE;
+                    (size_t)head_addr * PA_K_HIDDEN_STRIDE;
                 #if IS_PA_K_BY_CHANNEL
                 // head == db * DPAS_K + lane here too, so the per-channel pair is this lane's own and
                 // is constant across the row-block's keys: no broadcast, and it lifts out of the key
@@ -677,7 +894,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         // key_base is a multiple of PAGED_ATTENTION_BLOCK_SIZE, so the key's token
                         // within its page is just its subgroup-local index.
                         const int tok = krel % PAGED_ATTENTION_BLOCK_SIZE;
+                        #if IS_PA_K_U4
+                        const uint kb_ = (uint)(uchar)K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE];
+                        const half deq_k =
+                            ((half)(PA_K_U4_PAR(db) ? (kb_ >> 4) : (kb_ & 0x0Fu)) - k_zp) * k_sc;
+                        #else
                         const half deq_k = ((half)K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE] - k_zp) * k_sc;
+                        #endif
                         k_raw[mb][key_offset] = as_ushort(deq_k);
                     }
                 }
@@ -1129,7 +1352,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         KV_HEADS_NUM * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE +
                     (size_t)b0_kv * PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE;
                 const global half *v_comp_pa =
-                    (const global half *)(V + vs_page_pa + (size_t)HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+                    (const global half *)(V + vs_page_pa + PA_V_COMP_OFF);
                 const int vs_tok_pa = vs_key_pa % PAGED_ATTENTION_BLOCK_SIZE;
                 const half vs_c_pa = (vs_key_pa < k) ? v_comp_pa[vs_tok_pa] : (half)0.0f;
                 const half v_zp_c = (vs_key_pa < k) ? v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa]
@@ -1181,13 +1404,24 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int vp_rows = min((int)PAGED_ATTENTION_BLOCK_SIZE, k - cp_key0);
                         uint vt_pa[8 * sv_value_blocks];
                         if (vp_rows > 0) {
+                            #if IS_PA_K_U4
+                            // One byte per value PAIR, so the row is PA_V_ROW_ELEMS bytes wide.
+                            const int VP_w = PA_V_ROW_ELEMS;
+                            const int VP_p = PA_V_ROW_ELEMS;
+                            #else
                             const int VP_w = d;                  // bytes: i8, one byte per value
                             const int VP_p = HEAD_SIZE;          // bytes: data row pitch, NOT ADJUSTED
+                            #endif
                             #pragma unroll
                             for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                                const int vcol = sg_j0_sv + cd * SUBGROUP_SIZE;
                                 intel_sub_group_2d_block_read_transform_8b_32r16x1c(
                                     (global void *)(V + v_page_base), VP_w, vp_rows, VP_p,
-                                    (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, 0),
+                                    // u4 folds the upper half of the head dim back onto its low twin;
+                                    // the nibble select below picks which one this tile wants. Both
+                                    // the base and PA_V_ROW_ELEMS are multiples of SUBGROUP_SIZE, so a
+                                    // 16-lane tile never straddles the split. Identity for i8.
+                                    (int2)(PA_V_U4_COL(vcol), 0),
                                     (private uint *)&vt_pa[cd * 8]);
                             }
                         } else {
@@ -1208,15 +1442,28 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         }
                         #pragma unroll
                         for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                            #if IS_PA_K_U4
+                            // Which nibble this tile's head dims live in. Uniform across the subgroup
+                            // (the split point is a multiple of SUBGROUP_SIZE), so it folds into the
+                            // shift amount rather than a per-lane select.
+                            const int v_hi = PA_V_U4_HI(sg_j0_sv + cd * SUBGROUP_SIZE);
+                            #endif
                             #pragma unroll
                             for (int u = 0; u < 4; ++u) {
                                 const uint w = vt_pa[cd * 8 + u];
                                 // Each uint packs 4 consecutive tokens as signed bytes, token u*4+b
                                 // in byte b -- the same packing the plain-SDPA i8 V path decodes.
+                                #if IS_PA_K_U4
+                                const half4 q4 = (half4)((half)((w >> (v_hi ?  4 :  0)) & 0x0Fu),
+                                                         (half)((w >> (v_hi ? 12 :  8)) & 0x0Fu),
+                                                         (half)((w >> (v_hi ? 20 : 16)) & 0x0Fu),
+                                                         (half)((w >> (v_hi ? 28 : 24)) & 0x0Fu));
+                                #else
                                 const half4 q4 = (half4)((half)(char)((w >>  0) & 0xFFu),
                                                          (half)(char)((w >>  8) & 0xFFu),
                                                          (half)(char)((w >> 16) & 0xFFu),
                                                          (half)(char)((w >> 24) & 0xFFu));
+                                #endif
                                 const half4 deq4 = q4 - vzp4[u];
                                 // f16 VNNI operand: vb[cd][key_pair] packs keys (2*kp, 2*kp+1), and
                                 // deq4 already holds keys u*4..u*4+3 in order, so .lo/.hi are exactly
@@ -1234,6 +1481,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     for (int cd = 0; cd < sv_value_blocks; ++cd) {
                         vb[cd] = (int8)0;
                         const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
+                        #if IS_PA_K_U4
+                        // Two head dims share a byte, so the address is the folded byte column plus
+                        // the lane; the nibble is the TILE's, hence uniform across the subgroup.
+                        const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
+                        const int v_hi = PA_V_U4_HI(v_base);
+                        const int v_addr = PA_V_U4_COL(v_base) + (int)lane;
+                        #endif
                         if (value < d) {
                             #pragma unroll
                             for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
@@ -1242,13 +1496,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                 half2 vv = (half2)0.0h;
                                 if (key0 < k) {
                                     const int t0 = key0 % PAGED_ATTENTION_BLOCK_SIZE;
+                                    #if IS_PA_K_U4
+                                    const uint vb0 = (uint)(uchar)V[v_page_base + (size_t)t0 * PA_V_ROW_ELEMS + v_addr];
+                                    vv[0] = (half)(v_hi ? (vb0 >> 4) : (vb0 & 0x0Fu)) -
+                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
+                                    #else
                                     vv[0] = (half)(char)V[v_page_base + (size_t)t0 * HEAD_SIZE + value] -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
+                                    #endif
                                 }
                                 if (key1 < k) {
                                     const int t1 = key1 % PAGED_ATTENTION_BLOCK_SIZE;
+                                    #if IS_PA_K_U4
+                                    const uint vb1 = (uint)(uchar)V[v_page_base + (size_t)t1 * PA_V_ROW_ELEMS + v_addr];
+                                    vv[1] = (half)(v_hi ? (vb1 >> 4) : (vb1 & 0x0Fu)) -
+                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
+                                    #else
                                     vv[1] = (half)(char)V[v_page_base + (size_t)t1 * HEAD_SIZE + value] -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
+                                    #endif
                                 }
                                 vb[cd][key_pair] = as_int(vv);
                             }

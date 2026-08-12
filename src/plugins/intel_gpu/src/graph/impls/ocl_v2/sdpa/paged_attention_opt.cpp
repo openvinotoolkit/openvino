@@ -1467,26 +1467,35 @@ public:
         // sdpa_ocl becomes the MIXED default or sdpa_micro gets ported.
         if (stage == PagedAttentionStage::MIXED && !use_ocl && get_k_token_major(params))
             return false;
-        // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, head_size]
-        // tile with its comp appended AFTER it. Two layouts satisfy that:
+        // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, row] tile
+        // with its comp appended AFTER it. Three layouts satisfy that:
         //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
         //   i8 BY_CHANNEL   only under paged_attention::k_by_channel_token_major_for()'s staging switch,
         //                   which relays the per-column comp to a trailing per-channel array. UPSTREAM
         //                   BY_CHANNEL keeps a (scale, zp) pair inline at the end of every column and
         //                   is d-major, so the reader would take both the data and the comp from the
         //                   wrong offsets.
-        // INT4 never does (two head dims per byte, inline per-row comp). Anything left goes to
-        // pa_multi_token, which handles all three layouts. The mixed kernel still COMPILES for the
+        //   u4 BY_CHANNEL   the same switch, which additionally re-packs K two CHANNELS per byte and
+        //                   moves V's inline per-row comp to a trailing per-token array. Upstream INT4
+        //                   is d-major with two TOKENS per K byte and V's comp inside each row.
+        // i4 and INT4 BY_TOKEN never do -- the predicate rejects both -- and neither exists in practice
+        // (execution_config.cpp asserts against 4-bit BY_TOKEN keys and auto-selects u4). Anything left
+        // goes to pa_multi_token, which handles every layout. The mixed kernel still COMPILES for the
         // rejected cases (IS_PA_KV_COMPRESSED is keyed on the cache data type, because
         // PagedAttentionOptImpl's ctor add_stage()s prefill AND mixed) -- it just must not dispatch.
         if (stage == PagedAttentionStage::MIXED && use_ocl && get_kv_compressed(params)) {
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            if (data_type_traits::is_i4_u4(kv_cache_dt))
-                return false;
+            const bool int4 = data_type_traits::is_i4_u4(kv_cache_dt);
+            // The predicate needs the CONFIGURED precision for int4 -- the cache is materialized as u8,
+            // so the layout dtype alone cannot tell it from a real u8 one. Same lookup as
+            // get_k_token_major().
             const auto key_cache_dt =
-                ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
-            if (desc->is_key_by_channel &&
-                !cldnn::paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel))
+                int4 ? kv_cache_dt : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+            const bool by_channel_tm =
+                cldnn::paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel);
+            // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
+            // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
+            if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
                 return false;
         }
         return true;
