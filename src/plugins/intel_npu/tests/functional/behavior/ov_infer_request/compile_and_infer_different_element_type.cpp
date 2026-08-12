@@ -4,11 +4,16 @@
 
 #include "compile_and_infer_different_element_type.hpp"
 
+#include <vector>
+
 #include "common/utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 
 namespace {
 
-const std::vector<ov::AnyMap> configs = {};
+const std::vector<ov::AnyMap> configs = {
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN), {"NPU_COMPILATION_MODE", "DefaultHW"}},
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER), {"NPU_COMPILATION_MODE", "DefaultHW"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferRequestElementTypeTests,

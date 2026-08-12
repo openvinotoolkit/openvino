@@ -128,7 +128,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
 } // namespace
 
-ExecutionConfig::ExecutionConfig() { }
+ExecutionConfig::ExecutionConfig() = default;
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
@@ -190,11 +190,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
             is_paged_attention_model = true;
             return true;
-        } else if (ov::is_type<ov::intel_gpu::op::KVCache>(node)) {
-            return true;
         }
-
-        return false;
+        return ov::is_type<ov::intel_gpu::op::KVCache>(node);
     });
     const auto has_lora = std::any_of(model.get_variables().begin(), model.get_variables().end(),
         [](const std::shared_ptr<ov::op::util::Variable>& var) {

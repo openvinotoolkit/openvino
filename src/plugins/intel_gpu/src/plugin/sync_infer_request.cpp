@@ -37,7 +37,7 @@
 namespace {
 
 bool is_convert_required(ov::element::Type src_et, ov::element::Type dst_et) {
-    return src_et != dst_et && !(dst_et == ov::element::boolean && src_et == ov::element::u8);
+    return src_et != dst_et && (dst_et != ov::element::boolean || src_et != ov::element::u8);
 }
 
 bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
@@ -133,14 +133,20 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 }
 
 SyncInferRequest::~SyncInferRequest() {
-    // Clear the network's non-owning pointers to our OutputMemoryBlocks
-    // before they are destroyed, to prevent dangling pointers.
-    if (!m_output_memory_blocks.empty()) {
-        std::lock_guard<std::mutex> lk(m_graph->get_mutex());
-        auto network = m_graph->get_network();
-        if (network) {
-            network->clear_output_memory_blocks();
+    try {
+        // Clear the network's non-owning pointers to our OutputMemoryBlocks
+        // before they are destroyed, to prevent dangling pointers.
+        if (!m_output_memory_blocks.empty()) {
+            std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+            auto network = m_graph->get_network();
+            if (network) {
+                network->clear_output_memory_blocks();
+            }
         }
+    } catch (const std::exception& ex) {
+        GPU_DEBUG_LOG << "[GPU] ~SyncInferRequest: failed to clear output memory blocks: " << ex.what() << std::endl;
+    } catch (...) {
+        GPU_DEBUG_LOG << "[GPU] ~SyncInferRequest: failed to clear output memory blocks: unknown exception" << std::endl;
     }
 }
 
@@ -206,7 +212,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
         // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
-            if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
+            if ((plugin_tensors.count(port_index) != 0u) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
         }
     };
@@ -263,10 +269,9 @@ ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::N
             tensor_ptr = inputs->at(port_index).ptr;
         }
         return { tensor_ptr, nullptr };
-    } else {
-        OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1, "[GPU] Output tensor with index ", port_index, " is not found");
-        return { m_user_outputs.at(port_index).ptr, nullptr };
     }
+    OPENVINO_ASSERT(m_user_outputs.count(port_index) == 1, "[GPU] Output tensor with index ", port_index, " is not found");
+    return {m_user_outputs.at(port_index).ptr, nullptr};
 }
 
 void SyncInferRequest::check_tensors() const {
@@ -380,7 +385,7 @@ void SyncInferRequest::enqueue() {
     if (!m_output_memory_blocks.empty() && !input_host_ptrs.empty()) {
         auto network = m_graph->get_network();
         for (auto& [idx, block] : m_output_memory_blocks) {
-            if (block->rawPtr() && input_host_ptrs.count(block->rawPtr())) {
+            if ((block->rawPtr() != nullptr) && (input_host_ptrs.count(block->rawPtr()) != 0u)) {
                 block->nextMemory();
                 network->invalidate_ext_block_compute_nodes(m_output_names_map.at(idx));
                 GPU_DEBUG_TRACE_DETAIL << "Output block [" << idx << "]: input aliases output - switching to alternate buffer" << std::endl;
@@ -453,7 +458,7 @@ void SyncInferRequest::wait() {
 
     // wait for completion & collect outputs as requested by the model
     // for in_order_queue, it is enough to call finish only once
-    bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
+    bool do_sync_per_output = network.get_stream().get_queue_type() != QueueTypes::in_order;
     if (!do_sync_per_output) {
         auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
@@ -570,7 +575,7 @@ void SyncInferRequest::wait() {
         // let the user take care of them explicitly
         if (!is_remote_tensor_impl && output_memory) {
             if (!is_generic_remote) {
-                auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
+                auto* dst_ptr = static_cast<uint8_t*>(output_tensor->data());
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
                 if (!same_mem && output_memory->size()) {
                     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
@@ -633,7 +638,7 @@ void SyncInferRequest::wait() {
 // ----------------------------------------------------------------------------------------- //
 void SyncInferRequest::setup_stream_graph() {
     int stream_id = 0;
-    auto& stream_graphs = std::static_pointer_cast<const CompiledModel>(get_compiled_model())->get_graphs();
+    const auto& stream_graphs = std::static_pointer_cast<const CompiledModel>(get_compiled_model())->get_graphs();
     if (nullptr != m_stream_executor) {
         stream_id = m_stream_executor->get_stream_id();
         auto num_graphs = stream_graphs.size();
@@ -702,7 +707,8 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
 
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
-    } else if (usm_host_raw_ptr && can_share) {
+    }
+    if (usm_host_raw_ptr && can_share) {
         return { std::make_shared<RemoteTensorImpl>(m_context,
                                                     user_tensor->get_shape(),
                                                     ::data_type_for_remote_tensor(element_type),
@@ -734,9 +740,8 @@ cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, ov:
     if (is_convert_required(layout.data_type, dst.get_element_type())) {
         convert_and_copy(src, &dst, stream);
         return nullptr;
-    } else {
-        return src->copy_to(stream, dst.data(), false);
     }
+    return src->copy_to(stream, dst.data(), false);
 }
 
 void SyncInferRequest::ensure_input_allocated(size_t input_idx) const {
@@ -761,7 +766,7 @@ void SyncInferRequest::allocate_input(size_t input_idx, GuardedMap::map_t& user_
     if (element_type == ov::element::string) {
         // In case the element type is string and input data is an empty string,
         // it produces the segmentation fault unless the each element of tensor.data is initialized.
-        auto data = user_inputs.at(input_idx).ptr->data<std::string>();
+        auto* data = user_inputs.at(input_idx).ptr->data<std::string>();
         std::uninitialized_fill_n(data, user_inputs.at(input_idx).ptr->get_size(), std::string());
     }
     // Base-qualified to avoid re-entering the input lock; use internal_port to match the allocated shape.
@@ -805,7 +810,7 @@ void SyncInferRequest::allocate_inputs() {
         GPU_DEBUG_LOG << "[init input blob with index: " << input_idx << "]" << " shape: " << port.get_partial_shape() << " type: " << port.get_element_type() << std::endl;
 
         bool is_nv12_input = false;
-        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+        if (port.get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
             std::string mem_type = port.get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                      .as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
@@ -847,7 +852,7 @@ void SyncInferRequest::allocate_outputs() {
 void SyncInferRequest::allocate_states() {
     const auto& network = m_graph->get_network();
     const auto& variables_info = network->get_variables_info();
-    for (auto& vi : variables_info) {
+    for (const auto& vi : variables_info) {
         const auto& state_prims = vi.second.m_primitives;
         bool indirect_kv_cache = false;
         int64_t beam_axis = 0;
@@ -856,14 +861,14 @@ void SyncInferRequest::allocate_states() {
         bool has_zp_state = false;
         auto kv_cache_shape = vi.second.m_layout.get_partial_shape();
         std::vector<cldnn::layout> states_layouts;
-        for (auto& p : state_prims) {
-            if (auto kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
+        for (const auto& p : state_prims) {
+            if (const auto* kv_cache_prim = dynamic_cast<const cldnn::kv_cache*>(p)) {
                 indirect_kv_cache = kv_cache_prim->indirect;
                 beam_axis = ov::util::normalize(kv_cache_prim->gather_axis, kv_cache_shape.size());
                 concat_axis = ov::util::normalize(kv_cache_prim->concat_axis, kv_cache_shape.size());
                 compressed = kv_cache_prim->compressed;
                 has_zp_state = kv_cache_prim->get_compression_zp_inputs_num() > 0;
-            } else if (auto read_value = dynamic_cast<const cldnn::read_value*>(p)) {
+            } else if (const auto* read_value = dynamic_cast<const cldnn::read_value*>(p)) {
                 states_layouts = read_value->output_layouts;
             }
         }
@@ -909,7 +914,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
         std::shared_ptr<ov::ITensor> merged_tensor = nullptr;
         if (is_host) {
             merged_tensor = m_context->create_host_tensor(tmp_et, tmp_shape)._ptr;
-            auto ptr = static_cast<uint8_t*>(merged_tensor->data());
+            auto* ptr = static_cast<uint8_t*>(merged_tensor->data());
             ov::parallel_for(user_tensors.size(), [&](size_t i) {
                 const auto& tensor = user_tensors.at(i);
                 std::memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
@@ -1080,7 +1085,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
         }
     } else {
         if (!is_remote_tensor_impl && !is_generic_remote) {
-            auto src_ptr = static_cast<const uint8_t*>(user_tensor->data());
+            const auto* src_ptr = static_cast<const uint8_t*>(user_tensor->data());
             if (!same_host_mem(memory, src_ptr)) {
                 // WA: Set need_lockable_mem as a blocking argument
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
@@ -1099,8 +1104,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     if (ret_event && !ret_event->is_set())
         return { ret_event };
-    else
-        return {};
+    return {};
 }
 
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_idx,

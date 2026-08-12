@@ -146,7 +146,7 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
-        backedge_mapping() {}
+        backedge_mapping() = default;
         primitive_id from;
         primitive_id to;
 
@@ -277,7 +277,7 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        for (auto& mapping : input_primitive_maps) {
+        for (const auto& mapping : input_primitive_maps) {
             auto found = std::any_of(input.begin(), input.end(), [&](const input_info& info) {
                 return info.pid == mapping.external_id.pid;
             });
