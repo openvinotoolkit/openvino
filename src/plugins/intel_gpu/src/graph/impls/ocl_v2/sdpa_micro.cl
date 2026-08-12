@@ -576,14 +576,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     barrier(CLK_LOCAL_MEM_FENCE);
 
     /* Main loop over k blocks */
-    for (int k0 = window_k0_begin; k0 < causal_k; k0 += ugemm_kq_wg_tile_m) {
+    for (int k0 = window_k0_begin; k0 < causal_k;) {
         bool first = (k0 == window_k0_begin);
-        bool last = (k0 + ugemm_kq_wg_tile_m >= causal_k);
+
+        int k_chunk = min(causal_k - k0, ugemm_kq_wg_tile_m);
+#if IS_PAGED_ATTENTION && !IS_PREFILL && !IS_GQA_SINGLE_TOKEN
+        if (k0 < past_len && k0 + k_chunk > past_len)
+            k_chunk = past_len - k0;
+#endif
+        bool last = (k0 + k_chunk >= causal_k);
 
         uint sg_i0_kq = sg_i_kq * ugemm_kq_sg_tile_m;
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
-
-        int k_chunk = min(causal_k - k0, ugemm_kq_wg_tile_m);
 
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
@@ -602,12 +606,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Prepare k mask: NaN in bounds, -inf out of bounds */
         mask_tile_type_float k_mask;
 #pragma unroll
-        for (int ii = 0; ii < ugemm_kq_sg_tile_m / SUBGROUP_SIZE; ii++)
-            k_mask.x[0][ii] = (k0 + sg_i0_kq + ii * SUBGROUP_SIZE
-                                              + get_sub_group_local_id()
-                                      < causal_k)
-                    ? nan(0u)
-                    : -INFINITY;
+        for (int ii = 0; ii < ugemm_kq_sg_tile_m / SUBGROUP_SIZE; ii++) {
+            const int key_idx = k0 + sg_i0_kq + ii * SUBGROUP_SIZE + get_sub_group_local_id();
+            k_mask.x[0][ii] = key_idx < k0 + k_chunk ? nan(0u) : -INFINITY;
+        }
 #endif
 
         /* Calculate S = (K^T) * Q */
@@ -1147,6 +1149,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
         tile_binary(A_tile, A_tile1, binary_add);
 #endif
+    k0 += k_chunk;
     }
 
     /* Wait for column sums to be ready */
