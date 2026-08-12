@@ -345,9 +345,7 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    auto act_dt = (params.outputs[0].GetDType() == Datatype::BF16) ? GetAccumulatorType(params) : params.outputs[0].GetDType();
-    jit.Merge(MakeActivationJitConstants(params.activations, act_dt, "_TYPED"));
-    jit.AddConstant(MakeJitConstant("ACTIVATION_IN_ACCUMULATOR_TYPE", (act_dt != params.outputs[0].GetDType()) ? 1 : 0));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(params.outputs[0].GetDType()), "_TYPED"));
 
     if (params.outputs[0].Feature().v % vec_size != 0)
         jit.AddConstant(MakeJitConstant("LEFTOVERS", params.outputs[0].Feature().v % vec_size));

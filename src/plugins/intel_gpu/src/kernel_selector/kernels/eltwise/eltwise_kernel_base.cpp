@@ -635,9 +635,7 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    auto act_dt = GetAccumulatorType(params);
-    jit.Merge(MakeActivationJitConstants(params.activations, act_dt, "_TYPED"));
-    jit.AddConstant(MakeJitConstant("ACTIVATION_IN_ACCUMULATOR_TYPE", (act_dt != params.outputs[0].GetDType()) ? 1 : 0));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
 
     return jit;
 }
