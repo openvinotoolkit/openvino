@@ -153,14 +153,16 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
         // beneficial shape, otherwise defer to ref:
         //  - Y must be statically known and equal (not a Y-broadcast). If Y is dynamic we
         //    cannot rule out a Y-broadcast at compile time -> regression risk -> reject.
-        //  - X, if statically known, must either match or be a 1->N broadcast (the only
-        //    numpy-valid options); anything else is a non-row-coherent pattern -> reject.
+        //  - X is accepted when it is not statically known (resolved at runtime by the
+        //    kernel's INPUT0_SIZE_X == 1 branch), or when it either matches or is a 1->N
+        //    broadcast — the only numpy-valid options. Any other statically known X is a
+        //    non-row-coherent pattern -> reject.
         const bool y_known = !input.Y().is_dynamic && !output.Y().is_dynamic;
         if (!y_known || input.Y().v != output.Y().v)
             return false;
 
         const bool x_known = !input.X().is_dynamic && !output.X().is_dynamic;
-        return !(x_known && input.X().v != output.X().v && input.X().v != 1);
+        return !x_known || input.X().v == output.X().v || input.X().v == 1;
     }
 
     if (output.X().v < kMinXForOpt)
