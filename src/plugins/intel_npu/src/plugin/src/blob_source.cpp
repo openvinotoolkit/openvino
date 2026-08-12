@@ -8,9 +8,13 @@
 
 namespace {
 
-using namespace intel_npu;
-
 constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
+constexpr std::string_view STREAM_READ_WITHOUT_COPY_MESSAGE =
+    "The underlying data type of the blob source is a stream. Cannot read from a stream without copying the data.";
+constexpr std::string_view INVALID_CURSOR_MESSAGE =
+    "The cursor of the blob source points outside its designated buffer";
+constexpr std::string_view INVALID_MOVE_MESSAGE =
+    "Attempted to move the blob source cursor outside its designated buffer";
 
 /**
  * @return The size of the underlying buffer, from the beginning of the stream to its end.
@@ -43,36 +47,57 @@ BlobSource::BlobSource(const std::variant<std::reference_wrapper<std::istream>,
       m_logger(Logger("BlobSource", log_level)) {}
 
 void BlobSource::copy_from_source(void* destination, const size_t size) {
+    const size_t remaining = get_remaining_size();
+    OPENVINO_ASSERT(size <= remaining,
+                    "Attempted to read ",
+                    size,
+                    " bytes from the blob but only ",
+                    remaining,
+                    " bytes remain");
+
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
         OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
-
+        stream->get().read(reinterpret_cast<char*>(destination), size);
+        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
         return;
     }
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
+    std::memcpy(destination, tensor.get().data<const char>() + cursor, size);
+    cursor += size;
 }
 
-void* BlobSource::interpret_from_source(const size_t size) {
-    if (const std::reference_wrapper<std::istream>* stream =
-            std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+const void* BlobSource::interpret_from_source(const size_t size) {
+    OPENVINO_ASSERT(!std::get_if<std::reference_wrapper<std::istream>>(&m_source), STREAM_READ_WITHOUT_COPY_MESSAGE);
 
-        return;
-    }
+    const size_t remaining = get_remaining_size();
+    OPENVINO_ASSERT(size <= remaining,
+                    "Attempted to read ",
+                    size,
+                    " bytes from the blob but only ",
+                    remaining,
+                    " bytes remain");
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
+    cursor += size;
+    return tensor.get().data<const char>() + cursor - size;
 }
 
 ov::Tensor BlobSource::get_roi_tensor_from_source(const size_t size) {
-    if (const std::reference_wrapper<std::istream>* stream =
-            std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+    OPENVINO_ASSERT(!std::get_if<std::reference_wrapper<std::istream>>(&m_source), STREAM_READ_WITHOUT_COPY_MESSAGE);
 
-        return;
-    }
+    const size_t remaining = get_remaining_size();
+    OPENVINO_ASSERT(size <= remaining,
+                    "Attempted to read ",
+                    size,
+                    " bytes from the blob but only ",
+                    remaining,
+                    " bytes remain");
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
+    cursor += size;
+    return ov::Tensor(tensor, ov::Coordinate{cursor - size}, ov::Coordinate{cursor});
 }
 
 void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir reference) {
@@ -85,35 +110,26 @@ void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir 
     }
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
-    OPENVINO_ASSERT(cursor <= m_size);
+    OPENVINO_ASSERT(cursor <= m_size, INVALID_CURSOR_MESSAGE);
 
     switch (reference) {
     case std::ios::beg: {
-        OPENVINO_ASSERT(offset >= 0);
-        OPENVINO_ASSERT(offset <= m_size);
+        OPENVINO_ASSERT(offset >= 0 && offset <= m_size, INVALID_MOVE_MESSAGE);
         cursor = offset;
         break;
     }
     case std::ios::cur: {
-        if (offset >= 0) {
-            OPENVINO_ASSERT(cursor <= cursor + offset);
-            OPENVINO_ASSERT(cursor + offset <= m_size);
-        } else {
-            OPENVINO_ASSERT(cursor >= -offset);
-        }
-
+        OPENVINO_ASSERT(offset > 0 ? offset <= m_size - cursor : -offset <= cursor, INVALID_MOVE_MESSAGE);
         cursor += offset;
         break;
     }
     case std::ios::end: {
-        OPENVINO_ASSERT(offset <= 0);
-        OPENVINO_ASSERT(m_size >= -offset);
-
+        OPENVINO_ASSERT(offset <= 0 && -offset <= m_size, INVALID_MOVE_MESSAGE);
         cursor = m_size + offset;
         break;
     }
     default: {
-        OPENVINO_THROW("");
+        OPENVINO_THROW("A request to move the blob source cursor was made, but the given reference is invalid");
     }
     }
 }
@@ -127,7 +143,7 @@ size_t BlobSource::get_cursor() const {
     }
 
     auto& [tensor, cursor] = std::get<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(m_source);
-    OPENVINO_ASSERT(cursor <= m_size);
+    OPENVINO_ASSERT(cursor <= m_size, INVALID_CURSOR_MESSAGE);
     return cursor;
 }
 
@@ -137,7 +153,6 @@ size_t BlobSource::get_total_size() const {
 
 size_t BlobSource::get_remaining_size() const {
     const size_t cursor = get_cursor();
-    OPENVINO_ASSERT(cursor <= m_size);
     return m_size - cursor;
 }
 
