@@ -1061,13 +1061,19 @@ protected:
         // that only this writer and sdpa_ocl_decode see the relaid-out page -- everything else keeps
         // reading the d-major one. The page SIZE is identical either way, so none of the ADJUSTED_*
         // values above change; only the in-page addressing does.
-        // i8 ONLY: an INT4 BY_CHANNEL page packs two tokens per byte along the axis this flips, so it
-        // keeps its own layout (and the predicate tests for i8 explicitly). XAttention is excluded too:
-        // its cache is built and read by the CM path, which does not know this layout.
+        // i8 and u4. An INT4 BY_CHANNEL page packs two TOKENS per byte upstream, along the axis this
+        // flips; the token-major arm re-packs it two CHANNELS per byte, which is why the writer needs a
+        // branch rather than just new strides. XAttention is excluded: its cache is built and read by
+        // the CM path, which does not know this layout.
+        // The predicate needs the CONFIG precision, not the layout dtype -- an int4 cache is
+        // materialized as u8 -- so this uses the same lookup get_k_token_major() does.
+        const auto k_cache_precision =
+            data_type_traits::is_i4_u4(kv_cache_dt)
+                ? kv_cache_dt
+                : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
         const bool k_by_channel_token_major =
             !desc->has_xattention &&
-            cldnn::paged_attention::k_by_channel_token_major_for(
-                params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type, is_key_by_channel);
+            cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_key_by_channel);
         jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
 
         return jit;
