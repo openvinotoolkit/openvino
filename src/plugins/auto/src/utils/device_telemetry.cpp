@@ -149,7 +149,7 @@ public:
             }
         });
         // After first init, this is an atomic read; the call_once body does not re-run.
-        const int gear = m_shared_gear ? m_shared_gear->load() : m_current_gear.load();
+        const int gear = m_shared_gear->load();
         if (gear < 0) {
             return std::nullopt;
         }
@@ -159,10 +159,7 @@ public:
     void on_gear_changed(const std::string& gear_str) {
         try {
             const int gear = std::stoi(gear_str);
-            m_current_gear = gear;
-            if (m_shared_gear) {
-                m_shared_gear->store(gear);
-            }
+            m_shared_gear->store(gear);
         } catch (const std::exception&) {
             LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
         }
@@ -233,7 +230,6 @@ private:
     void* m_handle = nullptr;
     bool m_gear_event_registered = false;
     std::once_flag m_low_power_init_once;
-    std::atomic<int> m_current_gear{-1};
     std::shared_ptr<std::atomic<int>> m_shared_gear;
     // Owns the heap-allocated shared_ptr passed to IpfRegisterEvent; freed only after confirmed unregister.
     std::unique_ptr<std::shared_ptr<std::atomic<int>>> m_callback_context;
