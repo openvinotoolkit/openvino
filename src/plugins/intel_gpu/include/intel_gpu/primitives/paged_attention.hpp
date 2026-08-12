@@ -89,13 +89,14 @@ struct paged_attention : public primitive_base<paged_attention> {
     // The page SIZE is unchanged -- k_head_size * (block_size + 4) either way -- so nothing about the
     // allocation or the tensor's element count moves; only the in-page addressing does.
     //
-    // Deliberately SEPARATE from k_token_major(): exactly two kernels understand this layout, the
-    // pa_kv_cache_update writer and sdpa_ocl_decode. k_token_major_for() keeps returning false for
+    // Deliberately SEPARATE from k_token_major(): only three kernels understand this layout -- the
+    // pa_kv_cache_update writer, sdpa_ocl_decode (GENERATE) and sdpa_ocl (MIXED, which needs
+    // TEST_USE_SDPA_OCL=1 to be selected at all). k_token_major_for() keeps returning false for
     // BY_CHANNEL so pa_sdpa_opt, rotate, reorder and micro all keep reading the upstream d-major page
     // and need no change -- which also means that with this switch on, every OTHER K-cache consumer is
-    // INVALID. MIXED (pa_multi_token), rotation, cache reorder, adaptive R-KV and a scores output all
-    // read K, so this is only valid for a prefill + generate run.
-    // TODO: retire together with k_token_major() once sdpa_ocl covers the mixed stage too and the
+    // INVALID: cache ROTATION, cache reorder, adaptive R-KV, a scores output, and any MIXED case the
+    // sdpa_ocl gate rejects (k_head_size != v_head_size, INT4) all read K d-major.
+    // TODO: retire together with k_token_major() once rotate/reorder/adaptive-R-KV/micro follow and the
     // BY_CHANNEL page can flip unconditionally.
     static bool k_by_channel_token_major() {
         static const bool enabled = []() {

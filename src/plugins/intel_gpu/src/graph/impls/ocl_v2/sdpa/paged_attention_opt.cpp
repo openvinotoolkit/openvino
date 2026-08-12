@@ -1461,15 +1461,26 @@ public:
         // sdpa_ocl becomes the MIXED default or sdpa_micro gets ported.
         if (stage == PagedAttentionStage::MIXED && !use_ocl && get_k_token_major(params))
             return false;
-        // sdpa_ocl's MIXED cache dequant only implements the i8 BY_TOKEN layout (data region with a
-        // head_size row pitch, followed by two per-token f16 scale/zp arrays). BY_CHANNEL puts a
-        // scale/zp pair at the end of every column, and INT4 packs two values per byte with inline
-        // per-row comp, so both would be read with the wrong offsets. Route them to pa_multi_token,
-        // which handles all three layouts. The mixed kernel still COMPILES for them (see
-        // IS_PA_KV_COMPRESSED in sdpa_gen_ocl.cpp) -- it just must not be dispatched.
+        // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, head_size]
+        // tile with its comp appended AFTER it. Two layouts satisfy that:
+        //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
+        //   i8 BY_CHANNEL   only under paged_attention::k_by_channel_token_major_for()'s staging switch,
+        //                   which relays the per-column comp to a trailing per-channel array. UPSTREAM
+        //                   BY_CHANNEL keeps a (scale, zp) pair inline at the end of every column and
+        //                   is d-major, so the reader would take both the data and the comp from the
+        //                   wrong offsets.
+        // INT4 never does (two head dims per byte, inline per-row comp). Anything left goes to
+        // pa_multi_token, which handles all three layouts. The mixed kernel still COMPILES for the
+        // rejected cases (IS_PA_KV_COMPRESSED is keyed on the cache data type, because
+        // PagedAttentionOptImpl's ctor add_stage()s prefill AND mixed) -- it just must not dispatch.
         if (stage == PagedAttentionStage::MIXED && use_ocl && get_kv_compressed(params)) {
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            if (desc->is_key_by_channel || data_type_traits::is_i4_u4(kv_cache_dt))
+            if (data_type_traits::is_i4_u4(kv_cache_dt))
+                return false;
+            const auto key_cache_dt =
+                ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+            if (desc->is_key_by_channel &&
+                !cldnn::paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel))
                 return false;
         }
         return true;
