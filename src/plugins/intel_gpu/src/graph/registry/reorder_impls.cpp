@@ -14,6 +14,9 @@
 #if OV_GPU_WITH_OCL
     #include "impls/ocl/reorder.hpp"
 #endif
+#ifdef OV_GPU_WITH_VULKAN_RT
+    #include "impls/vulkan/reorder.hpp"
+#endif
 
 namespace ov::intel_gpu {
 
@@ -40,6 +43,9 @@ static std::vector<format> supported_dyn_formats = {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reorder>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+#ifdef OV_GPU_WITH_VULKAN_RT
+        std::make_shared<vulkan::ReorderImplementationManager>(shape_types::static_shape, not_in_shape_flow()),
+#endif
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::dynamic_shape,

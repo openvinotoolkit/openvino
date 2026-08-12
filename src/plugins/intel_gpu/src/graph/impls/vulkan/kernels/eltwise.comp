@@ -1,0 +1,82 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0) readonly buffer Input0 {
+    float values[];
+} input0_data;
+
+layout(set = 0, binding = 1) readonly buffer Input1 {
+    float values[];
+} input1_data;
+
+layout(set = 0, binding = 2) writeonly buffer Output {
+    float values[];
+} output_data;
+
+layout(set = 0, binding = 3) readonly buffer Metadata {
+    uint values[];
+} metadata;
+
+const uint max_rank = 8;
+const uint header_words = 4;
+const uint tensor_words = max_rank * 2 + 1;
+
+uint tensor_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
+    uint base = header_words + tensor_index * tensor_words;
+    uint offset = metadata.values[base + max_rank * 2];
+    for (uint axis = 0; axis < rank; ++axis) {
+        uint dimension = metadata.values[base + axis];
+        uint pitch = metadata.values[base + max_rank + axis];
+        offset += (dimension == 1 ? 0 : coordinates[axis]) * pitch;
+    }
+    return offset;
+}
+
+float apply_operation(float lhs, float rhs, uint mode) {
+    switch (mode) {
+    case 0:
+        return lhs + rhs;
+    case 1:
+        return lhs - rhs;
+    case 2:
+        return max(lhs, rhs);
+    case 3:
+        return lhs * rhs;
+    case 4:
+        return lhs / rhs;
+    case 5:
+        return min(lhs, rhs);
+    case 7: {
+        float difference = lhs - rhs;
+        return difference * difference;
+    }
+    default:
+        return 0.0;
+    }
+}
+
+void main() {
+    uint linear_index = gl_GlobalInvocationID.x;
+    uint element_count = metadata.values[0];
+    if (linear_index >= element_count) {
+        return;
+    }
+
+    uint rank = metadata.values[2];
+    uint output_base = header_words + 2 * tensor_words;
+    uint coordinates[max_rank];
+    uint remainder = linear_index;
+    for (int axis = int(rank) - 1; axis >= 0; --axis) {
+        uint dimension = metadata.values[output_base + uint(axis)];
+        coordinates[axis] = remainder % dimension;
+        remainder /= dimension;
+    }
+
+    uint input0_offset = tensor_offset(0, coordinates, rank);
+    uint input1_offset = tensor_offset(1, coordinates, rank);
+    uint output_offset = tensor_offset(2, coordinates, rank);
+    output_data.values[output_offset] = apply_operation(input0_data.values[input0_offset],
+                                                        input1_data.values[input1_offset],
+                                                        metadata.values[1]);
+}

@@ -113,12 +113,11 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
-    set(INTEL_GPU_TARGET_OCL_VERSION "300"
-      CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
-
-    add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
-endif()
+# Common graph and kernel-selector code still uses OpenCL type definitions for
+# backend-neutral kernel metadata, including SPIR-V kernels consumed by Vulkan.
+set(INTEL_GPU_TARGET_OCL_VERSION "300"
+    CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

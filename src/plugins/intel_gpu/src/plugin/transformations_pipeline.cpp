@@ -78,6 +78,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
@@ -773,6 +774,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        if (m_context->get_engine().runtime_type() == cldnn::runtime_types::vulkan) {
+            // Keep Divide intact because the Vulkan Eltwise implementation executes
+            // it directly and does not require the Power-based decomposition.
+            pass_config->disable<ov::pass::ConvertDivide>();
+        }
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",

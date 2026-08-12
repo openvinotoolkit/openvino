@@ -378,6 +378,8 @@ void RemoteTensorImpl::allocate() {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
         } else if (engine.supports_allocation(cldnn::allocation_type::sycl_buffer)) {
             m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::sycl_buffer, reset);
+        } else if (engine.supports_allocation(cldnn::allocation_type::vulkan_buffer)) {
+            m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::vulkan_buffer, reset);
         } else {
             // Fall back to usm_device and override memory type
             GPU_DEBUG_INFO << "[Warning] [GPU] Could not allocate cl_mem, using usm_device allocation instead\n";
@@ -517,6 +519,13 @@ void RemoteTensorImpl::update_properties() {
     const auto it = ctx_props.find(ov::intel_gpu::context_type.name());
     OPENVINO_ASSERT(it != ctx_props.end(), "[GPU] Could not find context type in RemoteContext properties");
     const auto ctx_type = it->second.as<ContextType>();
+
+    if (ctx_type == ContextType::VULKAN) {
+        OPENVINO_ASSERT(m_mem_type == TensorType::BT_BUF_INTERNAL,
+                        "[GPU][Vulkan] External remote tensor memory is not supported");
+        m_properties.clear();
+        return;
+    }
 
     cldnn::shared_mem_params params;
     if (ctx_type == ContextType::OCL || ctx_type == ContextType::VA_SHARED) {

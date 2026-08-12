@@ -4,6 +4,10 @@
 
 set(TARGET_NAME "openvino_intel_gpu_graph")
 
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    find_package(Vulkan 1.1 REQUIRED)
+endif()
+
 if(ENABLE_CM_FOR_GPU)
     add_compile_definitions(ENABLE_CM_FOR_GPU)
 endif()

@@ -28,6 +28,8 @@ ContextType get_default_context_type() {
         return ContextType::ZE;
     #elif defined(OV_GPU_DEFAULT_OCL_RT)
         return ContextType::OCL;
+    #elif defined(OV_GPU_DEFAULT_VULKAN_RT)
+        return ContextType::VULKAN;
     #else
         #error "The selected default GPU runtime does not yet define a public remote context type"
     #endif
@@ -76,6 +78,8 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
         } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
             OPENVINO_THROW("Level Zero interoperability is not supported");
+        } else if (ctx_type == ov::intel_gpu::ContextType::VULKAN) {
+            OPENVINO_THROW("Vulkan external context interoperability is not supported");
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);
         }
@@ -124,6 +128,9 @@ void RemoteContextImpl::init_properties() {
     case ContextType::ZE:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
+        break;
+    case ContextType::VULKAN:
+        properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::VULKAN));
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);

@@ -59,6 +59,12 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    // Vulkan implementations currently execute individual primitives and do not
+    // consume OpenCL-style fused-operation metadata.
+    if (p.get_engine().runtime_type() == runtime_types::vulkan) {
+        return;
+    }
+
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
         size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
         switch (value) {
