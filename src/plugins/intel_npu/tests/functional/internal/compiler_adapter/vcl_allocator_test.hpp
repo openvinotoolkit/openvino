@@ -44,13 +44,6 @@ protected:
         targetDevice = GetParam();
         model = ov::test::utils::make_conv_pool_relu();
         allocator = std::make_shared<::intel_npu::vcl_allocator_2>();
-
-        try {
-            std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
-            ::intel_npu::VCLApi::getInstance(ov_lib_dir);
-        } catch (const std::exception&) {
-            GTEST_SKIP() << "Couldn't load compiler library";
-        }
     }
 
     // Helper struct and function to reduce code duplication
