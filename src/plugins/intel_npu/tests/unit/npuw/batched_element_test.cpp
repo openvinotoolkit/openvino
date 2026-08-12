@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "serialization.hpp"
 #include "v1/elements/batched.hpp"
 
 namespace {
@@ -261,6 +263,28 @@ TEST_F(NPUWBatchedElementTest, CreateWrapsOnlyWhenRequested) {
     ASSERT_NE(wrapped, tagged);
     EXPECT_NE(std::dynamic_pointer_cast<ov::npuw::batched::CompiledModel>(wrapped), nullptr);
     EXPECT_EQ(&wrapped->inputs(), &tagged->inputs());
+}
+
+// The wrap is part of the blob. export_model() writes the batched header in front
+// of the inner blob, which is what the plugin's import dispatch keys on.
+TEST_F(NPUWBatchedElementTest, ExportWritesBatchedHeader) {
+    const auto tagged =
+        std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder, ov::AnyMap{{"NPUW_TEXT_RERANK", true}});
+    const auto wrapped = ov::npuw::batched::CompiledModel::create(tagged, m_plugin);
+
+    std::stringstream stream;
+    wrapped->export_model(stream);
+
+    ov::npuw::s11n::IndicatorType serialization_indicator{};
+    stream.read(reinterpret_cast<char*>(serialization_indicator.data()), serialization_indicator.size());
+    EXPECT_EQ(serialization_indicator, NPUW_SERIALIZATION_INDICATOR);
+
+    ov::npuw::s11n::IndicatorType batched_indicator{};
+    stream.read(reinterpret_cast<char*>(batched_indicator.data()), batched_indicator.size());
+    EXPECT_EQ(batched_indicator, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+
+    // The mock inner writes nothing, so the header is the whole stream.
+    EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());
 }
 
 TEST_F(NPUWBatchedElementTest, ForwardsInnerIO) {

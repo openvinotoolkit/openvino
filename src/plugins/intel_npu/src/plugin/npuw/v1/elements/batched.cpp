@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <utility>
 
+#include "../../llm_compiled_model.hpp"
 #include "../../logging.hpp"
+#include "../../serialization.hpp"
 #include "../../util.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
@@ -49,9 +51,31 @@ const std::vector<ov::Output<const ov::Node>>& ov::npuw::batched::CompiledModel:
 }
 
 void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
-    // The element is a runtime-only decorator: the blob is the inner's blob, and the
-    // entry points re-apply the wrapper on import based on the properties.
+    // The wrap is part of the blob. A batched header goes first, the complete inner
+    // blob follows with its own header, and import reconstructs the wrapper from the
+    // indicator alone.
+    ov::npuw::s11n::write(model, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
     m_inner->export_model(model);
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::import_model(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Deserializing batched::CompiledModel...");
+
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    ov::npuw::s11n::read(stream, serialization_indicator);
+    OPENVINO_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR, "This blob wasn't serialized via NPUW!");
+
+    ov::npuw::s11n::IndicatorType batched_indicator;
+    ov::npuw::s11n::read(stream, batched_indicator);
+    OPENVINO_ASSERT(batched_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR,
+                    "This blob wasn't serialized via batched::CompiledModel!");
+
+    auto inner = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+    return std::make_shared<CompiledModel>(inner, plugin);
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::batched::CompiledModel::get_runtime_model() const {
