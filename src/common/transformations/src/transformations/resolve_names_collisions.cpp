@@ -25,7 +25,9 @@ namespace {
 std::string make_unique_tensor_name(const TensorNamesMap& names_map, const std::string& name, size_t hash) {
     static const auto port_num_pattern = std::regex(R"((.*?)(:\d+)?$)");
     std::smatch matches;
-    std::regex_match(name, matches, port_num_pattern);
+    if (!std::regex_match(name, matches, port_num_pattern)) {
+        return name;
+    }
 
     auto idx = 1;
 
@@ -143,7 +145,7 @@ bool ResolveNameCollisions::run_on_model(const std::shared_ptr<Model>& model) {
             }
         }
     };
-    const auto resolve_node_name = m_resolve_all_names ? resolve_nodes_any_name : resolve_nodes_generated_name;
+    const auto& resolve_node_name = m_resolve_all_names ? resolve_nodes_any_name : resolve_nodes_generated_name;
 
     collect_name_collisions_map(model, node_names_map);
     for (const auto& [_, same_name_ops] : node_names_map) {
