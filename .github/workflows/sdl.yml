@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - master
-      - releases*
+      - 'releases/**'
   pull_request:
     types:
       - opened
