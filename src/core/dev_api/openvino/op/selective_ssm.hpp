@@ -12,7 +12,7 @@ namespace ov::op::internal {
 ///
 /// Discretizes ``A`` (log-decay rates) and ``B`` (input projection) with ``dt`` (time steps) ahead of the
 /// recurrence: ``dA = exp(A * dt)``, ``dtB = dt * B``. Then, for each token ``t``:
-/// ``dBx_t = dtB_t (x) x_t``, ``state_t = state_{t-1} * dA_t + dBx_t``, ``y_t = sum(state_t * C_t)``.
+/// ``dBx_t = x_t (x) dtB_t``, ``state_t = state_{t-1} * dA_t + dBx_t``, ``y_t = sum(state_t * C_t)``.
 ///
 /// ``B`` and ``C`` are grouped and shared across heads: each head ``h`` reads group
 /// ``g = h / heads_per_group``, where ``heads_per_group = num_heads / num_groups``.

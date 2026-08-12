@@ -42,33 +42,39 @@ PagedSelectiveSSM::PagedSelectiveSSM(const ov::OutputVector& args) : ov::op::Op(
 
 void PagedSelectiveSSM::validate_and_infer_types() {
     OV_OP_SCOPE(PagedSelectiveSSM_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 11);
+    NODE_VALIDATION_CHECK(this,
+                          get_input_size() == 11,
+                          "PagedSelectiveSSM expects 11 inputs, but it has ",
+                          get_input_size());
 
     ov::element::Type common_float_type = get_input_element_type(0);
-    const bool float_types_merge =
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(1)) &&
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(2)) &&
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(3)) &&
-        ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(4));
+    bool float_types_merge = true;
+    for (size_t input = 1; input < 6; ++input) {
+        float_types_merge &=
+            ov::element::Type::merge(common_float_type, common_float_type, get_input_element_type(input));
+    }
     NODE_VALIDATION_CHECK(this,
                           float_types_merge,
-                          "PagedSelectiveSSM expects A, dt, B, x, and C to have the same element type.");
+                          "PagedSelectiveSSM expects inputs A, dt, B, x, C and recurrent_state_table to have the "
+                          "same element type.");
     NODE_VALIDATION_CHECK(this,
-                          common_float_type.is_dynamic() || common_float_type.is_real(),
-                          "Float inputs must have a floating-point element type.");
+                          common_float_type.is_dynamic() || common_float_type == ov::element::f32 ||
+                              common_float_type == ov::element::f16 || common_float_type == ov::element::bf16,
+                          "PagedSelectiveSSM data inputs must have f32, f16, or bf16 element type.");
 
-    // recurrent_state_table (5) is an in-place state cache and is allowed to use an independent float
-    // element type so plugins can maintain lower-precision state without breaking in-place semantics.
-    const auto& state_et = get_input_element_type(5);
-    NODE_VALIDATION_CHECK(this,
-                          state_et.is_dynamic() || state_et.is_real(),
-                          "Float inputs must have a floating-point element type.");
-    for (size_t i = 6; i < 11; ++i) {
-        const auto& et = get_input_element_type(i);
-        NODE_VALIDATION_CHECK(this,
-                              et.is_dynamic() || et == ov::element::i32 || et == ov::element::i64,
-                              "Integer inputs must have i32 or i64 element type.");
+    ov::element::Type common_index_type = get_input_element_type(6);
+    bool index_types_merge = true;
+    for (size_t input = 7; input < 11; ++input) {
+        index_types_merge &=
+            ov::element::Type::merge(common_index_type, common_index_type, get_input_element_type(input));
     }
+    NODE_VALIDATION_CHECK(this,
+                          index_types_merge,
+                          "PagedSelectiveSSM expects all metadata inputs to have the same element type.");
+    NODE_VALIDATION_CHECK(this,
+                          common_index_type.is_dynamic() || common_index_type == ov::element::i32 ||
+                              common_index_type == ov::element::i64,
+                          "PagedSelectiveSSM metadata inputs must have i32 or i64 element type.");
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, common_float_type, output_shapes[0]);
