@@ -14,6 +14,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -34,7 +35,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     auto broadcast_predicate = unsqueeze_predicate && [](const ov::Output<ov::Node>& output) -> bool {
         const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(output.get_node_shared_ptr());
         return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::BIDIRECTIONAL;
-    };
+        };
 
     auto reshape_predicate = rank_equals(4) && consumers_count(1);
 
@@ -74,40 +75,35 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
     auto convert_reshape_b_m = wrap_type<ov::op::v0::Convert>({reshape_b_m});
     auto convert_reshape_c_m = wrap_type<ov::op::v0::Convert>({reshape_c_m});
 
-    auto pred_5d_to_4d = [](const ov::Output<ov::Node>& output) {
-        const auto in_ps = output.get_node()->get_input_partial_shape(0);
-        const auto out_ps = output.get_node()->get_output_partial_shape(0);
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 5 && out_ps.size() == 4;
-    };
-
-    auto is_reshape_4d_to_5d = [](const ov::Node* node) {
-        if (!ov::is_type<ov::op::v1::Reshape>(node))
-            return false;
-        const auto in_ps = node->get_input_partial_shape(0);
-        const auto out_ps = node->get_output_partial_shape(0);
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 4 && out_ps.size() == 5;
-    };
-
-    auto concat_expand_pred = [is_reshape_4d_to_5d](const ov::Output<ov::Node>& out) {
+    auto concat_expand_pred = [](const ov::Output<ov::Node>& out) {
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(out.get_node_shared_ptr());
-        return concat && concat->get_axis() == 2 && concat->get_input_size() > 2 && is_reshape_4d_to_5d(concat->get_input_node_ptr(0));
+        bool node_check = false;
+        if (ov::is_type<ov::op::v1::Reshape>(concat->get_input_node_ptr(0))) {
+            auto reshape = concat->get_input_node_ptr(0);
+            node_check = reshape->get_output_partial_shape(0).rank().is_static() && reshape->get_output_partial_shape(0).size() == 5;
+        }
+        return concat && concat->get_axis() == 2 && concat->get_input_size() > 2 && node_check;
     };
 
-    auto broadcast_predicate_patternA = [is_reshape_4d_to_5d](const ov::Output<ov::Node>& output) -> bool {
-        if (auto* const broadcast = ov::as_type<ov::op::v3::Broadcast>(output.get_node()))
-            return is_reshape_4d_to_5d(broadcast->get_input_node_ptr(0));
-        return false;
-    };
-
+    auto reshape_k = wrap_type<ov::op::v1::Reshape>({any_input(),any_input()});
     auto concat_k_expand_m = wrap_type<ov::op::v0::Concat>(concat_expand_pred);
-    auto broadcast_k_expand_m = wrap_type<ov::op::v3::Broadcast>(broadcast_predicate_patternA);
-    auto expand_key_m = std::make_shared<Or>(OutputVector{concat_k_expand_m, broadcast_k_expand_m});
-    auto reshape_b_b_m = wrap_type<ov::op::v1::Reshape>({expand_key_m, any_input() }, pred_5d_to_4d);
+    auto broadcast_k_expand_m = wrap_type<ov::op::v3::Broadcast>({reshape_k,any_input()});
+    auto expand_key_m = std::make_shared<ov::pass::pattern::op::Label>(
+                        ov::element::dynamic,
+                        ov::PartialShape::dynamic(),
+                        rank_equals(5),
+                        OutputVector{concat_k_expand_m, broadcast_k_expand_m});
+    auto reshape_b_b_m = wrap_type<ov::op::v1::Reshape>({expand_key_m, any_input()}, rank_equals(4));
 
+    auto reshape_v = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
     auto concat_v_expand_m = wrap_type<ov::op::v0::Concat>(concat_expand_pred);
-    auto broadcast_v_expand_m = wrap_type<ov::op::v3::Broadcast>(broadcast_predicate_patternA);
-    auto expand_value_m = std::make_shared<Or>(OutputVector{concat_v_expand_m, broadcast_v_expand_m});
-    auto reshape_c_b_m = wrap_type<ov::op::v1::Reshape>({expand_value_m, any_input()}, pred_5d_to_4d);
+    auto broadcast_v_expand_m = wrap_type<ov::op::v3::Broadcast>({reshape_v,any_input()});
+    auto expand_value_m = std::make_shared<ov::pass::pattern::op::Label>(
+                        ov::element::dynamic,
+                        ov::PartialShape::dynamic(),
+                        rank_equals(5),
+                        OutputVector{concat_v_expand_m, broadcast_v_expand_m});
+    auto reshape_c_b_m = wrap_type<ov::op::v1::Reshape>({expand_value_m, any_input()}, rank_equals(4));
 
     // ── Combined K/V inputs: Pattern A (with optional Convert) OR Pattern B ──
     auto key_input_m = std::make_shared<Or>(OutputVector{reshape_b_m, convert_reshape_b_m, reshape_b_b_m});
