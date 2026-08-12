@@ -827,7 +827,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
 
             if (!m_weights)
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
+            if (offset > m_weights->size() || size > m_weights->size() - offset)
                 OPENVINO_THROW("Incorrect weights in bin file!");
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
