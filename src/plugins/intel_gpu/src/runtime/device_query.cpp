@@ -3,11 +3,21 @@
 //
 
 #include "intel_gpu/runtime/device_query.hpp"
-#include "ocl/ocl_device_detector.hpp"
-#include "ze/ze_device_detector.hpp"
+
+#ifdef OV_GPU_WITH_OCL_RT
+#    include "ocl/ocl_device_detector.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_ZE_RT
+#    include "ze/ze_device_detector.hpp"
+#endif
 
 #ifdef OV_GPU_WITH_SYCL_RT
 #include "sycl/sycl_device_detector.hpp"
+#endif
+
+#ifdef OV_GPU_WITH_VULKAN_RT
+#    include "vulkan/vulkan_device_detector.hpp"
 #endif
 
 #include <map>
@@ -36,6 +46,7 @@ device_query::device_query(engine_types engine_type,
                            int target_tile_id,
                            bool initialize_devices) {
     switch (runtime_type) {
+#ifdef OV_GPU_WITH_OCL_RT
     case runtime_types::ocl: {
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
         ocl::ocl_device_detector ocl_detector;
@@ -51,6 +62,7 @@ device_query::device_query(engine_types engine_type,
 #endif
         break;
     }
+#endif
 #ifdef OV_GPU_WITH_ZE_RT
     case runtime_types::ze: {
         OPENVINO_ASSERT(engine_type == engine_types::ze);
@@ -64,6 +76,14 @@ device_query::device_query(engine_types engine_type,
         OPENVINO_ASSERT(engine_type == engine_types::sycl);
         sycl::sycl_device_detector sycl_detector;
         _available_devices = sycl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id);
+        break;
+    }
+#endif
+#ifdef OV_GPU_WITH_VULKAN_RT
+    case runtime_types::vulkan: {
+        OPENVINO_ASSERT(engine_type == engine_types::vulkan);
+        vulkan::vulkan_device_detector vulkan_detector;
+        _available_devices = vulkan_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
 #endif

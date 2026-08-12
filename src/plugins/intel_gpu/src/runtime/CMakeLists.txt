@@ -29,6 +29,12 @@ file(GLOB LIBRARY_SOURCES_SYCL
     "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_VULKAN
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vulkan/*.cpp"
+)
+
 file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
 
 if(NOT OV_GPU_WITH_SYCL)
@@ -50,6 +56,11 @@ endif()
 if(OV_GPU_RUNTIME_SYCL_ENABLED)
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
     list(APPEND SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
+endif()
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    find_package(Vulkan 1.1 REQUIRED)
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_VULKAN})
 endif()
 
 list(REMOVE_DUPLICATES LIBRARY_SOURCES_ALL)
@@ -88,12 +99,19 @@ endif()
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
 
-# Requires OpenCL even for Level Zero builds because of kernel builder and OneDNN
 target_link_libraries(${TARGET_NAME} PRIVATE
-    OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
   )
+
+if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    # Level Zero and SYCL runtime sources still use the existing OpenCL adapters.
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
+endif()
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
