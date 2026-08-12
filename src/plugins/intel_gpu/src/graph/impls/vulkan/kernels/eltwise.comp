@@ -2,8 +2,6 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_GOOGLE_include_directive : require
 
-layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
-
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint8_t values[];
 } input0_data;
@@ -30,13 +28,22 @@ layout(set = 0, binding = 4) writeonly buffer PackedOutput {
 #define ELTWISE_SHADER_TENSOR_INDEX(name, code) const uint tensor_##name = code;
 #define ELTWISE_SHADER_STORAGE_FLAG(name, code) const uint storage_##name##_flag = code;
 #define ELTWISE_SHADER_INFINITY_FLAG(name, code) const uint infinity_##name##_flag = code;
+#define ELTWISE_SHADER_SPECIALIZATION_ID(name, code) const uint specialization_##name##_id = code;
 #include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_SPECIALIZATION_ID
 #undef ELTWISE_SHADER_INFINITY_FLAG
 #undef ELTWISE_SHADER_STORAGE_FLAG
 #undef ELTWISE_SHADER_TENSOR_INDEX
 #undef ELTWISE_SHADER_METADATA_FIELD
 #undef ELTWISE_SHADER_SCALAR_TYPE
 #undef ELTWISE_SHADER_MODE
+
+layout(local_size_x_id = specialization_local_size_x_id, local_size_y = 1, local_size_z = 1) in;
+layout(constant_id = specialization_mode_id) const uint selected_mode = mode_sum;
+layout(constant_id = specialization_input0_type_id) const uint selected_input0_type = type_f32;
+layout(constant_id = specialization_input1_type_id) const uint selected_input1_type = type_f32;
+layout(constant_id = specialization_output_type_id) const uint selected_output_type = type_f32;
+layout(constant_id = specialization_storage_flags_id) const uint selected_storage_flags = 0;
 
 const uint max_rank = 8;
 const uint header_words = metadata_count;
@@ -556,14 +563,14 @@ uvec2 float_output_bits(float value, uint output_type) {
 }
 
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
-    uint mode = metadata.values[metadata_mode];
+    uint mode = selected_mode;
     uint rank = metadata.values[metadata_rank];
-    uint input0_type = metadata.values[metadata_input0_type];
-    uint input1_type = metadata.values[metadata_input1_type];
-    uint output_type = metadata.values[metadata_output_type];
+    uint input0_type = selected_input0_type;
+    uint input1_type = selected_input1_type;
+    uint output_type = selected_output_type;
     uint input0_offset;
     uint input1_offset;
-    if ((metadata.values[metadata_flags] & storage_linear_flag) != 0) {
+    if ((selected_storage_flags & storage_linear_flag) != 0) {
         input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
         input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
         output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
@@ -602,9 +609,9 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 void main() {
     uint invocation_index = gl_GlobalInvocationID.x;
     uint element_count = metadata.values[metadata_element_count];
-    uint output_type = metadata.values[metadata_output_type];
+    uint output_type = selected_output_type;
     uint output_size = scalar_size(output_type);
-    bool pack_output = output_size < 4 && (metadata.values[metadata_flags] & storage_packed_output_flag) != 0;
+    bool pack_output = output_size < 4 && (selected_storage_flags & storage_packed_output_flag) != 0;
     uint elements_per_invocation = pack_output ? 4 / output_size : 1;
     uint first_element = invocation_index * elements_per_invocation;
     if (first_element >= element_count) {

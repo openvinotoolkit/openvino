@@ -9,6 +9,7 @@
 #include <mutex>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "vulkan_device.hpp"
@@ -72,7 +73,7 @@ struct vulkan_kernel::shared_state {
     std::vector<uint8_t> binary;
     std::string entry_point;
     std::mutex mutex;
-    std::map<std::tuple<uint32_t, uint32_t, uint32_t>, vulkan_pipeline_state> pipelines;
+    std::map<std::tuple<uint32_t, uint32_t, std::vector<uint32_t>>, vulkan_pipeline_state> pipelines;
 };
 
 vulkan_kernel::vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point)
@@ -101,9 +102,27 @@ std::string vulkan_kernel::get_build_log() const {
     return {};
 }
 
-const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size, uint32_t specialized_local_size_x) {
+const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count,
+                                                                   uint32_t push_constants_size,
+                                                                   uint32_t specialized_local_size_x,
+                                                                   const specialization_constants_desc& specialization_constants) {
     std::lock_guard<std::mutex> lock(_state->mutex);
-    const auto key = std::make_tuple(descriptor_count, push_constants_size, specialized_local_size_x);
+    std::vector<uint32_t> specialization_key;
+    specialization_key.reserve((specialization_constants.size() + (specialized_local_size_x == 0 ? 0 : 1)) * 2);
+    if (specialized_local_size_x != 0) {
+        specialization_key.push_back(0);
+        specialization_key.push_back(specialized_local_size_x);
+    }
+    for (const auto& constant : specialization_constants) {
+        OPENVINO_ASSERT(constant.id != 0 || specialized_local_size_x == 0,
+                        "[GPU][Vulkan] Specialization constant id 0 is reserved for the local work-group size");
+        for (size_t index = 0; index < specialization_key.size(); index += 2) {
+            OPENVINO_ASSERT(specialization_key[index] != constant.id, "[GPU][Vulkan] Duplicate specialization constant id ", constant.id);
+        }
+        specialization_key.push_back(constant.id);
+        specialization_key.push_back(constant.value);
+    }
+    const auto key = std::make_tuple(descriptor_count, push_constants_size, specialization_key);
     auto& pipeline = _state->pipelines[key];
     if (pipeline.pipeline != VK_NULL_HANDLE) {
         return pipeline;
@@ -137,23 +156,31 @@ const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t desc
     pipeline_layout_info.pPushConstantRanges = push_constants_size == 0 ? nullptr : &push_constant_range;
     check_vk_result(vkCreatePipelineLayout(_state->device, &pipeline_layout_info, nullptr, &pipeline.pipeline_layout), "vkCreatePipelineLayout");
 
-    VkSpecializationMapEntry local_size_entry{};
-    local_size_entry.constantID = 0;
-    local_size_entry.offset = 0;
-    local_size_entry.size = sizeof(specialized_local_size_x);
+    std::vector<VkSpecializationMapEntry> specialization_entries;
+    std::vector<uint32_t> specialization_values;
+    specialization_entries.reserve(specialization_key.size() / 2);
+    specialization_values.reserve(specialization_key.size() / 2);
+    for (size_t index = 0; index < specialization_key.size(); index += 2) {
+        VkSpecializationMapEntry entry{};
+        entry.constantID = specialization_key[index];
+        entry.offset = static_cast<uint32_t>(specialization_values.size() * sizeof(uint32_t));
+        entry.size = sizeof(uint32_t);
+        specialization_entries.push_back(entry);
+        specialization_values.push_back(specialization_key[index + 1]);
+    }
 
     VkSpecializationInfo specialization_info{};
-    specialization_info.mapEntryCount = specialized_local_size_x == 0 ? 0 : 1;
-    specialization_info.pMapEntries = specialized_local_size_x == 0 ? nullptr : &local_size_entry;
-    specialization_info.dataSize = specialized_local_size_x == 0 ? 0 : sizeof(specialized_local_size_x);
-    specialization_info.pData = specialized_local_size_x == 0 ? nullptr : &specialized_local_size_x;
+    specialization_info.mapEntryCount = static_cast<uint32_t>(specialization_entries.size());
+    specialization_info.pMapEntries = specialization_entries.data();
+    specialization_info.dataSize = specialization_values.size() * sizeof(uint32_t);
+    specialization_info.pData = specialization_values.data();
 
     VkPipelineShaderStageCreateInfo stage_info{};
     stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     stage_info.module = _state->shader_module;
     stage_info.pName = _state->entry_point.c_str();
-    stage_info.pSpecializationInfo = specialized_local_size_x == 0 ? nullptr : &specialization_info;
+    stage_info.pSpecializationInfo = specialization_entries.empty() ? nullptr : &specialization_info;
 
     VkComputePipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

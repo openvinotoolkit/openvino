@@ -359,6 +359,13 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             1,
             1};
         descriptor.specialize_local_size_x = true;
+        descriptor.specialization_constants = {
+            {shader_abi::index(shader_abi::specialization_id::mode), metadata[shader_abi::index(shader_abi::metadata_field::mode)]},
+            {shader_abi::index(shader_abi::specialization_id::input0_type), metadata[shader_abi::index(shader_abi::metadata_field::input0_type)]},
+            {shader_abi::index(shader_abi::specialization_id::input1_type), metadata[shader_abi::index(shader_abi::metadata_field::input1_type)]},
+            {shader_abi::index(shader_abi::specialization_id::output_type), metadata[shader_abi::index(shader_abi::metadata_field::output_type)]},
+            {shader_abi::index(shader_abi::specialization_id::storage_flags), metadata[shader_abi::index(shader_abi::metadata_field::flags)]},
+        };
         descriptor.arguments = {
             {argument_desc::Types::INPUT, 0},
             {argument_desc::Types::INPUT, static_cast<uint32_t>(input_count == 1 ? 0 : 1)},

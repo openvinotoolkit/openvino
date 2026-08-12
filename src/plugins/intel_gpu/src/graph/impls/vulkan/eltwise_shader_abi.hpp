@@ -45,6 +45,12 @@ enum class infinity_flag : uint32_t {
 #undef ELTWISE_SHADER_INFINITY_FLAG
 };
 
+enum class specialization_id : uint32_t {
+#define ELTWISE_SHADER_SPECIALIZATION_ID(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_SPECIALIZATION_ID
+};
+
 constexpr uint32_t value(mode value) {
     return static_cast<uint32_t>(value);
 }
@@ -59,6 +65,10 @@ constexpr uint32_t value(storage_flag value) {
 
 constexpr uint32_t value(infinity_flag value) {
     return static_cast<uint32_t>(value);
+}
+
+constexpr uint32_t index(specialization_id id) {
+    return static_cast<uint32_t>(id);
 }
 
 constexpr size_t index(metadata_field field) {

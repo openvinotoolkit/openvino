@@ -69,6 +69,13 @@ using scalars_desc = std::vector<scalar_desc>;
 
 using local_memory_args_desc = std::vector<size_t>;
 
+struct specialization_constant_desc {
+    uint32_t id;
+    uint32_t value;
+};
+
+using specialization_constants_desc = std::vector<specialization_constant_desc>;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ArgumentDescpirtor
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +114,7 @@ struct kernel_arguments_desc {
     std::string layerID;
     local_memory_args_desc local_memory_args;
     bool specialize_local_size_x = false;
+    specialization_constants_desc specialization_constants;
 };
 
 struct kernel_arguments_data {

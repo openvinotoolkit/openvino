@@ -323,7 +323,8 @@ void vulkan_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& d
     const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
     vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
                                       static_cast<uint32_t>(prepared.push_constants.size()),
-                                      specialized_local_size_x);
+                                      specialized_local_size_x,
+                                      descriptor.specialization_constants);
 }
 
 event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
@@ -347,7 +348,8 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
     const auto& pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
                                                              static_cast<uint32_t>(prepared.push_constants.size()),
-                                                             specialized_local_size_x);
+                                                             specialized_local_size_x,
+                                                             descriptor.specialization_constants);
 
     const auto device = _engine.get_device_handle();
     auto& resources = _resources->acquire(checked_u32(prepared.buffer_infos.size(), "descriptor count"));
