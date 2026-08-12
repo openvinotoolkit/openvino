@@ -926,7 +926,7 @@ Previous 2026 releases
 Deprecation And Support
 +++++++++++++++++++++++
 
-Using deprecated features and components is not advised. They are available to enable a smooth transition to new solutions and will be discontinued in the future. To keep using discontinued features, you will have to revert to the last LTS OpenVINO version supporting them. For more details, refer to the OpenVINO Legacy Features and Components page.
+Using deprecated features and components is not advised. They are available to enable a smooth transition to new solutions and will be discontinued in the future. To keep using discontinued features, you will have to revert to the last LTS OpenVINO version supporting them. For more details, refer to the `OpenVINO Legacy Features and Components <https://docs.openvino.ai/2026/documentation/legacy-features.html>`__ page.
 
 Discontinued in 2026
 --------------------
