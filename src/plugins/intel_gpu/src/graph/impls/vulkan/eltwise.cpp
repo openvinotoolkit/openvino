@@ -240,6 +240,84 @@ void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shade
     metadata[base + max_rank * 2] = checked_u32(tensor_layout.get_linear_offset(), "base offset");
 }
 
+bool collapsed_tensor_axis(const std::array<uint32_t, metadata_words>& metadata,
+                           shader_abi::tensor_index tensor,
+                           uint32_t axis,
+                           uint32_t output_left_dimension,
+                           uint32_t output_right_dimension,
+                           uint32_t& collapsed_dimension,
+                           uint32_t& collapsed_pitch) {
+    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
+    const auto left_dimension = metadata[base + axis];
+    const auto right_dimension = metadata[base + axis + 1];
+    const auto left_pitch = metadata[base + max_rank + axis];
+    const auto right_pitch = metadata[base + max_rank + axis + 1];
+
+    if (output_left_dimension == 1) {
+        collapsed_dimension = right_dimension;
+        collapsed_pitch = right_pitch;
+        return true;
+    }
+    if (output_right_dimension == 1) {
+        collapsed_dimension = left_dimension;
+        collapsed_pitch = left_pitch;
+        return true;
+    }
+    if (left_dimension == 1 && right_dimension == 1) {
+        collapsed_dimension = 1;
+        collapsed_pitch = 0;
+        return true;
+    }
+    if (left_dimension == output_left_dimension && right_dimension == output_right_dimension &&
+        static_cast<uint64_t>(left_pitch) == static_cast<uint64_t>(right_pitch) * right_dimension) {
+        collapsed_dimension = checked_u32(static_cast<uint64_t>(left_dimension) * right_dimension, "collapsed dimension");
+        collapsed_pitch = right_pitch;
+        return true;
+    }
+    return false;
+}
+
+uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& metadata, uint32_t rank) {
+    if (rank < 2) {
+        return rank;
+    }
+
+    for (int32_t axis = static_cast<int32_t>(rank) - 2; axis >= 0; --axis) {
+        const auto output_base = header_words + shader_abi::index(shader_abi::tensor_index::output) * tensor_words;
+        const auto output_left_dimension = metadata[output_base + static_cast<uint32_t>(axis)];
+        const auto output_right_dimension = metadata[output_base + static_cast<uint32_t>(axis) + 1];
+        std::array<uint32_t, tensor_count> collapsed_dimensions{};
+        std::array<uint32_t, tensor_count> collapsed_pitches{};
+        bool can_collapse = true;
+        for (uint32_t tensor = 0; tensor < tensor_count; ++tensor) {
+            can_collapse &= collapsed_tensor_axis(metadata,
+                                                  static_cast<shader_abi::tensor_index>(tensor),
+                                                  static_cast<uint32_t>(axis),
+                                                  output_left_dimension,
+                                                  output_right_dimension,
+                                                  collapsed_dimensions[tensor],
+                                                  collapsed_pitches[tensor]);
+        }
+        if (!can_collapse) {
+            continue;
+        }
+
+        for (uint32_t tensor = 0; tensor < tensor_count; ++tensor) {
+            const auto base = header_words + tensor * tensor_words;
+            metadata[base + static_cast<uint32_t>(axis)] = collapsed_dimensions[tensor];
+            metadata[base + max_rank + static_cast<uint32_t>(axis)] = collapsed_pitches[tensor];
+            for (uint32_t shifted_axis = static_cast<uint32_t>(axis) + 1; shifted_axis + 1 < rank; ++shifted_axis) {
+                metadata[base + shifted_axis] = metadata[base + shifted_axis + 1];
+                metadata[base + max_rank + shifted_axis] = metadata[base + max_rank + shifted_axis + 1];
+            }
+            metadata[base + rank - 1] = 1;
+            metadata[base + max_rank + rank - 1] = 0;
+        }
+        --rank;
+    }
+    return rank;
+}
+
 std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance) {
     const auto desc = instance.get_typed_desc<eltwise>();
     const auto input_count = instance.inputs_memory_count();
@@ -274,6 +352,7 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
     write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
+    metadata[shader_abi::index(shader_abi::metadata_field::rank)] = collapse_metadata_dimensions(metadata, output_rank);
     return metadata;
 }
 
