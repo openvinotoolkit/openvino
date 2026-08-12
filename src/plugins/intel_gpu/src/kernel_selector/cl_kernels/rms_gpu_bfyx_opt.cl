@@ -56,6 +56,14 @@
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE)
 #endif
 
+// Clamp f16 INF to prevent NaN in RMS (INF * rsqrt(INF) = INF*0 = NaN).
+#if INPUT0_TYPE_SIZE == 2
+#define FP16_MAX_FINITE 65504.0f
+#define RMS_CLAMP(val) clamp((val), (ACCUMULATOR_TYPE)(-FP16_MAX_FINITE), (ACCUMULATOR_TYPE)(FP16_MAX_FINITE))
+#else
+#define RMS_CLAMP(val) (val)
+#endif
+
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(rms_gpu_bfyx_opt)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -123,7 +131,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         for (; i + 8 <= items_num; i += 8) {
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) v = DT_INPUT_BLOCK_READ8(input, ibase + i * sgs);
             unroll_for (int j = 0; j < 8; j++) {
-                ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(v[j]);
+                ACCUMULATOR_TYPE tmp = RMS_CLAMP(TO_ACCUMULATOR_TYPE(v[j]));
                 rms += tmp * tmp;
 #if !RMS_REREAD_INPUT
                 data[i + j] = tmp;
@@ -133,7 +141,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         for (; i + 4 <= items_num; i += 4) {
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) v = DT_INPUT_BLOCK_READ4(input, ibase + i * sgs);
             unroll_for (int j = 0; j < 4; j++) {
-                ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(v[j]);
+                ACCUMULATOR_TYPE tmp = RMS_CLAMP(TO_ACCUMULATOR_TYPE(v[j]));
                 rms += tmp * tmp;
 #if !RMS_REREAD_INPUT
                 data[i + j] = tmp;
@@ -143,7 +151,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         for (; i + 2 <= items_num; i += 2) {
             MAKE_VECTOR_TYPE(INPUT0_TYPE, 2) v = DT_INPUT_BLOCK_READ2(input, ibase + i * sgs);
             unroll_for (int j = 0; j < 2; j++) {
-                ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(v[j]);
+                ACCUMULATOR_TYPE tmp = RMS_CLAMP(TO_ACCUMULATOR_TYPE(v[j]));
                 rms += tmp * tmp;
 #if !RMS_REREAD_INPUT
                 data[i + j] = tmp;
@@ -154,7 +162,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     for (; i < items_num; i++)
     {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * sgs]);
+        ACCUMULATOR_TYPE tmp = RMS_CLAMP(TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * sgs]));
         rms += tmp * tmp;
 #if !RMS_REREAD_INPUT
         data[i] = tmp;
@@ -163,7 +171,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     if (leftovers != 0 && local_data_idx < leftovers)
     {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + local_data_idx]);
+        ACCUMULATOR_TYPE tmp = RMS_CLAMP(TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + local_data_idx]));
         rms += tmp * tmp;
 #if !RMS_REREAD_INPUT
         data[items_num] = tmp;
