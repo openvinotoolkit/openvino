@@ -458,7 +458,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
+#ifdef _WIN32
+    return is_shared();
+#else
     return is_shared() && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {

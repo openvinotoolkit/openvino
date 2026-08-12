@@ -236,20 +236,6 @@ TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
     }
 }
 
-TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_reimports_surface) {
-#if defined(ANDROID)
-    GTEST_SKIP();
-#endif
-    ov::Core core;
-    ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
-
-    auto tensor_first = context.create_tensor_nv12(texture_description.Height, texture_description.Width, dx11_textures[0]);
-    auto tensor_second = context.create_tensor_nv12(texture_description.Height, texture_description.Width, dx11_textures[0]);
-
-    EXPECT_NE(tensor_first.first.get(), tensor_second.first.get());
-    EXPECT_NE(tensor_first.second.get(), tensor_second.second.get());
-}
-
 TEST_F(DX11CachedTexture_Test, _make_shared_nv12_tensor_cached_inference) {
     this->run_make_shared_nv12_tensor_cached_inference(false);
 }
