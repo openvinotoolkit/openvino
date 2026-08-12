@@ -60,7 +60,7 @@ struct swiglu_fuse_params : fuse_params {
 class SwiGLUKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    ~SwiGLUKernelBase() override {}
+    ~SwiGLUKernelBase() override = default;
 
     virtual JitConstants GetJitConstants(const swiglu_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const swiglu_params& params) const;

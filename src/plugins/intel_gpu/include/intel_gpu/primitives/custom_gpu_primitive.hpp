@@ -158,7 +158,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, kernel_entry_point);
-        for (auto& args : kernel_arguments) {
+        for (const auto& args : kernel_arguments) {
             seed = hash_combine(seed, args.index);
             seed = hash_combine(seed, args.type);
             seed = hash_combine(seed, args.size_expr);
@@ -191,10 +191,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         if (gws != rhs_casted.gws)
             return false;
 
-        if (lws != rhs_casted.lws)
-            return false;
-
-        return true;
+        return lws == rhs_casted.lws;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

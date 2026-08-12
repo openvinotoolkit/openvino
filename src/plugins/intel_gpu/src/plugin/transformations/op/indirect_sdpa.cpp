@@ -56,18 +56,17 @@ std::shared_ptr<ov::Node> IndirectSDPA::clone_with_new_inputs(const ov::OutputVe
                                               m_order_v,
                                               m_order_out,
                                               m_output_type);
-    } else {
-        return std::make_shared<IndirectSDPA>(data_inputs,
-                                              new_args.back(),
-                                              m_is_causal,
-                                              m_indirect_axis,
-                                              m_order_q,
-                                              m_order_k,
-                                              m_order_v,
-                                              m_order_out,
-                                              m_quantization_attrs,
-                                              m_output_type);
     }
+    return std::make_shared<IndirectSDPA>(data_inputs,
+                                          new_args.back(),
+                                          m_is_causal,
+                                          m_indirect_axis,
+                                          m_order_q,
+                                          m_order_k,
+                                          m_order_v,
+                                          m_order_out,
+                                          m_quantization_attrs,
+                                          m_output_type);
 }
 
 void IndirectSDPA::validate_and_infer_types() {

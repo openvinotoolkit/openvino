@@ -13,7 +13,7 @@ namespace {
 size_t collect_stats(const std::shared_ptr<ov::Model>& m, std::map<DiscreteTypeInfo, size_t>& ops_stat) {
     const std::vector<std::shared_ptr<ov::Node>> ops = m->get_ops();
     size_t total = ops.size();
-    for (auto& op : ops) {
+    for (const auto& op : ops) {
         const auto& tinfo = op->get_type_info();
         if (ops_stat.find(tinfo) == ops_stat.end()) {
             ops_stat[tinfo] = 0;

@@ -13,52 +13,47 @@ import torch
 import numpy as np
 import platform
 
+
+FUSED_MOE_WEIGHT_MARKER = "/FusedMOEWeights"
+
+
 def verify_moe_fusion(ov_model: ov.Model, model_id: str):
     """
     Verify that MoE fusion was applied correctly by checking for fused weight tensors.
 
-    After MoE fusion, we expect to find MatMul operations with weights that have
-    an expert dimension (first dimension should equal the number of experts).
+    FuseMOEExperts tags fused expert weight nodes (a Concat, possibly later constant-folded
+    to a Constant) with a "/FusedMOEWeights" friendly-name suffix, so they can be identified
+    directly instead of guessing from rank/shape (other rank-3 constants, e.g. RoPE's
+    inv_freq, can also end up directly on a MatMul input after other transformations run).
 
     Returns:
-        int: Number of fused MoE layers detected
+        int: Number of experts detected in the fused MoE weight tensors
     """
-    # Get model configuration to determine number of experts
-    # For tiny-random-qwen3_moe, we expect num_experts parameter in config
     num_experts = None
     for op in ov_model.get_ordered_ops():
-        # Look for patterns indicating fused MoE:
-        # - MatMul with 3D weight tensor [num_experts, hidden_dim, intermediate_dim]
-        # - Tile operation that replicates input for all experts
-        if op.get_type_name() == "MatMul":
-            # Check if this MatMul has a 3D constant weight (indicating fused experts)
-            for i in range(op.get_input_size()):
-                input_node = op.input_value(i).get_node()
-                if input_node.get_type_name() == "Constant":
-                    weight_shape = list(input_node.get_shape())
-                    # Fused expert weights should be 3D: [num_experts, in_dim, out_dim]
-                    if len(weight_shape) == 3:
-                        if num_experts is None:
-                            num_experts = weight_shape[0]
-                        else:
-                            assert weight_shape[0] == num_experts, \
-                                f"Inconsistent expert count: expected {num_experts}, got {weight_shape[0]}"
-                # Check for Convert->Constant pattern (decompression)
-                elif input_node.get_type_name() == "Convert":
-                    convert_input = input_node.input_value(0).get_node()
-                    if convert_input.get_type_name() == "Constant":
-                        weight_shape = list(convert_input.get_shape())
-                        if len(weight_shape) == 3:
-                            if num_experts is None:
-                                num_experts = weight_shape[0]
-                            else:
-                                assert weight_shape[0] == num_experts, \
-                                    f"Inconsistent expert count: expected {num_experts}, got {weight_shape[0]}"
+        if op.get_type_name() != "MatMul":
+            continue
+        for i in range(op.get_input_size()):
+            input_node = op.input_value(i).get_node()
+            # Unwrap decompression Convert to reach the underlying weight constant
+            if input_node.get_type_name() == "Convert":
+                input_node = input_node.input_value(0).get_node()
+            # The marker is applied to the Concat produced by FuseMOEExperts; it may later be
+            # constant-folded into a Constant (e.g. on serialization), so accept either node type.
+            if input_node.get_type_name() not in ("Constant", "Concat") or \
+                    FUSED_MOE_WEIGHT_MARKER not in input_node.get_friendly_name():
+                continue
+            weight_shape = list(input_node.get_shape())
+            assert len(weight_shape) == 3, \
+                f"Expected fused MoE weight to be 3D [num_experts, in_dim, out_dim], got {weight_shape}"
+            if num_experts is None:
+                num_experts = weight_shape[0]
+            else:
+                assert weight_shape[0] == num_experts, \
+                    f"Inconsistent expert count: expected {num_experts}, got {weight_shape[0]}"
 
-    # If we found fused weights, verify the number of experts makes sense
     if num_experts is not None:
         assert num_experts > 1, f"Expected multiple experts, found {num_experts}"
-        # For tiny-random-qwen3_moe, we expect 4 experts
         print(f"Detected {num_experts} experts in fused MoE layers")
         return num_experts
 
@@ -231,6 +226,7 @@ def run_moe_synthetic(tmp_path,
     del pt_outputs
 
     # Load and export the OpenVINO model with MoE fusion
+    synthetic_id = f"synthetic_l{num_layers}_e{num_experts}_{dtype}"
     ov_model = OVModelForCausalLM.from_pretrained(
         model_path,
         export=True,
@@ -239,10 +235,10 @@ def run_moe_synthetic(tmp_path,
     )
 
     # Verify that the loaded model has the fused MoE pattern
-    verify_fused_moe_pattern(ov_model.model, f"synthetic_l{num_layers}_e{num_experts}_{dtype}", ie_device)
+    verify_fused_moe_pattern(ov_model.model, synthetic_id, ie_device)
 
     # Verify the expected number of experts
-    detected_experts = verify_moe_fusion(ov_model.model, f"synthetic_l{num_layers}_e{num_experts}_{dtype}")
+    detected_experts = verify_moe_fusion(ov_model.model, synthetic_id)
     assert detected_experts == num_experts, \
         f"Expected {num_experts} experts, but detected {detected_experts}"
 

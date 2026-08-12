@@ -47,6 +47,8 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
 
+    output_shape = transpose_shape(output_shape, desc->output_transpose_order);
+
     return { layout{output_shape, output_type, output_format, desc->output_paddings[0]} };
 }
 

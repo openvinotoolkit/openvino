@@ -53,10 +53,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softm
                 if (!one_of(in_layout.data_type, supported_in_types))
                     return false;
 
-                if (!one_of(out_layout.data_type, supported_out_types))
-                    return false;
-
-                return true;
+                return one_of(out_layout.data_type, supported_out_types);
         })
         OV_GPU_CREATE_INSTANCE_OCL(ocl::SoftmaxImplementationManager, shape_types::dynamic_shape,
             [](const program_node& node) {
@@ -68,10 +65,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softm
                 if (!one_of(in_layout.data_type, supported_in_types))
                     return false;
 
-                if (!one_of(out_layout.data_type, supported_out_types))
-                    return false;
-
-                return true;
+                return one_of(out_layout.data_type, supported_out_types);
         })
     };
 

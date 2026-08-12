@@ -334,6 +334,19 @@ CL_HPP_PARAM_NAME_CL_INTEL_COMMAND_QUEUE_FAMILIES_(CL_HPP_DECLARE_PARAM_TRAITS_)
 
 #endif // OPENVINO_CLHPP_HEADERS_ARE_OLDER_THAN_V2024_10_24
 
+#if CL_HPP_TARGET_OPENCL_VERSION >= 300 && !defined(CL_HPP_PARAM_NAME_INFO_3_0_)
+namespace cl {
+namespace detail {
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT, cl_bool)
+CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT, cl_bool)
+}  // namespace detail
+}  // namespace cl
+#endif
+
+#ifndef CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR
+#define CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR 0x2067
+#endif
+
 #define CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL (1 << 23)
 
 #include <memory>
@@ -570,7 +583,7 @@ public:
     }
 
     //! \brief Default constructor - initializes to NULL.
-    ImageVA() { }
+    ImageVA() = default;
 
     /*! \brief Constructor from cl_mem - takes ownership.
     *
@@ -594,16 +607,12 @@ public:
     /*! \brief Copy constructor to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA(const ImageVA& img) :
-        Image2D(img) {}
+    ImageVA(const ImageVA& img) = default;
 
     /*! \brief Copy assignment to forward copy to the superclass correctly.
     * Required for MSVC.
     */
-    ImageVA& operator = (const ImageVA &img) {
-        Image2D::operator=(img);
-        return *this;
-    }
+    ImageVA& operator = (const ImageVA &img) = default;
 
     /*! \brief Move constructor to forward move to the superclass correctly.
     * Required for MSVC.
@@ -754,7 +763,7 @@ private:
 class PlatformVA : public Platform {
 public:
     //! \brief Default constructor - initializes to NULL.
-    PlatformVA() { }
+    PlatformVA() = default;
 
     explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
         Platform(platform, retainObject) { }
@@ -1034,21 +1043,21 @@ public:
 
     void allocateHost(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_host(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_host(properties, size, 0, &error);
         _check_error(size, ptr, error, "Host");
         _allocate(ptr);
     }
 
     void allocateShared(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
         _check_error(size, ptr, error, "Shared");
         _allocate(ptr);
     }
 
     void allocateDevice(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_device(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_device(properties, size, 0, &error);
         _check_error(size, ptr, error, "Device");
         _allocate(ptr);
     }
@@ -1076,8 +1085,7 @@ private:
             sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;
             if (ptr == nullptr)
                 throw std::runtime_error(sout.str());
-            else
-                detail::errHandler(error, sout.str().c_str());
+            detail::errHandler(error, sout.str().c_str());
         }
     }
 };
