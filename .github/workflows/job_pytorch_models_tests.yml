@@ -188,13 +188,20 @@ jobs:
           python3 -m pip uninstall -y gptqmodel triton kernels torchao 2>/dev/null || true
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel.txt
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/requirements.txt
 
       - name: PagedAttention Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit -k "not gemma4" --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
+
+          # gemma4 needs a much newer transformers/optimum-intel than the rest of the suite, so it
+          # runs last under its own requirements. optimum-onnx (installed earlier) pins
+          # optimum/transformers versions incompatible with those, and is unused from here on.
+          python3 -m pip uninstall -y optimum-onnx
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/paged_attention.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit -k gemma4 --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gemma4_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
 
@@ -212,7 +219,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           # compile_gptq.txt downgrades torch to 2.3.1; remove packages incompatible with it
           python3 -m pip uninstall -y triton torchao autoawq 2>/dev/null || true
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/compile_gptq.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/compile_gptq.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
@@ -221,7 +228,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/moe.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/moe.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_moe_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_moe_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
@@ -234,19 +241,6 @@ jobs:
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
-        env:
-          TEST_DEVICE: CPU
-
-      # gemma4 requires a much newer transformers/optimum-intel than the other transformation
-      # tests, so it gets its own requirements file and runs last. optimum-intel pulls in a
-      # PyPI openvino release as a dependency, so PYTHONPATH points at the test archive's
-      # python bindings instead of relying on whatever pip installed to import openvino.
-      - name: Gemma4 PagedAttention Test
-        if: ${{ inputs.model_scope == 'precommit' }}
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/gemma4.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation_gemma4.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gemma4_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
 

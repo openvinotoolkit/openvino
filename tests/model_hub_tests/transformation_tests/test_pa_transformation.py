@@ -229,3 +229,32 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_adaptive_rkv=False,
                 allow_qq_bias=False,
                 ie_device=ie_device)
+
+
+GEMMA4_MODEL_ID = "optimum-intel-internal-testing/tiny-random-gemma4"
+
+
+@retry(3, exceptions=(OSError,), delay=1)
+def get_gemma4_language_model(model_id):
+    model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
+    # gemma4 needs a newer optimum-intel (see requirements_gemma4.txt) whose VLM API
+    # exposes the language model graph via .language_model.model rather than .lm_model.
+    model = OVModelForVisualCausalLM.from_pretrained(model_cached, export=True, trust_remote_code=True)
+    return model.language_model.model
+
+
+@pytest.mark.precommit
+def test_pa_gemma4(ie_device):
+    # gemma4's rotary embedding derives its batch dimension from attention_mask via a
+    # Broadcast+MatMul; BroadcastMatMulFusion must remove that broadcast so
+    # SDPAToPagedAttention can safely drop the attention_mask parameter.
+    if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
+        pytest.skip("PagedAttention tests are not enabled on ARM")
+
+    ov_model = get_gemma4_language_model(GEMMA4_MODEL_ID)
+
+    paged_attention_transformation(ov_model, False, False, False, False, False, False, False)
+    ov.Core().compile_model(ov_model, ie_device)
+
+    pa_count = sum(1 for op in ov_model.get_ordered_ops() if isinstance(op, _PagedAttentionExtension))
+    assert pa_count > 0, "PagedAttentionExtension nodes were not created"
