@@ -91,7 +91,8 @@ void vulkan_device::initialize_info() {
     _info.max_image2d_width = properties.limits.maxImageDimension2D;
     _info.max_image2d_height = properties.limits.maxImageDimension2D;
 
-    _info.supports_fp16 = false;
+    // Eltwise uses a portable FP16 storage conversion path and performs arithmetic in FP32.
+    _info.supports_fp16 = true;
     _info.supports_fp64 = features.shaderFloat64 == VK_TRUE;
     _info.supports_fp16_denorms = false;
     _info.supports_khr_subgroups = subgroup_properties.subgroupSize > 0 && (subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;
@@ -178,8 +179,22 @@ void vulkan_device::initialize() {
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
 
+    VkPhysicalDevice8BitStorageFeatures available_storage8{};
+    available_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
+    VkPhysicalDeviceFeatures2 available_features{};
+    available_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    available_features.pNext = &available_storage8;
+    vkGetPhysicalDeviceFeatures2(_physical_device, &available_features);
+    OPENVINO_ASSERT(available_storage8.storageBuffer8BitAccess == VK_TRUE,
+                    "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
+
+    VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
+    enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
+    enabled_storage8.storageBuffer8BitAccess = VK_TRUE;
+
     VkDeviceCreateInfo device_create_info{};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    device_create_info.pNext = &enabled_storage8;
     device_create_info.queueCreateInfoCount = 1;
     device_create_info.pQueueCreateInfos = &queue_create_info;
     device_create_info.enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size());

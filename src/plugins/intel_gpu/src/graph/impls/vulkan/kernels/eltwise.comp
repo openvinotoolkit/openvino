@@ -1,29 +1,345 @@
 #version 450
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_GOOGLE_include_directive : require
 
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) readonly buffer Input0 {
-    float values[];
+    uint8_t values[];
 } input0_data;
 
 layout(set = 0, binding = 1) readonly buffer Input1 {
-    float values[];
+    uint8_t values[];
 } input1_data;
 
 layout(set = 0, binding = 2) writeonly buffer Output {
-    float values[];
+    uint8_t values[];
 } output_data;
 
 layout(set = 0, binding = 3) readonly buffer Metadata {
     uint values[];
 } metadata;
 
-const uint max_rank = 8;
-const uint header_words = 4;
-const uint tensor_words = max_rank * 2 + 1;
-const uint linear_storage_flag = 1;
+layout(set = 0, binding = 4) writeonly buffer PackedOutput {
+    uint values[];
+} packed_output_data;
 
-uint tensor_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
+#define ELTWISE_SHADER_MODE(name, code) const uint mode_##name = code;
+#define ELTWISE_SHADER_SCALAR_TYPE(name, code) const uint type_##name = code;
+#define ELTWISE_SHADER_METADATA_FIELD(name, code) const uint metadata_##name = code;
+#define ELTWISE_SHADER_TENSOR_INDEX(name, code) const uint tensor_##name = code;
+#define ELTWISE_SHADER_STORAGE_FLAG(name, code) const uint storage_##name##_flag = code;
+#define ELTWISE_SHADER_INFINITY_FLAG(name, code) const uint infinity_##name##_flag = code;
+#include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_INFINITY_FLAG
+#undef ELTWISE_SHADER_STORAGE_FLAG
+#undef ELTWISE_SHADER_TENSOR_INDEX
+#undef ELTWISE_SHADER_METADATA_FIELD
+#undef ELTWISE_SHADER_SCALAR_TYPE
+#undef ELTWISE_SHADER_MODE
+
+const uint max_rank = 8;
+const uint header_words = metadata_count;
+const uint tensor_words = max_rank * 2 + 1;
+const uint byte_value_mask = 0xff;
+const uint half_value_mask = 0xffff;
+
+uint scalar_size(uint type) {
+    if (type == type_i64) {
+        return 8;
+    }
+    if (type == type_f32 || type == type_i32 || type == type_u32) {
+        return 4;
+    }
+    if (type == type_f16 || type == type_i16 || type == type_u16) {
+        return 2;
+    }
+    return 1;
+}
+
+uint load_u8_0(uint offset) {
+    return uint(input0_data.values[offset]);
+}
+
+uint load_u8_1(uint offset) {
+    return uint(input1_data.values[offset]);
+}
+
+uint load_u16_0(uint offset) {
+    return load_u8_0(offset) | (load_u8_0(offset + 1) << 8);
+}
+
+uint load_u16_1(uint offset) {
+    return load_u8_1(offset) | (load_u8_1(offset + 1) << 8);
+}
+
+uint load_u32_0(uint offset) {
+    return load_u16_0(offset) | (load_u16_0(offset + 2) << 16);
+}
+
+uint load_u32_1(uint offset) {
+    return load_u16_1(offset) | (load_u16_1(offset + 2) << 16);
+}
+
+uvec2 load_u64_0(uint offset) {
+    return uvec2(load_u32_0(offset), load_u32_0(offset + 4));
+}
+
+uvec2 load_u64_1(uint offset) {
+    return uvec2(load_u32_1(offset), load_u32_1(offset + 4));
+}
+
+void store_tail_u8(uint offset, uint value) {
+    output_data.values[offset] = uint8_t(value & 0xff);
+}
+
+void store_tail_u16(uint offset, uint value) {
+    store_tail_u8(offset, value);
+    store_tail_u8(offset + 1, value >> 8);
+}
+
+uvec2 sign_extend(uint value, uint bits) {
+    if (bits == 32) {
+        return uvec2(value, uint(int(value) >> 31));
+    }
+    uint sign_bit = 1u << (bits - 1);
+    uint mask = (1u << bits) - 1;
+    uint extended = (value & sign_bit) != 0 ? value | ~mask : value & mask;
+    return uvec2(extended, uint(int(extended) >> 31));
+}
+
+bool is_signed_type(uint type) {
+    return type == type_i8 || type == type_i16 || type == type_i32 || type == type_i64;
+}
+
+bool is_float_type(uint type) {
+    return type == type_f16 || type == type_f32;
+}
+
+uvec2 load_integer_0(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_i64) {
+        return load_u64_0(offset);
+    }
+    if (type == type_i32) {
+        return sign_extend(load_u32_0(offset), 32);
+    }
+    if (type == type_u32) {
+        return uvec2(load_u32_0(offset), 0);
+    }
+    if (type == type_i16) {
+        return sign_extend(load_u16_0(offset), 16);
+    }
+    if (type == type_u16) {
+        return uvec2(load_u16_0(offset), 0);
+    }
+    if (type == type_i8) {
+        return sign_extend(load_u8_0(offset), 8);
+    }
+    return uvec2(load_u8_0(offset), 0);
+}
+
+uvec2 load_integer_1(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_i64) {
+        return load_u64_1(offset);
+    }
+    if (type == type_i32) {
+        return sign_extend(load_u32_1(offset), 32);
+    }
+    if (type == type_u32) {
+        return uvec2(load_u32_1(offset), 0);
+    }
+    if (type == type_i16) {
+        return sign_extend(load_u16_1(offset), 16);
+    }
+    if (type == type_u16) {
+        return uvec2(load_u16_1(offset), 0);
+    }
+    if (type == type_i8) {
+        return sign_extend(load_u8_1(offset), 8);
+    }
+    return uvec2(load_u8_1(offset), 0);
+}
+
+float signed_u64_to_float(uvec2 value) {
+    bool negative = int(value.y) < 0;
+    if (negative) {
+        value = uvec2(~value.x + 1, ~value.y + (value.x == 0 ? 1 : 0));
+    }
+    float magnitude = float(value.y) * 4294967296.0 + float(value.x);
+    return negative ? -magnitude : magnitude;
+}
+
+float unsigned_u64_to_float(uvec2 value) {
+    return float(value.y) * 4294967296.0 + float(value.x);
+}
+
+float load_float_0(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_f32) {
+        return uintBitsToFloat(load_u32_0(offset));
+    }
+    if (type == type_f16) {
+        return unpackHalf2x16(load_u16_0(offset)).x;
+    }
+    uvec2 value = load_integer_0(element_offset, type);
+    return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
+}
+
+float load_float_1(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_f32) {
+        return uintBitsToFloat(load_u32_1(offset));
+    }
+    if (type == type_f16) {
+        return unpackHalf2x16(load_u16_1(offset)).x;
+    }
+    uvec2 value = load_integer_1(element_offset, type);
+    return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
+}
+
+uvec2 add_u64(uvec2 lhs, uvec2 rhs) {
+    uint low = lhs.x + rhs.x;
+    return uvec2(low, lhs.y + rhs.y + (low < lhs.x ? 1 : 0));
+}
+
+uvec2 negate_u64(uvec2 value) {
+    uint low = ~value.x + 1;
+    return uvec2(low, ~value.y + (low == 0 ? 1 : 0));
+}
+
+uvec2 sub_u64(uvec2 lhs, uvec2 rhs) {
+    return add_u64(lhs, negate_u64(rhs));
+}
+
+uvec2 mul_u64(uvec2 lhs, uvec2 rhs) {
+    uint high_product;
+    uint low_product;
+    umulExtended(lhs.x, rhs.x, high_product, low_product);
+    return uvec2(low_product, high_product + lhs.x * rhs.y + lhs.y * rhs.x);
+}
+
+bool equal_u64(uvec2 lhs, uvec2 rhs) {
+    return all(equal(lhs, rhs));
+}
+
+bool zero_u64(uvec2 value) {
+    return value.x == 0 && value.y == 0;
+}
+
+bool less_unsigned_u64(uvec2 lhs, uvec2 rhs) {
+    return lhs.y < rhs.y || (lhs.y == rhs.y && lhs.x < rhs.x);
+}
+
+bool less_signed_u64(uvec2 lhs, uvec2 rhs) {
+    int lhs_high = int(lhs.y);
+    int rhs_high = int(rhs.y);
+    return lhs_high < rhs_high || (lhs_high == rhs_high && lhs.x < rhs.x);
+}
+
+uvec2 shift_left_u64(uvec2 value, uint amount) {
+    if (amount >= 64) {
+        return uvec2(0);
+    }
+    if (amount >= 32) {
+        return uvec2(0, value.x << (amount - 32));
+    }
+    if (amount == 0) {
+        return value;
+    }
+    return uvec2(value.x << amount, (value.y << amount) | (value.x >> (32 - amount)));
+}
+
+uvec2 shift_right_unsigned_u64(uvec2 value, uint amount) {
+    if (amount >= 64) {
+        return uvec2(0);
+    }
+    if (amount >= 32) {
+        return uvec2(value.y >> (amount - 32), 0);
+    }
+    if (amount == 0) {
+        return value;
+    }
+    return uvec2((value.x >> amount) | (value.y << (32 - amount)), value.y >> amount);
+}
+
+uvec2 shift_right_signed_u64(uvec2 value, uint amount) {
+    if (amount >= 64) {
+        return int(value.y) < 0 ? uvec2(0xffffffff) : uvec2(0);
+    }
+    if (amount >= 32) {
+        return uvec2(uint(int(value.y) >> int(amount - 32)), uint(int(value.y) >> 31));
+    }
+    if (amount == 0) {
+        return value;
+    }
+    return uvec2((value.x >> amount) | (value.y << (32 - amount)), uint(int(value.y) >> int(amount)));
+}
+
+uint bit_u64(uvec2 value, uint index) {
+    return index < 32 ? (value.x >> index) & 1 : (value.y >> (index - 32)) & 1;
+}
+
+uvec2 set_bit_u64(uvec2 value, uint index) {
+    if (index < 32) {
+        value.x |= 1u << index;
+    } else {
+        value.y |= 1u << (index - 32);
+    }
+    return value;
+}
+
+void divide_unsigned_u64(uvec2 numerator, uvec2 denominator, out uvec2 quotient, out uvec2 remainder) {
+    quotient = uvec2(0);
+    remainder = uvec2(0);
+    if (zero_u64(denominator)) {
+        return;
+    }
+    for (int index = 63; index >= 0; --index) {
+        remainder = shift_left_u64(remainder, 1);
+        remainder.x |= bit_u64(numerator, uint(index));
+        if (!less_unsigned_u64(remainder, denominator)) {
+            remainder = sub_u64(remainder, denominator);
+            quotient = set_bit_u64(quotient, uint(index));
+        }
+    }
+}
+
+void divide_integer(uvec2 lhs, uvec2 rhs, bool signed_type, bool floor_division, out uvec2 quotient, out uvec2 remainder) {
+    bool lhs_negative = signed_type && int(lhs.y) < 0;
+    bool rhs_negative = signed_type && int(rhs.y) < 0;
+    uvec2 lhs_abs = lhs_negative ? negate_u64(lhs) : lhs;
+    uvec2 rhs_abs = rhs_negative ? negate_u64(rhs) : rhs;
+    divide_unsigned_u64(lhs_abs, rhs_abs, quotient, remainder);
+    if (lhs_negative != rhs_negative) {
+        quotient = negate_u64(quotient);
+    }
+    if (lhs_negative) {
+        remainder = negate_u64(remainder);
+    }
+    if (floor_division && !zero_u64(remainder) && lhs_negative != rhs_negative) {
+        quotient = sub_u64(quotient, uvec2(1, 0));
+        remainder = add_u64(remainder, rhs);
+    }
+}
+
+uvec2 pow_u64(uvec2 base, uvec2 exponent) {
+    if (int(exponent.y) < 0) {
+        return uvec2(0);
+    }
+    uvec2 result = uvec2(1, 0);
+    while (!zero_u64(exponent)) {
+        if ((exponent.x & 1) != 0) {
+            result = mul_u64(result, base);
+        }
+        base = mul_u64(base, base);
+        exponent = shift_right_unsigned_u64(exponent, 1);
+    }
+    return result;
+}
+
+uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
     uint base = header_words + tensor_index * tensor_words;
     uint offset = metadata.values[base + max_rank * 2];
     for (uint axis = 0; axis < rank; ++axis) {
@@ -34,59 +350,307 @@ uint tensor_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
     return offset;
 }
 
-float apply_operation(float lhs, float rhs, uint mode) {
+bool is_boolean_mode(uint mode) {
+    return (mode >= mode_eq && mode <= mode_logic_xor) || (mode >= mode_is_finite && mode <= mode_is_nan);
+}
+
+float quiet_nan() {
+    return 0.0 / 0.0;
+}
+
+float truncate_toward_zero(float value) {
+    return value < 0.0 ? ceil(value) : floor(value);
+}
+
+float apply_mod(float lhs, float rhs) {
+    if (rhs == 0.0 || isinf(lhs)) {
+        return quiet_nan();
+    }
+    if (lhs == 0.0 || isinf(rhs)) {
+        return lhs;
+    }
+    if (abs(lhs) == abs(rhs)) {
+        return lhs * 0.0;
+    }
+    return lhs - truncate_toward_zero(lhs / rhs) * rhs;
+}
+
+float apply_pow(float lhs, float rhs) {
+    if (rhs == 0.0) {
+        return 1.0;
+    }
+    if (lhs >= 0.0) {
+        return pow(lhs, rhs);
+    }
+
+    float integer_exponent = truncate_toward_zero(rhs);
+    if (integer_exponent != rhs) {
+        return quiet_nan();
+    }
+
+    float magnitude = pow(-lhs, rhs);
+    float exponent_pairs = truncate_toward_zero(integer_exponent * 0.5);
+    bool odd_exponent = integer_exponent != exponent_pairs * 2.0;
+    return odd_exponent ? -magnitude : magnitude;
+}
+
+float apply_float(float lhs, float rhs, uint mode) {
     switch (mode) {
-    case 0:
-        return lhs + rhs;
-    case 1:
+    case mode_sum:
+        return lhs * uintBitsToFloat(metadata.values[metadata_input0_coefficient]) +
+               rhs * uintBitsToFloat(metadata.values[metadata_input1_coefficient]);
+    case mode_sub:
         return lhs - rhs;
-    case 2:
+    case mode_max:
         return max(lhs, rhs);
-    case 3:
+    case mode_prod:
         return lhs * rhs;
-    case 4:
+    case mode_div:
         return lhs / rhs;
-    case 5:
+    case mode_min:
         return min(lhs, rhs);
-    case 7: {
+    case mode_pow:
+        return apply_pow(lhs, rhs);
+    case mode_squared_diff: {
         float difference = lhs - rhs;
         return difference * difference;
     }
+    case mode_mod:
+        return apply_mod(lhs, rhs);
+    case mode_floor_mod:
+        return rhs == 0.0 || lhs == rhs ? 0.0 : lhs - floor(lhs / rhs) * rhs;
+    case mode_atan2:
+        return atan(lhs, rhs);
     default:
         return 0.0;
     }
 }
 
+bool apply_float_boolean(float lhs, float rhs, uint mode) {
+    switch (mode) {
+    case mode_eq:
+        return lhs == rhs;
+    case mode_ne:
+        return lhs != rhs;
+    case mode_lt:
+        return lhs < rhs;
+    case mode_le:
+        return lhs <= rhs;
+    case mode_gt:
+        return lhs > rhs;
+    case mode_ge:
+        return lhs >= rhs;
+    case mode_logic_and:
+        return lhs != 0.0 && rhs != 0.0;
+    case mode_logic_or:
+        return lhs != 0.0 || rhs != 0.0;
+    case mode_logic_xor:
+        return (lhs != 0.0) != (rhs != 0.0);
+    case mode_is_finite:
+        return !isnan(lhs) && !isinf(lhs);
+    case mode_is_inf: {
+        uint detect_mask = metadata.values[metadata_infinity_detection];
+        return isinf(lhs) && ((lhs < 0.0 && (detect_mask & infinity_negative_flag) != 0) ||
+                              (lhs > 0.0 && (detect_mask & infinity_positive_flag) != 0));
+    }
+    case mode_is_nan:
+        return isnan(lhs);
+    default:
+        return false;
+    }
+}
+
+uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
+    switch (mode) {
+    case mode_sum:
+        return add_u64(lhs, rhs);
+    case mode_sub:
+        return sub_u64(lhs, rhs);
+    case mode_max:
+        return (signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs)) ? rhs : lhs;
+    case mode_prod:
+        return mul_u64(lhs, rhs);
+    case mode_div: {
+        uvec2 quotient;
+        uvec2 remainder;
+        divide_integer(lhs, rhs, signed_type, metadata.values[metadata_python_division] != 0, quotient, remainder);
+        return quotient;
+    }
+    case mode_min:
+        return (signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs)) ? lhs : rhs;
+    case mode_pow:
+        return pow_u64(lhs, rhs);
+    case mode_squared_diff: {
+        uvec2 difference = sub_u64(lhs, rhs);
+        return mul_u64(difference, difference);
+    }
+    case mode_mod: {
+        uvec2 quotient;
+        uvec2 remainder;
+        divide_integer(lhs, rhs, signed_type, false, quotient, remainder);
+        return remainder;
+    }
+    case mode_floor_mod: {
+        uvec2 quotient;
+        uvec2 remainder;
+        divide_integer(lhs, rhs, signed_type, true, quotient, remainder);
+        return remainder;
+    }
+    case mode_right_shift:
+        return signed_type ? shift_right_signed_u64(lhs, rhs.x) : shift_right_unsigned_u64(lhs, rhs.x);
+    case mode_left_shift:
+        return shift_left_u64(lhs, rhs.x);
+    case mode_bitwise_and:
+        return lhs & rhs;
+    case mode_bitwise_or:
+        return lhs | rhs;
+    case mode_bitwise_xor:
+        return lhs ^ rhs;
+    default:
+        return uvec2(0);
+    }
+}
+
+bool apply_integer_boolean(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
+    switch (mode) {
+    case mode_eq:
+        return equal_u64(lhs, rhs);
+    case mode_ne:
+        return !equal_u64(lhs, rhs);
+    case mode_lt:
+        return signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs);
+    case mode_le:
+        return equal_u64(lhs, rhs) || (signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs));
+    case mode_gt:
+        return !equal_u64(lhs, rhs) && !(signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs));
+    case mode_ge:
+        return !(signed_type ? less_signed_u64(lhs, rhs) : less_unsigned_u64(lhs, rhs));
+    case mode_logic_and:
+        return !zero_u64(lhs) && !zero_u64(rhs);
+    case mode_logic_or:
+        return !zero_u64(lhs) || !zero_u64(rhs);
+    case mode_logic_xor:
+        return zero_u64(lhs) != zero_u64(rhs);
+    case mode_is_finite:
+        return true;
+    case mode_is_inf:
+    case mode_is_nan:
+        return false;
+    default:
+        return false;
+    }
+}
+
+uvec2 float_output_bits(float value, uint output_type) {
+    if (output_type == type_f32) {
+        return uvec2(floatBitsToUint(value), 0);
+    }
+    if (output_type == type_f16) {
+        return uvec2(packHalf2x16(vec2(value, 0.0)), 0);
+    }
+    if (is_signed_type(output_type)) {
+        int converted = int(value);
+        return uvec2(uint(converted), converted < 0 ? 0xffffffff : 0);
+    }
+    return uvec2(uint(value), 0);
+}
+
+uvec2 evaluate_element(uint linear_index, out uint output_offset) {
+    uint mode = metadata.values[metadata_mode];
+    uint rank = metadata.values[metadata_rank];
+    uint input0_type = metadata.values[metadata_input0_type];
+    uint input1_type = metadata.values[metadata_input1_type];
+    uint output_type = metadata.values[metadata_output_type];
+    uint input0_offset;
+    uint input1_offset;
+    if ((metadata.values[metadata_flags] & storage_linear_flag) != 0) {
+        input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
+        input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
+        output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
+    } else {
+        uint output_base = header_words + tensor_output * tensor_words;
+        uint coordinates[max_rank];
+        uint remainder = linear_index;
+        for (int axis = int(rank) - 1; axis >= 0; --axis) {
+            uint dimension = metadata.values[output_base + uint(axis)];
+            coordinates[axis] = remainder % dimension;
+            remainder /= dimension;
+        }
+        input0_offset = storage_element_offset(tensor_input0, coordinates, rank);
+        input1_offset = storage_element_offset(tensor_input1, coordinates, rank);
+        output_offset = storage_element_offset(tensor_output, coordinates, rank);
+    }
+
+    if (is_float_type(input0_type)) {
+        float lhs = load_float_0(input0_offset, input0_type);
+        float rhs = load_float_1(input1_offset, input1_type);
+        if (is_boolean_mode(mode)) {
+            return uvec2(apply_float_boolean(lhs, rhs, mode) ? 1 : 0, 0);
+        }
+        return float_output_bits(apply_float(lhs, rhs, mode), output_type);
+    } else {
+        uvec2 lhs = load_integer_0(input0_offset, input0_type);
+        uvec2 rhs = load_integer_1(input1_offset, input1_type);
+        bool signed_type = is_signed_type(input0_type);
+        if (is_boolean_mode(mode)) {
+            return uvec2(apply_integer_boolean(lhs, rhs, mode, signed_type) ? 1 : 0, 0);
+        }
+        return apply_integer(lhs, rhs, mode, signed_type);
+    }
+}
+
 void main() {
-    uint linear_index = gl_GlobalInvocationID.x;
-    uint element_count = metadata.values[0];
-    if (linear_index >= element_count) {
+    uint invocation_index = gl_GlobalInvocationID.x;
+    uint element_count = metadata.values[metadata_element_count];
+    uint output_type = metadata.values[metadata_output_type];
+    uint output_size = scalar_size(output_type);
+    bool pack_output = output_size < 4 && (metadata.values[metadata_flags] & storage_packed_output_flag) != 0;
+    uint elements_per_invocation = pack_output ? 4 / output_size : 1;
+    uint first_element = invocation_index * elements_per_invocation;
+    if (first_element >= element_count) {
         return;
     }
 
-    uint mode = metadata.values[1];
-    if ((metadata.values[3] & linear_storage_flag) != 0) {
-        uint input0_offset = metadata.values[header_words + max_rank * 2] + linear_index;
-        uint input1_offset = metadata.values[header_words + tensor_words + max_rank * 2] + linear_index;
-        uint output_offset = metadata.values[header_words + 2 * tensor_words + max_rank * 2] + linear_index;
-        output_data.values[output_offset] = apply_operation(input0_data.values[input0_offset], input1_data.values[input1_offset], mode);
+    uint first_output_offset;
+    uvec2 first_value = evaluate_element(first_element, first_output_offset);
+    if (!pack_output) {
+        uint output_byte_offset = first_output_offset * output_size;
+        if (output_size == 1) {
+            store_tail_u8(output_byte_offset, first_value.x);
+        } else if (output_size == 2) {
+            store_tail_u16(output_byte_offset, first_value.x);
+        } else {
+            uint output_word = output_byte_offset / 4;
+            packed_output_data.values[output_word] = first_value.x;
+            if (output_size == 8) {
+                packed_output_data.values[output_word + 1] = first_value.y;
+            }
+        }
         return;
     }
 
-    uint rank = metadata.values[2];
-    uint output_base = header_words + 2 * tensor_words;
-    uint coordinates[max_rank];
-    uint remainder = linear_index;
-    for (int axis = int(rank) - 1; axis >= 0; --axis) {
-        uint dimension = metadata.values[output_base + uint(axis)];
-        coordinates[axis] = remainder % dimension;
-        remainder /= dimension;
+    uint component_mask = output_size == 2 ? half_value_mask : byte_value_mask;
+    uint packed_value = first_value.x & component_mask;
+    uint processed_elements = 1;
+    for (uint packed_index = 1; packed_index < elements_per_invocation; ++packed_index) {
+        uint element_index = first_element + packed_index;
+        if (element_index >= element_count) {
+            break;
+        }
+        uint output_offset;
+        uvec2 value = evaluate_element(element_index, output_offset);
+        packed_value |= (value.x & component_mask) << (packed_index * output_size * 8);
+        processed_elements += 1;
     }
 
-    uint input0_offset = tensor_offset(0, coordinates, rank);
-    uint input1_offset = tensor_offset(1, coordinates, rank);
-    uint output_offset = tensor_offset(2, coordinates, rank);
-    output_data.values[output_offset] = apply_operation(input0_data.values[input0_offset],
-                                                        input1_data.values[input1_offset],
-                                                        mode);
+    uint output_byte_offset = first_output_offset * output_size;
+    if (processed_elements == elements_per_invocation) {
+        packed_output_data.values[output_byte_offset / 4] = packed_value;
+    } else if (output_size == 2) {
+        store_tail_u16(output_byte_offset, packed_value);
+    } else {
+        for (uint byte_index = 0; byte_index < processed_elements; ++byte_index) {
+            store_tail_u8(output_byte_offset + byte_index, packed_value >> (byte_index * 8));
+        }
+    }
 }

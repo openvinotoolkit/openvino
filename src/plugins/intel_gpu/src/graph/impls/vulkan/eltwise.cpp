@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
 #include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -22,18 +24,146 @@ namespace cldnn {
 namespace vulkan {
 namespace {
 
+namespace shader_abi = eltwise_shader_abi;
+
 constexpr uint32_t max_rank = 8;
-constexpr uint32_t header_words = 4;
+constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::count);
 constexpr uint32_t tensor_words = max_rank * 2 + 1;
-constexpr uint32_t tensor_count = 3;
+constexpr uint32_t tensor_count = shader_abi::index(shader_abi::tensor_index::count);
 constexpr uint32_t metadata_words = header_words + tensor_count * tensor_words;
 constexpr uint32_t portable_max_local_work_group_size = 128;
-constexpr uint32_t linear_storage_flag = 1U;
 
 bool is_supported_mode(eltwise_mode mode) {
-    return one_of(
-        mode,
-        {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::max, eltwise_mode::prod, eltwise_mode::div, eltwise_mode::min, eltwise_mode::squared_diff});
+    return one_of(mode, {eltwise_mode::sum,        eltwise_mode::sub,         eltwise_mode::max,          eltwise_mode::prod,       eltwise_mode::div,
+                         eltwise_mode::min,        eltwise_mode::pow,         eltwise_mode::squared_diff, eltwise_mode::mod,        eltwise_mode::eq,
+                         eltwise_mode::ne,         eltwise_mode::lt,          eltwise_mode::le,           eltwise_mode::gt,         eltwise_mode::ge,
+                         eltwise_mode::logic_and,  eltwise_mode::logic_or,    eltwise_mode::logic_xor,    eltwise_mode::floor_mod,  eltwise_mode::is_finite,
+                         eltwise_mode::is_inf,     eltwise_mode::is_nan,      eltwise_mode::right_shift,  eltwise_mode::left_shift, eltwise_mode::bitwise_and,
+                         eltwise_mode::bitwise_or, eltwise_mode::bitwise_xor, eltwise_mode::atan2});
+}
+
+bool is_unary_mode(eltwise_mode mode) {
+    return one_of(mode, {eltwise_mode::is_finite, eltwise_mode::is_inf, eltwise_mode::is_nan});
+}
+
+bool is_bitwise_mode(eltwise_mode mode) {
+    return one_of(mode, {eltwise_mode::right_shift, eltwise_mode::left_shift, eltwise_mode::bitwise_and, eltwise_mode::bitwise_or, eltwise_mode::bitwise_xor});
+}
+
+bool is_supported_data_type(data_types type) {
+    return one_of(type,
+                  {data_types::f16,
+                   data_types::f32,
+                   data_types::i8,
+                   data_types::u8,
+                   data_types::i16,
+                   data_types::u16,
+                   data_types::i32,
+                   data_types::u32,
+                   data_types::i64,
+                   data_types::boolean});
+}
+
+bool is_integer_data_type(data_types type) {
+    return one_of(type,
+                  {data_types::i8, data_types::u8, data_types::i16, data_types::u16, data_types::i32, data_types::u32, data_types::i64, data_types::boolean});
+}
+
+shader_abi::mode shader_mode_code(eltwise_mode mode) {
+    switch (mode) {
+    case eltwise_mode::sum:
+        return shader_abi::mode::sum;
+    case eltwise_mode::sub:
+        return shader_abi::mode::sub;
+    case eltwise_mode::max:
+        return shader_abi::mode::max;
+    case eltwise_mode::prod:
+        return shader_abi::mode::prod;
+    case eltwise_mode::div:
+        return shader_abi::mode::div;
+    case eltwise_mode::min:
+        return shader_abi::mode::min;
+    case eltwise_mode::pow:
+        return shader_abi::mode::pow;
+    case eltwise_mode::squared_diff:
+        return shader_abi::mode::squared_diff;
+    case eltwise_mode::mod:
+        return shader_abi::mode::mod;
+    case eltwise_mode::eq:
+        return shader_abi::mode::eq;
+    case eltwise_mode::ne:
+        return shader_abi::mode::ne;
+    case eltwise_mode::lt:
+        return shader_abi::mode::lt;
+    case eltwise_mode::le:
+        return shader_abi::mode::le;
+    case eltwise_mode::gt:
+        return shader_abi::mode::gt;
+    case eltwise_mode::ge:
+        return shader_abi::mode::ge;
+    case eltwise_mode::logic_and:
+        return shader_abi::mode::logic_and;
+    case eltwise_mode::logic_or:
+        return shader_abi::mode::logic_or;
+    case eltwise_mode::logic_xor:
+        return shader_abi::mode::logic_xor;
+    case eltwise_mode::floor_mod:
+        return shader_abi::mode::floor_mod;
+    case eltwise_mode::is_finite:
+        return shader_abi::mode::is_finite;
+    case eltwise_mode::is_inf:
+        return shader_abi::mode::is_inf;
+    case eltwise_mode::is_nan:
+        return shader_abi::mode::is_nan;
+    case eltwise_mode::right_shift:
+        return shader_abi::mode::right_shift;
+    case eltwise_mode::left_shift:
+        return shader_abi::mode::left_shift;
+    case eltwise_mode::bitwise_and:
+        return shader_abi::mode::bitwise_and;
+    case eltwise_mode::bitwise_or:
+        return shader_abi::mode::bitwise_or;
+    case eltwise_mode::bitwise_xor:
+        return shader_abi::mode::bitwise_xor;
+    case eltwise_mode::atan2:
+        return shader_abi::mode::atan2;
+    default:
+        OPENVINO_THROW("[GPU][Vulkan] Unsupported Eltwise shader mode");
+    }
+}
+
+shader_abi::scalar_type scalar_type_code(data_types type) {
+    switch (type) {
+    case data_types::f16:
+        return shader_abi::scalar_type::f16;
+    case data_types::f32:
+        return shader_abi::scalar_type::f32;
+    case data_types::i8:
+        return shader_abi::scalar_type::i8;
+    case data_types::u8:
+        return shader_abi::scalar_type::u8;
+    case data_types::i16:
+        return shader_abi::scalar_type::i16;
+    case data_types::u16:
+        return shader_abi::scalar_type::u16;
+    case data_types::i32:
+        return shader_abi::scalar_type::i32;
+    case data_types::u32:
+        return shader_abi::scalar_type::u32;
+    case data_types::i64:
+        return shader_abi::scalar_type::i64;
+    case data_types::boolean:
+        return shader_abi::scalar_type::boolean;
+    default:
+        OPENVINO_THROW("[GPU][Vulkan] Unsupported Eltwise scalar type ", ov::element::Type(type).get_type_name());
+    }
+}
+
+uint32_t float_bits(float value) {
+    uint32_t result = 0;
+    static_assert(sizeof(result) == sizeof(value));
+    std::memcpy(&result, &value, sizeof(result));
+    return result;
 }
 
 bool is_supported_format(format::type fmt) {
@@ -66,12 +196,21 @@ bool can_use_linear_storage(const layout& input0_layout, const layout& input1_la
            input1_layout.identical(output_layout);
 }
 
-void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, uint32_t tensor_index, const layout& tensor_layout, uint32_t output_rank) {
+uint32_t output_elements_per_invocation(const layout& output_layout) {
+    const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
+    if (scalar_size >= sizeof(uint32_t) || !has_dense_storage(output_layout)) {
+        return 1;
+    }
+    OPENVINO_ASSERT(sizeof(uint32_t) % scalar_size == 0, "[GPU][Vulkan] Eltwise output scalar size cannot be packed into a 32-bit storage word");
+    return checked_u32(sizeof(uint32_t) / scalar_size, "packed output width");
+}
+
+void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor, const layout& tensor_layout, uint32_t output_rank) {
     const auto shape = tensor_layout.get_shape();
     const auto pitches = tensor_layout.get_pitches();
     OPENVINO_ASSERT(shape.size() <= pitches.size() && shape.size() <= output_rank, "[GPU][Vulkan] Eltwise received an invalid tensor rank");
 
-    const auto base = header_words + tensor_index * tensor_words;
+    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
     const auto leading_dimensions = output_rank - checked_u32(shape.size(), "rank");
     for (uint32_t axis = 0; axis < max_rank; ++axis) {
         metadata[base + axis] = 1;
@@ -86,20 +225,39 @@ void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, uint3
 }
 
 std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance) {
+    const auto desc = instance.get_typed_desc<eltwise>();
+    const auto input_count = instance.inputs_memory_count();
+    OPENVINO_ASSERT(input_count == (is_unary_mode(desc->mode) ? 1 : 2), "[GPU][Vulkan] Eltwise received an unexpected input count");
     const auto& input0_layout = instance.get_input_layout(0);
-    const auto& input1_layout = instance.get_input_layout(1);
+    const auto& input1_layout = input_count == 1 ? input0_layout : instance.get_input_layout(1);
     const auto& output_layout = instance.get_output_layout(0);
+    OPENVINO_ASSERT(!input0_layout.is_dynamic() && !input1_layout.is_dynamic() && !output_layout.is_dynamic(),
+                    "[GPU][Vulkan] Eltwise execution requires resolved runtime layouts");
     const auto output_rank = checked_u32(output_layout.get_shape().size(), "output rank");
     OPENVINO_ASSERT(output_rank <= max_rank, "[GPU][Vulkan] Eltwise supports tensors with rank up to ", max_rank);
 
     std::array<uint32_t, metadata_words> metadata{};
-    metadata[0] = checked_u32(output_layout.count(), "element count");
-    metadata[1] = static_cast<uint32_t>(instance.get_typed_desc<eltwise>()->mode);
-    metadata[2] = output_rank;
-    metadata[3] = can_use_linear_storage(input0_layout, input1_layout, output_layout) ? linear_storage_flag : 0U;
-    write_tensor_metadata(metadata, 0, input0_layout, output_rank);
-    write_tensor_metadata(metadata, 1, input1_layout, output_rank);
-    write_tensor_metadata(metadata, 2, output_layout, output_rank);
+    metadata[shader_abi::index(shader_abi::metadata_field::element_count)] = checked_u32(output_layout.count(), "element count");
+    metadata[shader_abi::index(shader_abi::metadata_field::mode)] = shader_abi::value(shader_mode_code(desc->mode));
+    metadata[shader_abi::index(shader_abi::metadata_field::rank)] = output_rank;
+    metadata[shader_abi::index(shader_abi::metadata_field::flags)] =
+        (can_use_linear_storage(input0_layout, input1_layout, output_layout) ? shader_abi::value(shader_abi::storage_flag::linear) : 0U) |
+        (output_elements_per_invocation(output_layout) > 1 ? shader_abi::value(shader_abi::storage_flag::packed_output) : 0U);
+    metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(scalar_type_code(input0_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(scalar_type_code(input1_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(scalar_type_code(output_layout.data_type));
+    metadata[shader_abi::index(shader_abi::metadata_field::python_division)] = desc->m_pythondiv ? 1U : 0U;
+    metadata[shader_abi::index(shader_abi::metadata_field::infinity_detection)] =
+        desc->mode == eltwise_mode::is_inf && desc->coefficients.size() == 2
+            ? (desc->coefficients[0] != 0.0f ? shader_abi::value(shader_abi::infinity_flag::negative) : 0U) |
+                  (desc->coefficients[1] != 0.0f ? shader_abi::value(shader_abi::infinity_flag::positive) : 0U)
+            : shader_abi::all_infinities_mask;
+    metadata[shader_abi::index(shader_abi::metadata_field::input_count)] = checked_u32(input_count, "input count");
+    metadata[shader_abi::index(shader_abi::metadata_field::input0_coefficient)] = float_bits(desc->coefficients.empty() ? 1.0f : desc->coefficients[0]);
+    metadata[shader_abi::index(shader_abi::metadata_field::input1_coefficient)] = float_bits(desc->coefficients.empty() ? 1.0f : desc->coefficients[1]);
+    write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
+    write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
+    write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
     return metadata;
 }
 
@@ -176,7 +334,9 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, eltwise_inst& instance) override {
         OPENVINO_ASSERT(_kernels.size() == 1 && _kernels.front() != nullptr, "[GPU][Vulkan] Eltwise kernel was not initialized");
-        OPENVINO_ASSERT(instance.inputs_memory_count() == 2, "[GPU][Vulkan] Eltwise supports exactly two inputs");
+        const auto desc = instance.get_typed_desc<eltwise>();
+        const auto input_count = instance.inputs_memory_count();
+        OPENVINO_ASSERT(input_count == (is_unary_mode(desc->mode) ? 1 : 2), "[GPU][Vulkan] Eltwise received an unexpected input count");
         OPENVINO_ASSERT(instance.get_intermediates_memories().size() == 1, "[GPU][Vulkan] Eltwise metadata buffer was not allocated");
 
         auto& stream = instance.get_network().get_stream();
@@ -190,20 +350,28 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
         kernel_arguments_desc descriptor;
         descriptor.layerID = instance.id();
-        descriptor.workGroups.global = {metadata[0], 1, 1};
-        descriptor.workGroups.local = {select_local_work_group_size(metadata[0], instance.get_network().get_engine().get_device_info().max_work_group_size),
-                                       1,
-                                       1};
+        const auto element_count = metadata[shader_abi::index(shader_abi::metadata_field::element_count)];
+        const auto elements_per_invocation = output_elements_per_invocation(instance.get_output_layout(0));
+        const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
+        descriptor.workGroups.global = {invocation_count, 1, 1};
+        descriptor.workGroups.local = {
+            select_local_work_group_size(invocation_count, instance.get_network().get_engine().get_device_info().max_work_group_size),
+            1,
+            1};
         descriptor.specialize_local_size_x = true;
         descriptor.arguments = {
             {argument_desc::Types::INPUT, 0},
-            {argument_desc::Types::INPUT, 1},
+            {argument_desc::Types::INPUT, static_cast<uint32_t>(input_count == 1 ? 0 : 1)},
             {argument_desc::Types::OUTPUT, 0},
             {argument_desc::Types::INTERNAL_BUFFER, 0},
+            {argument_desc::Types::OUTPUT, 0},
         };
 
         kernel_arguments_data arguments;
-        arguments.inputs = {instance.input_memory_ptr(0), instance.input_memory_ptr(1)};
+        arguments.inputs = {instance.input_memory_ptr(0)};
+        if (input_count == 2) {
+            arguments.inputs.push_back(instance.input_memory_ptr(1));
+        }
         arguments.outputs = {instance.output_memory_ptr(0)};
         arguments.intermediates = {metadata_memory};
         return stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, instance.needs_completion_event());
@@ -220,25 +388,33 @@ private:
 
 bool EltwiseImplementationManager::validate_impl(const program_node& node) const {
     OPENVINO_ASSERT(node.is_type<eltwise>(), "[GPU][Vulkan] Invalid node type passed to Eltwise manager");
-    if (node.get_program().get_engine().runtime_type() != runtime_types::vulkan || node.get_dependencies().size() != 2 || node.has_fused_primitives()) {
+    if (node.get_program().get_engine().runtime_type() != runtime_types::vulkan || node.has_fused_primitives()) {
         return false;
     }
 
     const auto& desc = node.as<eltwise>().get_primitive();
-    if (!is_supported_mode(desc->mode) || !desc->coefficients.empty() || !desc->stride.empty() ||
+    const auto expected_inputs = is_unary_mode(desc->mode) ? 1U : 2U;
+    const bool coefficients_supported = desc->coefficients.empty() || (desc->mode == eltwise_mode::sum && desc->coefficients.size() == expected_inputs) ||
+                                        (desc->mode == eltwise_mode::is_inf && desc->coefficients.size() == 2);
+    if (!is_supported_mode(desc->mode) || node.get_dependencies().size() != expected_inputs || !coefficients_supported || !desc->stride.empty() ||
         (desc->broadcast_spec.m_type != ov::op::AutoBroadcastType::NUMPY && desc->broadcast_spec.m_type != ov::op::AutoBroadcastType::NONE)) {
         return false;
     }
 
-    for (size_t index = 0; index < 2; ++index) {
+    for (size_t index = 0; index < expected_inputs; ++index) {
         const auto& input_layout = node.get_input_layout(index);
-        if (input_layout.data_type != data_types::f32 || !is_supported_format(input_layout.format.value) || input_layout.is_dynamic()) {
+        if (!is_supported_data_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank) {
+            return false;
+        }
+        if (is_bitwise_mode(desc->mode) && !is_integer_data_type(input_layout.data_type)) {
+            return false;
+        }
+        if ((desc->mode == eltwise_mode::atan2 || is_unary_mode(desc->mode)) && !data_type_traits::is_floating_point(input_layout.data_type)) {
             return false;
         }
     }
     const auto& output_layout = node.get_output_layout(0);
-    return output_layout.data_type == data_types::f32 && is_supported_format(output_layout.format.value) && !output_layout.is_dynamic() &&
-           output_layout.get_rank() <= max_rank;
+    return is_supported_data_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
 }
 
 std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params&) const {

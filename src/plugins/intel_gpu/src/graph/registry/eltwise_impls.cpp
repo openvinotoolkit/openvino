@@ -23,6 +23,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<eltwi
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #ifdef OV_GPU_WITH_VULKAN_RT
         std::make_shared<cldnn::vulkan::EltwiseImplementationManager>(shape_types::static_shape, not_in_shape_flow()),
+        std::make_shared<cldnn::vulkan::EltwiseImplementationManager>(shape_types::dynamic_shape, not_in_shape_flow()),
 #endif
         OV_GPU_CREATE_INSTANCE_SYCL(cldnn::sycl::EltwiseImplementationManager, shape_types::static_shape, not_in_shape_flow())
         OV_GPU_GET_INSTANCE_OCL(eltwise, shape_types::static_shape, not_in_shape_flow())

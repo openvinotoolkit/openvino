@@ -55,10 +55,11 @@ bool ReshapeImplementationManager::validate_impl(const program_node& node) const
 
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);
-    return input_layout.data_type == data_types::f32 && output_layout.data_type == data_types::f32 && is_copy_compatible_format(input_layout.format) &&
-           is_copy_compatible_format(output_layout.format) && !input_layout.is_dynamic() && !output_layout.is_dynamic() &&
-           !static_cast<bool>(input_layout.data_padding) && !static_cast<bool>(output_layout.data_padding) && input_layout.get_linear_offset() == 0 &&
-           output_layout.get_linear_offset() == 0 && input_layout.count() == output_layout.count() && input_layout.bytes_count() == output_layout.bytes_count();
+    return input_layout.data_type == output_layout.data_type && data_type_traits::size_of(input_layout.data_type) >= 1 &&
+           is_copy_compatible_format(input_layout.format) && is_copy_compatible_format(output_layout.format) && !input_layout.is_dynamic() &&
+           !output_layout.is_dynamic() && !static_cast<bool>(input_layout.data_padding) && !static_cast<bool>(output_layout.data_padding) &&
+           input_layout.get_linear_offset() == 0 && output_layout.get_linear_offset() == 0 && input_layout.count() == output_layout.count() &&
+           input_layout.bytes_count() == output_layout.bytes_count();
 }
 
 std::unique_ptr<primitive_impl> ReshapeImplementationManager::create_impl(const program_node& node, const kernel_impl_params&) const {
