@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/embedding_bag.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -426,6 +427,67 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     }
 }
 
+TEST(embedding_bag_fp16_gpu, offsets_sum_indices_with_non_zero_physical_offset) {
+    // Same logical values as offsets_sum_basic, but indices are provided via a cropped view.
+    // This forces non-zero INPUT1_OFFSET and catches regressions in indices addressing.
+    auto& engine = get_test_engine();
+
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices_full = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
+    auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
+    auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
+    tensor output_shape = {3, 2, 1, 1};
+
+    set_values(emb_table, {
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
+    });
+    // Crop with offset {1, 0, 0, 0} produces logical indices {0, 2, 3, 4}.
+    set_values<int32_t>(indices_full, {
+            4, 0, 2, 3, 4
+    });
+    set_values<int32_t>(offsets, {
+            0, 2, 2
+    });
+    set_values(per_sample_weights, {
+            ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
+    });
+
+    auto type = embedding_bag::offsets_sum;
+    topology topology;
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1_full", indices_full->get_layout()));
+    topology.add(crop("Input1", input_info("Input1_full"), { 4, 1, 1, 1 }, { 1, 0, 0, 0 }));
+    topology.add(input_layout("Input2", offsets->get_layout()));
+    topology.add(data("Input3", per_sample_weights));
+    topology.add(
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
+    );
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("Input0", emb_table);
+    network.set_input_data("Input1_full", indices_full);
+    network.set_input_data("Input2", offsets);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("embedding_bag").get_memory();
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+            -1.05f, -1.2f,
+            -0.2f, -0.6f,
+            -0.1f, 0.4f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+    }
+}
+
 TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     //  emb_table : 5x2
     //  indices : 4x1
@@ -813,6 +875,74 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
     network.set_input_data("Input3", segments_num);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("embedding_bag").get_memory();
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+            -1.05f, -1.2f,
+            -0.2f, -0.6f,
+            -0.1f, 0.4f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+    }
+}
+
+TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physical_offset) {
+    // Keep Input3 (segments_num) dense while giving Input4 (weights) a non-zero physical offset.
+
+    auto& engine = get_test_engine();
+
+    auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
+    auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
+    auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
+    auto per_sample_weights_full = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 1, 1, 1 } });
+    tensor output_shape = {3, 2, 1, 1};
+
+    set_values(emb_table, {
+            ov::float16(-0.2f), ov::float16(-0.6f),
+            ov::float16(-0.1f), ov::float16(-0.4f),
+            ov::float16(-1.9f), ov::float16(-1.8f),
+            ov::float16(-1.0f), ov::float16(1.5f),
+            ov::float16(0.8f), ov::float16(-0.7f)
+    });
+    set_values<int32_t>(indices, {
+            0, 2, 3, 4
+    });
+    set_values<int32_t>(segment_ids, {
+            0, 0, 2, 2
+    });
+    set_values<int32_t>(segments_num, { 4 });
+    // Crop with offset {1, 0, 0, 0} produces logical weights {0.5, 0.5, 0.5, 0.5}.
+    // A wrong offset source would consume the leading 10.0 value and change the result.
+    set_values(per_sample_weights_full, {
+            ov::float16(10.0f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
+    });
+
+    auto type = embedding_bag::segments_sum;
+    topology topology;
+    topology.add(input_layout("Input0", emb_table->get_layout()));
+    topology.add(input_layout("Input1", indices->get_layout()));
+    topology.add(input_layout("Input2", segment_ids->get_layout()));
+    topology.add(input_layout("Input3", segments_num->get_layout()));
+    topology.add(input_layout("Input4_full", per_sample_weights_full->get_layout()));
+    topology.add(crop("Input4", input_info("Input4_full"), { 4, 1, 1, 1 }, { 1, 0, 0, 0 }));
+    topology.add(
+            embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 0)
+    );
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("Input0", emb_table);
+    network.set_input_data("Input1", indices);
+    network.set_input_data("Input2", segment_ids);
+    network.set_input_data("Input3", segments_num);
+    network.set_input_data("Input4_full", per_sample_weights_full);
 
     auto outputs = network.execute();
 
