@@ -166,5 +166,9 @@ const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t desc
     return pipeline;
 }
 
+std::shared_ptr<void> vulkan_kernel::get_lifetime_token() const {
+    return _state;
+}
+
 }  // namespace vulkan
 }  // namespace cldnn

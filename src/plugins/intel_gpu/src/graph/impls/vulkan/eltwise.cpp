@@ -120,7 +120,9 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     eltwise_impl() : parent("vulkan_eltwise"), _kernel_source(make_kernel_source()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
-        return std::make_unique<eltwise_impl>(*this);
+        auto result = std::make_unique<eltwise_impl>(*this);
+        result->_metadata_initialized = false;
+        return result;
     }
 
     bool is_cpu() const override {
@@ -180,7 +182,11 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         auto& stream = instance.get_network().get_stream();
         const auto metadata = make_metadata(instance);
         auto metadata_memory = instance.get_intermediates_memories().front();
-        metadata_memory->copy_from(stream, metadata.data(), true);
+        if (!_metadata_initialized || metadata != _cached_metadata) {
+            metadata_memory->copy_from(stream, metadata.data(), true);
+            _cached_metadata = metadata;
+            _metadata_initialized = true;
+        }
 
         kernel_arguments_desc descriptor;
         descriptor.layerID = instance.id();
@@ -206,6 +212,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 private:
     std::shared_ptr<kernel_string> _kernel_source;
     std::vector<kernel::ptr> _kernels;
+    std::array<uint32_t, metadata_words> _cached_metadata{};
+    bool _metadata_initialized = false;
 };
 
 }  // namespace

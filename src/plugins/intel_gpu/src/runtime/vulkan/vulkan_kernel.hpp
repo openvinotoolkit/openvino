@@ -37,6 +37,7 @@ public:
     std::string get_build_log() const override;
 
     const vulkan_pipeline_state& get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size, uint32_t specialized_local_size_x = 0);
+    std::shared_ptr<void> get_lifetime_token() const;
 
 private:
     struct shared_state;

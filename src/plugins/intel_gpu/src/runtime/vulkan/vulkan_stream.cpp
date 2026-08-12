@@ -4,9 +4,12 @@
 
 #include "vulkan_stream.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 #include "intel_gpu/runtime/memory.hpp"
@@ -73,31 +76,17 @@ std::vector<uint8_t> pack_push_constants(const scalars_desc& scalars) {
     return result;
 }
 
-struct dispatch_resources {
-    explicit dispatch_resources(VkDevice device) : device(device) {}
-
-    ~dispatch_resources() {
-        if (fence != VK_NULL_HANDLE) {
-            vkDestroyFence(device, fence, nullptr);
-        }
-        if (command_pool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(device, command_pool, nullptr);
-        }
-        if (descriptor_pool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
-        }
-    }
-
-    VkDevice device = VK_NULL_HANDLE;
-    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-    VkCommandPool command_pool = VK_NULL_HANDLE;
-    VkFence fence = VK_NULL_HANDLE;
-};
-
 struct prepared_arguments {
     std::vector<VkDescriptorBufferInfo> buffer_infos;
+    std::vector<bool> shader_writes;
+    std::vector<bool> host_outputs;
+    std::vector<memory::cptr> memories;
     std::vector<uint8_t> push_constants;
 };
+
+bool is_shader_write_argument(argument_desc::Types type) {
+    return type == argument_desc::Types::OUTPUT || type == argument_desc::Types::INTERNAL_BUFFER;
+}
 
 prepared_arguments prepare_arguments(const kernel_arguments_desc& descriptor, const kernel_arguments_data& data) {
     prepared_arguments prepared;
@@ -111,25 +100,216 @@ prepared_arguments prepare_arguments(const kernel_arguments_desc& descriptor, co
         OPENVINO_ASSERT(buffer != nullptr, "[GPU][Vulkan] Kernel argument is not backed by a Vulkan buffer");
         OPENVINO_ASSERT(buffer->size() > 0, "[GPU][Vulkan] Zero-sized storage buffer arguments are not supported");
         prepared.buffer_infos.push_back({buffer->get_buffer(), buffer->get_offset(), buffer->size()});
+        prepared.shader_writes.push_back(is_shader_write_argument(argument.t));
+        prepared.host_outputs.push_back(argument.t == argument_desc::Types::OUTPUT);
+        prepared.memories.push_back(std::move(memory));
     }
     prepared.push_constants = pack_push_constants(descriptor.scalars);
     return prepared;
 }
 
+uint32_t checked_u32(size_t value, const char* description) {
+    OPENVINO_ASSERT(value <= std::numeric_limits<uint32_t>::max(), "[GPU][Vulkan] ", description, " exceeds the 32-bit Vulkan range");
+    return static_cast<uint32_t>(value);
+}
+
+std::vector<VkBufferMemoryBarrier> make_shader_input_barriers(const prepared_arguments& prepared) {
+    std::vector<VkBufferMemoryBarrier> barriers(prepared.buffer_infos.size());
+    for (size_t index = 0; index < barriers.size(); ++index) {
+        auto& barrier = barriers[index];
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | (prepared.shader_writes[index] ? VK_ACCESS_SHADER_WRITE_BIT : 0);
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = prepared.buffer_infos[index].buffer;
+        barrier.offset = prepared.buffer_infos[index].offset;
+        barrier.size = prepared.buffer_infos[index].range;
+    }
+    return barriers;
+}
+
+std::vector<VkBufferMemoryBarrier> make_host_output_barriers(const prepared_arguments& prepared) {
+    std::vector<VkBufferMemoryBarrier> barriers;
+    barriers.reserve(prepared.buffer_infos.size());
+    for (size_t index = 0; index < prepared.buffer_infos.size(); ++index) {
+        if (!prepared.host_outputs[index]) {
+            continue;
+        }
+
+        VkBufferMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = prepared.buffer_infos[index].buffer;
+        barrier.offset = prepared.buffer_infos[index].offset;
+        barrier.size = prepared.buffer_infos[index].range;
+        barriers.push_back(barrier);
+    }
+    return barriers;
+}
+
 }  // namespace
 
-vulkan_stream::vulkan_stream(const vulkan_engine& engine) : stream(QueueTypes::in_order, SyncMethods::none), _engine(engine) {}
+struct vulkan_stream::resource_state {
+    static constexpr size_t max_in_flight_submissions = 8;
+
+    struct slot {
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+        uint32_t descriptor_capacity = 0;
+        VkFence fence = VK_NULL_HANDLE;
+        std::shared_ptr<vulkan_submission_state> submission;
+        std::vector<memory::cptr> retained_memories;
+        std::shared_ptr<void> retained_kernel;
+    };
+
+    explicit resource_state(const vulkan_engine& engine) : device(engine.get_device_handle()), queue(engine.get_compute_queue()) {
+        VkCommandPoolCreateInfo command_pool_info{};
+        command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        command_pool_info.queueFamilyIndex = engine.get_compute_queue_family();
+        check_vk_result(vkCreateCommandPool(device, &command_pool_info, nullptr, &command_pool), "vkCreateCommandPool");
+        slots.reserve(max_in_flight_submissions);
+    }
+
+    ~resource_state() {
+        finish();
+        for (auto& slot : slots) {
+            recycle(slot);
+            if (slot.fence != VK_NULL_HANDLE) {
+                vkDestroyFence(device, slot.fence, nullptr);
+            }
+            if (slot.descriptor_pool != VK_NULL_HANDLE) {
+                vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
+            }
+        }
+        if (command_pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, command_pool, nullptr);
+        }
+    }
+
+    slot& acquire(uint32_t descriptor_count) {
+        for (auto& slot : slots) {
+            if (slot.submission == nullptr) {
+                ensure_descriptor_pool(slot, descriptor_count);
+                return slot;
+            }
+            if (slot.submission->is_complete()) {
+                recycle(slot);
+                ensure_descriptor_pool(slot, descriptor_count);
+                return slot;
+            }
+        }
+
+        if (slots.size() < max_in_flight_submissions) {
+            slots.emplace_back();
+            auto& slot = slots.back();
+
+            VkCommandBufferAllocateInfo command_buffer_info{};
+            command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            command_buffer_info.commandPool = command_pool;
+            command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            command_buffer_info.commandBufferCount = 1;
+            check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &slot.command_buffer), "vkAllocateCommandBuffers");
+
+            VkFenceCreateInfo fence_info{};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            check_vk_result(vkCreateFence(device, &fence_info, nullptr, &slot.fence), "vkCreateFence");
+
+            ensure_descriptor_pool(slot, descriptor_count);
+            return slot;
+        }
+
+        auto& slot = slots[next_slot++ % slots.size()];
+        slot.submission->wait();
+        recycle(slot);
+        ensure_descriptor_pool(slot, descriptor_count);
+        return slot;
+    }
+
+    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, std::vector<memory::cptr> memories, std::shared_ptr<void> kernel_lifetime) {
+        OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE && slot.submission == nullptr, "[GPU][Vulkan] Submission resources are already in use");
+        slot.retained_memories = std::move(memories);
+        slot.retained_kernel = std::move(kernel_lifetime);
+        slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence);
+        slot.fence = VK_NULL_HANDLE;
+        return slot.submission;
+    }
+
+    void finish() {
+        for (auto& slot : slots) {
+            if (slot.submission != nullptr) {
+                slot.submission->wait();
+            }
+        }
+    }
+
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue queue = VK_NULL_HANDLE;
+    VkCommandPool command_pool = VK_NULL_HANDLE;
+    std::vector<slot> slots;
+    size_t next_slot = 0;
+
+private:
+    void recycle(slot& slot) {
+        if (slot.submission == nullptr) {
+            return;
+        }
+
+        slot.submission->wait();
+        slot.fence = slot.submission->release_fence();
+        slot.submission.reset();
+        slot.retained_memories.clear();
+        slot.retained_kernel.reset();
+        check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
+        check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
+        if (slot.descriptor_pool != VK_NULL_HANDLE) {
+            check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
+        }
+    }
+
+    void ensure_descriptor_pool(slot& slot, uint32_t descriptor_count) {
+        if (slot.descriptor_pool != VK_NULL_HANDLE && slot.descriptor_capacity >= descriptor_count) {
+            return;
+        }
+        if (slot.descriptor_pool != VK_NULL_HANDLE) {
+            vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
+            slot.descriptor_pool = VK_NULL_HANDLE;
+        }
+
+        VkDescriptorPoolSize pool_size{};
+        pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        pool_size.descriptorCount = descriptor_count;
+
+        VkDescriptorPoolCreateInfo descriptor_pool_info{};
+        descriptor_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        descriptor_pool_info.maxSets = 1;
+        descriptor_pool_info.poolSizeCount = descriptor_count == 0 ? 0 : 1;
+        descriptor_pool_info.pPoolSizes = descriptor_count == 0 ? nullptr : &pool_size;
+        check_vk_result(vkCreateDescriptorPool(device, &descriptor_pool_info, nullptr, &slot.descriptor_pool), "vkCreateDescriptorPool");
+        slot.descriptor_capacity = descriptor_count;
+    }
+};
+
+vulkan_stream::vulkan_stream(const vulkan_engine& engine)
+    : stream(QueueTypes::in_order, SyncMethods::none),
+      _engine(engine),
+      _resources(std::make_unique<resource_state>(engine)) {}
 
 vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config)),
-      _engine(engine) {}
+      _engine(engine),
+      _resources(std::make_unique<resource_state>(engine)) {}
+
+vulkan_stream::~vulkan_stream() = default;
 
 void vulkan_stream::flush() const {}
 
 void vulkan_stream::finish() const {
-    std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
-    const auto result = vkQueueWaitIdle(_engine.get_compute_queue());
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkQueueWaitIdle failed with VkResult ", static_cast<int>(result));
+    _resources->finish();
 }
 
 void vulkan_stream::wait() {
@@ -150,8 +330,16 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                          const kernel_arguments_desc& descriptor,
                                          const kernel_arguments_data& data,
                                          const std::vector<event::ptr>& dependencies,
-                                         bool) {
-    wait_for_events(dependencies);
+                                         bool is_output_event) {
+    for (const auto& dependency : dependencies) {
+        if (dependency == nullptr) {
+            continue;
+        }
+        const auto* vk_event = dynamic_cast<const vulkan_event*>(dependency.get());
+        if (vk_event == nullptr || !vk_event->is_device_submission(_engine.get_device_handle(), _engine.get_compute_queue())) {
+            dependency->wait();
+        }
+    }
 
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
@@ -162,18 +350,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                                              specialized_local_size_x);
 
     const auto device = _engine.get_device_handle();
-    dispatch_resources resources(device);
-
-    VkDescriptorPoolSize pool_size{};
-    pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    pool_size.descriptorCount = static_cast<uint32_t>(prepared.buffer_infos.size());
-
-    VkDescriptorPoolCreateInfo descriptor_pool_info{};
-    descriptor_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptor_pool_info.maxSets = 1;
-    descriptor_pool_info.poolSizeCount = prepared.buffer_infos.empty() ? 0 : 1;
-    descriptor_pool_info.pPoolSizes = prepared.buffer_infos.empty() ? nullptr : &pool_size;
-    check_vk_result(vkCreateDescriptorPool(device, &descriptor_pool_info, nullptr, &resources.descriptor_pool), "vkCreateDescriptorPool");
+    auto& resources = _resources->acquire(checked_u32(prepared.buffer_infos.size(), "descriptor count"));
 
     VkDescriptorSetAllocateInfo descriptor_set_info{};
     descriptor_set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -194,35 +371,27 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     }
     vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
 
-    VkCommandPoolCreateInfo command_pool_info{};
-    command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    command_pool_info.queueFamilyIndex = _engine.get_compute_queue_family();
-    check_vk_result(vkCreateCommandPool(device, &command_pool_info, nullptr, &resources.command_pool), "vkCreateCommandPool");
-
-    VkCommandBufferAllocateInfo command_buffer_info{};
-    command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    command_buffer_info.commandPool = resources.command_pool;
-    command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    command_buffer_info.commandBufferCount = 1;
-    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-    check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &command_buffer), "vkAllocateCommandBuffers");
-
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    check_vk_result(vkBeginCommandBuffer(command_buffer, &begin_info), "vkBeginCommandBuffer");
+    check_vk_result(vkBeginCommandBuffer(resources.command_buffer, &begin_info), "vkBeginCommandBuffer");
 
-    VkMemoryBarrier host_to_shader{};
-    host_to_shader.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    host_to_shader.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-    host_to_shader.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &host_to_shader, 0, nullptr, 0, nullptr);
+    const auto shader_input_barriers = make_shader_input_barriers(prepared);
+    vkCmdPipelineBarrier(resources.command_buffer,
+                         VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         0,
+                         0,
+                         nullptr,
+                         checked_u32(shader_input_barriers.size(), "input barrier count"),
+                         shader_input_barriers.data(),
+                         0,
+                         nullptr);
 
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+    vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
+    vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
     if (!prepared.push_constants.empty()) {
-        vkCmdPushConstants(command_buffer,
+        vkCmdPushConstants(resources.command_buffer,
                            pipeline.pipeline_layout,
                            VK_SHADER_STAGE_COMPUTE_BIT,
                            0,
@@ -238,29 +407,35 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         group_counts[axis] =
             static_cast<uint32_t>((descriptor.workGroups.global[axis] + descriptor.workGroups.local[axis] - 1) / descriptor.workGroups.local[axis]);
     }
-    vkCmdDispatch(command_buffer, group_counts[0], group_counts[1], group_counts[2]);
+    vkCmdDispatch(resources.command_buffer, group_counts[0], group_counts[1], group_counts[2]);
 
-    VkMemoryBarrier shader_to_host{};
-    shader_to_host.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    shader_to_host.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    shader_to_host.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
-    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 1, &shader_to_host, 0, nullptr, 0, nullptr);
-    check_vk_result(vkEndCommandBuffer(command_buffer), "vkEndCommandBuffer");
-
-    VkFenceCreateInfo fence_info{};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    check_vk_result(vkCreateFence(device, &fence_info, nullptr, &resources.fence), "vkCreateFence");
+    if (is_output_event) {
+        const auto host_output_barriers = make_host_output_barriers(prepared);
+        if (!host_output_barriers.empty()) {
+            vkCmdPipelineBarrier(resources.command_buffer,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_HOST_BIT,
+                                 0,
+                                 0,
+                                 nullptr,
+                                 checked_u32(host_output_barriers.size(), "output barrier count"),
+                                 host_output_barriers.data(),
+                                 0,
+                                 nullptr);
+        }
+    }
+    check_vk_result(vkEndCommandBuffer(resources.command_buffer), "vkEndCommandBuffer");
 
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
+    submit_info.pCommandBuffers = &resources.command_buffer;
     {
         std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
         check_vk_result(vkQueueSubmit(_engine.get_compute_queue(), 1, &submit_info, resources.fence), "vkQueueSubmit");
     }
-    check_vk_result(vkWaitForFences(device, 1, &resources.fence, VK_TRUE, UINT64_MAX), "vkWaitForFences");
-    return create_user_event(true);
+    auto submission = _resources->mark_submitted(resources, prepared.memories, vk_kernel->get_lifetime_token());
+    return std::make_shared<vulkan_event>(std::move(submission));
 }
 
 event::ptr vulkan_stream::enqueue_marker(const std::vector<event::ptr>& dependencies, bool) {

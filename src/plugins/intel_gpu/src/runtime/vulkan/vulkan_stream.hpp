@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "intel_gpu/runtime/stream.hpp"
 
 namespace cldnn {
@@ -15,6 +17,7 @@ class vulkan_stream final : public stream {
 public:
     explicit vulkan_stream(const vulkan_engine& engine);
     vulkan_stream(const vulkan_engine& engine, const ExecutionConfig& config);
+    ~vulkan_stream() override;
 
     void flush() const override;
     void finish() const override;
@@ -39,7 +42,10 @@ public:
 #endif
 
 private:
+    struct resource_state;
+
     const vulkan_engine& _engine;
+    std::unique_ptr<resource_state> _resources;
 };
 
 }  // namespace vulkan
