@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "plugin.hpp"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -485,6 +486,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         auto_s_context->m_utilization_thresholds.insert(device_utilization_thresholds.begin(),
                                                         device_utilization_thresholds.end());
     }
+    auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
+    if (!low_power_device.empty()) {
+        auto_s_context->m_low_power_device = low_power_device;
+    }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -593,6 +598,13 @@ std::optional<float> Plugin::get_device_utilization(const std::string& device_na
     return result;
 }
 
+std::optional<bool> Plugin::get_low_power_mode() {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    return m_telemetry_client->is_low_power_mode();
+}
+
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                       const std::string& model_precision) const {
     if (meta_devices.empty()) {
@@ -684,7 +696,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceIn
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
                                         const std::string& model_precision,
                                         unsigned int priority,
-                                        const std::unordered_map<std::string, unsigned>& utilization_thresholds) {
+                                        const std::unordered_map<std::string, unsigned>& utilization_thresholds,
+                                        const std::string& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
@@ -718,76 +731,92 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     }
 
     DeviceInformation* ptr_select_device = nullptr;
+    // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
+    // devices_utilization_threshold whenever the platform is in low power mode.
+    auto find_low_power_device = [&]() -> DeviceInformation* {
+        if (low_power_device.empty()) {
+            return nullptr;
+        }
+        auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
+            return device.device_name == low_power_device;
+        });
+        if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
+            return nullptr;
+        }
+        return &(*it);
+    };
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
+    } else if (auto* low_power_selected = find_low_power_device()) {
+        ptr_select_device = low_power_selected;
     } else {
         // select the higher priority device in case all of device utilization is exceeded the threshold.
         last_device = valid_devices.front();
-    }
-    for (const auto& item : utilization_thresholds)
-        LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
-    while (!ptr_select_device) {
-        // select the first device in the rest of available devices.
-        if (valid_devices.empty()) {
-            // after remove higher priority device,but the available devices is null,
-            // so select the last device of all available Devices.
-            ptr_select_device = &last_device;
-        } else {
-            auto device = &valid_devices.front();
-            bool is_excluded = false;
-            // check utilization here.
-            ov::DeviceIDParser parsed{device->device_name};
-            unsigned device_utilization_threshold = 0;
-            bool has_device_utilization_threshold = false;
-            if (!utilization_thresholds.empty()) {
-                const auto exact_it = utilization_thresholds.find(device->device_name);
-                if (exact_it != utilization_thresholds.end()) {
-                    device_utilization_threshold = exact_it->second;
-                    has_device_utilization_threshold = true;
-                } else {
-                    const auto base_it = utilization_thresholds.find(parsed.get_device_name());
-                    if (base_it != utilization_thresholds.end()) {
-                        device_utilization_threshold = base_it->second;
-                        has_device_utilization_threshold = true;
-                    }
-                }
-            }
-
-            if (has_device_utilization_threshold) {
-                std::string device_type;
-                if (parsed.get_device_name() == "GPU") {
-                    try {
-                        device_type = get_core()
-                                          ->get_property(device->device_name, ov::device::type.name(), {})
-                                          .as<std::string>();
-                    } catch (const ov::Exception&) {
-                        device_type = "";
-                    }
-                }
-                const auto device_utilization = get_device_utilization(device->device_name, device_type);
-                if (!device_utilization.has_value()) {
-                    LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list",
-                                  device->device_name.c_str());
-                } else {
-                    LOG_DEBUG_TAG("Device: %s\tutilization: %s",
-                                  device->device_name.c_str(),
-                                  std::to_string(device_utilization.value()).c_str());
-                    if (device_utilization.value() >= device_utilization_threshold) {
-                        is_excluded = true;
-                        LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                                      device->device_name.c_str(),
-                                      std::to_string(device_utilization.value()).c_str(),
-                                      std::to_string(device_utilization_threshold).c_str());
-                    }
-                }
-            }
-            if (is_excluded) {
-                // Remove the excluded candidate at the front in O(1).
-                valid_devices.erase(valid_devices.begin());
+        for (const auto& item : utilization_thresholds)
+            LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
+        while (!ptr_select_device) {
+            // select the first device in the rest of available devices.
+            if (valid_devices.empty()) {
+                // after remove higher priority device,but the available devices is null,
+                // so select the last device of all available Devices.
+                ptr_select_device = &last_device;
             } else {
-                ptr_select_device = device;
+                auto device = &valid_devices.front();
+                bool is_excluded = false;
+                // check utilization here.
+                ov::DeviceIDParser parsed{device->device_name};
+                unsigned device_utilization_threshold = 0;
+                bool has_device_utilization_threshold = false;
+                if (!utilization_thresholds.empty()) {
+                    const auto exact_it = utilization_thresholds.find(device->device_name);
+                    if (exact_it != utilization_thresholds.end()) {
+                        device_utilization_threshold = exact_it->second;
+                        has_device_utilization_threshold = true;
+                    } else {
+                        const auto base_it = utilization_thresholds.find(parsed.get_device_name());
+                        if (base_it != utilization_thresholds.end()) {
+                            device_utilization_threshold = base_it->second;
+                            has_device_utilization_threshold = true;
+                        }
+                    }
+                }
+
+                if (has_device_utilization_threshold) {
+                    std::string device_type;
+                    if (parsed.get_device_name() == "GPU") {
+                        try {
+                            device_type = get_core()
+                                              ->get_property(device->device_name, ov::device::type.name(), {})
+                                              .as<std::string>();
+                        } catch (const ov::Exception&) {
+                            device_type = "";
+                        }
+                    }
+                    const auto device_utilization = get_device_utilization(device->device_name, device_type);
+                    if (!device_utilization.has_value()) {
+                        LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list",
+                                      device->device_name.c_str());
+                    } else {
+                        LOG_DEBUG_TAG("Device: %s\tutilization: %s",
+                                      device->device_name.c_str(),
+                                      std::to_string(device_utilization.value()).c_str());
+                        if (device_utilization.value() >= device_utilization_threshold) {
+                            is_excluded = true;
+                            LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
+                                          device->device_name.c_str(),
+                                          std::to_string(device_utilization.value()).c_str(),
+                                          std::to_string(device_utilization_threshold).c_str());
+                        }
+                    }
+                }
+                if (is_excluded) {
+                    // Remove the excluded candidate at the front in O(1).
+                    valid_devices.erase(valid_devices.begin());
+                } else {
+                    ptr_select_device = device;
+                }
             }
         }
     }
@@ -795,6 +824,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     register_priority(priority, ptr_select_device->unique_name);
     return *ptr_select_device;
 }
+
 
 void Plugin::unregister_priority(const unsigned int& priority, const std::string& device_name) {
     if (m_mtx && m_priority_map) {
