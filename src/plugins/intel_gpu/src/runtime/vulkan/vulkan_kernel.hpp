@@ -36,7 +36,7 @@ public:
     std::vector<uint8_t> get_binary() const override;
     std::string get_build_log() const override;
 
-    const vulkan_pipeline_state& get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size);
+    const vulkan_pipeline_state& get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size, uint32_t specialized_local_size_x = 0);
 
 private:
     struct shared_state;

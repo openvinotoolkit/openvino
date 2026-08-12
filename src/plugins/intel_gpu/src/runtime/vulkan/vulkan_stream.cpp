@@ -140,7 +140,10 @@ void vulkan_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& d
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot bind arguments to a kernel from another backend");
     const auto prepared = prepare_arguments(descriptor, data);
-    vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()), static_cast<uint32_t>(prepared.push_constants.size()));
+    const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
+    vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
+                                      static_cast<uint32_t>(prepared.push_constants.size()),
+                                      specialized_local_size_x);
 }
 
 event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
@@ -153,8 +156,10 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
     const auto prepared = prepare_arguments(descriptor, data);
-    const auto& pipeline =
-        vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()), static_cast<uint32_t>(prepared.push_constants.size()));
+    const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
+    const auto& pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
+                                                             static_cast<uint32_t>(prepared.push_constants.size()),
+                                                             specialized_local_size_x);
 
     const auto device = _engine.get_device_handle();
     dispatch_resources resources(device);

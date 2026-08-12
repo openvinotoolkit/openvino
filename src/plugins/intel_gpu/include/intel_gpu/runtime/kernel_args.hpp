@@ -106,6 +106,7 @@ struct kernel_arguments_desc {
     scalars_desc scalars;
     std::string layerID;
     local_memory_args_desc local_memory_args;
+    bool specialize_local_size_x = false;
 };
 
 struct kernel_arguments_data {

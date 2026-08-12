@@ -5,7 +5,9 @@
 #include "vulkan_kernel.hpp"
 
 #include <cstring>
+#include <map>
 #include <mutex>
+#include <tuple>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -47,14 +49,17 @@ struct vulkan_kernel::shared_state {
     }
 
     ~shared_state() {
-        if (pipeline.pipeline != VK_NULL_HANDLE) {
-            vkDestroyPipeline(device, pipeline.pipeline, nullptr);
-        }
-        if (pipeline.pipeline_layout != VK_NULL_HANDLE) {
-            vkDestroyPipelineLayout(device, pipeline.pipeline_layout, nullptr);
-        }
-        if (pipeline.descriptor_set_layout != VK_NULL_HANDLE) {
-            vkDestroyDescriptorSetLayout(device, pipeline.descriptor_set_layout, nullptr);
+        for (auto& entry : pipelines) {
+            auto& pipeline = entry.second;
+            if (pipeline.pipeline != VK_NULL_HANDLE) {
+                vkDestroyPipeline(device, pipeline.pipeline, nullptr);
+            }
+            if (pipeline.pipeline_layout != VK_NULL_HANDLE) {
+                vkDestroyPipelineLayout(device, pipeline.pipeline_layout, nullptr);
+            }
+            if (pipeline.descriptor_set_layout != VK_NULL_HANDLE) {
+                vkDestroyDescriptorSetLayout(device, pipeline.descriptor_set_layout, nullptr);
+            }
         }
         if (shader_module != VK_NULL_HANDLE) {
             vkDestroyShaderModule(device, shader_module, nullptr);
@@ -67,7 +72,7 @@ struct vulkan_kernel::shared_state {
     std::vector<uint8_t> binary;
     std::string entry_point;
     std::mutex mutex;
-    vulkan_pipeline_state pipeline;
+    std::map<std::tuple<uint32_t, uint32_t, uint32_t>, vulkan_pipeline_state> pipelines;
 };
 
 vulkan_kernel::vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point)
@@ -96,12 +101,12 @@ std::string vulkan_kernel::get_build_log() const {
     return {};
 }
 
-const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size) {
+const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count, uint32_t push_constants_size, uint32_t specialized_local_size_x) {
     std::lock_guard<std::mutex> lock(_state->mutex);
-    if (_state->pipeline.pipeline != VK_NULL_HANDLE) {
-        OPENVINO_ASSERT(_state->pipeline.descriptor_count == descriptor_count && _state->pipeline.push_constants_size == push_constants_size,
-                        "[GPU][Vulkan] A kernel cannot be reused with a different descriptor or push-constant layout");
-        return _state->pipeline;
+    const auto key = std::make_tuple(descriptor_count, push_constants_size, specialized_local_size_x);
+    auto& pipeline = _state->pipelines[key];
+    if (pipeline.pipeline != VK_NULL_HANDLE) {
+        return pipeline;
     }
 
     std::vector<VkDescriptorSetLayoutBinding> bindings(descriptor_count);
@@ -116,7 +121,7 @@ const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t desc
     descriptor_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptor_layout_info.bindingCount = descriptor_count;
     descriptor_layout_info.pBindings = bindings.data();
-    check_vk_result(vkCreateDescriptorSetLayout(_state->device, &descriptor_layout_info, nullptr, &_state->pipeline.descriptor_set_layout),
+    check_vk_result(vkCreateDescriptorSetLayout(_state->device, &descriptor_layout_info, nullptr, &pipeline.descriptor_set_layout),
                     "vkCreateDescriptorSetLayout");
 
     VkPushConstantRange push_constant_range{};
@@ -127,27 +132,38 @@ const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t desc
     VkPipelineLayoutCreateInfo pipeline_layout_info{};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipeline_layout_info.setLayoutCount = 1;
-    pipeline_layout_info.pSetLayouts = &_state->pipeline.descriptor_set_layout;
+    pipeline_layout_info.pSetLayouts = &pipeline.descriptor_set_layout;
     pipeline_layout_info.pushConstantRangeCount = push_constants_size == 0 ? 0 : 1;
     pipeline_layout_info.pPushConstantRanges = push_constants_size == 0 ? nullptr : &push_constant_range;
-    check_vk_result(vkCreatePipelineLayout(_state->device, &pipeline_layout_info, nullptr, &_state->pipeline.pipeline_layout), "vkCreatePipelineLayout");
+    check_vk_result(vkCreatePipelineLayout(_state->device, &pipeline_layout_info, nullptr, &pipeline.pipeline_layout), "vkCreatePipelineLayout");
+
+    VkSpecializationMapEntry local_size_entry{};
+    local_size_entry.constantID = 0;
+    local_size_entry.offset = 0;
+    local_size_entry.size = sizeof(specialized_local_size_x);
+
+    VkSpecializationInfo specialization_info{};
+    specialization_info.mapEntryCount = specialized_local_size_x == 0 ? 0 : 1;
+    specialization_info.pMapEntries = specialized_local_size_x == 0 ? nullptr : &local_size_entry;
+    specialization_info.dataSize = specialized_local_size_x == 0 ? 0 : sizeof(specialized_local_size_x);
+    specialization_info.pData = specialized_local_size_x == 0 ? nullptr : &specialized_local_size_x;
 
     VkPipelineShaderStageCreateInfo stage_info{};
     stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     stage_info.module = _state->shader_module;
     stage_info.pName = _state->entry_point.c_str();
+    stage_info.pSpecializationInfo = specialized_local_size_x == 0 ? nullptr : &specialization_info;
 
     VkComputePipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = stage_info;
-    pipeline_info.layout = _state->pipeline.pipeline_layout;
-    check_vk_result(vkCreateComputePipelines(_state->device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &_state->pipeline.pipeline),
-                    "vkCreateComputePipelines");
+    pipeline_info.layout = pipeline.pipeline_layout;
+    check_vk_result(vkCreateComputePipelines(_state->device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline.pipeline), "vkCreateComputePipelines");
 
-    _state->pipeline.descriptor_count = descriptor_count;
-    _state->pipeline.push_constants_size = push_constants_size;
-    return _state->pipeline;
+    pipeline.descriptor_count = descriptor_count;
+    pipeline.push_constants_size = push_constants_size;
+    return pipeline;
 }
 
 }  // namespace vulkan

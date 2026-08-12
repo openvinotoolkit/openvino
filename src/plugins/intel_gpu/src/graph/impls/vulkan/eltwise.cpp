@@ -4,6 +4,7 @@
 
 #include "eltwise.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -26,7 +27,7 @@ constexpr uint32_t header_words = 4;
 constexpr uint32_t tensor_words = max_rank * 2 + 1;
 constexpr uint32_t tensor_count = 3;
 constexpr uint32_t metadata_words = header_words + tensor_count * tensor_words;
-constexpr uint32_t local_work_group_size = 64;
+constexpr uint32_t portable_max_local_work_group_size = 128;
 constexpr uint32_t linear_storage_flag = 1U;
 
 bool is_supported_mode(eltwise_mode mode) {
@@ -42,6 +43,17 @@ bool is_supported_format(format::type fmt) {
 uint32_t checked_u32(size_t value, const char* description) {
     OPENVINO_ASSERT(value <= std::numeric_limits<uint32_t>::max(), "[GPU][Vulkan] Eltwise ", description, " exceeds the 32-bit shader metadata range");
     return static_cast<uint32_t>(value);
+}
+
+uint32_t select_local_work_group_size(uint32_t element_count, uint64_t device_max_work_group_size) {
+    const auto limit = static_cast<uint32_t>(std::min<uint64_t>(portable_max_local_work_group_size, device_max_work_group_size));
+    OPENVINO_ASSERT(limit > 0, "[GPU][Vulkan] Device reports a zero maximum work-group size");
+
+    uint32_t local_size = 1;
+    while (local_size < element_count && local_size <= limit / 2) {
+        local_size *= 2;
+    }
+    return local_size;
 }
 
 bool has_dense_storage(const layout& tensor_layout) {
@@ -173,7 +185,10 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         kernel_arguments_desc descriptor;
         descriptor.layerID = instance.id();
         descriptor.workGroups.global = {metadata[0], 1, 1};
-        descriptor.workGroups.local = {local_work_group_size, 1, 1};
+        descriptor.workGroups.local = {select_local_work_group_size(metadata[0], instance.get_network().get_engine().get_device_info().max_work_group_size),
+                                       1,
+                                       1};
+        descriptor.specialize_local_size_x = true;
         descriptor.arguments = {
             {argument_desc::Types::INPUT, 0},
             {argument_desc::Types::INPUT, 1},
