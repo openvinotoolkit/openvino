@@ -598,8 +598,10 @@ public:
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
 
-        if (impl_params.get_input_layout(0).count() == 0 ||
-            impl_params.get_input_layout(1).count() == 0) {
+        bool is_dynamic = impl_params.get_input_layout(0).is_dynamic() ||
+                          impl_params.get_input_layout(1).is_dynamic();
+        if (!is_dynamic && (impl_params.get_input_layout(0).count() == 0 ||
+                           impl_params.get_input_layout(1).count() == 0)) {
             return std::make_unique<gemm_onednn>(engine);
         }
 
