@@ -4,6 +4,8 @@
 
 #include "dnnl.h"
 
+#include "openvino/core/visibility.hpp"
+
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
