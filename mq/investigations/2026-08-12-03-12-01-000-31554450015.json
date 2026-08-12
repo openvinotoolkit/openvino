@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-03-12-01-000-31554450015",
+  "timestamp": "2026-08-12T03:12:01Z",
+  "run_id": "31554450015",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31554450015",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37357",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37357",
+  "author": "sungeunk",
+  "category": "Flaky Test",
+  "title": "CachingTest/CachingTest.Load_threads crashes mid-run on Windows with exit code 1",
+  "signature": "caching test load threads process completed with exit code 1|Flaky Test",
+  "signature_hash": "2e3de08c0433e88f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "Test binary exited with code 1 during CachingTest/CachingTest.Load_threads/ByModel_testCache"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] CachingTest/CachingTest.Load_threads/ByModel_testCache\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The C++ unit test runner terminated unexpectedly with exit code 1 while executing CachingTest/CachingTest.Load_threads on Windows. The test began but the process exited before the test result was reported. This is consistent with a crash or assertion failure inside the test. The same test suite contains CoreThreadingTests.RegisterPlugins which is explicitly skipped as 'sporadically crashes on Windows', suggesting Windows threading/caching tests in this suite are known to be flaky. The PR itself (GPU Coverity fixes) does not change any core caching or threading code, so the failure is very likely pre-existing flakiness on Windows unrelated to the PR changes.",
+  "reproduction_steps": "Run the C++ unit tests on a Windows VS 2022 runner and specifically run CachingTest with filter --gtest_filter=CachingTest/CachingTest.Load_threads",
+  "recommended_actions": [
+    "Re-run the failed job to check if it is transient",
+    "If the test repeatedly fails, investigate the Load_threads test for Windows-specific threading/race conditions",
+    "Consider adding the Load_threads test to the Windows skip list alongside CoreThreadingTests.RegisterPlugins if it proves reliably flaky"
+  ],
+  "prevention_strategies": "Add the flaky test to the Windows skip list with a comment explaining the failure. Monitor occurrence rate via the CI Doctor pattern database.",
+  "historical_context": "No prior occurrence of this specific test failure pattern in the CI Doctor MQ database."
+}

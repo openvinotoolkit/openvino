@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 148,
+  "total": 149,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1450,6 +1450,15 @@
       "category": "Network",
       "signature_hash": "d27ae006a3ab2b1f",
       "pr_number": "37364"
+    },
+    {
+      "investigation_id": "2026-08-12-03-12-01-000-31554450015",
+      "run_id": "31554450015",
+      "timestamp": "2026-08-12T03:12:01Z",
+      "title": "CachingTest/CachingTest.Load_threads crashes mid-run on Windows with exit code 1",
+      "category": "Flaky Test",
+      "signature_hash": "2e3de08c0433e88f",
+      "pr_number": "37357"
     }
   ]
 }

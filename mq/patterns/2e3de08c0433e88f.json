@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "caching test load threads process completed with exit code 1|Flaky Test",
+  "signature_hash": "2e3de08c0433e88f",
+  "title": "CachingTest/CachingTest.Load_threads crashes mid-run on Windows with exit code 1",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-12T03:12:01Z",
+  "last_seen": "2026-08-12T03:12:01Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31554450015"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37357"],
+  "recent_timestamps": ["2026-08-12T03:12:01Z"],
+  "rerun_search_string": "Load_threads"
+}
