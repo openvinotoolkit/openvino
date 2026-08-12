@@ -125,9 +125,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             std::string options = kernel_string->options;
             bool batch_compilation = kernel_string->batch_compilation;
             bool is_cm = kernel_string->language == kernel_language::CM;
+            bool is_spirv = kernel_string->language == kernel_language::SPIRV;
 
             // Order matters for cm options
-            if (batch_compilation && !is_cm) {
+            if (batch_compilation && !is_cm && !is_spirv) {
                 options = reorder_options(options);
             }
 
@@ -291,7 +292,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             current_dump_file_name += '/';
 
         // Use .cm extension for CM kernels, .cl for OpenCL kernels
-        std::string ext = (batch.language == kernel_language::CM) ? ".cm" : ".cl";
+        std::string ext = batch.language == kernel_language::CM
+                              ? ".cm"
+                              : (batch.language == kernel_language::SPIRV ? ".spv" : ".cl");
         current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
                                + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ext;
     }
@@ -304,7 +307,8 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                 dump_file << s;
         }
     }
-    std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
+    const auto cache_extension = batch.language == kernel_language::SPIRV ? ".spv_cache" : ".cl_cache";
+    std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + cache_extension;
     ///////////////////////////////////////////////////////////////////////////////////
     std::vector<uint8_t> precompiled;
     if (is_cache_enabled()) {
@@ -316,7 +320,8 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
     } else {
         auto combined_source = join_strings(batch.source);
-        _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
+        const auto source_format = batch.language == kernel_language::SPIRV ? KernelFormat::NATIVE_BIN : KernelFormat::SOURCE;
+        _builder->build_kernels(combined_source.data(), combined_source.size(), source_format, batch.options, kernels);
         OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");
         OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");
         if (dump_sources && dump_file.good()) {

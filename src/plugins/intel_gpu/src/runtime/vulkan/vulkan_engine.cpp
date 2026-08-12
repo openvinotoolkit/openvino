@@ -121,7 +121,7 @@ stream_ptr vulkan_engine::create_stream(const ExecutionConfig&, void*) const {
 }
 
 std::shared_ptr<kernel_builder> vulkan_engine::create_kernel_builder() const {
-    return std::make_shared<vulkan_kernel_builder>();
+    return std::make_shared<vulkan_kernel_builder>(*this);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
