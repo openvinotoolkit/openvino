@@ -143,18 +143,10 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
         return true;
     }
 
-    // Fallback to plugin compiler if the driver does not expose compatibility check API.
-    CompilerAdapterFactory compilerFactory;
-    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
-    try {
-        auto tempCompiler = compilerFactory.getCompiler(backend,
-                                                        compilerType,
-                                                        std::string_view{},
-                                                        optionSupportHelper.getOptionSupportCache());
-        return tempCompiler->is_option_supported(ov::compatibility_check.name());
-    } catch (...) {
-        return false;
-    }
+    // Fallback to plugin compiler support check routed through the option support helper.
+    return optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                 ov::compatibility_check.name(),
+                                                 std::nullopt);
 }
 
 ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -196,19 +188,11 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
         return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    // fallback on compiler in plugin if driver does not support compatibility check
-    CompilerAdapterFactory factory;
-    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
-    try {
-        auto compiler =
-            factory.getCompiler(backend, compilerType, std::string_view{}, optionSupportHelper.getOptionSupportCache());
-
-        auto result =
-            compiler->is_option_supported(ov::compatibility_check.name(), std::make_optional(compatibilityDescriptor));
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    } catch (...) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
+    // Fallback routed through the option support helper.
+    const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                                 ov::compatibility_check.name(),
+                                                                 std::make_optional(compatibilityDescriptor));
+    return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
 
 }  // namespace
@@ -608,16 +592,19 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist - checking as internal now
-            if (compiler != nullptr) {
-                if (compiler->is_option_supported(value.first)) {
-                    // if compiler reports it supported > registering as internal
-                    _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
-                } else {
-                    OPENVINO_THROW("Unsupported configuration key: ", value.first);
-                }
-            } else {
+            bool isSupported = false;
+            try {
+                isSupported =
+                    _compilerOptionSupportHelper->isOptionSupported(_currentlyUsedCompiler, value.first, std::nullopt);
+            } catch (...) {
+                // ignore any exceptions from the compiler and treat the property as unsupported
+            }
+            if (!isSupported) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
+
+            // if compiler reports it supported > registering as internal
+            _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
         } else {
             if (_properties[value.first].mutability == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
@@ -632,7 +619,6 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
     }
-
     if (!special_cfgs_to_set.empty()) {
         _config.updateAny(special_cfgs_to_set);
     }
