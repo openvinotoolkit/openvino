@@ -3107,16 +3107,14 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
-// <offset, byte_size>: the tensor data starts at `offset` bytes into the file and spans `byte_size` bytes, so the
-// file is `offset + byte_size` long. Both values are independent - `offset` only controls how much padding precedes
-// the data and is varied to cover mmap allocation granularity boundaries.
+
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
 
 class GpuRemoteTensorFromFile : public ::testing::TestWithParam<MmapFileMemoryParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MmapFileMemoryParams>& obj) {
-        const auto& [offset, byte_size] = obj.param;
-        return "offset_" + std::to_string(offset) + "_bytes_" + std::to_string(byte_size);
+        const auto& [offset, bytes_after_offset] = obj.param;
+        return "offset_" + std::to_string(offset) + "_bytes_after_offset_" + std::to_string(bytes_after_offset);
     }
 
 protected:
@@ -3152,22 +3150,20 @@ protected:
 };
 
 TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
-    const auto& [offset, byte_size] = GetParam();
+    const auto& [offset, bytes_after_offset] = GetParam();
 
     ov::Core core;
     std::string target_device = ov::test::utils::DEVICE_GPU;
-    const ov::Shape shape{byte_size / sizeof(float)};
+    const ov::Shape shape{bytes_after_offset / sizeof(float)};
     const size_t element_count = ov::shape_size(shape);
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
 
-    // Store input data in a file at a page-aligned offset, so the resulting file size is offset + byte_size.
     const auto input_values = make_values(element_count);
     write_data_at_offset(m_file_path, offset, input_values);
-    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + byte_size);
+    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + bytes_after_offset);
 
-    // Host pointers are imported in whole cachelines, so the destination buffer is padded accordingly.
     const std::size_t cacheline = core.get_property(target_device, ov::intel_gpu::cacheline_size);
-    const std::size_t output_buffer_size = ((byte_size + cacheline - 1) / cacheline) * cacheline;
+    const std::size_t output_buffer_size = ((bytes_after_offset + cacheline - 1) / cacheline) * cacheline;
     void* output_ptr = ov::util::aligned_alloc(output_buffer_size, cacheline);
     std::fill_n(static_cast<char*>(output_ptr), output_buffer_size, 0);
 
@@ -3198,17 +3194,17 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsInput) {
 }
 
 TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
-    const auto& [offset, byte_size] = GetParam();
+    const auto& [offset, bytes_after_offset] = GetParam();
 
     ov::Core core;
     std::string target_device = ov::test::utils::DEVICE_GPU;
-    const ov::Shape shape{byte_size / sizeof(float)};
+    const ov::Shape shape{bytes_after_offset / sizeof(float)};
     const size_t element_count = ov::shape_size(shape);
     auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
 
     const auto input_values = make_values(element_count);
     write_data_at_offset(m_file_path, offset, std::vector<float>(element_count, 0.0f));
-    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + byte_size);
+    ASSERT_EQ(std::filesystem::file_size(m_file_path), offset + bytes_after_offset);
 
     {
         auto remote_output_tensor = ctx.create_tensor(
@@ -3228,7 +3224,7 @@ TEST_P(GpuRemoteTensorFromFile, smoke_mmapFileMemoryAsOutput) {
     std::vector<float> file_content(element_count, 0.0f);
     std::ifstream file(m_file_path, std::ios::binary);
     file.seekg(offset);
-    file.read(reinterpret_cast<char*>(file_content.data()), byte_size);
+    file.read(reinterpret_cast<char*>(file_content.data()), bytes_after_offset);
     for (size_t i = 0; i < element_count; ++i) {
         EXPECT_FLOAT_EQ(file_content[i], input_values[i]) << "Mismatch in file at index " << i;
     }
@@ -3257,8 +3253,8 @@ static std::vector<MmapFileMemoryParams> generate_mmap_file_memory_params() {
 
     std::vector<MmapFileMemoryParams> params;
     params.reserve(layouts.size());
-    for (const auto& [offset, byte_size] : layouts) {
-        params.emplace_back(offset, byte_size);
+    for (const auto& [offset, bytes_after_offset] : layouts) {
+        params.emplace_back(offset, bytes_after_offset);
     }
     return params;
 }
