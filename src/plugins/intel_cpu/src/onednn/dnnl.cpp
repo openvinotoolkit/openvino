@@ -4,8 +4,6 @@
 
 #include "dnnl.h"
 
-#include "openvino/core/visibility.hpp"
-
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
@@ -13,6 +11,8 @@
 #include <cpu/platform.hpp>
 #include <cstring>
 #include <oneapi/dnnl/dnnl.hpp>
+
+#include "openvino/core/visibility.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
