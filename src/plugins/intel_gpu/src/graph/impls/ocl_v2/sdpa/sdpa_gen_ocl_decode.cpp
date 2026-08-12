@@ -24,11 +24,39 @@ constexpr size_t subgroup_size = 16;
 constexpr size_t dpas_k = 16;
 
 // A 2D block read needs its surface rows to be >= 64 bytes and a multiple of 64. For a cache page
-// the surface IS the page, so the row is head_size elements and the page base is a whole number of
-// rows -- exactly the reasoning behind block2d_surface_ok() in sdpa_gen_ocl.cpp.
-bool block2d_page_ok(size_t head_size, const ov::element::Type& dt) {
-    const auto row_bytes = head_size * dt.size();
+// the surface IS the page, so the row is the page's data-row pitch and the page base is a whole
+// number of rows -- exactly the reasoning behind block2d_surface_ok() in sdpa_gen_ocl.cpp.
+// Takes BYTES rather than (head_size, dtype) because a u4 page's pitch is not head_size * dt.size():
+// ov::element::u4::size() rounds up to 1, which would give the i8 answer for a half-size row.
+bool block2d_page_ok(size_t row_bytes) {
     return row_bytes >= 64 && (row_bytes % 64) == 0;
+}
+
+// The CONFIG kv-cache precision, not the KEY_CACHE layout dtype. A u4 cache is materialized as a u8
+// tensor (transformations_pipeline.cpp maps u4->u8 so GenAI's RemoteTensor never sees a sub-byte
+// type), so the layout alone cannot tell a packed u4 cache from a real u8 one.
+bool is_u4_cache(const RuntimeParams& params) {
+    return params.get_program().get_config().get_kv_cache_precision() == ov::element::u4;
+}
+
+// Data-row pitch of a K / V page in BYTES, which is also the kernel's K_ROW_ELEMS / V_ROW_ELEMS
+// (a compressed cache's layout dtype is one byte wide).
+//   K u4 BY_CHANNEL: exactly k_head_size/2, NOT aligned up -- 16*(h/2) + 4*h == 12*h is the whole
+//                    reason the token-major page fits the existing d-major allocation byte for byte.
+//   V u4 BY_TOKEN:   align(v_head_size/2, 16), which 16*PV + 64 == 16*(PV+4) absorbs, and which
+//                    keeps the pitch a multiple of 16 for every head size.
+size_t k_row_bytes_for(const RuntimeParams& params, size_t k_head_size) {
+    if (is_u4_cache(params)) {
+        return k_head_size / 2;
+    }
+    return k_head_size * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type).size();
+}
+
+size_t v_row_bytes_for(const RuntimeParams& params, size_t v_head_size) {
+    if (is_u4_cache(params)) {
+        return ceil_div(v_head_size / 2, subgroup_size) * subgroup_size;
+    }
+    return v_head_size * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE].data_type).size();
 }
 
 int env_flag(const char* name, int fallback) {
@@ -141,16 +169,25 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (query.data_type != ov::element::f16 || params.output_layouts[0].data_type != ov::element::f16) {
         return false;
     }
-    // Either an uncompressed cache or an i8 one, and the two caches always share a precision
+    // An uncompressed cache, an i8 one, or a u4 one, and the two caches always share a precision
     // (transformations_pipeline.cpp sets valueCachePrecision = keyCachePrecision).
     //
-    // i8 ONLY, deliberately not is_i8_u8: the dequant widens the stored byte as SIGNED, matching what
-    // kv_cache_update's convert_char_rte wrote, so a u8 cache would be decoded with the wrong sign.
-    // This also rules INT4 out for free -- an int4 cache carries a u8 (packed) or u4 layout dtype,
-    // never i8 -- so no config lookup is needed to exclude it.
+    // i8 ONLY among the 8-bit types, deliberately not is_i8_u8: the dequant widens the stored byte as
+    // SIGNED, matching what kv_cache_update's convert_char_rte wrote, so a u8 cache would be decoded
+    // with the wrong sign. A u4 cache is unambiguous the other way -- the int4 quantizer clamps to
+    // [0, 15] with zp = -min*scale and no CHAR_MIN, so its nibbles are unsigned by construction.
+    //
+    // u4 has to be recognised from the CONFIG precision: it is materialized as a u8 tensor, so the
+    // layout dtype alone cannot tell it from a real u8 cache. i4 is deliberately NOT accepted.
+    const bool kv_u4 = is_u4_cache(params) && key_cache.data_type == value_cache.data_type;
     const bool kv_f16 = key_cache.data_type == ov::element::f16 && value_cache.data_type == ov::element::f16;
-    const bool kv_i8 = key_cache.data_type == ov::element::i8 && value_cache.data_type == ov::element::i8;
-    if (!kv_f16 && !kv_i8) {
+    const bool kv_i8 = !kv_u4 && key_cache.data_type == ov::element::i8 && value_cache.data_type == ov::element::i8;
+    if (!kv_f16 && !kv_i8 && !kv_u4) {
+        return false;
+    }
+    // A u4 PA cache is BY_CHANNEL for the key (execution_config.cpp rejects 4-bit BY_TOKEN keys) and
+    // BY_TOKEN for the value, so there is no u4 BY_TOKEN key path and none is implemented.
+    if (kv_u4 && !desc->is_key_by_channel) {
         return false;
     }
     // The KQ B operand is 16 consecutive head dims of ONE key, so the K page must be
@@ -159,7 +196,8 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     // Upstream BY_CHANNEL is d-major (it appends a scale/zp pair to every COLUMN), so
     // k_token_major_for() rejects it; it qualifies only under its own staging switch, which relays the
     // per-channel comp to the end of the page and flips the writer to match. V is always BY_TOKEN.
-    const auto key_cache_dt = ov::element::Type(key_cache.data_type);
+    // Feed the predicate the config precision for u4, for the same reason as above.
+    const auto key_cache_dt = kv_u4 ? ov::element::u4 : ov::element::Type(key_cache.data_type);
     const bool k_token_major = paged_attention::k_token_major_for(key_cache_dt, desc->is_key_by_channel) ||
                                paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel);
     if (!k_token_major) {
@@ -232,26 +270,39 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
 
-    // i8 cache. The K page stride is ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE, the
-    // same pair paged_attention_opt.cpp jits: the data region always keeps a plain head_size row pitch,
-    // and the comp region grows whichever of the two factors it is INDEXED BY.
-    //   uncompressed    (head_size,     block_size)      no comp at all; keeps the f16 path identical
-    //   i8 BY_TOKEN     (head_size + 4, block_size)      one (scale, zp) pair per token  -> wider row
-    //   i8 BY_CHANNEL   (head_size,     block_size + 4)  one pair per channel -> 4 more head_size rows
-    // Both come to the same +4 because a pair is 2 * sizeof(f16) = 4 bytes. Same derivation as
-    // paged_attention_opt.cpp's scales_zp_size, from the KEY input's precision.
+    // Compressed cache. The K page stride is ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE,
+    // the same pair paged_attention_opt.cpp jits: the comp region grows whichever of the two factors it
+    // is INDEXED BY, and for a packed cache the PACKING shrinks the other one.
+    //   uncompressed    (head_size,     block_size)         no comp at all; keeps the f16 path identical
+    //   i8 BY_TOKEN     (head_size + 4, block_size)         one (scale, zp) pair per token  -> wider row
+    //   i8 BY_CHANNEL   (head_size,     block_size + 4)     one pair per channel -> 4 more head_size rows
+    //   u4 BY_CHANNEL   (head_size,     block_size / 2 + 4) one pair per channel, over half-size rows
+    // The +4 is always 2 * sizeof(f16). Same derivation as paged_attention_opt.cpp's scales_zp_size,
+    // from the KEY input's precision, and the u4 block value matches transformations_pipeline.cpp's
+    // `block_size / 2 + infer_precision.size() * 2` exactly -- the page SIZE is what stays put.
     // V is BY_TOKEN in every mode (valueCacheQuantBychannel is unconditionally false), so its stride
     // stays paired with the plain block size.
-    const bool is_kv_compressed = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type == ov::element::i8;
+    const bool is_kv_u4 = is_u4_cache(params);
+    const bool is_kv_compressed =
+        is_kv_u4 || params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type == ov::element::i8;
     jit.make("IS_KV_COMPRESSED", is_kv_compressed ? 1 : 0);
+    jit.make("IS_KV_U4", is_kv_u4 ? 1 : 0);
     const bool is_key_by_channel = is_kv_compressed && desc->is_key_by_channel;
     jit.make("IS_KEY_BY_CHANNEL", is_key_by_channel ? 1 : 0);
     const auto& kv_input_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
     const size_t scales_zp_size = is_kv_compressed ? 2 * ov::element::Type(kv_input_dt).size() : 0;
+    const size_t k_row_bytes = k_row_bytes_for(params, desc->k_head_size);
+    const size_t v_row_bytes = v_row_bytes_for(params, desc->v_head_size);
     jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + (is_key_by_channel ? 0 : scales_zp_size));
     jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE",
-             paged_attention::block_size + (is_key_by_channel ? scales_zp_size : 0));
-    jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
+             (is_kv_u4 ? paged_attention::block_size / 2 : paged_attention::block_size) +
+                 (is_key_by_channel ? scales_zp_size : 0));
+    jit.make("ADJUSTED_V_HEAD_SIZE", (is_kv_u4 ? v_row_bytes : desc->v_head_size) + scales_zp_size);
+
+    // Data-row pitch in cache-dtype elements. Equals head_size for f16 and i8 -- so those paths are
+    // textually unchanged -- and the packed pitch for u4, which sizeof() cannot express.
+    jit.make("K_ROW_ELEMS", is_kv_u4 ? k_row_bytes : desc->k_head_size);
+    jit.make("V_ROW_ELEMS", is_kv_u4 ? v_row_bytes : desc->v_head_size);
 
     jit.make("HEADS_NUM", desc->heads_num);
     jit.make("KV_HEADS_NUM", desc->kv_heads_num);
@@ -269,14 +320,13 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
 
     // Bisection toggles: forcing either to 0 restores the per-lane load that builds the identical
     // DPAS operand, which is what separates an operand-mapping bug from a block-read bug.
-    // block2d_page_ok() takes the cache dtype, so the rule tightens on its own for an i8 cache: the
-    // page row is head_size BYTES instead of 2 * head_size, so it asks for head_size % 64 == 0 (head
-    // 64/128/192/256/...) where f16 needed only head_size % 32 == 0. Head 32/48/80/96/112 therefore
-    // take the per-lane fallback on i8 -- including head 96, which does get the block read on f16.
-    const auto& key_cache = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    const auto& value_cache = params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE];
-    const int k_2d = env_flag("SDPA_OCL_DECODE_K_2D", block2d_page_ok(desc->k_head_size, key_cache.data_type) ? 1 : 0);
-    const int v_2d = env_flag("SDPA_OCL_DECODE_V_2D", block2d_page_ok(desc->v_head_size, value_cache.data_type) ? 1 : 0);
+    // block2d_page_ok() takes the page's row pitch in bytes, so the rule tightens on its own as the
+    // cache narrows: f16 needs head_size % 32 == 0, i8 head_size % 64 == 0 (head 32/48/80/96/112 fall
+    // back -- including head 96, which does get the block read on f16), and u4 K needs
+    // head_size % 128 == 0 because its row is head_size/2 bytes. u4 V is a touch looser than u4 K,
+    // since its pitch is aligned up to 16 (head 112 -> 64 bytes qualifies).
+    const int k_2d = env_flag("SDPA_OCL_DECODE_K_2D", block2d_page_ok(k_row_bytes) ? 1 : 0);
+    const int v_2d = env_flag("SDPA_OCL_DECODE_V_2D", block2d_page_ok(v_row_bytes) ? 1 : 0);
     jit.make("USE_2D_BLOCK_IO_K", k_2d);
     jit.make("USE_2D_BLOCK_IO_V", v_2d);
 
