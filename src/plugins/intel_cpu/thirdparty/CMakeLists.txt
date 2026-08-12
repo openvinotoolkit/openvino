@@ -170,19 +170,7 @@ function(ov_add_onednn)
         unset(OV_ONEDNN_CXX_COMPILER_ID)
     endif()
 
-    # Clear MASM source compile flags so assembler invocations do not inherit
-    # /clang:... options or other C/C++ global flags. Collect MLAS ASM files
-    # and explicitly remove per-source COMPILE_FLAGS.
-    if(OV_COMPILER_IS_CLANG_CL)
-        file(GLOB_RECURSE _mlas_asm_files
-            "${CMAKE_CURRENT_SOURCE_DIR}/mlas/lib/amd64/*.asm"
-        )
-        if(_mlas_asm_files)
-            set_source_files_properties(${_mlas_asm_files} PROPERTIES COMPILE_FLAGS "")
-        endif()
-    endif()
-
-# 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
     endif()
@@ -221,32 +209,20 @@ if(ENABLE_MLAS_FOR_CPU)
         target_compile_options(mlas PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
     endif()
 
-    # Ensure MLAS C/C++ translation units are compiled with the required
-    # ISA feature flags when using clang-cl on Windows. Use per-target
-    # target_compile_options with language generator-expressions so these
-    # /clang: flags apply only to C/C++ compile rules.
     if(OV_COMPILER_IS_CLANG_CL)
-        target_compile_options(mlas PRIVATE
-            $<$<COMPILE_LANGUAGE:C>:/clang:-msse4.1>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-msse4.1>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mssse3>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mssse3>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx2>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx2>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mfma>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mfma>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512f>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512f>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512bw>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512bw>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512dq>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512dq>
-            $<$<COMPILE_LANGUAGE:C>:/clang:-mavx512vl>
-            $<$<COMPILE_LANGUAGE:CXX>:/clang:-mavx512vl>
-        )
+        # Keep the MLAS target baseline ISA unchanged. The MLAS submodule already
+        # assigns AVX/AVX2 flags to its matching source groups; from the parent
+        # directory we only patch the Windows clang-cl gaps for sources that do
+        # not already receive the required per-file ISA flags.
+        set(OV_MLAS_SRC_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/mlas/lib")
+        set_source_files_properties(${OV_MLAS_SRC_DIR}/qgemm_kernel_sse41.cpp
+            TARGET_DIRECTORY mlas
+            PROPERTIES COMPILE_FLAGS "/clang:-msse4.1 /clang:-mssse3")
+        set_source_files_properties(${OV_MLAS_SRC_DIR}/intrinsics/avx512/quantize_avx512f.cpp
+            TARGET_DIRECTORY mlas
+            PROPERTIES COMPILE_FLAGS "/clang:-mavx512f")
     endif()
+
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 

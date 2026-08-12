@@ -42,13 +42,7 @@ project(OpenVINO
 # remain visible. Adjust flags if you want to add/remove suppressed classes.
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Applying global clang-cl (Windows) warning suppressions to reduce noise (C++ only)")
-    # Apply only to C/C++ compilations (avoid passing Clang options to MASM/ASM invocations).
-    add_compile_options(
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-c++98-compat>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-pre-c++14-compat>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-pre-c++17-compat>
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-unknown-warning-option>
-    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++98-compat -Wno-pre-c++14-compat -Wno-pre-c++17-compat -Wno-unknown-warning-option")
 endif()
 
 find_package(OpenVINODeveloperScripts REQUIRED
