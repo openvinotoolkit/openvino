@@ -702,11 +702,35 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // pa_multi_token. For those the code below compiles but is never dispatched.
     const bool pa_kv_compressed = config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type);
     jit.make("IS_PA_KV_COMPRESSED", pa_kv_compressed ? 1 : 0);
-    // Whether that dequant is actually valid for this cache, i.e. i8 BY_TOKEN. Used only to gate the
-    // V block read below; the execution gate is host-side (see above).
-    const bool pa_i8_by_token = pa_kv_compressed &&
-                                !data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision()) &&
-                                !params.typed_desc<paged_attention>()->is_key_by_channel;
+    // Whether the dequant above is actually CORRECT for this cache. Two layouts qualify, and they share
+    // every K/V load because both keep the data region a plain [block_size, head_size] tile:
+    //   i8 BY_TOKEN    comp is two trailing per-token f16 arrays at head_size * block_size.
+    //   i8 BY_CHANNEL  ONLY behind paged_attention::k_by_channel_token_major_for()'s staging switch,
+    //                  which moves the per-column comp to a trailing per-channel array at the same
+    //                  offset. Upstream BY_CHANNEL is d-major with a (scale, zp) pair inline at the end
+    //                  of every column; nothing in the .cl can address that, so with the switch off it
+    //                  still COMPILES (IS_PA_KV_COMPRESSED is data-type keyed) and is kept off dispatch
+    //                  by can_use_micro_sdpa_for(), exactly as before.
+    // INT4 never qualifies: two head dims per byte plus inline per-row comp.
+    // !m_is_prefill on the by-channel one because prefill reads the contiguous KEY input rather than
+    // the cache, so there is no layout to switch -- and IS_PA_K_BY_CHANNEL asserts token-major in the
+    // .cl, which is itself prefill-gated.
+    const bool pa_i8 = pa_kv_compressed &&
+                       !data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+    const bool pa_key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
+    const bool pa_i8_by_token = pa_i8 && !pa_key_by_channel;
+    const bool pa_i8_by_channel_tm =
+        pa_i8 && !m_is_prefill &&
+        paged_attention::k_by_channel_token_major_for(ov::element::Type(K.data_type), pa_key_by_channel);
+    const bool pa_i8_dequant_ok = pa_i8_by_token || pa_i8_by_channel_tm;
+    // Where BY_CHANNEL's per-channel scale/zp fold. In THIS kernel's KQ the A operand is K itself
+    // (S_tile = mad(as_short8(k_raw), qB, S_tile)), so the A lane index is the head dim -- precisely
+    // what BY_CHANNEL indexes its comp by. The pair is therefore a plain per-lane scalar and the
+    // dequant stays exactly where BY_TOKEN's is, minus every sub_group_broadcast: BY_TOKEN's sc/zp are
+    // per key, i.e. per ELEMENT within a lane, so each of a page's 16 keys needs one. Subtract/multiply
+    // count is unchanged. This is the MIRROR of sdpa_ocl_decode.cl, where Q is the A operand, so there
+    // the fold lands on Q and leaves a key-independent zp correction instead.
+    jit.make("IS_PA_K_BY_CHANNEL", pa_i8_by_channel_tm ? 1 : 0);
     // i8 V cache via the 8-bit VNNI-transform block read. The V page is already token-major with a
     // v_head_size row pitch (see above), so for an i8 cache that pitch is v_head_size BYTES and the
     // block2d rule reduces to v_head_size % 64 == 0 -- head 128 qualifies. Same builtin and same
@@ -717,8 +741,11 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // height to the page and consumes uints 0..3. It must NOT use V_I8_PAIRED_READ: pairing assumes
     // the next 16 keys are the next 16 rows of the SAME surface, but here consecutive key groups
     // live in different, non-adjacent pages via block_indices.
+    // BY_CHANNEL applies to the KEY cache only (valueCacheQuantBychannel is unconditionally false), and
+    // ADJUSTED_V_HEAD_SIZE is v_head_size + 4 in both quant modes, so the V page geometry, its comp
+    // offset and this gate are all identical for the two -- pa_i8_dequant_ok, not pa_i8_by_token.
     int v_pa_2d_i8 = 0;
-    if (pa_i8_by_token && !m_is_prefill) {
+    if (pa_i8_dequant_ok && !m_is_prefill) {
         v_pa_2d_i8 = block2d_surface_ok(v_head_size * ov::element::Type(V.data_type).size());
     }
     // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather + dequant, which
@@ -737,11 +764,15 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // so it must be jitted even when neither block-read path below is enabled -- otherwise a head size
     // that misses the pitch rule (48/80 for f16, 32/48/80/96 for i8) would gather d-major offsets out
     // of a token-major cache. INT4 packs into u8, so the config precision is what rules it out.
+    // i8 BY_CHANNEL is token-major only under its OWN staging switch -- k_token_major_for() keeps
+    // returning false for it so pa_sdpa_opt, rotate, reorder and micro stay on the upstream d-major
+    // page and need no change.
     const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
     const bool pa_k_token_major =
-        config.is_paged_attention && !m_is_prefill &&
-        paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
-                                           params.typed_desc<paged_attention>()->is_key_by_channel);
+        (config.is_paged_attention && !m_is_prefill &&
+         paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
+                                            params.typed_desc<paged_attention>()->is_key_by_channel)) ||
+        pa_i8_by_channel_tm;
     jit.make("IS_PA_K_TOKEN_MAJOR", pa_k_token_major ? 1 : 0);
     int k_pa_2d = 0;
     if (pa_k_token_major && !config.is_kv_compressed && !data_type_traits::is_i8_u8(K.data_type) &&
@@ -753,13 +784,16 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_K_PA_2D"))
         k_pa_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_K_PA", k_pa_2d);
-    // Same, for the i8 BY_TOKEN cache: a token-major page's data region is a
+    // Same, for an i8 cache in either quant mode: a token-major page's data region is a
     // [block_size, k_head_size] i8 tile, so the pitch is k_head_size BYTES and the block2d rule
-    // reduces to k_head_size % 64 == 0 -- head 64/128/256 qualify, head 32 falls back to the scalar
-    // gather (which PA_K_TOKEN_STRIDE now addresses correctly). Uses the 8-bit VNNI-transform read,
-    // exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
+    // reduces to k_head_size % 64 == 0 -- head 64/128/256 qualify, head 32/48/80/96 fall back to the
+    // scalar gather (which PA_K_TOKEN_STRIDE now addresses correctly). Uses the 8-bit VNNI-transform
+    // read, exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
+    // The page BASE alignment also holds for BY_CHANNEL: the stride is k_head_size * (block_size + 4)
+    // = 20 * k_head_size bytes, a multiple of 64 whenever k_head_size % 16 == 0, which the % 64 pitch
+    // rule already implies.
     int k_pa_2d_i8 = 0;
-    if (pa_k_token_major && pa_i8_by_token) {
+    if (pa_k_token_major && pa_i8_dequant_ok) {
         k_pa_2d_i8 = block2d_surface_ok(k_head_size * ov::element::Type(K.data_type).size());
     }
     // Bisection toggle: =0 restores the scalar gather + dequant, which is what attributes a wrong
