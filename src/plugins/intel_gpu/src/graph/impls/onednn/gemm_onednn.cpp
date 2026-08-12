@@ -27,7 +27,7 @@ protected:
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(gemm_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        std::unordered_map<int, dnnl::memory> args;
 
         const bool is_dynamic = instance.get_node().is_dynamic();
         const bool gemm_with_bias = instance.inputs_memory_count() == 3;
@@ -36,6 +36,9 @@ protected:
         dnnl::memory::desc in1_md = _pd.weights_desc(0);
         dnnl::memory::desc out_md = _pd.dst_desc();
         dnnl::memory::desc bias_md;
+        if (gemm_with_bias) {
+            bias_md = _pd.weights_desc(1);
+        }
 
         if (is_dynamic) {
             auto impl_params = instance.get_impl_params();
@@ -93,7 +96,7 @@ protected:
             if (instance.get_input_layout(0).count() != 0) {
                 input0_mem = input0.get_onednn_memory(in0_md, offset0);
             }
-            args.insert_or_assign(DNNL_ARG_SRC, input0_mem);
+            args.insert({DNNL_ARG_SRC, input0_mem});
         }
         {
             dnnl::memory input1_mem;
@@ -102,20 +105,30 @@ protected:
             if (instance.get_input_layout(1).count() != 0) {
                 input1_mem = weights.get_onednn_memory(in1_md, offset);
             }
-            args.insert_or_assign(DNNL_ARG_WEIGHTS, input1_mem);
+            args.insert({DNNL_ARG_WEIGHTS, input1_mem});
         }
         {
             auto& output = instance.output_memory();
             auto offset = onednn::get_offset(instance.get_output_layout(), out_md);
-            args.insert_or_assign(DNNL_ARG_DST, output.get_onednn_memory(out_md, offset));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(out_md, offset)});
         }
 
         if (gemm_with_bias) {
             auto& weights = instance.input_memory(2);
-            auto selected_bias_md = is_dynamic ? bias_md : _pd.weights_desc(1);
-            auto offset = onednn::get_offset(instance.get_input_layout(2), selected_bias_md);
-            args.insert_or_assign(DNNL_ARG_BIAS, weights.get_onednn_memory(selected_bias_md, offset));
+            auto offset = onednn::get_offset(instance.get_input_layout(2), bias_md);
+            args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(bias_md, offset)});
         }
+
+        if (_scratchpad_md.get_size() != 0) {
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         return args;
     }
