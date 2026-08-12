@@ -106,10 +106,23 @@ struct paged_attention : public primitive_base<paged_attention> {
         return enabled;
     }
 
-    // i8 only, not is_i8_u8: sdpa_ocl_decode widens the stored byte as SIGNED. Testing for i8 also
-    // excludes INT4 for free, since an int4 cache carries a u8/u4 layout dtype and never i8.
+    // i8 and u4 only.
+    //
+    // i8 rather than is_i8_u8, because sdpa_ocl_decode widens the stored byte as SIGNED and a u8 cache
+    // would decode with the wrong sign. u4 is safe the other way round: the int4 quantizer clamps to
+    // [0, 15] with zp = -min*scale and no CHAR_MIN, so its nibbles are unsigned by construction. Its
+    // token-major page also fits the upstream allocation exactly -- 16*(h/2) data bytes + 4*h comp
+    // bytes == the 12*h a d-major INT4 BY_CHANNEL page already occupies -- so nothing about the
+    // allocation moves, only the in-page addressing. i4 is deliberately NOT accepted.
+    //
+    // ⚠ MUST be given the CONFIGURED kv-cache precision, not the KEY_CACHE layout dtype: an int4 cache
+    // is materialized as u8 (and an i4 one as i8, which would otherwise masquerade as a real i8 cache).
+    // See paged_attention_opt.cpp's get_k_token_major() for the same lookup.
     static bool k_by_channel_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
-        return k_by_channel_token_major() && is_key_by_channel && key_cache_precision == ov::element::i8;
+        if (!k_by_channel_token_major() || !is_key_by_channel) {
+            return false;
+        }
+        return key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u4;
     }
 
     paged_attention() : primitive_base("", {}) {}
