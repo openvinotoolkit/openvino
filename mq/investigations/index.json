@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 149,
+  "total": 150,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1459,6 +1459,15 @@
       "category": "Flaky Test",
       "signature_hash": "2e3de08c0433e88f",
       "pr_number": "37357"
+    },
+    {
+      "investigation_id": "2026-08-12-04-50-09-000-31562604779",
+      "run_id": "31562604779",
+      "timestamp": "2026-08-12T04:50:09Z",
+      "title": "Clang-tidy x86_64 build fails - compile_commands artifact upload step fails",
+      "category": "Infrastructure",
+      "signature_hash": "3e34a1c82fa46ad5",
+      "pr_number": "37340"
     }
   ]
 }

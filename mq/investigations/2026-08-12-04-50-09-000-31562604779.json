@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-04-50-09-000-31562604779",
+  "timestamp": "2026-08-12T04:50:09Z",
+  "run_id": "31562604779",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31562604779",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "37340",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37340",
+  "author": "gitpqLee",
+  "category": "Infrastructure",
+  "title": "Clang-tidy x86_64 build fails - compile_commands artifact upload step fails",
+  "signature": "upload compile_commands artifact step failed|Infrastructure",
+  "signature_hash": "3e34a1c82fa46ad5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-x86_64 / Build",
+      "conclusion": "failure",
+      "symptom": "Build (clang-tidy) succeeded but 'Upload compile_commands' artifact step failed"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Overall status gate failed due to Build-x86_64 job failure"
+    }
+  ],
+  "key_errors": [
+    "Step 'Upload compile_commands' failed (step 7) in Build-x86_64 / Build job",
+    "Steps 'Cmake build with clang-tidy enabled' (step 6) succeeded - clang-tidy analysis was clean",
+    "Run attempt 2 started automatically with the same workflow and is currently in_progress"
+  ],
+  "root_cause": "The clang-tidy static analysis build completed successfully; only the artifact upload step ('Upload compile_commands') failed with what is almost certainly a transient infrastructure error (artifact storage backend unavailable or token expiry). The actual clang-tidy analysis found no issues in PR #37340's change to llm_infer_request.cpp. Run attempt 2 was triggered automatically and is currently in progress.",
+  "reproduction_steps": "N/A",
+  "recommended_actions": [
+    "Wait for run attempt 2 (currently in_progress) to complete - it is likely to succeed",
+    "If attempt 2 also fails at artifact upload, consider re-running only the failed jobs",
+    "If the pattern recurs, investigate GitHub Actions artifact storage issues on aks-linux-16-cores-32gb runners"
+  ],
+  "prevention_strategies": "Artifact upload failures are transient infrastructure issues; automatic retry via run_attempt 2 is the standard mitigation. No code changes needed.",
+  "historical_context": "Similar artifact upload failures have occurred before: 'RISC-V clang-tidy build fails - artifact upload FinalizeArtifact returns 403 Forbidden' (2 occurrences) and several other artifact upload failures across different jobs. All were Infrastructure category and resolved by re-run."
+}
