@@ -659,7 +659,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
-        const uint effective_seq_len = min(effective_blocks_num * PAGED_ATTENTION_BLOCK_SIZE, seq_len);
+        const uint effective_seq_len = seq_len - swa_start_token;
 #else
         const uint effective_seq_len = seq_len;
 #endif
