@@ -160,10 +160,7 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
             return false;
 
         const bool x_known = !input.X().is_dynamic && !output.X().is_dynamic;
-        if (x_known && input.X().v != output.X().v && input.X().v != 1)
-            return false;
-
-        return true;
+        return !(x_known && input.X().v != output.X().v && input.X().v != 1);
     }
 
     if (output.X().v < kMinXForOpt)
@@ -190,10 +187,7 @@ bool BroadcastKernelOpt::Validate(const Params& params) const {
     const size_t input_bytes = input.LogicalSize() * BytesPerElement(input.GetDType());
     const bool has_batch_repeat = (input.Batch().v == 1) && (output.Batch().v > 1)
                                 && (input_bytes > kBatchRepeatInputBytesThreshold);
-    if (!has_batch_repeat)
-        return false;
-
-    return true;
+    return has_batch_repeat;
 }
 
 KernelsPriority BroadcastKernelOpt::GetKernelsPriority(const Params& /*params*/) const {
