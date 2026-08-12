@@ -64,11 +64,17 @@ public:
                 LOG_WARNING_TAG("TelemetryClient: JSON missing 'Performance' section");
                 return std::nullopt;
             }
-            if (!parsed["Performance"].contains(metric_key)) {
+            const auto& performance = parsed["Performance"];
+            auto metric_it = performance.find(metric_key);
+            // IGPU may be reported under either IGPUUtilization or GPUUtilization; fall back to the latter.
+            if (metric_it == performance.end() && metric_key_view == k_igpu_utilization_metric) {
+                metric_it = performance.find(std::string{k_gpu_utilization_metric});
+            }
+            if (metric_it == performance.end()) {
                 LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
                 return std::nullopt;
             }
-            float value = parsed["Performance"][metric_key].get<float>();
+            float value = metric_it->get<float>();
             const std::string value_as_string = std::to_string(value);
             LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
                           value_as_string.c_str(),

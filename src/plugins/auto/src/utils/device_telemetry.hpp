@@ -29,6 +29,8 @@ private:
 
 inline constexpr std::string_view k_cpu_utilization_metric = "CPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
+// Fallback key: some platforms report integrated GPU utilization as "GPUUtilization".
+inline constexpr std::string_view k_gpu_utilization_metric = "GPUUtilization";
 inline constexpr std::string_view k_dgpu_utilization_metric = "DGPUUtilization";
 inline constexpr std::string_view k_npu_utilization_metric = "NPUUtilization";
 
