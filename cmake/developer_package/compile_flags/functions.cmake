@@ -33,17 +33,10 @@ macro(ov_deprecated_no_errors)
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
 
-    if(OV_COMPILER_IS_CLANG_CL)
-        add_compile_options($<$<COMPILE_LANGUAGE:C>:/clang:-Wno-error=deprecated-declarations>
-                            $<$<COMPILE_LANGUAGE:C>:/clang:-Wno-cpp>
-                            $<$<COMPILE_LANGUAGE:CXX>:/clang:-Wno-error=deprecated-declarations>
-                            $<$<COMPILE_LANGUAGE:CXX>:/clang:-Wno-cpp>)
-    else()
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
-    endif()
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_deprecated_no_errors}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_deprecated_no_errors}")
 endmacro()
 
 #
@@ -74,20 +67,10 @@ macro(ov_dev_package_no_errors)
         set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     endif()
 
-    # Apply clang-cl dev/no-error flags only to C/C++ compile rules to avoid
-    # leaking them into other language toolchains (e.g., MASM).
-    if(OV_COMPILER_IS_CLANG_CL)
-        add_compile_options($<$<COMPILE_LANGUAGE:C>:${ov_c_cxx_dev_no_errors}>)
-        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${ov_c_cxx_dev_no_errors}>)
-        if(DEFINED ov_cxx_dev_no_errors)
-            add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${ov_cxx_dev_no_errors}>)
-        endif()
-    else()
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_dev_no_errors}")
-    endif()
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${ov_c_cxx_dev_no_errors}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ov_c_cxx_dev_no_errors} ${ov_cxx_dev_no_errors}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ov_c_cxx_dev_no_errors}")
 endmacro()
 
 #
@@ -370,46 +353,24 @@ endfunction()
 #
 macro(ov_add_compiler_flags)
     foreach(flag ${ARGN})
-        # Pure MSVC (cl.exe) or IntelLLVM on Windows: accept MSVC-style flags and passthrough
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-        elseif(OV_COMPILER_IS_CLANG_CL)
+        if(OV_COMPILER_IS_CLANG_CL)
             if(flag MATCHES "^/")
-                # Distinguish between MSVC-style flags (e.g. /utf-8, /W3) which
-                # should be passed globally and /clang:... passthroughs which are
-                # intended to inject clang-style '-' options. Treat /clang: flags
-                # as clang-cl '-' flags and scope them to C/CXX compile rules to
-                # avoid leaking into non-C/C++ toolchains (MASM, etc.).
-                if(flag MATCHES "^/clang:(.*)")
-                    # extract inner clang flag (the part after '/clang:')
-                    string(REGEX REPLACE "^/clang:(.*)$" "\\1" _clang_inner "${flag}")
-                    add_compile_options($<$<COMPILE_LANGUAGE:C>:/clang:${_clang_inner}>
-                                        $<$<COMPILE_LANGUAGE:CXX>:/clang:${_clang_inner}>)
-                else()
-                    # MSVC-style option, keep as global CMAKE_*_FLAGS
-                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-                    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-                endif()
+                # MSVC-style option, keep as global CMAKE_*_FLAGS
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
             elseif(flag MATCHES "^-")
-                # For clang-cl style '-' flags, avoid appending to global CMAKE_*_FLAGS
-                # which may leak into non-C/C++ languages (for example MASM). Use
-                # language-scoped add_compile_options so flags are applied only to
-                # C and CXX compile rules.
-                add_compile_options($<$<COMPILE_LANGUAGE:C>:/clang:${flag}>
-                                    $<$<COMPILE_LANGUAGE:CXX>:/clang:${flag}>)
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:${flag}")
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:${flag}")
                 if(flag STREQUAL "-Wextra")
-                    add_compile_options($<$<COMPILE_LANGUAGE:C>:/clang:-Wno-unused-parameter>
-                                        $<$<COMPILE_LANGUAGE:CXX>:/clang:-Wno-unused-parameter>)
+                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:-Wno-unused-parameter")
+                    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-unused-parameter")
                 endif()
             else()
                 message(VERBOSE "Skipping unknown-style flag '${flag}' for clang-cl")
             endif()
-        elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+        else()
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-        else()
-            message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID} - skipping flag '${flag}'")
         endif()
     endforeach()
 endmacro()

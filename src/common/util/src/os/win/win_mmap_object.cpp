@@ -274,18 +274,23 @@ public:
         return m_handle;
     }
 
-    constexpr bool valid() const {
+#if defined(__clang__)
+    // Clang rejects certain casts in constexpr evaluation (INVALID_HANDLE_VALUE
+    // may expand to a non-constexpr expression). Keep both overloads
+    // non-constexpr under clang so the member call does not resolve to a
+    // non-constexpr helper from a constexpr function.
+    bool valid() const {
         return valid(m_handle);
     }
 
-#if defined(__clang__)
-    // Clang rejects certain casts in constexpr evaluation (INVALID_HANDLE_VALUE
-    // may expand to a non-constexpr expression). Make this non-constexpr under
-    // clang while preserving constexpr for other compilers (MSVC).
     static bool valid(HANDLE h) {
         return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
 #else
+    constexpr bool valid() const {
+        return valid(m_handle);
+    }
+
     static constexpr bool valid(HANDLE h) {
         return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
