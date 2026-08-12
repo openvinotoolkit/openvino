@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 
 #include <cstddef>
+#include <iostream>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -428,12 +429,13 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
 }
 
 TEST(embedding_bag_fp16_gpu, offsets_sum_indices_with_non_zero_physical_offset) {
-    // Same logical values as offsets_sum_basic, but indices are provided via a cropped view.
-    // This forces non-zero INPUT1_OFFSET and catches regressions in indices addressing.
+        // Same logical values as offsets_sum_basic, but indices memory has explicit lower padding.
+        // This guarantees non-zero INPUT1_OFFSET and catches regressions in indices addressing.
     auto& engine = get_test_engine();
 
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
-    auto indices_full = engine.allocate_memory({ data_types::i32, format::bfyx, { 5, 1, 1, 1 } });
+        auto indices_layout = layout{ data_types::i32, format::bfyx, { 4, 1, 1, 1 }, padding({ 1, 0, 0, 0 }, { 0, 0, 0, 0 }) };
+        auto indices = engine.allocate_memory(indices_layout);
     auto offsets = engine.allocate_memory({ data_types::i32, format::bfyx, { 3, 1, 1, 1 } });
     auto per_sample_weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 4, 1, 1, 1 } });
     tensor output_shape = {3, 2, 1, 1};
@@ -445,10 +447,14 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_indices_with_non_zero_physical_offset) 
             ov::float16(-1.0f), ov::float16(1.5f),
             ov::float16(0.8f), ov::float16(-0.7f)
     });
-    // Crop with offset {1, 0, 0, 0} produces logical indices {0, 2, 3, 4}.
-    set_values<int32_t>(indices_full, {
-            4, 0, 2, 3, 4
-    });
+    {
+        cldnn::mem_lock<int32_t, mem_lock_type::write> indices_ptr(indices, get_test_stream());
+        auto indices_l = indices->get_layout();
+        indices_ptr[indices_l.get_linear_offset(tensor(batch(0), feature(0), spatial(0, 0, 0, 0)))] = 0;
+        indices_ptr[indices_l.get_linear_offset(tensor(batch(1), feature(0), spatial(0, 0, 0, 0)))] = 2;
+        indices_ptr[indices_l.get_linear_offset(tensor(batch(2), feature(0), spatial(0, 0, 0, 0)))] = 3;
+        indices_ptr[indices_l.get_linear_offset(tensor(batch(3), feature(0), spatial(0, 0, 0, 0)))] = 4;
+    }
     set_values<int32_t>(offsets, {
             0, 2, 2
     });
@@ -459,8 +465,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_indices_with_non_zero_physical_offset) 
     auto type = embedding_bag::offsets_sum;
     topology topology;
     topology.add(input_layout("Input0", emb_table->get_layout()));
-    topology.add(input_layout("Input1_full", indices_full->get_layout()));
-    topology.add(crop("Input1", input_info("Input1_full"), { 4, 1, 1, 1 }, { 1, 0, 0, 0 }));
+    topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", offsets->get_layout()));
     topology.add(data("Input3", per_sample_weights));
     topology.add(
@@ -469,7 +474,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_indices_with_non_zero_physical_offset) 
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
-    network.set_input_data("Input1_full", indices_full);
+    network.set_input_data("Input1", indices);
     network.set_input_data("Input2", offsets);
 
     auto outputs = network.execute();
@@ -894,7 +899,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
 
 TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physical_offset) {
     // Keep Input3 (segments_num) dense while giving Input4 (weights) a non-zero physical offset.
-
+    // This catches regressions where INPUT3_OFFSET is accidentally used for weights access.
     auto& engine = get_test_engine();
 
     auto emb_table = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 2, 1, 1 } });
