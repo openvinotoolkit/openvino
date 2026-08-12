@@ -1083,6 +1083,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
+
+    // Annotate each Add(QK, mask) node with its per-SDPA mask type via rt_info.
+    // Must run AFTER OptimizeValueTensors because ScaledDotProductAttentionDecomposition
+    // inside it is what creates the Add(QK, mask) nodes from SDPA ops.
+    // For mixed SWA + global-attention models (e.g. Gemma-4 E2B/E4B), HFA uses these
+    // annotations to make per-ATTN-subgraph mask-skipping decisions.
+    ov::npuw::AnnotatePerSDPAMaskType().run_on_model(prefill_model);
+    for (auto& model_variant : generate_model_variants) {
+        ov::npuw::AnnotatePerSDPAMaskType().run_on_model(model_variant);
+    }
+
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             LOG_DEBUG("Removing EmptyKVInputs");

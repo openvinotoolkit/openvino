@@ -5,7 +5,10 @@
 #include "detect_causal_mask.hpp"
 
 #include <cstdlib>
+#include <queue>
+#include <unordered_set>
 
+#include "../util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -241,6 +244,65 @@ bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) 
     detector.add_matcher<Qwen3CausalMatcher>(m_mask_info);
     detector.run_on_model(model);
 
+    return false;
+}
+
+// Traces the mask input of Add(QK, mask) backward using BFS.
+// Returns SlidingWindow if a Greater node appears directly inside a
+// BitwiseAnd / BitwiseOr / LogicalAnd (window-size check), Causal otherwise.
+static MaskInfo::MaskType detect_sdpa_mask_type_from_add(const std::shared_ptr<ov::Node>& add_node) {
+    if (!add_node || add_node->get_input_size() < 2) {
+        return MaskInfo::MaskType::Unknown;
+    }
+
+    // Trace mask input (input 1 of Add) backward using BFS.
+    // Look for SWA indicators: a BitwiseAnd / BitwiseOr / LogicalAnd that has
+    // a Greater node as a direct input (window-size check).
+    std::unordered_set<ov::Node*> visited;
+    std::queue<std::shared_ptr<ov::Node>> queue;
+    queue.push(add_node->get_input_node_shared_ptr(1));
+
+    while (!queue.empty()) {
+        auto node = queue.front();
+        queue.pop();
+        if (!node || !visited.insert(node.get()).second)
+            continue;
+
+        // SWA anchor: BitwiseAnd / BitwiseOr / LogicalAnd whose direct input is Greater
+        if (ov::is_type<ov::op::v13::BitwiseAnd>(node) || ov::is_type<ov::op::v13::BitwiseOr>(node) ||
+            ov::is_type<ov::op::v1::LogicalAnd>(node)) {
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                if (ov::is_type<ov::op::v1::Greater>(node->get_input_node_shared_ptr(i))) {
+                    return MaskInfo::MaskType::SlidingWindow;
+                }
+            }
+        }
+
+        // Don't cross Parameters or Constants – they are leaf nodes.
+        if (ov::op::util::is_parameter(node) || ov::op::util::is_constant(node))
+            continue;
+
+        for (size_t i = 0; i < node->get_input_size(); ++i)
+            queue.push(node->get_input_node_shared_ptr(i));
+    }
+
+    // No SWA pattern found, treat as causal.
+    return MaskInfo::MaskType::Causal;
+}
+
+bool AnnotatePerSDPAMaskType::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    m_annotations.clear();
+
+    const auto all_patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
+    m_annotations.reserve(all_patterns.size());
+
+    for (const auto& pattern : all_patterns) {
+        if (!pattern.add_node)
+            continue;
+        const auto mask_type = detect_sdpa_mask_type_from_add(pattern.add_node);
+        pattern.add_node->get_rt_info()[NPUW_SDPA_MASK_TYPE_RT_KEY] = static_cast<int>(mask_type);
+        m_annotations.push_back({pattern.add_node->get_friendly_name(), mask_type});
+    }
     return false;
 }
 
