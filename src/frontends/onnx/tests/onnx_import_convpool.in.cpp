@@ -461,6 +461,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p2) {
     test_case.run_with_tolerance_as_fp(1e-5f);
 }
 
+// LpPool requires a strictly positive 'p' attribute; p=0 must fail fast at conversion time.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_p0_invalid) {
+    EXPECT_THROW(convert_model("lp_pool_p0_invalid.onnx"), ov::Exception);
+}
+
 // The 'p' attribute is a float in the opset 1 version of LpPool.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lp_pool_opset1_float_p) {
     auto model = convert_model("lp_pool_opset1_float_p.onnx");

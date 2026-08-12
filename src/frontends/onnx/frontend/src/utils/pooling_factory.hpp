@@ -27,7 +27,7 @@ namespace pooling {
 ///             - MaxPool
 ///             - LpPool
 ///
-///             This class holds all common attributes like srides, dilations,
+///             This class holds all common attributes like strides, dilations,
 ///             paddings, kernel shape and auto_pad type.
 class PoolingFactory {
 public:
@@ -60,12 +60,6 @@ public:
     ov::OutputVector make_lp_pool(float p_norm) const;
 
 protected:
-    /// \brief Creates an average pooling operation matching the attributes of the ONNX node.
-    ///
-    /// \param[in]  data         The tensor to be pooled.
-    /// \param[in]  exclude_pad  Determines whether zero-padded values are counted in the divisor.
-    ov::Output<ov::Node> make_avg_pool_op(const ov::Output<ov::Node>& data, bool exclude_pad) const;
-
     Node m_onnx_node;
 
     const ov::OutputVector m_inputs;
@@ -80,6 +74,13 @@ protected:
     enum class StorageOrder : int64_t { ROW_MAJOR = 0, COLUMN_MAJOR = 1 };
 
     StorageOrder m_storage_order;
+
+private:
+    /// \brief Creates an average pooling operation matching the attributes of the ONNX node.
+    ///
+    /// \param[in]  data         The tensor to be pooled.
+    /// \param[in]  exclude_pad  Determines whether zero-padded values are counted in the divisor.
+    ov::Output<ov::Node> make_avg_pool_op(const ov::Output<ov::Node>& data, bool exclude_pad) const;
 };
 }  // namespace pooling
 }  // namespace onnx

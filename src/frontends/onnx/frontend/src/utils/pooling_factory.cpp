@@ -12,6 +12,7 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
@@ -101,24 +102,28 @@ ov::OutputVector PoolingFactory::make_lp_pool(float p_norm) const {
     // Lp pooling is a sum of |x|^p over a pooling window, followed by the p-th root.
     // The sum is obtained from an average pooling which always divides by the (constant)
     // kernel volume, hence exclude_pad has to be disabled.
-    ov::Output<ov::Node> pooled = std::make_shared<v0::Abs>(data);
+    // The norm is computed in f32 regardless of the input's element type to avoid overflow
+    // or precision loss for reduced-precision inputs (e.g. fp16 can already overflow with
+    // p=2 once |x| > 256), then converted back to the original type at the end.
+    ov::Output<ov::Node> pooled = std::make_shared<v0::Convert>(data, ov::element::f32);
+    pooled = std::make_shared<v0::Abs>(pooled);
     if (p_norm != 1.f) {
         const auto p_const = v0::Constant::create(ov::element::f32, ov::Shape{}, {p_norm});
-        pooled = std::make_shared<v1::Power>(pooled, std::make_shared<v1::ConvertLike>(p_const, data));
+        pooled = std::make_shared<v1::Power>(pooled, p_const);
     }
 
     pooled = make_avg_pool_op(pooled, false);
 
     const auto kernel_volume =
         v0::Constant::create(ov::element::f32, ov::Shape{}, {static_cast<float>(shape_size(m_kernel_shape))});
-    pooled = std::make_shared<v1::Multiply>(pooled, std::make_shared<v1::ConvertLike>(kernel_volume, data));
+    pooled = std::make_shared<v1::Multiply>(pooled, kernel_volume);
 
     if (p_norm != 1.f) {
         const auto inv_p = v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f / p_norm});
-        pooled = std::make_shared<v1::Power>(pooled, std::make_shared<v1::ConvertLike>(inv_p, data));
+        pooled = std::make_shared<v1::Power>(pooled, inv_p);
     }
 
-    return {pooled};
+    return {std::make_shared<v1::ConvertLike>(pooled, data)};
 }
 
 ov::OutputVector PoolingFactory::make_max_pool() const {
