@@ -66,6 +66,42 @@ INSTANTIATE_TEST_SUITE_P(
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 #endif
 
+class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_u4_swa_tail_test, ignores_invalid_value_cache_rows) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+
+    const size_t valid_tokens_in_last_block = (p.subsequences[0].past_len + 1) % p.block_size;
+    const size_t packed_head_size = p.v_head_size / 2;
+    const size_t adjusted_head_size = packed_head_size + 2 * sizeof(ov::float16);
+    const size_t physical_block = pam.block_indices.back();
+    const ov::float16 nan = std::numeric_limits<ov::float16>::quiet_NaN();
+    {
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> cache(result.value_cache_mem, tests::get_test_stream());
+        for (int head = 0; head < p.num_kv_heads; ++head) {
+            const size_t block_head_offset = (physical_block * p.num_kv_heads + head) * p.block_size * adjusted_head_size;
+            for (size_t token = valid_tokens_in_last_block; token < static_cast<size_t>(p.block_size); ++token) {
+                const size_t scale_offset = block_head_offset + token * adjusted_head_size + packed_head_size;
+                std::memcpy(cache.data() + scale_offset, &nan, sizeof(nan));
+            }
+        }
+    }
+
+    result.outputs = result.network->execute();
+    this->tolerance = 0.1f;
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_u4_swa_tail,
+    paged_attention_u4_swa_tail_test,
+    ::testing::Values(paged_attention_test_params{{{1, 35}}, 8, 2, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
