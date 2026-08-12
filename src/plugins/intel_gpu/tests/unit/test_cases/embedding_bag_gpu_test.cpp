@@ -9,7 +9,6 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 
 #include <cstddef>
-#include <iostream>
 
 using namespace cldnn;
 using namespace ::tests;
