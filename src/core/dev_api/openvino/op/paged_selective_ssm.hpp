@@ -19,25 +19,15 @@ namespace ov::op::internal {
 /// ``B`` and ``C`` are grouped and shared across heads: each head ``h`` reads group
 /// ``g = h / heads_per_group``, where ``heads_per_group = num_heads / num_groups``.
 ///
-/// ``recurrent_state_table`` is updated in place through the logical slots of sequence ``s``, that is
-/// ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``. Slot 0 is the input slot
-/// holding the state after exactly ``num_processed_tokens[s]`` tokens; it is read before any slot is written.
-/// Let ``current = subsequence_begins[s+1] - subsequence_begins[s]``. When ``cache_interval[s] > 0``, with
-/// ``interval = cache_interval[s]`` and ``past = num_processed_tokens[s] % interval``, the state is written in
-/// order to slots ``1 .. write_count``, where ``write_count = (past + current - 1) / interval + 1``: once each
-/// time ``past + t`` reaches a multiple of ``interval`` for the ``t``-th token of the call, and once after the
-/// last token unless that token already is such a boundary. The sequence therefore needs at least
-/// ``write_count + 1`` slots; surplus slots and unreferenced table rows are ignored. ``cache_interval[s] <= 0``
-/// disables caching: only the input slot is required and the table is left unmodified. A sequence with no
-/// tokens reads and writes nothing and needs no slots.
-///
-/// Slot 0 may alias slot 1 to update the state in place; the input state is read first, so the result matches
-/// a non-aliased copy. Across sequences the write set must be disjoint from every other sequence's read and
-/// write sets, while a read-only slot may be shared. The caller owns slot 0: it must hold a valid state before
-/// execution, including when ``num_processed_tokens[s]`` is 0, and zero-initialization and recycled-page
-/// synchronization are caller responsibilities. Metadata values are trusted: both begins arrays start at 0, are
-/// non-decreasing and end at the token and logical-slot counts, ``num_processed_tokens`` is non-negative, and
-/// every block index is below ``num_physical_blocks``.
+/// For each sequence ``s``, ``recurrent_state_table`` is addressed through its logical slots
+/// ``la_block_indices[la_block_indices_begins[s] : la_block_indices_begins[s+1]]``. Slot 0 holds the input
+/// state and is read before any slot is written; it may alias slot 1 for an in-place update. When
+/// ``cache_interval[s] > 0``, the state is snapshotted into slots ``1, 2, ...`` every ``cache_interval[s]``
+/// tokens counted from ``num_processed_tokens[s]``, and once more after the last token of the call, so the
+/// sequence needs one slot per snapshot plus slot 0. ``cache_interval[s] <= 0`` disables caching: only slot 0
+/// is required and the table is left unmodified. Write sets must be disjoint across sequences. The caller owns
+/// slot 0 and must pre-populate it before execution; metadata (begins arrays, counts, block indices) is
+/// trusted and not validated against the table.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API PagedSelectiveSSM : public ov::op::Op {
 public:
