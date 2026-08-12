@@ -11,6 +11,7 @@
 
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
@@ -1106,6 +1107,32 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     LOG_INFO("Creating HFA tile models: tile_size=" << query_size << ", v_transposed=" << v_transposed
                                                     << ", block_kv=" << block_kv_dtype
                                                     << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
+
+    // Per-SDPA mask-skipping override
+    // AnnotatePerSDPAMaskType may have annotated this subgraph's Add(QK, mask) node
+    // with its individual mask type. For mixed SWA + global-attention models
+    // (e.g. Gemma-4 E2B/E4B), each ATTN subgraph decides independently:
+    //
+    //   Causal: force enable_mask_skipping = true
+    //   SlidingWindow / no annotation: keep the global enable_mask_skipping unchanged
+    //
+    // SlidingWindow is not forced to false because the global flag already handles the
+    // window_size >= max_prompt_len case (wide SWA that covers the full context).
+    bool local_enable_mask_skipping = enable_mask_skipping;
+    if (pattern_nodes.add_node) {
+        const auto& rt_info = pattern_nodes.add_node->get_rt_info();
+        const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY);
+        if (it != rt_info.end()) {
+            const auto per_sdpa_mask_type = static_cast<ov::npuw::MaskInfo::MaskType>(it->second.as<int>());
+            if (per_sdpa_mask_type == ov::npuw::MaskInfo::MaskType::Causal) {
+                local_enable_mask_skipping = true;
+                LOG_DEBUG("Per-SDPA mask annotation: Causal → mask skipping ENABLED for this ATTN subgraph");
+            } else {
+                LOG_DEBUG("Per-SDPA mask annotation: SlidingWindow/Unknown → use global mask skipping setting ("
+                          << (enable_mask_skipping ? "YES" : "NO") << ") for this ATTN subgraph");
+            }
+        }
+    }
     auto tile_model = create_hfa_tile_model(q_shape_static,
                                             block_kv_dtype,  // state_dtype
                                             block_kv_dtype,  // kv_tile_dtype (past blocks)
@@ -1115,7 +1142,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             kv_num_heads,
                                             false,
                                             fused_flash_attention,
-                                            enable_mask_skipping,
+                                            local_enable_mask_skipping,
                                             v_transposed);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
@@ -1131,7 +1158,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   kv_num_heads,
                                                   true,
                                                   fused_flash_attention,
-                                                  enable_mask_skipping,
+                                                  local_enable_mask_skipping,
                                                   v_transposed,
                                                   output_dtype);
     if (!final_tile_model) {

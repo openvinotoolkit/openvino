@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -308,6 +309,53 @@ TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInRegularTileWhenMaskSk
     EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
     expect_input_name(result->_tile_model, 6, "MASK_TILE", "fused regular tile with mask skipping disabled");
     expect_input_name(result->_final_tile_model, 6, "MASK_TILE", "fused final tile");
+}
+
+TEST(HostFlashAttentionFromTest, Fused_PerSDPACausalRtInfo_OverridesGlobalNoAndSkipsRegularMask) {
+    auto model = build_sdpa_model();
+    ASSERT_NE(model, nullptr);
+
+    std::shared_ptr<ov::op::v1::Add> add;
+    for (const auto& node : model->get_ops()) {
+        add = ov::as_type_ptr<ov::op::v1::Add>(node);
+        if (add && add->get_friendly_name() == "add.0")
+            break;
+    }
+    ASSERT_NE(add, nullptr);
+
+    add->get_rt_info()[ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY] = static_cast<int>(ov::npuw::MaskInfo::MaskType::Causal);
+
+    // Emulate mixed-model global decision: global NO, but this ATTN subgraph is global/causal.
+    auto result = ov::npuw::function::HostFlashAttention::from(model, true, false);
+    ASSERT_TRUE(result.has_value());
+
+    // Regular tile skips mask (6 inputs), final tile still keeps mask (7 inputs).
+    EXPECT_EQ(result->_tile_model->inputs().size(), 6u);
+    EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
+}
+
+TEST(HostFlashAttentionFromTest, Fused_PerSDPASlidingRtInfo_KeepsMaskWhenGlobalNo) {
+    auto model = build_sdpa_model();
+    ASSERT_NE(model, nullptr);
+
+    std::shared_ptr<ov::op::v1::Add> add;
+    for (const auto& node : model->get_ops()) {
+        add = ov::as_type_ptr<ov::op::v1::Add>(node);
+        if (add && add->get_friendly_name() == "add.0")
+            break;
+    }
+    ASSERT_NE(add, nullptr);
+
+    add->get_rt_info()[ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY] =
+        static_cast<int>(ov::npuw::MaskInfo::MaskType::SlidingWindow);
+
+    // Emulate mixed-model global decision: global NO and this ATTN subgraph is SWA.
+    auto result = ov::npuw::function::HostFlashAttention::from(model, true, false);
+    ASSERT_TRUE(result.has_value());
+
+    // Regular tile keeps mask (7 inputs), final tile always keeps mask (7 inputs).
+    EXPECT_EQ(result->_tile_model->inputs().size(), 7u);
+    EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
 }
 
 // ============================================================================

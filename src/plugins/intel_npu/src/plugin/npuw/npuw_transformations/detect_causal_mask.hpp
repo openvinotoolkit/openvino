@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "openvino/pass/pass.hpp"
 
 namespace ov::npuw {
@@ -37,6 +40,48 @@ public:
 
 private:
     MaskInfo m_mask_info;
+};
+
+// rt_info key written by AnnotatePerSDPAMaskType and read by HostFlashAttention::from().
+// Value type: int, corresponding to MaskInfo::MaskType.
+static constexpr const char* NPUW_SDPA_MASK_TYPE_RT_KEY = "npuw_sdpa_mask_type";
+
+// Pre-partitioning pass: annotates each decomposed-SDPA's Add(QK, mask) node in the
+// model with its individual mask type via rt_info[NPUW_SDPA_MASK_TYPE_RT_KEY].
+//
+// This enables per-layer mask-skipping decisions inside HostFlashAttention::from()
+// for mixed SWA + global-attention models (e.g. Gemma-4 E2B/E4B): global-attention
+// ATTN subgraphs can keep mask skipping enabled even when SWA layers are present.
+//
+// Must be run on the whole model BEFORE partitioning so the annotation is carried
+// into the isolated ATTN subgraphs (the Add node object is shared, not cloned).
+// Never modifies the graph structure; run_on_model always returns false.
+class AnnotatePerSDPAMaskType : public ov::pass::ModelPass {
+public:
+    struct Annotation {
+        std::string add_node_name;
+        MaskInfo::MaskType mask_type = MaskInfo::MaskType::Unknown;
+    };
+
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::AnnotatePerSDPAMaskType");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+    // Collected per-SDPA mask types from the most recent run_on_model() call.
+    const std::vector<Annotation>& get_annotations() const {
+        return m_annotations;
+    }
+
+    // Convenience helper: returns only mask types in traversal order.
+    std::vector<MaskInfo::MaskType> get_mask_types() const {
+        std::vector<MaskInfo::MaskType> mask_types;
+        mask_types.reserve(m_annotations.size());
+        for (const auto& annotation : m_annotations)
+            mask_types.push_back(annotation.mask_type);
+        return mask_types;
+    }
+
+private:
+    std::vector<Annotation> m_annotations;
 };
 
 }  // namespace ov::npuw

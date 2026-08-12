@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <set>
 
 #include "../llm_test_helpers.hpp"
 #include "model_builder.hpp"
@@ -14,6 +15,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/openvino.hpp"
 
+using ov::npuw::AnnotatePerSDPAMaskType;
 using ov::npuw::DetectAttentionMask;
 using ov::npuw::MaskInfo;
 using MaskType = ov::npuw::MaskInfo::MaskType;
@@ -30,6 +32,105 @@ MaskType detect(const std::shared_ptr<ov::Model>& model) {
     DetectAttentionMask pass;
     pass.run_on_model(model);
     return pass.get_mask_info().mask_type;
+}
+
+std::shared_ptr<ov::Node> append_decomposed_sdpa_branch(int layer_idx,
+                                                        bool is_sliding_mask,
+                                                        ov::ParameterVector& params,
+                                                        ov::ResultVector& results) {
+    using namespace ov::op;
+
+    const std::string idx = std::to_string(layer_idx);
+
+    auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+    auto past_k = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+    auto present_k = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+    auto past_v = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+    auto present_v = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 4, 8});
+
+    q->set_friendly_name("query." + idx);
+    past_k->set_friendly_name("past_key_values." + idx + ".key");
+    present_k->set_friendly_name("present." + idx + ".key");
+    past_v->set_friendly_name("past_key_values." + idx + ".value");
+    present_v->set_friendly_name("present." + idx + ".value");
+
+    params.insert(params.end(), {q, past_k, present_k, past_v, present_v});
+
+    auto key_concat = std::make_shared<v0::Concat>(ov::OutputVector{past_k, present_k}, 2);
+    key_concat->set_friendly_name("concat_key." + idx);
+    auto value_concat = std::make_shared<v0::Concat>(ov::OutputVector{past_v, present_v}, 2);
+    value_concat->set_friendly_name("concat_value." + idx);
+
+    auto zero_i64 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one_i64 = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto four_i64 = v0::Constant::create(ov::element::i64, ov::Shape{}, {4});  // Q seq length
+    auto eight_i64 =
+        v0::Constant::create(ov::element::i64, ov::Shape{}, {8});  // KV context length (past=4 + present=4)
+
+    // k_range covers all KV positions; q_range covers query positions only.
+    // k_unsq → [1, kv_len], q_unsq → [seq, 1]; comparison broadcasts to [seq, kv_len].
+    auto k_range = std::make_shared<v4::Range>(zero_i64, eight_i64, one_i64, ov::element::i64);
+    auto q_range = std::make_shared<v4::Range>(zero_i64, four_i64, one_i64, ov::element::i64);
+    auto k_unsq = std::make_shared<v0::Unsqueeze>(k_range, zero_i64);  // [1, 8]
+    auto q_unsq = std::make_shared<v0::Unsqueeze>(q_range, one_i64);   // [4, 1]
+
+    std::shared_ptr<ov::Node> mask_bool;
+    if (is_sliding_mask) {
+        auto neg_window = v0::Constant::create(ov::element::i64, ov::Shape{}, {-2});
+        auto bound = std::make_shared<v1::Add>(q_unsq, neg_window);
+        auto greater = std::make_shared<v1::Greater>(k_unsq, bound);
+        auto causal = std::make_shared<v1::LessEqual>(k_unsq, q_unsq);
+        auto one_bool = v0::Constant::create(ov::element::boolean, ov::Shape{}, {true});
+        auto and_win = std::make_shared<v13::BitwiseAnd>(one_bool, greater);
+        mask_bool = std::make_shared<v13::BitwiseAnd>(and_win, causal);
+    } else {
+        mask_bool = std::make_shared<v1::LessEqual>(k_unsq, q_unsq);
+    }
+
+    auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto neg_inf = v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
+    auto mask_f = std::make_shared<v1::Select>(mask_bool, zero_f, neg_inf);
+    auto m0 = std::make_shared<v0::Unsqueeze>(mask_f, zero_i64);
+    auto mask_4d = std::make_shared<v0::Unsqueeze>(m0, zero_i64);
+
+    auto qk = std::make_shared<v0::MatMul>(q, key_concat, false, true);
+    qk->set_friendly_name("matmul1." + idx);
+    auto add = std::make_shared<v1::Add>(qk, mask_4d);
+    add->set_friendly_name("add." + idx);
+    auto softmax = std::make_shared<v8::Softmax>(add, -1);
+    softmax->set_friendly_name("softmax." + idx);
+    auto out = std::make_shared<v0::MatMul>(softmax, value_concat, false, false);
+    out->set_friendly_name("matmul2." + idx);
+
+    auto result = std::make_shared<v0::Result>(out);
+    result->set_friendly_name("attn_out." + idx);
+    results.push_back(result);
+    return add;
+}
+
+std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Node>> make_decomposed_sdpa_with_mask(bool sliding_mask) {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    auto add = append_decomposed_sdpa_branch(/*layer_idx=*/0, sliding_mask, params, results);
+    auto model = std::make_shared<ov::Model>(results, params);
+    return {model, add};
+}
+
+struct MixedAttentionModel {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Node> add_global;
+    std::shared_ptr<ov::Node> add_swa;
+};
+
+MixedAttentionModel make_mixed_decomposed_sdpa_model() {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+
+    auto add_global = append_decomposed_sdpa_branch(/*layer_idx=*/0, /*is_sliding_mask=*/false, params, results);
+    auto add_swa = append_decomposed_sdpa_branch(/*layer_idx=*/1, /*is_sliding_mask=*/true, params, results);
+
+    auto model = std::make_shared<ov::Model>(results, params);
+    return {model, add_global, add_swa};
 }
 
 // ---------------------------------------------------------------------------
@@ -384,6 +485,110 @@ TEST(DetectAttentionMaskTest, RealPattern_Phi3Sliding_IsSlidingWindowWithSize) {
 
 // Full attention — SDPA with no mask and is_causal=false.
 TEST(DetectAttentionMaskTest, FullAttentionSDPA_IsUnknown) {
-    EXPECT_EQ(detect(make_sdpa_model(/*is_causal=*/false)),
-              MaskInfo::MaskType::Unknown);
+    EXPECT_EQ(detect(make_sdpa_model(/*is_causal=*/false)), MaskInfo::MaskType::Unknown);
+}
+
+// ============================================================================
+// Per-SDPA annotation pass — must write rt_info and expose detected mask types
+// ============================================================================
+
+TEST(DetectAttentionMaskTest, AnnotatePerSDPAMaskType_Causal_WritesRtInfoAndGetter) {
+    auto [model, add] = make_decomposed_sdpa_with_mask(/*sliding_mask=*/false);
+    ASSERT_NE(model, nullptr);
+    ASSERT_NE(add, nullptr);
+
+    AnnotatePerSDPAMaskType pass;
+    pass.run_on_model(model);
+
+    const auto& annotations = pass.get_annotations();
+    ASSERT_EQ(annotations.size(), 1u);
+    EXPECT_EQ(annotations[0].mask_type, MaskType::Causal);
+
+    const auto mask_types = pass.get_mask_types();
+    ASSERT_EQ(mask_types.size(), 1u);
+    EXPECT_EQ(mask_types[0], MaskType::Causal);
+
+    const auto& rt_info = add->get_rt_info();
+    const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY);
+    ASSERT_NE(it, rt_info.end());
+    EXPECT_EQ(static_cast<MaskType>(it->second.as<int>()), MaskType::Causal);
+}
+
+TEST(DetectAttentionMaskTest, AnnotatePerSDPAMaskType_SlidingWindow_WritesRtInfoAndGetter) {
+    auto [model, add] = make_decomposed_sdpa_with_mask(/*sliding_mask=*/true);
+    ASSERT_NE(model, nullptr);
+    ASSERT_NE(add, nullptr);
+
+    AnnotatePerSDPAMaskType pass;
+    pass.run_on_model(model);
+
+    const auto& annotations = pass.get_annotations();
+    ASSERT_EQ(annotations.size(), 1u);
+    EXPECT_EQ(annotations[0].mask_type, MaskType::SlidingWindow);
+
+    const auto mask_types = pass.get_mask_types();
+    ASSERT_EQ(mask_types.size(), 1u);
+    EXPECT_EQ(mask_types[0], MaskType::SlidingWindow);
+
+    const auto& rt_info = add->get_rt_info();
+    const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY);
+    ASSERT_NE(it, rt_info.end());
+    EXPECT_EQ(static_cast<MaskType>(it->second.as<int>()), MaskType::SlidingWindow);
+}
+
+TEST(DetectAttentionMaskTest, AnnotatePerSDPAMaskType_ClearsResultsBetweenRuns) {
+    auto [model_with_pattern, _] = make_decomposed_sdpa_with_mask(/*sliding_mask=*/true);
+    ASSERT_NE(model_with_pattern, nullptr);
+
+    AnnotatePerSDPAMaskType pass;
+    pass.run_on_model(model_with_pattern);
+    ASSERT_EQ(pass.get_annotations().size(), 1u);
+
+    auto model_without_pattern = make_sdpa_model(/*is_causal=*/false);
+    ASSERT_NE(model_without_pattern, nullptr);
+    pass.run_on_model(model_without_pattern);
+    EXPECT_TRUE(pass.get_annotations().empty());
+    EXPECT_TRUE(pass.get_mask_types().empty());
+}
+
+TEST(DetectAttentionMaskTest, AnnotatePerSDPAMaskType_MixedSWAAndGlobal_ReturnsBothMaskTypes) {
+    auto mixed = make_mixed_decomposed_sdpa_model();
+    ASSERT_NE(mixed.model, nullptr);
+    ASSERT_NE(mixed.add_global, nullptr);
+    ASSERT_NE(mixed.add_swa, nullptr);
+
+    AnnotatePerSDPAMaskType pass;
+    pass.run_on_model(mixed.model);
+
+    const auto mask_types = pass.get_mask_types();
+    ASSERT_EQ(mask_types.size(), 2u);
+    std::multiset<MaskType> type_set(mask_types.begin(), mask_types.end());
+    EXPECT_EQ(type_set.count(MaskType::Causal), 1u);
+    EXPECT_EQ(type_set.count(MaskType::SlidingWindow), 1u);
+
+    const auto& annotations = pass.get_annotations();
+    ASSERT_EQ(annotations.size(), 2u);
+    std::multiset<MaskType> annotation_types;
+    for (const auto& annotation : annotations)
+        annotation_types.insert(annotation.mask_type);
+    EXPECT_EQ(annotation_types.count(MaskType::Causal), 1u);
+    EXPECT_EQ(annotation_types.count(MaskType::SlidingWindow), 1u);
+}
+
+TEST(DetectAttentionMaskTest, AnnotatePerSDPAMaskType_MixedSWAAndGlobal_WritesCorrectRtInfo) {
+    auto mixed = make_mixed_decomposed_sdpa_model();
+    ASSERT_NE(mixed.model, nullptr);
+
+    AnnotatePerSDPAMaskType pass;
+    pass.run_on_model(mixed.model);
+
+    auto get_mask_type_from_rt_info = [](const std::shared_ptr<ov::Node>& add_node) {
+        const auto& rt_info = add_node->get_rt_info();
+        const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY);
+        EXPECT_NE(it, rt_info.end());
+        return static_cast<MaskType>(it->second.as<int>());
+    };
+
+    EXPECT_EQ(get_mask_type_from_rt_info(mixed.add_global), MaskType::Causal);
+    EXPECT_EQ(get_mask_type_from_rt_info(mixed.add_swa), MaskType::SlidingWindow);
 }
