@@ -56,6 +56,12 @@ inline constexpr std::string_view device_to_metric_key(std::string_view device_n
     return metric_key;
 }
 
+#if defined(MULTIUNITTEST) && defined(OV_AUTO_ENABLE_IPF)
+std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type = "");
+#endif
+
 }  // namespace device_monitor
 }  // namespace auto_plugin
 }  // namespace ov
