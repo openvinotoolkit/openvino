@@ -6,7 +6,7 @@ if(NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     return()
 endif()
 
-find_package(Vulkan 1.1 REQUIRED)
+find_package(Vulkan 1.3 REQUIRED)
 
 set(TARGET_NAME "openvino_intel_gpu_vulkan_obj")
 

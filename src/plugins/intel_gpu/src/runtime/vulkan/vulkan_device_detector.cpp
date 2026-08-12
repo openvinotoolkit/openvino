@@ -13,6 +13,7 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/except.hpp"
+#include "vulkan_api.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_instance.hpp"
 
@@ -50,7 +51,7 @@ std::optional<uint32_t> find_compute_queue_family(VkPhysicalDevice physical_devi
 
 bool is_supported_gpu(const VkPhysicalDeviceProperties& properties) {
     const auto is_gpu = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU || properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-    return is_gpu && properties.apiVersion >= VK_API_VERSION_1_1;
+    return is_gpu && properties.apiVersion >= required_api_version;
 }
 
 }  // namespace

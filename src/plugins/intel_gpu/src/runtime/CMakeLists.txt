@@ -59,7 +59,7 @@ if(OV_GPU_RUNTIME_SYCL_ENABLED)
 endif()
 
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
-    find_package(Vulkan 1.1 REQUIRED)
+    find_package(Vulkan 1.3 REQUIRED)
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_VULKAN})
 endif()
 
