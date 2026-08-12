@@ -740,17 +740,18 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
                         0, 0, sg_i_kq, sg_j_kq, (local char *)ugemm_slm
-        /* When FOLD_KEY_SCALES_INTO_Q, the micro-kernel is generated without A scaling (the scales
-         * were already folded into Q above), so the scale arguments must not be passed. */
+        /* When FOLD_KEY_SCALES_INTO_Q, the micro-kernel is generated without A scaling or offsetting
+         * (the scales were already folded into Q above, and the zero point cancels in the softmax),
+         * so neither quantization argument must be passed. */
         #if (KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_scales
         #endif
-        #if KEY_ZERO_POINTS
+        #if KEY_ZERO_POINTS && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         K_zp
         #endif
-        #if ((KEY_SCALES == QUANTIZE_2D) && !FOLD_KEY_SCALES_INTO_Q) || KEY_ZERO_POINTS
+        #if ((KEY_SCALES == QUANTIZE_2D) || KEY_ZERO_POINTS) && !FOLD_KEY_SCALES_INTO_Q
                         ,
                         ldkq
         #endif

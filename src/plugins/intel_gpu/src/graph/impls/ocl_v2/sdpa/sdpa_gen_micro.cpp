@@ -978,6 +978,30 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 [[maybe_unused]] const bool vs_common_scales = false;
 [[maybe_unused]] const bool vs_common_zp = false;
 
+// Per-channel key scales ([b, heads, 1, head_size]) vary along the KQ GEMM's *reduction* axis, so
+// gemmstone has to broadcast them across the whole M extent. Describing that through 2D
+// A-quantization is both fragile (the group descriptor has to cover every key tile) and expensive:
+// with a zero point added on top, the register budget of the pinned KQ strategy is exceeded and
+// micro-kernel generation fails outright, silently dropping SDPA onto sdpa_opt. Fold the scales
+// into Q instead, which is exact and needs no quantization parameters in the GEMM at all:
+//     sum_d K_int[m,d] * kscale[d] * Q[n,d] == sum_d K_int[m,d] * (kscale[d] * Q[n,d])
+// K then becomes a plain int -> f16 upconvert; see FOLD_KEY_SCALES_INTO_Q in sdpa_micro.cl.
+//
+// For asymmetric quantization the key zero point is dropped along with the scale instead of being
+// applied: -sum_d zp[d] * kscale[d] * Q[n,d] does not depend on the key m, so it shifts every logit
+// of a query by the same constant, and softmax over the keys is invariant to such a shift (the
+// attention scale and the mask preserve that). A sink logit, however, joins the softmax denominator
+// unshifted, so with sinks the shift would survive - don't fold then.
+inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool is_kv_compressed, bool use_asymmetric_quantization) {
+    if (params.is_type<paged_attention>() || !is_kv_compressed || kq_common_scales)
+        return false;
+    if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
+        return false;
+    // Per-channel scales have seq == 1 and one entry per channel; per-token scales have seq > 1.
+    const auto& ps = params.input_layouts[micro_get_key_cache_id(params)].get_partial_shape();
+    return ps[2].get_length() == 1 && ps[3].get_length() > 1;
+}
+
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = make_base_jit_constants(params);
     sdpa_configuration config;
@@ -1152,9 +1176,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("IS_KEY_BY_CHANNEL", 1);
         if (is_value_by_channel)
             jit.make("IS_VALUE_BY_CHANNEL", 1);
-        // Symmetric per-channel key scales are folded into Q rather than applied to K in the KQ
-        // micro-kernel; see init_microkernels(), whose condition this must match.
-        if (is_key_by_channel && !use_asymmetric_quantization && !kq_common_scales)
+        // Per-channel key scales are folded into Q rather than applied to K in the KQ micro-kernel,
+        // and the key zero point is dropped with them; see micro_fold_key_scales_into_q().
+        if (is_key_by_channel && micro_fold_key_scales_into_q(params, config.is_kv_compressed, use_asymmetric_quantization))
             jit.make("FOLD_KEY_SCALES_INTO_Q", 1);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
@@ -1660,25 +1684,12 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     } else {
         const auto key_cache_id = micro_get_key_cache_id(params);
 
-        // Per-channel key scales ([b, heads, 1, head_size]) vary along the KQ GEMM's *reduction* axis,
-        // which puts gemmstone's 2D A-quantization in its aqGroupK == 1 mode. That mode applies the
-        // scale to the wrong element on Xe2 and silently returns a wrong result. Fold the scales into
-        // Q instead of applying them to K, which is exact and architecture-independent because
-        //     sum_d K_int8[m,d] * kscale[d] * Q[n,d] == sum_d K_int8[m,d] * (kscale[d] * Q[n,d])
-        // K then becomes a plain s8 -> f16 upconvert; see FOLD_KEY_SCALES_INTO_Q in sdpa_micro.cl.
-        // Asymmetric quantization keeps the old path: (q - zp[d]) * scale[d] leaves an extra
-        // sum_d zp[d]*scale[d]*Q[n,d] term that a Q rescale alone cannot absorb.
-        // Keep this condition in sync with FOLD_KEY_SCALES_INTO_Q in get_jit_constants(), which is
-        // only emitted for non-paged-attention; this branch also covers paged-attention prefill, so
-        // it has to exclude paged attention explicitly or the two would disagree on whether the
-        // micro-kernel takes scale arguments. key_cache_id is only a valid index when the KV cache is
-        // compressed, hence the ordering of the checks.
-        const bool fold_key_scales_into_q = [&] {
-            if (is_paged_attention || !configuration.is_kv_compressed || kq_common_scales || use_asymmetric_quantization)
-                return false;
-            const auto& ps = params.input_layouts[key_cache_id].get_partial_shape();
-            return ps[2].get_length() == 1 && ps[3].get_length() > 1;
-        }();
+        // Per-channel key scales are folded into Q instead of being applied to K, and for asymmetric
+        // quantization the key zero point is dropped with them; see micro_fold_key_scales_into_q(),
+        // which get_jit_constants() consults as well so the two agree on whether the micro-kernel
+        // takes quantization arguments.
+        const bool fold_key_scales_into_q =
+            micro_fold_key_scales_into_q(params, configuration.is_kv_compressed, use_asymmetric_quantization);
 
         if (configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q) {
             const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
@@ -1690,7 +1701,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
         }
 
-        if (configuration.is_kv_compressed && use_asymmetric_quantization) {
+        if (configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q) {
             const auto& key_cache_comp_zp = params.input_layouts[key_cache_id + 2];
             const auto zp_dt = convert_type(key_cache_comp_zp.data_type);
             problem_kq.Tao = zp_dt;
@@ -1711,7 +1722,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         }
 
         opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales && !fold_key_scales_into_q;
-        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization;
+        opts_kq.offsetA = configuration.is_kv_compressed && use_asymmetric_quantization && !fold_key_scales_into_q;
     }
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
