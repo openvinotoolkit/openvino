@@ -73,6 +73,10 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
+inline size_t align_up(size_t value, size_t alignment) {
+    return ((value + alignment - 1) / alignment) * alignment;
+}
+
 // Whether a K/V/Q/A surface whose per-head row is `row_bytes` wide can be accessed with the Xe 2D
 // block IO builtins. The hardware requires, for the block read/write intrinsics used by
 // sdpa_ocl.cl:
@@ -715,14 +719,23 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // !m_is_prefill on the by-channel one because prefill reads the contiguous KEY input rather than
     // the cache, so there is no layout to switch -- and IS_PA_K_BY_CHANNEL asserts token-major in the
     // .cl, which is itself prefill-gated.
-    const bool pa_i8 = pa_kv_compressed &&
-                       !data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+    const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    const bool pa_i8 = pa_kv_compressed && !data_type_traits::is_i4_u4(cfg_kv_cache_dt);
     const bool pa_key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
     const bool pa_i8_by_token = pa_i8 && !pa_key_by_channel;
     const bool pa_i8_by_channel_tm =
         pa_i8 && !m_is_prefill &&
         paged_attention::k_by_channel_token_major_for(ov::element::Type(K.data_type), pa_key_by_channel);
-    const bool pa_i8_dequant_ok = pa_i8_by_token || pa_i8_by_channel_tm;
+    // u4 under the SAME staging switch. It has to be recognised from the CONFIG precision, not from
+    // K.data_type: an int4 cache is materialized as a u8 tensor, so the layout alone cannot tell it
+    // from a real u8 one. u4 ONLY, deliberately not is_i4_u4 -- the int4 quantizer clamps to [0, 15]
+    // with zp = -min*scale, so u4's nibbles are unsigned by construction, while i4 would need a signed
+    // widen that nothing below implements. This mirrors sdpa_ocl_decode's gate.
+    const bool pa_u4_by_channel_tm =
+        pa_kv_compressed && !m_is_prefill && cfg_kv_cache_dt == ov::element::u4 &&
+        paged_attention::k_by_channel_token_major_for(cfg_kv_cache_dt, pa_key_by_channel);
+    const bool pa_by_channel_tm = pa_i8_by_channel_tm || pa_u4_by_channel_tm;
+    const bool pa_cache_dequant_ok = pa_i8_by_token || pa_by_channel_tm;
     // Where BY_CHANNEL's per-channel scale/zp fold. In THIS kernel's KQ the A operand is K itself
     // (S_tile = mad(as_short8(k_raw), qB, S_tile)), so the A lane index is the head dim -- precisely
     // what BY_CHANNEL indexes its comp by. The pair is therefore a plain per-lane scalar and the
@@ -730,7 +743,31 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // per key, i.e. per ELEMENT within a lane, so each of a page's 16 keys needs one. Subtract/multiply
     // count is unchanged. This is the MIRROR of sdpa_ocl_decode.cl, where Q is the A operand, so there
     // the fold lands on Q and leaves a key-independent zp correction instead.
-    jit.make("IS_PA_K_BY_CHANNEL", pa_i8_by_channel_tm ? 1 : 0);
+    jit.make("IS_PA_K_BY_CHANNEL", pa_by_channel_tm ? 1 : 0);
+    // u4 rides the whole BY_CHANNEL dequant unchanged -- same per-lane scale/zp, same subtract and
+    // multiply -- and adds exactly two things: a nibble select, and a PERMUTED DPAS depth axis. The
+    // permutation is forced by the page: the K nibbles are packed ADJACENT (byte b holds channels 2b,
+    // 2b+1, which the writer needs so a byte is never split across two workgroups), while this
+    // kernel's A operand has lane == head dim, so a byte column is a channel PAIR and no lane-local
+    // rearrangement can produce the contiguous (base + lane) a DPAS tile wants. Depth is a contraction
+    // axis, so both operands adopt the permuted labelling instead and Q pays for it once, in the SLM
+    // staging. See the PA_K_U4_CHANNEL block in sdpa_ocl.cl.
+    jit.make("IS_PA_K_U4", pa_u4_by_channel_tm ? 1 : 0);
+    // Data-row pitch of a cache page, in elements of the cache dtype. Only jitted for u4 -- the .cl
+    // defaults both to HEAD_SIZE, so f16 and i8 preprocess to exactly what they did before.
+    //   K: exactly k_head_size/2, NOT aligned up. 16*(h/2) + 4*h == 12*h is what makes the token-major
+    //      page a byte-exact fit into the allocation the d-major INT4 page already has; aligning would
+    //      overflow it whenever h % 32 != 0.
+    //   V: Align(v_head_size/2, subgroup), which the trailing comp slack absorbs
+    //      (16*PV + 64 == 16*(PV+4)). Same values sdpa_gen_ocl_decode.cpp and the writer's
+    //      PACKED_{K,V}_HEAD_SIZE use.
+    const size_t pa_k_row_elems = pa_u4_by_channel_tm ? k_head_size / 2 : k_head_size;
+    const size_t pa_v_row_elems =
+        pa_u4_by_channel_tm ? align_up(v_head_size / 2, static_cast<size_t>(ocl_config.subgroup_size)) : v_head_size;
+    if (pa_u4_by_channel_tm) {
+        jit.make("PA_K_ROW_ELEMS", pa_k_row_elems);
+        jit.make("PA_V_ROW_ELEMS", pa_v_row_elems);
+    }
     // i8 V cache via the 8-bit VNNI-transform block read. The V page is already token-major with a
     // v_head_size row pitch (see above), so for an i8 cache that pitch is v_head_size BYTES and the
     // block2d rule reduces to v_head_size % 64 == 0 -- head 128 qualifies. Same builtin and same
@@ -743,10 +780,13 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // live in different, non-adjacent pages via block_indices.
     // BY_CHANNEL applies to the KEY cache only (valueCacheQuantBychannel is unconditionally false), and
     // ADJUSTED_V_HEAD_SIZE is v_head_size + 4 in both quant modes, so the V page geometry, its comp
-    // offset and this gate are all identical for the two -- pa_i8_dequant_ok, not pa_i8_by_token.
+    // offset and this gate are all identical for the two -- pa_cache_dequant_ok, not pa_i8_by_token.
+    // A compressed cache's layout dtype is one byte wide, so pa_v_row_elems IS the pitch in bytes --
+    // v_head_size for i8, Align(v_head_size/2, 16) for u4. The rule therefore loosens slightly for u4
+    // (head 112 -> 64 bytes qualifies) even though it needs twice the head size for K.
     int v_pa_2d_i8 = 0;
-    if (pa_i8_dequant_ok && !m_is_prefill) {
-        v_pa_2d_i8 = block2d_surface_ok(v_head_size * ov::element::Type(V.data_type).size());
+    if (pa_cache_dequant_ok && !m_is_prefill) {
+        v_pa_2d_i8 = block2d_surface_ok(pa_v_row_elems);
     }
     // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather + dequant, which
     // is what attributes a wrong result to the block read rather than to the dequant math.
@@ -764,15 +804,14 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // so it must be jitted even when neither block-read path below is enabled -- otherwise a head size
     // that misses the pitch rule (48/80 for f16, 32/48/80/96 for i8) would gather d-major offsets out
     // of a token-major cache. INT4 packs into u8, so the config precision is what rules it out.
-    // i8 BY_CHANNEL is token-major only under its OWN staging switch -- k_token_major_for() keeps
+    // i8/u4 BY_CHANNEL is token-major only under its OWN staging switch -- k_token_major_for() keeps
     // returning false for it so pa_sdpa_opt, rotate, reorder and micro stay on the upstream d-major
     // page and need no change.
-    const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
     const bool pa_k_token_major =
         (config.is_paged_attention && !m_is_prefill &&
          paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
                                             params.typed_desc<paged_attention>()->is_key_by_channel)) ||
-        pa_i8_by_channel_tm;
+        pa_by_channel_tm;
     jit.make("IS_PA_K_TOKEN_MAJOR", pa_k_token_major ? 1 : 0);
     int k_pa_2d = 0;
     if (pa_k_token_major && !config.is_kv_compressed && !data_type_traits::is_i8_u8(K.data_type) &&
@@ -791,10 +830,11 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // read, exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
     // The page BASE alignment also holds for BY_CHANNEL: the stride is k_head_size * (block_size + 4)
     // = 20 * k_head_size bytes, a multiple of 64 whenever k_head_size % 16 == 0, which the % 64 pitch
-    // rule already implies.
+    // rule already implies. For u4 the stride is 12 * k_head_size and the pitch k_head_size / 2, so
+    // the rule tightens to k_head_size % 128 == 0 (head 128/256) and the base stays 64B-aligned.
     int k_pa_2d_i8 = 0;
-    if (pa_k_token_major && pa_i8_dequant_ok) {
-        k_pa_2d_i8 = block2d_surface_ok(k_head_size * ov::element::Type(K.data_type).size());
+    if (pa_k_token_major && pa_cache_dequant_ok) {
+        k_pa_2d_i8 = block2d_surface_ok(pa_k_row_elems);
     }
     // Bisection toggle: =0 restores the scalar gather + dequant, which is what attributes a wrong
     // result to the block read rather than to the dequant math or the page addressing.
@@ -1042,7 +1082,12 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             jit.make("IS_INT4_KV_CACHE", 1);
             jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
-            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size / 2 + scales_zp_size);
+            // The V page's packed head size is ALIGNED to the subgroup size -- that is what
+            // paged_attention_opt.cpp's PACKED_ADJUSTED_V_HEAD_SIZE (and therefore the allocation and
+            // the writer) uses. A plain v_head_size/2 only happens to agree when v_head_size % 32 == 0,
+            // and would place every page base wrong for e.g. head 112.
+            jit.make("ADJUSTED_V_HEAD_SIZE",
+                     align_up(v_head_size / 2, static_cast<size_t>(ocl_config.subgroup_size)) + scales_zp_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
         } else if (pa_desc->is_key_by_channel) {
             jit.make("IS_KEY_BY_CHANNEL", 1);
