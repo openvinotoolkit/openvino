@@ -41,11 +41,10 @@ bool requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model);
 // identical and batching is purely a throughput/ergonomics choice. It is NOT
 // valid for autoregressive generation, where state must persist across calls.
 //
-// It is applied via create() at the NPUW entry points only:
-// npuw::ICompiledModel::create() on compilation and the plugin's NPUW import path
-// on blob import (the element is runtime-only and is not part of the serialized
-// blob). Both wrap the LLMCompiledModel produced there from the very same model,
-// which is what guarantees the inner is the matching batch-1 compilation.
+// It is applied at npuw::ICompiledModel::create() on compilation, and the wrap is
+// part of the serialized blob. export_model() writes a batched header in front of
+// the complete inner blob, so the plugin's NPUW import dispatch reconstructs the
+// wrapper from the indicator alone, with no entry point deciding anything.
 class CompiledModel final : public ov::npuw::ICompiledModel {
 public:
     // Factory used by the NPUW entry points. Returns the inner model unwrapped
@@ -54,6 +53,12 @@ public:
     // create() no-op paths.
     static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
                                                             const std::shared_ptr<const ov::IPlugin>& plugin);
+
+    // Deserializes a blob written by export_model(). Consumes the batched header,
+    // imports the nested inner blob and wraps it.
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
 
     CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
                   const std::shared_ptr<const ov::IPlugin>& plugin);
