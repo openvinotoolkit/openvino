@@ -77,10 +77,23 @@ bool ov::npuw::profiling_enabled() {
             return;
         }
         const std::string prof_str(prof_opt);
-        do_profiling = (prof_str == "YES" || prof_str == "ON" || prof_str == "1");
+        do_profiling = (prof_str == "YES" || prof_str == "ON" || prof_str == "1" || prof_str == "ALL");
     });
 #endif
     return do_profiling;
+}
+
+bool ov::npuw::profiling_details() {
+    static bool do_details = false;
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::once_flag flag;
+
+    std::call_once(flag, []() {
+        const auto* prof_opt = get_env({"OPENVINO_NPUW_PROF"});
+        do_details = prof_opt && std::string(prof_opt) == "ALL";
+    });
+#endif
+    return do_details;
 }
 
 thread_local int ov::npuw::__logging_indent__::this_indent = 0;

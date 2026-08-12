@@ -199,7 +199,7 @@ void ov::npuw::batched::InferRequest::infer() {
     const auto& out_ports = get_outputs();
 
     BatchedInputs inputs;
-    m_profile["1.extract_batch"].record([&]() {
+    m_profile.record("1.extract_batch", [&]() {
         inputs = extract_batch();
     });
     const std::size_t batch = inputs.batch;
@@ -230,7 +230,7 @@ void ov::npuw::batched::InferRequest::infer() {
     // batch-1 inner request, and copy its outputs into row `row` of the [N, ...]
     // public outputs.
     for (std::size_t row = 0; row < batch; ++row) {
-        m_profile["2.bind_row"].record([&]() {
+        m_profile.record("2.bind_row", [&]() {
             for (const auto& state : inner_states) {
                 state->reset();
             }
@@ -241,7 +241,7 @@ void ov::npuw::batched::InferRequest::infer() {
                 }
             }
         });
-        m_profile["3.inner_infer"].record([&]() {
+        m_profile.record("3.inner_infer", [&]() {
             m_inner->infer();
         });
         if (row == 0) {
@@ -249,7 +249,7 @@ void ov::npuw::batched::InferRequest::infer() {
             // known once the first row has been scored.
             prepare_outputs(batch);
         }
-        m_profile["4.copy_row_out"].record([&]() {
+        m_profile.record("4.copy_row_out", [&]() {
             for (const auto& port : out_ports) {
                 m_inner->get_tensor(port)->copy_to(ov::npuw::util::view(get_tensor(port), 0, row, 1)._ptr);
             }
