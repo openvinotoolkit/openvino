@@ -223,6 +223,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -505,7 +506,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // OFFLOAD_RATIO_AUTO (-1) here. Stamping is cheap and harmless even if OTD ends
     // up disabled, so we also stamp for AUTO to keep bin offsets available once auto resolves.
     const int64_t otd_ratio = config.get_offload_ratio();
-    const bool otd_maybe_enabled = otd_ratio == -1 || (otd_ratio > 0 && otd_ratio < 100);
+    const bool otd_maybe_enabled = otd_ratio == ov::intel_gpu::OFFLOAD_RATIO_AUTO ||
+                                   (otd_ratio > 0 && otd_ratio < 100);
     if (otd_maybe_enabled) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
