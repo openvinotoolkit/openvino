@@ -59,7 +59,7 @@ if(NOT BUILD_SHARED_LIBS)
     # redefine all collected symbols
     foreach(onednn_symbol IN LISTS onednn_symbols)
         if(NOT onednn_symbol MATCHES "^#.+")
-            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+            list(APPEND onednn_renamed_definitions ${onednn_symbol}=ov_cpu_${onednn_symbol})
         endif()
     endforeach()
 endif()
@@ -234,6 +234,10 @@ ov_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ${onednn_renamed_definitions})
+endif()
 
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
