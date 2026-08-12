@@ -632,12 +632,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_opset14_singl
     auto model = convert_model("batchnorm_training_mode_opset14_single_output.onnx");
     EXPECT_EQ(model->get_output_size(), 1);
 
+    // "Y" is normalized with the current batch statistics, so the "mean"/"var" inputs are not consumed when the
+    // running statistics outputs are not requested. Depending on the frontend implementation those dangling
+    // parameters may or may not be pruned from the resulting model, so only add inputs for the parameters that
+    // are actually present.
+    const auto num_params = model->get_parameters().size();
+
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>({-1.f, 0.f, 1.f, 2.f, 3.f, 4.f});  // data {1, 2, 1, 3}
     test_case.add_input<float>({1.f, 1.5f});                      // scale
     test_case.add_input<float>({0.f, 1.f});                       // bias
-    test_case.add_input<float>({0.f, 3.f});                       // mean
-    test_case.add_input<float>({1.f, 1.5f});                      // var
+    if (num_params > 3) {
+        test_case.add_input<float>({0.f, 3.f});   // mean (unused for the "Y" output)
+        test_case.add_input<float>({1.f, 1.5f});  // var (unused for the "Y" output)
+    }
     test_case.add_expected_output<float>(Shape{1, 2, 1, 3},
                                          {-1.2247356f, 0.f, 1.2247356f, -0.83710337f, 1.f, 2.8371034f});
     test_case.run();
