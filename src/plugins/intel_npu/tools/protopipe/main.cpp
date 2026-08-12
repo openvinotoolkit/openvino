@@ -269,14 +269,8 @@ int main(int argc, char* argv[]) {
                     workload_type->workload_config = stream.workload_type.value();
                     criterion->setWorkloadTrigger(workload_type);
                 }
-                Simulation::Ptr simulation;
-                try {
-                    simulation = createSimulation(FLAGS_mode, std::move(stream), FLAGS_inference_only, config);
-                } catch (...) {
-                    LOG_INFO() << "Failed to create simulation for stream: " << stream_name << std::endl;
-                    throw;
-                }
 
+                auto simulation = createSimulation(FLAGS_mode, std::move(stream), FLAGS_inference_only, config);
                 if (workload_type)
                     simulation->workload = workload_type;
 
