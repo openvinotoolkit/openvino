@@ -107,11 +107,12 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
     const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
     const bool zero_output_feature_padding = ShouldZeroOutputFeaturePadding(params);
     if (zero_output_feature_padding) {
-        const auto block_size = std::to_string(feature_block_size);
-        const auto padded_feature_size =
+        const std::string block_size = std::to_string(feature_block_size);
+        const std::string padded_feature_size =
             "(OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM)";
-        const auto feature_gws_size = "(OUTPUT_FEATURE_NUM + (" + block_size + " - (" + padded_feature_size + " % " +
-                                block_size + ")) % " + block_size + ")";
+        const std::string feature_gws_size =
+            "(OUTPUT_FEATURE_NUM + (" + block_size + " - (" + padded_feature_size + " % " + block_size + ")) % " +
+            block_size + ")";
         jit.RemoveConstant("ELTWISE_NO_PITCH_SAME_DIMS");
         jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", 0));
         jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", 1));
