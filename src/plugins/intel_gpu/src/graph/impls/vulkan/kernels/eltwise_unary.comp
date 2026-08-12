@@ -1,6 +1,6 @@
 #version 450
 
 #define ELTWISE_DENSE 0
-#define ELTWISE_BROADCAST_VECTOR 1
-#define ELTWISE_UNARY 0
+#define ELTWISE_BROADCAST_VECTOR 0
+#define ELTWISE_UNARY 1
 #include "eltwise_common.glsl"

@@ -3,7 +3,15 @@
 #endif
 #extension GL_GOOGLE_include_directive : require
 
-#if ELTWISE_DENSE
+#if ELTWISE_UNARY
+layout(set = 0, binding = 0) readonly buffer Input0 {
+    uint8_t values[];
+} input0_data;
+
+layout(set = 0, binding = 1) writeonly buffer Output {
+    uint8_t values[];
+} output_data;
+#elif ELTWISE_DENSE
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
 } input0_data;
@@ -29,12 +37,20 @@ layout(set = 0, binding = 2) writeonly buffer Output {
 } output_data;
 #endif
 
+#if ELTWISE_UNARY
+layout(set = 0, binding = 2) readonly buffer Metadata {
+#else
 layout(set = 0, binding = 3) readonly buffer Metadata {
+#endif
     uint values[];
 } metadata;
 
 #if ELTWISE_DENSE
 #define packed_output_data output_data
+#elif ELTWISE_UNARY
+layout(set = 0, binding = 3) writeonly buffer PackedOutput {
+    uint values[];
+} packed_output_data;
 #else
 layout(set = 0, binding = 4) writeonly buffer PackedOutput {
     uint values[];
@@ -95,6 +111,7 @@ uint load_u8_0(uint offset) {
 #endif
 }
 
+#if !ELTWISE_UNARY
 uint load_u8_1(uint offset) {
 #if ELTWISE_DENSE
     uint word = input1_data.values[offset / 4];
@@ -103,14 +120,17 @@ uint load_u8_1(uint offset) {
     return uint(input1_data.values[offset]);
 #endif
 }
+#endif
 
 uint load_u16_0(uint offset) {
     return load_u8_0(offset) | (load_u8_0(offset + 1) << 8);
 }
 
+#if !ELTWISE_UNARY
 uint load_u16_1(uint offset) {
     return load_u8_1(offset) | (load_u8_1(offset + 1) << 8);
 }
+#endif
 
 uint load_u32_0(uint offset) {
 #if ELTWISE_DENSE
@@ -120,6 +140,7 @@ uint load_u32_0(uint offset) {
 #endif
 }
 
+#if !ELTWISE_UNARY
 uint load_u32_1(uint offset) {
 #if ELTWISE_DENSE
     return input1_data.values[offset / 4];
@@ -127,14 +148,17 @@ uint load_u32_1(uint offset) {
     return load_u16_1(offset) | (load_u16_1(offset + 2) << 16);
 #endif
 }
+#endif
 
 uvec2 load_u64_0(uint offset) {
     return uvec2(load_u32_0(offset), load_u32_0(offset + 4));
 }
 
+#if !ELTWISE_UNARY
 uvec2 load_u64_1(uint offset) {
     return uvec2(load_u32_1(offset), load_u32_1(offset + 4));
 }
+#endif
 
 void store_tail_u8(uint offset, uint value) {
 #if ELTWISE_DENSE
@@ -190,6 +214,7 @@ uvec2 load_integer_0(uint element_offset, uint type) {
     return uvec2(load_u8_0(offset), 0);
 }
 
+#if !ELTWISE_UNARY
 uvec2 load_integer_1(uint element_offset, uint type) {
     uint offset = element_offset * scalar_size(type);
     if (type == type_i64) {
@@ -212,6 +237,7 @@ uvec2 load_integer_1(uint element_offset, uint type) {
     }
     return uvec2(load_u8_1(offset), 0);
 }
+#endif
 
 float signed_u64_to_float(uvec2 value) {
     bool negative = int(value.y) < 0;
@@ -238,6 +264,7 @@ float load_float_0(uint element_offset, uint type) {
     return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
 }
 
+#if !ELTWISE_UNARY
 float load_float_1(uint element_offset, uint type) {
     uint offset = element_offset * scalar_size(type);
     if (type == type_f32) {
@@ -249,6 +276,7 @@ float load_float_1(uint element_offset, uint type) {
     uvec2 value = load_integer_1(element_offset, type);
     return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
 }
+#endif
 
 uvec2 add_u64(uvec2 lhs, uvec2 rhs) {
     uint low = lhs.x + rhs.x;
@@ -511,6 +539,24 @@ bool apply_float_boolean(float lhs, float rhs, uint mode) {
     }
 }
 
+#if ELTWISE_UNARY
+bool apply_float_unary_boolean(float value, uint mode) {
+    switch (mode) {
+    case mode_is_finite:
+        return !isnan(value) && !isinf(value);
+    case mode_is_inf: {
+        uint detect_mask = metadata.values[metadata_infinity_detection];
+        return isinf(value) && ((value < 0.0 && (detect_mask & infinity_negative_flag) != 0) ||
+                                (value > 0.0 && (detect_mask & infinity_positive_flag) != 0));
+    }
+    case mode_is_nan:
+        return isnan(value);
+    default:
+        return false;
+    }
+}
+#endif
+
 uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
     switch (mode) {
     case mode_sum:
@@ -609,10 +655,14 @@ uvec2 float_output_bits(float value, uint output_type) {
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uint mode = selected_mode;
     uint input0_type = selected_input0_type;
+#if !ELTWISE_UNARY
     uint input1_type = selected_input1_type;
+#endif
     uint output_type = selected_output_type;
     uint input0_offset;
+#if !ELTWISE_UNARY
     uint input1_offset;
+#endif
 #if ELTWISE_DENSE
     input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
     input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
@@ -621,7 +671,9 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uint rank = metadata.values[metadata_rank];
     if ((selected_storage_flags & storage_linear_flag) != 0) {
         input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
+#if !ELTWISE_UNARY
         input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
+#endif
         output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
     } else {
         uint output_base = header_words + tensor_output * tensor_words;
@@ -633,19 +685,28 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
             remainder /= dimension;
         }
         input0_offset = storage_element_offset(tensor_input0, coordinates, rank);
+#if !ELTWISE_UNARY
         input1_offset = storage_element_offset(tensor_input1, coordinates, rank);
+#endif
         output_offset = storage_element_offset(tensor_output, coordinates, rank);
     }
 #endif
 
     if (is_float_type(input0_type)) {
         float lhs = load_float_0(input0_offset, input0_type);
+#if ELTWISE_UNARY
+        return uvec2(apply_float_unary_boolean(lhs, mode) ? 1 : 0, 0);
+#else
         float rhs = load_float_1(input1_offset, input1_type);
         if (is_boolean_mode(mode)) {
             return uvec2(apply_float_boolean(lhs, rhs, mode) ? 1 : 0, 0);
         }
         return float_output_bits(apply_float(lhs, rhs, mode), output_type);
+#endif
     } else {
+#if ELTWISE_UNARY
+        return uvec2(0);
+#else
         uvec2 lhs = load_integer_0(input0_offset, input0_type);
         uvec2 rhs = load_integer_1(input1_offset, input1_type);
         bool signed_type = is_signed_type(input0_type);
@@ -653,6 +714,7 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
             return uvec2(apply_integer_boolean(lhs, rhs, mode, signed_type) ? 1 : 0, 0);
         }
         return apply_integer(lhs, rhs, mode, signed_type);
+#endif
     }
 }
 

@@ -17,6 +17,7 @@
 #include "eltwise_dense_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
+#include "eltwise_unary_spirv.hpp"
 #include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
@@ -42,6 +43,7 @@ enum class kernel_kind : uint8_t {
     dense,
     broadcast_scalar,
     broadcast_vector,
+    unary,
 };
 
 bool is_supported_mode(eltwise_mode mode) {
@@ -377,6 +379,9 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::broadcast_vector) {
         spirv = eltwise_broadcast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_vector_spirv);
+    } else if (kind == kernel_kind::unary) {
+        spirv = eltwise_unary_spirv;
+        spirv_size = sizeof(eltwise_unary_spirv);
     }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
@@ -484,6 +489,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto& output_layout = instance.get_output_layout(0);
         const bool use_dense_kernel = _kernel_kind == kernel_kind::dense;
         const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
+        const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
         OPENVINO_ASSERT(!use_dense_kernel || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
                         "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
@@ -508,12 +514,12 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (use_dense_kernel || use_broadcast_vector_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
         }
-        descriptor.arguments = {
-            {argument_desc::Types::INPUT, 0},
-            {argument_desc::Types::INPUT, static_cast<uint32_t>(input_count == 1 ? 0 : 1)},
-            {argument_desc::Types::OUTPUT, 0},
-            {argument_desc::Types::INTERNAL_BUFFER, 0},
-        };
+        descriptor.arguments = {{argument_desc::Types::INPUT, 0}};
+        if (!use_unary_kernel) {
+            descriptor.arguments.push_back({argument_desc::Types::INPUT, 1});
+        }
+        descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
+        descriptor.arguments.push_back({argument_desc::Types::INTERNAL_BUFFER, 0});
         if (!use_dense_kernel) {
             descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
         }
@@ -576,7 +582,9 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     const auto& input0_layout = params.get_input_layout(0);
     const auto& input1_layout = input_count == 1 ? input0_layout : params.get_input_layout(1);
     kernel_kind kind = kernel_kind::broadcast_scalar;
-    if (!params.is_dynamic()) {
+    if (is_unary_mode(node.as<eltwise>().get_primitive()->mode)) {
+        kind = kernel_kind::unary;
+    } else if (!params.is_dynamic()) {
         const auto& output_layout = params.get_output_layout(0);
         if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
             kind = kernel_kind::dense;
