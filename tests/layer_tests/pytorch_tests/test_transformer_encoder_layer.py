@@ -112,7 +112,11 @@ class TestTransformerEncoderLayerFwd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("norm_first", [False, True])
+    # norm_first=True disables PyTorch's fused fast path (why_not_sparsity_fast_path =
+    # "norm_first was True"), so the traced graph decomposes into elementary ops and
+    # aten::_transformer_encoder_layer_fwd is never emitted. That case is already covered
+    # by test_transformer_encoder_layer_fwd, which calls the fast-path op directly.
+    @pytest.mark.parametrize("norm_first", [False])
     @pytest.mark.parametrize("activation", ["relu", "gelu"])
     @pytest.mark.skipif(PytorchLayerTest.use_torch_export(),
                         reason="TransformerEncoderLayer fast path is not used by torch.export")
