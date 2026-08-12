@@ -82,11 +82,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
     auto combine_groups_params = [has_transpose, grouped, final_weights_rank, &result_nodes](
                                      const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::Node> {
         const auto& ps = node->get_output_partial_shape(0);
-        // The matcher callback already rejects dynamic weights/scale/zero-point shapes, so a
-        // Parameter reaching this point must be static.
         OPENVINO_ASSERT(ps.is_static(), "Parameter input must have a static shape in combine_groups");
         if (ps.size() <= final_weights_rank) {
-            // Not grouped: no group dim to fold.
+            // Non-group nodes skip reshape
             return node;
         }
         OPENVINO_ASSERT(ps.size() == final_weights_rank + 1, "Unexpected rank for grouped Parameter in combine_groups");
@@ -119,7 +117,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::process_compressed_weights(
 
     auto convert_u4const_to_u8 =
         [convert_u4zp_to_u8, enable_parameter_weights](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
-        // Without parameter weights the zero-point must be a Constant; a non-constant here is unexpected.
         OPENVINO_ASSERT(enable_parameter_weights || ov::as_type_ptr<v0::Constant>(node),
                         "A non-constant zero-point is only expected when parameter weights are enabled");
         if (node->get_output_element_type(0) != ov::element::u4 || !convert_u4zp_to_u8)
