@@ -194,11 +194,13 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          # gemma4 needs a much newer transformers/optimum-intel than the rest of the suite;
-          # optimum-onnx (installed earlier) pins versions incompatible with paged_attention.txt.
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit -k "not gemma4" --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
+          # gemma4 needs a much newer transformers/optimum-intel than the rest of the suite,
+          # so it runs as a second pass with its own deps; optimum-onnx (installed earlier)
+          # pins versions incompatible with paged_attention.txt.
           python3 -m pip uninstall -y optimum-onnx
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/envs/paged_attention.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit -k gemma4 --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gemma4_tests.html --self-contained-html -v --tb=short
         env:
           TEST_DEVICE: CPU
 
