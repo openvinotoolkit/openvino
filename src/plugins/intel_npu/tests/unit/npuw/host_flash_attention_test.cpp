@@ -174,6 +174,15 @@ TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInFinalTileOnly) {
     expect_input_name(result->_final_tile_model, 6, "MASK_TILE", "fused final tile");
 }
 
+TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInRegularTileWhenMaskSkippingDisabled) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_tile_model->inputs().size(), 7u);
+    EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
+    expect_input_name(result->_tile_model, 6, "MASK_TILE", "fused regular tile with mask skipping disabled");
+    expect_input_name(result->_final_tile_model, 6, "MASK_TILE", "fused final tile");
+}
+
 // ============================================================================
 // Tile param index map
 // ============================================================================
