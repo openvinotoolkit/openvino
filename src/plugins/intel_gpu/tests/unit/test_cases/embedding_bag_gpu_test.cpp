@@ -4,7 +4,6 @@
 
 #include "test_utils.h"
 
-#include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/embedding_bag.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -906,7 +905,8 @@ TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physica
     auto indices = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segment_ids = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
     auto segments_num = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
-    auto per_sample_weights_full = engine.allocate_memory({ data_types::f16, format::bfyx, { 5, 1, 1, 1 } });
+    auto weights_layout = layout{ data_types::f16, format::bfyx, { 4, 1, 1, 1 }, padding({ 1, 0, 0, 0 }, { 0, 0, 0, 0 }) };
+    auto per_sample_weights = engine.allocate_memory(weights_layout);
     tensor output_shape = {3, 2, 1, 1};
 
     set_values(emb_table, {
@@ -923,11 +923,15 @@ TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physica
             0, 0, 2, 2
     });
     set_values<int32_t>(segments_num, { 4 });
-    // Crop with offset {1, 0, 0, 0} produces logical weights {0.5, 0.5, 0.5, 0.5}.
-    // A wrong offset source would consume the leading 10.0 value and change the result.
-    set_values(per_sample_weights_full, {
-            ov::float16(10.0f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f), ov::float16(0.5f)
-    });
+    {
+        cldnn::mem_lock<ov::float16, mem_lock_type::write> weights_ptr(per_sample_weights, get_test_stream());
+        std::fill(weights_ptr.begin(), weights_ptr.end(), ov::float16(10.0f));
+        auto weights_l = per_sample_weights->get_layout();
+        weights_ptr[weights_l.get_linear_offset(tensor(batch(0), feature(0), spatial(0, 0, 0, 0)))] = ov::float16(0.5f);
+        weights_ptr[weights_l.get_linear_offset(tensor(batch(1), feature(0), spatial(0, 0, 0, 0)))] = ov::float16(0.5f);
+        weights_ptr[weights_l.get_linear_offset(tensor(batch(2), feature(0), spatial(0, 0, 0, 0)))] = ov::float16(0.5f);
+        weights_ptr[weights_l.get_linear_offset(tensor(batch(3), feature(0), spatial(0, 0, 0, 0)))] = ov::float16(0.5f);
+    }
 
     auto type = embedding_bag::segments_sum;
     topology topology;
@@ -935,8 +939,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physica
     topology.add(input_layout("Input1", indices->get_layout()));
     topology.add(input_layout("Input2", segment_ids->get_layout()));
     topology.add(input_layout("Input3", segments_num->get_layout()));
-    topology.add(input_layout("Input4_full", per_sample_weights_full->get_layout()));
-    topology.add(crop("Input4", input_info("Input4_full"), { 4, 1, 1, 1 }, { 1, 0, 0, 0 }));
+    topology.add(input_layout("Input4", per_sample_weights->get_layout()));
     topology.add(
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3"), input_info("Input4") }, type, output_shape, 0)
     );
@@ -947,7 +950,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_weighted_with_non_zero_weights_physica
     network.set_input_data("Input1", indices);
     network.set_input_data("Input2", segment_ids);
     network.set_input_data("Input3", segments_num);
-    network.set_input_data("Input4_full", per_sample_weights_full);
+    network.set_input_data("Input4", per_sample_weights);
 
     auto outputs = network.execute();
 
