@@ -4,10 +4,11 @@
   "signature_hash": "44dec04115b12f89",
   "title": "Linux ARM64 CPU functional tests fail on attempt 1 - re-run already in progress on attempt 2",
   "category": "Infrastructure",
-  "count": 7,
+  "count": 8,
   "first_seen": "2026-07-25T13:05:00Z",
-  "last_seen": "2026-08-12T10:56:48Z",
+  "last_seen": "2026-08-12T17:38:45Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31620114499",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31586375017",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31512034471",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31478842603",
@@ -17,6 +18,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/30156795631"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37247",
     "https://github.com/openvinotoolkit/openvino/pull/37302",
     "https://github.com/openvinotoolkit/openvino/pull/36980",
     "https://github.com/openvinotoolkit/openvino/pull/37301",
@@ -26,8 +28,8 @@
     "https://github.com/openvinotoolkit/openvino/pull/37024"
   ],
   "recent_timestamps": [
-    "2026-08-12T10:56:48Z",
-    "2026-08-11T16:45:46Z"
+    "2026-08-12T17:38:45Z",
+    "2026-08-12T10:56:48Z"
   ],
   "rerun_search_string": null
 }

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-17-38-45-000-31620114499",
+  "timestamp": "2026-08-12T17:38:45Z",
+  "run_id": "31620114499",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31620114499",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37247",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37247",
+  "author": "liubo-intel",
+  "category": "Infrastructure",
+  "title": "Linux ARM64 CPU functional tests fail on attempt 1 - re-run already in progress on attempt 2",
+  "signature": "workflow run logs unavailable for attempt 1 re-run already in progress on attempt 2|Infrastructure",
+  "signature_hash": "44dec04115b12f89",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "CPU functional tests failed on attempt 1; attempt 2 re-run is in progress"
+    }
+  ],
+  "key_errors": [
+    "No job logs available - pre-analysis detected attempt 1 failure but logs were not downloadable as attempt 2 was already in progress."
+  ],
+  "root_cause": "The Linux ARM64 workflow run 31620114499 failed on attempt 1 during CPU functional tests. The CI Doctor was triggered by the attempt 1 failure but pre-downloaded job logs were unavailable because attempt 2 was already in progress. This is a recurring Infrastructure pattern observed 7+ times: the ARM64 runner intermittently fails on CPU functional tests on attempt 1, and the system auto-reruns. The PR #37247 adds LoopZeroIterationsCPUTest for CPU Loop opset5 fix - the failure is likely infrastructure-related (runner hiccup) rather than a code defect, given the established recurrence pattern.",
+  "reproduction_steps": "N/A - infrastructure transient failure not reproducible locally",
+  "recommended_actions": [
+    "Wait for attempt 2 to complete - it is already in progress",
+    "If attempt 2 also fails, investigate the CPU functional test logs for LoopZeroIterationsCPUTest specifically",
+    "If attempt 2 passes, merge normally"
+  ],
+  "prevention_strategies": "This ARM64 runner instability is a known infrastructure issue. Consider increasing ARM64 runner capacity or implementing automatic retry logic for CPU functional tests.",
+  "historical_context": "This same Infrastructure pattern (ARM64 CPU functional test failure on attempt 1 with attempt 2 re-run) has been recorded 7 times previously, first seen 2026-07-25, most recently 2026-08-12T10:56:48Z."
+}

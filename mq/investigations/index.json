@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 152,
+  "total": 153,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1488,6 +1488,17 @@
       "category": "Infrastructure",
       "signature_hash": "44dec04115b12f89",
       "pr_number": "37302"
+    },
+    {
+      "investigation_id": "2026-08-12-17-38-45-000-31620114499",
+      "run_id": "31620114499",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31620114499",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-08-12T17:38:45Z",
+      "title": "Linux ARM64 CPU functional tests fail on attempt 1 - re-run already in progress on attempt 2",
+      "category": "Infrastructure",
+      "signature_hash": "44dec04115b12f89",
+      "pr_number": "37247"
     }
   ]
 }
