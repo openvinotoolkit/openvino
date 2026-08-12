@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "eltwise_broadcast_vector_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
@@ -34,10 +35,13 @@ constexpr uint32_t tensor_count = shader_abi::index(shader_abi::tensor_index::co
 constexpr uint32_t metadata_words = header_words + tensor_count * tensor_words;
 constexpr uint32_t portable_max_local_work_group_size = 128;
 constexpr uint32_t dense_vector_bytes = 16;
+constexpr uint32_t broadcast_vector_width = 4;
+constexpr uint32_t broadcast_vector_min_elements = 256;
 
 enum class kernel_kind : uint8_t {
     dense,
-    broadcast,
+    broadcast_scalar,
+    broadcast_vector,
 };
 
 bool is_supported_mode(eltwise_mode mode) {
@@ -221,6 +225,13 @@ bool can_use_dense_kernel(const layout& input0_layout, const layout& input1_layo
     return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && can_use_linear_storage(input0_layout, input1_layout, output_layout);
 }
 
+bool can_use_broadcast_vector_kernel(const layout& output_layout) {
+    if (data_type_traits::size_of(output_layout.data_type) < sizeof(uint32_t) || output_layout.count() < broadcast_vector_min_elements) {
+        return false;
+    }
+    return output_layout.count() % broadcast_vector_width == 0;
+}
+
 void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor, const layout& tensor_layout, uint32_t output_rank) {
     const auto shape = tensor_layout.get_shape();
     const auto pitches = tensor_layout.get_pitches();
@@ -358,8 +369,15 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
 
 std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     auto source = std::make_shared<kernel_string>();
-    const auto* spirv = kind == kernel_kind::dense ? eltwise_dense_spirv : eltwise_spirv;
-    const auto spirv_size = kind == kernel_kind::dense ? sizeof(eltwise_dense_spirv) : sizeof(eltwise_spirv);
+    const uint32_t* spirv = eltwise_spirv;
+    size_t spirv_size = sizeof(eltwise_spirv);
+    if (kind == kernel_kind::dense) {
+        spirv = eltwise_dense_spirv;
+        spirv_size = sizeof(eltwise_dense_spirv);
+    } else if (kind == kernel_kind::broadcast_vector) {
+        spirv = eltwise_broadcast_vector_spirv;
+        spirv_size = sizeof(eltwise_broadcast_vector_spirv);
+    }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
     source->batch_compilation = false;
@@ -372,7 +390,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::vulkan::eltwise_impl)
 
-    eltwise_impl() : eltwise_impl(kernel_kind::broadcast) {}
+    eltwise_impl() : eltwise_impl(kernel_kind::broadcast_scalar) {}
 
     explicit eltwise_impl(kernel_kind kind) : parent("vulkan_eltwise"), _kernel_source(make_kernel_source(kind)), _kernel_kind(kind) {}
 
@@ -465,9 +483,14 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto& input1_layout = input_count == 1 ? input0_layout : instance.get_input_layout(1);
         const auto& output_layout = instance.get_output_layout(0);
         const bool use_dense_kernel = _kernel_kind == kernel_kind::dense;
+        const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
         OPENVINO_ASSERT(!use_dense_kernel || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
                         "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
-        const auto elements_per_invocation = use_dense_kernel ? dense_elements_per_invocation(output_layout) : output_elements_per_invocation(output_layout);
+        OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
+                        "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
+        const auto elements_per_invocation = use_dense_kernel              ? dense_elements_per_invocation(output_layout)
+                                             : use_broadcast_vector_kernel ? broadcast_vector_width
+                                                                           : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
         descriptor.workGroups.local = {
@@ -482,7 +505,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             {shader_abi::index(shader_abi::specialization_id::output_type), metadata[shader_abi::index(shader_abi::metadata_field::output_type)]},
             {shader_abi::index(shader_abi::specialization_id::storage_flags), metadata[shader_abi::index(shader_abi::metadata_field::flags)]},
         };
-        if (use_dense_kernel) {
+        if (use_dense_kernel || use_broadcast_vector_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
         }
         descriptor.arguments = {
@@ -507,7 +530,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
 private:
     std::shared_ptr<kernel_string> _kernel_source;
-    kernel_kind _kernel_kind = kernel_kind::broadcast;
+    kernel_kind _kernel_kind = kernel_kind::broadcast_scalar;
     std::vector<kernel::ptr> _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
@@ -552,8 +575,15 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     OPENVINO_ASSERT(input_count == 1 || input_count == 2, "[GPU][Vulkan] Eltwise implementation creation received an unexpected input count");
     const auto& input0_layout = params.get_input_layout(0);
     const auto& input1_layout = input_count == 1 ? input0_layout : params.get_input_layout(1);
-    const auto kind =
-        !params.is_dynamic() && can_use_dense_kernel(input0_layout, input1_layout, params.get_output_layout(0)) ? kernel_kind::dense : kernel_kind::broadcast;
+    kernel_kind kind = kernel_kind::broadcast_scalar;
+    if (!params.is_dynamic()) {
+        const auto& output_layout = params.get_output_layout(0);
+        if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
+            kind = kernel_kind::dense;
+        } else if (can_use_broadcast_vector_kernel(output_layout)) {
+            kind = kernel_kind::broadcast_vector;
+        }
+    }
     return std::make_unique<eltwise_impl>(kind);
 }
 

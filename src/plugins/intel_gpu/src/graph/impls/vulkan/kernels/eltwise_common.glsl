@@ -63,7 +63,7 @@ layout(constant_id = specialization_input0_type_id) const uint selected_input0_t
 layout(constant_id = specialization_input1_type_id) const uint selected_input1_type = type_f32;
 layout(constant_id = specialization_output_type_id) const uint selected_output_type = type_f32;
 layout(constant_id = specialization_storage_flags_id) const uint selected_storage_flags = 0;
-#if ELTWISE_DENSE
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
 layout(constant_id = specialization_elements_per_invocation_id) const uint selected_elements_per_invocation = 1;
 #endif
 
@@ -677,7 +677,7 @@ void main() {
     uint output_type = selected_output_type;
     uint output_size = scalar_size(output_type);
     bool pack_output = output_size < 4 && (selected_storage_flags & storage_packed_output_flag) != 0;
-#if ELTWISE_DENSE
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
     uint elements_per_invocation = selected_elements_per_invocation;
 #else
     uint elements_per_invocation = pack_output ? 4 / output_size : 1;
@@ -691,7 +691,7 @@ void main() {
     uvec2 first_value = evaluate_element(first_element, first_output_offset);
     if (!pack_output) {
         store_element(first_output_offset, output_size, first_value);
-#if ELTWISE_DENSE
+#if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR
         for (uint vector_index = 1; vector_index < elements_per_invocation; ++vector_index) {
             uint element_index = first_element + vector_index;
             if (element_index >= element_count) {
