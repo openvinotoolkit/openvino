@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import TYPE_CHECKING
 
 from common import (
     github_client,
@@ -38,9 +37,8 @@ from common import (
     resolve_repository,
 )
 
-if TYPE_CHECKING:
-    from github.PullRequest import PullRequest
-    from github.WorkflowRun import WorkflowRun
+from github.PullRequest import PullRequest
+from github.WorkflowRun import WorkflowRun
 
 READD_MARKER = "<!-- ci-doctor-mq-readd -->"
 
