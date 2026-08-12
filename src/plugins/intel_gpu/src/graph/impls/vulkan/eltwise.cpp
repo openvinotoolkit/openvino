@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "eltwise_dense_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
 #include "impls/ocl/kernels_cache.hpp"
@@ -32,6 +33,12 @@ constexpr uint32_t tensor_words = max_rank * 2 + 1;
 constexpr uint32_t tensor_count = shader_abi::index(shader_abi::tensor_index::count);
 constexpr uint32_t metadata_words = header_words + tensor_count * tensor_words;
 constexpr uint32_t portable_max_local_work_group_size = 128;
+constexpr uint32_t dense_vector_bytes = 16;
+
+enum class kernel_kind : uint8_t {
+    dense,
+    broadcast,
+};
 
 bool is_supported_mode(eltwise_mode mode) {
     return one_of(mode, {eltwise_mode::sum,        eltwise_mode::sub,         eltwise_mode::max,          eltwise_mode::prod,       eltwise_mode::div,
@@ -205,6 +212,15 @@ uint32_t output_elements_per_invocation(const layout& output_layout) {
     return checked_u32(sizeof(uint32_t) / scalar_size, "packed output width");
 }
 
+uint32_t dense_elements_per_invocation(const layout& output_layout) {
+    const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
+    return checked_u32(std::max<size_t>(1, dense_vector_bytes / scalar_size), "dense vector width");
+}
+
+bool can_use_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
+    return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && can_use_linear_storage(input0_layout, input1_layout, output_layout);
+}
+
 void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor, const layout& tensor_layout, uint32_t output_rank) {
     const auto shape = tensor_layout.get_shape();
     const auto pitches = tensor_layout.get_pitches();
@@ -261,9 +277,11 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance)
     return metadata;
 }
 
-std::shared_ptr<kernel_string> make_kernel_source() {
+std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     auto source = std::make_shared<kernel_string>();
-    source->str.assign(reinterpret_cast<const char*>(eltwise_spirv), sizeof(eltwise_spirv));
+    const auto* spirv = kind == kernel_kind::dense ? eltwise_dense_spirv : eltwise_spirv;
+    const auto spirv_size = kind == kernel_kind::dense ? sizeof(eltwise_dense_spirv) : sizeof(eltwise_spirv);
+    source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
     source->batch_compilation = false;
     source->language = kernel_language::SPIRV;
@@ -275,7 +293,9 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::vulkan::eltwise_impl)
 
-    eltwise_impl() : parent("vulkan_eltwise"), _kernel_source(make_kernel_source()) {}
+    eltwise_impl() : eltwise_impl(kernel_kind::broadcast) {}
+
+    explicit eltwise_impl(kernel_kind kind) : parent("vulkan_eltwise"), _kernel_source(make_kernel_source(kind)), _kernel_kind(kind) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
@@ -291,13 +311,23 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         return false;
     }
 
+    void save(BinaryOutputBuffer& buffer) const override {
+        parent::save(buffer);
+        buffer << make_data(&_kernel_kind, sizeof(_kernel_kind));
+    }
+
+    void load(BinaryInputBuffer& buffer) override {
+        parent::load(buffer);
+        buffer >> make_data(&_kernel_kind, sizeof(_kernel_kind));
+    }
+
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         return {BufferDescriptor(metadata_words, ov::element::u32, true, false)};
     }
 
     void init_kernels(const kernels_cache& cache, const kernel_impl_params& params) override {
         _kernels = cache.get_kernels(params);
-        OPENVINO_ASSERT(_kernels.size() == 1, "[GPU][Vulkan] Eltwise expects exactly one SPIR-V kernel");
+        OPENVINO_ASSERT(_kernels.size() == 1, "[GPU][Vulkan] Eltwise expects exactly one selected SPIR-V kernel");
     }
 
     void init_by_cached_kernels(const kernels_cache& cache, std::vector<std::string>& cached_kernel_ids) override {
@@ -326,6 +356,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     void set_kernels(kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Eltwise expects one compiled kernel set");
         const auto& entries = kernels.begin()->second;
+        OPENVINO_ASSERT(entries.size() == 1, "[GPU][Vulkan] Eltwise expects exactly one selected compiled kernel");
         _kernels.resize(entries.size());
         for (const auto& entry : entries) {
             _kernels.at(entry.second) = entry.first;
@@ -351,7 +382,13 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         kernel_arguments_desc descriptor;
         descriptor.layerID = instance.id();
         const auto element_count = metadata[shader_abi::index(shader_abi::metadata_field::element_count)];
-        const auto elements_per_invocation = output_elements_per_invocation(instance.get_output_layout(0));
+        const auto& input0_layout = instance.get_input_layout(0);
+        const auto& input1_layout = input_count == 1 ? input0_layout : instance.get_input_layout(1);
+        const auto& output_layout = instance.get_output_layout(0);
+        const bool use_dense_kernel = _kernel_kind == kernel_kind::dense;
+        OPENVINO_ASSERT(!use_dense_kernel || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
+                        "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
+        const auto elements_per_invocation = use_dense_kernel ? dense_elements_per_invocation(output_layout) : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
         descriptor.workGroups.local = {
@@ -366,13 +403,18 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             {shader_abi::index(shader_abi::specialization_id::output_type), metadata[shader_abi::index(shader_abi::metadata_field::output_type)]},
             {shader_abi::index(shader_abi::specialization_id::storage_flags), metadata[shader_abi::index(shader_abi::metadata_field::flags)]},
         };
+        if (use_dense_kernel) {
+            descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
+        }
         descriptor.arguments = {
             {argument_desc::Types::INPUT, 0},
             {argument_desc::Types::INPUT, static_cast<uint32_t>(input_count == 1 ? 0 : 1)},
             {argument_desc::Types::OUTPUT, 0},
             {argument_desc::Types::INTERNAL_BUFFER, 0},
-            {argument_desc::Types::OUTPUT, 0},
         };
+        if (!use_dense_kernel) {
+            descriptor.arguments.push_back({argument_desc::Types::OUTPUT, 0});
+        }
 
         kernel_arguments_data arguments;
         arguments.inputs = {instance.input_memory_ptr(0)};
@@ -386,6 +428,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
 private:
     std::shared_ptr<kernel_string> _kernel_source;
+    kernel_kind _kernel_kind = kernel_kind::broadcast;
     std::vector<kernel::ptr> _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
@@ -424,9 +467,15 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
     return is_supported_data_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
 }
 
-std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params&) const {
+std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<eltwise>(), "[GPU][Vulkan] Invalid node type passed to Eltwise manager");
-    return std::make_unique<eltwise_impl>();
+    const auto input_count = params.input_layouts.size();
+    OPENVINO_ASSERT(input_count == 1 || input_count == 2, "[GPU][Vulkan] Eltwise implementation creation received an unexpected input count");
+    const auto& input0_layout = params.get_input_layout(0);
+    const auto& input1_layout = input_count == 1 ? input0_layout : params.get_input_layout(1);
+    const auto kind =
+        !params.is_dynamic() && can_use_dense_kernel(input0_layout, input1_layout, params.get_output_layout(0)) ? kernel_kind::dense : kernel_kind::broadcast;
+    return std::make_unique<eltwise_impl>(kind);
 }
 
 }  // namespace vulkan

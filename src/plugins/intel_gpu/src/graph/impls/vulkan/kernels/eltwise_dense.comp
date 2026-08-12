@@ -1,4 +1,4 @@
 #version 450
 
-#define ELTWISE_DENSE 0
+#define ELTWISE_DENSE 1
 #include "eltwise_common.glsl"
