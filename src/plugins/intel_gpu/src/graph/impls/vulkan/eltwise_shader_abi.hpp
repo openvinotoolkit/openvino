@@ -27,6 +27,12 @@ enum class metadata_field : size_t {
 #undef ELTWISE_SHADER_METADATA_FIELD
 };
 
+enum class fused_metadata_field : size_t {
+#define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_METADATA_FIELD
+};
+
 enum class tensor_index : uint32_t {
 #define ELTWISE_SHADER_TENSOR_INDEX(name, code) name = code,
 #include "eltwise_shader_abi.inc"
@@ -43,6 +49,12 @@ enum class infinity_flag : uint32_t {
 #define ELTWISE_SHADER_INFINITY_FLAG(name, code) name = code,
 #include "eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_INFINITY_FLAG
+};
+
+enum class fused_input_position : uint32_t {
+#define ELTWISE_SHADER_FUSED_INPUT_POSITION(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_INPUT_POSITION
 };
 
 enum class specialization_id : uint32_t {
@@ -67,11 +79,19 @@ constexpr uint32_t value(infinity_flag value) {
     return static_cast<uint32_t>(value);
 }
 
+constexpr uint32_t value(fused_input_position value) {
+    return static_cast<uint32_t>(value);
+}
+
 constexpr uint32_t index(specialization_id id) {
     return static_cast<uint32_t>(id);
 }
 
 constexpr size_t index(metadata_field field) {
+    return static_cast<size_t>(field);
+}
+
+constexpr size_t index(fused_metadata_field field) {
     return static_cast<size_t>(field);
 }
 

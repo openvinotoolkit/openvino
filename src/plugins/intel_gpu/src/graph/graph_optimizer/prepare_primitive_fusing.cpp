@@ -59,9 +59,10 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    // Vulkan implementations currently execute individual primitives and do not
-    // consume OpenCL-style fused-operation metadata.
+    // Vulkan consumes the common fused-operation metadata for the explicitly
+    // supported Eltwise-to-Eltwise case only.
     if (p.get_engine().runtime_type() == runtime_types::vulkan) {
+        fuse_simple_primitives(p);
         return;
     }
 
@@ -535,6 +536,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
     auto& lo = p.get_layout_optimizer();
+    const bool is_vulkan_runtime = p.get_engine().runtime_type() == runtime_types::vulkan;
 
     const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
@@ -789,6 +791,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            if (is_vulkan_runtime)
+                return;
+
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
                     return;
@@ -933,6 +938,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
+            if (is_vulkan_runtime)
+                return;
+
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
                     return;
@@ -1061,6 +1069,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
+                if (is_vulkan_runtime) {
+                    const auto& fused_layout = parents[i].first->get_output_layout();
+                    const auto& peer_layout = parents[parents.size() - 1 - i].first->get_output_layout();
+                    const auto& output_layout = node.get_output_layout();
+                    bool packed_output_supported = false;
+                    if (!output_layout.is_dynamic()) {
+                        const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
+                        const auto packed_width = scalar_size < sizeof(uint32_t) ? sizeof(uint32_t) / scalar_size : 1;
+                        packed_output_supported = scalar_size >= sizeof(uint32_t) ||
+                                                  (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
+                    }
+                    can_fuse_parents[i] =
+                        parents[i].first->is_type<eltwise>() && !parents[i].first->has_fused_primitives() && parents[i].first->get_inputs_count() == 2 &&
+                        !fused_layout.is_dynamic() && !peer_layout.is_dynamic() && !output_layout.is_dynamic() && packed_output_supported &&
+                        parents[i].first->get_input_layout(0).identical(output_layout) && parents[i].first->get_input_layout(1).identical(output_layout) &&
+                        fused_layout.identical(output_layout) && peer_layout.identical(output_layout);
+                    continue;
+                }
+
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&

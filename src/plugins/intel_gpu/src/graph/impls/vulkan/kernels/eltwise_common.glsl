@@ -3,7 +3,23 @@
 #endif
 #extension GL_GOOGLE_include_directive : require
 
-#if ELTWISE_UNARY
+#if ELTWISE_FUSED
+layout(set = 0, binding = 0) readonly buffer Input0 {
+    uint values[];
+} input0_data;
+
+layout(set = 0, binding = 1) readonly buffer Input1 {
+    uint values[];
+} input1_data;
+
+layout(set = 0, binding = 2) readonly buffer FusedInput {
+    uint values[];
+} fused_input_data;
+
+layout(set = 0, binding = 3) writeonly buffer Output {
+    uint values[];
+} output_data;
+#elif ELTWISE_UNARY
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint8_t values[];
 } input0_data;
@@ -47,7 +63,9 @@ layout(set = 0, binding = 2) writeonly buffer Output {
 } output_data;
 #endif
 
-#if ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
+#if ELTWISE_FUSED
+layout(set = 0, binding = 4) readonly buffer Metadata {
+#elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
 layout(set = 0, binding = 2) readonly buffer Metadata {
 #else
 layout(set = 0, binding = 3) readonly buffer Metadata {
@@ -55,7 +73,7 @@ layout(set = 0, binding = 3) readonly buffer Metadata {
     uint values[];
 } metadata;
 
-#if ELTWISE_DENSE
+#if ELTWISE_FUSED || ELTWISE_DENSE
 #define packed_output_data output_data
 #elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
 layout(set = 0, binding = 3) writeonly buffer PackedOutput {
@@ -73,9 +91,15 @@ layout(set = 0, binding = 4) writeonly buffer PackedOutput {
 #define ELTWISE_SHADER_TENSOR_INDEX(name, code) const uint tensor_##name = code;
 #define ELTWISE_SHADER_STORAGE_FLAG(name, code) const uint storage_##name##_flag = code;
 #define ELTWISE_SHADER_INFINITY_FLAG(name, code) const uint infinity_##name##_flag = code;
+#if ELTWISE_FUSED
+#define ELTWISE_SHADER_FUSED_INPUT_POSITION(name, code) const uint fused_input_##name = code;
+#endif
 #define ELTWISE_SHADER_SPECIALIZATION_ID(name, code) const uint specialization_##name##_id = code;
 #include "../eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_SPECIALIZATION_ID
+#if ELTWISE_FUSED
+#undef ELTWISE_SHADER_FUSED_INPUT_POSITION
+#endif
 #undef ELTWISE_SHADER_INFINITY_FLAG
 #undef ELTWISE_SHADER_STORAGE_FLAG
 #undef ELTWISE_SHADER_TENSOR_INDEX
@@ -92,10 +116,21 @@ layout(constant_id = specialization_storage_flags_id) const uint selected_storag
 #if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR || ELTWISE_SCALAR_CONSTANT
 layout(constant_id = specialization_elements_per_invocation_id) const uint selected_elements_per_invocation = 1;
 #endif
+#if ELTWISE_FUSED
+layout(constant_id = specialization_fused_mode_id) const uint selected_fused_mode = mode_sum;
+layout(constant_id = specialization_fused_input_type_id) const uint selected_fused_input_type = type_f32;
+layout(constant_id = specialization_fused_input_position_id) const uint selected_fused_input_position = fused_input_rhs;
+#endif
 
 const uint max_rank = 8;
 const uint header_words = metadata_count;
 const uint tensor_words = max_rank * 2 + 1;
+#if ELTWISE_FUSED
+const uint fused_metadata_base = header_words + tensor_count * tensor_words;
+#define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) const uint metadata_fused_##name = fused_metadata_base + code;
+#include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_METADATA_FIELD
+#endif
 const uint byte_value_mask = 0xff;
 const uint half_value_mask = 0xffff;
 
@@ -167,6 +202,25 @@ uvec2 load_u64_0(uint offset) {
 #if !ELTWISE_UNARY
 uvec2 load_u64_1(uint offset) {
     return uvec2(load_u32_1(offset), load_u32_1(offset + 4));
+}
+#endif
+
+#if ELTWISE_FUSED
+uint load_u8_fused(uint offset) {
+    uint word = fused_input_data.values[offset / 4];
+    return (word >> ((offset % 4) * 8)) & byte_value_mask;
+}
+
+uint load_u16_fused(uint offset) {
+    return load_u8_fused(offset) | (load_u8_fused(offset + 1) << 8);
+}
+
+uint load_u32_fused(uint offset) {
+    return fused_input_data.values[offset / 4];
+}
+
+uvec2 load_u64_fused(uint offset) {
+    return uvec2(load_u32_fused(offset), load_u32_fused(offset + 4));
 }
 #endif
 
@@ -249,6 +303,31 @@ uvec2 load_integer_1(uint element_offset, uint type) {
 }
 #endif
 
+#if ELTWISE_FUSED
+uvec2 load_integer_fused(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_i64) {
+        return load_u64_fused(offset);
+    }
+    if (type == type_i32) {
+        return sign_extend(load_u32_fused(offset), 32);
+    }
+    if (type == type_u32) {
+        return uvec2(load_u32_fused(offset), 0);
+    }
+    if (type == type_i16) {
+        return sign_extend(load_u16_fused(offset), 16);
+    }
+    if (type == type_u16) {
+        return uvec2(load_u16_fused(offset), 0);
+    }
+    if (type == type_i8) {
+        return sign_extend(load_u8_fused(offset), 8);
+    }
+    return uvec2(load_u8_fused(offset), 0);
+}
+#endif
+
 float signed_u64_to_float(uvec2 value) {
     bool negative = int(value.y) < 0;
     if (negative) {
@@ -319,6 +398,20 @@ float load_float_1(uint element_offset, uint type) {
         return unpackHalf2x16(load_u16_1(offset)).x;
     }
     uvec2 value = load_integer_1(element_offset, type);
+    return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
+}
+#endif
+
+#if ELTWISE_FUSED
+float load_float_fused(uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_f32) {
+        return uintBitsToFloat(load_u32_fused(offset));
+    }
+    if (type == type_f16) {
+        return unpackHalf2x16(load_u16_fused(offset)).x;
+    }
+    uvec2 value = load_integer_fused(element_offset, type);
     return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
 }
 #endif
@@ -653,6 +746,40 @@ uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
     }
 }
 
+#if ELTWISE_FUSED
+float apply_fused_float(float lhs, float rhs) {
+    if (selected_fused_mode == mode_sum) {
+        return lhs * uintBitsToFloat(metadata.values[metadata_fused_input0_coefficient]) +
+               rhs * uintBitsToFloat(metadata.values[metadata_fused_input1_coefficient]);
+    }
+    return apply_float(lhs, rhs, selected_fused_mode);
+}
+
+uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
+    switch (selected_fused_mode) {
+    case mode_sum:
+        return add_u64(lhs, rhs);
+    case mode_sub:
+        return sub_u64(lhs, rhs);
+    case mode_prod:
+        return mul_u64(lhs, rhs);
+    case mode_div: {
+        uvec2 quotient;
+        uvec2 remainder;
+        divide_integer(lhs,
+                       rhs,
+                       signed_type,
+                       metadata.values[metadata_fused_python_division] != 0,
+                       quotient,
+                       remainder);
+        return quotient;
+    }
+    default:
+        return uvec2(0);
+    }
+}
+#endif
+
 bool apply_integer_boolean(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
     switch (mode) {
     case mode_eq:
@@ -697,7 +824,11 @@ uvec2 float_output_bits(float value, uint output_type) {
     return uvec2(uint(value), 0);
 }
 
+#if ELTWISE_FUSED
+uvec2 evaluate_base_element(uint linear_index, out uint output_offset) {
+#else
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
+#endif
     uint mode = selected_mode;
     uint input0_type = selected_input0_type;
 #if !ELTWISE_UNARY
@@ -795,6 +926,26 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     }
 #endif
 }
+
+#if ELTWISE_FUSED
+uvec2 evaluate_element(uint linear_index, out uint output_offset) {
+    uvec2 base_value = evaluate_base_element(linear_index, output_offset);
+    uint output_type = selected_output_type;
+    uint fused_input_offset = metadata.values[metadata_fused_input_offset] + linear_index;
+    if (is_float_type(output_type)) {
+        float original = output_type == type_f32 ? uintBitsToFloat(base_value.x) : unpackHalf2x16(base_value.x).x;
+        float fused_input = load_float_fused(fused_input_offset, selected_fused_input_type);
+        float lhs = selected_fused_input_position == fused_input_lhs ? fused_input : original;
+        float rhs = selected_fused_input_position == fused_input_rhs ? fused_input : original;
+        return float_output_bits(apply_fused_float(lhs, rhs), output_type);
+    }
+
+    uvec2 fused_input = load_integer_fused(fused_input_offset, selected_fused_input_type);
+    uvec2 lhs = selected_fused_input_position == fused_input_lhs ? fused_input : base_value;
+    uvec2 rhs = selected_fused_input_position == fused_input_rhs ? fused_input : base_value;
+    return apply_fused_integer(lhs, rhs, is_signed_type(output_type));
+}
+#endif
 
 void store_element(uint output_offset, uint output_size, uvec2 value) {
     uint output_byte_offset = output_offset * output_size;
