@@ -13,6 +13,8 @@
 #include <functional>
 
 #include "op_test_utils.hpp"
+#include "openvino/op/topk.hpp"
+#include "utils.hpp"
 
 using namespace ov_gguf_test;
 
@@ -130,6 +132,25 @@ TEST(GGUFOps, Log) {
     for (size_t i = 0; i < x.size(); ++i)
         expected[i] = std::log(x[i]);
     expect_near(out, expected, 1e-4f);
+}
+
+// get_dimensions must read the shape of the given output, not of the producing node's output 0.
+// TOP_K and ARGSORT hand downstream translators output(1) of a TopK, so taking the node instead
+// of the output would silently measure the values port.
+TEST(GGUFOps, GetDimensionsKeepsOutputPort) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 4});
+    auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto topk = std::make_shared<ov::op::v11::TopK>(data,
+                                                    k,
+                                                    -1,
+                                                    ov::op::v11::TopK::Mode::MAX,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                    ov::element::i32);
+
+    auto dims = ov::frontend::gguf::get_dimensions(topk->output(1), {0});
+    auto shape_of = dims->input_value(0).get_node_shared_ptr();
+    ASSERT_EQ(shape_of->get_input_size(), 1u);
+    EXPECT_EQ(shape_of->input_value(0).get_index(), 1u) << "get_dimensions measured the wrong port";
 }
 
 // ggml_top_k: indices of the k largest values along ne[0], ordered by descending value.
