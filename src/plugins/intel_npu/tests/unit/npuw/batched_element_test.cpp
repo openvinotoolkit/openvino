@@ -141,11 +141,9 @@ class MockInnerCompiled : public ov::npuw::ICompiledModel {
 public:
     MockInnerCompiled(const std::shared_ptr<ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                      std::shared_ptr<Recorder> rec,
-                      ov::AnyMap props = {})
+                      std::shared_ptr<Recorder> rec)
         : ov::npuw::ICompiledModel(model, plugin),
-          m_rec(std::move(rec)),
-          m_props(std::move(props)) {}
+          m_rec(std::move(rec)) {}
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
         return std::make_shared<MockInnerSync>(shared_from_this(), m_rec);
@@ -155,22 +153,12 @@ public:
         return nullptr;
     }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string& name) const override {
-        const auto it = m_props.find(name);
-        if (it != m_props.end()) {
-            return it->second;
-        }
-        // The batched element queries these scoring flags; default them to disabled so
-        // get_property(...).as<bool>() is always well-formed.
-        if (name == "NPUW_TEXT_RERANK" || name == "NPUW_TEXT_EMBED") {
-            return false;
-        }
+    ov::Any get_property(const std::string&) const override {
         return {};
     }
 
 private:
     std::shared_ptr<Recorder> m_rec;
-    ov::AnyMap m_props;
 };
 
 class NPUWBatchedElementTest : public ::testing::Test {
@@ -236,15 +224,14 @@ protected:
     std::shared_ptr<Recorder> m_recorder;
 };
 
-TEST_F(NPUWBatchedElementTest, RequestedFromModel) {
-    const auto model_with = [&](ov::AnyMap props) -> std::shared_ptr<ov::npuw::ICompiledModel> {
-        return std::make_shared<MockInnerCompiled>(m_model, m_plugin, m_recorder, std::move(props));
-    };
-    EXPECT_FALSE(ov::npuw::batched::requested(model_with({})));
-    EXPECT_FALSE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_RERANK", false}})));
-    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_RERANK", true}})));
-    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_TEXT_EMBED", true}})));
-    EXPECT_TRUE(ov::npuw::batched::requested(model_with({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}})));
+TEST_F(NPUWBatchedElementTest, RequestedFromProperties) {
+    EXPECT_FALSE(ov::npuw::batched::requested({}));
+    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", false}}));
+    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", "NO"}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", true}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", "YES"}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_EMBED", true}}));
+    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}}));
 }
 
 // The wrap is part of the blob. export_model() writes the batched header in front

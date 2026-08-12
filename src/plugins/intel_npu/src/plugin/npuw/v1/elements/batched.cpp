@@ -16,10 +16,10 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-bool ov::npuw::batched::requested(const std::shared_ptr<ov::npuw::ICompiledModel>& model) {
-    OPENVINO_ASSERT(model != nullptr, "Batched element: null compiled model");
-    const auto is_enabled = [&model](const std::string& key) {
-        return model->get_property(key).as<bool>();
+bool ov::npuw::batched::requested(const ov::AnyMap& properties) {
+    const auto is_enabled = [&properties](const std::string& key) {
+        const auto it = properties.find(key);
+        return it != properties.end() && it->second.as<bool>();
     };
     return is_enabled(ov::intel_npu::npuw::text_rerank::enabled.name()) ||
            is_enabled(ov::intel_npu::npuw::text_embed::enabled.name());
