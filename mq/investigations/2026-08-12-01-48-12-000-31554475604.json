@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-12-01-48-12-000-31554475604",
+  "timestamp": "2026-08-12T01:48:12Z",
+  "run_id": "31554475604",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31554475604",
+  "workflow_name": "Smart_CI",
+  "pr_number": "37364",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37364",
+  "author": "sungeunk",
+  "category": "Network",
+  "title": "Smart CI fails with SSL certificate verify failed self-signed certificate",
+  "signature": "certificate verify failed self-signed certificate|Network",
+  "signature_hash": "d27ae006a3ab2b1f",
+  "confidence": "High",
+  "failed_jobs": [
+    "Smart_CI - Get affected components"
+  ],
+  "key_errors": [
+    "ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1000)",
+    "urllib.error.URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1000)>"
+  ],
+  "root_cause": "Smart CI script (smart_ci.py) failed while calling GitHub API via ghapi/fastcore to compare commits for the merge-queue target branch. The runner's SSL context encountered a self-signed certificate during the HTTPS handshake with api.github.com, causing an immediate SSLCertVerificationError. This is a transient infrastructure/network issue where an intermediate proxy or corporate certificate is intercepting TLS traffic, resulting in a certificate chain that Python's ssl module cannot verify.",
+  "reproduction_steps": "Not reproducible locally outside CI. The failure is runner/network-environment specific.",
+  "recommended_actions": [
+    "Re-add the PR to the merge queue - the failure is transient (network/SSL infrastructure issue).",
+    "If the issue recurs frequently, investigate whether a corporate TLS intercepting proxy is misconfigured on the runner pool.",
+    "Consider adding SSL verification retry logic or certificate bundle override in smart_ci.py for resilience."
+  ],
+  "prevention_strategies": "Monitor runner SSL certificate chain configuration. If a MITM/proxy certificate is expected, install it in the system CA bundle used by Python.",
+  "historical_context": "No prior occurrences of this specific SSL self-signed certificate failure in the pattern database. Other Network-category failures have been seen (ECONNREFUSED, ENOTFOUND, etc.)."
+}

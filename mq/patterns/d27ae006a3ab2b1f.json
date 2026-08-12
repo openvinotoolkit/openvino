@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "certificate verify failed self-signed certificate|Network",
+  "signature_hash": "d27ae006a3ab2b1f",
+  "title": "Smart CI fails with SSL certificate verify failed self-signed certificate",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-12T01:48:12Z",
+  "last_seen": "2026-08-12T01:48:12Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/31554475604"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37364"],
+  "recent_timestamps": ["2026-08-12T01:48:12Z"],
+  "rerun_search_string": "certificate verify failed self-signed certificate"
+}
