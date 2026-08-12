@@ -338,7 +338,7 @@ private:
     void set_id(HANDLE h, size_t offset, size_t size);
 
     /** @brief Core setup shared by set() and set_from_handle(). */
-    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode = MmapMode::READ);
+    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode);
 
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
@@ -346,7 +346,7 @@ private:
     bool try_placeholder_setup(size_t aligned_offset, size_t head_pad, size_t total_va_size, size_t file_size);
 
     /** @brief Legacy single-call MapViewOfFile path (no partial-release support). */
-    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode = MmapMode::READ);
+    void legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode);
 
     /**
      * @brief Computes the clamped, gran-aligned VA range to evict.
@@ -715,7 +715,7 @@ void MapHolder::set_from_handle(FileHandle handle, size_t offset, size_t size) {
         throw std::runtime_error{"DuplicateHandle failed: " + std::to_string(::GetLastError())};
     }
     HandleHolder owned{dup};
-    setup(owned.get(), offset, size, false);
+    setup(owned.get(), offset, size, false, MmapMode::READ);
     // owned goes out of scope here: file handle closed.
     // m_handle (section object) keeps the file data accessible independently.
 }
