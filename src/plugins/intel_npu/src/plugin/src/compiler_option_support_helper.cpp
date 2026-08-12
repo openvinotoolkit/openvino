@@ -31,8 +31,9 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     OPENVINO_ASSERT(compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN,
                     "Expected concrete compiler type before cache lookup");
     const auto cacheKey = toCacheKey(compilerType);
-    if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
-        return true;
+    if (const auto cachedSupport = _optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue);
+        cachedSupport.has_value()) {
+        return cachedSupport.value();
     }
 
     std::unique_ptr<ICompilerAdapter> compiler;
@@ -47,8 +48,9 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
                                            : _pluginSupportedOptionsLoaded;
     if (!optionsLoaded.exchange(true)) {
         compiler->get_supported_options();
-        if (_optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue)) {
-            return true;
+        if (const auto cachedSupport = _optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue);
+            cachedSupport.has_value()) {
+            return cachedSupport.value();
         }
     }
 

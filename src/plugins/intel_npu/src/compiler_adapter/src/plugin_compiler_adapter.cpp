@@ -327,26 +327,25 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    if (_optionSupportCache && _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname, optValue)) {
-        return true;
+    if (_optionSupportCache) {
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname, optValue);
+        if (cachedSupport.has_value()) {
+            return cachedSupport.value();
+        }
     }
 
-    const bool hasValue = optValue.has_value();
-    const std::string value = hasValue ? optValue.value() : "";
-    if (_compiler->is_option_supported(optname, optValue)) {
-        if (_optionSupportCache) {
-            _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, optValue);
-        }
-        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return true;
-    } else {
-        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return false;
+    const bool supported = _compiler->is_option_supported(optname, optValue);
+    if (_optionSupportCache) {
+        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, optValue, supported);
     }
+
+    const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";
+    _logger.debug("Option %s %s `%s` by VCLCompilerImpl",
+                  optname.c_str(),
+                  supported ? "is supported" : "is not supported",
+                  valueForLog);
+
+    return supported;
 }
 
 }  // namespace intel_npu
