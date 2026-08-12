@@ -598,14 +598,15 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     const auto& K = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
     const auto& V = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
     const auto& out = params.output_layouts[0];
-    const auto& out_ps = out.get_partial_shape();
 
     const auto head_size = micro_get_head_size(params, 0);
     const auto k_head_size = micro_get_head_size(params, 1);
     const auto v_head_size = micro_get_head_size(params, 2);
 
     const auto d_max = get_d_max(k_head_size);
-    const auto batch = out_ps[0] * out_ps[1];
+    // Deliberately no `batch = out_ps[0] * out_ps[1]` here: sdpa_gen_micro.cpp needs that product to
+    // size the microkernel GEMM problem, this generator never used it, and the expression is wrong
+    // anyway once output_transpose_order is non-identity (see the dispatch function).
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
     auto ldk = k_head_size * ov::element::Type(K.data_type).size();
@@ -1305,7 +1306,18 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;
             } else {
-                wgs.global[1] *= out_ps[1].get_length();
+                // gws dim 1 is the HEAD index -- the kernel reads b0 = get_group_id(1) and offsets
+                // Q/K/V/A by QRY_OFF(b1, b0, 0, 0) & co. -- so it must come from micro_get_num_heads(),
+                // NOT from out_ps[1]. The output is only [batch, heads, seq_len, head_size] when
+                // output_transpose_order is the identity; a model that folds the output Transpose into
+                // the SDPA has [batch, seq_len, heads, head_size], and out_ps[1] is then the sequence
+                // length. Using it there over-dispatches dim 1 by seq_len/heads, and every group with
+                // b0 >= heads walks Q off the end of its allocation -- a page fault reported as
+                // CL_OUT_OF_RESOURCES. The single-token stage has the mirror-image failure: out_ps[1]
+                // is 1, so only head 0 is computed and the rest of the output is left stale.
+                // The .cl needs no change -- it addresses every tensor through the permuted
+                // QRY_S*/DST_S* strides. Same expression sdpa_gen_micro.cpp uses.
+                wgs.global[1] *= micro_get_num_heads(params, 0);
                 wgs.global[2] *= out_ps[0].get_length();
             }
 
