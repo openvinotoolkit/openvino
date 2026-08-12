@@ -30,9 +30,11 @@ size_t GetFeatureBlockSize(DataLayout layout) {
 
 bool ShouldZeroOutputFeaturePadding(const eltwise_params& params) {
     const auto& output = params.outputs[0];
+    const auto& feature = output.Feature();
     const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
     return feature_block_size != 0 &&
-           (params.is_shape_agnostic || output.Feature().v % feature_block_size != 0);
+           !feature.pad.is_dynamic &&
+           (params.is_shape_agnostic || feature.LogicalDimPadded() % feature_block_size != 0);
 }
 }  // namespace
 
@@ -105,16 +107,15 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
     const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
     const bool zero_output_feature_padding = ShouldZeroOutputFeaturePadding(params);
     if (zero_output_feature_padding) {
-        const auto f_idx = DataTensor::Channelndex(output.GetLayout(), Tensor::DataChannelName::FEATURE);
-        const auto f_gws_size =
-            "((OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM + " +
-            std::to_string(feature_block_size - 1) + ") / " + std::to_string(feature_block_size) + " * " +
-            std::to_string(feature_block_size) + ")";
+        const auto block_size = std::to_string(feature_block_size);
+        const auto padded_feature_size =
+            "(OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM)";
+        const auto feature_gws_size = "(OUTPUT_FEATURE_NUM + (" + block_size + " - (" + padded_feature_size + " % " +
+                                block_size + ")) % " + block_size + ")";
         jit.RemoveConstant("ELTWISE_NO_PITCH_SAME_DIMS");
         jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", 0));
         jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", 1));
-        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_GWS_SIZE", f_gws_size));
-        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_INDEX", "d" + std::to_string(f_idx + 1)));
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_GWS_SIZE", feature_gws_size));
     }
 
     if (!params.fused_ops.empty()) {
@@ -165,7 +166,13 @@ void EltwiseKernelRef::AdjustGlobalWorkSizes(const eltwise_params& params, Dispa
     if (output.Feature().is_dynamic || output.Feature().pad.is_dynamic)
         return;
 
-    const auto f_gws_size = Align(output.Feature().LogicalDimPadded(), GetFeatureBlockSize(output.GetLayout()));
+    const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
+    const auto padded_feature_size = output.Feature().LogicalDimPadded();
+    const auto remainder = padded_feature_size % feature_block_size;
+    const auto feature_tail_size = remainder == 0 ? 0 : feature_block_size - remainder;
+    OPENVINO_ASSERT(output.Feature().v <= std::numeric_limits<size_t>::max() - feature_tail_size,
+                    "Eltwise feature global work size overflow");
+    const auto f_gws_size = output.Feature().v + feature_tail_size;
     if (f_gws_size == 0)
         return;
 

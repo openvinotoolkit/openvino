@@ -16,10 +16,10 @@
 
 #if ZERO_OUTPUT_FEATURE_PADDING
     #define GET_FEATURE_GWS_SIZE(logical_size) OUTPUT_FEATURE_GWS_SIZE
-    #define GET_LOGICAL_FEATURE_INDEX(idx) ((uint)(idx) - (uint)OUTPUT_PAD_BEFORE_FEATURE_NUM)
+    #define GET_OUTPUT_FEATURE_INDEX(idx) ((uint)(idx) < (uint)OUTPUT_FEATURE_NUM ? (uint)(idx) : (uint)(idx) + (uint)OUTPUT_PAD_AFTER_FEATURE_NUM)
 #else
     #define GET_FEATURE_GWS_SIZE(logical_size) (logical_size)
-    #define GET_LOGICAL_FEATURE_INDEX(idx) (idx)
+    #define GET_OUTPUT_FEATURE_INDEX(idx) (idx)
 #endif
 
 KERNEL(eltwise)(
@@ -152,7 +152,7 @@ KERNEL(eltwise)(
         const uint d3 = data_idx % OUTPUT_SIZE_Z; // Z
 
         const uint f = get_global_id(GWS_FEATURE);
-        const uint d4 = GET_LOGICAL_FEATURE_INDEX(f);  // Feature
+        const uint d4 = GET_OUTPUT_FEATURE_INDEX(f);  // Feature
         const uint d5 = get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
@@ -164,7 +164,7 @@ KERNEL(eltwise)(
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
         const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1];
         const uint f = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
-        const uint d4 = GET_LOGICAL_FEATURE_INDEX(f);
+        const uint d4 = GET_OUTPUT_FEATURE_INDEX(f);
         const uint d5 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
@@ -174,7 +174,7 @@ KERNEL(eltwise)(
         const uint d1 = (uint)get_global_id(GWS_YX) % OUTPUT_SIZE_X;  // X
         const uint d2 = (uint)get_global_id(GWS_YX) / OUTPUT_SIZE_X;  // Y
         const uint f = (uint)get_global_id(GWS_FEATURE);
-        const uint d3 = GET_LOGICAL_FEATURE_INDEX(f);  // Feature
+        const uint d3 = GET_OUTPUT_FEATURE_INDEX(f);  // Feature
         const uint d4 = (uint)get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
@@ -185,7 +185,7 @@ KERNEL(eltwise)(
         const uint d1 = get_global_id(0);
         const uint d2 = get_global_id(1);
         const uint f = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
-        const uint d3 = GET_LOGICAL_FEATURE_INDEX(f);
+        const uint d3 = GET_OUTPUT_FEATURE_INDEX(f);
         const uint d4 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
@@ -193,7 +193,7 @@ KERNEL(eltwise)(
 #endif
 
 #if ZERO_OUTPUT_FEATURE_PADDING
-    if (OUTPUT_FEATURE_INDEX >= OUTPUT_FEATURE_NUM) {
+    if (f >= OUTPUT_FEATURE_NUM) {
         output[GET_RAW_INDEX(OUTPUT,, OUTPUT_IDX_ORDER)] = OUTPUT_VAL_ZERO;
         return;
     }
