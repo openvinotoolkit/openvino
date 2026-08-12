@@ -19,7 +19,7 @@ namespace ov::pass {
  * shapes. This flatten/Concat/Slice/Reshape round-trip is a semantic identity. This pass detects it
  * and rewires the consumers straight to `Loop` output 0 (output) and output 1 (recurrent state),
  * which both removes the redundant glue and exposes the native two-output Loop that
- * `FuseMamba2Loop` then replaces with `Mamba2`.
+ * `FuseMamba2Loop` then replaces with `SelectiveSSM`.
  *
  * Before:
  *  ┌──────────────┐        ┌──────────────┐
@@ -65,18 +65,20 @@ public:
 /**
  * @ingroup ov_transformation_common_api
  * @brief Fuses a loop-based Mamba2 selective state-space recurrence sub-graph into an internal
- *        Mamba2 operation.
+ *        SelectiveSSM operation.
  *
- * The loop consumes the raw, time-major projections `dt`, `B`, `x`, `C` and the initial
- * `recurrent_state`; the per-head log-decay `A` is a constant embedded in the loop body. Expected
- * body semantics per step (state size N, head dim P):
- * 1) Squeeze the per-step inputs `dt_t`, `B_t`, `x_t`, `C_t` over the sequence axis.
- * 2) Discretize: `dA_t = exp(A * dt_t)` and `dBx_t = (dt_t * B_t) outer x_t`.
+ * Discretization is performed ahead of the loop: `dA = exp(A * dt)` (Loop input 2) and
+ * `dtB = unsqueeze(dt) * B` (Loop input 3), where the per-head log-decay `A` is a foldable constant.
+ * The loop then consumes the discretized `dA`, `dtB`, the raw `x`, `C` and the initial
+ * `recurrent_state`. Expected body semantics per step (state size N, head dim P):
+ * 1) Squeeze the per-step inputs `dA_t`, `dtB_t`, `x_t`, `C_t` over the sequence axis.
+ * 2) Compute the input contribution: `dBx_t = unsqueeze(dtB_t) outer x_t`.
  * 3) Update recurrent state: `state_t = state_{t-1} * dA_t + dBx_t`
  * 4) Compute per-step output: `y_t = reduce_sum(state_t * unsqueeze(C_t), axis=N)` and scatter to
  *    the current time index.
  *
- * The matcher validates this body shape/operation pattern before replacing the Loop with `Mamba2`.
+ * The matcher validates this body shape/operation pattern before replacing the Loop with
+ * `SelectiveSSM`.
  */
 
 class TRANSFORMATIONS_API FuseMamba2Loop : public ov::pass::MatcherPass {
@@ -85,7 +87,7 @@ public:
     FuseMamba2Loop();
 };
 
-/// This pass transforms a loop-based Mamba2 sub-graph into a single internal `Mamba2` operation.
+/// This pass transforms a loop-based Mamba2 sub-graph into a single internal `SelectiveSSM` operation.
 ///
 /// Before:
 ///  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌───────────────┐
@@ -110,7 +112,7 @@ public:
 ///  └─┬──┘ └─┬──┘ └─┬──┘ └─┬──┘ └─┬──┘ └───────┬───────┘
 ///    │      │      │      │      │            │
 ///  ┌─┴──────┴──────┴──────┴──────┴────────────┴───────┐
-///  │                      Mamba2                      │
+///  │                   SelectiveSSM                   │
 ///  └────────────────────────┬─────────────────────────┘
 ///                           │
 ///             ┌─────────────┴─────────────┐

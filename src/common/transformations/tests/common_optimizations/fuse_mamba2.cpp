@@ -18,7 +18,6 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/mamba2.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -36,11 +35,14 @@
 namespace ov::test {
 namespace {
 
-// Builds a loop-based Mamba2 recurrence model matching the time-major raw-input export:
-//   dA_t = exp(A * dt_t); dBx_t = (dt_t * B_t) outer x_t
-//   state_t = state_{t-1} * dA_t + dBx_t ; y_t = reduce_sum(state_t * C_t, axis=state_size)
+// Builds a loop-based Mamba2 recurrence model matching the time-major export where discretization
+// is performed outside the loop:
+//   dA  = exp(A * dt)                     (Loop input 2)
+//   dtB = unsqueeze(dt, -1) * B_expanded  (Loop input 3)
+// Per step: dBx_t = unsqueeze(dtB_t) outer x_t; state_t = state_{t-1} * dA_t + dBx_t;
+//           y_t = reduce_sum(state_t * C_t, axis=state_size).
 // B/C are provided per group and expanded to heads via Unsqueeze/Tile/Reshape outside the loop.
-// External Loop inputs (in order): trip_count, exec_cond, dt, B, x, C, recurrent_state, output_buffer.
+// External Loop inputs (in order): trip_count, exec_cond, dA, dtB, x, C, recurrent_state, output_buffer.
 // External Loop outputs: output[B,T,H,P], output_recurrent_state[B,H,P,N].
 //
 // \param with_post_loop appends the flatten/Concat/Slice/Reshape round-trip seen in real models.
@@ -83,6 +85,13 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
     auto B_expanded = expand_groups(B);
     auto C_expanded = expand_groups(C);
 
+    // Discretization is performed outside the loop:
+    //   dA  = exp(A * dt)                     -> [B, T, H]
+    //   dtB = unsqueeze(dt, -1) * B_expanded  -> [B, T, H, N]
+    auto minus1_outer = v0::Constant::create(ov::element::i32, {1}, {-1});
+    auto dA_outer = std::make_shared<v0::Exp>(std::make_shared<v1::Multiply>(A, dt));
+    auto dtB_outer = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt, minus1_outer), B_expanded);
+
     // output accumulator buffer: zeros with shape [B, T, H, P]
     auto shape_of_x = std::make_shared<v3::ShapeOf>(x);
     auto core_init = std::make_shared<v3::Broadcast>(v0::Constant::create(dtype, {}, {0.0f}), shape_of_x);
@@ -95,32 +104,27 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
 
     // -------- Loop body --------
     auto timestep = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{});
-    auto dt_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads});
-    auto B_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
+    auto dA_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads});
+    auto dtB_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
     auto x_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, head_dim});
     auto C_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
     auto last_state = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, head_dim, state_size});
     auto core_out = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, -1, num_heads, head_dim});
 
-    auto axis0 = v0::Constant::create(ov::element::i32, {}, {0});
     auto axis1 = v0::Constant::create(ov::element::i32, {}, {1});
     auto minus1 = v0::Constant::create(ov::element::i32, {1}, {-1});
     auto minus2 = v0::Constant::create(ov::element::i32, {1}, {-2});
 
-    auto dt_sq = std::make_shared<v0::Squeeze>(dt_t, axis1);
-    auto B_sq = std::make_shared<v0::Squeeze>(B_t, axis1);
+    auto dA_sq = std::make_shared<v0::Squeeze>(dA_t, axis1);
+    auto dtB_sq = std::make_shared<v0::Squeeze>(dtB_t, axis1);
     auto x_sq = std::make_shared<v0::Squeeze>(x_t, axis1);
     auto C_sq = std::make_shared<v0::Squeeze>(C_t, axis1);
 
-    // dA_t = exp(A * dt_t) -> [B, H, 1, 1]
-    auto A_unsq = std::make_shared<v0::Unsqueeze>(A, axis0);
-    auto dA = std::make_shared<v1::Multiply>(A_unsq, dt_sq);
-    auto dA_exp = std::make_shared<v0::Exp>(dA);
-    auto dA_4d = std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Unsqueeze>(dA_exp, minus1), minus1);
+    // dA_t is discretized outside the loop; broadcast to [B, H, 1, 1].
+    auto dA_4d = std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Unsqueeze>(dA_sq, minus1), minus1);
 
-    // dBx_t = (dt_t * B_t) outer x_t -> [B, H, P, N]
-    auto dt_B = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_sq, minus1), B_sq);
-    auto dBx = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_B, minus2),
+    // dBx_t = unsqueeze(dtB_t, -2) outer unsqueeze(x_t, -1) -> [B, H, P, N]
+    auto dBx = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dtB_sq, minus2),
                                               std::make_shared<v0::Unsqueeze>(x_sq, minus1));
 
     auto state_decay = std::make_shared<v1::Multiply>(last_state, dA_4d);
@@ -141,14 +145,14 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
 
     auto body_cond = v0::Constant::create(ov::element::boolean, {1}, {true});
     auto body = std::make_shared<ov::Model>(ov::OutputVector{body_cond, state_new, core_out_new},
-                                            ov::ParameterVector{timestep, dt_t, B_t, x_t, C_t, last_state, core_out},
+                                            ov::ParameterVector{timestep, dA_t, dtB_t, x_t, C_t, last_state, core_out},
                                             "mamba2_body");
 
     // -------- Loop --------
     auto loop = std::make_shared<v5::Loop>(trip_count, v0::Constant::create(ov::element::boolean, {1}, {true}));
     loop->set_function(body);
-    loop->set_sliced_input(dt_t, dt, 0, 1, 1, -1, 1);
-    loop->set_sliced_input(B_t, B_expanded, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(dA_t, dA_outer, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(dtB_t, dtB_outer, 0, 1, 1, -1, 1);
     loop->set_sliced_input(x_t, x, 0, 1, 1, -1, 1);
     loop->set_sliced_input(C_t, C_expanded, 0, 1, 1, -1, 1);
     loop->set_merged_input(last_state, h0, state_new);
@@ -207,7 +211,7 @@ TEST(TransformationTests, Mamba2Fusion_FuseLoop) {
     manager.run_passes(model);
 
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 1u);
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
 }
 
 TEST(TransformationTests, Mamba2Fusion_FuseLoopWithPostLoopReshape) {
@@ -223,7 +227,7 @@ TEST(TransformationTests, Mamba2Fusion_FuseLoopWithPostLoopReshape) {
     manager.run_passes(model);
 
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 1u);
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
 }
 
 TEST(TransformationTests, Mamba2Fusion_DoesNotFuseOnBrokenBody) {
@@ -240,7 +244,7 @@ TEST(TransformationTests, Mamba2Fusion_DoesNotFuseOnBrokenBody) {
     manager.run_passes(model);
 
     // Body does not match the Mamba2 recurrence, so the Loop must be preserved.
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 0u);
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 0u);
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 1u);
 }
 
