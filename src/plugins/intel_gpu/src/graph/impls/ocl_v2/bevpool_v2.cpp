@@ -145,7 +145,6 @@ bool support_opt_kernel(const kernel_impl_params& params) {
     const auto& desc = params.typed_desc<bevpool_v2>();
     const size_t output_channels = static_cast<size_t>(desc->output_channels);
     const size_t interval_count = static_cast<size_t>(params.get_input_layout(3).count() / 3);
-    const bool is_fp16_input = params.get_input_layout(0).data_type == ov::element::f16;
     const auto& info = params.get_device_info();
 
     const bool has_subgroup_support = info.supports_khr_subgroups || info.supports_intel_subgroups;
@@ -164,6 +163,7 @@ bool support_opt_kernel(const kernel_impl_params& params) {
 
     // P3 specialization: use stricter rules for fp16 block8 fast path to reduce tail overhead.
     if constexpr (BlockSize == 8) {
+        const bool is_fp16_input = params.get_input_layout(0).data_type == ov::element::f16;
         if (is_fp16_input) {
             if ((output_channels % BlockSize) != 0 || interval_count < 16)
                 return false;
