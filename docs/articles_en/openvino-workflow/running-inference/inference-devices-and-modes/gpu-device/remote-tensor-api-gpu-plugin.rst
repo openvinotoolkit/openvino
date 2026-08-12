@@ -233,6 +233,19 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [wrap_usm_pointer]
 
+         .. tab-item:: CPU pointer
+            :sync: cpu-pointer
+
+            Use this overload when your application owns a CPU virtual address, for example memory
+            allocated with ``ov::util::aligned_alloc`` or memory mapped from a file. On the OpenCL
+            backend, the pointer address and allocation size must be aligned to
+            ``ov::intel_gpu::cacheline_size``. The memory must remain valid for the whole lifetime of
+            the created remote tensor.
+
+            .. doxygensnippet:: docs/articles_en/assets/snippets/gpu/remote_objects_creation.cpp
+               :language: cpp
+               :fragment: [wrap_cpu_pointer]
+
          .. tab-item:: cl_mem
             :sync: cl-mem
 
