@@ -60,7 +60,7 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module,
     auto device = extract_device_from_context(context);
 
     if (auto mod = builder.build(device, context)) {
-        module = *mod;
+        module = std::make_unique<const gc::gpu::OclModule>(*mod);
     } else {
         OPENVINO_THROW("Failed to build gc::gpuOclModule module");
     }
@@ -71,7 +71,7 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs,
                                const ov::EvaluationContext& evaluationContext) {
     std::vector<void*> waitList;
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
-    gc::gpu::StaticExecutor exec(module);
+    gc::gpu::StaticExecutor<> exec(*module);
 
     auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
     if (it == evaluationContext.end()) {
@@ -95,7 +95,7 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs,
 bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
     std::vector<void*> waitList;
     gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
-    gc::gpu::DynamicExecutor exec(module);
+    gc::gpu::DynamicExecutor<> exec(*module);
 
     // Layout (5 pointers per memref, see MemRefDescriptor::append_to_packed_args
     // in transformations/op/mlir_op.cpp):

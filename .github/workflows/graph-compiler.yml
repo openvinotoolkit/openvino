@@ -53,14 +53,12 @@ jobs:
       
       - name: Test
         run: |
-          # These tests require MLIR patches:
-          # https://github.com/llvm/llvm-project/pull/208932
-          # https://github.com/llvm/llvm-project/pull/197281
-          exclude='.*ScaledAttnLayerGPUMlirTest.CompareWithRefs.*|mlir_Transpose.*|mlir_ReshapeAndTranspose.*'
-
           export OV_GPU_ENABLE_MLIR=1
           export OV_GPU_QUEUE_TYPE=out-of-order
           func_tests="$OUTPUT_DIR/bin/intel64/Release/ov_gpu_func_tests"
+
+          # Regex patterns of tests to exclude from the run.
+          exclude=''
           filter=$(printf '%s:' \
             'MLIRExecution.SimpleMatmulf16' \
             'MLIRExecution.SDPABasic' \
@@ -68,8 +66,9 @@ jobs:
             'mlir_*' \
           )
           tests=$("$func_tests" --gtest_list_tests --gtest_filter="${filter%:}" \
-            | awk -v exclude="$exclude" '/^  /{print suite $1} /^[^ ]/{suite=$1}' \
-            | grep -v -E "$exclude")
+            | awk -v exclude="$exclude" '/^  /{print suite $1} /^[^ ]/{suite=$1}')
+          [ -n "$exclude" ] && tests=$(echo "$tests" | grep -v -E "$exclude")
+
           start=$SECONDS
           echo "$tests" | xargs -P 32 -I{} "$func_tests" --gtest_filter='{}'
           echo "Run $(echo "$tests" | wc -l) tests in $((SECONDS - start))s"

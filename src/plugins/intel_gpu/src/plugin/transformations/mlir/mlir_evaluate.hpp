@@ -22,13 +22,13 @@ using ::mlir::ModuleOp;
 using ::mlir::OwningOpRef;
 
 class MLIREvaluateGcGPU : public MLIREvaluateBase {
-    std::shared_ptr<const ::mlir::gc::gpu::OclModule> module;
+    std::unique_ptr<const ::mlir::gc::gpu::OclModule> module;
 
 public:
     MLIREvaluateGcGPU(OwningOpRef<ModuleOp> _module,
                       std::shared_ptr<ov::EvaluationContext> loweringContext);
 
-    bool requires_packed_args() const override { return !module->isStatic; }
+    bool requires_packed_args() const override { return !module->isStatic(); }
     bool invoke(const ov::TensorVector& inputs,
                 ov::TensorVector& outputs,
                 const ov::EvaluationContext& evaluationContext) override;
