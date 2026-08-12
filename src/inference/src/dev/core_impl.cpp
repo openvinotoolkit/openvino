@@ -839,47 +839,19 @@ std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::st
     return winner;
 }
 
-std::optional<std::string> ov::CoreImpl::dispatch_internal_id_unsafe(const std::string& device_name,
-                                                                     const std::string& canonical_id,
-                                                                     size_t winner_idx) const {
+std::map<std::string, std::string> ov::CoreImpl::dispatch_device_id_map_unsafe(const std::string& device_name,
+                                                                               size_t candidate_idx) const {
+    std::map<std::string, std::string> id_map;
     const auto map_it = m_dispatch_map.find(device_name);
     if (map_it == m_dispatch_map.end())
-        return std::nullopt;
+        return id_map;
+    // Every device this candidate enumerated, not just the ones it won: it keeps addressing all of
+    // them by the canonical ids, so its id set stays as dense as its own enumeration was.
     for (const auto& e : map_it->second) {
-        if (e.canonical_id != canonical_id)
-            continue;
-        if (const auto v = e.per_lib.find(winner_idx); v != e.per_lib.end())
-            return v->second.internal_id;
-        return std::nullopt;
+        if (const auto v = e.per_lib.find(candidate_idx); v != e.per_lib.end())
+            id_map[v->second.internal_id] = e.canonical_id;
     }
-    return std::nullopt;
-}
-
-void ov::CoreImpl::translate_dispatch_device_id_unsafe(const std::string& device_name,
-                                                       const std::string& canonical_id,
-                                                       size_t winner_idx,
-                                                       ov::AnyMap& config) const {
-    const std::string target_id = canonical_id.empty() ? std::string("0") : canonical_id;
-    const auto& entries = m_dispatch_map.at(device_name);
-    for (const auto& e : entries) {
-        if (e.canonical_id != target_id)
-            continue;
-        // The winner was selected from this entry, so it must serve it; a miss means the resolved
-        // winner and the routed id disagree, which would silently target a wrong/absent id.
-        auto view = e.per_lib.find(winner_idx);
-        OPENVINO_ASSERT(view != e.per_lib.end(),
-                        "Internal error: the resolved candidate (index ",
-                        winner_idx,
-                        ") for device \"",
-                        device_name,
-                        ".",
-                        target_id,
-                        "\" does not serve that device.");
-        // Only rewrite when an id was actually requested; a bare request has no id to translate.
-        if (!canonical_id.empty() || config.count(ov::device::id.name()))
-            config[ov::device::id.name()] = view->second.internal_id;
-        return;
-    }
+    return id_map;
 }
 
 std::vector<std::string> ov::CoreImpl::dispatch_group_device_ids(const std::string& device_name) const {
@@ -904,20 +876,18 @@ std::vector<std::string> ov::CoreImpl::dispatch_group_device_ids(const std::stri
 }
 
 ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name) const {
-    return get_plugin_impl(plugin_name, /*device_id=*/"", /*config=*/nullptr);
+    return get_plugin_impl(plugin_name, /*device_id=*/"");
 }
 
-ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name, ov::AnyMap& config) const {
+ov::Plugin ov::CoreImpl::get_plugin(const std::string& plugin_name, const ov::AnyMap& config) const {
     // The device id (.N) was demoted to config by parse_device_config; route on it.
     std::string device_id;
     if (auto it = config.find(ov::device::id.name()); it != config.end())
         device_id = it->second.as<std::string>();
-    return get_plugin_impl(plugin_name, device_id, &config);
+    return get_plugin_impl(plugin_name, device_id);
 }
 
-ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
-                                         const std::string& device_id,
-                                         ov::AnyMap* config) const {
+ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name, const std::string& device_id) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
 
     auto device_name = plugin_name;
@@ -947,7 +917,8 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
     // The instance cache key: for a dispatch group it is an internal per-winner key
     // (e.g. "<device>#1") so ids routed to different winners coexist; the public name otherwise.
     std::string instance_key = device_name;
-    std::optional<size_t> dispatch_winner;  // set for a group: which candidate serves this request
+    // Set for a dispatch group: the renaming its winner must adopt before anything addresses ids.
+    std::optional<std::map<std::string, std::string>> dispatch_id_map;
 
     PluginDescriptor desc;
     {
@@ -957,8 +928,8 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
 
         desc = it->second;
 
-        // Dispatch group: resolve the winner for the requested (or default) id, translate the
-        // public id to the winner library's own id, and make it primary (design 3.5/3.7).
+        // Dispatch group: resolve the winner for the requested (or default) id and make it primary
+        // (design 3.5/3.7). Ids need no translation - the winner adopts the canonical ones below.
         if (desc.is_dispatch_group()) {
             const auto winner = resolve_dispatch_winner_unsafe(device_name, desc, device_id);
             OPENVINO_ASSERT(winner.has_value(),
@@ -966,9 +937,7 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
                             device_name,
                             "\". Please check the plugins registry and device drivers.");
             instance_key = device_name + '#' + std::to_string(*winner);
-            dispatch_winner = winner;
-            if (config)
-                translate_dispatch_device_id_unsafe(device_name, device_id, *winner, *config);
+            dispatch_id_map = dispatch_device_id_map_unsafe(device_name, *winner);
             if (*winner != 0)
                 std::swap(desc.m_candidates[0], desc.m_candidates[*winner]);
         }
@@ -1014,6 +983,21 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
             std::weak_ptr<ov::ICore> mutableCore =
                 std::const_pointer_cast<ov::ICore>(std::dynamic_pointer_cast<const ov::ICore>(shared_from_this()));
             plugin.set_core(std::move(mutableCore));
+        }
+
+        // A group member adopts Core's numbering before anything addresses an id, so every id that
+        // crosses this boundary later - in either direction - is already the canonical one.
+        if (dispatch_id_map) {
+            OPENVINO_ASSERT(device_supports_internal_property(plugin, ov::internal::device_id_map.name()),
+                            "Library \"",
+                            desc.primary().m_lib_location.string(),
+                            "\" is registered as one of several candidates for device \"",
+                            device_name,
+                            "\" but does not support ",
+                            ov::internal::device_id_map.name(),
+                            ", so it cannot adopt the device ids Core assigns. Sharing a device "
+                            "name requires letting Core name the devices.");
+            plugin.set_property({ov::internal::device_id_map(*dispatch_id_map)});
         }
 
         // configuring
@@ -1076,16 +1060,14 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name,
                             ov::DeviceIDParser parser(pluginDesc.first);
                             if (pluginDesc.first.find(device_name) != std::string::npos &&
                                 !parser.get_device_id().empty()) {
-                                // A group's per-id entry belongs only to the winner of that
-                                // canonical id, which is addressed by its own internal id.
-                                std::string cfg_id = parser.get_device_id();
-                                if (dispatch_winner) {
-                                    const auto internal =
-                                        dispatch_internal_id_unsafe(device_name, cfg_id, *dispatch_winner);
-                                    if (!internal)
-                                        continue;
-                                    cfg_id = *internal;
-                                }
+                                // A group's per-id entry concerns only a member holding that
+                                // device; ids are canonical on both sides now, so none is rewritten.
+                                const std::string cfg_id = parser.get_device_id();
+                                if (dispatch_id_map &&
+                                    std::none_of(dispatch_id_map->begin(), dispatch_id_map->end(), [&](const auto& kv) {
+                                        return kv.second == cfg_id;
+                                    }))
+                                    continue;
                                 g_lock.unlock();
                                 pluginDesc.second.primary().m_default_config[deviceKey] = cfg_id;
                                 plugin.set_property(pluginDesc.second.primary().m_default_config);
@@ -1735,9 +1717,9 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
     std::string clear_device_name = parser.get_device_name();
 
     std::vector<std::pair<std::string, ov::Plugin>> created_plugins;
-    // Dispatch-group routing: the instance key of the id's winner and that winner's own device id.
+    // Dispatch-group routing: the instance key of the id's winner.
     bool is_group = false, group_select_none = false;
-    std::string group_key, group_internal_id;
+    std::string group_key;
     {
         std::lock_guard<std::mutex> lock(get_mutex());
         created_plugins.reserve(m_plugins.size());
@@ -1787,13 +1769,6 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
                 resolve_dispatch_winner_unsafe(clear_device_name, reg_it->second, parser.get_device_id());
             if (winner) {
                 group_key = group_prefix + std::to_string(*winner);
-                for (const auto& e : m_dispatch_map.at(clear_device_name)) {
-                    if (e.canonical_id != parser.get_device_id())
-                        continue;
-                    if (const auto v = e.per_lib.find(*winner); v != e.per_lib.end())
-                        group_internal_id = v->second.internal_id;
-                    break;
-                }
             } else {
                 group_select_none = true;  // no candidate serves this id: configure nothing
             }
@@ -1822,10 +1797,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& config, const std::
                         device_supports_internal_property(plugin.second, ov::internal::config_device_id.name())
                             ? ov::internal::config_device_id.name()
                             : ov::device::id.name();
-                    // A group winner is addressed by its own id, not the canonical one.
-                    config_copy[deviceKey] = (!group_internal_id.empty() && plugin.first == group_key)
-                                                 ? group_internal_id
-                                                 : parser.get_device_id();
+                    config_copy[deviceKey] = parser.get_device_id();
                 }
             }
             plugin.second.set_property(config_copy);

@@ -7,15 +7,18 @@
 // device name. The enumeration probe returns a scriptable device list read from the env
 // var MOCK_DISPATCH_<TAG>_ENUM, formatted as ';'-separated "id,fingerprint_hex,score"
 // triples - e.g. "0,aa,100;1,bb,1". Empty/unset means "serves nothing".
+// Setting MOCK_DISPATCH_<TAG>_NO_ID_MAP=1 makes it stop reporting support for the device-id
+// renaming, so a test can drive Core's refusal to group a library that cannot be renamed.
 
 #include <cstdlib>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "openvino/core/except.hpp"
-#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 
 #ifndef MOCK_CANDIDATE_TAG
@@ -44,16 +47,37 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
     void set_property(const ov::AnyMap& properties) override {
-        for (const auto& p : properties)
+        for (const auto& p : properties) {
+            // Adopt Core's numbering, as a real group member would: record the ids it hands us and
+            // the order they arrived in, so a test can assert both the renaming and its timing.
+            if (p.first == ov::internal::device_id_map.name()) {
+                m_id_map = p.second.as<std::map<std::string, std::string>>();
+                m_saw_id_map_first = m_properties.empty();
+                continue;
+            }
             m_properties[p.first] = p.second;
+        }
     }
     ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
         if (name == ov::supported_properties.name())
             return std::vector<ov::PropertyName>{};
-        if (name == ov::internal::supported_properties.name())
-            return std::vector<ov::PropertyName>{};
+        if (name == ov::internal::supported_properties.name()) {
+            if (!supports_id_map())
+                return std::vector<ov::PropertyName>{};
+            return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO}};
+        }
         if (name == ov::available_devices.name())
             return std::vector<std::string>{};
+        // The ids this instance now answers to, i.e. what Core renamed its own devices to.
+        if (name == "MOCK_ADOPTED_IDS") {
+            std::vector<std::string> ids;
+            for (const auto& [internal, canonical] : m_id_map)
+                ids.push_back(canonical);
+            return ids;
+        }
+        if (name == "MOCK_ID_MAP_APPLIED_FIRST")
+            return m_saw_id_map_first;
         // Echo back whatever was set, so a test can assert set_property reached this instance.
         if (const auto it = m_properties.find(name); it != m_properties.end())
             return it->second;
@@ -89,7 +113,15 @@ public:
     }
 
 private:
+    // Scripted opt-out, so a test can drive Core's refusal of a candidate that cannot be renamed.
+    static bool supports_id_map() {
+        const char* opt_out = std::getenv("MOCK_DISPATCH_" MOCK_CANDIDATE_TAG "_NO_ID_MAP");
+        return !opt_out || std::string(opt_out) != "1";
+    }
+
     ov::AnyMap m_properties;
+    std::map<std::string, std::string> m_id_map;
+    bool m_saw_id_map_first = false;
 };
 
 // Parse the scripted enumeration for this candidate from its env var.

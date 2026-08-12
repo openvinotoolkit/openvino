@@ -329,6 +329,23 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
     return get_default_context(device_id);
 }
 
+void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_map) {
+    // Core owns the numbering when several libraries share a device name; adopt its ids for every
+    // device we enumerated, so nothing downstream (contexts, configs, metrics) sees our own.
+    std::map<std::string, cldnn::device::ptr> renamed_devices;
+    std::map<std::string, ExecutionConfig> renamed_configs;
+    for (const auto& [internal_id, device] : m_device_map) {
+        const auto it = id_map.find(internal_id);
+        OPENVINO_ASSERT(it != id_map.end(), "[GPU] Core did not assign an id for enumerated device \"", internal_id, "\", so it could not be addressed.");
+        renamed_devices[it->second] = device;
+        renamed_configs.emplace(it->second, ExecutionConfig(ov::device::id(it->second)));
+    }
+    m_device_map = std::move(renamed_devices);
+    m_configs_map = std::move(renamed_configs);
+    // The assigned ids need not contain "0": another member may hold the device Core numbered 0.
+    m_default_device_id = m_device_map.empty() ? std::string("0") : m_device_map.begin()->first;
+}
+
 void Plugin::set_property(const ov::AnyMap &config) {
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config, OptionVisibility::RELEASE);
@@ -339,6 +356,16 @@ void Plugin::set_property(const ov::AnyMap &config) {
             CustomLayer::LoadFromFile(custom_layers_config, custom_layers, custom_layers_config.empty());
         }
     };
+
+    if (auto it = config.find(ov::internal::device_id_map.name()); it != config.end()) {
+        apply_device_id_map(it->second.as<std::map<std::string, std::string>>());
+        auto rest = config;
+        rest.erase(ov::internal::device_id_map.name());
+        if (rest.empty())
+            return;
+        set_property(rest);
+        return;
+    }
 
     if (config.find(ov::internal::config_device_id.name()) != config.end()) {
         std::string device_id = config.at(ov::internal::config_device_id.name()).as<std::string>();
@@ -801,14 +828,15 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
+        ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
+        ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+        ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO}};
     return supported_internal_properties;
 }
 

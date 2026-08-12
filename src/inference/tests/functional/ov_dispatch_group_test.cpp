@@ -73,6 +73,8 @@ protected:
     void TearDown() override {
         unset_env("MOCK_DISPATCH_A_ENUM");
         unset_env("MOCK_DISPATCH_B_ENUM");
+        unset_env("MOCK_DISPATCH_A_NO_ID_MAP");
+        unset_env("MOCK_DISPATCH_B_NO_ID_MAP");
         unset_env("OV_GPU_RUNTIME");
         if (ov::util::file_exists(xml_path))
             std::ignore = std::filesystem::remove(xml_path);
@@ -269,32 +271,65 @@ TEST_F(DispatchGroupTest, set_property_reaches_live_group_instance) {
     EXPECT_EQ(core.get_property(device, "MOCK_PROP").as<std::string>(), "SET_VIA_GROUP");
 }
 
-// An id-qualified set_property must target that id's winner using the winner's OWN device id:
-// canonical "1" is B's internal "7" here, so pushing the canonical id would configure nothing.
-TEST_F(DispatchGroupTest, set_property_translates_id_for_group_winner) {
+// --- canonical ids are pushed down, not translated per call (design 3.7) ---
+
+// A group member is renamed to Core's ids for every device it enumerated, so its own numbering
+// stops being observable. Here B enumerates "7" and "9"; Core exposes them as "1" and "2".
+TEST_F(DispatchGroupTest, group_member_adopts_canonical_ids) {
+    script("0,aa," + std::to_string(PREFERRED),
+           "7,bb," + std::to_string(PREFERRED) + ";9,cc," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "1"), "B");  // canonical "1" is B's own "7"
+    EXPECT_EQ(core.get_property(device + ".1", "MOCK_ADOPTED_IDS").as<std::vector<std::string>>(),
+              (std::vector<std::string>{"1", "2"}));
+}
+
+// The renaming must land before any property that carries a device id, or the member would apply
+// that config to whichever of its own devices happened to share the number.
+TEST_F(DispatchGroupTest, id_map_is_applied_before_any_other_property) {
     script("0,aa," + std::to_string(PREFERRED), "7,bb," + std::to_string(PREFERRED));
     ov::Core core;
     core.register_plugins(xml_path.string());
-    EXPECT_EQ(resolved_tag(core, "1"), "B");  // canonical "1" == B's internal "7"
     core.set_property(device + ".1", {{"MOCK_PROP", "FOR_B"}});
-    EXPECT_EQ(core.get_property(device + ".1", "MOCK_PROP").as<std::string>(), "FOR_B");
-    // The id handed to the plugin is its own, not the canonical one.
-    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
+    EXPECT_TRUE(core.get_property(device + ".1", "MOCK_ID_MAP_APPLIED_FIRST").as<bool>());
 }
 
-// An id-qualified set_property issued before that id was ever resolved must still resolve and
-// translate: previously it fell back to "every live group instance" carrying the canonical id,
-// so resolving GPU.0 first and then setting GPU.1 misconfigured GPU.0's winner.
+// An id-qualified set_property targets that id's winner, which now answers to the canonical id.
+TEST_F(DispatchGroupTest, set_property_uses_canonical_id_for_group_winner) {
+    script("0,aa," + std::to_string(PREFERRED), "7,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    EXPECT_EQ(resolved_tag(core, "1"), "B");  // canonical "1" is B's own "7"
+    core.set_property(device + ".1", {{"MOCK_PROP", "FOR_B"}});
+    EXPECT_EQ(core.get_property(device + ".1", "MOCK_PROP").as<std::string>(), "FOR_B");
+    // The id handed to the plugin is the canonical one; its internal "7" never crosses the border.
+    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "1");
+}
+
+// An id-qualified set_property issued before that id was ever resolved must still resolve to that
+// id's winner alone: previously it fell back to "every live group instance" carrying the id, so
+// resolving FAKE.0 first and then setting FAKE.1 misconfigured FAKE.0's winner.
 TEST_F(DispatchGroupTest, set_property_for_unresolved_id_targets_only_that_winner) {
     script("0,aa," + std::to_string(PREFERRED), "7,bb," + std::to_string(PREFERRED));
     ov::Core core;
     core.register_plugins(xml_path.string());
     EXPECT_EQ(resolved_tag(core, "0"), "A");  // only canonical "0" resolved so far
     core.set_property(device + ".1", {{"MOCK_PROP", "FOR_B_ONLY"}});
-    // A (canonical "0") must not have been touched; B gets it with its own id "7".
+    // A (canonical "0") must not have been touched; B gets it under the canonical id.
     EXPECT_TRUE(core.get_property(device + ".0", "MOCK_PROP").empty());
     EXPECT_EQ(core.get_property(device + ".1", "MOCK_PROP").as<std::string>(), "FOR_B_ONLY");
-    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "7");
+    EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "1");
+}
+
+// A library that cannot adopt Core's ids cannot share a device name: it would keep naming devices
+// by its own numbering, which leaks back through contexts and execution devices.
+TEST_F(DispatchGroupTest, group_member_without_id_map_support_throws) {
+    script("0,aa," + std::to_string(SERVABLE), "0,aa," + std::to_string(PREFERRED));
+    set_env("MOCK_DISPATCH_B_NO_ID_MAP", "1");
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+    OV_EXPECT_THROW(std::ignore = resolved_tag(core), ov::Exception, ::testing::HasSubstr("DISPATCH_DEVICE_ID_MAP"));
 }
 
 // Two devices of one candidate sharing a fingerprint are indistinguishable (e.g. a driver that

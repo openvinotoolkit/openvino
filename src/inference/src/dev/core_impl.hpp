@@ -276,28 +276,17 @@ private:
                                                          const PluginDescriptor& desc,
                                                          const std::string& device_id) const;
 
-    // Dispatch-aware get_plugin: resolves the winner for config's device id (rewriting the id to
-    // the winner's own), or behaves like get_plugin(plugin_name) for a single-candidate name.
-    ov::Plugin get_plugin(const std::string& plugin_name, ov::AnyMap& config) const;
+    // Dispatch-aware get_plugin: resolves the winner for config's device id, or behaves like
+    // get_plugin(plugin_name) for a single-candidate name.
+    ov::Plugin get_plugin(const std::string& plugin_name, const ov::AnyMap& config) const;
 
-    // Shared get_plugin core. device_id (empty = default/bare) selects the dispatch-group winner;
-    // config, when set, gets its ov::device::id rewritten to the winner library's own id.
-    ov::Plugin get_plugin_impl(const std::string& plugin_name,
-                               const std::string& device_id,
-                               ov::AnyMap* config) const;
+    // Shared get_plugin core. device_id (empty = default/bare) selects the dispatch-group winner.
+    ov::Plugin get_plugin_impl(const std::string& plugin_name, const std::string& device_id) const;
 
-    // Rewrite config's ov::device::id from the canonical ".N" id to the winner's own id (they can
-    // differ when candidates number devices differently). Caller holds the mutex.
-    void translate_dispatch_device_id_unsafe(const std::string& device_name,
-                                             const std::string& canonical_id,
-                                             size_t winner_idx,
-                                             ov::AnyMap& config) const;
-
-    // The id winner_idx uses internally for canonical_id, or nullopt if it does not serve that
-    // device. Caller holds the mutex.
-    std::optional<std::string> dispatch_internal_id_unsafe(const std::string& device_name,
-                                                           const std::string& canonical_id,
-                                                           size_t winner_idx) const;
+    // {candidate's own id -> canonical ".N" id} for every device candidate_idx enumerated, pushed
+    // to a group member so it adopts Core's numbering. Caller holds the mutex.
+    std::map<std::string, std::string> dispatch_device_id_map_unsafe(const std::string& device_name,
+                                                                     size_t candidate_idx) const;
 
     // Canonical merged device ids ("0","1",...) for a dispatch group, built from m_dispatch_map
     // (each physical device once). Empty for a non-group name. Builds the map on first use.
