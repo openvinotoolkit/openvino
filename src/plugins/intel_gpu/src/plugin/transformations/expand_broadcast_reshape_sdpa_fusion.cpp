@@ -79,7 +79,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(out.get_node_shared_ptr());
         bool node_check = false;
         if (ov::is_type<ov::op::v1::Reshape>(concat->get_input_node_ptr(0))) {
-            auto reshape = concat->get_input_node_ptr(0);
+            const auto* reshape = concat->get_input_node_ptr(0);
             node_check = reshape->get_output_partial_shape(0).rank().is_static() && reshape->get_output_partial_shape(0).size() == 5;
         }
         return concat && concat->get_axis() == 2 && concat->get_input_size() > 2 && node_check;
