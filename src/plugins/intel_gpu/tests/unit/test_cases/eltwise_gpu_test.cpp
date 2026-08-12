@@ -3925,29 +3925,24 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     run_bfyx_and_fs_b_yx_fsv32_sum_test<ov::float16>(padding_mode::output);
 }
 
-TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
-{
+TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding) {
     skip_if_no_fp16();
     run_bfyx_and_fs_b_yx_fsv32_sum_test<ov::float16>(padding_mode::input);
 }
 
-TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_basic)
-{
+TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_basic) {
     run_fs_b_yx_fsv32_basic_test<ov::bfloat16>();
 }
 
-TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast)
-{
+TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast) {
     run_fs_b_yx_fsv32_broadcast_test<ov::bfloat16>(true);
 }
 
-TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast_bfyx)
-{
+TEST(eltwise_gpu_bf16, fs_b_yx_fsv32_broadcast_bfyx) {
     run_fs_b_yx_fsv32_broadcast_test<ov::bfloat16>(false);
 }
 
-TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_basic)
-{
+TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_basic) {
     run_bfyx_and_fs_b_yx_fsv32_sum_test<ov::bfloat16>(padding_mode::none);
 }
 
@@ -3955,8 +3950,7 @@ TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     run_bfyx_and_fs_b_yx_fsv32_sum_test<ov::bfloat16>(padding_mode::output);
 }
 
-TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_input_padding)
-{
+TEST(eltwise_gpu_bf16, bfyx_and_fs_b_yx_fsv32_input_padding) {
     run_bfyx_and_fs_b_yx_fsv32_sum_test<ov::bfloat16>(padding_mode::input);
 }
 

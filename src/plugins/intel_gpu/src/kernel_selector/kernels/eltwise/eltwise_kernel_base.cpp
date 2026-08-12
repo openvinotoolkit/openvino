@@ -382,44 +382,27 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
             const auto &input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
             std::string idx_order = "INPUT" + toCodeString(input.index) + "_IDX_ORDER";
-            std::function<std::string(const std::string&)> bf16_optional_cast = [](const std::string& s) {
-                return s;
-            };
             switch (input.mode) {
                 case EltwiseInputMode::SCALAR:
                     jit.AddConstant(MakeJitConstant(name, input.scalar));
                     break;
                 case EltwiseInputMode::INPUT_BUFFER:
-                    if (params.inputs[input.index].GetDType() == Datatype::BF16) {
-                        bf16_optional_cast = [&useVload8](const std::string& s) {
-                            return "CONVERT_AS_BFLOAT16_FLOAT(" + s + (useVload8 ? ", 8)" : ", 1)");
-                        };
-                    }
                     if (useVload8)
-                        jit.AddConstant(MakeJitConstant(name, bf16_optional_cast("in" + toCodeString(input.index))));
+                        jit.AddConstant(MakeJitConstant(name,
+                            "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_VECTOR_TYPE(in" + toCodeString(input.index) + ", 8)"));
                     else
                         jit.AddConstant(MakeJitConstant(name,
-                                                        bf16_optional_cast("input" + toCodeString(input.index) +
-                                                        "[GET_INDEX(INPUT, " + toCodeString(input.index) + "," + idx_order + ") " +
-                                                            (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]"))));
+                            "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) +
+                            "[GET_INDEX(INPUT, " + toCodeString(input.index) + "," + idx_order + ") " +
+                                (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]") + ")"));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
-                    if (params.outputs[0].GetDType() == Datatype::BF16) {
-                        bf16_optional_cast = [](const std::string& s) {
-                            return "_convert_as_bfloat16_float(" + s + ")";
-                        };
-                    }
-                    jit.AddConstant(MakeJitConstant(name, bf16_optional_cast("output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]")));
+                    jit.AddConstant(MakeJitConstant(name, "DECODE_OUTPUT_COMPUTE_TYPE(output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)])"));
                     break;
                 case EltwiseInputMode::UNORDERED_ACCESS_INPUT_BUFFER:
-                    if (params.inputs[input.index].GetDType() == Datatype::BF16) {
-                        bf16_optional_cast = [](const std::string& s) {
-                            return "_convert_as_bfloat16_float(" + s + ")";
-                        };
-                    }
                     jit.AddConstant(MakeJitConstant(name,
-                                                    bf16_optional_cast("input" + toCodeString(input.index) + "[(size_t)tmp" + toCodeString(input.tmpIndex) +
-                                                        "]")));
+                        "DECODE_INPUT" + toCodeString(input.index) + "_COMPUTE_TYPE(input" + toCodeString(input.index) +
+                            "[(size_t)tmp" + toCodeString(input.tmpIndex) + "])"));
                     break;
                 case EltwiseInputMode::INTERMEDIATE_RESULTS_INDEX:
                     jit.AddConstant(MakeJitConstant(name, "tmp" + toCodeString(input.tmpIndex)));
@@ -652,7 +635,9 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
-    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
+    auto act_dt = GetAccumulatorType(params);
+    jit.Merge(MakeActivationJitConstants(params.activations, act_dt, "_TYPED"));
+    jit.AddConstant(MakeJitConstant("ACTIVATION_IN_ACCUMULATOR_TYPE", (act_dt != params.outputs[0].GetDType()) ? 1 : 0));
 
     return jit;
 }
