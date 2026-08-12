@@ -5,13 +5,12 @@
 #include "eltwise_kernel_ref.h"
 #include "kernel_selector_utils.h"
 
+#include <limits>
+
 namespace kernel_selector {
 namespace {
-size_t GetSingleFeatureBlockSize(DataLayout layout) {
+size_t GetFeatureBlockSize(DataLayout layout) {
     switch (layout) {
-        case DataLayout::b_fs_yx_fsv2:
-        case DataLayout::b_fs_zyx_fsv2:
-            return 2;
         case DataLayout::b_fs_yx_fsv4:
         case DataLayout::b_fs_zyx_fsv4:
             return 4;
@@ -31,15 +30,9 @@ size_t GetSingleFeatureBlockSize(DataLayout layout) {
 
 bool ShouldZeroOutputFeaturePadding(const eltwise_params& params) {
     const auto& output = params.outputs[0];
-    const auto feature_block_size = GetSingleFeatureBlockSize(output.GetLayout());
-    return !params.is_shape_agnostic &&
-           params.operations.size() == 1 &&
-           params.operations[0].mode == EltwiseMode::ASSIGN &&
-           feature_block_size != 0 &&
-           !output.Feature().is_dynamic &&
-           !output.Feature().pad.is_dynamic &&
-           output.Feature().pad.Total() == 0 &&
-           output.Feature().v % feature_block_size != 0;
+    const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
+    return feature_block_size != 0 &&
+           (params.is_shape_agnostic || output.Feature().v % feature_block_size != 0);
 }
 }  // namespace
 
@@ -91,24 +84,46 @@ KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/) c
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
+JitConstants EltwiseKernelRef::MakeIndexJitConstants(const eltwise_params& params, bool use_vload8) const {
+    if (!ShouldZeroOutputFeaturePadding(params) ||
+        params.layoutBased ||
+        params.int8_quantization ||
+        params.broadcast ||
+        !CheckInputsOutputNoPitchSameDims(params)) {
+        return EltwiseKernelBase::MakeIndexJitConstants(params, use_vload8);
+    }
+
+    auto non_linear_params = params;
+    non_linear_params.layoutBased = true;
+    return EltwiseKernelBase::MakeIndexJitConstants(non_linear_params, use_vload8);
+}
+
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
-    if (ShouldZeroOutputFeaturePadding(params)) {
-        const auto& output = params.outputs[0];
-        const auto aligned_feature_size = Align(output.Feature().v, GetSingleFeatureBlockSize(output.GetLayout()));
-        const auto feature_channel_idx = DataTensor::Channelndex(output.GetLayout(), Tensor::DataChannelName::FEATURE);
+    const auto& output = params.outputs[0];
+    const auto feature_block_size = GetFeatureBlockSize(output.GetLayout());
+    const bool zero_output_feature_padding = ShouldZeroOutputFeaturePadding(params);
+    if (zero_output_feature_padding) {
+        const auto f_idx = DataTensor::Channelndex(output.GetLayout(), Tensor::DataChannelName::FEATURE);
+        const auto f_gws_size =
+            "((OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM + " +
+            std::to_string(feature_block_size - 1) + ") / " + std::to_string(feature_block_size) + " * " +
+            std::to_string(feature_block_size) + ")";
+        jit.RemoveConstant("ELTWISE_NO_PITCH_SAME_DIMS");
+        jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", 0));
         jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", 1));
-        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_GWS_SIZE", aligned_feature_size));
-        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_INDEX", "d" + std::to_string(feature_channel_idx + 1)));
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_GWS_SIZE", f_gws_size));
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_INDEX", "d" + std::to_string(f_idx + 1)));
     }
 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
+        const bool no_pitch_same_dims = !zero_output_feature_padding && CheckInputsOutputNoPitchSameDims(params);
 
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
-            if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !CheckInputsOutputNoPitchSameDims(params)) {
+            if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !no_pitch_same_dims) {
                 auto calc_dim = [&params](Tensor::DataChannelName channel) {
                     int idx = DataTensor::Channelndex(params.outputs[0].GetLayout(), channel);
                     // We increment the index, because fusions dims ordering starts from one
@@ -130,7 +145,7 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             }
         }
 
-        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
+        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && no_pitch_same_dims) {
             FusedOpsConfiguration conf = {"", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         } else {
@@ -147,11 +162,22 @@ void EltwiseKernelRef::AdjustGlobalWorkSizes(const eltwise_params& params, Dispa
         return;
 
     const auto& output = params.outputs[0];
-    const auto aligned_feature_size = Align(output.Feature().v, GetSingleFeatureBlockSize(output.GetLayout()));
+    if (output.Feature().is_dynamic || output.Feature().pad.is_dynamic)
+        return;
+
+    const auto f_gws_size = Align(output.Feature().LogicalDimPadded(), GetFeatureBlockSize(output.GetLayout()));
+    if (f_gws_size == 0)
+        return;
+
     if (params.layoutBased || params.int8_quantization || params.broadcast) {
-        dispatch_data.gws[1] = aligned_feature_size;
+        dispatch_data.gws[1] = f_gws_size;
     } else {
-        dispatch_data.gws[2] = aligned_feature_size * output.Batch().v;
+        const auto& dims = output.GetDims();
+        dispatch_data.gws[0] = dims[0].v;
+        dispatch_data.gws[1] = dims.size() == 5 ? dims[1].v * dims[2].v : dims[1].v;
+        OPENVINO_ASSERT(output.Batch().v <= std::numeric_limits<size_t>::max() / f_gws_size,
+                        "Eltwise global work size overflow");
+        dispatch_data.gws[2] = f_gws_size * output.Batch().v;
     }
 }
 }  // namespace kernel_selector
