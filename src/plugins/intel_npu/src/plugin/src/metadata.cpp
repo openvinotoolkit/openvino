@@ -792,7 +792,7 @@ std::unique_ptr<MetadataBase> read_as_text(std::string_view input) {
     return storedMeta;
 }
 
-uint64_t MetadataBase::get_blob_size() const {
+uint64_t MetadataBase::get_compiler_payload_size() const {
     return _blobDataSize;
 }
 

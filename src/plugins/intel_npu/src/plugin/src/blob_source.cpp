@@ -4,6 +4,7 @@
 
 #include "blob_source.hpp"
 
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/except.hpp"
 
 namespace {
@@ -154,6 +155,15 @@ size_t BlobSource::get_total_size() const {
 size_t BlobSource::get_remaining_size() const {
     const size_t cursor = get_cursor();
     return m_size - cursor;
+}
+
+bool BlobSource::is_contiguous_and_cursor_page_aligned() const {
+    if (std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
+        // The buffer behind the stream is not guaranteed to be contiguous
+        return false;
+    }
+
+    return get_cursor() % utils::STANDARD_PAGE_SIZE == 0;
 }
 
 }  // namespace intel_npu

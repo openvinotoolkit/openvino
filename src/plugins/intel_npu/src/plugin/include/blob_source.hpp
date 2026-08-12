@@ -84,6 +84,13 @@ public:
      */
     size_t get_remaining_size() const;
 
+    /**
+     * @return true The blob is contiguous (the "tensor" scenario) and the current position of the data cursor is page
+     * aligned (cursor % 4096).
+     * @return false Otherwise
+     */
+    bool is_contiguous_and_cursor_page_aligned() const;
+
 private:
     BlobSource(const std::variant<std::reference_wrapper<std::istream>,
                                   std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>& source,

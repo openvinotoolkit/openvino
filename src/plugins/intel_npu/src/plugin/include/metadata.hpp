@@ -66,7 +66,7 @@ public:
 
     virtual void write_as_text(std::ostream& stream) = 0;
 
-    virtual uint64_t get_blob_size() const;
+    virtual uint64_t get_compiler_payload_size() const;
 
     virtual uint64_t get_main_schedule_size() const;
 
