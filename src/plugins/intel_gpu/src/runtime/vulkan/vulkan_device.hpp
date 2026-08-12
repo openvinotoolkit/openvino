@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <memory>
 #include <mutex>
 
 #include "intel_gpu/runtime/device.hpp"
@@ -11,6 +12,8 @@
 
 namespace cldnn {
 namespace vulkan {
+
+class vulkan_pipeline_cache;
 
 class vulkan_device : public device {
 public:
@@ -56,6 +59,8 @@ public:
         return _queue_mutex;
     }
 
+    vulkan_pipeline_cache& get_pipeline_cache() const;
+
 private:
     void initialize_info();
 
@@ -69,6 +74,7 @@ private:
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};
     mutable std::mutex _init_mutex;
     std::mutex _queue_mutex;
+    std::unique_ptr<vulkan_pipeline_cache> _pipeline_cache;
 };
 
 }  // namespace vulkan

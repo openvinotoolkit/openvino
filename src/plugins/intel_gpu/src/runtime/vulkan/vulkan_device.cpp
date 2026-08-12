@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "vulkan_pipeline_cache.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -47,6 +48,7 @@ vulkan_device::vulkan_device(vulkan_instance::ptr instance, VkPhysicalDevice phy
 
 vulkan_device::~vulkan_device() {
     if (_device != VK_NULL_HANDLE) {
+        _pipeline_cache.reset();
         vkDestroyDevice(_device, nullptr);
     }
 }
@@ -203,6 +205,14 @@ void vulkan_device::initialize() {
     check_vk_result(vkCreateDevice(_physical_device, &device_create_info, nullptr, &_device), "vkCreateDevice");
     vkGetDeviceQueue(_device, _compute_queue_family, 0, &_compute_queue);
     OPENVINO_ASSERT(_compute_queue != VK_NULL_HANDLE, "[GPU][Vulkan] vkGetDeviceQueue returned a null compute queue");
+    try {
+        _pipeline_cache = std::make_unique<vulkan_pipeline_cache>(_device);
+    } catch (...) {
+        vkDestroyDevice(_device, nullptr);
+        _compute_queue = VK_NULL_HANDLE;
+        _device = VK_NULL_HANDLE;
+        throw;
+    }
 }
 
 bool vulkan_device::is_initialized() const {
@@ -217,6 +227,11 @@ bool vulkan_device::is_same(const device::ptr other) {
 
 void vulkan_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
     _mem_caps = memory_capabilities;
+}
+
+vulkan_pipeline_cache& vulkan_device::get_pipeline_cache() const {
+    OPENVINO_ASSERT(_pipeline_cache != nullptr, "[GPU][Vulkan] Pipeline cache requested before device initialization");
+    return *_pipeline_cache;
 }
 
 }  // namespace vulkan

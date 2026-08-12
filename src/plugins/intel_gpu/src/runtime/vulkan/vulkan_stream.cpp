@@ -163,7 +163,7 @@ struct vulkan_stream::resource_state {
         VkFence fence = VK_NULL_HANDLE;
         std::shared_ptr<vulkan_submission_state> submission;
         std::vector<memory::cptr> retained_memories;
-        std::shared_ptr<void> retained_kernel;
+        std::shared_ptr<const void> retained_kernel;
     };
 
     explicit resource_state(const vulkan_engine& engine) : device(engine.get_device_handle()), queue(engine.get_compute_queue()) {
@@ -230,7 +230,7 @@ struct vulkan_stream::resource_state {
         return slot;
     }
 
-    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, std::vector<memory::cptr> memories, std::shared_ptr<void> kernel_lifetime) {
+    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, std::vector<memory::cptr> memories, std::shared_ptr<const void> kernel_lifetime) {
         OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE && slot.submission == nullptr, "[GPU][Vulkan] Submission resources are already in use");
         slot.retained_memories = std::move(memories);
         slot.retained_kernel = std::move(kernel_lifetime);
@@ -346,10 +346,10 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
     const auto prepared = prepare_arguments(descriptor, data);
     const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
-    const auto& pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
-                                                             static_cast<uint32_t>(prepared.push_constants.size()),
-                                                             specialized_local_size_x,
-                                                             descriptor.specialization_constants);
+    const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
+                                                            static_cast<uint32_t>(prepared.push_constants.size()),
+                                                            specialized_local_size_x,
+                                                            descriptor.specialization_constants);
 
     const auto device = _engine.get_device_handle();
     auto& resources = _resources->acquire(checked_u32(prepared.buffer_infos.size(), "descriptor count"));
@@ -358,7 +358,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     descriptor_set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptor_set_info.descriptorPool = resources.descriptor_pool;
     descriptor_set_info.descriptorSetCount = 1;
-    descriptor_set_info.pSetLayouts = &pipeline.descriptor_set_layout;
+    descriptor_set_info.pSetLayouts = &pipeline->descriptor_set_layout;
     VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
     check_vk_result(vkAllocateDescriptorSets(device, &descriptor_set_info, &descriptor_set), "vkAllocateDescriptorSets");
 
@@ -390,11 +390,11 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                          0,
                          nullptr);
 
-    vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
-    vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+    vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
+    vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
     if (!prepared.push_constants.empty()) {
         vkCmdPushConstants(resources.command_buffer,
-                           pipeline.pipeline_layout,
+                           pipeline->pipeline_layout,
                            VK_SHADER_STAGE_COMPUTE_BIT,
                            0,
                            static_cast<uint32_t>(prepared.push_constants.size()),
@@ -436,7 +436,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
         check_vk_result(vkQueueSubmit(_engine.get_compute_queue(), 1, &submit_info, resources.fence), "vkQueueSubmit");
     }
-    auto submission = _resources->mark_submitted(resources, prepared.memories, vk_kernel->get_lifetime_token());
+    auto submission = _resources->mark_submitted(resources, prepared.memories, pipeline);
     return std::make_shared<vulkan_event>(std::move(submission));
 }
 

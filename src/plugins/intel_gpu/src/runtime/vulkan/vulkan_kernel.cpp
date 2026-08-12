@@ -4,10 +4,6 @@
 
 #include "vulkan_kernel.hpp"
 
-#include <cstring>
-#include <map>
-#include <mutex>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -16,64 +12,18 @@
 
 namespace cldnn {
 namespace vulkan {
-namespace {
-
-void check_vk_result(VkResult result, const char* operation) {
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
-}
-
-constexpr uint32_t spirv_magic = 0x07230203;
-
-}  // namespace
-
 struct vulkan_kernel::shared_state {
     shared_state(std::shared_ptr<vulkan_device> device_owner, std::vector<uint8_t> binary, std::string name)
         : device_owner(std::move(device_owner)),
-          device(this->device_owner->get_device()),
           binary(std::move(binary)),
           entry_point(std::move(name)) {
-        OPENVINO_ASSERT(this->binary.size() >= sizeof(uint32_t) && this->binary.size() % sizeof(uint32_t) == 0,
-                        "[GPU][Vulkan] SPIR-V binary size must be a non-zero multiple of four bytes");
-
-        uint32_t magic = 0;
-        std::memcpy(&magic, this->binary.data(), sizeof(magic));
-        OPENVINO_ASSERT(magic == spirv_magic, "[GPU][Vulkan] Invalid SPIR-V magic number");
-
-        std::vector<uint32_t> words(this->binary.size() / sizeof(uint32_t));
-        std::memcpy(words.data(), this->binary.data(), this->binary.size());
-
-        VkShaderModuleCreateInfo shader_info{};
-        shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shader_info.codeSize = this->binary.size();
-        shader_info.pCode = words.data();
-        check_vk_result(vkCreateShaderModule(device, &shader_info, nullptr, &shader_module), "vkCreateShaderModule");
-    }
-
-    ~shared_state() {
-        for (auto& entry : pipelines) {
-            auto& pipeline = entry.second;
-            if (pipeline.pipeline != VK_NULL_HANDLE) {
-                vkDestroyPipeline(device, pipeline.pipeline, nullptr);
-            }
-            if (pipeline.pipeline_layout != VK_NULL_HANDLE) {
-                vkDestroyPipelineLayout(device, pipeline.pipeline_layout, nullptr);
-            }
-            if (pipeline.descriptor_set_layout != VK_NULL_HANDLE) {
-                vkDestroyDescriptorSetLayout(device, pipeline.descriptor_set_layout, nullptr);
-            }
-        }
-        if (shader_module != VK_NULL_HANDLE) {
-            vkDestroyShaderModule(device, shader_module, nullptr);
-        }
+        shader = this->device_owner->get_pipeline_cache().get_or_create_shader(this->binary, entry_point);
     }
 
     std::shared_ptr<vulkan_device> device_owner;
-    VkDevice device = VK_NULL_HANDLE;
-    VkShaderModule shader_module = VK_NULL_HANDLE;
     std::vector<uint8_t> binary;
     std::string entry_point;
-    std::mutex mutex;
-    std::map<std::tuple<uint32_t, uint32_t, std::vector<uint32_t>>, vulkan_pipeline_state> pipelines;
+    std::shared_ptr<const vulkan_shader_state> shader;
 };
 
 vulkan_kernel::vulkan_kernel(std::shared_ptr<vulkan_device> device, std::vector<uint8_t> spirv, std::string entry_point)
@@ -102,99 +52,15 @@ std::string vulkan_kernel::get_build_log() const {
     return {};
 }
 
-const vulkan_pipeline_state& vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count,
-                                                                   uint32_t push_constants_size,
-                                                                   uint32_t specialized_local_size_x,
-                                                                   const specialization_constants_desc& specialization_constants) {
-    std::lock_guard<std::mutex> lock(_state->mutex);
-    std::vector<uint32_t> specialization_key;
-    specialization_key.reserve((specialization_constants.size() + (specialized_local_size_x == 0 ? 0 : 1)) * 2);
-    if (specialized_local_size_x != 0) {
-        specialization_key.push_back(0);
-        specialization_key.push_back(specialized_local_size_x);
-    }
-    for (const auto& constant : specialization_constants) {
-        OPENVINO_ASSERT(constant.id != 0 || specialized_local_size_x == 0,
-                        "[GPU][Vulkan] Specialization constant id 0 is reserved for the local work-group size");
-        for (size_t index = 0; index < specialization_key.size(); index += 2) {
-            OPENVINO_ASSERT(specialization_key[index] != constant.id, "[GPU][Vulkan] Duplicate specialization constant id ", constant.id);
-        }
-        specialization_key.push_back(constant.id);
-        specialization_key.push_back(constant.value);
-    }
-    const auto key = std::make_tuple(descriptor_count, push_constants_size, specialization_key);
-    auto& pipeline = _state->pipelines[key];
-    if (pipeline.pipeline != VK_NULL_HANDLE) {
-        return pipeline;
-    }
-
-    std::vector<VkDescriptorSetLayoutBinding> bindings(descriptor_count);
-    for (uint32_t index = 0; index < descriptor_count; ++index) {
-        bindings[index].binding = index;
-        bindings[index].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        bindings[index].descriptorCount = 1;
-        bindings[index].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    }
-
-    VkDescriptorSetLayoutCreateInfo descriptor_layout_info{};
-    descriptor_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptor_layout_info.bindingCount = descriptor_count;
-    descriptor_layout_info.pBindings = bindings.data();
-    check_vk_result(vkCreateDescriptorSetLayout(_state->device, &descriptor_layout_info, nullptr, &pipeline.descriptor_set_layout),
-                    "vkCreateDescriptorSetLayout");
-
-    VkPushConstantRange push_constant_range{};
-    push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    push_constant_range.offset = 0;
-    push_constant_range.size = push_constants_size;
-
-    VkPipelineLayoutCreateInfo pipeline_layout_info{};
-    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 1;
-    pipeline_layout_info.pSetLayouts = &pipeline.descriptor_set_layout;
-    pipeline_layout_info.pushConstantRangeCount = push_constants_size == 0 ? 0 : 1;
-    pipeline_layout_info.pPushConstantRanges = push_constants_size == 0 ? nullptr : &push_constant_range;
-    check_vk_result(vkCreatePipelineLayout(_state->device, &pipeline_layout_info, nullptr, &pipeline.pipeline_layout), "vkCreatePipelineLayout");
-
-    std::vector<VkSpecializationMapEntry> specialization_entries;
-    std::vector<uint32_t> specialization_values;
-    specialization_entries.reserve(specialization_key.size() / 2);
-    specialization_values.reserve(specialization_key.size() / 2);
-    for (size_t index = 0; index < specialization_key.size(); index += 2) {
-        VkSpecializationMapEntry entry{};
-        entry.constantID = specialization_key[index];
-        entry.offset = static_cast<uint32_t>(specialization_values.size() * sizeof(uint32_t));
-        entry.size = sizeof(uint32_t);
-        specialization_entries.push_back(entry);
-        specialization_values.push_back(specialization_key[index + 1]);
-    }
-
-    VkSpecializationInfo specialization_info{};
-    specialization_info.mapEntryCount = static_cast<uint32_t>(specialization_entries.size());
-    specialization_info.pMapEntries = specialization_entries.data();
-    specialization_info.dataSize = specialization_values.size() * sizeof(uint32_t);
-    specialization_info.pData = specialization_values.data();
-
-    VkPipelineShaderStageCreateInfo stage_info{};
-    stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stage_info.module = _state->shader_module;
-    stage_info.pName = _state->entry_point.c_str();
-    stage_info.pSpecializationInfo = specialization_entries.empty() ? nullptr : &specialization_info;
-
-    VkComputePipelineCreateInfo pipeline_info{};
-    pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipeline_info.stage = stage_info;
-    pipeline_info.layout = pipeline.pipeline_layout;
-    check_vk_result(vkCreateComputePipelines(_state->device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline.pipeline), "vkCreateComputePipelines");
-
-    pipeline.descriptor_count = descriptor_count;
-    pipeline.push_constants_size = push_constants_size;
-    return pipeline;
-}
-
-std::shared_ptr<void> vulkan_kernel::get_lifetime_token() const {
-    return _state;
+std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeline(uint32_t descriptor_count,
+                                                                                   uint32_t push_constants_size,
+                                                                                   uint32_t specialized_local_size_x,
+                                                                                   const specialization_constants_desc& specialization_constants) {
+    return _state->device_owner->get_pipeline_cache().get_or_create_pipeline(_state->shader,
+                                                                             descriptor_count,
+                                                                             push_constants_size,
+                                                                             specialized_local_size_x,
+                                                                             specialization_constants);
 }
 
 }  // namespace vulkan

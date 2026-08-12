@@ -13,19 +13,12 @@
 
 #include "intel_gpu/runtime/kernel.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "vulkan_pipeline_cache.hpp"
 
 namespace cldnn {
 namespace vulkan {
 
 class vulkan_device;
-
-struct vulkan_pipeline_state {
-    VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
-    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
-    VkPipeline pipeline = VK_NULL_HANDLE;
-    uint32_t descriptor_count = 0;
-    uint32_t push_constants_size = 0;
-};
 
 class vulkan_kernel final : public kernel {
 public:
@@ -37,11 +30,10 @@ public:
     std::vector<uint8_t> get_binary() const override;
     std::string get_build_log() const override;
 
-    const vulkan_pipeline_state& get_or_create_pipeline(uint32_t descriptor_count,
-                                                        uint32_t push_constants_size,
-                                                        uint32_t specialized_local_size_x = 0,
-                                                        const specialization_constants_desc& specialization_constants = {});
-    std::shared_ptr<void> get_lifetime_token() const;
+    std::shared_ptr<const vulkan_pipeline_state> get_or_create_pipeline(uint32_t descriptor_count,
+                                                                        uint32_t push_constants_size,
+                                                                        uint32_t specialized_local_size_x = 0,
+                                                                        const specialization_constants_desc& specialization_constants = {});
 
 private:
     struct shared_state;
