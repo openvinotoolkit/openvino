@@ -39,6 +39,20 @@ TEST(moe_offload_property_test, set_and_get_various_values) {
     EXPECT_ANY_THROW(config.set_property(ov::intel_gpu::offload_ratio(101)));
 }
 
+TEST(moe_offload_property_test, auto_string_normalizes_to_auto_sentinel) {
+    auto config = get_test_default_config(get_test_engine());
+
+    ASSERT_NO_THROW(config.set_user_property({{ov::intel_gpu::offload_ratio.name(), std::string("AUTO")}}));
+    ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+}
+
+TEST(moe_offload_property_test, auto_string_is_case_insensitive) {
+    auto config = get_test_default_config(get_test_engine());
+
+    ASSERT_NO_THROW(config.set_user_property({{ov::intel_gpu::offload_ratio.name(), std::string("auto")}}));
+    ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+}
+
 TEST(moe_offload_property_test, set_back_to_zero_disables) {
     auto config = get_test_default_config(get_test_engine());
 
