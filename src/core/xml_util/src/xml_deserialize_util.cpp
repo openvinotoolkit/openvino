@@ -408,13 +408,13 @@ private:
 };
 
 XmlDeserializer::XmlDeserializer(const pugi::xml_node& node,
-                                 std::shared_ptr<WeightsProvider> weights_provider,
+                                 const std::shared_ptr<WeightsProvider>& weights_provider,
                                  const std::unordered_map<std::string, ov::OpSet>& opsets,
                                  const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                                  std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                                  size_t version)
     : m_node(node),
-      m_weights_provider(std::move(weights_provider)),
+      m_weights_provider(weights_provider),
       m_opsets(opsets),
       m_extensions(extensions),
       m_variables(variables),
