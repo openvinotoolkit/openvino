@@ -101,7 +101,7 @@ static int toDepth(const std::string& prec) {
     if (prec == "I32" || prec == "I64")
         return CV_32S;
     if (prec == "BOOL")
-        return utils::CV_BOOL;
+        return utils::kBooleanDepth;
     throw std::logic_error("Unsupported precision type: " + prec);
 }
 

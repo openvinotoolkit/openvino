@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -13,7 +12,7 @@
 namespace utils {
 
 int toPhysicalDepth(int depth) {
-    return depth == CV_BOOL ? CV_8U : depth;
+    return depth == kBooleanDepth ? CV_8U : depth;
 }
 
 void createNDMat(cv::Mat& mat, const std::vector<int>& dims, int depth) {

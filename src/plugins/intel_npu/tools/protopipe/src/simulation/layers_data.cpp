@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -136,7 +135,7 @@ std::vector<IDataProvider::Ptr> createRandomProviders(const LayersInfo& layers,
 
 static IRandomGenerator::Ptr defaultInitializer(int prec) {
     // NB: Booleans are physically stored as U8, but only 0/1 are valid values.
-    if (prec == utils::CV_BOOL) {
+    if (prec == utils::kBooleanDepth) {
         return std::make_shared<UniformGenerator>(0.0, 2.0);
     }
     return std::make_shared<UniformGenerator>(0.0, 255.0);

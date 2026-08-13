@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -41,7 +40,7 @@ static ov::element::Type toElementType(int cvdepth) {
         return ov::element::f32;
     case CV_16F:
         return ov::element::f16;
-    case utils::CV_BOOL:
+    case utils::kBooleanDepth:
         return ov::element::boolean;
     }
     throw std::logic_error("Failed to convert opencv depth to ov::element::Type");
@@ -70,7 +69,7 @@ static int toPrecision(ov::element::Type prec) {
     case ov::element::i64:
         return CV_32S;
     case ov::element::boolean:
-        return utils::CV_BOOL;
+        return utils::kBooleanDepth;
     }
     throw std::logic_error("Unsupported OV precision");
 }
