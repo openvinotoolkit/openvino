@@ -25,7 +25,7 @@ public:
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
 
-#ifdef SNIPPETS_DEBUG_CAPS
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 protected:
     bool enabled_segfault_detector = false;
     inline void segfault_detector() const;
