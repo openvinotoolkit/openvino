@@ -88,6 +88,7 @@
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "openvino/util/log.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
