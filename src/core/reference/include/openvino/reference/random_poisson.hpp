@@ -185,14 +185,12 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
         for (size_t i = 0; i < output_element_count; i++) {
             // if lambda < 0, throw an exception, rates cannot be negative
             // if lambda == 0 , return 0
-            // if lambda >0 and <= 10, knuth poisson algorithm
-            // if lambda > 10, use transformed rejection method, (Hoermann, 1993)use hoeran's algorithm
+            // if lambda > 0 and < 10, knuth poisson algorithm
+            // if lambda >= 10, use transformed rejection method, (Hoermann, 1993)use hoeran's algorithm
             T cur_ele = *(input_tensor + i);
             if (cur_ele < 0) {
                 OPENVINO_THROW("RandomPoisson: lambda < 0, rates cannot be negative");
-            }
-
-            if (cur_ele == 0) {
+            } else if (cur_ele == 0) {
                 *(output_tensor + i) = 0;
             } else if (cur_ele > 0 && cur_ele < 10) {
                 *(output_tensor + i) = knuth_poisson(cur_ele, uniform_sampler);
@@ -231,30 +229,6 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
             *(output_tensor + i) = transformed_rejection_method_hoermann(cur_ele, uniform_sampler);
         }
     }
-
-    // UniformSampler uniform_sampler(temp_output_buffer_vector.data(), generator, converter);
-    // // For each element in the input tensor, generate a random poisson distributed random number
-    // //
-    // https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/random-poisson-v2#:~:text=This%20op%20uses,2.%20Addison%20Wesley
-    // for (size_t i = 0; i < output_element_count; i++){
-    //     // if lambda < 0, throw an exception, rates cannot be negative
-    //     // if lambda == 0 , return 0
-    //     // if lambda >0 and <= 10, knuth poisson algorithm
-    //     // if lambda > 10, use transformed rejection method, (Hoermann, 1993)use hoeran's algorithm
-    //     T cur_ele = *(input_tensor + i);
-    //     if (cur_ele < 0){
-    //         OPENVINO_THROW("RandomPoisson: lambda < 0, rates cannot be negative");
-    //     }
-    //     if (cur_ele == 0){
-    //         *(output_tensor + i) = 0;
-    //     }
-    //     else if (cur_ele > 0 && cur_ele < 10){
-    //         *(output_tensor + i) = knuth_poisson(cur_ele, uniform_sampler);
-    //     }
-    //     else{
-    //         *(output_tensor + i) = transformed_rejection_method_hoermann(cur_ele, uniform_sampler);
-    //     }
-    // }
 
     // Return the next state to feed into the generator
     return tensorflow_philox_skip(
