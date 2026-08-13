@@ -359,22 +359,9 @@ protected:
         dnnl::memory::desc in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
         dnnl::memory::desc out_md(out_dims, out_dt, out_fmt);
 
-        // Verify binary post-op rank matches the (potentially folded) matmul output rank.
-        {
-            auto post_ops = attr.get_post_ops();
-            for (int i = 0; i < post_ops.len(); i++) {
-                if (post_ops.kind(i) == dnnl::primitive::kind::binary) {
-                    dnnl::algorithm alg;
-                    dnnl::memory::desc src1_desc;
-                    post_ops.get_params_binary(i, alg, src1_desc);
-                    if (src1_desc.get_ndims() != out_md.get_ndims())
-                        return nullptr;
-                }
-            }
-        }
-
         if (gemm_with_bias) {
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
+
             return std::make_shared<dnnl::matmul::primitive_desc>(
                 engine.get_onednn_engine(),
                 in0_md,
