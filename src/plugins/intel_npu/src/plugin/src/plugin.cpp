@@ -49,6 +49,7 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& pro
     }
 
     auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
+    properties.erase(property_it);
     return ctx;
 }
 
