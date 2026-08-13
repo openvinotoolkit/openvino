@@ -6,9 +6,14 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -24,6 +29,11 @@ namespace vulkan {
 namespace {
 
 class empty_surfaces_lock final : public surfaces_lock {};
+
+bool stream_diagnostics_enabled() {
+    const auto* value = std::getenv("OV_GPU_VULKAN_STREAM_STATS");
+    return value != nullptr && value[0] != '\0' && std::string(value) != "0";
+}
 
 void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
@@ -78,6 +88,7 @@ std::vector<uint8_t> pack_push_constants(const scalars_desc& scalars) {
 
 struct prepared_arguments {
     std::vector<VkDescriptorBufferInfo> buffer_infos;
+    std::vector<vulkan_buffer_allocation::ptr> allocations;
     std::vector<bool> shader_writes;
     std::vector<bool> host_outputs;
     std::vector<memory::cptr> memories;
@@ -100,6 +111,7 @@ prepared_arguments prepare_arguments(const kernel_arguments_desc& descriptor, co
         OPENVINO_ASSERT(buffer != nullptr, "[GPU][Vulkan] Kernel argument is not backed by a Vulkan buffer");
         OPENVINO_ASSERT(buffer->size() > 0, "[GPU][Vulkan] Zero-sized storage buffer arguments are not supported");
         prepared.buffer_infos.push_back({buffer->get_buffer(), buffer->get_offset(), buffer->size()});
+        prepared.allocations.push_back(buffer->get_allocation());
         prepared.shader_writes.push_back(is_shader_write_argument(argument.t));
         prepared.host_outputs.push_back(argument.t == argument_desc::Types::OUTPUT);
         prepared.memories.push_back(std::move(memory));
@@ -155,18 +167,61 @@ std::vector<VkBufferMemoryBarrier> make_host_output_barriers(const prepared_argu
 
 struct vulkan_stream::resource_state {
     static constexpr size_t max_in_flight_submissions = 8;
+    static constexpr size_t max_cached_descriptor_sets = 256;
+    static constexpr uint32_t descriptor_sets_per_pool = 64;
+
+    struct descriptor_key {
+        std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
+        std::vector<VkDescriptorBufferInfo> buffer_infos;
+
+        bool operator<(const descriptor_key& other) const {
+            if (allocations.size() != other.allocations.size()) {
+                return allocations.size() < other.allocations.size();
+            }
+            const std::owner_less<std::weak_ptr<vulkan_buffer_allocation>> allocation_less;
+            for (size_t index = 0; index < allocations.size(); ++index) {
+                if (allocation_less(allocations[index], other.allocations[index])) {
+                    return true;
+                }
+                if (allocation_less(other.allocations[index], allocations[index])) {
+                    return false;
+                }
+                const auto& info = buffer_infos[index];
+                const auto& other_info = other.buffer_infos[index];
+                if (info.offset != other_info.offset) {
+                    return info.offset < other_info.offset;
+                }
+                if (info.range != other_info.range) {
+                    return info.range < other_info.range;
+                }
+            }
+            return false;
+        }
+    };
+
+    struct descriptor_pool_block {
+        VkDescriptorPool pool = VK_NULL_HANDLE;
+        uint32_t allocated_sets = 0;
+    };
 
     struct slot {
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
         VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+        VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
         uint32_t descriptor_capacity = 0;
+        uint32_t descriptor_binding_count = 0;
         VkFence fence = VK_NULL_HANDLE;
         std::shared_ptr<vulkan_submission_state> submission;
         std::vector<memory::cptr> retained_memories;
+        std::vector<std::weak_ptr<vulkan_buffer_allocation>> descriptor_allocations;
+        std::vector<VkDescriptorBufferInfo> descriptor_buffer_infos;
         std::shared_ptr<const void> retained_kernel;
     };
 
-    explicit resource_state(const vulkan_engine& engine) : device(engine.get_device_handle()), queue(engine.get_compute_queue()) {
+    explicit resource_state(const vulkan_engine& engine)
+        : device(engine.get_device_handle()),
+          queue(engine.get_compute_queue()),
+          diagnostics_enabled(stream_diagnostics_enabled()) {
         VkCommandPoolCreateInfo command_pool_info{};
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -188,6 +243,17 @@ struct vulkan_stream::resource_state {
         }
         if (command_pool != VK_NULL_HANDLE) {
             vkDestroyCommandPool(device, command_pool, nullptr);
+        }
+        for (auto& [descriptor_count, blocks] : descriptor_cache_pools) {
+            for (auto& block : blocks) {
+                if (block.pool != VK_NULL_HANDLE) {
+                    vkDestroyDescriptorPool(device, block.pool, nullptr);
+                }
+            }
+        }
+        if (diagnostics_enabled) {
+            std::clog << "[GPU][Vulkan][Stream] descriptor_allocations=" << descriptor_allocations << " descriptor_updates=" << descriptor_updates
+                      << " descriptor_reuses=" << descriptor_reuses << " queue_submissions=" << queue_submissions << std::endl;
         }
     }
 
@@ -239,6 +305,78 @@ struct vulkan_stream::resource_state {
         return slot.submission;
     }
 
+    VkDescriptorSet get_or_update_descriptor_set(slot& slot, const vulkan_pipeline_state& pipeline, const prepared_arguments& prepared) {
+        const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
+        OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count && slot.descriptor_pool != VK_NULL_HANDLE,
+                        "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
+
+        descriptor_key key;
+        key.buffer_infos = prepared.buffer_infos;
+        key.allocations.reserve(prepared.allocations.size());
+        for (const auto& allocation : prepared.allocations) {
+            key.allocations.emplace_back(allocation);
+        }
+        const auto cached = descriptor_cache.find(key);
+        if (cached != descriptor_cache.end()) {
+            ++descriptor_reuses;
+            return cached->second;
+        }
+        if (descriptor_cache.size() < max_cached_descriptor_sets) {
+            const auto descriptor_set = allocate_cached_descriptor_set(pipeline.descriptor_set_layout, descriptor_count);
+            update_descriptor_set(descriptor_set, prepared.buffer_infos);
+            descriptor_cache.emplace(std::move(key), descriptor_set);
+            ++descriptor_allocations;
+            ++descriptor_updates;
+            return descriptor_set;
+        }
+
+        // All Vulkan compute pipelines describe consecutive storage-buffer bindings,
+        // so layouts with the same binding count are descriptor-set compatible.
+        if (slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count != descriptor_count) {
+            if (slot.descriptor_set != VK_NULL_HANDLE) {
+                check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
+            }
+
+            VkDescriptorSetAllocateInfo descriptor_set_info{};
+            descriptor_set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            descriptor_set_info.descriptorPool = slot.descriptor_pool;
+            descriptor_set_info.descriptorSetCount = 1;
+            descriptor_set_info.pSetLayouts = &pipeline.descriptor_set_layout;
+            check_vk_result(vkAllocateDescriptorSets(device, &descriptor_set_info, &slot.descriptor_set), "vkAllocateDescriptorSets");
+            slot.descriptor_binding_count = descriptor_count;
+            slot.descriptor_allocations.clear();
+            slot.descriptor_buffer_infos.clear();
+            ++descriptor_allocations;
+        }
+
+        bool bindings_unchanged =
+            slot.descriptor_allocations.size() == prepared.allocations.size() && slot.descriptor_buffer_infos.size() == prepared.buffer_infos.size();
+        const std::owner_less<std::weak_ptr<vulkan_buffer_allocation>> allocation_less;
+        for (size_t index = 0; bindings_unchanged && index < prepared.buffer_infos.size(); ++index) {
+            const auto& cached = slot.descriptor_buffer_infos[index];
+            const auto& current = prepared.buffer_infos[index];
+            const std::weak_ptr<vulkan_buffer_allocation> current_allocation = prepared.allocations[index];
+            const auto& cached_allocation = slot.descriptor_allocations[index];
+            bindings_unchanged = !cached_allocation.expired() && !allocation_less(cached_allocation, current_allocation) &&
+                                 !allocation_less(current_allocation, cached_allocation) && cached.buffer == current.buffer &&
+                                 cached.offset == current.offset && cached.range == current.range;
+        }
+        if (bindings_unchanged) {
+            ++descriptor_reuses;
+            return slot.descriptor_set;
+        }
+
+        update_descriptor_set(slot.descriptor_set, prepared.buffer_infos);
+        slot.descriptor_allocations.clear();
+        slot.descriptor_allocations.reserve(prepared.allocations.size());
+        for (const auto& allocation : prepared.allocations) {
+            slot.descriptor_allocations.emplace_back(allocation);
+        }
+        slot.descriptor_buffer_infos = prepared.buffer_infos;
+        ++descriptor_updates;
+        return slot.descriptor_set;
+    }
+
     void finish() {
         for (auto& slot : slots) {
             if (slot.submission != nullptr) {
@@ -252,8 +390,58 @@ struct vulkan_stream::resource_state {
     VkCommandPool command_pool = VK_NULL_HANDLE;
     std::vector<slot> slots;
     size_t next_slot = 0;
+    bool diagnostics_enabled = false;
+    uint64_t descriptor_allocations = 0;
+    uint64_t descriptor_updates = 0;
+    uint64_t descriptor_reuses = 0;
+    uint64_t queue_submissions = 0;
+    std::map<descriptor_key, VkDescriptorSet> descriptor_cache;
+    std::map<uint32_t, std::vector<descriptor_pool_block>> descriptor_cache_pools;
 
 private:
+    VkDescriptorSet allocate_cached_descriptor_set(VkDescriptorSetLayout layout, uint32_t descriptor_count) {
+        auto& blocks = descriptor_cache_pools[descriptor_count];
+        if (blocks.empty() || blocks.back().allocated_sets == descriptor_sets_per_pool) {
+            VkDescriptorPoolSize pool_size{};
+            pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            pool_size.descriptorCount = descriptor_count * descriptor_sets_per_pool;
+
+            VkDescriptorPoolCreateInfo pool_info{};
+            pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            pool_info.maxSets = descriptor_sets_per_pool;
+            pool_info.poolSizeCount = descriptor_count == 0 ? 0 : 1;
+            pool_info.pPoolSizes = descriptor_count == 0 ? nullptr : &pool_size;
+
+            descriptor_pool_block block;
+            check_vk_result(vkCreateDescriptorPool(device, &pool_info, nullptr, &block.pool), "vkCreateDescriptorPool(cache)");
+            blocks.push_back(block);
+        }
+
+        auto& block = blocks.back();
+        VkDescriptorSetAllocateInfo allocate_info{};
+        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocate_info.descriptorPool = block.pool;
+        allocate_info.descriptorSetCount = 1;
+        allocate_info.pSetLayouts = &layout;
+        VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+        check_vk_result(vkAllocateDescriptorSets(device, &allocate_info, &descriptor_set), "vkAllocateDescriptorSets(cache)");
+        ++block.allocated_sets;
+        return descriptor_set;
+    }
+
+    void update_descriptor_set(VkDescriptorSet descriptor_set, const std::vector<VkDescriptorBufferInfo>& buffer_infos) {
+        std::vector<VkWriteDescriptorSet> descriptor_writes(buffer_infos.size());
+        for (uint32_t index = 0; index < descriptor_writes.size(); ++index) {
+            descriptor_writes[index].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_writes[index].dstSet = descriptor_set;
+            descriptor_writes[index].dstBinding = index;
+            descriptor_writes[index].descriptorCount = 1;
+            descriptor_writes[index].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptor_writes[index].pBufferInfo = &buffer_infos[index];
+        }
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+    }
+
     void recycle(slot& slot) {
         if (slot.submission == nullptr) {
             return;
@@ -266,9 +454,8 @@ private:
         slot.retained_kernel.reset();
         check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
         check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
-        if (slot.descriptor_pool != VK_NULL_HANDLE) {
-            check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
-        }
+        // Keep the descriptor set allocated. The next dispatch can reuse both
+        // the set and its bindings after this slot's fence has completed.
     }
 
     void ensure_descriptor_pool(slot& slot, uint32_t descriptor_count) {
@@ -279,6 +466,10 @@ private:
             vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
             slot.descriptor_pool = VK_NULL_HANDLE;
         }
+        slot.descriptor_set = VK_NULL_HANDLE;
+        slot.descriptor_binding_count = 0;
+        slot.descriptor_allocations.clear();
+        slot.descriptor_buffer_infos.clear();
 
         VkDescriptorPoolSize pool_size{};
         pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -351,27 +542,9 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                                             specialized_local_size_x,
                                                             descriptor.specialization_constants);
 
-    const auto device = _engine.get_device_handle();
     auto& resources = _resources->acquire(checked_u32(prepared.buffer_infos.size(), "descriptor count"));
 
-    VkDescriptorSetAllocateInfo descriptor_set_info{};
-    descriptor_set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    descriptor_set_info.descriptorPool = resources.descriptor_pool;
-    descriptor_set_info.descriptorSetCount = 1;
-    descriptor_set_info.pSetLayouts = &pipeline->descriptor_set_layout;
-    VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
-    check_vk_result(vkAllocateDescriptorSets(device, &descriptor_set_info, &descriptor_set), "vkAllocateDescriptorSets");
-
-    std::vector<VkWriteDescriptorSet> descriptor_writes(prepared.buffer_infos.size());
-    for (uint32_t index = 0; index < descriptor_writes.size(); ++index) {
-        descriptor_writes[index].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[index].dstSet = descriptor_set;
-        descriptor_writes[index].dstBinding = index;
-        descriptor_writes[index].descriptorCount = 1;
-        descriptor_writes[index].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptor_writes[index].pBufferInfo = &prepared.buffer_infos[index];
-    }
-    vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+    const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared);
 
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -436,6 +609,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
         check_vk_result(vkQueueSubmit(_engine.get_compute_queue(), 1, &submit_info, resources.fence), "vkQueueSubmit");
     }
+    ++_resources->queue_submissions;
     auto submission = _resources->mark_submitted(resources, prepared.memories, pipeline);
     return std::make_shared<vulkan_event>(std::move(submission));
 }
