@@ -213,6 +213,14 @@ void ov::npuw::batched::InferRequest::infer() {
             m_inner->infer();
         });
 
+        if (batch == 1) {
+            // A single row needs no stacking - expose the inner outputs directly.
+            m_profile["4.copy_row_out"].record([&]() {
+                expose_inner_outputs();
+            });
+            return;
+        }
+
         if (row == 0) {
             // The wrapped model's ports are dynamic - the output shapes are only
             // known once the first row has been scored.
@@ -223,6 +231,20 @@ void ov::npuw::batched::InferRequest::infer() {
                 m_inner->get_tensor(port)->copy_to(ov::npuw::util::view(get_tensor(port), 0, row, 1)._ptr);
             }
         });
+    }
+}
+
+void ov::npuw::batched::InferRequest::expose_inner_outputs() {
+    for (const auto& port : get_outputs()) {
+        const auto inner_out = m_inner->get_tensor(port);
+        const auto current = get_tensor(port);
+        if (current && current._ptr != inner_out._ptr && current->get_element_type() == inner_out->get_element_type() &&
+            current->get_shape() == inner_out->get_shape()) {
+            // The caller bound a fitting output tensor - keep writing into it.
+            inner_out->copy_to(current._ptr);
+        } else {
+            set_tensor(port, inner_out);
+        }
     }
 }
 

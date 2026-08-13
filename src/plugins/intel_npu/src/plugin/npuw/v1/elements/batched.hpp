@@ -115,6 +115,11 @@ private:
     // and the inner output shapes are known.
     void ensure_batched_outputs(std::size_t batch);
 
+    // Batch-1 shortcut: publish the inner outputs as the public ones without the
+    // stacking copy. A caller-bound tensor of the fitting shape and type is still
+    // written in place instead.
+    void expose_inner_outputs();
+
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
     mutable std::mutex m_mutex;
 
