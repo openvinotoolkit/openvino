@@ -27,20 +27,26 @@ namespace v0 = ov::op::v0;
 namespace v3 = ov::op::v3;
 namespace internal = ov::op::internal;
 
-std::shared_ptr<v0::Parameter> make_f32_param(const std::string& name, const Shape& shape) {
+std::shared_ptr<v0::Parameter> make_f32_param(const std::string& name, const PartialShape& shape) {
     auto p = std::make_shared<v0::Parameter>(element::f32, shape);
     p->set_friendly_name(name);
     p->get_output_tensor(0).set_names({name});
     return p;
 }
 
-std::shared_ptr<ov::Model> build_fusable_model() {
-    auto A = make_f32_param("A", Shape{4});
-    auto dt = make_f32_param("dt", Shape{2, 3, 4});
-    auto B = make_f32_param("B", Shape{2, 3, 2, 8});
-    auto x = make_f32_param("x", Shape{2, 3, 4, 6});
-    auto C = make_f32_param("C", Shape{2, 3, 2, 8});
-    auto recurrent_state = make_f32_param("past_recurrent_state", Shape{2, 4, 6, 8});
+std::shared_ptr<ov::Model> build_fusable_model(bool dynamic_shapes = false) {
+    const PartialShape dt_shape = dynamic_shapes ? PartialShape{-1, -1, 4} : PartialShape{2, 3, 4};
+    const PartialShape projection_shape =
+        dynamic_shapes ? PartialShape{-1, -1, 2, 8} : PartialShape{2, 3, 2, 8};
+    const PartialShape x_shape = dynamic_shapes ? PartialShape{-1, -1, 4, 6} : PartialShape{2, 3, 4, 6};
+    const PartialShape state_shape = dynamic_shapes ? PartialShape{-1, 4, 6, 8} : PartialShape{2, 4, 6, 8};
+
+    auto A = make_f32_param("A", PartialShape{4});
+    auto dt = make_f32_param("dt", dt_shape);
+    auto B = make_f32_param("B", projection_shape);
+    auto x = make_f32_param("x", x_shape);
+    auto C = make_f32_param("C", projection_shape);
+    auto recurrent_state = make_f32_param("past_recurrent_state", state_shape);
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
     auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
     auto ssm = std::make_shared<internal::SelectiveSSM>(A, dt, B, x, C, read_value);
@@ -120,6 +126,28 @@ TEST(TransformationTests, PagedSelectiveSSMFusion_Positive) {
     ASSERT_EQ(model->get_results().size(), 2u);
     EXPECT_TRUE(ov::is_type<v3::ReadValue>(model->get_results()[1]->get_input_node_shared_ptr(0)));
     EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0), PartialShape({2, 3, 4, 6}));
+}
+
+TEST(TransformationTests, PagedSelectiveSSMFusion_DynamicBatchAndSequence) {
+    auto model = build_fusable_model(true);
+    std::unordered_set<std::string> ids;
+    run_paged_fusion(model, ids);
+
+    const auto paged_ssm = find_paged_selective_ssm(model);
+    ASSERT_NE(paged_ssm, nullptr);
+    EXPECT_EQ(find_selective_ssm(model), nullptr);
+    EXPECT_EQ(ids.count("cache_param_0"), 1u);
+
+    EXPECT_EQ(paged_ssm->get_input_partial_shape(1), PartialShape({-1, 4}));
+    EXPECT_EQ(paged_ssm->get_input_partial_shape(2), PartialShape({-1, 2, 8}));
+    EXPECT_EQ(paged_ssm->get_input_partial_shape(3), PartialShape({-1, 4, 6}));
+    EXPECT_EQ(paged_ssm->get_input_partial_shape(4), PartialShape({-1, 2, 8}));
+    EXPECT_EQ(paged_ssm->get_output_partial_shape(0), PartialShape({-1, 4, 6}));
+
+    const auto state_table = ov::as_type_ptr<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5));
+    ASSERT_NE(state_table, nullptr);
+    EXPECT_EQ(state_table->get_partial_shape(), PartialShape({-1, 4, 6, 8}));
+    EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0), PartialShape({-1, -1, 4, 6}));
 }
 
 TEST(TransformationTests, PagedSelectiveSSMFusion_GatheredState) {

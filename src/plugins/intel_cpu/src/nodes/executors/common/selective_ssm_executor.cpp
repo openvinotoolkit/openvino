@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/kernels/selective_ssm.hpp"
 #include "openvino/core/except.hpp"
@@ -47,30 +48,54 @@ SelectiveSSMExecutor::SelectiveSSMExecutor(const SelectiveSSMAttrs&,
 
 bool SelectiveSSMExecutor::update_scratchpad(const MemoryArgs& memory) {
     const auto& x_shape = memory.at(ARG_SSM_X)->getDescPtr()->getShape();
+    const auto& B_shape = memory.at(ARG_SSM_B)->getDescPtr()->getShape();
     const auto& state_shape = memory.at(ARG_SSM_STATE)->getDescPtr()->getShape();
-    if (x_shape.isDynamic() || state_shape.isDynamic()) {
+    if (x_shape.isDynamic() || B_shape.isDynamic() || state_shape.isDynamic()) {
         return true;
     }
     const auto& x_dims = x_shape.getStaticDims();
+    const auto& B_dims = B_shape.getStaticDims();
     const auto& state_dims = state_shape.getStaticDims();
-    OPENVINO_ASSERT(x_dims.size() == 4 && state_dims.size() == 4);
+    const auto precision = memory.at(ARG_SSM_X)->getDescPtr()->getPrecision();
+    OPENVINO_ASSERT(x_dims.size() == 4 && B_dims.size() == 4 && state_dims.size() == 4);
     const auto head_dim = x_dims[3];
     const auto state_size = state_dims[3];
-    OPENVINO_ASSERT(state_size > 0, "SelectiveSSM state_size must be greater than zero.");
+    const node::kernel::SelectiveSSMShape shape{x_dims[0], x_dims[1], x_dims[2], head_dim, B_dims[2], state_size};
+    node::kernel::validate_selective_ssm_shape(shape);
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
-    const auto scratch_head_dim =
-        node::kernel::get_scratch_head_dim(head_dim, state_size, x_dims[0] * x_dims[2], thread_count);
-    if (m_state_scratch && m_scratch_head_dim == scratch_head_dim && m_scratch_state_size == state_size) {
+    const auto outer_work = node::kernel::checked_size_product({x_dims[0], x_dims[2]}, "outer work items");
+    const auto scratch_head_dim = node::kernel::get_scratch_head_dim(head_dim, state_size, outer_work, thread_count);
+    const auto needs_state_scratch = precision != ov::element::f32 && x_dims[1] > 1;
+    const auto state_scratch_elements =
+        needs_state_scratch
+            ? node::kernel::checked_size_product({thread_count, scratch_head_dim, state_size}, "state scratch")
+            : size_t{0};
+    const auto projection_elements =
+        node::kernel::checked_size_product({B_dims[0], B_dims[1], B_dims[2], B_dims[3]}, "B/C projection");
+    const auto projection_scratch_elements =
+        precision == ov::element::f32
+            ? size_t{0}
+            : node::kernel::checked_size_product({size_t{2}, projection_elements}, "B/C projection scratch");
+    if (m_scratch && m_scratch_head_dim == scratch_head_dim && m_scratch_state_size == state_size &&
+        m_state_scratch_elements == state_scratch_elements &&
+        m_projection_scratch_elements == projection_scratch_elements &&
+        m_cached_projection_elements == projection_elements) {
         return true;
     }
 
+    const auto total_scratch_elements =
+        node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements},
+                                       "combined state and B/C projection scratch");
     const auto desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
-                                               ov::intel_cpu::Shape{thread_count, scratch_head_dim * state_size});
-    m_state_scratch = m_context->getScratchPad()->createScratchPadMem(desc);
+                                               ov::intel_cpu::Shape{std::max(size_t{1}, total_scratch_elements)});
+    m_scratch = m_context->getScratchPad()->createScratchPadMem(desc);
     m_scratch_head_dim = scratch_head_dim;
     m_scratch_state_size = state_size;
-    return m_state_scratch != nullptr;
+    m_state_scratch_elements = state_scratch_elements;
+    m_projection_scratch_elements = projection_scratch_elements;
+    m_cached_projection_elements = projection_elements;
+    return m_scratch != nullptr;
 }
 
 bool SelectiveSSMExecutor::update(const MemoryArgs& memory) {
@@ -82,12 +107,48 @@ void SelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     const auto& B_dims = memory.at(ARG_SSM_B)->getStaticDims();
     const auto& state_dims = memory.at(ARG_SSM_STATE)->getStaticDims();
     OPENVINO_ASSERT(x_dims.size() == 4 && B_dims.size() == 4 && state_dims.size() == 4);
-    if (!m_state_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim > x_dims[3]) {
+    const auto precision = memory.at(ARG_SSM_X)->getDescPtr()->getPrecision();
+    const auto projection_elements =
+        node::kernel::checked_size_product({B_dims[0], B_dims[1], B_dims[2], B_dims[3]}, "B/C projection");
+    const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
+    const auto outer_work = node::kernel::checked_size_product({x_dims[0], x_dims[2]}, "outer work items");
+    const auto expected_scratch_head_dim =
+        node::kernel::get_scratch_head_dim(x_dims[3], state_dims[3], outer_work, thread_count);
+    const auto expected_state_scratch_elements =
+        precision != ov::element::f32 && x_dims[1] > 1
+            ? node::kernel::checked_size_product({thread_count, expected_scratch_head_dim, state_dims[3]},
+                                                 "state scratch")
+            : size_t{0};
+    const auto expected_projection_scratch_elements =
+        precision == ov::element::f32
+            ? size_t{0}
+            : node::kernel::checked_size_product({size_t{2}, projection_elements}, "B/C projection scratch");
+    if (!m_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim != expected_scratch_head_dim ||
+        m_state_scratch_elements != expected_state_scratch_elements ||
+        m_projection_scratch_elements != expected_projection_scratch_elements ||
+        m_cached_projection_elements != projection_elements) {
         OPENVINO_ASSERT(update_scratchpad(memory));
     }
 
     node::kernel::SelectiveSSMShape shape{x_dims[0], x_dims[1], x_dims[2], x_dims[3], B_dims[2], B_dims[3]};
-    const auto precision = memory.at(ARG_SSM_X)->getDescPtr()->getPrecision();
+    auto* state_scratch = m_scratch->getDataAs<float>();
+    const float* converted_B = nullptr;
+    const float* converted_C = nullptr;
+    if (precision != ov::element::f32 && projection_elements > 0) {
+        auto* projection_scratch = state_scratch + m_state_scratch_elements;
+        converted_B = projection_scratch;
+        converted_C = projection_scratch + projection_elements;
+        cpu_parallel_convert(memory.at(ARG_SSM_B)->getData(),
+                             projection_scratch,
+                             precision,
+                             ov::element::f32,
+                             projection_elements);
+        cpu_parallel_convert(memory.at(ARG_SSM_C)->getData(),
+                             projection_scratch + projection_elements,
+                             precision,
+                             ov::element::f32,
+                             projection_elements);
+    }
     node::kernel::selective_ssm(memory.at(ARG_SSM_A)->getData(),
                                 memory.at(ARG_SSM_DT)->getData(),
                                 memory.at(ARG_SSM_B)->getData(),
@@ -98,9 +159,11 @@ void SelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                                 memory.at(ARG_SSM_OUT_STATE)->getData(),
                                 shape,
                                 precision,
-                                m_state_scratch->getDataAs<float>(),
+                                state_scratch,
                                 m_scratch_head_dim,
-                                m_context->getCpuParallel());
+                                m_context->getCpuParallel(),
+                                converted_B,
+                                converted_C);
 }
 
 impl_desc_type SelectiveSSMExecutor::implType() const {

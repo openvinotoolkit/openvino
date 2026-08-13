@@ -106,11 +106,15 @@ void paged_selective_ssm_jit(const DataT* A,
                              const CpuParallelPtr& cpu_parallel,
                              const std::shared_ptr<kernel::JitKernelBase>& jit_kernel,
                              const std::shared_ptr<kernel::JitKernelBase>& decode_jit_kernel) {
-    const auto block_stride = shape.num_heads * shape.head_dim * shape.state_size;
-    const auto head_stride = shape.head_dim * shape.state_size;
-    const auto scratch_stride = scratch_head_dim * shape.state_size;
+    const auto block_stride =
+        node::kernel::checked_size_product({shape.num_heads, shape.head_dim, shape.state_size}, "state block");
+    const auto head_stride =
+        node::kernel::checked_size_product({shape.head_dim, shape.state_size}, "state head");
+    const auto scratch_stride =
+        node::kernel::checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
     const auto heads_per_group = shape.num_heads / shape.num_groups;
-    const auto p_block_count = (shape.head_dim + scratch_head_dim - 1) / scratch_head_dim;
+    const auto p_block_count =
+        shape.head_dim / scratch_head_dim + static_cast<size_t>(shape.head_dim % scratch_head_dim != 0);
 
     cpu_parallel->parallel_for3d(
         shape.sequence_count,
@@ -124,7 +128,7 @@ void paged_selective_ssm_jit(const DataT* A,
             }
 
             const auto p_begin = pb * scratch_head_dim;
-            const auto p_end = std::min(p_begin + scratch_head_dim, shape.head_dim);
+            const auto p_end = p_begin + std::min(scratch_head_dim, shape.head_dim - p_begin);
             const auto p_count = p_end - p_begin;
             const auto group = head / heads_per_group;
             const auto logical_block_begin = static_cast<size_t>(block_indices_begins[sequence]);
@@ -247,19 +251,32 @@ PagedSelectiveSSMJitExecutor::PagedSelectiveSSMJitExecutor(const PagedSelectiveS
 
 bool PagedSelectiveSSMJitExecutor::update_scratchpad(const MemoryArgs& memory) {
     const auto& x_shape = memory.at(ARG_PAGED_SSM_X)->getDescPtr()->getShape();
+    const auto& B_shape = memory.at(ARG_PAGED_SSM_B)->getDescPtr()->getShape();
     const auto& state_shape = memory.at(ARG_PAGED_SSM_STATE)->getDescPtr()->getShape();
-    if (x_shape.isDynamic() || state_shape.isDynamic()) {
+    if (x_shape.isDynamic() || B_shape.isDynamic() || state_shape.isDynamic()) {
         return true;
     }
     const auto& x_dims = x_shape.getStaticDims();
+    const auto& B_dims = B_shape.getStaticDims();
     const auto& state_dims = state_shape.getStaticDims();
-    OPENVINO_ASSERT(x_dims.size() == 3 && state_dims.size() == 4);
+    OPENVINO_ASSERT(x_dims.size() == 3 && B_dims.size() == 3 && state_dims.size() == 4);
     const auto head_dim = x_dims[2];
     const auto state_size = state_dims[3];
     const auto physical_blocks = state_dims[0];
-    OPENVINO_ASSERT(state_size > 0, "PagedSelectiveSSM state_size must be greater than zero.");
+    const node::kernel::PagedSelectiveSSMShape shape{x_dims[0],
+                                                     x_dims[1],
+                                                     head_dim,
+                                                     B_dims[1],
+                                                     state_size,
+                                                     physical_blocks,
+                                                     0,
+                                                     0};
+    node::kernel::validate_paged_selective_ssm_shape(shape);
     const auto thread_count = static_cast<size_t>(m_context->getCpuParallel()->get_num_worker_threads());
     const auto scratch_head_dim = node::kernel::get_scratch_head_dim(head_dim, state_size, x_dims[1], thread_count);
+    const auto scratch_elements =
+        node::kernel::checked_size_product({scratch_head_dim, state_size}, "JIT state scratch per worker");
+    node::kernel::checked_size_product({thread_count, scratch_elements}, "JIT state scratch");
     if (m_state_scratch && m_block_owners && m_scratch_head_dim == scratch_head_dim &&
         m_cached_state_size == state_size && m_cached_physical_blocks == physical_blocks) {
         return true;
@@ -267,7 +284,7 @@ bool PagedSelectiveSSMJitExecutor::update_scratchpad(const MemoryArgs& memory) {
 
     const auto state_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
-                                               ov::intel_cpu::Shape{thread_count, scratch_head_dim * state_size});
+                                               ov::intel_cpu::Shape{thread_count, scratch_elements});
     const auto owner_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32,
                                                ov::intel_cpu::Shape{std::max(size_t{1}, physical_blocks)});
@@ -353,6 +370,7 @@ void PagedSelectiveSSMJitExecutor::execute(const MemoryArgs& memory) {
                                                      state_dims[0],
                                                      block_indices_dims[0],
                                                      sequence_count};
+    node::kernel::validate_paged_selective_ssm_shape(shape);
     const auto index_precision = memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision();
     node::kernel::validate_paged_selective_ssm_metadata(memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getData(),
                                                         memory.at(ARG_PAGED_SSM_BLOCK_INDICES)->getData(),

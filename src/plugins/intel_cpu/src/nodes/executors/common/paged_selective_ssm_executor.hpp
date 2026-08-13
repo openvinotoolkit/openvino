@@ -28,11 +28,13 @@ private:
     bool update_scratchpad(const MemoryArgs& memory);
 
     ExecutorContext::CPtr m_context;
-    MemoryPtr m_state_scratch;
-    MemoryPtr m_block_owners;
+    MemoryPtr m_scratch;
     size_t m_scratch_head_dim = 0;
     size_t m_scratch_state_size = 0;
+    size_t m_state_scratch_elements = 0;
+    size_t m_projection_scratch_elements = 0;
     size_t m_cached_physical_blocks = 0;
+    size_t m_cached_projection_elements = 0;
 };
 
 }  // namespace ov::intel_cpu

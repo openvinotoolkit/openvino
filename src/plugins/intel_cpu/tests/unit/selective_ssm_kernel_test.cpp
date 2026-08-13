@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -96,7 +97,7 @@ CpuParallelPtr make_parallel() {
 }
 
 template <typename T>
-void run_selective_precision(const element::Type& precision, float tolerance) {
+void run_selective_precision(const element::Type& precision, float tolerance, bool use_converted_projections = false) {
     const SelectiveSSMShape shape{1, 3, 2, 3, 1, 4};
     auto A = cast_values<T>({-0.2F, -0.35F});
     auto dt = cast_values<T>(make_values(6, 0.015F, 0.12F));
@@ -110,6 +111,8 @@ void run_selective_precision(const element::Type& precision, float tolerance) {
     const auto cpu_parallel = make_parallel();
     std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_head_dim *
                                shape.state_size);
+    const auto converted_B = to_float(B);
+    const auto converted_C = to_float(C);
 
     selective_ssm(A.data(),
                   dt.data(),
@@ -123,7 +126,9 @@ void run_selective_precision(const element::Type& precision, float tolerance) {
                   precision,
                   scratch.data(),
                   scratch_head_dim,
-                  cpu_parallel);
+                  cpu_parallel,
+                  use_converted_projections ? converted_B.data() : nullptr,
+                  use_converted_projections ? converted_C.data() : nullptr);
 
     const auto expected = reference_selective_ssm(to_float(A),
                                                   to_float(dt),
@@ -141,7 +146,10 @@ void run_selective_precision(const element::Type& precision, float tolerance) {
 }
 
 template <typename DataT, typename IndexT>
-void run_paged_decode_precision(const element::Type& precision, const element::Type& index_precision, float tolerance) {
+void run_paged_decode_precision(const element::Type& precision,
+                                const element::Type& index_precision,
+                                float tolerance,
+                                bool use_converted_projections = false) {
     const PagedSelectiveSSMShape shape{1, 2, 3, 1, 4, 2, 2, 1};
     const SelectiveSSMShape reference_shape{1, 1, 2, 3, 1, 4};
     const auto A = cast_values<DataT>({-0.2F, -0.35F});
@@ -161,6 +169,8 @@ void run_paged_decode_precision(const element::Type& precision, const element::T
     const auto cpu_parallel = make_parallel();
     std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * 2 * 4);
     std::vector<int32_t> owners(2);
+    const auto converted_B = to_float(B);
+    const auto converted_C = to_float(C);
 
     paged_selective_ssm(A.data(),
                         dt.data(),
@@ -180,7 +190,9 @@ void run_paged_decode_precision(const element::Type& precision, const element::T
                         scratch.data(),
                         2,
                         owners.data(),
-                        cpu_parallel);
+                        cpu_parallel,
+                        use_converted_projections ? converted_B.data() : nullptr,
+                        use_converted_projections ? converted_C.data() : nullptr);
 
     const auto expected = reference_selective_ssm(to_float(A),
                                                   to_float(dt),
@@ -205,12 +217,199 @@ TEST(SelectiveSSMKernel, SupportsF32F16AndBF16) {
     run_selective_precision<bfloat16>(element::bf16, 2e-2F);
 }
 
+TEST(SelectiveSSMKernel, ConvertedProjectionsMatchReference) {
+    run_selective_precision<float16>(element::f16, 2e-3F, true);
+    run_selective_precision<bfloat16>(element::bf16, 2e-2F, true);
+    run_paged_decode_precision<float16, int32_t>(element::f16, element::i32, 2e-3F, true);
+    run_paged_decode_precision<bfloat16, int64_t>(element::bf16, element::i64, 2e-2F, true);
+}
+
+template <typename T>
+void run_selective_decode_alias(const element::Type& precision, float tolerance) {
+    const SelectiveSSMShape shape{1, 1, 2, 3, 1, 4};
+    const auto A = cast_values<T>({-0.2F, -0.35F});
+    const auto dt = cast_values<T>(make_values(2, 0.015F, 0.12F));
+    const auto B = cast_values<T>(make_values(4, 0.02F, 0.1F));
+    const auto x = cast_values<T>(make_values(6, 0.025F, 0.05F));
+    const auto C = cast_values<T>(make_values(4, 0.018F, -0.02F));
+    const auto initial_state = cast_values<T>(make_values(24, 0.01F));
+    auto aliased_state = initial_state;
+    std::vector<T> output(6);
+    constexpr size_t scratch_head_dim = 2;
+    const auto cpu_parallel = make_parallel();
+    std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_head_dim *
+                               shape.state_size);
+    const auto converted_B = to_float(B);
+    const auto converted_C = to_float(C);
+
+    selective_ssm(A.data(),
+                  dt.data(),
+                  B.data(),
+                  x.data(),
+                  C.data(),
+                  aliased_state.data(),
+                  output.data(),
+                  aliased_state.data(),
+                  shape,
+                  precision,
+                  scratch.data(),
+                  scratch_head_dim,
+                  cpu_parallel,
+                  converted_B.data(),
+                  converted_C.data());
+
+    const auto expected = reference_selective_ssm(to_float(A),
+                                                  to_float(dt),
+                                                  converted_B,
+                                                  to_float(x),
+                                                  converted_C,
+                                                  to_float(initial_state),
+                                                  shape);
+    for (size_t i = 0; i < output.size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(output[i]), expected.output[i], tolerance) << "output index " << i;
+    }
+    for (size_t i = 0; i < aliased_state.size(); ++i) {
+        EXPECT_NEAR(static_cast<float>(aliased_state[i]), expected.state[i], tolerance) << "state index " << i;
+    }
+}
+
+TEST(SelectiveSSMKernel, DirectDecodeSupportsAliasedLowPrecisionState) {
+    run_selective_decode_alias<float16>(element::f16, 2e-3F);
+    run_selective_decode_alias<bfloat16>(element::bf16, 2e-2F);
+}
+
+template <typename T>
+void verify_portable_conversion_for_every_encoding(const element::Type& precision) {
+    constexpr size_t encoding_count = size_t{1} << 16U;
+    constexpr size_t scratch_head_dim = 1024;
+    const SelectiveSSMShape shape{1, 1, 1, encoding_count, 1, 1};
+    const std::vector<T> A{static_cast<T>(0.F)};
+    const std::vector<T> dt{static_cast<T>(0.F)};
+    const std::vector<T> B{static_cast<T>(0.F)};
+    const std::vector<T> x(encoding_count, static_cast<T>(0.F));
+    const std::vector<T> C{static_cast<T>(0.F)};
+    std::vector<T> initial_state(encoding_count);
+    std::vector<T> output(encoding_count);
+    std::vector<T> output_state(encoding_count);
+    for (size_t i = 0; i < encoding_count; ++i) {
+        initial_state[i] = T::from_bits(static_cast<uint16_t>(i));
+    }
+    const auto cpu_parallel = make_parallel();
+    std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * scratch_head_dim);
+
+    selective_ssm(A.data(),
+                  dt.data(),
+                  B.data(),
+                  x.data(),
+                  C.data(),
+                  initial_state.data(),
+                  output.data(),
+                  output_state.data(),
+                  shape,
+                  precision,
+                  scratch.data(),
+                  scratch_head_dim,
+                  cpu_parallel);
+
+    for (size_t i = 0; i < encoding_count; ++i) {
+        const float updated = static_cast<float>(initial_state[i]) * 1.F + 0.F * static_cast<float>(B[0]);
+        EXPECT_EQ(output_state[i].to_bits(), static_cast<T>(updated).to_bits()) << "encoding " << i;
+    }
+}
+
+TEST(SelectiveSSMKernel, PortableLowPrecisionConversionsPreserveEveryEncoding) {
+    verify_portable_conversion_for_every_encoding<float16>(element::f16);
+    verify_portable_conversion_for_every_encoding<bfloat16>(element::bf16);
+}
+
 TEST(SelectiveSSMKernel, ScratchBlockingBalancesParallelismAndCacheFootprint) {
     EXPECT_EQ(get_scratch_head_dim(64, 128, 64, 14), 64U);
     EXPECT_EQ(get_scratch_head_dim(64, 128, 1, 16), 4U);
     EXPECT_EQ(get_scratch_head_dim(7, 9000, 1, 16), 1U);
     EXPECT_EQ(get_scratch_head_dim(7, 3, 2, 8), 2U);
     EXPECT_EQ(get_scratch_head_dim(7, 3, 8, 8), 7U);
+}
+
+TEST(SelectiveSSMKernel, SizeArithmeticRejectsOverflowAndHonorsZeroDimensions) {
+    const auto max = std::numeric_limits<size_t>::max();
+    EXPECT_THROW(checked_size_product({max, 2}, "test tensor"), ov::Exception);
+    EXPECT_EQ(checked_size_product({max, 2, 0}, "empty tensor"), 0U);
+    EXPECT_THROW(checked_size_sum({max, 1}, "test buffer"), ov::Exception);
+    EXPECT_EQ(checked_size_sum({max - 1, 1}, "test buffer"), max);
+
+    EXPECT_THROW(validate_selective_ssm_shape(SelectiveSSMShape{max, 2, 2, 1, 1, 1}), ov::Exception);
+    EXPECT_THROW(validate_paged_selective_ssm_shape(PagedSelectiveSSMShape{max, 2, 1, 1, 1, 1, 0, 0}), ov::Exception);
+    EXPECT_EQ(get_scratch_head_dim(0, 4, max, max), 1U);
+}
+
+TEST(SelectiveSSMKernel, ZeroHeadDimensionIsSafeNoWork) {
+    const SelectiveSSMShape shape{2, 3, 2, 0, 1, 4};
+    const std::vector<float> A(2, -0.2F);
+    const std::vector<float> dt(12, 0.1F);
+    const std::vector<float> B(24, 0.2F);
+    const std::vector<float> C(24, 0.3F);
+    const std::vector<float> empty;
+    std::vector<float> output;
+    std::vector<float> output_state;
+    std::vector<float> scratch(4);
+    const auto cpu_parallel = make_parallel();
+
+    EXPECT_NO_THROW(selective_ssm(A.data(),
+                                  dt.data(),
+                                  B.data(),
+                                  empty.data(),
+                                  C.data(),
+                                  empty.data(),
+                                  output.data(),
+                                  output_state.data(),
+                                  shape,
+                                  element::f32,
+                                  scratch.data(),
+                                  1,
+                                  cpu_parallel));
+    EXPECT_TRUE(output.empty());
+    EXPECT_TRUE(output_state.empty());
+}
+
+TEST(PagedSelectiveSSMKernel, ZeroHeadDimensionValidatesMetadataAndDoesNoWork) {
+    const PagedSelectiveSSMShape shape{2, 2, 0, 1, 4, 2, 2, 1};
+    const std::vector<float> A(2, -0.2F);
+    const std::vector<float> dt(4, 0.1F);
+    const std::vector<float> B(8, 0.2F);
+    const std::vector<float> C(8, 0.3F);
+    const std::vector<float> empty;
+    std::vector<float> state_table;
+    std::vector<float> output;
+    const std::vector<int64_t> subsequence_begins{0, 2};
+    const std::vector<int64_t> block_indices{0, 1};
+    const std::vector<int64_t> block_indices_begins{0, 2};
+    const std::vector<int64_t> processed{0};
+    const std::vector<int64_t> interval{2};
+    std::vector<float> scratch(4);
+    std::vector<int32_t> owners(2);
+    const auto cpu_parallel = make_parallel();
+
+    EXPECT_NO_THROW(paged_selective_ssm(A.data(),
+                                        dt.data(),
+                                        B.data(),
+                                        empty.data(),
+                                        C.data(),
+                                        state_table.data(),
+                                        subsequence_begins.data(),
+                                        block_indices.data(),
+                                        block_indices_begins.data(),
+                                        processed.data(),
+                                        interval.data(),
+                                        output.data(),
+                                        shape,
+                                        element::f32,
+                                        element::i64,
+                                        scratch.data(),
+                                        1,
+                                        owners.data(),
+                                        cpu_parallel));
+    EXPECT_TRUE(output.empty());
+    EXPECT_TRUE(state_table.empty());
 }
 
 TEST(SelectiveSSMKernel, F32ReadWriteStateAliasMatchesReference) {
@@ -414,19 +613,8 @@ TEST(PagedSelectiveSSMKernel, I64MetadataAndReadWriteAlias) {
 }
 
 TEST(PagedSelectiveSSMKernel, DisabledCacheDoesNotWrite) {
-    const PagedSelectiveSSMShape shape{2, 1, 2, 1, 3, 2, 1, 1};
-    const SelectiveSSMShape reference_shape{1, 2, 1, 2, 1, 3};
     const auto A = cast_values<bfloat16>({-0.25F});
-    const auto dt = cast_values<bfloat16>(make_values(2, 0.02F, 0.1F));
-    const auto B = cast_values<bfloat16>(make_values(6, 0.03F, 0.1F));
-    const auto x = cast_values<bfloat16>(make_values(4, 0.025F, 0.05F));
-    const auto C = cast_values<bfloat16>(make_values(6, 0.02F, -0.01F));
     const auto initial_state = cast_values<bfloat16>(make_values(6, 0.01F));
-    std::vector<bfloat16> state_table(12, bfloat16(7.F));
-    std::copy(initial_state.begin(), initial_state.end(), state_table.begin());
-    const auto state_before = state_table;
-    std::vector<bfloat16> output(4);
-    const std::vector<int32_t> subsequence_begins{0, 2};
     const std::vector<int32_t> block_indices{0};
     const std::vector<int32_t> block_indices_begins{0, 1};
     const std::vector<int32_t> processed{9};
@@ -435,36 +623,51 @@ TEST(PagedSelectiveSSMKernel, DisabledCacheDoesNotWrite) {
     std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * 2 * 3);
     std::vector<int32_t> owners(2);
 
-    paged_selective_ssm(A.data(),
-                        dt.data(),
-                        B.data(),
-                        x.data(),
-                        C.data(),
-                        state_table.data(),
-                        subsequence_begins.data(),
-                        block_indices.data(),
-                        block_indices_begins.data(),
-                        processed.data(),
-                        interval.data(),
-                        output.data(),
-                        shape,
-                        element::bf16,
-                        element::i32,
-                        scratch.data(),
-                        2,
-                        owners.data(),
-                        cpu_parallel);
+    for (const size_t token_count : {size_t{1}, size_t{2}}) {
+        SCOPED_TRACE(testing::Message() << "token_count=" << token_count);
+        const PagedSelectiveSSMShape shape{token_count, 1, 2, 1, 3, 2, 1, 1};
+        const SelectiveSSMShape reference_shape{1, token_count, 1, 2, 1, 3};
+        const auto dt = cast_values<bfloat16>(make_values(token_count, 0.02F, 0.1F));
+        const auto B = cast_values<bfloat16>(make_values(token_count * 3, 0.03F, 0.1F));
+        const auto x = cast_values<bfloat16>(make_values(token_count * 2, 0.025F, 0.05F));
+        const auto C = cast_values<bfloat16>(make_values(token_count * 3, 0.02F, -0.01F));
+        std::vector<bfloat16> state_table(12, bfloat16(7.F));
+        std::copy(initial_state.begin(), initial_state.end(), state_table.begin());
+        const auto state_before = state_table;
+        std::vector<bfloat16> output(x.size());
+        const std::vector<int32_t> subsequence_begins{0, static_cast<int32_t>(token_count)};
 
-    EXPECT_EQ(state_table, state_before);
-    const auto expected = reference_selective_ssm(to_float(A),
-                                                  to_float(dt),
-                                                  to_float(B),
-                                                  to_float(x),
-                                                  to_float(C),
-                                                  to_float(initial_state),
-                                                  reference_shape);
-    for (size_t i = 0; i < output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(output[i]), expected.output[i], 2e-2F) << "output index " << i;
+        paged_selective_ssm(A.data(),
+                            dt.data(),
+                            B.data(),
+                            x.data(),
+                            C.data(),
+                            state_table.data(),
+                            subsequence_begins.data(),
+                            block_indices.data(),
+                            block_indices_begins.data(),
+                            processed.data(),
+                            interval.data(),
+                            output.data(),
+                            shape,
+                            element::bf16,
+                            element::i32,
+                            scratch.data(),
+                            2,
+                            owners.data(),
+                            cpu_parallel);
+
+        EXPECT_EQ(state_table, state_before);
+        const auto expected = reference_selective_ssm(to_float(A),
+                                                      to_float(dt),
+                                                      to_float(B),
+                                                      to_float(x),
+                                                      to_float(C),
+                                                      to_float(initial_state),
+                                                      reference_shape);
+        for (size_t i = 0; i < output.size(); ++i) {
+            EXPECT_NEAR(static_cast<float>(output[i]), expected.output[i], 2e-2F) << "output index " << i;
+        }
     }
 }
 

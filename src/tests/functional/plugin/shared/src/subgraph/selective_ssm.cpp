@@ -50,29 +50,56 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
         return static_cast<float>(value);
     });
 
-    ov::Tensor output_tensor(x_tensor.get_element_type(), x_shape);
-    auto* output = output_tensor.data<T>();
-    const auto state_batch_stride = num_heads * head_dim * state_size;
-    const auto state_head_stride = head_dim * state_size;
+    // Deliberately materialize the small discretized terms in the oracle. The production kernel does not use this
+    // decomposition, so this catches indexing/grouping mistakes independently of its fused update-reduction loop.
+    const auto token_heads = batch_size * sequence_length * num_heads;
+    std::vector<float> decay(token_heads);
+    std::vector<float> discretized_B(token_heads * state_size);
     for (size_t batch = 0; batch < batch_size; ++batch) {
         for (size_t token = 0; token < sequence_length; ++token) {
             for (size_t head = 0; head < num_heads; ++head) {
                 const auto token_head = (batch * sequence_length + token) * num_heads + head;
                 const auto group = head / heads_per_group;
-                const auto projection_base = ((batch * sequence_length + token) * num_groups + group) * state_size;
-                const auto state_base = batch * state_batch_stride + head * state_head_stride;
-                const auto x_base = token_head * head_dim;
+                const auto grouped_projection =
+                    ((batch * sequence_length + token) * num_groups + group) * state_size;
                 const float delta = static_cast<float>(dt[token_head]);
-                const float decay = std::exp(static_cast<float>(A[head]) * delta);
-                for (size_t p = 0; p < head_dim; ++p) {
-                    float value = 0.F;
-                    for (size_t n = 0; n < state_size; ++n) {
-                        auto& state_value = state[state_base + p * state_size + n];
-                        state_value = state_value * decay + static_cast<float>(x[x_base + p]) * delta *
-                                                                static_cast<float>(B[projection_base + n]);
-                        value += state_value * static_cast<float>(C[projection_base + n]);
+                decay[token_head] = std::exp(static_cast<float>(A[head]) * delta);
+                for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                    discretized_B[token_head * state_size + state_index] =
+                        delta * static_cast<float>(B[grouped_projection + state_index]);
+                }
+            }
+        }
+    }
+
+    ov::Tensor output_tensor(x_tensor.get_element_type(), x_shape);
+    auto* output = output_tensor.data<T>();
+    const auto state_batch_stride = num_heads * head_dim * state_size;
+    const auto state_head_stride = head_dim * state_size;
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        for (size_t head = 0; head < num_heads; ++head) {
+            const auto group = head / heads_per_group;
+            for (size_t position = 0; position < head_dim; ++position) {
+                const auto state_base =
+                    batch * state_batch_stride + head * state_head_stride + position * state_size;
+                for (size_t token = 0; token < sequence_length; ++token) {
+                    const auto token_head = (batch * sequence_length + token) * num_heads + head;
+                    const auto projection_base =
+                        ((batch * sequence_length + token) * num_groups + group) * state_size;
+                    const auto x_index = token_head * head_dim + position;
+                    const float input = static_cast<float>(x[x_index]);
+                    for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                        auto& state_value = state[state_base + state_index];
+                        state_value = state_value * decay[token_head] +
+                                      input * discretized_B[token_head * state_size + state_index];
                     }
-                    output[x_base + p] = static_cast<T>(value);
+
+                    double reduction = 0.0;
+                    for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                        reduction += static_cast<double>(state[state_base + state_index]) *
+                                     static_cast<float>(C[projection_base + state_index]);
+                    }
+                    output[x_index] = static_cast<T>(reduction);
                 }
             }
         }
@@ -84,7 +111,6 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
     });
     return {output_tensor, state_tensor};
 }
-
 }  // namespace
 
 namespace ov::test {

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
 
 #include "cpu_parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -31,6 +32,14 @@ struct PagedSelectiveSSMShape {
     size_t sequence_count = 0;
 };
 
+size_t checked_size_product(std::initializer_list<size_t> dimensions, const char* tensor_name);
+
+size_t checked_size_sum(std::initializer_list<size_t> values, const char* buffer_name);
+
+void validate_selective_ssm_shape(const SelectiveSSMShape& shape);
+
+void validate_paged_selective_ssm_shape(const PagedSelectiveSSMShape& shape);
+
 size_t get_scratch_head_dim(size_t head_dim, size_t state_size, size_t outer_work_items, size_t thread_count);
 
 void selective_ssm(const void* A,
@@ -45,7 +54,9 @@ void selective_ssm(const void* A,
                    const ov::element::Type& precision,
                    float* state_scratch,
                    size_t scratch_head_dim,
-                   const CpuParallelPtr& cpu_parallel);
+                   const CpuParallelPtr& cpu_parallel,
+                   const float* converted_B = nullptr,
+                   const float* converted_C = nullptr);
 
 void validate_paged_selective_ssm_metadata(const void* subsequence_begins,
                                            const void* block_indices,
@@ -74,6 +85,8 @@ void paged_selective_ssm(const void* A,
                          float* state_scratch,
                          size_t scratch_head_dim,
                          int32_t* block_owners,
-                         const CpuParallelPtr& cpu_parallel);
+                         const CpuParallelPtr& cpu_parallel,
+                         const float* converted_B = nullptr,
+                         const float* converted_C = nullptr);
 
 }  // namespace ov::intel_cpu::node::kernel

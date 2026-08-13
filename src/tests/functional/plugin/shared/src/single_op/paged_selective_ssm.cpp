@@ -23,84 +23,97 @@
 
 namespace {
 
-template <typename T>
+template <typename T, typename IndexT>
 void run_reference(const std::vector<T>& A,
                    const std::vector<T>& dt,
                    const std::vector<T>& B,
                    const std::vector<T>& x,
                    const std::vector<T>& C,
                    std::vector<T>& recurrent_state_table,
-                   const std::vector<int32_t>& subsequence_begins,
-                   const std::vector<int32_t>& block_indices,
-                   const std::vector<int32_t>& block_indices_begins,
-                   const std::vector<int32_t>& num_processed_tokens,
-                   const std::vector<int32_t>& cache_interval,
-                   int32_t num_heads,
-                   int32_t num_groups,
-                   int32_t head_dim,
-                   int32_t state_size,
+                   const std::vector<IndexT>& subsequence_begins,
+                   const std::vector<IndexT>& block_indices,
+                   const std::vector<IndexT>& block_indices_begins,
+                   const std::vector<IndexT>& num_processed_tokens,
+                   const std::vector<IndexT>& cache_interval,
+                   size_t num_heads,
+                   size_t num_groups,
+                   size_t head_dim,
+                   size_t state_size,
                    std::vector<T>& output) {
-    const int32_t tokens = static_cast<int32_t>(x.size()) / (num_heads * head_dim);
-    const int32_t heads_per_group = num_heads / num_groups;
-    const int32_t num_sequences = static_cast<int32_t>(subsequence_begins.size()) - 1;
-    output.resize(static_cast<size_t>(tokens) * num_heads * head_dim);
+    const size_t tokens = x.size() / (num_heads * head_dim);
+    const size_t heads_per_group = num_heads / num_groups;
+    const size_t num_sequences = subsequence_begins.size() - 1;
+    output.resize(tokens * num_heads * head_dim);
 
-    const auto state_off = [=](int32_t block, int32_t h, int32_t p, int32_t n) {
-        return ((block * num_heads + h) * head_dim + p) * state_size + n;
+    const auto state_off = [=](size_t block, size_t head, size_t position, size_t state) {
+        return ((block * num_heads + head) * head_dim + position) * state_size + state;
     };
 
-    for (int32_t seq = 0; seq < num_sequences; seq++) {
-        const int32_t token_begin = subsequence_begins[seq];
-        const int32_t token_end = subsequence_begins[seq + 1];
+    for (size_t sequence = 0; sequence < num_sequences; ++sequence) {
+        const auto token_begin = static_cast<size_t>(subsequence_begins[sequence]);
+        const auto token_end = static_cast<size_t>(subsequence_begins[sequence + 1]);
         if (token_begin == token_end) {
             continue;
         }
 
-        const int32_t block_begin = block_indices_begins[seq];
-        const int32_t block_end = block_indices_begins[seq + 1];
-        const int32_t seq_blocks = std::max(block_end - block_begin, 0);
-        const int32_t processed = num_processed_tokens[seq];
-        const int32_t interval = cache_interval[seq];
-        const int32_t prev_nums = interval > 0 ? (processed % interval) : 0;
-        const int32_t first_block = block_indices[block_begin];
+        const auto logical_block_begin = static_cast<size_t>(block_indices_begins[sequence]);
+        const auto logical_block_end = static_cast<size_t>(block_indices_begins[sequence + 1]);
+        const auto interval = cache_interval[sequence];
+        const auto read_block = static_cast<size_t>(block_indices[logical_block_begin]);
 
-        for (int32_t h = 0; h < num_heads; h++) {
-            const int32_t g = h / heads_per_group;
-            std::vector<float> state(static_cast<size_t>(head_dim) * state_size, 0.f);
-            for (int32_t p = 0; p < head_dim; p++) {
-                for (int32_t n = 0; n < state_size; n++) {
-                    state[p * state_size + n] =
-                        static_cast<float>(recurrent_state_table[state_off(first_block, h, p, n)]);
+        for (size_t head = 0; head < num_heads; ++head) {
+            const size_t group = head / heads_per_group;
+            std::vector<float> state(head_dim * state_size);
+            for (size_t position = 0; position < head_dim; ++position) {
+                for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                    state[position * state_size + state_index] =
+                        static_cast<float>(recurrent_state_table[state_off(read_block, head, position, state_index)]);
                 }
             }
 
-            for (int32_t token = token_begin; token < token_end; token++) {
-                const float dt_value = static_cast<float>(dt[token * num_heads + h]);
-                const float dA = std::exp(static_cast<float>(A[h]) * dt_value);
-                for (int32_t p = 0; p < head_dim; p++) {
-                    const float x_value = static_cast<float>(x[(token * num_heads + h) * head_dim + p]);
-                    float acc = 0.f;
-                    for (int32_t n = 0; n < state_size; n++) {
-                        float& s = state[p * state_size + n];
-                        s = s * dA +
-                            x_value * dt_value * static_cast<float>(B[(token * num_groups + g) * state_size + n]);
-                        acc += s * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
-                    }
-                    output[(token * num_heads + h) * head_dim + p] = static_cast<T>(acc);
+            for (size_t token = token_begin; token < token_end; ++token) {
+                const float delta = static_cast<float>(dt[token * num_heads + head]);
+                const float decay = std::exp(static_cast<float>(A[head]) * delta);
+                const auto projection_base = (token * num_groups + group) * state_size;
+                std::vector<float> input_projection(state_size);
+                for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                    input_projection[state_index] =
+                        delta * static_cast<float>(B[projection_base + state_index]);
                 }
 
-                const int32_t processed_tokens = (token - token_begin) + 1;
-                const int32_t cached_tokens = prev_nums + processed_tokens;
-                const bool reached_interval_boundary = interval > 0 && ((cached_tokens % interval) == 0);
-                const bool reached_sequence_end = token == token_end - 1;
-                if (interval > 0 && (reached_interval_boundary || reached_sequence_end)) {
-                    const int32_t slot = 1 + (cached_tokens - 1) / interval;
-                    if (slot < seq_blocks) {
-                        const int32_t block_id = block_indices[block_begin + slot];
-                        for (int32_t p = 0; p < head_dim; p++) {
-                            for (int32_t n = 0; n < state_size; n++) {
-                                recurrent_state_table[state_off(block_id, h, p, n)] =
-                                    static_cast<T>(state[p * state_size + n]);
+                for (size_t position = 0; position < head_dim; ++position) {
+                    const auto state_base = position * state_size;
+                    const float input = static_cast<float>(x[(token * num_heads + head) * head_dim + position]);
+                    for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                        auto& state_value = state[state_base + state_index];
+                        state_value = state_value * decay + input * input_projection[state_index];
+                    }
+
+                    double reduction = 0.0;
+                    for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                        reduction += static_cast<double>(state[state_base + state_index]) *
+                                     static_cast<float>(C[projection_base + state_index]);
+                    }
+                    output[(token * num_heads + head) * head_dim + position] = static_cast<T>(reduction);
+                }
+
+                if (interval > 0) {
+                    const auto positive_interval = static_cast<uint64_t>(interval);
+                    const auto previous_offset =
+                        static_cast<uint64_t>(num_processed_tokens[sequence]) % positive_interval;
+                    const auto current_tokens = token - token_begin + 1;
+                    const auto cached_tokens = previous_offset + current_tokens;
+                    const bool is_boundary = cached_tokens % positive_interval == 0;
+                    const bool is_last = token + 1 == token_end;
+                    if (is_boundary || is_last) {
+                        const auto write_slot = 1 + (cached_tokens - 1) / positive_interval;
+                        OPENVINO_ASSERT(logical_block_begin + write_slot < logical_block_end);
+                        const auto write_block =
+                            static_cast<size_t>(block_indices[logical_block_begin + write_slot]);
+                        for (size_t position = 0; position < head_dim; ++position) {
+                            for (size_t state_index = 0; state_index < state_size; ++state_index) {
+                                recurrent_state_table[state_off(write_block, head, position, state_index)] =
+                                    static_cast<T>(state[position * state_size + state_index]);
                             }
                         }
                     }
@@ -116,18 +129,6 @@ std::vector<T> tensor_to_vector(const ov::Tensor& tensor) {
     return std::vector<T>(ptr, ptr + tensor.get_size());
 }
 
-std::vector<int32_t> tensor_to_i32(const ov::Tensor& tensor) {
-    if (tensor.get_element_type() == ov::element::i32) {
-        return tensor_to_vector<int32_t>(tensor);
-    }
-    const auto values = tensor_to_vector<int64_t>(tensor);
-    std::vector<int32_t> result(values.size());
-    std::transform(values.begin(), values.end(), result.begin(), [](int64_t value) {
-        return static_cast<int32_t>(value);
-    });
-    return result;
-}
-
 ov::Tensor make_index_tensor(const std::vector<int32_t>& values, const ov::element::Type& index_type) {
     ov::Tensor tensor(index_type, ov::Shape{values.size()});
     if (index_type == ov::element::i32) {
@@ -140,13 +141,13 @@ ov::Tensor make_index_tensor(const std::vector<int32_t>& values, const ov::eleme
     return tensor;
 }
 
-template <typename T>
+template <typename T, typename IndexT>
 std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
                                              const std::shared_ptr<ov::Model>& function,
-                                             int32_t num_heads,
-                                             int32_t num_groups,
-                                             int32_t head_dim,
-                                             int32_t state_size,
+                                             size_t num_heads,
+                                             size_t num_groups,
+                                             size_t head_dim,
+                                             size_t state_size,
                                              const ov::element::Type& data_type) {
     const auto& params = function->get_parameters();
 
@@ -156,11 +157,11 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
     auto x = tensor_to_vector<T>(host_inputs.at(params[3]));
     auto C = tensor_to_vector<T>(host_inputs.at(params[4]));
     auto state = tensor_to_vector<T>(host_inputs.at(params[5]));
-    auto subsequence_begins = tensor_to_i32(host_inputs.at(params[6]));
-    auto block_indices = tensor_to_i32(host_inputs.at(params[7]));
-    auto block_indices_begins = tensor_to_i32(host_inputs.at(params[8]));
-    auto num_processed_tokens = tensor_to_i32(host_inputs.at(params[9]));
-    auto cache_interval = tensor_to_i32(host_inputs.at(params[10]));
+    auto subsequence_begins = tensor_to_vector<IndexT>(host_inputs.at(params[6]));
+    auto block_indices = tensor_to_vector<IndexT>(host_inputs.at(params[7]));
+    auto block_indices_begins = tensor_to_vector<IndexT>(host_inputs.at(params[8]));
+    auto num_processed_tokens = tensor_to_vector<IndexT>(host_inputs.at(params[9]));
+    auto cache_interval = tensor_to_vector<IndexT>(host_inputs.at(params[10]));
 
     std::vector<T> ref_output;
     run_reference(A,
@@ -189,6 +190,49 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
     return {output_tensor, state_tensor};
 }
 
+template <typename T>
+std::vector<ov::Tensor> calculate_data_typed_refs(
+    const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
+    const std::shared_ptr<ov::Model>& function,
+    size_t num_heads,
+    size_t num_groups,
+    size_t head_dim,
+    size_t state_size,
+    const ov::element::Type& data_type,
+    const ov::element::Type& index_type) {
+    if (index_type == ov::element::i64) {
+        return calculate_typed_refs<T, int64_t>(
+            host_inputs, function, num_heads, num_groups, head_dim, state_size, data_type);
+    }
+    return calculate_typed_refs<T, int32_t>(
+        host_inputs, function, num_heads, num_groups, head_dim, state_size, data_type);
+}
+
+int32_t count_logical_blocks(const std::vector<int32_t>& sequence_lengths,
+                             const std::vector<int32_t>& processed_tokens,
+                             const std::vector<int32_t>& cache_intervals) {
+    OPENVINO_ASSERT(sequence_lengths.size() == processed_tokens.size());
+    OPENVINO_ASSERT(sequence_lengths.size() == cache_intervals.size());
+
+    int32_t result = 0;
+    for (size_t sequence = 0; sequence < sequence_lengths.size(); ++sequence) {
+        const auto sequence_length = sequence_lengths[sequence];
+        if (sequence_length == 0) {
+            continue;
+        }
+
+        const auto interval = cache_intervals[sequence];
+        if (interval <= 0) {
+            ++result;
+            continue;
+        }
+
+        const auto previous_offset = processed_tokens[sequence] % interval;
+        const auto write_count = (previous_offset + sequence_length + interval - 1) / interval;
+        result += 1 + write_count;
+    }
+    return result;
+}
 }  // namespace
 
 namespace ov::test {
@@ -256,51 +300,74 @@ void PagedSelectiveSSMLayerTest::SetUp() {
     OPENVINO_ASSERT(seq_lengths.size() == num_processed_tokens.size());
     OPENVINO_ASSERT(seq_lengths.size() == cache_intervals.size());
 
-    const int32_t tokens = std::accumulate(seq_lengths.begin(), seq_lengths.end(), 0);
-    const int32_t num_sequences = static_cast<int32_t>(seq_lengths.size());
+    auto alternate_seq_lengths = seq_lengths;
+    auto alternate_processed_tokens = num_processed_tokens;
+    auto alternate_cache_intervals = cache_intervals;
+    alternate_seq_lengths.push_back(1);
+    alternate_processed_tokens.push_back(0);
+    alternate_cache_intervals.push_back(2);
 
-    int32_t num_blocks = 0;
-    for (size_t i = 0; i < seq_lengths.size(); i++) {
-        if (seq_lengths[i] == 0) {
-            continue;
-        }
-        if (cache_intervals[i] <= 0) {
-            num_blocks += 1;
-        } else {
-            const int32_t prev_nums = num_processed_tokens[i] % cache_intervals[i];
-            const int32_t write_blocks = (prev_nums + seq_lengths[i] + cache_intervals[i] - 1) / cache_intervals[i];
-            num_blocks += 1 + write_blocks;
-        }
-    }
+    const auto tokens = std::accumulate(seq_lengths.begin(), seq_lengths.end(), int32_t{0});
+    const auto alternate_tokens =
+        std::accumulate(alternate_seq_lengths.begin(), alternate_seq_lengths.end(), int32_t{0});
+    const auto num_sequences = static_cast<int32_t>(seq_lengths.size());
+    const auto alternate_num_sequences = static_cast<int32_t>(alternate_seq_lengths.size());
+    const auto num_blocks = count_logical_blocks(seq_lengths, num_processed_tokens, cache_intervals);
+    const auto alternate_num_blocks =
+        count_logical_blocks(alternate_seq_lengths, alternate_processed_tokens, alternate_cache_intervals);
 
     const ov::Shape A_shape{static_cast<size_t>(num_heads)};
     const ov::Shape dt_shape{static_cast<size_t>(tokens), static_cast<size_t>(num_heads)};
+    const ov::Shape alternate_dt_shape{static_cast<size_t>(alternate_tokens), static_cast<size_t>(num_heads)};
     const ov::Shape BC_shape{static_cast<size_t>(tokens),
                              static_cast<size_t>(num_groups),
                              static_cast<size_t>(state_size)};
+    const ov::Shape alternate_BC_shape{static_cast<size_t>(alternate_tokens),
+                                       static_cast<size_t>(num_groups),
+                                       static_cast<size_t>(state_size)};
     const ov::Shape x_shape{static_cast<size_t>(tokens), static_cast<size_t>(num_heads), static_cast<size_t>(head_dim)};
+    const ov::Shape alternate_x_shape{static_cast<size_t>(alternate_tokens),
+                                      static_cast<size_t>(num_heads),
+                                      static_cast<size_t>(head_dim)};
     const ov::Shape state_shape{static_cast<size_t>(num_blocks),
                                 static_cast<size_t>(num_heads),
                                 static_cast<size_t>(head_dim),
                                 static_cast<size_t>(state_size)};
-    auto expanded_state_shape = state_shape;
-    expanded_state_shape[0] += 2;
+    const ov::Shape alternate_state_shape{static_cast<size_t>(alternate_num_blocks + 2),
+                                          static_cast<size_t>(num_heads),
+                                          static_cast<size_t>(head_dim),
+                                          static_cast<size_t>(state_size)};
     const auto repeated = [](const ov::Shape& shape) {
         return std::vector<ov::Shape>{shape, shape, shape};
     };
     init_input_shapes(
         {InputShape{ov::PartialShape{num_heads}, repeated(A_shape)},
-         InputShape{ov::PartialShape{-1, num_heads}, repeated(dt_shape)},
-         InputShape{ov::PartialShape{-1, num_groups, state_size}, repeated(BC_shape)},
-         InputShape{ov::PartialShape{-1, num_heads, head_dim}, repeated(x_shape)},
-         InputShape{ov::PartialShape{-1, num_groups, state_size}, repeated(BC_shape)},
+         InputShape{ov::PartialShape{-1, num_heads}, {dt_shape, alternate_dt_shape, dt_shape}},
+         InputShape{ov::PartialShape{-1, num_groups, state_size}, {BC_shape, alternate_BC_shape, BC_shape}},
+         InputShape{ov::PartialShape{-1, num_heads, head_dim}, {x_shape, alternate_x_shape, x_shape}},
+         InputShape{ov::PartialShape{-1, num_groups, state_size}, {BC_shape, alternate_BC_shape, BC_shape}},
          InputShape{ov::PartialShape{-1, num_heads, head_dim, state_size},
-                    {state_shape, expanded_state_shape, state_shape}},
-         InputShape{ov::PartialShape::dynamic(1), repeated(ov::Shape{static_cast<size_t>(num_sequences + 1)})},
-         InputShape{ov::PartialShape::dynamic(1), repeated(ov::Shape{static_cast<size_t>(num_blocks)})},
-         InputShape{ov::PartialShape::dynamic(1), repeated(ov::Shape{static_cast<size_t>(num_sequences + 1)})},
-         InputShape{ov::PartialShape::dynamic(1), repeated(ov::Shape{static_cast<size_t>(num_sequences)})},
-         InputShape{ov::PartialShape::dynamic(1), repeated(ov::Shape{static_cast<size_t>(num_sequences)})}});
+                    {state_shape, alternate_state_shape, state_shape}},
+         InputShape{ov::PartialShape::dynamic(1),
+                    {ov::Shape{static_cast<size_t>(num_sequences + 1)},
+                     ov::Shape{static_cast<size_t>(alternate_num_sequences + 1)},
+                     ov::Shape{static_cast<size_t>(num_sequences + 1)}}},
+         InputShape{ov::PartialShape::dynamic(1),
+                    {ov::Shape{static_cast<size_t>(num_blocks)},
+                     ov::Shape{static_cast<size_t>(alternate_num_blocks)},
+                     ov::Shape{static_cast<size_t>(num_blocks)}}},
+         InputShape{ov::PartialShape::dynamic(1),
+                    {ov::Shape{static_cast<size_t>(num_sequences + 1)},
+                     ov::Shape{static_cast<size_t>(alternate_num_sequences + 1)},
+                     ov::Shape{static_cast<size_t>(num_sequences + 1)}}},
+         InputShape{ov::PartialShape::dynamic(1),
+                    {ov::Shape{static_cast<size_t>(num_sequences)},
+                     ov::Shape{static_cast<size_t>(alternate_num_sequences)},
+                     ov::Shape{static_cast<size_t>(num_sequences)}}},
+         InputShape{ov::PartialShape::dynamic(1),
+                    {ov::Shape{static_cast<size_t>(num_sequences)},
+                     ov::Shape{static_cast<size_t>(alternate_num_sequences)},
+                     ov::Shape{static_cast<size_t>(num_sequences)}}}});
 
     auto p_A = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{num_heads});
     auto p_dt = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads});
@@ -354,7 +421,20 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
                  element_type,
                  index_type,
                  device] = GetParam();
-    const auto num_sequences = static_cast<int32_t>(seq_lengths.size());
+    const auto num_sequences = static_cast<int32_t>(targetInputStaticShapes[9][0]);
+    OPENVINO_ASSERT(targetInputStaticShapes[6][0] == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(targetInputStaticShapes[8][0] == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(targetInputStaticShapes[10][0] == static_cast<size_t>(num_sequences));
+    const bool use_alternate_metadata = static_cast<size_t>(num_sequences) != seq_lengths.size();
+    auto active_seq_lengths = seq_lengths;
+    auto active_processed_tokens = num_processed_tokens_param;
+    auto active_cache_intervals = cache_intervals;
+    if (use_alternate_metadata) {
+        active_seq_lengths.push_back(1);
+        active_processed_tokens.push_back(0);
+        active_cache_intervals.push_back(2);
+    }
+    OPENVINO_ASSERT(static_cast<size_t>(num_sequences) == active_seq_lengths.size());
 
     std::vector<int32_t> subsequence_begins;
     std::vector<int32_t> block_indices;
@@ -372,9 +452,9 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
 
     int32_t total_blocks = 0;
     for (int32_t seq = 0; seq < num_sequences; seq++) {
-        const int32_t seq_len = seq_lengths[seq];
-        const int32_t seq_interval = cache_intervals[seq];
-        const int32_t processed = num_processed_tokens_param[seq];
+        const int32_t seq_len = active_seq_lengths[seq];
+        const int32_t seq_interval = active_cache_intervals[seq];
+        const int32_t processed = active_processed_tokens[seq];
 
         subsequence_begins.push_back(subsequence_begins.back() + seq_len);
         num_processed_tokens.push_back(processed);
@@ -455,30 +535,15 @@ std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::calculate_refs() {
                  device] = GetParam();
 
     if (element_type == ov::element::f16) {
-        return calculate_typed_refs<ov::float16>(host_inputs,
-                                                 function,
-                                                 num_heads,
-                                                 num_groups,
-                                                 head_dim,
-                                                 state_size,
-                                                 element_type);
+        return calculate_data_typed_refs<ov::float16>(
+            host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
     }
     if (element_type == ov::element::bf16) {
-        return calculate_typed_refs<ov::bfloat16>(host_inputs,
-                                                  function,
-                                                  num_heads,
-                                                  num_groups,
-                                                  head_dim,
-                                                  state_size,
-                                                  element_type);
+        return calculate_data_typed_refs<ov::bfloat16>(
+            host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
     }
-    return calculate_typed_refs<float>(host_inputs,
-                                       function,
-                                       num_heads,
-                                       num_groups,
-                                       head_dim,
-                                       state_size,
-                                       element_type);
+    return calculate_data_typed_refs<float>(
+        host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
 }
 
 std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::get_plugin_outputs() {
