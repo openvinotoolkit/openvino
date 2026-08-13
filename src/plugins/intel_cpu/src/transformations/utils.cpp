@@ -25,7 +25,6 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/avg_pool_base.hpp"
