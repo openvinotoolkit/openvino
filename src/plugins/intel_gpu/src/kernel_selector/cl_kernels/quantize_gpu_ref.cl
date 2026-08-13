@@ -148,10 +148,10 @@ KERNEL(quantize_ref)(
 
     INPUT0_COMPUTE_TYPE val = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
-    INPUT0_COMPUTE_TYPE  input_low_val  = TO_INPUT0_COMPUTE_TYPE(input_low[input_low_offset]);
-    INPUT0_COMPUTE_TYPE  input_high_val  = TO_INPUT0_COMPUTE_TYPE(input_high[input_high_offset]);
-    INPUT0_COMPUTE_TYPE  output_low_val  = TO_INPUT0_COMPUTE_TYPE(output_low[output_low_offset]);
-    INPUT0_COMPUTE_TYPE  output_high_val  = TO_INPUT0_COMPUTE_TYPE(output_high[output_high_offset]);
+    INPUT1_COMPUTE_TYPE  input_low_val  = DECODE_INPUT1_COMPUTE_TYPE(input_low[input_low_offset]);
+    INPUT2_COMPUTE_TYPE  input_high_val  = DECODE_INPUT2_COMPUTE_TYPE(input_high[input_high_offset]);
+    INPUT3_COMPUTE_TYPE  output_low_val  = DECODE_INPUT3_COMPUTE_TYPE(output_low[output_low_offset]);
+    INPUT4_COMPUTE_TYPE  output_high_val  = DECODE_INPUT4_COMPUTE_TYPE(output_high[output_high_offset]);
 
     if (val <= input_low_val)
     {

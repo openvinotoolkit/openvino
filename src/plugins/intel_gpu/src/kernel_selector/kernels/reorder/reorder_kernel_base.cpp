@@ -109,7 +109,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
         jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_float"));
     } else if (params.mode == MeanSubtractMode::IN_BUFFER) {
         jit.AddConstant(MakeJitConstant("MEAN_SUBTRACT", params.mean));
-        jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_" + toCLType(GetComputeDatatype(params.mean.GetDType()))));
+        jit.AddConstant(MakeJitConstant("TO_MEAN_TYPE", "convert_" + toCLType(params.mean.GetDType())));
     }
 
     // Type JITs:
@@ -137,8 +137,6 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
 
     // Type parametrized activation:
     jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(GetUnitType(params)), "_TYPED", true));
-    jit.AddConstant(MakeJitConstant("LOAD_(idx)", "DECODE_INPUT_REORDER_COMPUTE_TYPE(input[idx])"));
-    jit.AddConstant(MakeJitConstant("STORE_(idx, val)", "output[idx] = TO_OUTPUT_REORDER_TYPE(ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_COMPUTE_TYPE(val), ACTIVATION_PARAMS_TYPED))"));
 
     // TODO: Move to lower classes
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.outputs[0].GetLayout())));

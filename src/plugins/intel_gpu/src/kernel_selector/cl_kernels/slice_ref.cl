@@ -93,6 +93,7 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 #else
     output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_index]), ACTIVATION_PARAMS));
 #endif
+    
 }
 
 #undef LOAD_BUFFER;

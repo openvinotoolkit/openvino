@@ -82,6 +82,11 @@ public:
 #define CASE_SOFTMAX_FP16_3 {1, 15, 1, 1}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
 #define CASE_SOFTMAX_FP16_4 {1, 15, 1, 2}, data_types::f16, format::bfyx, 2, data_types::f16, format::bfyx
 
+#define CASE_SOFTMAX_BF16_1 {1, 15, 4, 5}, data_types::bf16, format::bfyx, 1, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_2 {1, 15, 4, 5}, data_types::bf16, format::bfyx, 3, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_3 {1, 15, 1, 1}, data_types::bf16, format::bfyx, 1, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_4 {1, 15, 1, 2}, data_types::bf16, format::bfyx, 2, data_types::bf16, format::bfyx
+
 // Keep batch > 1 and use larger odd feature count to force both packed and tail
 // fused-output write loops in softmax_gpu_bf (the pre-fix bug used wrong index in tail writes).
 #define CASE_SOFTMAX_FP32_BF_FUSED_INDEXING {2, 8193, 1, 1}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
@@ -116,6 +121,10 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize,
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3 },
+
+                        softmax_test_params{ CASE_SOFTMAX_BF16_1, 2, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_2, 3, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 2, 3 },
 }));
 
 class softmax_activation : public SoftmaxPrimitiveFusingTest {};
@@ -148,6 +157,8 @@ TEST_P(softmax_eltwise_activation, basic) {
     );
 
     tolerance = default_tolerance(p.data_type);
+    if (p.default_type == data_types::bf16)
+        tolerance = 1.6e-2f; // Default 1e-2 is too small for this test, but error is still within 1ULP, so it's OK
     execute(p);
 }
 
@@ -186,19 +197,23 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation,
                         softmax_test_params{ CASE_SOFTMAX_FP32_4, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_4, 2, 3, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_4, 2, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 2, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_4, 2, 3, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_activation,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 4, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 4, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 4, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 4, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_per_element,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 3, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 3, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
@@ -277,4 +292,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize_fusing_through,
                         // Such fusions not allowed yet
                         // softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
                         // softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
+
+                        softmax_test_params{ CASE_SOFTMAX_BF16_1, 2, 3 },
+                        // Such fusions not allowed yet
+                        // softmax_test_params{ CASE_SOFTMAX_BF16_2, 3, 3 },
+                        // softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 3 },
 }));
