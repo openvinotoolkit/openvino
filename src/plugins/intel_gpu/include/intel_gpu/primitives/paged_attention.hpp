@@ -102,7 +102,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     static bool k_by_channel_token_major() {
         static const bool enabled = []() {
             const char* env = std::getenv("OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR");
-            return env != nullptr && env[0] == '1';
+            return env == nullptr ? true : (env != nullptr && env[0] == '1');
         }();
         return enabled;
     }
