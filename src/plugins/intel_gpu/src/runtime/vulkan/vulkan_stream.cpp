@@ -147,6 +147,8 @@ struct vulkan_stream::resource_state {
     static constexpr size_t max_retained_dispatches_per_batch = 8;
     // This bounds calibration work; measured host costs select the operating path.
     static constexpr size_t max_command_reuse_tuning_samples_per_path = 3;
+    // This caps calibration latency; paired inference wins can stop it earlier.
+    static constexpr size_t max_pool_reset_tuning_pairs = 7;
 
     struct descriptor_key {
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
@@ -242,7 +244,9 @@ struct vulkan_stream::resource_state {
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         command_pool_info.queueFamilyIndex = engine.get_compute_queue_family();
-        check_vk_result(vkCreateCommandPool(device, &command_pool_info, nullptr, &command_pool), "vkCreateCommandPool");
+        check_vk_result(vkCreateCommandPool(device, &command_pool_info, nullptr, &transient_command_pool), "vkCreateCommandPool(transient)");
+        command_pool_info.flags = 0;
+        check_vk_result(vkCreateCommandPool(device, &command_pool_info, nullptr, &replay_command_pool), "vkCreateCommandPool(replay)");
         slots.reserve(max_in_flight_submissions);
     }
 
@@ -257,8 +261,11 @@ struct vulkan_stream::resource_state {
                 vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
             }
         }
-        if (command_pool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(device, command_pool, nullptr);
+        if (transient_command_pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, transient_command_pool, nullptr);
+        }
+        if (replay_command_pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, replay_command_pool, nullptr);
         }
         for (auto& [descriptor_count, blocks] : descriptor_cache_pools) {
             for (auto& block : blocks) {
@@ -273,17 +280,23 @@ struct vulkan_stream::resource_state {
                       << " max_batch_size=" << largest_batch << " selected_batch_limit_min=" << (dispatches == 0 ? 0 : smallest_selected_batch_limit)
                       << " selected_batch_limit_max=" << largest_selected_batch_limit << " argument_accesses=" << argument_accesses
                       << " hazard_barriers=" << hazard_barriers << " external_dependency_barriers=" << external_dependency_barriers
-                      << " command_sequence_hits=" << command_sequence_hits << " command_sequence_misses=" << command_sequence_misses
-                      << " command_sequences_cached=" << command_sequences.size()
+                      << " command_pool_resets=" << command_pool_resets << " descriptor_pool_resets=" << descriptor_pool_resets
+                      << " command_buffer_resets=" << command_buffer_resets << " command_sequence_hits=" << command_sequence_hits
+                      << " command_sequence_misses=" << command_sequence_misses << " command_sequences_cached=" << command_sequences.size()
                       << " last_command_sequence_miss_submission=" << last_command_sequence_miss_submission
                       << " command_reuse_selected=" << (command_reuse_decided ? (command_reuse_selected ? "yes" : "no") : "calibrating")
                       << " direct_tuning_samples=" << direct_recording_samples.size() << " reuse_tuning_samples=" << command_reuse_samples.size()
                       << " direct_inference_median_ns=" << (direct_recording_samples.empty() ? 0 : median_sample(direct_recording_samples))
-                      << " reuse_inference_median_ns=" << (command_reuse_samples.empty() ? 0 : median_sample(command_reuse_samples)) << std::endl;
+                      << " reuse_inference_median_ns=" << (command_reuse_samples.empty() ? 0 : median_sample(command_reuse_samples))
+                      << " generation_pool_reset_selected=" << (pool_reset_decided ? (generation_pool_reset_selected ? "yes" : "no") : "calibrating")
+                      << " individual_reset_samples=" << individual_reset_samples.size() << " generation_reset_samples=" << generation_reset_samples.size()
+                      << " generation_reset_pair_wins=" << generation_reset_pair_wins << " individual_reset_pair_wins=" << individual_reset_pair_wins
+                      << " individual_reset_median_ns=" << (individual_reset_samples.empty() ? 0 : median_sample(individual_reset_samples))
+                      << " generation_reset_median_ns=" << (generation_reset_samples.empty() ? 0 : median_sample(generation_reset_samples)) << std::endl;
         }
     }
 
-    slot& get_or_begin_batch(uint32_t descriptor_count, size_t local_invocations) {
+    slot& get_or_begin_batch(uint32_t descriptor_count, size_t local_invocations, bool mutable_descriptor_required) {
         const auto selected_limit = select_batch_limit(local_invocations);
         smallest_selected_batch_limit = std::min(smallest_selected_batch_limit, selected_limit);
         largest_selected_batch_limit = std::max(largest_selected_batch_limit, selected_limit);
@@ -295,7 +308,7 @@ struct vulkan_stream::resource_state {
             flush();
         }
 
-        auto& slot = acquire(descriptor_count);
+        auto& slot = acquire(descriptor_count, mutable_descriptor_required);
         recording_slot = &slot;
         active_batch_limit = selected_limit;
         if (!inference_in_progress) {
@@ -303,7 +316,10 @@ struct vulkan_stream::resource_state {
             inference_uses_direct_recording = select_direct_recording_for_inference();
             inference_all_batches_cache_hits = !inference_uses_direct_recording;
             inference_all_batches_replayable = !inference_uses_direct_recording;
-            if (!command_reuse_decided) {
+            inference_uses_generation_pool_reset = select_generation_pool_reset_for_inference();
+            inference_tunes_command_reuse = !command_reuse_decided;
+            inference_tunes_pool_reset = command_reuse_decided && !pool_reset_decided;
+            if (inference_tunes_command_reuse || inference_tunes_pool_reset) {
                 inference_started = std::chrono::steady_clock::now();
             }
         }
@@ -455,19 +471,21 @@ struct vulkan_stream::resource_state {
 
     void finish() {
         flush();
-        for (auto& slot : slots) {
-            if (slot.submission != nullptr) {
-                slot.submission->wait();
-            }
+        if (inference_uses_generation_pool_reset) {
+            complete_transient_generation();
+        } else {
+            complete_transient_commands_individually();
         }
         clear_access_history();
         external_dependency_pending = false;
         discard_expired_command_sequences();
-        if (inference_in_progress && !command_reuse_decided) {
+        if (inference_in_progress && inference_tunes_command_reuse) {
             observe_inference_cost(inference_uses_direct_recording,
                                    inference_all_batches_cache_hits,
                                    inference_all_batches_replayable,
                                    std::chrono::steady_clock::now() - inference_started);
+        } else if (inference_in_progress && inference_tunes_pool_reset) {
+            observe_pool_reset_cost(inference_uses_generation_pool_reset, std::chrono::steady_clock::now() - inference_started);
         }
         inference_in_progress = false;
     }
@@ -477,8 +495,7 @@ struct vulkan_stream::resource_state {
                                                  const prepared_arguments& prepared,
                                                  bool& descriptor_is_immutable) {
         const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
-        OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count && slot.descriptor_pool != VK_NULL_HANDLE,
-                        "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
+        OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count, "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
 
         auto key = make_descriptor_key(prepared);
         const auto cached = descriptor_cache.find(key);
@@ -501,11 +518,10 @@ struct vulkan_stream::resource_state {
         // so layouts with the same binding count are descriptor-set compatible. A
         // cache miss at capacity starts a new batch before this mutable set is used.
         descriptor_is_immutable = false;
-        if (slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count != descriptor_count) {
-            if (slot.descriptor_set != VK_NULL_HANDLE) {
-                check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
-            }
-
+        OPENVINO_ASSERT(slot.descriptor_pool != VK_NULL_HANDLE, "[GPU][Vulkan] Mutable descriptor resources were not prepared for the active generation");
+        OPENVINO_ASSERT(slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count == descriptor_count,
+                        "[GPU][Vulkan] Mutable descriptor set is incompatible with the active transient generation");
+        if (slot.descriptor_set == VK_NULL_HANDLE) {
             VkDescriptorSetAllocateInfo descriptor_set_info{};
             descriptor_set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             descriptor_set_info.descriptorPool = slot.descriptor_pool;
@@ -552,7 +568,8 @@ struct vulkan_stream::resource_state {
     uint64_t stream_id = 0;
     uint64_t max_work_group_invocations = 0;
     uint64_t subgroup_size = 0;
-    VkCommandPool command_pool = VK_NULL_HANDLE;
+    VkCommandPool transient_command_pool = VK_NULL_HANDLE;
+    VkCommandPool replay_command_pool = VK_NULL_HANDLE;
     std::vector<slot> slots;
     size_t next_slot = 0;
     bool diagnostics_enabled = false;
@@ -567,6 +584,9 @@ struct vulkan_stream::resource_state {
     uint64_t command_sequence_hits = 0;
     uint64_t command_sequence_misses = 0;
     uint64_t last_command_sequence_miss_submission = 0;
+    uint64_t command_pool_resets = 0;
+    uint64_t descriptor_pool_resets = 0;
+    uint64_t command_buffer_resets = 0;
     size_t largest_batch = 0;
     size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
     size_t largest_selected_batch_limit = 0;
@@ -582,6 +602,10 @@ struct vulkan_stream::resource_state {
     std::vector<std::weak_ptr<vulkan_buffer_allocation>> current_allocations;
     std::vector<uint64_t> direct_recording_samples;
     std::vector<uint64_t> command_reuse_samples;
+    std::vector<uint64_t> individual_reset_samples;
+    std::vector<uint64_t> generation_reset_samples;
+    size_t generation_reset_pair_wins = 0;
+    size_t individual_reset_pair_wins = 0;
     uint64_t access_generation = 0;
     bool current_external_dependency_barrier = false;
     bool current_sequence_cacheable = true;
@@ -594,6 +618,12 @@ struct vulkan_stream::resource_state {
     bool inference_uses_direct_recording = false;
     bool inference_all_batches_cache_hits = false;
     bool inference_all_batches_replayable = false;
+    bool pool_reset_decided = false;
+    bool generation_pool_reset_selected = false;
+    bool tune_next_inference_with_generation_pool_reset = false;
+    bool inference_uses_generation_pool_reset = false;
+    bool inference_tunes_command_reuse = false;
+    bool inference_tunes_pool_reset = false;
     std::chrono::steady_clock::time_point inference_started;
 
 private:
@@ -602,6 +632,16 @@ private:
             return !command_reuse_selected;
         }
         return command_reuse_calibration_started && tune_next_inference_with_direct_recording;
+    }
+
+    bool select_generation_pool_reset_for_inference() const {
+        if (!command_reuse_decided) {
+            return false;
+        }
+        if (pool_reset_decided) {
+            return generation_pool_reset_selected;
+        }
+        return tune_next_inference_with_generation_pool_reset;
     }
 
     static uint64_t median_sample(std::vector<uint64_t> samples) {
@@ -642,6 +682,41 @@ private:
         command_reuse_selected = *std::max_element(command_reuse_samples.begin(), command_reuse_samples.end()) <
                                  *std::min_element(direct_recording_samples.begin(), direct_recording_samples.end());
         command_reuse_decided = true;
+    }
+
+    void observe_pool_reset_cost(bool used_generation_pool_reset, std::chrono::steady_clock::duration elapsed) {
+        if (pool_reset_decided) {
+            return;
+        }
+        const auto elapsed_ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count());
+        if (used_generation_pool_reset) {
+            generation_reset_samples.push_back(elapsed_ns);
+        } else {
+            individual_reset_samples.push_back(elapsed_ns);
+        }
+
+        if (individual_reset_samples.size() == generation_reset_samples.size()) {
+            generation_reset_pair_wins = 0;
+            individual_reset_pair_wins = 0;
+            for (size_t index = 0; index < individual_reset_samples.size(); ++index) {
+                if (generation_reset_samples[index] < individual_reset_samples[index]) {
+                    ++generation_reset_pair_wins;
+                } else {
+                    ++individual_reset_pair_wins;
+                }
+            }
+            const auto remaining_pairs = max_pool_reset_tuning_pairs - individual_reset_samples.size();
+            const bool generation_is_decisive = generation_reset_pair_wins > individual_reset_pair_wins + remaining_pairs;
+            const bool individual_is_decisive = individual_reset_pair_wins > generation_reset_pair_wins + remaining_pairs;
+            if (generation_is_decisive || individual_is_decisive || remaining_pairs == 0) {
+                generation_pool_reset_selected = generation_reset_pair_wins > individual_reset_pair_wins;
+                pool_reset_decided = true;
+                return;
+            }
+        }
+        static constexpr std::array<bool, 4> counterbalanced_generation_schedule{false, true, true, false};
+        const auto next_sample = individual_reset_samples.size() + generation_reset_samples.size();
+        tune_next_inference_with_generation_pool_reset = counterbalanced_generation_schedule[next_sample % counterbalanced_generation_schedule.size()];
     }
 
     static bool barriers_equal(const VkBufferMemoryBarrier2& lhs, const VkBufferMemoryBarrier2& rhs) {
@@ -685,10 +760,10 @@ private:
         });
     }
 
-    VkCommandBuffer allocate_command_buffer() const {
+    VkCommandBuffer allocate_command_buffer(VkCommandPool pool) const {
         VkCommandBufferAllocateInfo command_buffer_info{};
         command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        command_buffer_info.commandPool = command_pool;
+        command_buffer_info.commandPool = pool;
         command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         command_buffer_info.commandBufferCount = 1;
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
@@ -792,7 +867,7 @@ private:
         const auto cache_capacity = current_sequence_cache_capacity();
         if (current_sequence_cacheable && command_sequences.size() < cache_capacity) {
             command_sequence sequence;
-            sequence.command_buffer = allocate_command_buffer();
+            sequence.command_buffer = allocate_command_buffer(replay_command_pool);
             sequence.dispatches = current_dispatches;
             sequence.barriers = current_sequence_barriers;
             sequence.allocations = current_allocations;
@@ -813,7 +888,7 @@ private:
                 ++iterator;
                 continue;
             }
-            vkFreeCommandBuffers(device, command_pool, 1, &iterator->command_buffer);
+            vkFreeCommandBuffers(device, replay_command_pool, 1, &iterator->command_buffer);
             iterator = command_sequences.erase(iterator);
         }
     }
@@ -979,15 +1054,20 @@ private:
         return key;
     }
 
-    slot& acquire(uint32_t descriptor_count) {
+    slot& acquire(uint32_t descriptor_count, bool mutable_descriptor_required) {
+        const auto slot_is_compatible = [descriptor_count, mutable_descriptor_required](const slot& candidate) {
+            const bool descriptor_is_compatible =
+                !mutable_descriptor_required || candidate.descriptor_set == VK_NULL_HANDLE || candidate.descriptor_binding_count == descriptor_count;
+            return !candidate.transient_command_buffer_submitted && descriptor_is_compatible;
+        };
         for (auto& slot : slots) {
-            if (slot.submission == nullptr) {
-                ensure_descriptor_pool(slot, descriptor_count);
-                return slot;
+            if (slot.submission != nullptr && slot.submission->is_complete()) {
+                recycle(slot, !inference_uses_generation_pool_reset);
             }
-            if (slot.submission->is_complete()) {
-                recycle(slot);
-                ensure_descriptor_pool(slot, descriptor_count);
+            if (slot.submission == nullptr && slot_is_compatible(slot)) {
+                if (mutable_descriptor_required) {
+                    ensure_descriptor_pool(slot, descriptor_count);
+                }
                 return slot;
             }
         }
@@ -995,20 +1075,28 @@ private:
         if (slots.size() < max_in_flight_submissions) {
             slots.emplace_back();
             auto& slot = slots.back();
-            slot.command_buffer = allocate_command_buffer();
+            slot.command_buffer = allocate_command_buffer(transient_command_pool);
 
             VkFenceCreateInfo fence_info{};
             fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             check_vk_result(vkCreateFence(device, &fence_info, nullptr, &slot.fence), "vkCreateFence");
 
-            ensure_descriptor_pool(slot, descriptor_count);
+            if (mutable_descriptor_required) {
+                ensure_descriptor_pool(slot, descriptor_count);
+            }
             return slot;
         }
 
         auto& slot = slots[next_slot++ % slots.size()];
-        slot.submission->wait();
-        recycle(slot);
-        ensure_descriptor_pool(slot, descriptor_count);
+        if (inference_uses_generation_pool_reset) {
+            complete_transient_generation();
+        } else {
+            recycle(slot, true);
+        }
+        OPENVINO_ASSERT(slot.submission == nullptr && !slot.transient_command_buffer_submitted, "[GPU][Vulkan] Transient command resources were not released");
+        if (mutable_descriptor_required) {
+            ensure_descriptor_pool(slot, descriptor_count);
+        }
         return slot;
     }
 
@@ -1067,7 +1155,7 @@ private:
         vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
     }
 
-    void recycle(slot& slot) {
+    void recycle(slot& slot, bool reset_transient_command = true) {
         if (slot.submission == nullptr) {
             return;
         }
@@ -1079,12 +1167,46 @@ private:
         slot.retained_kernels.clear();
         slot.recorded_dispatches = 0;
         check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
-        if (slot.transient_command_buffer_submitted) {
+        if (reset_transient_command && slot.transient_command_buffer_submitted) {
             check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
+            ++command_buffer_resets;
             slot.transient_command_buffer_submitted = false;
         }
-        // Keep the descriptor set allocated. The next dispatch can reuse both
-        // the set and its bindings after this slot's fence has completed.
+    }
+
+    void complete_transient_commands_individually() {
+        for (auto& slot : slots) {
+            recycle(slot, true);
+        }
+    }
+
+    void complete_transient_generation() {
+        for (auto& slot : slots) {
+            recycle(slot, false);
+        }
+
+        const bool has_transient_commands = std::any_of(slots.begin(), slots.end(), [](const auto& slot) {
+            return slot.transient_command_buffer_submitted;
+        });
+        if (has_transient_commands) {
+            check_vk_result(vkResetCommandPool(device, transient_command_pool, 0), "vkResetCommandPool(transient generation)");
+            ++command_pool_resets;
+            for (auto& slot : slots) {
+                slot.transient_command_buffer_submitted = false;
+            }
+        }
+
+        for (auto& slot : slots) {
+            if (slot.descriptor_set == VK_NULL_HANDLE) {
+                continue;
+            }
+            check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool(transient generation)");
+            ++descriptor_pool_resets;
+            slot.descriptor_set = VK_NULL_HANDLE;
+            slot.descriptor_binding_count = 0;
+            slot.descriptor_allocations.clear();
+            slot.descriptor_buffer_infos.clear();
+        }
     }
 
     void ensure_descriptor_pool(slot& slot, uint32_t descriptor_count) {
@@ -1195,10 +1317,12 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         group_counts[axis] = static_cast<uint32_t>((descriptor.workGroups.global[axis] + local_size - 1) / local_size);
     }
 
-    if (_resources->descriptor_batch_boundary_required(prepared)) {
+    const bool mutable_descriptor_required = _resources->descriptor_batch_boundary_required(prepared);
+    if (mutable_descriptor_required) {
         _resources->flush();
     }
-    auto& resources = _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations);
+    auto& resources =
+        _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations, mutable_descriptor_required);
 
     bool descriptor_is_immutable = false;
     const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
