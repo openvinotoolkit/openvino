@@ -29,13 +29,7 @@ public:
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
 
-#ifdef SNIPPETS_DEBUG_CAPS
-protected:
-    void segfault_detector() const override;
 
-private:
-    bool enabled_segfault_detector = false;
-#endif
 };
 
 class SubgraphStaticExecutor : public SubgraphRepackingStaticExecutor<SubgraphExecutor> {
