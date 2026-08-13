@@ -35,21 +35,6 @@ struct GemmImplementationManager : public ImplementationManager {
         const auto& in1_layout = node.get_input_layout(1);
         const auto& out_layout = node.get_output_layout(0);
 
-        // oneDNN GEMM requires at least 2D tensors with a known (static) rank
-        // Check actual shape rank, not format rank
-        auto has_rank_less_than = [](const ov::PartialShape& ps, int64_t min_rank) {
-            const auto& r = ps.rank();
-            return r.is_dynamic() || r.get_length() < min_rank;
-        };
-
-        const auto& in0_shape = in0_layout.get_partial_shape();
-        const auto& in1_shape = in1_layout.get_partial_shape();
-        const auto& out_shape = out_layout.get_partial_shape();
-        if (has_rank_less_than(in0_shape, 2) ||
-            has_rank_less_than(in1_shape, 2) ||
-            has_rank_less_than(out_shape, 2))
-            return false;
-
         auto in0_dt = in0_layout.data_type;
         auto in1_dt = in1_layout.data_type;
         auto out_dt = out_layout.data_type;
@@ -91,6 +76,9 @@ struct GemmImplementationManager : public ImplementationManager {
 #ifdef OV_GPU_VENDOR_NVIDIA
         // cuDNN matmul doesn't support 4D/5D/6D format tags (abcde, abcdef)
         // Reject rank > 3 to fall back to OCL kernels
+        const auto& in0_shape = in0_layout.get_partial_shape();
+        const auto& in1_shape = in1_layout.get_partial_shape();
+        const auto& out_shape = out_layout.get_partial_shape();
         if (in0_shape.rank().is_static() && in0_shape.rank().get_length() > 3)
             return false;
         if (in1_shape.rank().is_static() && in1_shape.rank().get_length() > 3)

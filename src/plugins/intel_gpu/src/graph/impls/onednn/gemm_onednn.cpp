@@ -61,23 +61,22 @@ protected:
             dnnl::memory::format_tag out_fmt;
             dnnl::memory::format_tag bias_fmt = dnnl::memory::format_tag::undef;
 
-            const bool md_ok = get_gemm_primitive_md(*impl_params,
-                                                     in0_dt,
-                                                     in1_dt,
-                                                     out_dt,
-                                                     in0_dims,
-                                                     in1_dims,
-                                                     in0_strides,
-                                                     in1_strides,
-                                                     out_dims,
-                                                     in0_fmt,
-                                                     in1_fmt,
-                                                     out_fmt,
-                                                     gemm_with_bias,
-                                                     bias_dt,
-                                                     bias_dims,
-                                                     bias_fmt);
-            OPENVINO_ASSERT(md_ok, "[GPU] oneDNN GEMM runtime memory descriptor creation failed");
+            get_gemm_primitive_md(*impl_params,
+                                  in0_dt,
+                                  in1_dt,
+                                  out_dt,
+                                  in0_dims,
+                                  in1_dims,
+                                  in0_strides,
+                                  in1_strides,
+                                  out_dims,
+                                  in0_fmt,
+                                  in1_fmt,
+                                  out_fmt,
+                                  gemm_with_bias,
+                                  bias_dt,
+                                  bias_dims,
+                                  bias_fmt);
 
             in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
             in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
@@ -158,7 +157,7 @@ protected:
         }
     }
 
-    static bool get_gemm_primitive_md(const kernel_impl_params& impl_params,
+    static void get_gemm_primitive_md(const kernel_impl_params& impl_params,
                                       dnnl::memory::data_type& in0_dt,
                                       dnnl::memory::data_type& in1_dt,
                                       dnnl::memory::data_type& out_dt,
@@ -314,8 +313,6 @@ protected:
             bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
-
-        return true;
     }
 
     static dnnl::memory::desc get_input_memory_desc(const dnnl::memory::dims& dims,
@@ -424,10 +421,8 @@ public:
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        if (!get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
-                                   out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt)) {
-            OPENVINO_ASSERT(false, "[GPU] oneDNN GEMM save failed: transpose order not supported");
-        }
+        get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
+                              out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt);
 
         ob << make_data(&in0_dt, sizeof(dnnl::memory::data_type));
         ob << make_data(&in1_dt, sizeof(dnnl::memory::data_type));
