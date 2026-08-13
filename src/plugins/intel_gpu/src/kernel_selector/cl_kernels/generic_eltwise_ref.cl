@@ -158,7 +158,8 @@ KERNEL(eltwise)(
         data_idx = data_idx / OUTPUT_SIZE_Y;
 
         const uint d3 = data_idx % OUTPUT_SIZE_Z; // Z
-        const uint d4 = get_global_id(GWS_FEATURE); // Feature, padding lanes included
+        const uint f = get_global_id(GWS_FEATURE); // Feature, padding lanes included
+        const uint d4 = f;
         const uint d5 = get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
