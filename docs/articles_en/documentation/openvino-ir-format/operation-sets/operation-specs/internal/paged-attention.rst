@@ -664,15 +664,7 @@ configurations.
    implementation handles negative values explicitly and produces the correct unbounded
    behaviour for all step types.
 
-2. **Output 2 (diversity scores) on CPU**
-
-   The CPU plugin allocates the output 2 buffer with the correct size but does not compute
-   its contents.  The buffer contents are unspecified after execution (no explicit
-   zero-fill is performed by the CPU path).  The ``AdaptiveRKVDiversityCalculator``
-   that fills output 2 is implemented only in the reference.  Consumers of output 2 from
-   the CPU plugin will receive an uninitialized buffer.
-
-3. **max_context_len attention-window clipping on CPU**
+2. **max_context_len attention-window clipping on CPU**
 
    The reference implementation applies ``max_context_len`` as a per-token attention
    window constraint: for each query position ``qpos``, the earliest attended KV
@@ -684,14 +676,7 @@ configurations.
    past tokens while the reference trims the window.  A value of ``0`` disables the
    feature in both implementations and is therefore safe to use for testing.
 
-4. **adaptive_rkv_start_size (input 21) on CPU**
-
-   The CPU kernel reads this input but does not use it for any computation
-   because the CPU does not implement diversity scoring (output 2).  Any
-   semantics that rely on initial tokens being exempt from the eviction zone are not honored
-   on the CPU path.
-
-5. **Xattention activation conditions**
+3. **Xattention activation conditions**
 
    Both the CPU kernel and the reference activate xattention only when **all** of the
    following are true: the current step is prefill (``new_len > 1``), and the batch
@@ -703,7 +688,7 @@ configurations.
    current new tokens only; previously cached tokens are always attended to at full
    density regardless of the mask.
 
-6. **Sinks (input 20) on non-x86_64 platforms**
+4. **Sinks (input 20) on non-x86_64 platforms**
 
    The CPU plugin rejects a model that contains a non-empty sinks tensor on non-x86_64
    platforms (ARM64, etc.) at ``isSupportedOperation`` time.  However, this check is
@@ -712,7 +697,7 @@ configurations.
    regardless of the sinks tensor content on non-x86_64 platforms.
    The reference has no platform restriction.
 
-7. **rotation_deltas (input 15) 2D form**
+5. **rotation_deltas (input 15) 2D form**
 
    The CPU executor requires ``rotation_deltas`` to have exactly 2 dimensions, with
    the second dimension being either ``1`` (per-block granularity) or ``Bs`` (per-token
@@ -730,7 +715,7 @@ configurations.
      last block.  The reference only re-rotates positions up to ``past_len``, leaving
      unoccupied slots untouched.
 
-8. **Cache statefulness and session lifetime**
+6. **Cache statefulness and session lifetime**
 
    The ``PagedCacheManager`` is a heap-allocated object owned through a ``shared_ptr``
    stored on the op node.  Its lifetime is therefore tied to the lifetime of the compiled
@@ -749,7 +734,7 @@ configurations.
    ``past_lens`` inputs are reset to their initial state (all zeros / empty blocks) so the
    first ``infer`` call re-initializes the cache through the normal Phase 0 code path.
 
-9. **Output 1 (score_aggregation) and internal eviction semantics**
+7. **Output 1 (score_aggregation) and internal eviction semantics**
 
    **CPU plugin:** The CPU plugin does not perform any internal eviction.  The scores
    written to output 1 are informational only: the CPU kernel does not modify the KV
