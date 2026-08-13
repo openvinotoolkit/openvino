@@ -54,8 +54,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 m_plugin->select_device(m_context->m_device_priorities,
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
                                         m_context->m_model_priority,
-                                        m_context->m_utilization_thresholds,
-                                        m_context->m_perf_curve_table);
+                                        m_context->m_selection_policy);
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -99,8 +98,7 @@ void AutoSchedule::init() {
         m_plugin->select_device(m_context->m_device_priorities,
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority,
-                                m_context->m_utilization_thresholds,
-                                m_context->m_perf_curve_table);
+                                m_context->m_selection_policy);
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
@@ -371,8 +369,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         context.m_device_info = m_plugin->select_device(device_list,
                                                         context.m_model_precision,
                                                         m_context->m_model_priority,
-                                                        m_context->m_utilization_thresholds,
-                                                        m_context->m_perf_curve_table);
+                                                        m_context->m_selection_policy);
     } catch (const ov::Exception&) {
         return;
     }

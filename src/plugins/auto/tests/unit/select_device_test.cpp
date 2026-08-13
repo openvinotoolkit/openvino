@@ -200,9 +200,8 @@ public:
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                                   const std::string& netPrecision,
                                   unsigned int priority,
-                                  const std::unordered_map<std::string, unsigned>& utilization_thresholds,
-                                  const std::map<std::string, std::map<unsigned, float>>& perf_curve_table) {
-                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds, perf_curve_table);
+                                  const ov::auto_plugin::DeviceSelectionPolicy& selection_policy) {
+                return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy);
             });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -214,7 +213,7 @@ public:
 TEST_P(SelectDeviceTest, SelectDevice) {
     const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = this->GetParam();
 
-    EXPECT_CALL(*plugin, select_device(_, _, _, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _)).Times(1);
     if (devices.size() >= 1) {
         EXPECT_CALL(*core, get_property(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
@@ -222,9 +221,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     }
 
     if (throwExcept) {
-        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}, {}), ov::Exception);
+        ASSERT_THROW(plugin->select_device(devices, netPrecision, 0, {}), ov::Exception);
     } else {
-        auto result = plugin->select_device(devices, netPrecision, 0, {}, {});
+        auto result = plugin->select_device(devices, netPrecision, 0, {});
         compare(result, expect);
     }
 }
@@ -326,7 +325,7 @@ protected:
 TEST_P(SelectDeviceWithUtilizationTest, selectDeviceWithUtilization) {
     // get Parameter
     std::string netPrecision = "FP32";
-    auto result = plugin->select_device(devices, netPrecision, 0, threshold, {});
+    auto result = plugin->select_device(devices, netPrecision, 0, {threshold, {}});
     compare(result, selectedDeviceInfo);
 }
 
@@ -462,7 +461,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
 // ------------------------------------------------------------------------------------------
 // select_device() end-to-end tests driven by perf_curve_table
 // ------------------------------------------------------------------------------------------
-using ConfigPerfCurveParams = std::tuple<std::map<std::string, std::map<unsigned, float>>,  // perf_curve_table
+using ConfigPerfCurveParams = std::tuple<ov::intel_auto::PerfCurveTable,  // perf_curve_table
                                          std::vector<DeviceInformation>,  // device candidate list
                                          std::map<std::string, float>,   // device utilization (device_name -> value)
                                          DeviceInformation                // expected selected device
@@ -472,7 +471,7 @@ class SelectDeviceWithPerfCurveTableTest : public tests::AutoTest,
                                             public ::testing::TestWithParam<ConfigPerfCurveParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigPerfCurveParams> obj) {
-        std::map<std::string, std::map<unsigned, float>> perfCurveTable;
+        ov::intel_auto::PerfCurveTable perfCurveTable;
         std::vector<ov::auto_plugin::DeviceInformation> devices;
         ov::auto_plugin::DeviceInformation selectedDeviceInfo;
         std::map<std::string, float> deviceUtilization;
@@ -530,7 +529,7 @@ public:
     }
 
 protected:
-    std::map<std::string, std::map<unsigned, float>> perfCurveTable;
+    ov::intel_auto::PerfCurveTable perfCurveTable;
     std::vector<ov::auto_plugin::DeviceInformation> devices;
     ov::auto_plugin::DeviceInformation selectedDeviceInfo;
     std::map<std::string, float> deviceUtilization;
@@ -538,7 +537,7 @@ protected:
 
 TEST_P(SelectDeviceWithPerfCurveTableTest, selectDeviceWithPerfCurveTable) {
     std::string netPrecision = "FP32";
-    auto result = plugin->select_device(devices, netPrecision, 0, {}, perfCurveTable);
+    auto result = plugin->select_device(devices, netPrecision, 0, {{}, perfCurveTable});
     compare(result, selectedDeviceInfo);
     // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
     plugin->unregister_priority(0, result.unique_name);
@@ -616,8 +615,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          ::testing::ValuesIn(testPerfCurveConfigs),
                          SelectDeviceWithPerfCurveTableTest::getTestCaseName);
 
-// perf_curve_table must take precedence over devices_utilization_threshold when both are set.
-class SelectDeviceWithPerfCurveTablePrecedenceTest : public tests::AutoTest, public ::testing::Test {
+// devices_utilization_threshold is applied before perf_curve_table when both are set.
+class SelectDeviceThresholdBeforePerfCurveTableTest : public tests::AutoTest, public ::testing::Test {
 public:
     void SetUp() override {
         std::vector<std::string> npuCapability = {"FP32", "FP16", "INT8", "BIN"};
@@ -641,29 +640,29 @@ protected:
     std::map<std::string, float> deviceUtilization = {{"CPU", 90.f}, {"NPU", 10.f}};
 };
 
-TEST_F(SelectDeviceWithPerfCurveTablePrecedenceTest, perfCurveTableOverridesUtilizationThreshold) {
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdFiltersCandidatesBeforePerfCurveRanking) {
     std::string netPrecision = "FP32";
     std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}};
-    // CPU exceeds this threshold; would be excluded if threshold logic ran instead of perf_curve_table.
+    // CPU exceeds this threshold and must be excluded before perf_curve_table ranking.
     std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 50}};
-    std::map<std::string, std::map<unsigned, float>> perfCurveTable = {{"CPU", {{0, 0.f}, {100, 0.f}}},
+    ov::intel_auto::PerfCurveTable perfCurveTable = {{"CPU", {{0, 0.f}, {100, 0.f}}},
                                                                         {"NPU", {{0, 100.f}, {100, 100.f}}}};
 
-    auto result = plugin->select_device(devices, netPrecision, 0, thresholds, perfCurveTable);
-    EXPECT_EQ(result.unique_name, "CPU_01");
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable});
+    EXPECT_EQ(result.unique_name, "NPU_01");
     // m_priority_map is process-wide static state; clean up to avoid leaking into other suites.
     plugin->unregister_priority(0, result.unique_name);
 }
 
-TEST_F(SelectDeviceWithPerfCurveTablePrecedenceTest, fallsBackToThresholdWhenPerfCurveDoesNotCover) {
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdResultIsKeptWhenPerfCurveDoesNotScore) {
     std::string netPrecision = "FP32";
     std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}};
-    // CPU (utilization 90) exceeds its threshold and must be excluded by the threshold fallback.
+    // CPU (utilization 90) exceeds its threshold and is excluded by threshold filtering.
     std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 50}};
-    // perf_curve_table covers only iGPU, none of the candidates -> AUTO falls back to threshold logic.
-    std::map<std::string, std::map<unsigned, float>> perfCurveTable = {{"iGPU", {{0, 0.f}, {100, 100.f}}}};
+    // perf_curve_table covers only iGPU, so remaining candidates are selected by priority.
+    ov::intel_auto::PerfCurveTable perfCurveTable = {{"iGPU", {{0, 0.f}, {100, 100.f}}}};
 
-    auto result = plugin->select_device(devices, netPrecision, 0, thresholds, perfCurveTable);
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, perfCurveTable});
     EXPECT_EQ(result.unique_name, "NPU_01");
     plugin->unregister_priority(0, result.unique_name);
 }
@@ -673,7 +672,7 @@ TEST_F(SelectDeviceWithPerfCurveTablePrecedenceTest, fallsBackToThresholdWhenPer
 // stable ordering (scored-ascending first, unscored trailing in original relative order), and
 // graceful handling of out-of-range utilization.
 // ------------------------------------------------------------------------------------------
-using ConfigSortByPerfCurveParams = std::tuple<std::map<std::string, std::map<unsigned, float>>,  // perf_curve_table
+using ConfigSortByPerfCurveParams = std::tuple<ov::intel_auto::PerfCurveTable,  // perf_curve_table
                                                std::list<DeviceInformation>,  // input device list (order matters)
                                                std::map<std::string, float>,  // device utilization
                                                std::vector<std::string>       // expected unique_name order
@@ -694,7 +693,7 @@ public:
     }
 
 protected:
-    std::map<std::string, std::map<unsigned, float>> perfCurveTable;
+    ov::intel_auto::PerfCurveTable perfCurveTable;
     std::list<DeviceInformation> inputDevices;
     std::map<std::string, float> deviceUtilization;
     std::vector<std::string> expectedOrder;
@@ -746,6 +745,18 @@ const std::vector<ConfigSortByPerfCurveParams> testSortByPerfCurveConfigs = {
                                 {{"GPU.0", {}, -1, "01", "iGPU_01", 0}, {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
                                 {{"GPU.0", 80.f}, {"GPU.1", 80.f}},
                                 {"dGPU_01", "iGPU_01"}},
+    // 7. Boundary: utilization equals max_key for both devices -> score is the last curve value
+    //    (upper_bound == end() path). Ordering reflects those last values (30 < 90).
+    ConfigSortByPerfCurveParams{{{"CPU", {{0, 0.f}, {100, 90.f}}}, {"NPU", {{0, 0.f}, {100, 30.f}}}},
+                                {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}},
+                                {{"CPU", 100.f}, {"NPU", 100.f}},
+                                {"NPU_01", "CPU_01"}},
+    // 8. Mid-range interpolation between two non-zero keys combined with a max_key hit.
+    //    CPU: ratio (50-20)/(80-20)=0.5 -> 10 + 0.5*(70-10) = 40; NPU at max_key -> 50. 40 < 50.
+    ConfigSortByPerfCurveParams{{{"CPU", {{20, 10.f}, {80, 70.f}}}, {"NPU", {{0, 0.f}, {100, 50.f}}}},
+                                {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}},
+                                {{"CPU", 50.f}, {"NPU", 100.f}},
+                                {"CPU_01", "NPU_01"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,

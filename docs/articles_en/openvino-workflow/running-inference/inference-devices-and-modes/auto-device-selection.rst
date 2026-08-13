@@ -211,15 +211,16 @@ the following setup options:
 |                                              | (``[0, 100]``) to a relative performance score. AUTO ranks         |
 |                                              | candidate devices in ascending order of their interpolated score   |
 |                                              | at the current utilization and selects the one with the lowest     |
-|                                              | score. ``perf_curve_table`` has the highest priority: when it      |
-|                                              | produces a valid score for at least one candidate device           |
-|                                              | (i.e., utilization is available and within the curve key range),   |
-|                                              | selection is driven purely by the curve ranking and                |
-|                                              | ``devices_utilization_threshold`` is not applied. If               |
-|                                              | ``perf_curve_table`` fails to score any candidate, AUTO falls back |
-|                                              | to ``devices_utilization_threshold``.                              |
+|                                              | score. If both ``devices_utilization_threshold`` and               |
+|                                              | ``perf_curve_table`` are set, AUTO first filters candidates by     |
+|                                              | ``devices_utilization_threshold``. Then it ranks only the          |
+|                                              | threshold-passing candidates with ``perf_curve_table`` when        |
+|                                              | curve entries are available and utilization can be scored. If no   |
+|                                              | candidate gets scored by the curve, AUTO keeps threshold result    |
+|                                              | and selects by priority among the remaining candidates.            |
 |                                              | Allowed device keys: ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. |
-|                                              | Each device's curve must have at least one entry.                  |
+|                                              | Each device's curve must have at least one entry. Scores must be   |
+|                                              | non-negative and finite.                                           |
 |                                              |                                                                    |
 |                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                         |
 |                                              | ``"NPU": {0: 0.0, 100: 50.0}}``                                    |

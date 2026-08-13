@@ -82,7 +82,7 @@ class PerfCurveTableValidator : public BaseValidator {
 public:
     bool is_valid(const ov::Any& v) const override {
         try {
-            const auto& table = v.as<std::map<std::string, std::map<unsigned, float>>>();
+            const auto& table = v.as<ov::intel_auto::PerfCurveTable>();
             static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
             for (const auto& [device, curve] : table) {
                 if (allowed_devices.find(device) == allowed_devices.end()) {

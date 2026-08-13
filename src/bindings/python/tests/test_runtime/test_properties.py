@@ -632,8 +632,10 @@ def test_properties_perf_curve_table():
     # String form is accepted and parsed to the same nested map.
     check("{CPU:{0:0,100:100}}", {"CPU": {0: 0.0, 100: 100.0}})
 
-    # Dict inputs route through the same strict validation as Core.set_property, so lossy
-    # implicit conversions (bool keys/values) and invalid types are rejected consistently.
+    # The dict overload performs only Python-type shape checks (str device keys, dict curves,
+    # bool rejection, int/float discrimination). Semantic rules (empty curve, utilization range,
+    # finite non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
+    # enforced when the value is set on the plugin via Core.set_property/compile_model.
     with pytest.raises(RuntimeError):
         intel_auto.perf_curve_table({"CPU": {0: "high"}})
 
@@ -646,8 +648,35 @@ def test_properties_perf_curve_table():
     with pytest.raises(RuntimeError):
         intel_auto.perf_curve_table({"CPU": {0: True}})
 
+
+def test_properties_perf_curve_table_set_property_roundtrip():
+    core = Core()
+    # AUTO is a bundled virtual plugin; skip if it cannot be loaded in this environment.
+    try:
+        core.get_property("AUTO", props.supported_properties)
+    except RuntimeError:
+        pytest.skip("AUTO plugin is not available in this environment")
+
+    # Dict form: the helper builds a typed PerfCurveTable, so set/get round-trips to a dict.
+    expected = {"CPU": {0: 0.0, 100: 100.0}, "NPU": {50: 40.0}}
+    core.set_property("AUTO", intel_auto.perf_curve_table(expected))
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == expected
+
+    # Helper string form is parsed to the same typed map before it is set.
+    core.set_property("AUTO", intel_auto.perf_curve_table("{CPU:{0:0,100:100}}"))
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == {"CPU": {0: 0.0, 100: 100.0}}
+
+    # Raw string in a property dict exercises py_object_to_any -> validator Any::as parsing.
+    core.set_property("AUTO", {"PERF_CURVE_TABLE": "{NPU:{0:0,100:50}}"})
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == "{NPU:{0:0,100:50}}"
+
+    # Semantic rules are enforced by PerfCurveTableValidator at set_property time.
     with pytest.raises(RuntimeError):
-        intel_auto.perf_curve_table({"CPU": {}})
+        core.set_property("AUTO", intel_auto.perf_curve_table({"CPU": {}}))        # empty curve
+    with pytest.raises(RuntimeError):
+        core.set_property("AUTO", intel_auto.perf_curve_table({"XXX": {0: 1.0}}))  # non-whitelisted device
+    with pytest.raises(RuntimeError):
+        core.set_property("AUTO", {"PERF_CURVE_TABLE": "not-a-valid-table"})       # unparsable string
 
 
 def test_properties_streams():

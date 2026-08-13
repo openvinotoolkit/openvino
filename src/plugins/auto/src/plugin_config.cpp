@@ -28,7 +28,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
         std::make_tuple(ov::intel_auto::devices_utilization_threshold, std::map<std::string, unsigned>{}, DeviceUtilizationThresholdValidator()),
-        std::make_tuple(ov::intel_auto::perf_curve_table, std::map<std::string, std::map<unsigned, float>>{}, PerfCurveTableValidator()),
+        std::make_tuple(ov::intel_auto::perf_curve_table, ov::intel_auto::PerfCurveTable{}, PerfCurveTableValidator()),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),

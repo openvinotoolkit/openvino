@@ -197,9 +197,9 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, uint64_t>>()) {
         return py::cast(any.as<std::map<std::string, uint64_t>>());
     }
-    // Check for std::map<std::string, std::map<unsigned, float>>
-    else if (any.is<std::map<std::string, std::map<unsigned, float>>>()) {
-        return py::cast(any.as<std::map<std::string, std::map<unsigned, float>>>());
+    // Check for ov::intel_auto::PerfCurveTable (std::map<std::string, std::map<unsigned, float>>)
+    else if (any.is<ov::intel_auto::PerfCurveTable>()) {
+        return py::cast(any.as<ov::intel_auto::PerfCurveTable>());
     }
     // Check for std::map<element::Type, float>
     else if (any.is<std::map<ov::element::Type, float>>()) {
@@ -369,7 +369,11 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = thresholds;
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
-            std::map<std::string, std::map<unsigned, float>> perf_curve_table;
+            // Only Python-type shape checks live here (str/dict structure, bool rejection,
+            // int/float discrimination). Semantic rules (empty curve, utilization range, finite
+            // non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
+            // enforced when the property is set on the plugin.
+            ov::intel_auto::PerfCurveTable perf_curve_table;
             auto dict = py::cast<py::dict>(property.second);
             for (const auto& item : dict) {
                 if (!py::isinstance<py::str>(item.first)) {
@@ -394,16 +398,10 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                     try {
                         utilization = py::cast<long long>(curve_item.first);
                     } catch (const py::cast_error&) {
-                        // Rethrow as ov::Exception so out-of-range ints surface as a consistent RuntimeError.
+                        // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
                         OPENVINO_THROW("The utilization key of ",
                                        ov::intel_auto::perf_curve_table.name(),
-                                       " must be an integer within [0, 100]");
-                    }
-                    if (utilization < 0 || utilization > 100) {
-                        OPENVINO_THROW("The utilization key of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " must be an integer within [0, 100], but got ",
-                                       utilization);
+                                       " must be a Python integer");
                     }
                     // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
                     if (py::isinstance<py::bool_>(curve_item.second)) {
@@ -420,18 +418,7 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                                        ov::intel_auto::perf_curve_table.name(),
                                        " should be dict[str, dict[int in [0, 100], float]] with numeric float scores");
                     }
-                    if (!std::isfinite(score) || score < 0.f) {
-                        OPENVINO_THROW(
-                            "The value type of ",
-                            ov::intel_auto::perf_curve_table.name(),
-                            " should be dict[str, dict[int in [0, 100], float]] with non-negative finite scores");
-                    }
                     curve[static_cast<unsigned>(utilization)] = score;
-                }
-                if (curve.empty()) {
-                    OPENVINO_THROW("The value type of ",
-                                   ov::intel_auto::perf_curve_table.name(),
-                                   " must be a non-empty dict[int in [0, 100], float] for each device");
                 }
                 perf_curve_table[device_key] = curve;
             }

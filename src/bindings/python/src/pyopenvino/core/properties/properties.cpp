@@ -353,13 +353,13 @@ void regmodule_properties(py::module m) {
         properties[ov::intel_auto::perf_curve_table.name()] = value;
         const auto any_map = Common::utils::properties_to_any_map(properties);
         return ov::intel_auto::perf_curve_table(
-            any_map.at(ov::intel_auto::perf_curve_table.name()).as<std::map<std::string, std::map<unsigned, float>>>());
+            any_map.at(ov::intel_auto::perf_curve_table.name()).as<ov::intel_auto::PerfCurveTable>());
     });
     // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
     m_intel_auto.def("perf_curve_table", [](const std::string& value) {
         try {
             return ov::intel_auto::perf_curve_table(
-                ov::Any(value).as<std::map<std::string, std::map<unsigned, float>>>());
+                ov::Any(value).as<ov::intel_auto::PerfCurveTable>());
         } catch (const ov::Exception& e) {
             OPENVINO_THROW("PERF_CURVE_TABLE: failed to parse string '",
                            value,
@@ -367,7 +367,7 @@ void regmodule_properties(py::module m) {
                            e.what());
         }
     });
-    m_intel_auto.def("perf_curve_table", [](const std::map<std::string, std::map<unsigned, float>>& value) {
+    m_intel_auto.def("perf_curve_table", [](const ov::intel_auto::PerfCurveTable& value) {
         return ov::intel_auto::perf_curve_table(value);
     });
 
