@@ -184,6 +184,76 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  endif
 #endif
 
+// ---------------------------------------------------------------------------------------------
+// 1D subgroup block read of a whole cache page.
+//
+// A u4 page's row is HEAD_SIZE/2 bytes, so at head 64 it is 32 -- below the 64-byte block2d
+// minimum, and no head size can fix that for BOTH K (row = h/2) and V (row = Align(h/2, 16)).
+// The host therefore leaves USE_2D_BLOCK_IO_{K,V}_PA_I8 off and the loads fall back to a per-lane
+// byte gather: measured on the gpt-oss-20b mixed kernel, 64 K + 128 V SIMD-16 scattered messages
+// per k0 iteration against 16 dpas.
+//
+// But the page's DATA REGION is one contiguous run of PAGED_ATTENTION_BLOCK_SIZE * <ROW> bytes,
+// and intel_sub_group_block_read_uc16 lands component i of lane L on byte SUBGROUP_SIZE * i + L.
+// Both consumers want byte (token t, 16-wide column group c) + L, i.e.
+//
+//     SUBGROUP_SIZE * (PA_PAGE_UC16 * r + i) + L  ==  t * <ROW> + SUBGROUP_SIZE * c + L
+//                                             <=>  PA_PAGE_UC16 * r + i == t * COLS + c
+//
+// with COLS = <ROW> / SUBGROUP_SIZE. So r and i below place any (t, c) with no shuffle and no
+// per-lane address, and COLS reads cover all PAGED_ATTENTION_BLOCK_SIZE tokens of a column group.
+//
+// r is a compile-time constant whenever t is, EVEN IF c is not: c < COLS and COLS divides
+// PA_PAGE_UC16 (host gate: COLS is a power of two), so [t*COLS, t*COLS + COLS) never straddles a
+// read boundary. i is not, so a caller whose c is a runtime value (V, whose column group comes from
+// sg_j0_sv) instead BIASES THE BASE by SUBGROUP_SIZE * c and passes c = 0 -- identical arithmetic,
+// and it keeps i constant so the uchar16 component select stays a register subscript rather than
+// an indirect address. K's c is PA_K_U4_WIN(db)/2/SUBGROUP_SIZE == db >> 1, a constant, so K reads
+// at the plain page base and hoists the reads out of the db loop entirely.
+//
+// Bound on what is touched: SUBGROUP_SIZE*c + (COLS-1)*PA_PAGE_RD_BYTES + PA_PAGE_RD_BYTES - 1,
+// i.e. 527 B for the head-64 u4 V page (COLS = 2, c <= 1) against a 16 * ADJUSTED_V_HEAD_SIZE = 576 B
+// page, and 511 B for K against 768 B. The overhang past the data region only ever lands in the
+// page's own trailing comp arrays, never outside the allocation, and only unused components read it.
+// ---------------------------------------------------------------------------------------------
+#define PA_PAGE_UC16          16                                     // components of a uchar16
+#define PA_PAGE_RD_BYTES      (SUBGROUP_SIZE * PA_PAGE_UC16)
+#define PA_PAGE_COLS(ROW)     ((ROW) / SUBGROUP_SIZE)                // 16-byte column groups per row
+#define PA_PAGE_READS(ROW)    PA_PAGE_COLS(ROW)                      // reads to cover one column group
+#define PA_PAGE_R(ROW, t, c)  (((t) * PA_PAGE_COLS(ROW) + (c)) / PA_PAGE_UC16)
+#define PA_PAGE_I(ROW, t, c)  (((t) * PA_PAGE_COLS(ROW) + (c)) % PA_PAGE_UC16)
+
+#if USE_1D_BLOCK_IO_K_PA_U4 || USE_1D_BLOCK_IO_V_PA_U4
+#  if !IS_PA_K_U4
+// The dequant reused below is the u4 nibble one; i8 pages take the block2d paths or the gather.
+#    error "sdpa_ocl.cl: the 1D page read is implemented for the u4 BY_CHANNEL token-major page only"
+#  endif
+#  if PAGED_ATTENTION_BLOCK_SIZE != SUBGROUP_SIZE
+// One key group == one page == one subgroup width is what makes the page's token index equal the
+// key's subgroup-local index, which is what makes t a compile-time constant above.
+#    error "sdpa_ocl.cl: the 1D page read assumes PAGED_ATTENTION_BLOCK_SIZE == SUBGROUP_SIZE"
+#  endif
+#endif
+
+// The row geometry the mapping needs, asserted per tensor because the host gates them
+// independently: at head 48 the u4 V row is Align(24, 16) == 32 and qualifies while the K row is 24
+// and does not. Without these a host-gate drift would not fail to build -- it would read the wrong
+// bytes, because PA_PAGE_COLS silently truncates for a row that is not a whole number of column
+// groups, and a COLS that is not a power of two makes the READ index depend on the column group,
+// which the V branch has already committed to being constant (it passes c = 0 and biases the base).
+#if USE_1D_BLOCK_IO_K_PA_U4
+#  if (PA_K_ROW_ELEMS % SUBGROUP_SIZE) != 0 || PA_PAGE_COLS(PA_K_ROW_ELEMS) > PA_PAGE_UC16 || \
+      (PA_PAGE_COLS(PA_K_ROW_ELEMS) & (PA_PAGE_COLS(PA_K_ROW_ELEMS) - 1)) != 0
+#    error "sdpa_ocl.cl: the 1D K page read needs PA_K_ROW_ELEMS = SUBGROUP_SIZE * 2^n, n <= 4"
+#  endif
+#endif
+#if USE_1D_BLOCK_IO_V_PA_U4
+#  if (PA_V_ROW_ELEMS % SUBGROUP_SIZE) != 0 || PA_PAGE_COLS(PA_V_ROW_ELEMS) > PA_PAGE_UC16 || \
+      (PA_PAGE_COLS(PA_V_ROW_ELEMS) & (PA_PAGE_COLS(PA_V_ROW_ELEMS) - 1)) != 0
+#    error "sdpa_ocl.cl: the 1D V page read needs PA_V_ROW_ELEMS = SUBGROUP_SIZE * 2^n, n <= 4"
+#  endif
+#endif
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
@@ -208,6 +278,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
+#endif
+#ifdef HAS_SINK_INPUT
+        const global SINK_DATA_T *sink_ptr,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -302,6 +375,22 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     scale *= LOG2E;
 
+#ifdef HAS_SINK_INPUT
+    // Attention sink: one extra per-head logit that joins the softmax max and denominator but
+    // carries a ZERO value vector, so it never reaches the numerator. That makes it exactly the
+    // online-softmax state SEEDED with one synthetic key -- running max = sink, running sum = 1,
+    // A_tile = 0 -- which costs three initialisers and leaves the key loop untouched. sdpa_micro.cl
+    // instead injects it per k0 tile from the subgroup owning the last key (its is_last_m_sg), and
+    // has to fork LOG_2_E_MUL_SCALE to pre-scale S_tile; neither is needed here because S_max_slm
+    // below is a RUNNING max that spans the whole loop.
+    //
+    // Domain: S_tile stays unscaled and S_max_slm holds the max in that same raw domain, because the
+    // softmax recovers m_log2 = m_new * scale (with LOG2E already folded into scale). The sink is a
+    // real logit, so it enters divided by the attention scale -- the same convention the attn mask
+    // uses at its `* iscale` load below.
+    const float sink_raw = convert_float(sink_ptr[b0]) * iscale;
+#endif
+
     /* Row stride (in elements) of the Q/K/V/A matrices. */
 #if IS_PAGED_ATTENTION
     // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size]: there is no Y
@@ -356,7 +445,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     local float S_max_slm[kq_wg_tile_queries];
 
     for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < kq_wg_tile_queries; qi += sg_per_wg * SUBGROUP_SIZE)
+#ifdef HAS_SINK_INPUT
+        // Seeded, not -INFINITY: this slot is written once here and thereafter only atomic-maxed in
+        // the key loop, so it is the running max over every k0 tile AND every subgroup. Seeding it
+        // is what counts the sink exactly once.
+        S_max_slm[qi] = sink_raw;
+#else
         S_max_slm[qi] = -INFINITY;
+#endif
 
     // Cooperative Q->SLM staging: the Q tile is q_blocks query-blocks x DKS head-dim
     // chunks = q_blocks*DKS independent (q_block, db) tiles. Distribute them round-robin
@@ -458,8 +554,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     float S_sum_tile[kq_query_blocks];
     #pragma unroll
     for (int qb = 0; qb < kq_query_blocks; ++qb) {
+#ifdef HAS_SINK_INPUT
+        // The private half of the same seed. S_max_tile holds the max already multiplied by scale
+        // (the softmax stores m_log2 back into it), so it is seeded from the SAME sink_raw * scale
+        // product the loop will compute for m_log2 -- which makes the first rescale alpha come out
+        // exactly 1.0 when the sink dominates, rather than 1.0 +/- a ulp.
+        S_max_tile[qb] = sink_raw * scale;
+        // The sink's exp2(sink - sink) = 1 goes to ONE subgroup only. Each subgroup writes its own
+        // S_sum_slm[query * kq_sg_per_wg_keys + sg_i_kq] slot and the epilogue sums all of them, so
+        // seeding every subgroup would count the sink kq_sg_per_wg_keys times.
+        S_sum_tile[qb] = (sg_i_kq == 0) ? 1.0f : 0.0f;
+#else
         S_max_tile[qb] = -INFINITY;
         S_sum_tile[qb] = 0.0f;
+#endif
     }
 
     float8 A_tile[sv_score_blocks][sv_value_blocks];
@@ -688,6 +796,30 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (half)0.0h;
         }
     #endif
+
+    #if USE_1D_BLOCK_IO_K_PA_U4
+        // Whole-page read, hoisted OUT of the db loop below -- that hoist is the entire win. The
+        // page bytes do not depend on db (a byte is a channel PAIR, so the tile pair (2g, 2g+1)
+        // shares one byte and the four tiles at head 64 share two 32-channel windows), while the
+        // gather it replaces re-issued DKS * kq_key_blocks * DPAS_ROWS == 64 messages per k0. Two
+        // uc16 reads is the whole subgroup's K for this k0 iteration.
+        // Live state is PA_PAGE_READS * 16 bytes per lane: 32 at head 64. It stays small because the
+        // host gate only fires where block2d could not, which for u4 means a row of 16 or 32 bytes.
+        uchar16 k_pg[kq_sg_tile_keys / SUBGROUP_SIZE][PA_PAGE_READS(PA_K_ROW_ELEMS)];
+        #pragma unroll
+        for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+            // Same page as the comp loop above, and page-aligned for the same reason: key_base is a
+            // multiple of kq_sg_tile_keys and k0 of kq_wg_tile_keys, both multiples of
+            // PAGED_ATTENTION_BLOCK_SIZE. A group at/past k had its index clamped to 0, so the
+            // address is always inside an allocated page.
+            const global uchar *k_pg_base = (const global uchar *)(
+                K + ((size_t)k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)] * KV_HEADS_NUM + b0_kv) *
+                        PA_K_PAGE_STRIDE);
+            #pragma unroll
+            for (int r = 0; r < PA_PAGE_READS(PA_K_ROW_ELEMS); ++r)
+                k_pg[kg][r] = intel_sub_group_block_read_uc16(k_pg_base + r * PA_PAGE_RD_BYTES);
+        }
+    #endif
 #endif
 
         #pragma unroll
@@ -836,6 +968,50 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             k_raw[krel / DPAS_ROWS][krel % DPAS_ROWS] = as_ushort(deq_k);
                         }
                     }
+                }
+            }
+    #elif USE_1D_BLOCK_IO_K_PA_U4
+            // Byte-for-byte the same dequant, the same guards and the same k_raw writes as the
+            // scalar branch below -- ONLY the load changes, from one message per (db, mb, key) to a
+            // register subscript into the page read hoisted above. That is what makes
+            // SDPA_OCL_K_PA_1D=0 an exact bisection toggle: the two branches are numerically
+            // identical, so a difference can only come from the read itself.
+            //
+            // The column group is PA_K_U4_WIN(db) / 2 / SUBGROUP_SIZE == db >> 1, a compile-time
+            // constant in this unrolled loop, so both PA_PAGE_R and PA_PAGE_I fold and no base bias
+            // is needed. `head` is still the CHANNEL (the guard below is unchanged); it just no
+            // longer has to be turned into an address.
+            // The scalar branch's per-key `head < d && key < k` guard is NOT reproduced, for the same
+            // reason the block2d branches above do not have one either -- and dropping it is most of
+            // the win, since it costs a compare and a predicated write per key:
+            //  - `key < k`. A key at or past k is also at or past causal_k (causal_k <= k), so the
+            //    mask below ADDS -INFINITY to its score. All this path therefore owes is FINITENESS,
+            //    and a u4 nibble is bounded to [0, 15] by construction while sc/zp were already
+            //    clamped to 0 for a key group at/past k. The block2d branches lean on exactly this:
+            //    they clamp the surface height, and rows past it read as 0, which still dequants to
+            //    a nonzero (0 - zp) * sc. Note this is STRONGER than the i8 case needs to be -- there
+            //    is no NaN to exclude, because the nibble select bounds the value before the dequant.
+            //  - `head < d`. Folded into the scale instead: (nibble - zp) * 0 is exactly 0, so one
+            //    select per (mb, db) replaces DPAS_ROWS of them, and k_raw needs no zero init.
+            const int head = PA_K_U4_CHANNEL(db, lane);
+            const int k_pg_col = (PA_K_U4_WIN(db) / 2) / SUBGROUP_SIZE;
+            const bool head_ok = (head < d);
+            #pragma unroll
+            for (int mb = 0; mb < kq_key_blocks; ++mb) {
+                const int kg = mb / (SUBGROUP_SIZE / DPAS_ROWS);
+                // Per-channel comp is this lane's own and constant across the row-block's keys,
+                // exactly as in the scalar branch.
+                const half k_sc = head_ok ? k_pa_sc_ch[kg][db] : (half)0.0h;
+                const half k_zp = k_pa_zp_ch[kg][db];
+                #pragma unroll
+                for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
+                    const int krel = mb * DPAS_ROWS + key_offset;   // key's subgroup-local index
+                    const int tok = krel % PAGED_ATTENTION_BLOCK_SIZE;
+                    const uint kb_ = (uint)k_pg[kg][PA_PAGE_R(PA_K_ROW_ELEMS, tok, k_pg_col)]
+                                                  [PA_PAGE_I(PA_K_ROW_ELEMS, tok, k_pg_col)];
+                    const half deq_k =
+                        ((half)(PA_K_U4_PAR(db) ? (kb_ >> 4) : (kb_ & 0x0Fu)) - k_zp) * k_sc;
+                    k_raw[mb][key_offset] = as_ushort(deq_k);
                 }
             }
     #elif IS_PA_KV_COMPRESSED
@@ -1470,6 +1646,66 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                 // key_pairs (u*2, u*2+1).
                                 vb[cd][u * 2 + 0] = as_int(deq4.lo);
                                 vb[cd][u * 2 + 1] = as_int(deq4.hi);
+                            }
+                        }
+                    }
+                    #elif USE_1D_BLOCK_IO_V_PA_U4
+                    {
+                        // Same dequant, same guards and the same vb writes as the scalar branch
+                        // below -- only the load changes, so SDPA_OCL_V_PA_1D=0 is an exact
+                        // bisection toggle. Replaces sv_value_blocks * DPAS_ROWS * 2 == 16 gathers
+                        // per cp block with PA_PAGE_READS == 2 messages.
+                        //
+                        // The column group PA_V_U4_COL(v_base) / SUBGROUP_SIZE is NOT a compile-time
+                        // constant (v_base comes from sg_j0_sv), so the base is biased by it and the
+                        // index is taken at c = 0 -- see the PA_PAGE_* comment. That makes the read
+                        // per-cd rather than per-cp; sv_value_blocks is 1 for every head size this
+                        // path can fire on (larger ones satisfy the block2d pitch rule), so the
+                        // message count is unchanged by that.
+                        #pragma unroll
+                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
+                            vb[cd] = (int8)0;
+                            const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
+                            const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
+                            // Nibble select as a UNIFORM SHIFT rather than a select. v_hi comes from
+                            // sg_j0_sv, so it is subgroup-uniform but not a compile-time constant
+                            // (unlike K's PA_K_U4_PAR(db), which folds): written as
+                            // `v_hi ? (b >> 4) : (b & 0xF)` it costs shr+and+sel on every one of the
+                            // sv_key_blocks * DPAS_ROWS * 2 elements a subgroup dequants per k0.
+                            // Hoisting the shift amount leaves shr+and.
+                            const uint v_sh = PA_V_U4_HI(v_base) ? 4u : 0u;
+                            uchar16 v_pg[PA_PAGE_READS(PA_V_ROW_ELEMS)];
+                            const global uchar *v_pg_base =
+                                (const global uchar *)(V + v_page_base) + PA_V_U4_COL(v_base);
+                            #pragma unroll
+                            for (int r = 0; r < PA_PAGE_READS(PA_V_ROW_ELEMS); ++r)
+                                v_pg[r] = intel_sub_group_block_read_uc16(v_pg_base + r * PA_PAGE_RD_BYTES);
+                            // No per-key `key < k` guard, mirroring the block2d branch above and the
+                            // K branch: a key at or past k already carries a score of exactly 0 out
+                            // of the softmax (its logit was -INFINITY), so its V value is multiplied
+                            // by zero and only has to be FINITE -- which a u4 nibble is by
+                            // construction, and v_zp_c is clamped to 0 there anyway.
+                            if (value < d) {
+                                #pragma unroll
+                                for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
+                                    // The cp block coincides with one page (see above), so the
+                                    // token index IS the key's block-local index. Spelled as the
+                                    // loop constant rather than key0 % PAGED_ATTENTION_BLOCK_SIZE
+                                    // because PA_PAGE_R/I need it at compile time, and IGC cannot
+                                    // prove cp_key0 % PAGED_ATTENTION_BLOCK_SIZE == 0 by itself.
+                                    const int t0 = key_pair * 2;
+                                    const int t1 = t0 + 1;
+                                    const uint vb0 = (uint)v_pg[PA_PAGE_R(PA_V_ROW_ELEMS, t0, 0)]
+                                                               [PA_PAGE_I(PA_V_ROW_ELEMS, t0, 0)];
+                                    const uint vb1 = (uint)v_pg[PA_PAGE_R(PA_V_ROW_ELEMS, t1, 0)]
+                                                               [PA_PAGE_I(PA_V_ROW_ELEMS, t1, 0)];
+                                    half2 vv;
+                                    vv[0] = (half)((vb0 >> v_sh) & 0x0Fu) -
+                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
+                                    vv[1] = (half)((vb1 >> v_sh) & 0x0Fu) -
+                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
+                                    vb[cd][key_pair] = as_int(vv);
+                                }
                             }
                         }
                     }
