@@ -24,7 +24,7 @@ class SDPAOclGenerator : public SDPABase {
 public:
     explicit SDPAOclGenerator(bool prefill)
         : SDPABase("sdpa_ocl",
-                   prefill ? "_prefill" : "_generate",
+                   prefill ? "prefill" : "mixed",
                    false),
           m_is_prefill(prefill) {
     }
