@@ -72,11 +72,6 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
     return primitive->input_size() - 1;
 }
 
-inline size_t ensure_positive_dim(int64_t value, const char* dim_name) {
-    OPENVINO_ASSERT(value > 0, "SDPA: invalid non-positive ", dim_name, " for JIT constants generation");
-    return static_cast<size_t>(value);
-}
-
 }  // namespace
 
 // 4-bit KV-cache packs two u4 values into one i8 byte, halving the physical
@@ -311,11 +306,26 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
 
-        const auto q_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(0), extended_input_q_transpose_order), "q_head_size");
-        const auto q_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order), "q_num_head");
-        auto k_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(1), extended_input_k_transpose_order), "k_head_size");
-        const auto k_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order), "k_num_head");
-        auto v_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(2), extended_input_v_transpose_order), "v_head_size");
+        const auto q_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                     "q_head_size",
+                                                     "SDPA: invalid non-positive ",
+                                                     " for JIT constants generation");
+        const auto q_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                    "q_num_head",
+                                                    "SDPA: invalid non-positive ",
+                                                    " for JIT constants generation");
+        auto k_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(1), extended_input_k_transpose_order),
+                                               "k_head_size",
+                                               "SDPA: invalid non-positive ",
+                                               " for JIT constants generation");
+        const auto k_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order),
+                                                    "k_num_head",
+                                                    "SDPA: invalid non-positive ",
+                                                    " for JIT constants generation");
+        auto v_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(2), extended_input_v_transpose_order),
+                                               "v_head_size",
+                                               "SDPA: invalid non-positive ",
+                                               " for JIT constants generation");
 
         // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
         // Override with logical head size from query (which is not packed).

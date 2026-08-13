@@ -16,11 +16,6 @@
 
 namespace ov::intel_gpu::ocl {
 
-inline size_t ensure_positive_dim(int64_t value, const char* dim_name) {
-    OPENVINO_ASSERT(value > 0, "SDPA: invalid non-positive ", dim_name, " in static dispatch");
-    return static_cast<size_t>(value);
-}
-
 static bool unaligned_head_size(const size_t k_head_size, const size_t v_head_size, const size_t subgroup_size) {
     return (k_head_size % subgroup_size != 0) || (v_head_size % subgroup_size != 0);
 }
@@ -227,8 +222,14 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
-            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order), "target_seq_len");
-            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order), "heads_num");
+            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                              "target_seq_len",
+                                                              "SDPA: invalid non-positive ",
+                                                              " in static dispatch");
+            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order),
+                                                         "heads_num",
+                                                         "SDPA: invalid non-positive ",
+                                                         " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
@@ -238,7 +239,7 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size");
+            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::SINGLE_TOKEN);
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
@@ -275,8 +276,14 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
-            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order), "target_seq_len");
-            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order), "heads_num");
+            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                              "target_seq_len",
+                                                              "SDPA: invalid non-positive ",
+                                                              " in static dispatch");
+            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order),
+                                                         "heads_num",
+                                                         "SDPA: invalid non-positive ",
+                                                         " in static dispatch");
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
@@ -286,7 +293,7 @@ DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size");
+            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size_u, SDPAStage::MULTI_TOKENS);
 
@@ -327,8 +334,14 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
             auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
-            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order), "target_seq_len");
-            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order), "heads_num");
+            const size_t target_seq_len = ensure_positive_dim(get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                              "target_seq_len",
+                                                              "SDPA: invalid non-positive ",
+                                                              " in static dispatch");
+            const size_t heads_num = ensure_positive_dim(get_num_heads(params.get_output_layout(0), extended_output_transpose_order),
+                                                         "heads_num",
+                                                         "SDPA: invalid non-positive ",
+                                                         " in static dispatch");
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::FINALIZATION);
             auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 
@@ -338,7 +351,7 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
                 head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
             }
 
-            const size_t head_size_u = ensure_positive_dim(head_size, "head_size");
+            const size_t head_size_u = ensure_positive_dim(head_size, "head_size", "SDPA: invalid non-positive ", " in static dispatch");
 
             GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << "\n";
             GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size_u << ", num_of_partitions = " << num_of_partitions << "\n";

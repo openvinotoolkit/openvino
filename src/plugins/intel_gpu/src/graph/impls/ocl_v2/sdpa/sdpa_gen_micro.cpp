@@ -43,11 +43,6 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
-inline size_t ensure_positive_dim(int64_t value, const char* dim_name) {
-    OPENVINO_ASSERT(value > 0, "[GPU] Invalid non-positive ", dim_name);
-    return static_cast<size_t>(value);
-}
-
 micro::Type convert_type(ov::element::Type t) {
     switch (t) {
     case ov::element::f32:
