@@ -5,7 +5,6 @@
 #include "kernel_generator.hpp"
 
 #include <cctype>
-#include <iostream>
 
 #include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -92,33 +91,26 @@ std::string KernelGenerator::build_code(std::string_view template_name, const Ji
 }
 
 KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
-    try {
-        auto jit = get_jit_constants(params);
+    auto jit = get_jit_constants(params);
 
-        KernelData kd;
-        kd.code = std::make_shared<KernelString>();
-        kd.code->language = KernelLanguage::OCLC_V2;
-        kd.code->entry_point = get_entry_point(params);
-        kd.code->jit = "";  // jit and undefs are a part of the code now
-        kd.code->undefs = "";
-        kd.code->options = get_build_options(params);
-        kd.code->batch_compilation = true;
-        kd.code->has_microkernels = false;
-        kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
+    KernelData kd;
+    kd.code = std::make_shared<KernelString>();
+    kd.code->language = KernelLanguage::OCLC_V2;
+    kd.code->entry_point = get_entry_point(params);
+    kd.code->jit = "";  // jit and undefs are a part of the code now
+    kd.code->undefs = "";
+    kd.code->options = get_build_options(params);
+    kd.code->batch_compilation = true;
+    kd.code->has_microkernels = false;
+    kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
 
-        kd.params.arguments = get_arguments_desc(params);
-        kd.params.layerID = params.desc->id;
-        kd.update_dispatch_data_func = get_dispatch_data_func();
-        kd.need_args_update = true;
-        kd.need_dispatch_data_update = true;
+    kd.params.arguments = get_arguments_desc(params);
+    kd.params.layerID = params.desc->id;
+    kd.update_dispatch_data_func = get_dispatch_data_func();
+    kd.need_args_update = true;
+    kd.need_dispatch_data_update = true;
 
-        return kd;
-    } catch (const std::exception& e) {
-        std::cerr << "[get_kernel_data] stage codegen FAILED: kernel=" << m_kernel_name
-                  << " node=" << (params.desc ? params.desc->id : "<none>") << std::endl;
-        std::cerr << "  what: " << e.what() << std::endl;
-        throw;
-    }
+    return kd;
 }
 
 std::string KernelGenerator::get_entry_point(const RuntimeParams& params) const {

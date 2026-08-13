@@ -394,18 +394,23 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
                            << ", down_group_size=" << down_group_size << std::endl;
 
-    // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE.
-    // The u2 kernels have an ELEMS_PER_LANE==1 branch (group_size 32 on Xe2); all other
-    // dtypes require >= 2 — smaller values have no kernel branch and would silently
-    // produce wrong results.
+    // ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE selects the GEMV inner-loop variant, and only
+    // the u2 variants have an ELEMS_PER_LANE==1 branch. The kernel dispatches per GEMM, so relaxing
+    // the bound is safe only when all three are u2: a u4/u8 GEMM at ELEMS_PER_LANE 1 has no matching
+    // branch and silently falls into the 8-element #else path, reading past its quant group.
     const ov::element::Type weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
     {
+        const auto up_weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
+        const auto down_weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+        const bool all_u2 =
+            weight_dt == ov::element::u2 && up_weight_dt == ov::element::u2 && down_weight_dt == ov::element::u2;
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
-        const size_t min_fake_gs = (weight_dt == ov::element::u2) ? sg : 2 * sg;
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl; the two must not drift apart.
+        const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
+        const size_t min_fake_gs = all_u2 ? sg : 2 * sg;
         OPENVINO_ASSERT(fake_gs >= min_fake_gs,
                         "MoE GEMV kernel does not support group_size=",
-                        gate_up_group_size,
+                        fake_gs,
                         " on this hardware (SUBGROUP_SIZE=",
                         sg,
                         "). Minimum supported group_size is ",
@@ -426,20 +431,26 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     jit.make("MOE_DTYPE_SIZE", params.get_input_layout(0).data_type == ov::element::f16 ? 2 : 4);
     jit.make("HAS_ZP", desc->_config.has_zp ? 1 : 0);
     if (desc->_config.has_zp) {
-        // MOE_ZP_SCALAR: at least one GEMM (u2 mixed-precision) carries a single broadcast
-        // zp element. The u2 GEMV reads it directly; per-channel (u8) GEMMs ignore this and
-        // index zp per (group, channel). Set it from whichever GEMM has a scalar zp.
+        // Only the element type of a broadcast scalar zp is shared; *which* GEMMs use one is
+        // answered per GEMM by GATE/UP/DOWN_ZP_SCALAR below. A layer-wide "is it scalar" flag is
+        // deliberately not emitted: the three GEMMs can disagree, and a single answer silently
+        // decodes one GEMM's zp with another's rule.
+        const char* scalar_zp_dt = "uchar";
         for (const auto zp_idx : {MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2}) {
             const auto& zp_layout = params.get_input_layout(static_cast<size_t>(zp_idx));
             if (zp_layout.count() == 1) {
                 OPENVINO_ASSERT(zp_layout.data_type == ov::element::i8 || zp_layout.data_type == ov::element::u8,
                                 "Scalar MoE zp must be i8/u8, got ",
                                 zp_layout.data_type);
-                jit.make("MOE_ZP_SCALAR", 1);
-                jit.make("MOE_ZP_SCALAR_DT", zp_layout.data_type == ov::element::i8 ? "char" : "uchar");
+                // A u2 zero point is 0..3, which reads identically as char or uchar, so one type
+                // serves all three GEMMs even when only some of them are scalar.
+                if (zp_layout.data_type == ov::element::i8) {
+                    scalar_zp_dt = "char";
+                }
                 break;
             }
         }
+        jit.make("MOE_ZP_SCALAR_DT", scalar_zp_dt);
     }
 
     bool is_signed_weight = (weight_dt == ov::element::i4 || weight_dt == ov::element::i8);
@@ -682,7 +693,14 @@ public:
         }
         return n % DPAS_N_PER_WG == 0;
     }
-    static bool dpas_supported(size_t hidden_size, size_t inter_size, size_t gate_up_gs, size_t down_gs) {
+    // The DPAS variant needs XMX (intel_sub_group_f16_f16_matrix_mad_k16) and 2D block loads
+    // (cl_intel_subgroup_2d_block_io); without them the OpenCL JIT fails at model load rather than
+    // falling back. Gating on xe2 also excludes Xe-HPC, which has both -- a deliberately
+    // conservative choice, since xe2 is the only architecture this kernel has been measured on.
+    static bool dpas_supported(gpu_arch arch, size_t hidden_size, size_t inter_size, size_t gate_up_gs, size_t down_gs) {
+        if (arch < gpu_arch::xe2) {
+            return false;
+        }
         return dpas_stage_ok(hidden_size, inter_size, gate_up_gs) && dpas_stage_ok(inter_size, hidden_size, down_gs);
     }
 
@@ -715,10 +733,8 @@ protected:
         jit.make("U2_GEMM_GROUP_SIZE", group_size);
         jit.make("TILE_M", TILE_M);
 
-        // Per-GEMM zero-point form. add_common_consts()'s MOE_ZP_SCALAR is set from whichever of
-        // the three GEMMs has a scalar zp, which is the wrong question for a kernel instantiated
-        // once per GEMM: a mixed layer can pair a scalar (INT2_SYM) gate with a per-group
-        // (INT2_ASYM) down. Decide from this GEMM's own zp layout.
+        // Zero-point form is per GEMM -- a mixed layer can pair a scalar (INT2_SYM) gate with a
+        // per-group (INT2_ASYM) down -- and this kernel is instantiated once per GEMM.
         if (cfg.has_zp) {
             const auto zp_idx = m_gemm_idx == 0   ? MOE3GemmInputIndex::ZP_0
                                 : m_gemm_idx == 1 ? MOE3GemmInputIndex::ZP_1
@@ -742,7 +758,7 @@ protected:
             }
         }
 
-        if (dpas_supported(cfg.hidden_size, cfg.inter_size, gate_up_gs, down_gs)) {
+        if (dpas_supported(params.prog->get_engine().get_device_info().arch, cfg.hidden_size, cfg.inter_size, gate_up_gs, down_gs)) {
             jit.make("U2_DPAS_ENABLE", 1);
             jit.make("U2_DPAS_SG", DPAS_SG);
             jit.make("U2_MSUB", DPAS_MSUB);
@@ -1227,8 +1243,9 @@ public:
     // generator makes from the same four numbers, and the two MUST agree: the variants differ in
     // sub-group size, work-group shape and block tile_m, so a disagreement dispatches the wrong
     // geometry rather than failing to build.
-    bool use_u2_dpas() const {
-        return MoE3GemmSwigluU2Gemm::dpas_supported(static_cast<size_t>(_hidden_size),
+    bool use_u2_dpas(gpu_arch arch) const {
+        return MoE3GemmSwigluU2Gemm::dpas_supported(arch,
+                                                    static_cast<size_t>(_hidden_size),
                                                     static_cast<size_t>(_intermediate_size),
                                                     static_cast<size_t>(_gate_up_group_size),
                                                     static_cast<size_t>(_down_group_size));
@@ -2682,7 +2699,9 @@ public:
         // 32 rows for the DPAS variant (4 float8 accumulators), 8 for the FMA one. The kernel
         // guards the ragged final block with n_tokens, so a short block costs nothing but a few
         // masked-off accumulator slots.
-        const int tile_m = use_u2_dpas() ? MoE3GemmSwigluU2Gemm::DPAS_TILE_M : MoE3GemmSwigluU2Gemm::TILE_M;
+        const int tile_m = use_u2_dpas(instance.get_impl_params()->get_device_info().arch)
+                               ? MoE3GemmSwigluU2Gemm::DPAS_TILE_M
+                               : MoE3GemmSwigluU2Gemm::TILE_M;
         std::vector<int32_t> blocks;
         blocks.reserve(static_cast<size_t>(tokens_lens_per_expert_cpu.size()) * 3);
 
@@ -2739,7 +2758,7 @@ public:
         // when there is none, since the kernel only dereferences it under HAS_ZP.
         const auto& zp = scratch.moe_fusion_wei_addr.zp[gemm_idx] ? scratch.moe_fusion_wei_addr.zp[gemm_idx] : wei;
 
-        if (use_u2_dpas()) {
+        if (use_u2_dpas(instance.get_impl_params()->get_device_info().arch)) {
             // Split N back across work-groups. The FMA variant sweeps all of N inside one
             // work-group because repeating its 33 KB SLM staging 16x was worse; with the staging
             // gone that trade reverses, and narrow N tiles now lose only because each work-group

@@ -5120,3 +5120,73 @@ TEST(reorder_gpu_i4, bf16_to_u4) {
     std::vector<ov::bfloat16> input_data = {ov::bfloat16(-8.5f), ov::bfloat16(7.2f), ov::bfloat16(0.0f), ov::bfloat16(6.0f)};
     run_reorder_test_i4(data_types::bf16, data_types::u4, input_data, {0x70, 0x60});
 }
+
+// u2 needs its own driver: the element count has to be a parameter, because u2 packs 16 values into
+// the uint that the output branch updates atomically, and the interesting cases are on either side
+// of that boundary.
+template <typename TIn, typename TOut>
+void run_reorder_test_u2(data_types input_type,
+                         data_types output_type,
+                         const ov::Shape& shape,
+                         const std::vector<TIn>& input_data,
+                         const std::vector<TOut>& expected) {
+    auto& engine = get_test_engine();
+
+    layout in_layout({shape, input_type, format::bfyx});
+    layout out_layout({shape, output_type, format::bfyx});
+
+    memory::ptr input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, input_data);
+
+    topology topology(input_layout("input", in_layout), reorder("reorder", input_info("input"), out_layout));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<TOut, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(static_cast<float>(expected[i]), static_cast<float>(output_ptr[i])) << "at index " << i;
+    }
+}
+
+// 0x39 -> {1,2,3,0}, 0x1B -> {3,2,1,0}, 0xE4 -> {0,1,2,3}: 4 values per byte, LSB first, which is
+// the packing every u2 kernel in the plugin assumes.
+const std::vector<uint8_t> u2_packed_16 = {0x39, 0x1B, 0xE4, 0x00};
+const std::vector<ov::float16> u2_unpacked_16 = {1.0f, 2.0f, 3.0f, 0.0f, 3.0f, 2.0f, 1.0f, 0.0f,
+                                                 0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+TEST(reorder_gpu_u2, u2_identity) {
+    run_reorder_test_u2(data_types::u2, data_types::u2, ov::Shape{1, 1, 4, 4}, u2_packed_16, u2_packed_16);
+}
+
+TEST(reorder_gpu_u2, u2_to_fp16) {
+    run_reorder_test_u2(data_types::u2, data_types::f16, ov::Shape{1, 1, 4, 4}, u2_packed_16, u2_unpacked_16);
+}
+
+TEST(reorder_gpu_u2, fp16_to_u2) {
+    // -2 and -1 clamp up to 0, 4 and 5 clamp down to 3; the rest convert exactly.
+    std::vector<ov::float16> input_data = {-2.0f, 0.0f, 1.0f, 3.0f, 3.0f, 2.0f, 3.0f, 1.0f,
+                                          0.0f,  2.0f, 1.0f, 3.0f, -1.0f, 4.0f, 2.0f, 5.0f};
+    run_reorder_test_u2(data_types::f16,
+                        data_types::u2,
+                        ov::Shape{1, 1, 4, 4},
+                        input_data,
+                        std::vector<uint8_t>{0xD0, 0x7B, 0xD8, 0xEC});
+}
+
+TEST(reorder_gpu_u2, fp16_to_u2_partial_uint) {
+    // 8 elements is 2 bytes, i.e. half of the uint the output branch reads/modifies/writes.
+    std::vector<ov::float16> input_data = {3.0f, 2.0f, 1.0f, 0.0f, 1.0f, 1.0f, 2.0f, 3.0f};
+    run_reorder_test_u2(data_types::f16,
+                        data_types::u2,
+                        ov::Shape{1, 1, 2, 4},
+                        input_data,
+                        std::vector<uint8_t>{0x1B, 0xE5});
+}

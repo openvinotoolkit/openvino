@@ -739,6 +739,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     bool add_decompress_scale_post_op = false;
     WeightsType weights_dt = params.weights.GetDType();
+    // u2 reuses the u4 compressed code paths; only the packing density differs. These must be jit
+    // constants rather than #defines in the .cl body: kernels are concatenated into one batched
+    // OpenCL program, and only jit constants get an automatic #undef appended after each kernel.
+    jit.AddConstant(MakeJitConstant("FILTER_ELEMENTS_PER_BYTE", weights_dt == WeightsType::UINT2 ? 4 : 2));
+    if (weights_dt == WeightsType::UINT2) {
+        jit.AddConstant(MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1));
+    }
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT2) {
         tile_k_ofm_packed /= (weights_dt == WeightsType::UINT2) ? 4 : 2;
         jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));

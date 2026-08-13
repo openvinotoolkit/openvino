@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/swiglu.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
@@ -36,7 +35,6 @@ struct GatherMatmulImpl : public ImplementationManager {
             ov::element::f16,
             ov::element::u4,
             ov::element::i4,
-            ov::element::u2,
             ov::element::i8,
             ov::element::u8,
         };
@@ -45,7 +43,6 @@ struct GatherMatmulImpl : public ImplementationManager {
             ov::element::f16,
             ov::element::u4,
             ov::element::i4,
-            ov::element::u2,
             ov::element::i8,
             ov::element::u8,
             ov::element::i32,
@@ -65,21 +62,10 @@ struct GatherMatmulImpl : public ImplementationManager {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
-        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u2, data_types::u8, data_types::i8};
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
         bool has_quant_weight = std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
             return t == node.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).data_type;
         });
-
-        // u2 weights are served by a dedicated reference OCL kernel (gemmstone micro-kernels and
-        // oneDNN have no u2 support); it has no fused SwiGLU epilogue.
-        const bool is_u2_weight = node.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).data_type == data_types::u2;
-        if (is_u2_weight) {
-            for (const auto& fd : node.get_kernel_impl_params()->fused_desc) {
-                if (fd.is_type<swiglu>()) {
-                    DO_NOT_USE_THIS_KERNEL(layer_id);
-                }
-            }
-        }
 
         if (desc.has_bias) {
             input_idx = gather_matmul::BGMInputIdx::BIAS;

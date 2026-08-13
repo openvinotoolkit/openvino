@@ -157,28 +157,22 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            // MOE u2 mixed-precision bail: the fused moe_3gemm GPU kernel decodes gate/up/down
-            // expert weights with a single weight dtype (gate's). NNCF mixed-precision
-            // models can quantize the three GEMMs to different dtypes (e.g. gate=u2,
-            // up=u8, down=u2), which the fused kernel mis-decodes. Bail out (keep the
-            // per-GEMM-correct GatherMatmul form) unless all three share one dtype.
+            // A layer that mixes dtypes across the three expert GEMMs is only decoded correctly by
+            // moe_3gemm for the {u2, u8} combinations its per-GEMM dispatch covers. Anything else
+            // keeps the per-GEMM-correct GatherMatmul form rather than being mis-decoded.
             {
-                // A: only uniform-u2 layers fuse (moe_3gemm u2 x-read fixed for straight
-                // packing); every other layer keeps the per-GEMM-correct GatherMatmul form.
-                const auto _g = pm.at(gate_w_m).get_element_type();
-                const auto _u = pm.at(up_w_m).get_element_type();
-                const auto _d = pm.at(down_w_m).get_element_type();
-                const bool _uniform = (_u == _g && _d == _g);
-                // moe_3gemm fuses (a) uniform u2 (x-read fixed) or u4/i4 (the proven INT4
-                // path), or (b) any per-GEMM combination of {u2, u8} -- the NNCF mixed-
-                // precision case handled by per-GEMM dtype/zp dispatch in the kernel (A3).
-                const auto _is_u2u8 = [](ov::element::Type t) {
+                const auto gate_dt = pm.at(gate_w_m).get_element_type();
+                const auto up_dt = pm.at(up_w_m).get_element_type();
+                const auto down_dt = pm.at(down_w_m).get_element_type();
+                const auto is_u2_or_u8 = [](ov::element::Type t) {
                     return t == ov::element::u2 || t == ov::element::u8;
                 };
-                const bool _uniform_ok =
-                    _uniform && (_g == ov::element::u2 || _g == ov::element::u4 || _g == ov::element::i4);
-                const bool _mixed_u2u8 = _is_u2u8(_g) && _is_u2u8(_u) && _is_u2u8(_d);
-                if (!(_uniform_ok || _mixed_u2u8)) {
+                const bool uniform_ok = (up_dt == gate_dt && down_dt == gate_dt) &&
+                                        (gate_dt == ov::element::u2 || gate_dt == ov::element::u4 ||
+                                         gate_dt == ov::element::i4 || gate_dt == ov::element::u8 ||
+                                         gate_dt == ov::element::i8);
+                const bool mixed_ok = is_u2_or_u8(gate_dt) && is_u2_or_u8(up_dt) && is_u2_or_u8(down_dt);
+                if (!(uniform_ok || mixed_ok)) {
                     return false;
                 }
             }
@@ -219,9 +213,8 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                         if (wt != ov::element::u2) {
                             return false;  // non-zero scalar zp only supported for u2 weights
                         }
-                        // Keep the rank-0 scalar constant as-is: MOE validation exempts
-                        // rank-0 inputs from the num_experts check, and the u2 batched
-                        // GEMV kernels broadcast the single element (MOE_ZP_SCALAR).
+                        // Keep the rank-0 scalar constant as-is: MOE validation exempts rank-0
+                        // inputs from the num_experts check, and the u2 kernels broadcast it.
                         return true;
                     }
                 }
@@ -307,6 +300,11 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
                 if (target_G == 1)
                     return true;  // nothing to expand
                 const auto et = c->get_element_type();
+                // Sub-byte types are bit-packed and Type::size() rounds up to a whole byte, so the
+                // per-element memcpy below would read past the constant and interleave neighbouring
+                // channels. Fall back to the unfused form rather than materialise corrupt values.
+                if (et.bitwidth() < 8)
+                    return false;
                 const size_t esz = et.size();
                 const auto* src = static_cast<const char*>(c->get_data_ptr());
                 std::vector<char> buf(E * N * target_G * esz);
@@ -647,6 +645,11 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp(bool ha
                 if (target_G == 1)
                     return true;  // nothing to expand
                 const auto et = c->get_element_type();
+                // Sub-byte types are bit-packed and Type::size() rounds up to a whole byte, so the
+                // per-element memcpy below would read past the constant and interleave neighbouring
+                // channels. Fall back to the unfused form rather than materialise corrupt values.
+                if (et.bitwidth() < 8)
+                    return false;
                 const size_t esz = et.size();
                 const auto* src = static_cast<const char*>(c->get_data_ptr());
                 std::vector<char> buf(E * N * target_G * esz);

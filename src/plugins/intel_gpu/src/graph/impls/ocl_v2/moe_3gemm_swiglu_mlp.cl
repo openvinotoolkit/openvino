@@ -90,14 +90,6 @@ inline float moe_mlp_fast_erf(float x) {
 // 2-bit (u2) dequant: 4 values per byte, LSB-first; u2 weights are always unsigned.
 #define DEQUANT_2BIT(v, s) convert_half(((v) >> (s)) & 0x3)
 
-// Scalar (per-tensor) zp broadcast: no per-expert stride, the single element is
-// read directly as MOE_ZP_SCALAR_DT instead of packed per-group zp indexing.
-#if defined(MOE_ZP_SCALAR)
-#    define ZP_EXPERT_STRIDE 0
-#else
-#    define ZP_EXPERT_STRIDE expert_zp_size
-#endif
-
 // A3 per-GEMM helpers (mixed-dtype MoE): per-expert byte strides given a compression
 // code DT (0=u4/i4, 1=u8/i8, 2=f16, 3=u2) and group size GS. N*K equals
 // INTERMEDIATE_SIZE*HIDDEN_SIZE for all three GEMMs, so one product serves gate/up/down.
@@ -278,6 +270,9 @@ inline void gate_up_gemv_n2x_u4(const __global uchar* weight,
     }
 }
 
+// zp_scalar must come from the caller, not from a preprocessor branch: one compiled body serves
+// both the gate and the up projection, and a mixed INT2_SYM/INT2_ASYM layer gives them different
+// zero-point forms. Both callers pass a jit constant, so the selects below fold away.
 inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
                                 __global half* scales,
                                 __global uchar* zps,
@@ -286,7 +281,8 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
                                 int K,
                                 half* x2,
                                 float* xg_sum,
-                                const bool silu) {
+                                const bool silu,
+                                const bool zp_scalar) {
     int id_local = get_sub_group_local_id();
 
     int n_start = get_global_id(2) * N_BLOCK;
@@ -306,16 +302,10 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-#        ifdef MOE_ZP_SCALAR
-            // Scalar (per-tensor) zp: single element broadcast over all experts/groups/channels.
-            const half z_hf0 = convert_half(((__global MOE_ZP_SCALAR_DT*)zps)[0]);
-            const half z_hf1 = z_hf0;
-#        else
-            int zp_offset = (gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 4;
-            uchar z = Z[zp_offset];
-            half z_hf0 = convert_half((z >> zshift) & 0x3);
-            half z_hf1 = convert_half((z >> (zshift + 2)) & 0x3);
-#        endif
+            const half z_scalar = convert_half(((__global MOE_ZP_SCALAR_DT*)zps)[0]);
+            const uchar z = zp_scalar ? (uchar)0 : Z[(gk * FAKE_GROUP_SIZE / GATE_UP_GROUP_SIZE) * N / 4];
+            const half z_hf0 = zp_scalar ? z_scalar : convert_half((z >> zshift) & 0x3);
+            const half z_hf1 = zp_scalar ? z_scalar : convert_half((z >> (zshift + 2)) & 0x3);
 #endif
 
 #    if ELEMS_PER_LANE == 4
@@ -392,29 +382,33 @@ inline void gate_up_gemv_n2x_u2(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = vload8(id_local, x2 + gk * FAKE_GROUP_SIZE);
+            // The block read is strided: lane L gets byte L and byte L+SUBGROUP_SIZE, which cover
+            // K elements 4L.. and 4L+FAKE_GROUP_SIZE/2.. respectively. The activations must be
+            // loaded in two matching contiguous quads, not as one vload8 of 8L...
+            half4 alo = vload4(id_local, x2 + gk * FAKE_GROUP_SIZE);
+            half4 ahi = vload4(id_local, x2 + gk * FAKE_GROUP_SIZE + FAKE_GROUP_SIZE / 2);
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 4);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 4) + gk * FAKE_GROUP_SIZE / 4));
 
-            sum0.s0 = fma(a.s0, (DEQUANT_2BIT(b.s0, 0)), 0);
-            sum0.s1 = fma(a.s1, (DEQUANT_2BIT(b.s0, 2)), 0);
-            sum0.s2 = fma(a.s2, (DEQUANT_2BIT(b.s0, 4)), 0);
-            sum0.s3 = fma(a.s3, (DEQUANT_2BIT(b.s0, 6)), 0);
+            sum0.s0 = fma(alo.s0, (DEQUANT_2BIT(b.s0, 0)), 0);
+            sum0.s1 = fma(alo.s1, (DEQUANT_2BIT(b.s0, 2)), 0);
+            sum0.s2 = fma(alo.s2, (DEQUANT_2BIT(b.s0, 4)), 0);
+            sum0.s3 = fma(alo.s3, (DEQUANT_2BIT(b.s0, 6)), 0);
 
-            sum0.s0 = fma(a.s4, (DEQUANT_2BIT(b.s1, 0)), sum0.s0);
-            sum0.s1 = fma(a.s5, (DEQUANT_2BIT(b.s1, 2)), sum0.s1);
-            sum0.s2 = fma(a.s6, (DEQUANT_2BIT(b.s1, 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (DEQUANT_2BIT(b.s1, 6)), sum0.s3);
+            sum0.s0 = fma(ahi.s0, (DEQUANT_2BIT(b.s1, 0)), sum0.s0);
+            sum0.s1 = fma(ahi.s1, (DEQUANT_2BIT(b.s1, 2)), sum0.s1);
+            sum0.s2 = fma(ahi.s2, (DEQUANT_2BIT(b.s1, 4)), sum0.s2);
+            sum0.s3 = fma(ahi.s3, (DEQUANT_2BIT(b.s1, 6)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (DEQUANT_2BIT(b2.s0, 0)), 0);
-            sum1.s1 = fma(a.s1, (DEQUANT_2BIT(b2.s0, 2)), 0);
-            sum1.s2 = fma(a.s2, (DEQUANT_2BIT(b2.s0, 4)), 0);
-            sum1.s3 = fma(a.s3, (DEQUANT_2BIT(b2.s0, 6)), 0);
+            sum1.s0 = fma(alo.s0, (DEQUANT_2BIT(b2.s0, 0)), 0);
+            sum1.s1 = fma(alo.s1, (DEQUANT_2BIT(b2.s0, 2)), 0);
+            sum1.s2 = fma(alo.s2, (DEQUANT_2BIT(b2.s0, 4)), 0);
+            sum1.s3 = fma(alo.s3, (DEQUANT_2BIT(b2.s0, 6)), 0);
 
-            sum1.s0 = fma(a.s4, (DEQUANT_2BIT(b2.s1, 0)), sum1.s0);
-            sum1.s1 = fma(a.s5, (DEQUANT_2BIT(b2.s1, 2)), sum1.s1);
-            sum1.s2 = fma(a.s6, (DEQUANT_2BIT(b2.s1, 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (DEQUANT_2BIT(b2.s1, 6)), sum1.s3);
+            sum1.s0 = fma(ahi.s0, (DEQUANT_2BIT(b2.s1, 0)), sum1.s0);
+            sum1.s1 = fma(ahi.s1, (DEQUANT_2BIT(b2.s1, 2)), sum1.s1);
+            sum1.s2 = fma(ahi.s2, (DEQUANT_2BIT(b2.s1, 4)), sum1.s2);
+            sum1.s3 = fma(ahi.s3, (DEQUANT_2BIT(b2.s1, 6)), sum1.s3);
 
 #    if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
@@ -854,7 +848,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 #    elif UP_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(up_weight, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, false);
 #    elif UP_WEIGHT_DT == 3
-    gate_up_gemv_n2x_u2(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false);
+    gate_up_gemv_n2x_u2(up_weight, up_scale, up_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, false, UP_ZP_SCALAR);
 #    endif
 #    if GATE_WEIGHT_DT == 0
     gate_up_gemv_n2x_u4(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
@@ -863,7 +857,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_gate_up)(
 #    elif GATE_WEIGHT_DT == 2
     gate_up_gemv_n2x_f16(gate_weight, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, true);
 #    elif GATE_WEIGHT_DT == 3
-    gate_up_gemv_n2x_u2(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true);
+    gate_up_gemv_n2x_u2(gate_weight, gate_scale, gate_zp, y, INTERMEDIATE_SIZE, HIDDEN_SIZE, x2, xg_sum, true, GATE_ZP_SCALAR);
 #    endif
 }
 
@@ -1019,15 +1013,13 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
             half s0 = S[scale_offset];
             half s1 = S[scale_offset + 1];
 #if HAS_ZP
-#        ifdef MOE_ZP_SCALAR
-            // Scalar (per-tensor) zp: single element broadcast over all experts/groups/channels.
+#        if DOWN_ZP_SCALAR
             const half z_hf0 = convert_half(((__global MOE_ZP_SCALAR_DT*)zps)[0]);
             const half z_hf1 = z_hf0;
 #        else
-            int zp_offset = (gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 4;
-            uchar z = Z[zp_offset];
-            half z_hf0 = convert_half((z >> zshift) & 0x3);
-            half z_hf1 = convert_half((z >> (zshift + 2)) & 0x3);
+            const uchar z = Z[(gk * FAKE_GROUP_SIZE / DOWN_GROUP_SIZE) * N / 4];
+            const half z_hf0 = convert_half((z >> zshift) & 0x3);
+            const half z_hf1 = convert_half((z >> (zshift + 2)) & 0x3);
 #        endif
 #endif
 
@@ -1105,29 +1097,33 @@ inline void down_gemv_n2x_u2(const __global uchar* weight,
 #    else
             half4 sum0;
             half4 sum1;
-            half8 a = vload8(id_local, x2 + gk * FAKE_GROUP_SIZE);
+            // The block read is strided: lane L gets byte L and byte L+SUBGROUP_SIZE, which cover
+            // K elements 4L.. and 4L+FAKE_GROUP_SIZE/2.. respectively. The activations must be
+            // loaded in two matching contiguous quads, not as one vload8 of 8L...
+            half4 alo = vload4(id_local, x2 + gk * FAKE_GROUP_SIZE);
+            half4 ahi = vload4(id_local, x2 + gk * FAKE_GROUP_SIZE + FAKE_GROUP_SIZE / 2);
             uchar2 b = intel_sub_group_block_read_uc2((const __global uchar*)B + gk * FAKE_GROUP_SIZE / 4);
             uchar2 b2 = intel_sub_group_block_read_uc2((const __global uchar*)(B + (K / 4) + gk * FAKE_GROUP_SIZE / 4));
 
-            sum0.s0 = fma(a.s0, (DEQUANT_2BIT(b.s0, 0)), 0);
-            sum0.s1 = fma(a.s1, (DEQUANT_2BIT(b.s0, 2)), 0);
-            sum0.s2 = fma(a.s2, (DEQUANT_2BIT(b.s0, 4)), 0);
-            sum0.s3 = fma(a.s3, (DEQUANT_2BIT(b.s0, 6)), 0);
+            sum0.s0 = fma(alo.s0, (DEQUANT_2BIT(b.s0, 0)), 0);
+            sum0.s1 = fma(alo.s1, (DEQUANT_2BIT(b.s0, 2)), 0);
+            sum0.s2 = fma(alo.s2, (DEQUANT_2BIT(b.s0, 4)), 0);
+            sum0.s3 = fma(alo.s3, (DEQUANT_2BIT(b.s0, 6)), 0);
 
-            sum0.s0 = fma(a.s4, (DEQUANT_2BIT(b.s1, 0)), sum0.s0);
-            sum0.s1 = fma(a.s5, (DEQUANT_2BIT(b.s1, 2)), sum0.s1);
-            sum0.s2 = fma(a.s6, (DEQUANT_2BIT(b.s1, 4)), sum0.s2);
-            sum0.s3 = fma(a.s7, (DEQUANT_2BIT(b.s1, 6)), sum0.s3);
+            sum0.s0 = fma(ahi.s0, (DEQUANT_2BIT(b.s1, 0)), sum0.s0);
+            sum0.s1 = fma(ahi.s1, (DEQUANT_2BIT(b.s1, 2)), sum0.s1);
+            sum0.s2 = fma(ahi.s2, (DEQUANT_2BIT(b.s1, 4)), sum0.s2);
+            sum0.s3 = fma(ahi.s3, (DEQUANT_2BIT(b.s1, 6)), sum0.s3);
 
-            sum1.s0 = fma(a.s0, (DEQUANT_2BIT(b2.s0, 0)), 0);
-            sum1.s1 = fma(a.s1, (DEQUANT_2BIT(b2.s0, 2)), 0);
-            sum1.s2 = fma(a.s2, (DEQUANT_2BIT(b2.s0, 4)), 0);
-            sum1.s3 = fma(a.s3, (DEQUANT_2BIT(b2.s0, 6)), 0);
+            sum1.s0 = fma(alo.s0, (DEQUANT_2BIT(b2.s0, 0)), 0);
+            sum1.s1 = fma(alo.s1, (DEQUANT_2BIT(b2.s0, 2)), 0);
+            sum1.s2 = fma(alo.s2, (DEQUANT_2BIT(b2.s0, 4)), 0);
+            sum1.s3 = fma(alo.s3, (DEQUANT_2BIT(b2.s0, 6)), 0);
 
-            sum1.s0 = fma(a.s4, (DEQUANT_2BIT(b2.s1, 0)), sum1.s0);
-            sum1.s1 = fma(a.s5, (DEQUANT_2BIT(b2.s1, 2)), sum1.s1);
-            sum1.s2 = fma(a.s6, (DEQUANT_2BIT(b2.s1, 4)), sum1.s2);
-            sum1.s3 = fma(a.s7, (DEQUANT_2BIT(b2.s1, 6)), sum1.s3);
+            sum1.s0 = fma(ahi.s0, (DEQUANT_2BIT(b2.s1, 0)), sum1.s0);
+            sum1.s1 = fma(ahi.s1, (DEQUANT_2BIT(b2.s1, 2)), sum1.s1);
+            sum1.s2 = fma(ahi.s2, (DEQUANT_2BIT(b2.s1, 4)), sum1.s2);
+            sum1.s3 = fma(ahi.s3, (DEQUANT_2BIT(b2.s1, 6)), sum1.s3);
 
 #    if HAS_ZP
             sum_all0 += (sum0[0] + sum0[1] + sum0[2] + sum0[3] - xg_sum[gk] * z_hf0) * s0;
@@ -1608,10 +1604,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(con
 #            error "u2 DPAS GEMM needs U2_GEMM_N % (U2_N_SG * 16) == 0"
 #        endif
 // The zero point is either a folded per-tensor scalar (INT2_SYM) or per (group, channel) u2
-// (INT2_ASYM). Which one is a per-GEMM property, so the host decides it per kernel instance and
-// passes U2_GEMM_ZP_SCALAR. Do NOT use MOE_ZP_SCALAR here: add_common_consts() sets that from
-// whichever of the three GEMMs happens to have a scalar zp, so a mixed layer would read the wrong
-// form in the other two.
+// (INT2_ASYM), and which one is a per-GEMM property: a mixed layer can pair a scalar gate with a
+// per-group down. This kernel is instantiated once per GEMM, so the host answers it per instance.
 #        if HAS_ZP && !defined(U2_GEMM_ZP_SCALAR)
 #            error "u2 DPAS GEMM: the host must define U2_GEMM_ZP_SCALAR (0/1) whenever HAS_ZP"
 #        endif
@@ -1801,15 +1795,12 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
 #    if (U2_GEMM_GROUP_SIZE) % FAKE_GROUP_SIZE != 0
 #        error "U2_GEMM_GROUP_SIZE must be a multiple of FAKE_GROUP_SIZE"
 #    endif
-// ELEMS_PER_LANE 8 is unreachable for u2 here (it needs SUBGROUP_SIZE 16 with FAKE_GROUP_SIZE
-// 128, i.e. group_size >= 128). Reject it loudly instead of silently taking a wrong branch —
-// that is exactly how the u4/u8 GEMVs corrupt output at group_size 32.
+// This kernel has no ELEMS_PER_LANE 8 branch (reachable at SUBGROUP_SIZE 16 with group_size >= 128).
+// Reject it loudly instead of silently taking a wrong-width branch.
 #    if ELEMS_PER_LANE != 1 && ELEMS_PER_LANE != 2 && ELEMS_PER_LANE != 4
 #        error "u2 GEMM supports ELEMS_PER_LANE 1, 2 or 4 only"
 #    endif
-// Same per-GEMM zero-point form as the DPAS variant above: U2_GEMM_ZP_SCALAR selects between the
-// folded per-tensor scalar (INT2_SYM) and per (group, channel) u2 (INT2_ASYM). MOE_ZP_SCALAR must
-// not be used, it is set from whichever GEMM has a scalar zp rather than from this one.
+// Same per-GEMM zero-point form as the DPAS variant above.
 #    if HAS_ZP && !defined(U2_GEMM_ZP_SCALAR)
 #        error "u2 GEMM: the host must define U2_GEMM_ZP_SCALAR (0/1) whenever HAS_ZP"
 #    endif
