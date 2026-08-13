@@ -164,7 +164,7 @@ TEST(moe_offload_constant, non_moe_model_is_not_subject_to_resident_constant_che
 }
 
 // Test that routed expert constants (inputs 3-11) are classified as OffloadableRoutedExpert
-uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
+static uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
     uint64_t bytes = 0;
     for (const auto& constant : g.constants) {
         if (get_moe_constant_role(constant) == role)
