@@ -53,6 +53,12 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
+    const auto normalization_axis = GetNormalizationAxis(params);
+
+    const bool scalar_gamma = params.elementwise_affine &&
+                              !params.inputs[1].is_dynamic() &&
+                              params.inputs[1].LogicalSize() == 1;
+    jit.AddConstant(MakeJitConstant("SCALAR_GAMMA", scalar_gamma));
 
     // Check for any padding (dynamic or static) on input dimensions.
     // The flat addressing path (data_idx * data_size) assumes contiguous memory,
@@ -73,14 +79,14 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
         std::string data_size;
-        switch (params.ov_input_rank) {
-            case 1 :
+        switch (normalization_axis) {
+            case Tensor::DataChannelName::BATCH:
                 data_size = dims.b();
                 break;
-            case 2 :
+            case Tensor::DataChannelName::FEATURE:
                 data_size = dims.f();
                 break;
-            case 3 :
+            case Tensor::DataChannelName::Y:
                 data_size = dims.y();
                 break;
             default:
@@ -110,24 +116,10 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
-    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
-        switch (params.ov_input_rank) {
-            case 1 :
-                jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
-                break;
-            case 2 :
-                jit.AddConstant(MakeJitConstant("LAST_DIM", "f"));
-                break;
-            case 3 :
-                jit.AddConstant(MakeJitConstant("LAST_DIM", "y"));
-                break;
-            default:
-                jit.AddConstant(MakeJitConstant("LAST_DIM", "x"));
-                break;
-        }
+        jit.AddConstant(MakeJitConstant("LAST_DIM", GetNormalizationAxisName(normalization_axis)));
 
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() == 5) {
@@ -154,16 +146,16 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
-        switch (params.ov_input_rank) {
-            case 1:
+        switch (GetNormalizationAxis(params)) {
+            case Tensor::DataChannelName::BATCH:
                 dispatchData.dataSize = input.Batch().v;
                 dispatchData.dataCount = 1;
                 break;
-            case 2:
+            case Tensor::DataChannelName::FEATURE:
                 dispatchData.dataSize = input.Feature().v;
                 dispatchData.dataCount = input.Batch().v;
                 break;
-            case 3:
+            case Tensor::DataChannelName::Y:
                 dispatchData.dataSize = input.Y().v;
                 dispatchData.dataCount = input.Batch().v * input.Feature().v;
                 break;
@@ -210,7 +202,7 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
 
         if (!gamma.is_dynamic()) {
             size_t data_size = gamma.LogicalSize();
-            if (data_size < subgroup_size) {
+            if (data_size != 1 && data_size < subgroup_size) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }
