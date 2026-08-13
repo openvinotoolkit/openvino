@@ -848,10 +848,7 @@ void Gather::execCompressed2Bit() {
             }
         } else {
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t dstIdx = c2 + specIdxAndAfterAxSize * i;
-                for (size_t p = 0; p < afterAxisSize; p++) {
-                    dstData[dstIdx] = 0;
-                }
+                memset(&dstData[c2 + specIdxAndAfterAxSize * i], 0, afterAxisSize * sizeof(OUT_TYPE));
             }
         }
     });
