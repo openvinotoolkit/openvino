@@ -11,6 +11,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/validation_depth_guard.hpp"
 #include "openvino/reference/if.hpp"
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
@@ -77,6 +78,8 @@ bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
 
 void ov::op::v8::If::validate_and_infer_types() {
     OV_OP_SCOPE(v8_If_validate_and_infer_types);
+
+    OV_VALIDATION_DEPTH_GUARD(this, "If");
 
     NODE_VALIDATION_CHECK(this, m_bodies.size() == 2, "If contains incorrect number of bodies:", m_bodies.size());
 
