@@ -284,8 +284,7 @@ bool mark_acl_int8_fq_chain(const std::shared_ptr<Node>& node,
         mul_parent = swish->get_input_node_shared_ptr(0);
     }
     if (!walk_mul_add) {
-        snippets::pass::SetSnippetsNodeType(mul_parent,
-                                            snippets::pass::SnippetsNodeType::SkippedByPlugin);
+        snippets::pass::SetSnippetsNodeType(mul_parent, snippets::pass::SnippetsNodeType::SkippedByPlugin);
         return true;
     }
 
