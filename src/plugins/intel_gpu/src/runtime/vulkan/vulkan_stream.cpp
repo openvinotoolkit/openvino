@@ -166,9 +166,11 @@ std::vector<VkBufferMemoryBarrier> make_host_output_barriers(const prepared_argu
 }  // namespace
 
 struct vulkan_stream::resource_state {
+    // These values bound retained resources. They are not
+    // selected operating points; the batch limit is chosen per workload below.
     static constexpr size_t max_in_flight_submissions = 8;
     static constexpr size_t max_cached_descriptor_sets = 256;
-    static constexpr uint32_t descriptor_sets_per_pool = 64;
+    static constexpr size_t max_retained_dispatches_per_batch = 8;
 
     struct descriptor_key {
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
@@ -201,6 +203,7 @@ struct vulkan_stream::resource_state {
 
     struct descriptor_pool_block {
         VkDescriptorPool pool = VK_NULL_HANDLE;
+        uint32_t capacity = 0;
         uint32_t allocated_sets = 0;
     };
 
@@ -215,12 +218,16 @@ struct vulkan_stream::resource_state {
         std::vector<memory::cptr> retained_memories;
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> descriptor_allocations;
         std::vector<VkDescriptorBufferInfo> descriptor_buffer_infos;
-        std::shared_ptr<const void> retained_kernel;
+        std::vector<std::shared_ptr<const void>> retained_kernels;
+        size_t recorded_dispatches = 0;
     };
 
     explicit resource_state(const vulkan_engine& engine)
         : device(engine.get_device_handle()),
           queue(engine.get_compute_queue()),
+          queue_mutex(engine.get_queue_mutex()),
+          max_work_group_invocations(engine.get_device_info().max_work_group_size),
+          subgroup_size(engine.get_device_info().supported_simd_sizes.empty() ? 0 : engine.get_device_info().supported_simd_sizes.front()),
           diagnostics_enabled(stream_diagnostics_enabled()) {
         VkCommandPoolCreateInfo command_pool_info{};
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -253,56 +260,82 @@ struct vulkan_stream::resource_state {
         }
         if (diagnostics_enabled) {
             std::clog << "[GPU][Vulkan][Stream] descriptor_allocations=" << descriptor_allocations << " descriptor_updates=" << descriptor_updates
-                      << " descriptor_reuses=" << descriptor_reuses << " queue_submissions=" << queue_submissions << std::endl;
+                      << " descriptor_reuses=" << descriptor_reuses << " dispatches=" << dispatches << " queue_submissions=" << queue_submissions
+                      << " max_batch_size=" << largest_batch << " selected_batch_limit_min=" << (dispatches == 0 ? 0 : smallest_selected_batch_limit)
+                      << " selected_batch_limit_max=" << largest_selected_batch_limit << std::endl;
         }
     }
 
-    slot& acquire(uint32_t descriptor_count) {
-        for (auto& slot : slots) {
-            if (slot.submission == nullptr) {
-                ensure_descriptor_pool(slot, descriptor_count);
-                return slot;
+    slot& get_or_begin_batch(uint32_t descriptor_count, size_t local_invocations) {
+        const auto selected_limit = select_batch_limit(local_invocations);
+        smallest_selected_batch_limit = std::min(smallest_selected_batch_limit, selected_limit);
+        largest_selected_batch_limit = std::max(largest_selected_batch_limit, selected_limit);
+        if (recording_slot != nullptr) {
+            active_batch_limit = std::min(active_batch_limit, selected_limit);
+            if (recording_slot->recorded_dispatches < active_batch_limit) {
+                return *recording_slot;
             }
-            if (slot.submission->is_complete()) {
-                recycle(slot);
-                ensure_descriptor_pool(slot, descriptor_count);
-                return slot;
-            }
+            flush();
         }
 
-        if (slots.size() < max_in_flight_submissions) {
-            slots.emplace_back();
-            auto& slot = slots.back();
-
-            VkCommandBufferAllocateInfo command_buffer_info{};
-            command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            command_buffer_info.commandPool = command_pool;
-            command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            command_buffer_info.commandBufferCount = 1;
-            check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &slot.command_buffer), "vkAllocateCommandBuffers");
-
-            VkFenceCreateInfo fence_info{};
-            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            check_vk_result(vkCreateFence(device, &fence_info, nullptr, &slot.fence), "vkCreateFence");
-
-            ensure_descriptor_pool(slot, descriptor_count);
-            return slot;
-        }
-
-        auto& slot = slots[next_slot++ % slots.size()];
-        slot.submission->wait();
-        recycle(slot);
-        ensure_descriptor_pool(slot, descriptor_count);
+        auto& slot = acquire(descriptor_count);
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer");
+        recording_slot = &slot;
+        active_batch_limit = selected_limit;
         return slot;
     }
 
-    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, std::vector<memory::cptr> memories, std::shared_ptr<const void> kernel_lifetime) {
-        OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE && slot.submission == nullptr, "[GPU][Vulkan] Submission resources are already in use");
-        slot.retained_memories = std::move(memories);
-        slot.retained_kernel = std::move(kernel_lifetime);
-        slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence);
-        slot.fence = VK_NULL_HANDLE;
-        return slot.submission;
+    bool descriptor_batch_boundary_required(const prepared_arguments& prepared) const {
+        return descriptor_cache.size() >= max_cached_descriptor_sets && descriptor_cache.find(make_descriptor_key(prepared)) == descriptor_cache.end();
+    }
+
+    void retain_dispatch(slot& slot, const prepared_arguments& prepared, std::shared_ptr<const void> kernel_lifetime) {
+        OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Dispatch resources do not belong to the active command batch");
+        slot.retained_memories.insert(slot.retained_memories.end(), prepared.memories.begin(), prepared.memories.end());
+        slot.retained_kernels.push_back(std::move(kernel_lifetime));
+        ++slot.recorded_dispatches;
+        ++dispatches;
+    }
+
+    bool batch_is_full() const {
+        return recording_slot != nullptr && recording_slot->recorded_dispatches >= active_batch_limit;
+    }
+
+    std::shared_ptr<vulkan_submission_state> flush() {
+        if (recording_slot == nullptr) {
+            return latest_submission.lock();
+        }
+
+        auto& slot = *recording_slot;
+        OPENVINO_ASSERT(slot.recorded_dispatches > 0, "[GPU][Vulkan] Cannot submit an empty command batch");
+        check_vk_result(vkEndCommandBuffer(slot.command_buffer), "vkEndCommandBuffer");
+
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &slot.command_buffer;
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            check_vk_result(vkQueueSubmit(queue, 1, &submit_info, slot.fence), "vkQueueSubmit");
+        }
+
+        ++queue_submissions;
+        largest_batch = std::max(largest_batch, slot.recorded_dispatches);
+        recording_slot = nullptr;
+        active_batch_limit = 0;
+        return mark_submitted(slot);
+    }
+
+    void finish() {
+        flush();
+        for (auto& slot : slots) {
+            if (slot.submission != nullptr) {
+                slot.submission->wait();
+            }
+        }
     }
 
     VkDescriptorSet get_or_update_descriptor_set(slot& slot, const vulkan_pipeline_state& pipeline, const prepared_arguments& prepared) {
@@ -310,12 +343,7 @@ struct vulkan_stream::resource_state {
         OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count && slot.descriptor_pool != VK_NULL_HANDLE,
                         "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
 
-        descriptor_key key;
-        key.buffer_infos = prepared.buffer_infos;
-        key.allocations.reserve(prepared.allocations.size());
-        for (const auto& allocation : prepared.allocations) {
-            key.allocations.emplace_back(allocation);
-        }
+        auto key = make_descriptor_key(prepared);
         const auto cached = descriptor_cache.find(key);
         if (cached != descriptor_cache.end()) {
             ++descriptor_reuses;
@@ -331,7 +359,8 @@ struct vulkan_stream::resource_state {
         }
 
         // All Vulkan compute pipelines describe consecutive storage-buffer bindings,
-        // so layouts with the same binding count are descriptor-set compatible.
+        // so layouts with the same binding count are descriptor-set compatible. A
+        // cache miss at capacity starts a new batch before this mutable set is used.
         if (slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count != descriptor_count) {
             if (slot.descriptor_set != VK_NULL_HANDLE) {
                 check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
@@ -377,16 +406,11 @@ struct vulkan_stream::resource_state {
         return slot.descriptor_set;
     }
 
-    void finish() {
-        for (auto& slot : slots) {
-            if (slot.submission != nullptr) {
-                slot.submission->wait();
-            }
-        }
-    }
-
     VkDevice device = VK_NULL_HANDLE;
     VkQueue queue = VK_NULL_HANDLE;
+    std::mutex& queue_mutex;
+    uint64_t max_work_group_invocations = 0;
+    uint64_t subgroup_size = 0;
     VkCommandPool command_pool = VK_NULL_HANDLE;
     std::vector<slot> slots;
     size_t next_slot = 0;
@@ -394,25 +418,100 @@ struct vulkan_stream::resource_state {
     uint64_t descriptor_allocations = 0;
     uint64_t descriptor_updates = 0;
     uint64_t descriptor_reuses = 0;
+    uint64_t dispatches = 0;
     uint64_t queue_submissions = 0;
+    size_t largest_batch = 0;
+    size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
+    size_t largest_selected_batch_limit = 0;
     std::map<descriptor_key, VkDescriptorSet> descriptor_cache;
     std::map<uint32_t, std::vector<descriptor_pool_block>> descriptor_cache_pools;
 
 private:
+    size_t select_batch_limit(size_t local_invocations) const {
+        const auto usable_local_invocations = std::max<size_t>(local_invocations, 1);
+        const auto work_group_capacity = std::max<uint64_t>(max_work_group_invocations / usable_local_invocations, 1);
+        if (subgroup_size == 0) {
+            return 1;
+        }
+        const auto subgroup_capacity = std::max<uint64_t>(usable_local_invocations / subgroup_size, 1);
+        return std::min<size_t>({work_group_capacity, subgroup_capacity, max_retained_dispatches_per_batch});
+    }
+
+    static descriptor_key make_descriptor_key(const prepared_arguments& prepared) {
+        descriptor_key key;
+        key.buffer_infos = prepared.buffer_infos;
+        key.allocations.reserve(prepared.allocations.size());
+        for (const auto& allocation : prepared.allocations) {
+            key.allocations.emplace_back(allocation);
+        }
+        return key;
+    }
+
+    slot& acquire(uint32_t descriptor_count) {
+        for (auto& slot : slots) {
+            if (slot.submission == nullptr) {
+                ensure_descriptor_pool(slot, descriptor_count);
+                return slot;
+            }
+            if (slot.submission->is_complete()) {
+                recycle(slot);
+                ensure_descriptor_pool(slot, descriptor_count);
+                return slot;
+            }
+        }
+
+        if (slots.size() < max_in_flight_submissions) {
+            slots.emplace_back();
+            auto& slot = slots.back();
+
+            VkCommandBufferAllocateInfo command_buffer_info{};
+            command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            command_buffer_info.commandPool = command_pool;
+            command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            command_buffer_info.commandBufferCount = 1;
+            check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &slot.command_buffer), "vkAllocateCommandBuffers");
+
+            VkFenceCreateInfo fence_info{};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            check_vk_result(vkCreateFence(device, &fence_info, nullptr, &slot.fence), "vkCreateFence");
+
+            ensure_descriptor_pool(slot, descriptor_count);
+            return slot;
+        }
+
+        auto& slot = slots[next_slot++ % slots.size()];
+        slot.submission->wait();
+        recycle(slot);
+        ensure_descriptor_pool(slot, descriptor_count);
+        return slot;
+    }
+
+    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot) {
+        OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE && slot.submission == nullptr, "[GPU][Vulkan] Submission resources are already in use");
+        slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence);
+        slot.fence = VK_NULL_HANDLE;
+        latest_submission = slot.submission;
+        return slot.submission;
+    }
     VkDescriptorSet allocate_cached_descriptor_set(VkDescriptorSetLayout layout, uint32_t descriptor_count) {
         auto& blocks = descriptor_cache_pools[descriptor_count];
-        if (blocks.empty() || blocks.back().allocated_sets == descriptor_sets_per_pool) {
+        if (blocks.empty() || blocks.back().allocated_sets == blocks.back().capacity) {
+            const auto remaining_cache_entries = max_cached_descriptor_sets - descriptor_cache.size();
+            const auto descriptors_per_set = std::max<uint32_t>(descriptor_count, 1);
+            const auto pool_capacity = checked_u32(std::max<size_t>(remaining_cache_entries / descriptors_per_set, 1), "descriptor pool capacity");
+
             VkDescriptorPoolSize pool_size{};
             pool_size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            pool_size.descriptorCount = descriptor_count * descriptor_sets_per_pool;
+            pool_size.descriptorCount = checked_u32(static_cast<size_t>(descriptor_count) * pool_capacity, "descriptor pool storage-buffer count");
 
             VkDescriptorPoolCreateInfo pool_info{};
             pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            pool_info.maxSets = descriptor_sets_per_pool;
+            pool_info.maxSets = pool_capacity;
             pool_info.poolSizeCount = descriptor_count == 0 ? 0 : 1;
             pool_info.pPoolSizes = descriptor_count == 0 ? nullptr : &pool_size;
 
             descriptor_pool_block block;
+            block.capacity = pool_capacity;
             check_vk_result(vkCreateDescriptorPool(device, &pool_info, nullptr, &block.pool), "vkCreateDescriptorPool(cache)");
             blocks.push_back(block);
         }
@@ -451,7 +550,8 @@ private:
         slot.fence = slot.submission->release_fence();
         slot.submission.reset();
         slot.retained_memories.clear();
-        slot.retained_kernel.reset();
+        slot.retained_kernels.clear();
+        slot.recorded_dispatches = 0;
         check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
         check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
         // Keep the descriptor set allocated. The next dispatch can reuse both
@@ -483,6 +583,10 @@ private:
         check_vk_result(vkCreateDescriptorPool(device, &descriptor_pool_info, nullptr, &slot.descriptor_pool), "vkCreateDescriptorPool");
         slot.descriptor_capacity = descriptor_count;
     }
+
+    slot* recording_slot = nullptr;
+    size_t active_batch_limit = 0;
+    std::weak_ptr<vulkan_submission_state> latest_submission;
 };
 
 vulkan_stream::vulkan_stream(const vulkan_engine& engine)
@@ -497,7 +601,9 @@ vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig&
 
 vulkan_stream::~vulkan_stream() = default;
 
-void vulkan_stream::flush() const {}
+void vulkan_stream::flush() const {
+    _resources->flush();
+}
 
 void vulkan_stream::finish() const {
     _resources->finish();
@@ -529,6 +635,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
         }
         const auto* vk_event = dynamic_cast<const vulkan_event*>(dependency.get());
         if (vk_event == nullptr || !vk_event->is_device_submission(_engine.get_device_handle(), _engine.get_compute_queue())) {
+            _resources->flush();
             dependency->wait();
         }
     }
@@ -542,14 +649,25 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                                             specialized_local_size_x,
                                                             descriptor.specialization_constants);
 
-    auto& resources = _resources->acquire(checked_u32(prepared.buffer_infos.size(), "descriptor count"));
+    OPENVINO_ASSERT(descriptor.workGroups.global.size() == 3 && descriptor.workGroups.local.size() == 3,
+                    "[GPU][Vulkan] Compute dispatch requires three-dimensional global and local work-group sizes");
+    uint32_t group_counts[3]{};
+    size_t local_invocations = 1;
+    for (size_t axis = 0; axis < 3; ++axis) {
+        const auto local_size = descriptor.workGroups.local[axis];
+        OPENVINO_ASSERT(local_size > 0, "[GPU][Vulkan] Local work-group size cannot be zero");
+        OPENVINO_ASSERT(local_invocations <= std::numeric_limits<size_t>::max() / local_size,
+                        "[GPU][Vulkan] Local work-group invocation count overflows size_t");
+        local_invocations *= local_size;
+        group_counts[axis] = static_cast<uint32_t>((descriptor.workGroups.global[axis] + local_size - 1) / local_size);
+    }
+
+    if (_resources->descriptor_batch_boundary_required(prepared)) {
+        _resources->flush();
+    }
+    auto& resources = _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations);
 
     const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared);
-
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    check_vk_result(vkBeginCommandBuffer(resources.command_buffer, &begin_info), "vkBeginCommandBuffer");
 
     const auto shader_input_barriers = make_shader_input_barriers(prepared);
     vkCmdPipelineBarrier(resources.command_buffer,
@@ -574,14 +692,6 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                            prepared.push_constants.data());
     }
 
-    OPENVINO_ASSERT(descriptor.workGroups.global.size() == 3 && descriptor.workGroups.local.size() == 3,
-                    "[GPU][Vulkan] Compute dispatch requires three-dimensional global and local work-group sizes");
-    uint32_t group_counts[3]{};
-    for (size_t axis = 0; axis < 3; ++axis) {
-        OPENVINO_ASSERT(descriptor.workGroups.local[axis] > 0, "[GPU][Vulkan] Local work-group size cannot be zero");
-        group_counts[axis] =
-            static_cast<uint32_t>((descriptor.workGroups.global[axis] + descriptor.workGroups.local[axis] - 1) / descriptor.workGroups.local[axis]);
-    }
     vkCmdDispatch(resources.command_buffer, group_counts[0], group_counts[1], group_counts[2]);
 
     if (is_output_event) {
@@ -599,22 +709,15 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
                                  nullptr);
         }
     }
-    check_vk_result(vkEndCommandBuffer(resources.command_buffer), "vkEndCommandBuffer");
-
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &resources.command_buffer;
-    {
-        std::lock_guard<std::mutex> lock(_engine.get_queue_mutex());
-        check_vk_result(vkQueueSubmit(_engine.get_compute_queue(), 1, &submit_info, resources.fence), "vkQueueSubmit");
+    _resources->retain_dispatch(resources, prepared, pipeline);
+    if (is_output_event || m_sync_method == SyncMethods::events || _resources->batch_is_full()) {
+        return std::make_shared<vulkan_event>(_resources->flush());
     }
-    ++_resources->queue_submissions;
-    auto submission = _resources->mark_submitted(resources, prepared.memories, pipeline);
-    return std::make_shared<vulkan_event>(std::move(submission));
+    return nullptr;
 }
 
 event::ptr vulkan_stream::enqueue_marker(const std::vector<event::ptr>& dependencies, bool) {
+    _resources->flush();
     wait_for_events(dependencies);
     return create_user_event(true);
 }
@@ -629,6 +732,9 @@ event::ptr vulkan_stream::group_events(const std::vector<event::ptr>& dependenci
 }
 
 void vulkan_stream::wait_for_events(const std::vector<event::ptr>& events) {
+    if (!events.empty()) {
+        _resources->flush();
+    }
     for (const auto& event : events) {
         if (event != nullptr) {
             event->wait();
