@@ -1,0 +1,12 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#version 450
+
+#define ELTWISE_DENSE            0
+#define ELTWISE_BROADCAST_VECTOR 1
+#define ELTWISE_FAST_BROADCAST   1
+#define ELTWISE_UNARY            0
+#define ELTWISE_SCALAR_CONSTANT  0
+#include "eltwise_common.glsl"

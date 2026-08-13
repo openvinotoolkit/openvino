@@ -23,6 +23,10 @@
 #define ELTWISE_PACKED_FLOAT16 0
 #endif
 
+#ifndef ELTWISE_FAST_BROADCAST
+#define ELTWISE_FAST_BROADCAST 0
+#endif
+
 #if ELTWISE_FUSED
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
@@ -160,16 +164,21 @@ layout(constant_id = specialization_fused_mode_id) const uint selected_fused_mod
 layout(constant_id = specialization_fused_input_type_id) const uint selected_fused_input_type = type_f32;
 layout(constant_id = specialization_fused_input_position_id) const uint selected_fused_input_position = fused_input_rhs;
 #endif
+#if ELTWISE_FAST_BROADCAST
+layout(constant_id = specialization_broadcast_rank_id) const uint selected_broadcast_rank = 1;
+layout(constant_id = specialization_broadcast_input0_axes_id) const uint selected_broadcast_input0_axes = 0;
+layout(constant_id = specialization_broadcast_input1_axes_id) const uint selected_broadcast_input1_axes = 0;
+layout(constant_id = specialization_broadcast_output_axes_id) const uint selected_broadcast_output_axes = 0;
+#endif
 
 const uint max_rank = 8;
 const uint header_words = metadata_count;
 const uint tensor_words = max_rank * 2 + 1;
-#if ELTWISE_FUSED
 const uint fused_metadata_base = header_words + tensor_count * tensor_words;
 #define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) const uint metadata_fused_##name = fused_metadata_base + code;
 #include "../eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_FUSED_METADATA_FIELD
-#endif
+const uint fast_divisor_metadata_base = metadata_fused_count;
 const uint byte_value_mask = 0xff;
 const uint half_value_mask = 0xffff;
 
@@ -680,6 +689,47 @@ uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint 
     }
     return offset;
 }
+
+#if ELTWISE_FAST_BROADCAST
+uint fast_divide_u32(uint numerator, uint divisor, uint reciprocal) {
+    if (divisor == 1) {
+        return numerator;
+    }
+    uint product_high;
+    uint product_low;
+    umulExtended(numerator, reciprocal, product_high, product_low);
+    uint remainder = numerator - product_high * divisor;
+    return product_high + (remainder >= divisor ? 1u : 0u);
+}
+
+void fast_broadcast_offsets(uint linear_index, out uint input0_offset, out uint input1_offset, out uint output_offset) {
+    uint input0_base = header_words + tensor_input0 * tensor_words;
+    uint input1_base = header_words + tensor_input1 * tensor_words;
+    uint output_base = header_words + tensor_output * tensor_words;
+    input0_offset = metadata.values[input0_base + max_rank * 2];
+    input1_offset = metadata.values[input1_base + max_rank * 2];
+    output_offset = metadata.values[output_base + max_rank * 2];
+
+    uint remainder = linear_index;
+    for (int axis = int(selected_broadcast_rank) - 1; axis >= 0; --axis) {
+        uint unsigned_axis = uint(axis);
+        uint dimension = metadata.values[output_base + unsigned_axis];
+        uint quotient = fast_divide_u32(remainder, dimension, metadata.values[fast_divisor_metadata_base + unsigned_axis]);
+        uint coordinate = remainder - quotient * dimension;
+        uint axis_bit = 1u << unsigned_axis;
+        if ((selected_broadcast_input0_axes & axis_bit) != 0) {
+            input0_offset += coordinate * metadata.values[input0_base + max_rank + unsigned_axis];
+        }
+        if ((selected_broadcast_input1_axes & axis_bit) != 0) {
+            input1_offset += coordinate * metadata.values[input1_base + max_rank + unsigned_axis];
+        }
+        if ((selected_broadcast_output_axes & axis_bit) != 0) {
+            output_offset += coordinate * metadata.values[output_base + max_rank + unsigned_axis];
+        }
+        remainder = quotient;
+    }
+}
+#endif
 #endif
 
 bool is_boolean_mode(uint mode) {
@@ -969,7 +1019,6 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
 #endif
 #else
-    uint rank = metadata.values[metadata_rank];
     if ((selected_storage_flags & storage_linear_flag) != 0) {
 #if ELTWISE_SCALAR_CONSTANT
         tensor_input_offset = metadata.values[header_words + tensor_input_index * tensor_words + max_rank * 2] + linear_index;
@@ -981,6 +1030,10 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 #endif
         output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
     } else {
+#if ELTWISE_FAST_BROADCAST
+        fast_broadcast_offsets(linear_index, input0_offset, input1_offset, output_offset);
+#else
+        uint rank = metadata.values[metadata_rank];
         uint output_base = header_words + tensor_output * tensor_words;
         uint coordinates[max_rank];
         uint remainder = linear_index;
@@ -998,6 +1051,7 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 #endif
 #endif
         output_offset = storage_element_offset(tensor_output, coordinates, rank);
+#endif
     }
 #endif
 

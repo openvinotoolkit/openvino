@@ -15,6 +15,8 @@
 #include <vector>
 
 #include "data_inst.h"
+#include "eltwise_broadcast_fast_spirv.hpp"
+#include "eltwise_broadcast_fast_vector_spirv.hpp"
 #include "eltwise_broadcast_vector_spirv.hpp"
 #include "eltwise_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec2_push_constants_spirv.hpp"
@@ -55,7 +57,8 @@ constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::
 constexpr uint32_t tensor_words = max_rank * 2 + 1;
 constexpr uint32_t tensor_count = shader_abi::index(shader_abi::tensor_index::count);
 constexpr uint32_t fused_metadata_base = header_words + tensor_count * tensor_words;
-constexpr uint32_t metadata_words = fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::count);
+constexpr uint32_t fast_divisor_metadata_base = fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::count);
+constexpr uint32_t metadata_words = fast_divisor_metadata_base + max_rank;
 constexpr uint32_t dense_push_constant_words = shader_abi::index(shader_abi::dense_metadata_field::count);
 constexpr uint32_t fused_dense_push_constant_words = dense_push_constant_words + shader_abi::index(shader_abi::fused_dense_metadata_field::count);
 constexpr uint32_t dense_push_constant_bytes = dense_push_constant_words * sizeof(uint32_t);
@@ -88,6 +91,8 @@ enum class kernel_kind : uint8_t {
     fused_dense_packed_16bit_push_constants,
     dense_packed_f16_push_constants,
     fused_dense_packed_f16_push_constants,
+    broadcast_fast_scalar,
+    broadcast_fast_vector,
 };
 
 enum class dense_vector_width : uint32_t {
@@ -131,6 +136,14 @@ bool is_packed_dense_kernel(kernel_kind kind) {
 bool uses_dense_push_constants(kernel_kind kind) {
     return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants || is_f32_vector_kernel(kind) ||
            is_packed_dense_kernel(kind);
+}
+
+bool is_broadcast_vector_kernel(kernel_kind kind) {
+    return one_of(kind, {kernel_kind::broadcast_vector, kernel_kind::broadcast_fast_vector});
+}
+
+bool is_fast_broadcast_kernel(kernel_kind kind) {
+    return one_of(kind, {kernel_kind::broadcast_fast_scalar, kernel_kind::broadcast_fast_vector});
 }
 
 bool is_plain_dense_kernel(kernel_kind kind) {
@@ -725,6 +738,61 @@ uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& meta
     return rank;
 }
 
+uint32_t fast_divisor_reciprocal(uint32_t divisor) {
+    OPENVINO_ASSERT(divisor != 0, "[GPU][Vulkan] Eltwise broadcast divisor must be non-zero");
+    if (divisor == 1) {
+        return 0;
+    }
+    return static_cast<uint32_t>((uint64_t{1} << 32) / divisor);
+}
+
+void write_fast_divisor_metadata(std::array<uint32_t, metadata_words>& metadata) {
+    const auto rank = metadata[shader_abi::index(shader_abi::metadata_field::rank)];
+    const auto output_base = header_words + shader_abi::index(shader_abi::tensor_index::output) * tensor_words;
+    for (uint32_t axis = 0; axis < max_rank; ++axis) {
+        const auto dimension = axis < rank ? metadata[output_base + axis] : 1U;
+        metadata[fast_divisor_metadata_base + axis] = fast_divisor_reciprocal(dimension);
+    }
+}
+
+uint32_t active_broadcast_axes(const std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor) {
+    const auto rank = metadata[shader_abi::index(shader_abi::metadata_field::rank)];
+    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
+    uint32_t axes = 0;
+    for (uint32_t axis = 0; axis < rank; ++axis) {
+        if (metadata[base + axis] != 1 && metadata[base + max_rank + axis] != 0) {
+            axes |= 1U << axis;
+        }
+    }
+    return axes;
+}
+
+uint32_t collapsed_broadcast_rank(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
+    const auto output_rank = checked_u32(output_layout.get_shape().size(), "output rank");
+    std::array<uint32_t, metadata_words> metadata{};
+    write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
+    write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
+    write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
+    return collapse_metadata_dimensions(metadata, output_rank);
+}
+
+bool should_use_fast_broadcast_kernel(const layout& input0_layout,
+                                      const layout& input1_layout,
+                                      const layout& output_layout,
+                                      const device_info& info,
+                                      bool vector_kernel) {
+    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0 || info.max_work_group_size == 0) {
+        return false;
+    }
+    const auto subgroup_size = info.supported_simd_sizes.front();
+    const auto subgroup_slots = std::max<uint64_t>(info.max_work_group_size / subgroup_size, 1);
+    const auto rank = collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
+    const auto coordinate_schedule_pressure = static_cast<uint64_t>(rank) * subgroup_slots;
+    const auto elements_per_invocation = vector_kernel ? broadcast_vector_width : output_elements_per_invocation(output_layout);
+    const auto invocation_count = (output_layout.count() + elements_per_invocation - 1) / elements_per_invocation;
+    return coordinate_schedule_pressure <= portable_max_local_work_group_size && invocation_count >= subgroup_size;
+}
+
 std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
                                                    const std::optional<scalar_constant>& scalar,
                                                    const std::optional<fused_eltwise_info>& fused) {
@@ -771,6 +839,7 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
     write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
     metadata[shader_abi::index(shader_abi::metadata_field::rank)] = collapse_metadata_dimensions(metadata, output_rank);
+    write_fast_divisor_metadata(metadata);
     if (scalar.has_value()) {
         const auto scalar_metadata_base = header_words + shader_abi::index(scalar->input_index) * tensor_words;
         metadata[scalar_metadata_base] = scalar->bits[0];
@@ -858,6 +927,12 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::broadcast_vector) {
         spirv = eltwise_broadcast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_vector_spirv);
+    } else if (kind == kernel_kind::broadcast_fast_scalar) {
+        spirv = eltwise_broadcast_fast_spirv;
+        spirv_size = sizeof(eltwise_broadcast_fast_spirv);
+    } else if (kind == kernel_kind::broadcast_fast_vector) {
+        spirv = eltwise_broadcast_fast_vector_spirv;
+        spirv_size = sizeof(eltwise_broadcast_fast_vector_spirv);
     } else if (kind == kernel_kind::unary) {
         spirv = eltwise_unary_spirv;
         spirv_size = sizeof(eltwise_unary_spirv);
@@ -1031,7 +1106,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto* fused_input_layout = use_fused_dense_kernel ? &instance.get_input_layout(fused->external_dependency_index) : nullptr;
         const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
         const auto selected_packed_dense_width = get_packed_dense_width(_kernel_kind);
-        const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
+        const bool use_broadcast_vector_kernel = is_broadcast_vector_kernel(_kernel_kind);
+        const bool use_fast_broadcast_kernel = is_fast_broadcast_kernel(_kernel_kind);
         const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
         const bool use_scalar_constant_kernel = _kernel_kind == kernel_kind::scalar_constant;
         OPENVINO_ASSERT(use_scalar_constant_kernel == _scalar_constant.has_value(),
@@ -1049,6 +1125,12 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                         "[GPU][Vulkan] F32 vector Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
                         "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
+        OPENVINO_ASSERT(!use_fast_broadcast_kernel || should_use_fast_broadcast_kernel(input0_layout,
+                                                                                       input1_layout,
+                                                                                       output_layout,
+                                                                                       instance.get_network().get_engine().get_device_info(),
+                                                                                       use_broadcast_vector_kernel),
+                        "[GPU][Vulkan] Fast broadcast Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         const auto elements_per_invocation = selected_packed_dense_width != packed_dense_width::none     ? value(selected_packed_dense_width)
                                              : selected_dense_vector_width != dense_vector_width::scalar ? value(selected_dense_vector_width)
                                              : use_fused_dense_kernel                                    ? fused_dense_elements_per_invocation(output_layout)
@@ -1072,6 +1154,16 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         };
         if (use_dense_kernel || use_broadcast_vector_kernel || use_scalar_constant_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::elements_per_invocation), elements_per_invocation});
+        }
+        if (use_fast_broadcast_kernel) {
+            descriptor.specialization_constants.push_back(
+                {shader_abi::index(shader_abi::specialization_id::broadcast_rank), metadata[shader_abi::index(shader_abi::metadata_field::rank)]});
+            descriptor.specialization_constants.push_back(
+                {shader_abi::index(shader_abi::specialization_id::broadcast_input0_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::input0)});
+            descriptor.specialization_constants.push_back(
+                {shader_abi::index(shader_abi::specialization_id::broadcast_input1_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::input1)});
+            descriptor.specialization_constants.push_back(
+                {shader_abi::index(shader_abi::specialization_id::broadcast_output_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::output)});
         }
         if (use_fused_dense_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_mode),
@@ -1218,8 +1310,11 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
                     kind = kernel_kind::broadcast_scalar;
                 }
             }
-        } else if (can_use_broadcast_vector_kernel(output_layout)) {
-            kind = kernel_kind::broadcast_vector;
+        } else {
+            const bool vector_kernel = can_use_broadcast_vector_kernel(output_layout);
+            const bool fast_kernel = should_use_fast_broadcast_kernel(input0_layout, input1_layout, output_layout, device_info, vector_kernel);
+            kind = vector_kernel ? (fast_kernel ? kernel_kind::broadcast_fast_vector : kernel_kind::broadcast_vector)
+                                 : (fast_kernel ? kernel_kind::broadcast_fast_scalar : kernel_kind::broadcast_scalar);
         }
         if (kind != kernel_kind::scalar_constant) {
             scalar.reset();
