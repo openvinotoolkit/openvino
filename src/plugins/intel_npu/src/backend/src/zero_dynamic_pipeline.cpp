@@ -25,9 +25,6 @@ namespace intel_npu {
 
 struct MemRefTypeImpl {
     npu_vm_runtime_mem_ref_handle_t _memRef;
-    bool _ptrUpdated = false;
-    bool _shapeUpdated = false;
-    bool _strideUpdated = false;
 
     MemRefTypeImpl() : _memRef(nullptr) {}
 
@@ -51,55 +48,30 @@ struct MemRefTypeImpl {
         }
     }
 
-    void UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
+    bool UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
         // Update current MemRef handle to use latest metadata
+        const bool handleCreated = _memRef == nullptr;
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
-            _ptrUpdated = _shapeUpdated = _strideUpdated = true;
-        } else {
-            // Create a temporary MemRefType based on current handle and compare, use arg to create right size
-            MemRefType tempMemRef(memref._basePtr,
-                                  memref._data,
-                                  memref._offset,
-                                  memref._sizes,
-                                  memref._strides,
-                                  memref._dimsCount);
-            alignWithHandle(tempMemRef);
-            // Check ptr
-            if (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||
-                memref._offset != tempMemRef._offset) {
-                _ptrUpdated = true;
-            } else {
-                _ptrUpdated = false;
-            }
-
-            // Check shape
-            if (memref._sizes != tempMemRef._sizes) {
-                _shapeUpdated = true;
-            } else {
-                _shapeUpdated = false;
-            }
-
-            // Check strides
-            if (memref._strides != tempMemRef._strides) {
-                _strideUpdated = true;
-            } else {
-                _strideUpdated = false;
-            }
         }
 
-        if (_ptrUpdated || _shapeUpdated || _strideUpdated) {
-            auto result = npuVMRuntimeSetMemRef(_memRef,
-                                                memref._basePtr,
-                                                memref._data,
-                                                memref._offset,
-                                                useV2Api && !_shapeUpdated ? nullptr : memref._sizes.data(),
-                                                useV2Api && !_strideUpdated ? nullptr : memref._strides.data(),
-                                                memref._dimsCount);
+        const uint32_t dirtyFlag = handleCreated ? MemRefType::ALL_DIRTY : memref.getDirtyFlag();
+        if (dirtyFlag != 0) {
+            auto result = npuVMRuntimeSetMemRef(
+                _memRef,
+                memref._basePtr,
+                memref._data,
+                memref._offset,
+                useV2Api && !(dirtyFlag & MemRefType::SHAPE_DIRTY) ? nullptr : memref._sizes.data(),
+                useV2Api && !(dirtyFlag & MemRefType::STRIDE_DIRTY) ? nullptr : memref._strides.data(),
+                memref._dimsCount);
             if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                memref.markDirty(dirtyFlag);
                 OPENVINO_THROW("Failed to update MemRef handle");
             }
+            memref.clearDirty();
         }
+        return dirtyFlag != 0;
     }
 
 private:
@@ -164,26 +136,15 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
                                              const ov::Shape& sizes,
                                              const std::vector<size_t>& strides) {
     auto assign_slot = [&](MemRefType& slot) {
-        slot._basePtr = slot._data = const_cast<void*>(argv);
-        if (slot._dimsCount == 0) {
-            slot._dimsCount = static_cast<int64_t>(sizes.size());
-            slot._sizes.resize(sizes.size());
-            slot._strides.resize(strides.size());
-        } else if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
-            OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
-                           slot._dimsCount,
-                           ", new dimension count: ",
-                           sizes.size());
-        } else if (strides.size() != static_cast<size_t>(sizes.size())) {
+        if (strides.size() != sizes.size()) {
             OPENVINO_THROW("Updated shape and stride count mismatch: shape rank and stride count differ. Shape rank: ",
                            sizes.size(),
                            ", stride count: ",
                            strides.size());
         }
-        for (int64_t i = 0; i < slot._dimsCount; i++) {
-            slot._sizes[i] = static_cast<int64_t>(sizes[i]);
-            slot._strides[i] = static_cast<int64_t>(strides[i]);
-        }
+        slot.setArg(argv);
+        slot.setSize(sizes);
+        slot.setStrides(ov::Strides(strides));
     };
 
     if (argi < _inputsMemRef.size()) {
@@ -469,12 +430,12 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref);
+            const bool memRefUpdated = impl->UpdateMemRefHandleStatus(memref);
 
             // VM runtime execute path always needs current memref handles.
             targetMemRefHandles.push_back(impl->_memRef);
 
-            if (impl->_ptrUpdated || impl->_shapeUpdated || impl->_strideUpdated) {
+            if (memRefUpdated) {
                 noTensorChange = false;
             }
         }
@@ -598,7 +559,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
             } else {
                 // If all tensors are not set, use metadata
                 memRefs[i].setArg(nullptr);
-                memRefs[i]._offset = 0;
+                memRefs[i].setOffset(0);
                 // TODO : BatchSize not checked here
                 memRefs[i].setSize(descriptors.at(i).shapeFromCompiler.get_max_shape());
                 memRefs[i].updateStride();

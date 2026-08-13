@@ -92,9 +92,7 @@ class DynamicPipeline final : public IPipeline {
                 // Use size as placeholder of stride
                 // For now, only considering the usage and subsequent comparison of shape, and strides
                 const auto& shape = metadata.inputs[i].shapeFromCompiler.get_shape();
-                inputs[i]._dimsCount = static_cast<int64_t>(shape.size());
-                inputs[i]._sizes.assign(shape.begin(), shape.end());
-                inputs[i]._strides.resize(shape.size());
+                inputs[i].setSize(shape);
                 inputs[i].updateStride();
             }
 
@@ -102,9 +100,7 @@ class DynamicPipeline final : public IPipeline {
             auto& outputs = _arguments->_outputsMemRef;
             for (size_t i = 0; i < outputs.size(); ++i) {
                 const auto& shape = metadata.outputs[i].shapeFromCompiler.get_shape();
-                outputs[i]._dimsCount = static_cast<int64_t>(shape.size());
-                outputs[i]._sizes.assign(shape.begin(), shape.end());
-                outputs[i]._strides.resize(shape.size());
+                outputs[i].setSize(shape);
                 outputs[i].updateStride();
             }
         }
