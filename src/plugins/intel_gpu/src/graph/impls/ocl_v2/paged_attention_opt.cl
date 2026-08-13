@@ -898,7 +898,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+        if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -925,7 +925,7 @@ KERNEL(pa_sdpa_opt)(
             }
         }
 #else  // !USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+        if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -1007,9 +1007,9 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-    const uint num_of_partitions = CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE);
+    const uint num_of_partitions = min((uint)CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
 
-    if (seq_len <= SEQ_LEN_PARTITION_SIZE) {
+    if (num_of_partitions <= 1) {
         /* Short path, no need any actions for currently processing sequence */
         return;
     } else if (num_of_partitions <= SUBGROUP_SIZE * REG_VERSION_MAX_VALUES_PER_WI) {

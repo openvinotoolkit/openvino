@@ -1209,7 +1209,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto Q_num_heads_dim = micro_get_num_heads(params, 0);
     auto K_num_heads_dim = micro_get_num_heads(params, 1);
 
-    jit.make("REMAINDER_K", !k_full);
+    const bool may_have_mixed_k_boundary = config.is_paged_attention && !m_is_prefill && !m_is_gqa_single_token;
+    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary);
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
