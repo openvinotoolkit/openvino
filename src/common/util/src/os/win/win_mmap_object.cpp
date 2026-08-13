@@ -619,7 +619,7 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
 }
 
 void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode) {
-    const DWORD access = (mode == MmapMode::READ_WRITE) ? (FILE_MAP_READ | FILE_MAP_WRITE) : FILE_MAP_READ;
+    const DWORD access = (mode == MmapMode::READ_WRITE) ? FILE_MAP_WRITE : FILE_MAP_READ;
     if (auto view = ::MapViewOfFile(m_handle.get(),
                                     access,
                                     static_cast<DWORD>(aligned_offset >> 32),
