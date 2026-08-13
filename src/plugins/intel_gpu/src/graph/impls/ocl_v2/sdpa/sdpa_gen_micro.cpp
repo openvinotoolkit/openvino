@@ -496,11 +496,13 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
         if (quantized) {
             if (thin_q) {
-                if (seq <= 1)
-                    return &xehpg_q_h128_2nd;
-                if (seq <= 96)
+                // xehpg_q_h128_2nd (unroll_m_kq = 32) does not fit the Xe HPG register budget once K
+                // is integer-typed: the KQ strategy is rejected, micro-kernel generation throws, and
+                // SDPA silently falls back to sdpa_opt - which cannot index per-channel scales at
+                // all. xehpg_h128_2nd differs only in unroll_m_kq (8) and does fit.
+                if (seq <= 96 && seq > 1)
                     return &xehpg_q_h128_s96_2nd;
-                return &xehpg_q_h128_2nd;
+                return &xehpg_h128_2nd;
             }
             if (seq <= 64)
                 return &xehpg_q_h128_s64;
