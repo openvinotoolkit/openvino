@@ -286,3 +286,147 @@ jobs:
           name: override_openvino_winget_package
           path: ${{ env.BUILD_DIR }}/openvino_winget.tar.gz
           if-no-files-found: error
+
+  # Staging approach: build once, install all components in a single command into
+  # one staging tree, and upload it together with the CPack configuration.
+  prepare_staging:
+    name: Prepare CPack staging
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+      STAGING_DIR: ${{ github.workspace }}/staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache python3-dev python3-pip patchelf \
+            opencl-headers ocl-icd-opencl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r src/bindings/python/requirements.txt
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-samples-staging-${{ github.run_id }}
+          restore-keys: |
+            ccache-samples-staging-
+
+      - name: Configure
+        run: |
+          cmake -S . -B "${BUILD_DIR}" \
+            ${COMMON_CMAKE_OPTIONS} \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+
+      - name: Build
+        run: cmake --build "${BUILD_DIR}" --parallel "$(nproc)" --config "${CMAKE_BUILD_TYPE}"
+
+      - name: ccache statistics
+        run: ccache --show-stats
+
+      # Install all default components in a single command into one staging tree.
+      # The CPack configuration is kept beside it (not inside) for version reuse.
+      - name: Stage install (single cmake --install)
+        run: |
+          set -euo pipefail
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+          cmake --install "${BUILD_DIR}" --config "${CMAKE_BUILD_TYPE}" \
+            --prefix "${STAGING_DIR}/tree"
+          cp "${BUILD_DIR}/CPackConfig.cmake" "${STAGING_DIR}/CPackConfig.cmake"
+
+      - name: Upload CPack staging
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino_cpack_staging
+          path: ${{ env.STAGING_DIR }}
+          if-no-files-found: error
+
+  # Reuse the uploaded staging tree to assemble the final packages without
+  # rebuilding: the full distribution and the custom "winget" subset.
+  package_from_staging:
+    name: Package from CPack staging (all + winget)
+    needs: prepare_staging
+    runs-on: ubuntu-22.04
+    env:
+      STAGING_DIR: ${{ github.workspace }}/staging
+      OUTPUT_DIR: ${{ github.workspace }}/packages
+    steps:
+      - name: Install CPack
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake
+
+      - name: Download CPack staging
+        uses: actions/download-artifact@v4
+        with:
+          name: openvino_cpack_staging
+          path: ${{ env.STAGING_DIR }}
+
+      # CPACK_INSTALLED_DIRECTORIES lets CPack package the pre-staged tree without
+      # rebuilding. The winget subset is the full tree minus the samples and
+      # Python top-level directories (the excluded components).
+      - name: Package from staging (all + winget)
+        run: |
+          set -euo pipefail
+          mkdir -p "${OUTPUT_DIR}"
+          tree="${STAGING_DIR}/tree"
+
+          # reuse the version from the staged CPack configuration
+          version=$(sed -n 's/^set(CPACK_PACKAGE_VERSION "\(.*\)")$/\1/p' \
+            "${STAGING_DIR}/CPackConfig.cmake" | head -1)
+          version="${version:-0.0.0}"
+
+          make_package() {
+            local package_name="$1"
+            local source_tree="$2"
+            local config="${OUTPUT_DIR}/${package_name}.cmake"
+            {
+              echo 'set(CPACK_GENERATOR "TGZ")'
+              echo 'set(CPACK_PACKAGE_NAME "openvino")'
+              echo "set(CPACK_PACKAGE_VERSION \"${version}\")"
+              echo 'set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO Toolkit")'
+              echo 'set(CPACK_PACKAGE_DESCRIPTION "OpenVINO Toolkit distribution archive")'
+              echo "set(CPACK_PACKAGE_FILE_NAME \"${package_name}\")"
+              echo "set(CPACK_PACKAGE_DIRECTORY \"${OUTPUT_DIR}\")"
+              echo 'set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)'
+              echo 'set(CPACK_THREADS 8)'
+              echo "set(CPACK_INSTALLED_DIRECTORIES \"${source_tree};.\")"
+            } > "${config}"
+            cpack --config "${config}"
+          }
+
+          # all: the whole staged tree
+          make_package "openvino" "${tree}"
+
+          # winget: full tree without samples and Python
+          winget_tree="${STAGING_DIR}/tree_winget"
+          rm -rf "${winget_tree}"
+          cp -al "${tree}" "${winget_tree}"
+          rm -rf "${winget_tree}/samples" "${winget_tree}/python"
+          make_package "openvino_winget" "${winget_tree}"
+
+      - name: Show archive contents
+        working-directory: ${{ env.OUTPUT_DIR }}
+        run: |
+          echo "::group::openvino.tar.gz"
+          tar -tzf openvino.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+          echo "::group::openvino_winget.tar.gz"
+          tar -tzf openvino_winget.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+
+      - name: Upload packages built from staging
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging_openvino_packages
+          path: |
+            ${{ env.OUTPUT_DIR }}/openvino.tar.gz
+            ${{ env.OUTPUT_DIR }}/openvino_winget.tar.gz
+          if-no-files-found: error
