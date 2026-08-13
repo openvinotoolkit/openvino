@@ -157,7 +157,7 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (desc->has_scores_output() || desc->has_score_aggregation) {
         return false;
     }
-    if (desc->has_alibi || desc->has_sink_input || desc->has_qq_bias || desc->has_xattention) {
+    if (desc->has_alibi || desc->has_qq_bias || desc->has_xattention) {
         return false;
     }
 
@@ -316,6 +316,12 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
         jit.add(make_type_jit_constants("SCALE_INPUT", params.input_layouts[PagedAttentionInputIdx::SCALE].data_type));
     }
 
+    if (desc->has_sink_input) {
+        const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
+        jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
+        jit.make("HAS_SINK_INPUT", 1);
+    }
+
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", pa_softmax_accumulator_type));
 
     // Bisection toggles: forcing either to 0 restores the per-lane load that builds the identical
@@ -364,6 +370,9 @@ Arguments SDPAOclDecodeGenerator::get_arguments_desc(const RuntimeParams& params
     args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});
     if (!desc->scale_val.has_value()) {
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});
+    }
+    if (desc->has_sink_input) {
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});
     }
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
