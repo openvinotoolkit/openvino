@@ -220,6 +220,17 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake --config ${{ env.CMAKE_BUILD_TYPE }}
 
+      # Same generated test data as the regular Linux build (see job_build_linux.yml); running the 101
+      # per-architecture conversions under the sanitizers is the highest-value place for them.  The
+      # generator's own llama.cpp build is not instrumented, which is fine -- only its output is used.
+      - name: Generate GGUF arch fixtures
+        run: |
+          python3 -m pip install --no-cache-dir gguf
+          python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
+            --fetch \
+            --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
+            -j $(nproc)
+
       - name: Remove unused files to free space
         run: rm -rf ${BUILD_DIR}/*
 
@@ -349,6 +360,13 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
+
+      - name: GGUF frontend tests
+        if: ${{ !cancelled() }}
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_gguf_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-GGUFFrontend.xml
 
       - name: IR frontend tests
         if: ${{ !cancelled() }}

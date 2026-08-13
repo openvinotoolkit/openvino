@@ -17,6 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -234,7 +235,43 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     }
     resulting_model = std::make_shared<Model>(results, used_params);
 
+    // M-RoPE models need 4 position sections per token, which changes the position_ids contract a
+    // GenAI-facing consumer has to satisfy; record it so AdaptToGenAI can adapt (it runs on the
+    // model alone and cannot ask the decoder).
+    {
+        const auto rc_any = gguf_model_decoder->get_attribute("rope_config");
+        if (!rc_any.empty() && rc_any.as<RopeConfig>().is_imrope) {
+            resulting_model->get_rt_info()[pass::gguf_imrope_key()] = true;
+        }
+    }
+
+    // Record the recurrent (overwritten, non-appending) states BEFORE transformations: a caller
+    // that registered MakeStateful runs it inside apply_transformations, and unlike a KV cache
+    // these carry nothing in the graph that identifies them (see gguf_recurrent_states_key).
+    // Flattened to alternating {input, output} because rt_info takes an ov::Any.
+    {
+        const auto& rs = gguf_model_decoder->get_recurrent_states();
+        if (!rs.empty()) {
+            std::vector<std::string> flat;
+            flat.reserve(rs.size() * 2);
+            for (const auto& kv : rs) {
+                flat.push_back(kv.first);
+                flat.push_back(kv.second);
+            }
+            resulting_model->get_rt_info()[pass::gguf_recurrent_states_key()] = flat;
+        }
+    }
+
     resulting_model = apply_transformations(resulting_model);
+
+    // Attach GGUF tokenizer metadata (the file's tokenizer.* keys) to the model's rt_info as a
+    // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the
+    // tokenizer without reopening the .gguf. Empty when the decoder carries no tokenizer config.
+    const auto& tok_cfg = gguf_model_decoder->get_tokenizer_config();
+    if (!tok_cfg.empty()) {
+        resulting_model->get_rt_info()[gguf_tokenizer_metadata_key()] =
+            std::make_shared<GGUFTokenizerMetadata>(tok_cfg);
+    }
 
     // Set WeightlessCacheAttribute on large constants to avoid unnecessary memory copies
     // in the NPUW plugin. Without this attribute, NPUW's LazyTensor constructor

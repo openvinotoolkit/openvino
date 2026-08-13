@@ -14,10 +14,15 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/translate_session.cpp"
     "${FE_SRC_DIR}/utils.cpp"
     "${FE_SRC_DIR}/helper_ops/set_rows_op.cpp"
+    "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
+    "${FE_SRC_DIR}/tokenizer_metadata.cpp"
+    "${FE_SRC_DIR}/quant/gguf.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
     "${FE_SRC_DIR}/quant/weights.cpp"
+    "${FE_SRC_DIR}/builder/gguf_builder.cpp"
+    "${FE_SRC_DIR}/builder/gguf_builder_decoder.cpp"
     "${FE_SRC_DIR}/op/add_id.cpp"
     "${FE_SRC_DIR}/op/argsort.cpp"
     "${FE_SRC_DIR}/op/clamp.cpp"
@@ -62,6 +67,7 @@ set(FRONTEND_SRCS
 )
 
 set(TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
@@ -95,7 +101,14 @@ ov_add_test_target(
 )
 
 # Install the reference data next to the test binary (found via getExecutableDirectory()):
-# *.npy op/dequant references.
+# *.npy op/dequant references, plus the per-architecture fixture manifest.
+#
+# The manifest's companion *.gguf.hdr fixtures are deliberately NOT here: they are generated from
+# llama.cpp by tests/gen_arch_fixtures.py into this same directory (see the "Generate GGUF arch
+# fixtures" step in .github/workflows/job_build_linux.yml).  The manifest itself IS installed --
+# it carries the reviewed per-architecture expectation for each fixture, which is source, not
+# generated output.  Where no fixtures were generated the arch suite skips itself; see
+# test_arch_conversion.cpp.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
         DESTINATION tests
         COMPONENT tests

@@ -85,6 +85,16 @@ struct gguf_tensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
+// GGUFLoad result: (metadata, tensor arrays, qtype map, mmap, quant_buf).
+// - mmap: must stay alive while arrays tensors are used (non-quantized tensors are mmap views).
+// - quant_buf: single AlignedBuffer holding all repacked quantized weight/scale/bias data;
+//   tensors in `arrays` for quantized weights are SharedBuffer slices into this buffer.
+using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
+                            std::unordered_map<std::string, ov::Tensor>,
+                            std::unordered_map<std::string, gguf_tensor_type>,
+                            std::shared_ptr<ov::MappedMemory>,
+                            std::shared_ptr<ov::AlignedBuffer>>;
+
 // Fill pre-allocated i4 weights (u32-packed, XORed for i4 sign) and f16 scales from a
 // Q4_0 tensor. No bias: Q4_0 is symmetric (zp = -8*scale is implicit, not stored).
 void gguf_fill_q4_0(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
@@ -121,6 +131,12 @@ bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
 void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
+
+// Parse a GGUF file: returns (metadata, tensors-by-ggml-name, qtype map, mmap, quant_buf).
+// Non-quantized tensors are zero-copy views into the mmap (mmap must outlive arrays use).
+// Quantized tensors are SharedBuffer slices of a single AlignedBuffer (quant_buf) so all
+// repacked weight/scale/bias data lives in one allocation (IR-frontend pattern).
+GGUFLoad get_gguf_data(const std::string& file);
 
 // Extract the architecture config (architecture, layer_num, head_num, head_size,
 // head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base,
