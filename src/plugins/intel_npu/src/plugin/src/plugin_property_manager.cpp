@@ -144,9 +144,13 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
     }
 
     // Fallback to plugin compiler support check routed through the option support helper.
-    return optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                 ov::compatibility_check.name(),
-                                                 std::nullopt);
+    try {
+        return optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                     ov::compatibility_check.name(),
+                                                     std::nullopt);
+    } catch (...) {
+        return false;
+    }
 }
 
 ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
@@ -189,10 +193,14 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 
     // Fallback routed through the option support helper.
-    const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                                 ov::compatibility_check.name(),
-                                                                 std::make_optional(compatibilityDescriptor));
-    return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+    try {
+        const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                                     ov::compatibility_check.name(),
+                                                                     std::make_optional(compatibilityDescriptor));
+        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+    } catch (...) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 }
 
 }  // namespace
@@ -598,6 +606,7 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
                     _compilerOptionSupportHelper->isOptionSupported(_currentlyUsedCompiler, value.first, std::nullopt);
             } catch (...) {
                 // ignore any exceptions from the compiler and treat the property as unsupported
+                isSupported = false;
             }
             if (!isSupported) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
@@ -908,7 +917,14 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
-            if (!_compilerOptionSupportHelper->isOptionSupported(effectiveCompilerType, key, std::nullopt)) {
+            bool isSupported = false;
+            try {
+                isSupported = _compilerOptionSupportHelper->isOptionSupported(effectiveCompilerType, key, std::nullopt);
+            } catch (...) {
+                // ignore any exceptions from the compiler and treat the property as unsupported
+                isSupported = false;
+            }
+            if (!isSupported) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
             updatedConfig.addOrUpdateInternal(key, value);

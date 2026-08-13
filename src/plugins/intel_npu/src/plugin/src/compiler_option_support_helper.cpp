@@ -44,11 +44,7 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     }
 
     std::unique_ptr<ICompilerAdapter> compiler;
-    try {
-        compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
-    } catch (...) {
-        return false;
-    }
+    compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
 
     std::once_flag& optionsLoaded = (compilerType == ov::intel_npu::CompilerType::DRIVER)
                                         ? _driverSupportedOptionsLoaded
