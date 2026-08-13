@@ -20,12 +20,18 @@
 #include "eltwise_dense_f32_vec2_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec4_no_tail_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec4_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_16bit_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_8bit_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_f16_push_constants_spirv.hpp"
 #include "eltwise_dense_push_constants_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec4_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_16bit_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_8bit_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_f16_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_spirv.hpp"
 #include "eltwise_scalar_constant_spirv.hpp"
@@ -76,12 +82,24 @@ enum class kernel_kind : uint8_t {
     dense_f32_vec4_no_tail_push_constants,
     fused_dense_f32_vec2_no_tail_push_constants,
     fused_dense_f32_vec4_no_tail_push_constants,
+    dense_packed_8bit_push_constants,
+    dense_packed_16bit_push_constants,
+    fused_dense_packed_8bit_push_constants,
+    fused_dense_packed_16bit_push_constants,
+    dense_packed_f16_push_constants,
+    fused_dense_packed_f16_push_constants,
 };
 
 enum class dense_vector_width : uint32_t {
     scalar = 1,
     vec2 = 2,
     vec4 = 4,
+};
+
+enum class packed_dense_width : uint32_t {
+    none = 0,
+    two_16bit_elements = 2,
+    four_8bit_elements = 4,
 };
 
 constexpr uint32_t value(dense_vector_width width) {
@@ -100,8 +118,19 @@ bool is_f32_vector_kernel(kernel_kind kind) {
                    kernel_kind::fused_dense_f32_vec4_no_tail_push_constants});
 }
 
+bool is_packed_dense_kernel(kernel_kind kind) {
+    return one_of(kind,
+                  {kernel_kind::dense_packed_8bit_push_constants,
+                   kernel_kind::dense_packed_16bit_push_constants,
+                   kernel_kind::fused_dense_packed_8bit_push_constants,
+                   kernel_kind::fused_dense_packed_16bit_push_constants,
+                   kernel_kind::dense_packed_f16_push_constants,
+                   kernel_kind::fused_dense_packed_f16_push_constants});
+}
+
 bool uses_dense_push_constants(kernel_kind kind) {
-    return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants || is_f32_vector_kernel(kind);
+    return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants || is_f32_vector_kernel(kind) ||
+           is_packed_dense_kernel(kind);
 }
 
 bool is_plain_dense_kernel(kernel_kind kind) {
@@ -111,7 +140,10 @@ bool is_plain_dense_kernel(kernel_kind kind) {
                    kernel_kind::dense_f32_vec2_push_constants,
                    kernel_kind::dense_f32_vec4_push_constants,
                    kernel_kind::dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::dense_f32_vec4_no_tail_push_constants});
+                   kernel_kind::dense_f32_vec4_no_tail_push_constants,
+                   kernel_kind::dense_packed_8bit_push_constants,
+                   kernel_kind::dense_packed_16bit_push_constants,
+                   kernel_kind::dense_packed_f16_push_constants});
 }
 
 bool is_fused_dense_kernel(kernel_kind kind) {
@@ -121,7 +153,10 @@ bool is_fused_dense_kernel(kernel_kind kind) {
                    kernel_kind::fused_dense_f32_vec2_push_constants,
                    kernel_kind::fused_dense_f32_vec4_push_constants,
                    kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
-                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants});
+                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants,
+                   kernel_kind::fused_dense_packed_8bit_push_constants,
+                   kernel_kind::fused_dense_packed_16bit_push_constants,
+                   kernel_kind::fused_dense_packed_f16_push_constants});
 }
 
 dense_vector_width get_dense_vector_width(kernel_kind kind) {
@@ -140,6 +175,24 @@ dense_vector_width get_dense_vector_width(kernel_kind kind) {
         return dense_vector_width::vec2;
     }
     return dense_vector_width::scalar;
+}
+
+packed_dense_width get_packed_dense_width(kernel_kind kind) {
+    if (one_of(kind, {kernel_kind::dense_packed_8bit_push_constants, kernel_kind::fused_dense_packed_8bit_push_constants})) {
+        return packed_dense_width::four_8bit_elements;
+    }
+    if (one_of(kind,
+               {kernel_kind::dense_packed_16bit_push_constants,
+                kernel_kind::fused_dense_packed_16bit_push_constants,
+                kernel_kind::dense_packed_f16_push_constants,
+                kernel_kind::fused_dense_packed_f16_push_constants})) {
+        return packed_dense_width::two_16bit_elements;
+    }
+    return packed_dense_width::none;
+}
+
+constexpr uint32_t value(packed_dense_width width) {
+    return static_cast<uint32_t>(width);
 }
 
 struct scalar_constant {
@@ -364,6 +417,62 @@ uint32_t fused_dense_elements_per_invocation(const layout& output_layout) {
 
 bool can_use_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
     return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && can_use_linear_storage(input0_layout, input1_layout, output_layout);
+}
+
+packed_dense_width packed_width_for_type(data_types type) {
+    if (one_of(type, {data_types::i8, data_types::u8})) {
+        return packed_dense_width::four_8bit_elements;
+    }
+    if (one_of(type, {data_types::f16, data_types::i16, data_types::u16})) {
+        return packed_dense_width::two_16bit_elements;
+    }
+    return packed_dense_width::none;
+}
+
+bool is_aligned_for_packed_width(const layout& tensor_layout, packed_dense_width width) {
+    return tensor_layout.get_linear_offset() % value(width) == 0;
+}
+
+bool can_use_packed_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& output_layout, const layout* fused_input_layout) {
+    const auto width = packed_width_for_type(output_layout.data_type);
+    if (width == packed_dense_width::none || input0_layout.data_type != output_layout.data_type || input1_layout.data_type != output_layout.data_type ||
+        !can_use_linear_storage(input0_layout, input1_layout, output_layout) || output_layout.count() % value(width) != 0 ||
+        !is_aligned_for_packed_width(input0_layout, width) || !is_aligned_for_packed_width(input1_layout, width) ||
+        !is_aligned_for_packed_width(output_layout, width)) {
+        return false;
+    }
+    return fused_input_layout == nullptr || (fused_input_layout->data_type == output_layout.data_type && fused_input_layout->identical(output_layout) &&
+                                             has_dense_storage(*fused_input_layout) && is_aligned_for_packed_width(*fused_input_layout, width));
+}
+
+packed_dense_width select_packed_dense_width(const layout& input0_layout,
+                                             const layout& input1_layout,
+                                             const layout& output_layout,
+                                             const layout* fused_input_layout,
+                                             const device_info& info) {
+    if (!can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, fused_input_layout) || info.supported_simd_sizes.empty() ||
+        info.supported_simd_sizes.front() == 0) {
+        return packed_dense_width::none;
+    }
+    const auto width = packed_width_for_type(output_layout.data_type);
+    const auto logical_elements_per_subgroup = static_cast<uint64_t>(info.supported_simd_sizes.front()) * value(width);
+    if (logical_elements_per_subgroup > portable_max_local_work_group_size) {
+        return packed_dense_width::none;
+    }
+    const auto invocation_count = output_layout.count() / value(width);
+    const auto useful_subgroup_width = std::min<uint64_t>(std::max<uint64_t>(info.max_work_group_size, 1), info.supported_simd_sizes.front());
+    return invocation_count >= useful_subgroup_width ? width : packed_dense_width::none;
+}
+
+kernel_kind select_packed_dense_kernel_kind(packed_dense_width width, data_types type, bool fused) {
+    if (width == packed_dense_width::four_8bit_elements) {
+        return fused ? kernel_kind::fused_dense_packed_8bit_push_constants : kernel_kind::dense_packed_8bit_push_constants;
+    }
+    OPENVINO_ASSERT(width == packed_dense_width::two_16bit_elements, "[GPU][Vulkan] Invalid packed dense width selected for Eltwise");
+    if (type == data_types::f16) {
+        return fused ? kernel_kind::fused_dense_packed_f16_push_constants : kernel_kind::dense_packed_f16_push_constants;
+    }
+    return fused ? kernel_kind::fused_dense_packed_16bit_push_constants : kernel_kind::dense_packed_16bit_push_constants;
 }
 
 bool can_use_fused_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& fused_input_layout, const layout& output_layout) {
@@ -737,6 +846,15 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::dense_f32_vec4_no_tail_push_constants) {
         spirv = eltwise_dense_f32_vec4_no_tail_push_constants_spirv;
         spirv_size = sizeof(eltwise_dense_f32_vec4_no_tail_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_packed_8bit_push_constants) {
+        spirv = eltwise_dense_packed_8bit_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_packed_8bit_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_packed_16bit_push_constants) {
+        spirv = eltwise_dense_packed_16bit_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_packed_16bit_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_packed_f16_push_constants) {
+        spirv = eltwise_dense_packed_f16_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_packed_f16_push_constants_spirv);
     } else if (kind == kernel_kind::broadcast_vector) {
         spirv = eltwise_broadcast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_vector_spirv);
@@ -764,6 +882,15 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::fused_dense_f32_vec4_no_tail_push_constants) {
         spirv = eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv;
         spirv_size = sizeof(eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_8bit_push_constants) {
+        spirv = eltwise_fused_dense_packed_8bit_push_constants_spirv;
+        spirv_size = sizeof(eltwise_fused_dense_packed_8bit_push_constants_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_16bit_push_constants) {
+        spirv = eltwise_fused_dense_packed_16bit_push_constants_spirv;
+        spirv_size = sizeof(eltwise_fused_dense_packed_16bit_push_constants_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_f16_push_constants) {
+        spirv = eltwise_fused_dense_packed_f16_push_constants_spirv;
+        spirv_size = sizeof(eltwise_fused_dense_packed_f16_push_constants_spirv);
     }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
@@ -903,26 +1030,32 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_dense_kernel;
         const auto* fused_input_layout = use_fused_dense_kernel ? &instance.get_input_layout(fused->external_dependency_index) : nullptr;
         const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
+        const auto selected_packed_dense_width = get_packed_dense_width(_kernel_kind);
         const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
         const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
         const bool use_scalar_constant_kernel = _kernel_kind == kernel_kind::scalar_constant;
         OPENVINO_ASSERT(use_scalar_constant_kernel == _scalar_constant.has_value(),
                         "[GPU][Vulkan] Scalar Eltwise kernel and constant metadata are inconsistent");
-        OPENVINO_ASSERT(!is_plain_dense_kernel(_kernel_kind) || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
+        OPENVINO_ASSERT(!is_plain_dense_kernel(_kernel_kind) ||
+                            (is_packed_dense_kernel(_kernel_kind) ? can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, nullptr)
+                                                                  : can_use_dense_kernel(input0_layout, input1_layout, output_layout)),
                         "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
-        OPENVINO_ASSERT(!use_fused_dense_kernel || can_use_fused_dense_kernel(input0_layout, input1_layout, *fused_input_layout, output_layout),
+        OPENVINO_ASSERT(!use_fused_dense_kernel || (is_packed_dense_kernel(_kernel_kind)
+                                                        ? can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, fused_input_layout)
+                                                        : can_use_fused_dense_kernel(input0_layout, input1_layout, *fused_input_layout, output_layout)),
                         "[GPU][Vulkan] Fused dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(selected_dense_vector_width == dense_vector_width::scalar ||
                             can_use_f32_dense_vector_width(input0_layout, input1_layout, output_layout, fused_input_layout, selected_dense_vector_width),
                         "[GPU][Vulkan] F32 vector Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
                         "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
-        const auto elements_per_invocation = selected_dense_vector_width != dense_vector_width::scalar ? value(selected_dense_vector_width)
-                                             : use_fused_dense_kernel                                  ? fused_dense_elements_per_invocation(output_layout)
-                                             : use_dense_kernel                                        ? dense_elements_per_invocation(output_layout)
-                                             : use_broadcast_vector_kernel                             ? broadcast_vector_width
-                                             : use_scalar_constant_kernel                              ? scalar_constant_elements_per_invocation(output_layout)
-                                                                                                       : output_elements_per_invocation(output_layout);
+        const auto elements_per_invocation = selected_packed_dense_width != packed_dense_width::none     ? value(selected_packed_dense_width)
+                                             : selected_dense_vector_width != dense_vector_width::scalar ? value(selected_dense_vector_width)
+                                             : use_fused_dense_kernel                                    ? fused_dense_elements_per_invocation(output_layout)
+                                             : use_dense_kernel                                          ? dense_elements_per_invocation(output_layout)
+                                             : use_broadcast_vector_kernel                               ? broadcast_vector_width
+                                             : use_scalar_constant_kernel ? scalar_constant_elements_per_invocation(output_layout)
+                                                                          : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
         descriptor.workGroups.local = {
@@ -1049,15 +1182,18 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     if (fused.has_value()) {
         kind = kernel_kind::fused_dense;
         if (max_push_constants_size >= fused_dense_push_constant_bytes) {
-            const auto vector_width = select_f32_dense_vector_width(input0_layout,
-                                                                    input1_layout,
-                                                                    params.get_output_layout(0),
-                                                                    &params.get_input_layout(fused->external_dependency_index),
-                                                                    device_info);
-            const auto no_tail =
-                vector_width != dense_vector_width::scalar && can_use_f32_no_tail_kernel(params.get_output_layout(0), vector_width, device_info);
-            kind = vector_width == dense_vector_width::scalar ? kernel_kind::fused_dense_push_constants
-                                                              : select_f32_vector_kernel_kind(vector_width, true, no_tail);
+            const auto& fused_input_layout = params.get_input_layout(fused->external_dependency_index);
+            const auto packed_width = select_packed_dense_width(input0_layout, input1_layout, params.get_output_layout(0), &fused_input_layout, device_info);
+            if (packed_width != packed_dense_width::none) {
+                kind = select_packed_dense_kernel_kind(packed_width, params.get_output_layout(0).data_type, true);
+            } else {
+                const auto vector_width =
+                    select_f32_dense_vector_width(input0_layout, input1_layout, params.get_output_layout(0), &fused_input_layout, device_info);
+                const auto no_tail =
+                    vector_width != dense_vector_width::scalar && can_use_f32_no_tail_kernel(params.get_output_layout(0), vector_width, device_info);
+                kind = vector_width == dense_vector_width::scalar ? kernel_kind::fused_dense_push_constants
+                                                                  : select_f32_vector_kernel_kind(vector_width, true, no_tail);
+            }
         }
     } else if (is_unary_mode(node.as<eltwise>().get_primitive()->mode)) {
         kind = kernel_kind::unary;
@@ -1066,13 +1202,21 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
         scalar = get_scalar_constant(node);
         if (scalar.has_value() && output_layout.count() >= broadcast_vector_min_elements) {
             kind = kernel_kind::scalar_constant;
-        } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
-            kind = kernel_kind::dense;
+        } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout) ||
+                   can_use_packed_dense_kernel(input0_layout, input1_layout, output_layout, nullptr)) {
+            kind = can_use_dense_kernel(input0_layout, input1_layout, output_layout) ? kernel_kind::dense : kernel_kind::broadcast_scalar;
             if (max_push_constants_size >= dense_push_constant_bytes) {
-                const auto vector_width = select_f32_dense_vector_width(input0_layout, input1_layout, output_layout, nullptr, device_info);
-                const auto no_tail = vector_width != dense_vector_width::scalar && can_use_f32_no_tail_kernel(output_layout, vector_width, device_info);
-                kind = vector_width == dense_vector_width::scalar ? kernel_kind::dense_push_constants
-                                                                  : select_f32_vector_kernel_kind(vector_width, false, no_tail);
+                const auto packed_width = select_packed_dense_width(input0_layout, input1_layout, output_layout, nullptr, device_info);
+                if (packed_width != packed_dense_width::none) {
+                    kind = select_packed_dense_kernel_kind(packed_width, output_layout.data_type, false);
+                } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
+                    const auto vector_width = select_f32_dense_vector_width(input0_layout, input1_layout, output_layout, nullptr, device_info);
+                    const auto no_tail = vector_width != dense_vector_width::scalar && can_use_f32_no_tail_kernel(output_layout, vector_width, device_info);
+                    kind = vector_width == dense_vector_width::scalar ? kernel_kind::dense_push_constants
+                                                                      : select_f32_vector_kernel_kind(vector_width, false, no_tail);
+                } else {
+                    kind = kernel_kind::broadcast_scalar;
+                }
             }
         } else if (can_use_broadcast_vector_kernel(output_layout)) {
             kind = kernel_kind::broadcast_vector;
