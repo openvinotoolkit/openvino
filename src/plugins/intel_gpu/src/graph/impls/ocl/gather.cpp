@@ -14,7 +14,8 @@ namespace ocl {
 static kernel_selector::gather_axis convert_axis(int64_t axis, size_t rank) {
     if (axis == 0) {
         return kernel_selector::gather_axis::BATCH;
-    } else if (axis == 1) {
+    }
+    if (axis == 1) {
         return kernel_selector::gather_axis::FEATURE;
     }
 

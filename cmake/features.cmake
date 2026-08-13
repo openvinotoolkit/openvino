@@ -222,6 +222,8 @@ ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OF
 
 ov_dependent_option(ENABLE_IO_URING "Enables io_uring feature" OFF "LINUX" OFF)
 
+ov_dependent_option (ENABLE_IPF_CLIENT_API "Enable IPF ClientApi integration for AUTO device telemetry" ON "MSVC;ENABLE_AUTO" OFF)
+
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
