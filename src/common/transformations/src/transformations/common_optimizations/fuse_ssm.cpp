@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_mamba2.hpp"
+#include "transformations/common_optimizations/fuse_ssm.hpp"
 
 #include <memory>
 
@@ -38,7 +38,7 @@ namespace v1 = ov::op::v1;
 
 namespace {
 
-// Matches the time-major Mamba2 recurrence body. All discretization is performed outside the loop
+// Matches the time-major SSM recurrence body. All discretization is performed outside the loop
 // (dA = exp(A * dt), dBx = (dt * B) outer x, C reshaped), so the body consumes the fully discretized
 // per-step tensors directly. Per-step body semantics (H = num_heads, P = head_dim, N = state_size):
 //   dA_t = Squeeze(dA_t, 1)   -> [B, H, 1, 1]
@@ -47,61 +47,56 @@ namespace {
 //   state_t = state_{t-1} * dA_t + dBx_t
 //   y_t     = reduce_sum(state_t * C_t, axis=N)
 //   ScatterUpdate(core_out, t, y_t, axis=1)
-bool match_mamba2_body(const std::shared_ptr<ov::Node>& node) {
+bool match_ssm_body(const std::shared_ptr<ov::Node>& node) {
     auto loop = ov::as_type_ptr<ov::op::v5::Loop>(node);
-    if (!loop) {
+    if (!loop)
         return false;
-    }
 
     // External inputs: trip_count, exec_cond, dA, dBx, C, recurrent_state, output_buffer.
     // External outputs: output, output_recurrent_state.
-    if (loop->get_input_size() != 7 || loop->get_output_size() != 2) {
+    if (loop->get_input_size() != 7 || loop->get_output_size() != 2)
         return false;
-    }
+
+    // body_results: [0] = exec_condition, [1] = updated state, [2] = scattered output.
+    auto body = loop->get_function();
+    const auto& body_results = body->get_results();
+    if (body_results.size() < 3)
+        return false;
 
     auto dA_t = pattern::any_input();
     auto dBx_t = pattern::any_input();
-    auto C_t = pattern::any_input();
     auto last_state = pattern::any_input();
-    auto core_out = pattern::any_input();
-    auto step_index = pattern::any_input();
 
-    // Drop the singleton sequence axis introduced by slicing.
     auto dA_squeezed = pattern::wrap_type<v0::Squeeze>({dA_t, 1});    // [B, H, 1, 1]
     auto dBx_squeezed = pattern::wrap_type<v0::Squeeze>({dBx_t, 1});  // [B, H, P, N]
-    auto C_squeezed = pattern::wrap_type<v0::Squeeze>({C_t, 1});      // [B, H, 1, N]
 
     // state_t = state_{t-1} * dA_t + dBx_t
     auto state_decay = pattern::wrap_type<v1::Multiply>({last_state, dA_squeezed});
     auto state_new = pattern::wrap_type<v1::Add>({state_decay, dBx_squeezed});
+    auto state_result = pattern::wrap_type<v0::Result>(pattern::optional<v0::Convert>({state_new}));
+
+    ov::pass::pattern::Matcher loop_state_matcher(state_result);
+    if (!loop_state_matcher.match(body_results[1]->output(0))) {
+        return false;
+    }
+
+    auto core_out = pattern::any_input();
+    auto step_index = pattern::any_input();
+    auto C_t = pattern::any_input();
+    auto C_squeezed = pattern::wrap_type<v0::Squeeze>({C_t, 1});  // [B, H, 1, N]
 
     // y_t = reduce_sum(state_t * C_t, axis=N)
     auto weighted_output = pattern::wrap_type<v1::Multiply>({state_new, C_squeezed});
     auto output_reduce_sum = pattern::wrap_type<v1::ReduceSum>({weighted_output, -1}, {{"keep_dims", false}});
     auto output_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({output_reduce_sum, 1});
-    auto output_unsqueeze_conv = pattern::optional<v0::Convert>({output_unsqueeze});
 
     auto step_index_unsqueeze = pattern::wrap_type<v0::Unsqueeze>({step_index, 0});
-    auto scatter_update_output =
-        pattern::wrap_type<ov::op::v3::ScatterUpdate>({core_out, step_index_unsqueeze, output_unsqueeze_conv, 1});
+    auto scatter_update_output = pattern::wrap_type<ov::op::v3::ScatterUpdate>(
+        {core_out, step_index_unsqueeze, pattern::optional<v0::Convert>({output_unsqueeze}), 1});
     auto output_result = pattern::wrap_type<v0::Result>({scatter_update_output});
 
-    auto state_new_conv = pattern::optional<v0::Convert>({state_new});
-    auto state_result = pattern::wrap_type<v0::Result>({state_new_conv});
-
-    auto body = loop->get_function();
-    const auto& body_results = body->get_results();
-    if (body_results.size() < 3) {
-        return false;
-    }
-
-    // body_results: [0] = exec_condition, [1] = updated state, [2] = scattered output.
     ov::pass::pattern::Matcher loop_output_matcher(output_result);
     if (!loop_output_matcher.match(body_results[2]->output(0))) {
-        return false;
-    }
-    ov::pass::pattern::Matcher loop_state_matcher(state_result);
-    if (!loop_state_matcher.match(body_results[1]->output(0))) {
         return false;
     }
 
@@ -110,7 +105,7 @@ bool match_mamba2_body(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
-ov::pass::RemoveConcatSliceAfterLoopMamba2::RemoveConcatSliceAfterLoopMamba2() {
+ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
     auto init_state = pattern::any_input(pattern::rank_equals(4));
 
     // External inputs: trip_count, exec_cond, dA, dBx, C, recurrent_state, output_buffer.
@@ -161,11 +156,11 @@ ov::pass::RemoveConcatSliceAfterLoopMamba2::RemoveConcatSliceAfterLoopMamba2() {
         return changed;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(restored_root, "RemoveConcatSliceAfterLoopMamba2");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(restored_root, "RemoveConcatSliceAfterLoopSSM");
     register_matcher(m, callback);
 }
 
-ov::pass::FuseMamba2Loop::FuseMamba2Loop() {
+ov::pass::FuseSSMLoop::FuseSSMLoop() {
     auto dt = pattern::any_input(pattern::shape_matches("[?, ?, head_num]"));
     auto x = pattern::any_input(pattern::shape_matches("[?, ?, head_num, head_dim]"));
     auto init_state = pattern::any_input(pattern::shape_matches("[?, head_num, head_dim, state_size]"));
@@ -208,7 +203,7 @@ ov::pass::FuseMamba2Loop::FuseMamba2Loop() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 
-        if (!match_mamba2_body(loop_node)) {
+        if (!match_ssm_body(loop_node)) {
             return false;
         }
 
@@ -235,15 +230,15 @@ ov::pass::FuseMamba2Loop::FuseMamba2Loop() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(loop_output, "FuseMamba2Loop");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(loop_output, "FuseSSMLoop");
     register_matcher(m, callback);
 }
 
-bool ov::pass::Mamba2Fusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(Mamba2Fusion);
+bool ov::pass::SSMFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(SSMFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoopMamba2>();
-    symbolic_ctx_manager->register_pass<ov::pass::FuseMamba2Loop>();
+    symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoopSSM>();
+    symbolic_ctx_manager->register_pass<ov::pass::FuseSSMLoop>();
     return symbolic_optimizations.run_on_model(model);
 }

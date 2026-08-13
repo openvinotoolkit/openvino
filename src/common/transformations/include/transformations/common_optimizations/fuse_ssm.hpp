@@ -10,7 +10,7 @@ namespace ov::pass {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Removes the flatten/Concat/Slice/Reshape pattern inserted after the Mamba2 Loop and
+ * @brief Removes the flatten/Concat/Slice/Reshape pattern inserted after the SSM Loop and
  *        reconnects the consumers directly to the Loop outputs.
  *
  * The exporter packs the Loop's two results (the main output and the final recurrent state) into a
@@ -19,7 +19,7 @@ namespace ov::pass {
  * shapes. This flatten/Concat/Slice/Reshape round-trip is a semantic identity. This pass detects it
  * and rewires the consumers straight to `Loop` output 0 (output) and output 1 (recurrent state),
  * which both removes the redundant glue and exposes the native two-output Loop that
- * `FuseMamba2Loop` then replaces with `SelectiveSSM`.
+ * `FuseSSMLoop` then replaces with `SelectiveSSM`.
  *
  * Before:
  *  ┌──────────────┐        ┌──────────────┐
@@ -56,15 +56,15 @@ namespace ov::pass {
  *     (output)                 (state)
  */
 
-class TRANSFORMATIONS_API RemoveConcatSliceAfterLoopMamba2 : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API RemoveConcatSliceAfterLoopSSM : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RemoveConcatSliceAfterLoopMamba2");
-    RemoveConcatSliceAfterLoopMamba2();
+    OPENVINO_MATCHER_PASS_RTTI("RemoveConcatSliceAfterLoopSSM");
+    RemoveConcatSliceAfterLoopSSM();
 };
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Fuses a loop-based Mamba2 selective state-space recurrence sub-graph into an internal
+ * @brief Fuses a loop-based selective state-space (SSM) recurrence sub-graph into an internal
  *        SelectiveSSM operation.
  *
  * Discretization is performed ahead of the loop and consumed as 5D per-step slices:
@@ -81,13 +81,13 @@ public:
  * `SelectiveSSM`.
  */
 
-class TRANSFORMATIONS_API FuseMamba2Loop : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API FuseSSMLoop : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseMamba2Loop");
-    FuseMamba2Loop();
+    OPENVINO_MATCHER_PASS_RTTI("FuseSSMLoop");
+    FuseSSMLoop();
 };
 
-/// This pass transforms a loop-based Mamba2 sub-graph into a single internal `SelectiveSSM` operation.
+/// This pass transforms a loop-based SSM sub-graph into a single internal `SelectiveSSM` operation.
 ///
 /// Before:
 ///  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌───────────────┐
@@ -119,10 +119,10 @@ public:
 ///             │     Output, StateOut      │
 ///             └───────────────────────────┘
 
-class TRANSFORMATIONS_API Mamba2Fusion : public ov::pass::ModelPass {
+class TRANSFORMATIONS_API SSMFusion : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("Mamba2Fusion");
-    Mamba2Fusion() = default;
+    OPENVINO_MODEL_PASS_RTTI("SSMFusion");
+    SSMFusion() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
