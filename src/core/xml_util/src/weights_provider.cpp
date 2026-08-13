@@ -55,7 +55,10 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
 
     const FileWeightsProvider::WeightsRegionKey key{offset, size};
     if (const auto found = m_loaded_weights_regions.find(key); found != m_loaded_weights_regions.end()) {
-        return found->second;
+        if (auto buffer = found->second.lock()) {
+            return buffer;
+        }
+        m_loaded_weights_regions.erase(found);
     }
 
     std::shared_ptr<ov::AlignedBuffer> buffer;

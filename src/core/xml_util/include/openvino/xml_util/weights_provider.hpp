@@ -123,6 +123,6 @@ private:
     std::filesystem::path m_weights_path{};
     size_t m_weights_size{};
     // Cache of previously loaded weights regions, keyed by (offset, size) of the region in the weights file.
-    std::map<WeightsRegionKey, std::shared_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
+    std::map<WeightsRegionKey, std::weak_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };
 }  // namespace ov::util
