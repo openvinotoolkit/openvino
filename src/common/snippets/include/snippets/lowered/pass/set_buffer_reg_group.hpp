@@ -58,7 +58,8 @@ public:
 private:
     using BufferPool = std::vector<BufferExpressionPtr>;
     using BufferMap = std::map<BufferExpressionPtr, UnifiedLoopInfo::LoopPortInfo>;
-    using BufferIndices = std::unordered_map<BufferExpressionPtr, size_t>;
+    // Here we use raw pointers to avoid GCC 15 -Warray-bounds false positive error
+    using BufferIndices = std::unordered_map<const BufferExpression*, size_t>;
     /**
      * @brief Create adjacency matrix for Buffer system. See comment in the method for more details.
      * @param loop_manager the loop manager

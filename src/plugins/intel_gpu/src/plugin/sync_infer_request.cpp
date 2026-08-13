@@ -133,14 +133,20 @@ SyncInferRequest::SyncInferRequest(const std::shared_ptr<const CompiledModel>& c
 }
 
 SyncInferRequest::~SyncInferRequest() {
-    // Clear the network's non-owning pointers to our OutputMemoryBlocks
-    // before they are destroyed, to prevent dangling pointers.
-    if (!m_output_memory_blocks.empty()) {
-        std::lock_guard<std::mutex> lk(m_graph->get_mutex());
-        auto network = m_graph->get_network();
-        if (network) {
-            network->clear_output_memory_blocks();
+    try {
+        // Clear the network's non-owning pointers to our OutputMemoryBlocks
+        // before they are destroyed, to prevent dangling pointers.
+        if (!m_output_memory_blocks.empty()) {
+            std::lock_guard<std::mutex> lk(m_graph->get_mutex());
+            auto network = m_graph->get_network();
+            if (network) {
+                network->clear_output_memory_blocks();
+            }
         }
+    } catch (const std::exception& ex) {
+        GPU_DEBUG_LOG << "[GPU] ~SyncInferRequest: failed to clear output memory blocks: " << ex.what() << std::endl;
+    } catch (...) {
+        GPU_DEBUG_LOG << "[GPU] ~SyncInferRequest: failed to clear output memory blocks: unknown exception" << std::endl;
     }
 }
 
