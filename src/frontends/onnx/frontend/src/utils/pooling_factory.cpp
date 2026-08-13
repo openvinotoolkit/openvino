@@ -105,6 +105,9 @@ ov::OutputVector PoolingFactory::make_lp_pool(float p_norm) const {
     // The norm is computed in f32 regardless of the input's element type to avoid overflow
     // or precision loss for reduced-precision inputs (e.g. fp16 can already overflow with
     // p=2 once |x| > 256), then converted back to the original type at the end.
+    // f64 is deliberately not preserved here: Abs/Power reference evaluate() only support
+    // {f32, i32, i64, u32, u64}, so an f64 Abs/Power would not be executable by any backend
+    // (including the interpreter/template one), unlike a plain f64 AveragePool.
     ov::Output<ov::Node> pooled = std::make_shared<v0::Convert>(data, ov::element::f32);
     pooled = std::make_shared<v0::Abs>(pooled);
     if (p_norm != 1.f) {
