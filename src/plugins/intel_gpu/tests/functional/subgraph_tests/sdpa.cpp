@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -164,6 +164,9 @@ protected:
         auto params = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         inType = std::get<0>(params);
+        if (inType == ov::element::bf16) {
+            configuration.insert(ov::hint::inference_precision(ov::element::dynamic));
+        }
         bool reshape = false;
 
         const ov::PartialShape query_shape = std::get<1>(params);
