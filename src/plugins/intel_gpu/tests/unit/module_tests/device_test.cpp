@@ -7,7 +7,9 @@
 #include "runtime/ocl/ocl_device_detector.hpp"
 #include "runtime/ocl/ocl_device.hpp"
 
+#include <algorithm>
 #include <memory>
+#include <utility>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -111,6 +113,42 @@ TEST(devices_test, sort_order_three_vendors) {
     });
 
     ASSERT_EQ(expected_devices_order, actual_devices_order);
+}
+
+TEST(devices_test, platform_priority) {
+    const auto intel_platform_priority = ocl::get_platform_priority("Intel(R) Corporation");
+
+    ASSERT_LT(intel_platform_priority, ocl::get_platform_priority("Microsoft"));
+    ASSERT_LT(intel_platform_priority, ocl::get_platform_priority("Mesa"));
+    ASSERT_LT(intel_platform_priority, ocl::get_platform_priority(""));
+    // Vendor is matched exactly, so anything but the expected string is treated as a non-Intel platform
+    ASSERT_LT(intel_platform_priority, ocl::get_platform_priority("Intel"));
+}
+
+TEST(devices_test, platform_sort_order) {
+    ocl::ocl_device_detector device_detector;
+
+    const bool initialize = false;
+    auto devices = device_detector.get_available_devices(nullptr, nullptr, 0, std::numeric_limits<int>::max() /* ignore sub-devices */, initialize);
+
+    if (devices.empty())
+        GTEST_SKIP() << "No available devices found";
+
+    // Devices are expected to be ordered by device priority first and by the priority of the platform
+    // which reported them second
+    std::vector<std::pair<size_t, size_t>> priorities;
+    for (size_t i = 0; i < devices.size(); i++) {
+        auto it = devices.find(std::to_string(i));
+        ASSERT_NE(it, devices.end()) << "Root device IDs are expected to be a dense sequence starting from 0";
+
+        auto ocl_device = std::dynamic_pointer_cast<ocl::ocl_device>(it->second);
+        ASSERT_TRUE(ocl_device != nullptr);
+
+        priorities.emplace_back(get_device_priority(ocl_device->get_info()),
+                                ocl::get_platform_priority(ocl_device->get_platform().getInfo<CL_PLATFORM_VENDOR>()));
+    }
+
+    ASSERT_TRUE(std::is_sorted(priorities.begin(), priorities.end()));
 }
 
 namespace cldnn::ocl {

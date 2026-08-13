@@ -7,6 +7,8 @@
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
 
+#include <algorithm>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -77,6 +79,47 @@ static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 #ifdef _WIN32
 static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
 #endif // _WIN32
+
+size_t get_platform_priority(const std::string& platform_vendor) {
+    if (platform_vendor == INTEL_PLATFORM_VENDOR) {
+        return 0;
+    }
+    return std::numeric_limits<size_t>::max();
+}
+
+// ICD loader doesn't guarantee any particular order of the platforms it reports, so the same physical device
+// may get a different device ID depending on the ICD loader implementation and the set of the installed platforms.
+// Reordering the platforms here makes the devices reported by Intel OpenCL platform come first in the device list.
+static std::vector<cl_platform_id> sort_platforms(const std::vector<cl_platform_id>& platform_ids) {
+    struct platform_entry {
+        size_t priority;
+        std::string vendor;
+        cl_platform_id id;
+    };
+
+    std::vector<platform_entry> entries;
+    entries.reserve(platform_ids.size());
+    for (const auto& id : platform_ids) {
+        platform_entry entry{std::numeric_limits<size_t>::max(), {}, id};
+        entry.vendor = cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>();
+        entry.priority = get_platform_priority(entry.vendor);
+        entries.push_back(std::move(entry));
+    }
+
+    std::stable_sort(entries.begin(), entries.end(), [](const platform_entry& e1, const platform_entry& e2) {
+        return e1.priority < e2.priority;
+    });
+
+    std::vector<cl_platform_id> sorted_ids;
+    sorted_ids.reserve(entries.size());
+    for (const auto& entry : entries) {
+        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << entry.vendor
+                      << ", priority=" << entry.priority << std::endl;
+        sorted_ids.push_back(entry.id);
+    }
+
+    return sorted_ids;
+}
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -187,6 +230,8 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     std::vector<cl_platform_id> platform_ids(num_platforms);
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
+
+    platform_ids = sort_platforms(platform_ids);
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {

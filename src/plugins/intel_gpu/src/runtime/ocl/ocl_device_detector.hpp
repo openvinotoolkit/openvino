@@ -15,6 +15,8 @@
 namespace cldnn {
 namespace ocl {
 
+size_t get_platform_priority(const std::string& platform_vendor);
+
 class ocl_device_detector {
 public:
     ocl_device_detector() = default;
