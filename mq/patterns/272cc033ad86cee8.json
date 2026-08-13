@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "failed to createartifact unable to make request enotfound|Network",
+  "signature_hash": "272cc033ad86cee8",
+  "title": "Windows CPU functional tests artifact upload fails with ENOTFOUND DNS error",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-13T06:35:37Z",
+  "last_seen": "2026-08-13T06:35:37Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31670117806"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37392"
+  ],
+  "recent_timestamps": [
+    "2026-08-13T06:35:37Z"
+  ],
+  "rerun_search_string": "Unable to make request: ENOTFOUND"
+}

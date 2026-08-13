@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-13-06-35-37-000-31670117806",
+  "timestamp": "2026-08-13T06:35:37Z",
+  "run_id": "31670117806",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31670117806",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37392",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37392",
+  "author": "p-wysocki",
+  "category": "Network",
+  "title": "Windows CPU functional tests artifact upload fails with ENOTFOUND DNS error",
+  "signature": "failed to createartifact unable to make request enotfound|Network",
+  "signature_hash": "272cc033ad86cee8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Upload Test Results step failed: Failed to CreateArtifact: Unable to make request: ENOTFOUND"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed due to CPU functional tests job failure"
+    }
+  ],
+  "key_errors": [
+    "2026-08-13T06:30:46.5248977Z ##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND"
+  ],
+  "root_cause": "The CPU functional test suite itself completed successfully (160,824 passed, 16,514 skipped, 'Run is successful'). The failure occurred only during the artifact upload step, when the GitHub Actions artifact storage endpoint could not be resolved via DNS (ENOTFOUND). This is a transient network/infrastructure issue on the Windows CI runner, not caused by any code change in the PR.",
+  "reproduction_steps": "N/A — DNS resolution failure on CI runner is not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed jobs — the underlying tests all passed; only the artifact upload failed transiently.",
+    "No code changes are required in PR #37392."
+  ],
+  "prevention_strategies": "No prevention possible from the PR author side. This is a transient DNS failure on the GitHub-hosted Windows runner infrastructure. If this recurs frequently, escalate to GitHub Actions support.",
+  "historical_context": "First occurrence of this exact signature (ENOTFOUND during CreateArtifact) in the CI Doctor MQ database."
+}
