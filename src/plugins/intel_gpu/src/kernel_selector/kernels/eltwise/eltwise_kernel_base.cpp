@@ -67,6 +67,52 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
             return 0;
     }
 }
+
+// Number of features packed into the innermost, stride-1 block of a blocked layout, 0 if the layout
+// has no such block. fs_b_yx_fsv32 is left out on purpose: it keeps the feature blocks outside of the
+// batch, so a feature index past the logical size does not land on the leftover lanes of the last
+// block of the same position.
+size_t GetOutputFeatureBlockSize(DataLayout l) {
+    switch (l) {
+        case DataLayout::b_fs_yx_fsv2:
+        case DataLayout::b_fs_zyx_fsv2:
+        case DataLayout::bs_fs_yx_bsv4_fsv2:
+        case DataLayout::bs_fs_yx_bsv8_fsv2:
+        case DataLayout::bs_fs_zyx_bsv8_fsv2:
+        case DataLayout::bs_fs_yx_bsv16_fsv2:
+        case DataLayout::bs_fs_zyx_bsv16_fsv2:
+            return 2;
+        case DataLayout::b_fs_yx_fsv4:
+        case DataLayout::b_fs_zyx_fsv4:
+        case DataLayout::bs_fs_yx_bsv4_fsv4:
+        case DataLayout::bs_fs_yx_bsv8_fsv4:
+        case DataLayout::bs_fs_zyx_bsv8_fsv4:
+        case DataLayout::bs_fs_yx_bsv16_fsv4:
+        case DataLayout::bs_fs_zyx_bsv16_fsv4:
+            return 4;
+        case DataLayout::b_fs_yx_fsv8:
+        case DataLayout::b_fs_zyx_fsv8:
+        case DataLayout::bs_fs_yx_bsv16_fsv8:
+        case DataLayout::bs_fs_zyx_bsv16_fsv8:
+            return 8;
+        case DataLayout::b_fs_yx_fsv16:
+        case DataLayout::b_fs_zyx_fsv16:
+        case DataLayout::bs_fs_yx_bsv16_fsv16:
+        case DataLayout::bs_fs_zyx_bsv16_fsv16:
+        case DataLayout::bs_fs_yx_bsv32_fsv16:
+        case DataLayout::bs_fs_zyx_bsv32_fsv16:
+            return 16;
+        case DataLayout::b_fs_yx_fsv32:
+        case DataLayout::b_fs_zyx_fsv32:
+        case DataLayout::bs_fs_yx_bsv16_fsv32:
+        case DataLayout::bs_fs_zyx_bsv16_fsv32:
+        case DataLayout::bs_fs_yx_bsv32_fsv32:
+        case DataLayout::bs_fs_zyx_bsv32_fsv32:
+            return 32;
+        default:
+            return 0;
+    }
+}
 }  // namespace
 
 ParamsKey eltwise_params::GetParamsKey() const {
@@ -445,6 +491,37 @@ JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params&
     return jit;
 }
 
+size_t EltwiseKernelBase::GetFeaturePadResetBlockSize(const eltwise_params& params) const {
+    if (!SupportsFeaturePadReset())
+        return 0;
+
+    const auto& output = params.outputs[0];
+    const auto feature_block_size = GetOutputFeatureBlockSize(output.GetLayout());
+    if (feature_block_size == 0)
+        return 0;
+
+    // Addressing the leftover lanes needs the per dimension index order, which the
+    // ELTWISE_NO_PITCH_SAME_DIMS path does not have. That path cannot have any of them anyway, as
+    // CheckInputsOutputNoPitchSameDims() rejects an output whose pitches differ from its dimensions.
+    if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params))
+        return 0;
+
+    const auto& feature = output.Feature();
+    if (feature.is_dynamic || feature.pad.is_dynamic)
+        return feature_block_size;
+
+    return feature.LogicalDimPadded() % feature_block_size == 0 ? 0 : feature_block_size;
+}
+
+size_t EltwiseKernelBase::GetFeaturePadResetSize(const eltwise_params& params) const {
+    const auto feature_block_size = GetFeaturePadResetBlockSize(params);
+    const auto& feature = params.outputs[0].Feature();
+    if (feature_block_size == 0 || feature.is_dynamic || feature.pad.is_dynamic)
+        return 0;
+
+    return (feature_block_size - feature.LogicalDimPadded() % feature_block_size) % feature_block_size;
+}
+
 JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& params,
                                                       bool useVload8) const {
     JitConstants jit = {};
@@ -505,6 +582,32 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     idx_order += "d" + std::to_string(out_c - i) + ((i == (out_c - 1)) ? "" : ",");
                 }
                 jit.AddConstant(MakeJitConstant(out_idx_order, idx_order));
+            }
+
+            if (GetFeaturePadResetBlockSize(params) != 0) {
+                // Index order of the work-items that only zero a leftover lane of the last feature
+                // block. It walks over the explicit feature padding, which has to keep its content as
+                // it can hold the data of a sibling of an in-place concatenation: the non-safe index
+                // adds PAD_BEFORE_FEATURE_NUM only, so feature OUTPUT_FEATURE_NUM + i +
+                // PAD_AFTER_FEATURE_NUM is lane (the whole padded feature size) + i of that block.
+                std::vector<std::string> pad_reset_idx_order;
+                if (out_c <= 4) {
+                    pad_reset_idx_order = GetIdxOrderVecForLayout(params.outputs[0].GetLayout(),
+                                                                  params.layoutBased || params.broadcast,
+                                                                  {1, 1, 1});
+                } else {
+                    for (size_t i = 0; i < out_c; i++) {
+                        pad_reset_idx_order.push_back("d" + std::to_string(out_c - i));
+                    }
+                }
+                // The feature is always the second component, as GET_INDEX() takes them in bfyx order.
+                pad_reset_idx_order[1] = "(" + pad_reset_idx_order[1] + " + OUTPUT_PAD_AFTER_FEATURE_NUM)";
+
+                std::string idx_order;
+                for (size_t i = 0; i < pad_reset_idx_order.size(); i++) {
+                    idx_order += pad_reset_idx_order[i] + ((i == (pad_reset_idx_order.size() - 1)) ? "" : ",");
+                }
+                jit.AddConstant(MakeJitConstant("OUTPUT_PAD_RESET_IDX_ORDER", idx_order));
             }
         }
     }
@@ -603,6 +706,11 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.AddConstant(MakeJitConstant("ELTWISE_NO_PITCH_SAME_DIMS", CheckInputsOutputNoPitchSameDims(params)));
 
+    const auto feature_pad_reset_block_size = GetFeaturePadResetBlockSize(params);
+    jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", feature_pad_reset_block_size != 0));
+    if (feature_pad_reset_block_size != 0)
+        jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_BLOCK_SIZE", feature_pad_reset_block_size));
+
     jit.Merge(MakeInputDeclsJitConstants(params, useVload8));
     jit.Merge(MakeIndexJitConstants(params, useVload8));
     jit.Merge(MakeLoadJitConstants(params, useVload8));
@@ -683,7 +791,18 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     }
 
-    AdjustGlobalWorkSizes(params, dispatchData);
+    // The work-items that zero the leftover lanes of the last feature block are appended to the feature
+    // axis. It has to happen before the local sizes are derived from the global ones below.
+    const auto feature_pad_reset_size = GetFeaturePadResetSize(params);
+    if (feature_pad_reset_size != 0) {
+        if (params.layoutBased || params.int8_quantization || params.broadcast) {
+            dispatchData.gws[1] += feature_pad_reset_size;
+        } else {
+            // Here the feature and the batch share gws[2], see GWS_FEATURE_SIZE in the kernel.
+            const auto& output = params.outputs[0];
+            dispatchData.gws[2] = (output.Feature().v + feature_pad_reset_size) * output.Batch().v;
+        }
+    }
 
     auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 

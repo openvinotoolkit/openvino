@@ -109,9 +109,18 @@ protected:
     virtual JitConstants MakeIndexJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual JitConstants MakeInputDeclsJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual DispatchData SetDefault(const eltwise_params& params) const;
-    virtual void AdjustGlobalWorkSizes(const eltwise_params&, DispatchData&) const {}
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const eltwise_params &params) const;
+
+    // Only generic_eltwise_ref.cl handles the extra feature work-items appended by the two helpers
+    // below, so the reset stays disabled for every other kernel sharing this base.
+    virtual bool SupportsFeaturePadReset() const { return false; }
+    // Feature block size of the output layout if the kernel has to take care of the leftover lanes of
+    // the last feature block, 0 otherwise.
+    size_t GetFeaturePadResetBlockSize(const eltwise_params& params) const;
+    // Number of those leftover lanes, that is of extra feature work-items. 0 while the output shape is
+    // not known yet - the dispatch is recalculated for every shape.
+    size_t GetFeaturePadResetSize(const eltwise_params& params) const;
 
     bool IsUnsupportedModeForVecCode(const eltwise_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

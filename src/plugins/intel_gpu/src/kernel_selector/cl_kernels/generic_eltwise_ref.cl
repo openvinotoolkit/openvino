@@ -12,14 +12,22 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
-#define GET_RAW_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_RAW)(idx_order)
-
 #if ZERO_OUTPUT_FEATURE_PADDING
-    #define GET_FEATURE_GWS_SIZE(logical_size) OUTPUT_FEATURE_GWS_SIZE
-    #define GET_OUTPUT_FEATURE_INDEX(idx) ((uint)(idx) < (uint)OUTPUT_FEATURE_NUM ? (uint)(idx) : (uint)(idx) + (uint)OUTPUT_PAD_AFTER_FEATURE_NUM)
+    // The last feature block of the output can have lanes that belong to the buffer but that no
+    // work-item of the logical dispatch writes, so they may still hold the data of whatever used the
+    // memory before. As a following primitive reading whole blocks - an oneDNN convolution for
+    // instance - would consume them, the feature axis of the dispatch is extended by that many
+    // work-items, each of which only zeroes its own lane and returns.
+    #define OUTPUT_FEATURE_PAD_RESET_SIZE                                                                  \
+        ((OUTPUT_FEATURE_BLOCK_SIZE - (OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM +                \
+                                       OUTPUT_PAD_AFTER_FEATURE_NUM) % OUTPUT_FEATURE_BLOCK_SIZE) %        \
+         OUTPUT_FEATURE_BLOCK_SIZE)
+    #define GWS_FEATURE_SIZE(logical_feature_size) (OUTPUT_FEATURE_NUM + OUTPUT_FEATURE_PAD_RESET_SIZE)
+    // OUTPUT_PAD_RESET_IDX_ORDER walks over the explicit feature padding, so the non-safe index - the
+    // only one that does not wrap a feature past the logical size - lands on those lanes.
+    #define GET_PAD_RESET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #else
-    #define GET_FEATURE_GWS_SIZE(logical_size) (logical_size)
-    #define GET_OUTPUT_FEATURE_INDEX(idx) (idx)
+    #define GWS_FEATURE_SIZE(logical_feature_size) (logical_feature_size)
 #endif
 
 KERNEL(eltwise)(
@@ -150,9 +158,7 @@ KERNEL(eltwise)(
         data_idx = data_idx / OUTPUT_SIZE_Y;
 
         const uint d3 = data_idx % OUTPUT_SIZE_Z; // Z
-
-        const uint f = get_global_id(GWS_FEATURE);
-        const uint d4 = GET_OUTPUT_FEATURE_INDEX(f);  // Feature
+        const uint d4 = get_global_id(GWS_FEATURE); // Feature, padding lanes included
         const uint d5 = get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
@@ -163,9 +169,9 @@ KERNEL(eltwise)(
         const uint d1 = get_global_id(0);
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
         const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1];
-        const uint f = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
-        const uint d4 = GET_OUTPUT_FEATURE_INDEX(f);
-        const uint d5 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[3]);
+        const uint f = (uint)get_global_id(2) % GWS_FEATURE_SIZE(OUTPUT_SIZES[3]);  // Feature, padding lanes included
+        const uint d4 = f;
+        const uint d5 = (uint)get_global_id(2) / GWS_FEATURE_SIZE(OUTPUT_SIZES[3]);
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
     #endif
@@ -173,8 +179,8 @@ KERNEL(eltwise)(
     #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
         const uint d1 = (uint)get_global_id(GWS_YX) % OUTPUT_SIZE_X;  // X
         const uint d2 = (uint)get_global_id(GWS_YX) / OUTPUT_SIZE_X;  // Y
-        const uint f = (uint)get_global_id(GWS_FEATURE);
-        const uint d3 = GET_OUTPUT_FEATURE_INDEX(f);  // Feature
+        const uint f = (uint)get_global_id(GWS_FEATURE);              // Feature, padding lanes included
+        const uint d3 = f;
         const uint d4 = (uint)get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
@@ -184,9 +190,9 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = get_global_id(1);
-        const uint f = (uint)get_global_id(2) % GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
-        const uint d3 = GET_OUTPUT_FEATURE_INDEX(f);
-        const uint d4 = (uint)get_global_id(2) / GET_FEATURE_GWS_SIZE(OUTPUT_SIZES[2]);
+        const uint f = (uint)get_global_id(2) % GWS_FEATURE_SIZE(OUTPUT_SIZES[2]);  // Feature, padding lanes included
+        const uint d3 = f;
+        const uint d4 = (uint)get_global_id(2) / GWS_FEATURE_SIZE(OUTPUT_SIZES[2]);
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
     #endif
@@ -194,7 +200,7 @@ KERNEL(eltwise)(
 
 #if ZERO_OUTPUT_FEATURE_PADDING
     if (f >= OUTPUT_FEATURE_NUM) {
-        output[GET_RAW_INDEX(OUTPUT,, OUTPUT_IDX_ORDER)] = OUTPUT_VAL_ZERO;
+        output[GET_PAD_RESET_INDEX(OUTPUT,, OUTPUT_PAD_RESET_IDX_ORDER)] = OUTPUT_VAL_ZERO;
         return;
     }
 #endif

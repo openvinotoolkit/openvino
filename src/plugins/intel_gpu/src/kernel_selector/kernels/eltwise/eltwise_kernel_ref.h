@@ -28,7 +28,6 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants MakeIndexJitConstants(const eltwise_params& params, bool use_vload8) const override;
-    void AdjustGlobalWorkSizes(const eltwise_params& params, DispatchData& dispatch_data) const override;
+    bool SupportsFeaturePadReset() const override { return true; }
 };
 }  // namespace kernel_selector
