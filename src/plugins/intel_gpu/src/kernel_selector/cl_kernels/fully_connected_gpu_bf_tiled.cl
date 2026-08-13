@@ -7,15 +7,6 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
-// 2-bit packed weights reuse the 4-bit compressed code paths;
-// only the number of values packed per byte differs (4 for u2, 2 for u4)
-#if COMPRESSED_WEIGHTS_INT2
-    #define COMPRESSED_WEIGHTS_INT4 1
-    #define FILTER_ELEMENTS_PER_BYTE 4
-#else
-    #define FILTER_ELEMENTS_PER_BYTE 2
-#endif
-
 // JIT Parameters:
 // SIMD         - sub-group size/simd width, one of {8, 16};
 // TILE_B       - number of batches processed by each work-item;
@@ -283,7 +274,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
     const uint osv_weight_stride = (INPUT_ELEMENTS_COUNT / FILTER_ELEMENTS_PER_BYTE);
     // u2 packs a k-pair of two output features per byte, so the upper 32-feature half of a
     // 64-feature block starts 16 bytes (not 32) into each k-pair line
-    const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) * (64 / FILTER_ELEMENTS_PER_BYTE);
+    const uint out_f_offset = (int)((out_f >> power_of_two_for_simd) & 0x1) * ((1u << power_of_two_for_osv) / FILTER_ELEMENTS_PER_BYTE);
     // out_f(32)  : 0  * osv_weight_stride + 32;
     // out_f(64)  : 64 * osv_weight_stride + 0;
     // out_f(128) : 64 * osv_weight_stride + 32;
@@ -412,7 +403,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
             __local SLM_FILTER_VEC* slm_wei_vec = (__local SLM_FILTER_VEC*)wei_local_mem;
 
             #if FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
-            #if COMPRESSED_WEIGHTS_INT2
+            #if COMPRESSED_WEIGHTS_UINT2
             // u2: a k-pair line is 32 bytes, so each local_id's FILTER_LOAD_BLOCK_SIZE (4) values
             // span 2 lines of 32 bytes (not 64)
             uint weights_idx = weights_offset + local_id * SIMD * FILTER_LOAD_ITERS * FILTER_LOAD_BLOCK_SIZE;
@@ -432,7 +423,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 wei_unpacked.s4567 = UNPACK_INT4(ACCUMULATOR_TYPE, *((INT4_PACKED_TYPE_PRELOAD*)&wei_packed1));
                 #elif FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
-                #if COMPRESSED_WEIGHTS_INT2
+                #if COMPRESSED_WEIGHTS_UINT2
                 // u2: the second staged byte is in the next 32-byte k-pair line
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD / 2)));
                 #else

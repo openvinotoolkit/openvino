@@ -289,7 +289,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         } else if (params.inputs[0].GetDType() == Datatype::INT4 || params.inputs[0].GetDType() == Datatype::UINT4) {
             jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
         } else if (params.inputs[0].GetDType() == Datatype::UINT2) {
-            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT2", 1)});
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_UINT2", 1)});
         }
 
         auto wt = params.inputs[0].GetDType();

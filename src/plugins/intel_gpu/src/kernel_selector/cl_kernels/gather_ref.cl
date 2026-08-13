@@ -99,7 +99,7 @@ KERNEL(gather_ref)(
 
             OUTPUT_COMPUTE_TYPE val_compressed = ((OUTPUT_COMPUTE_TYPE*)(&val_unpacked))[dictionary_idx % 2];
             val_compute = (val_compressed - zp) * scale;
-        #elif COMPRESSED_WEIGHTS_INT2
+        #elif COMPRESSED_WEIGHTS_UINT2
             INPUT0_TYPE val_packed = dictionary[dictionary_idx / 4];
             MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, 4) val_unpacked = UNPACK_UINT2x4(OUTPUT_COMPUTE_TYPE, *((UINT2_PACKED_TYPE*)&val_packed));
 
