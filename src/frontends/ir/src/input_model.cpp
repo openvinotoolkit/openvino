@@ -184,8 +184,7 @@ void parse_pre_process(pugi::xml_node& root,
             }
             const size_t offset = item.second.second;
             auto buffer = weights_provider->make_region(offset, item.second.first);
-            const char* data = buffer->get_ptr<char>();
-            per_channel_values[item.first] = ov::op::v0::Constant::create(input_type, mean_shape, data);
+            per_channel_values[item.first] = std::make_shared<ov::op::v0::Constant>(input_type, mean_shape, buffer);
         }
         auto const_node =
             ov::util::get_constant_from_source(std::make_shared<ov::op::v0::Concat>(per_channel_values, 0));
