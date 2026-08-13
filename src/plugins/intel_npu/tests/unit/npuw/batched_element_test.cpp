@@ -431,4 +431,25 @@ TEST_F(NPUWBatchedElementTest, PreBoundOutputTensorReused) {
     }
 }
 
+// At batch 1 the outputs skip the stacking path, but a caller-bound tensor of the
+// fitting shape is still written in place rather than replaced.
+TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin);
+    auto req = wrapped->create_infer_request();
+
+    set_input_ids(req, {{42, 1}});
+
+    auto bound = ov::get_tensor_impl(ov::Tensor(ov::element::f32, {1, 1}));
+    req->set_tensor(wrapped->outputs()[0], bound);
+
+    req->infer();
+
+    const auto out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out->data(), bound->data());
+    EXPECT_FLOAT_EQ(row_value(out, 0), 42.0f);
+    EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer"}));
+}
+
 }  // namespace
