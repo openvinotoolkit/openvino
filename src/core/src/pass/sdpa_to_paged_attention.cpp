@@ -14,7 +14,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
@@ -187,7 +186,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         if (auto param = get_parameter(model, param_name)) {
             model->remove_parameter(param);
 
-            if (param->output(0).get_target_inputs().size() != 0) {
+            if (param->output(0).get_target_inputs().size() == 0) {
                 std::stringstream consumers;
                 consumers << std::endl;
                 for (auto& input : param->output(0).get_target_inputs()) {

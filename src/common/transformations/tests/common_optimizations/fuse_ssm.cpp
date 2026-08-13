@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/fuse_mamba2.hpp"
+#include "transformations/common_optimizations/fuse_ssm.hpp"
 
 #include <gtest/gtest.h>
 
@@ -18,7 +18,6 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/mamba2.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -36,22 +35,25 @@
 namespace ov::test {
 namespace {
 
-// Builds a loop-based Mamba2 recurrence model matching the time-major raw-input export:
-//   dA_t = exp(A * dt_t); dBx_t = (dt_t * B_t) outer x_t
-//   state_t = state_{t-1} * dA_t + dBx_t ; y_t = reduce_sum(state_t * C_t, axis=state_size)
+// Builds a loop-based SSM recurrence model matching the time-major export where all
+// discretization is performed outside the loop and consumed as 5D per-step slices:
+//   dA  = reshape(exp(A * dt), [B, T, H, 1, 1])                       (Loop input 2)
+//   dBx = unsqueeze(dt*B, -2) * unsqueeze(x, -1)  -> [B, T, H, P, N]  (Loop input 3)
+//   C   = unsqueeze(C_expanded, -2)               -> [B, T, H, 1, N]  (Loop input 4)
+// Per step: state_t = state_{t-1} * dA_t + dBx_t; y_t = reduce_sum(state_t * C_t, axis=state_size).
 // B/C are provided per group and expanded to heads via Unsqueeze/Tile/Reshape outside the loop.
-// External Loop inputs (in order): trip_count, exec_cond, dt, B, x, C, recurrent_state, output_buffer.
+// External Loop inputs (in order): trip_count, exec_cond, dA, dBx, C, recurrent_state, output_buffer.
 // External Loop outputs: output[B,T,H,P], output_recurrent_state[B,H,P,N].
 //
 // \param with_post_loop appends the flatten/Concat/Slice/Reshape round-trip seen in real models.
-// \param break_body replaces the state `Add` with `Subtract` so the body no longer matches Mamba2.
-std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
-                                               int32_t num_groups,
-                                               int32_t head_dim,
-                                               int32_t state_size,
-                                               ov::element::Type dtype = ov::element::f32,
-                                               bool with_post_loop = false,
-                                               bool break_body = false) {
+// \param break_body replaces the state `Add` with `Subtract` so the body no longer matches the SSM recurrence.
+std::shared_ptr<ov::Model> build_looped_ssm(int32_t num_heads,
+                                            int32_t num_groups,
+                                            int32_t head_dim,
+                                            int32_t state_size,
+                                            ov::element::Type dtype = ov::element::f32,
+                                            bool with_post_loop = false,
+                                            bool break_body = false) {
     using namespace ov::op;
 
     const int32_t heads_per_group = num_heads / num_groups;
@@ -83,6 +85,20 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
     auto B_expanded = expand_groups(B);
     auto C_expanded = expand_groups(C);
 
+    // Discretization is performed outside the loop and materialized as 5D per-step tensors:
+    //   dA  = reshape(exp(A * dt), [B, T, H, 1, 1])
+    //   dBx = unsqueeze(unsqueeze(dt, -1) * B_expanded, -2) * unsqueeze(x, -1) -> [B, T, H, P, N]
+    //   C   = unsqueeze(C_expanded, -2)                                        -> [B, T, H, 1, N]
+    auto minus1_outer = v0::Constant::create(ov::element::i32, {1}, {-1});
+    auto minus2_outer = v0::Constant::create(ov::element::i32, {1}, {-2});
+    auto dA_shape = v0::Constant::create(ov::element::i64, {5}, {0, 0, 0, 1, 1});
+    auto dA_outer =
+        std::make_shared<v1::Reshape>(std::make_shared<v0::Exp>(std::make_shared<v1::Multiply>(A, dt)), dA_shape, true);
+    auto dB_outer = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt, minus1_outer), B_expanded);
+    auto dBx_outer = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dB_outer, minus2_outer),
+                                                    std::make_shared<v0::Unsqueeze>(x, minus1_outer));
+    auto C_5d_outer = std::make_shared<v0::Unsqueeze>(C_expanded, minus2_outer);
+
     // output accumulator buffer: zeros with shape [B, T, H, P]
     auto shape_of_x = std::make_shared<v3::ShapeOf>(x);
     auto core_init = std::make_shared<v3::Broadcast>(v0::Constant::create(dtype, {}, {0.0f}), shape_of_x);
@@ -95,44 +111,28 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
 
     // -------- Loop body --------
     auto timestep = std::make_shared<v0::Parameter>(ov::element::i32, ov::Shape{});
-    auto dt_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads});
-    auto B_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
-    auto x_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, head_dim});
-    auto C_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, state_size});
+    auto dA_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, 1, 1});
+    auto dBx_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, head_dim, state_size});
+    auto C_t = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, 1, num_heads, 1, state_size});
     auto last_state = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, num_heads, head_dim, state_size});
     auto core_out = std::make_shared<v0::Parameter>(dtype, ov::PartialShape{-1, -1, num_heads, head_dim});
 
-    auto axis0 = v0::Constant::create(ov::element::i32, {}, {0});
     auto axis1 = v0::Constant::create(ov::element::i32, {}, {1});
     auto minus1 = v0::Constant::create(ov::element::i32, {1}, {-1});
-    auto minus2 = v0::Constant::create(ov::element::i32, {1}, {-2});
 
-    auto dt_sq = std::make_shared<v0::Squeeze>(dt_t, axis1);
-    auto B_sq = std::make_shared<v0::Squeeze>(B_t, axis1);
-    auto x_sq = std::make_shared<v0::Squeeze>(x_t, axis1);
-    auto C_sq = std::make_shared<v0::Squeeze>(C_t, axis1);
+    auto dA_sq = std::make_shared<v0::Squeeze>(dA_t, axis1);    // [B, H, 1, 1]
+    auto dBx_sq = std::make_shared<v0::Squeeze>(dBx_t, axis1);  // [B, H, P, N]
+    auto C_sq = std::make_shared<v0::Squeeze>(C_t, axis1);      // [B, H, 1, N]
 
-    // dA_t = exp(A * dt_t) -> [B, H, 1, 1]
-    auto A_unsq = std::make_shared<v0::Unsqueeze>(A, axis0);
-    auto dA = std::make_shared<v1::Multiply>(A_unsq, dt_sq);
-    auto dA_exp = std::make_shared<v0::Exp>(dA);
-    auto dA_4d = std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Unsqueeze>(dA_exp, minus1), minus1);
-
-    // dBx_t = (dt_t * B_t) outer x_t -> [B, H, P, N]
-    auto dt_B = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_sq, minus1), B_sq);
-    auto dBx = std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(dt_B, minus2),
-                                              std::make_shared<v0::Unsqueeze>(x_sq, minus1));
-
-    auto state_decay = std::make_shared<v1::Multiply>(last_state, dA_4d);
+    auto state_decay = std::make_shared<v1::Multiply>(last_state, dA_sq);
     std::shared_ptr<ov::Node> state_new;
     if (break_body) {
-        state_new = std::make_shared<v1::Subtract>(state_decay, dBx);
+        state_new = std::make_shared<v1::Subtract>(state_decay, dBx_sq);
     } else {
-        state_new = std::make_shared<v1::Add>(state_decay, dBx);
+        state_new = std::make_shared<v1::Add>(state_decay, dBx_sq);
     }
 
-    auto C_unsq = std::make_shared<v0::Unsqueeze>(C_sq, minus2);
-    auto y = std::make_shared<v1::Multiply>(state_new, C_unsq);
+    auto y = std::make_shared<v1::Multiply>(state_new, C_sq);
     auto y_sum = std::make_shared<v1::ReduceSum>(y, minus1, false);
     auto y_unsq = std::make_shared<v0::Unsqueeze>(y_sum, axis1);
 
@@ -141,16 +141,15 @@ std::shared_ptr<ov::Model> build_looped_mamba2(int32_t num_heads,
 
     auto body_cond = v0::Constant::create(ov::element::boolean, {1}, {true});
     auto body = std::make_shared<ov::Model>(ov::OutputVector{body_cond, state_new, core_out_new},
-                                            ov::ParameterVector{timestep, dt_t, B_t, x_t, C_t, last_state, core_out},
-                                            "mamba2_body");
+                                            ov::ParameterVector{timestep, dA_t, dBx_t, C_t, last_state, core_out},
+                                            "ssm_body");
 
     // -------- Loop --------
     auto loop = std::make_shared<v5::Loop>(trip_count, v0::Constant::create(ov::element::boolean, {1}, {true}));
     loop->set_function(body);
-    loop->set_sliced_input(dt_t, dt, 0, 1, 1, -1, 1);
-    loop->set_sliced_input(B_t, B_expanded, 0, 1, 1, -1, 1);
-    loop->set_sliced_input(x_t, x, 0, 1, 1, -1, 1);
-    loop->set_sliced_input(C_t, C_expanded, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(dA_t, dA_outer, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(dBx_t, dBx_outer, 0, 1, 1, -1, 1);
+    loop->set_sliced_input(C_t, C_5d_outer, 0, 1, 1, -1, 1);
     loop->set_merged_input(last_state, h0, state_new);
     loop->set_merged_input(core_out, core_init, core_out_new);
     loop->set_special_body_ports({0, 0});
@@ -199,48 +198,48 @@ size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::str
 
 }  // namespace
 
-TEST(TransformationTests, Mamba2Fusion_FuseLoop) {
-    auto model = build_looped_mamba2(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
+TEST(TransformationTests, SSMFusion_FuseLoop) {
+    auto model = build_looped_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Mamba2Fusion>();
+    manager.register_pass<ov::pass::SSMFusion>();
     manager.run_passes(model);
 
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 1u);
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
 }
 
-TEST(TransformationTests, Mamba2Fusion_FuseLoopWithPostLoopReshape) {
-    auto model = build_looped_mamba2(/*num_heads=*/4,
-                                     /*num_groups=*/2,
-                                     /*head_dim=*/8,
-                                     /*state_size=*/16,
-                                     ov::element::f32,
-                                     /*with_post_loop=*/true);
+TEST(TransformationTests, SSMFusion_FuseLoopWithPostLoopReshape) {
+    auto model = build_looped_ssm(/*num_heads=*/4,
+                                  /*num_groups=*/2,
+                                  /*head_dim=*/8,
+                                  /*state_size=*/16,
+                                  ov::element::f32,
+                                  /*with_post_loop=*/true);
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Mamba2Fusion>();
+    manager.register_pass<ov::pass::SSMFusion>();
     manager.run_passes(model);
 
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 1u);
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
 }
 
-TEST(TransformationTests, Mamba2Fusion_DoesNotFuseOnBrokenBody) {
-    auto model = build_looped_mamba2(/*num_heads=*/4,
-                                     /*num_groups=*/2,
-                                     /*head_dim=*/8,
-                                     /*state_size=*/16,
-                                     ov::element::f32,
-                                     /*with_post_loop=*/false,
-                                     /*break_body=*/true);
+TEST(TransformationTests, SSMFusion_DoesNotFuseOnBrokenBody) {
+    auto model = build_looped_ssm(/*num_heads=*/4,
+                                  /*num_groups=*/2,
+                                  /*head_dim=*/8,
+                                  /*state_size=*/16,
+                                  ov::element::f32,
+                                  /*with_post_loop=*/false,
+                                  /*break_body=*/true);
 
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Mamba2Fusion>();
+    manager.register_pass<ov::pass::SSMFusion>();
     manager.run_passes(model);
 
-    // Body does not match the Mamba2 recurrence, so the Loop must be preserved.
-    EXPECT_EQ(count_ops_of_type(model, "Mamba2"), 0u);
+    // Body does not match the SSM recurrence, so the Loop must be preserved.
+    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 0u);
     EXPECT_EQ(count_ops_of_type(model, "Loop"), 1u);
 }
 
