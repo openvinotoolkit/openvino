@@ -785,10 +785,14 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 
             for (const auto& device : valid_devices) {
                 bool is_excluded = false;
-                const auto device_key = resolve_device_key(device.device_name);
-                const auto device_threshold = find_utilization_threshold(device.device_name, device_key.base_name);
+                const auto base_name = ov::DeviceIDParser(device.device_name).get_device_name();
+                const auto device_threshold = find_utilization_threshold(device.device_name, base_name);
                 if (device_threshold.has_value()) {
-                    const auto device_utilization = get_device_utilization(device.device_name, device_key.device_type);
+                    std::string device_type;
+                    if (base_name == "GPU") {
+                        device_type = resolve_device_key(device.device_name).device_type;
+                    }
+                    const auto device_utilization = get_device_utilization(device.device_name, device_type);
                     if (!device_utilization.has_value()) {
                         LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list", device.device_name.c_str());
                     } else {
