@@ -82,7 +82,6 @@ protected:
 
     void TearDown() override {
         std::filesystem::remove(m_tmp_path);
-        
     }
 };
 

@@ -22,6 +22,8 @@ namespace {
 constexpr size_t window_alignment = min_page_alignment;
 // Any caller-supplied window larger than max_window is silently clamped (e.g. a 16 GB value becomes 32 MiB).
 constexpr size_t max_window = 32UL * 1024 * 1024;
+// Limit the maximum number of threads used for parallel I/O.
+inline constexpr size_t max_threads_number = 8;
 }  // namespace
 
 NativeStreamBuf::NativeStreamBuf(NativeStreamBuf&& other) noexcept
@@ -87,7 +89,7 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
         return false;
     }
 
-    const size_t hw = std::max<size_t>(1, std::thread::hardware_concurrency());
+    const size_t hw = std::max<size_t>(1, std::min<size_t>(max_threads_number, std::thread::hardware_concurrency()));
     const size_t max_by_size = size / default_parallel_io_min_chunk;
     const size_t num_threads = std::max<size_t>(1, std::min(hw, max_by_size));
     if (size < default_parallel_io_threshold || num_threads == 1) {
