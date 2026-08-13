@@ -118,7 +118,6 @@
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
-#include "plugin/transformations/preserve_boolean_attn_mask_precision.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
@@ -1135,16 +1134,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             {ov::element::i16, ov::element::i32},
             {ov::element::u16, ov::element::i32},
             {ov::element::u32, ov::element::i32},
-            {ov::element::boolean, ov::element::u8},
             {ov::element::i4, ov::element::i8},
             {ov::element::u4, ov::element::u8},
         };
 
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
-        manager.register_pass<PreserveBooleanAttnMaskPrecision>();
-
-        // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
         type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
         manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                           type_to_fuse,
