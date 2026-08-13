@@ -215,8 +215,8 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
 }
 
-// LLMCompiledModel persists its config in the blob via toString()/fromString() - the
-// scoring tags must survive that round trip for import to re-apply the batched element.
+// The scoring tags are ordinary exposed options and must parse and survive a
+// config string round trip like any other.
 TEST(NPUWConfigOptionsSmokeTest, ScoringTagsSurviveConfigStringRoundTrip) {
     const auto cfg = make_config({{"NPUW_TEXT_RERANK", "YES"}, {"NPUW_TEXT_EMBED", "YES"}});
 
