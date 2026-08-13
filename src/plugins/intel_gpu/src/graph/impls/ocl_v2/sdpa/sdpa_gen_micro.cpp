@@ -49,6 +49,8 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::f32;
     case ov::element::f16:
         return micro::Type::f16;
+    case ov::element::bf16:
+        return micro::Type::bf16;
     case ov::element::i8:
         return micro::Type::s8;
     case ov::element::u8:
@@ -1122,6 +1124,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
     jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
+    jit.make("KV_DT_BF16", (V.data_type == ov::element::bf16) ? 1 : 0);
 
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {
@@ -1528,6 +1531,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
+    // const ov::Dimension n_values = micro_get_seq_length(params, 2);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
@@ -1600,7 +1604,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem.Ta_ext = convert_type(kv_cache_precision);
     }
 
-    problem.Ta = problem.Tb = micro::Type::f16;
+    problem.Ta = problem.Tb = (Q.data_type == ov::element::bf16) ? micro::Type::bf16 : micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 

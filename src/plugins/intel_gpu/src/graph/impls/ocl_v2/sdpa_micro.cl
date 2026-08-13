@@ -16,7 +16,16 @@
 
 #include "include/batch_headers/generic_vector_ops.cl"
 #include "include/batch_headers/sdpa_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/tile_ops.cl"
+
+#if defined(KV_DT_BF16) && KV_DT_BF16
+#define KV_SLM_T ushort
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_bf16x2(t, t_new)
+#else
+#define KV_SLM_T half
+#define tile_copy_S_to_kv(t, t_new) tile_copy_to_half2(t, t_new)
+#endif
 
 /* The quantization parameter may be unique for each token/element */
 #define QUANTIZE_2D 2
@@ -310,7 +319,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint ldvc = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
         #if IS_KV_COMPRESSED_PA
             #if IS_INT4_KV_CACHE
-                // INT4 K BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
+                // INT4 BY_CHANNEL: scale stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE bytes / 2 in f16 elements
                 uint ldkq = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE / 2;
                 // INT4 V per-token: scale stride = ADJUSTED_V_HEAD_SIZE bytes / 2 in f16 elements
                 uint ldvq = ADJUSTED_V_HEAD_SIZE / 2;
@@ -357,8 +366,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     local char slm[Q_slm_size + S_slm_size + S_sum_slm_size + S_max_slm_size
             + ugemm_slm_size];
 
-    local half *Q_slm = (local half *)&slm[0];
-    local half *S_slm = (local half *)&slm[Q_slm_size];
+    local KV_SLM_T *Q_slm = (local KV_SLM_T *)&slm[0];
+    local KV_SLM_T *S_slm = (local KV_SLM_T *)&slm[Q_slm_size];
     local float *S_sum_slm = (local float *)&slm[Q_slm_size + S_slm_size];
     local float *S_max_slm
             = (local float *)&slm[Q_slm_size + S_slm_size + S_sum_slm_size];
@@ -1192,7 +1201,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 
-        /* Convert to half, VNNI format */
+        /* Convert to KV compute type (half or bf16), VNNI format */
         s_tile_type_half2 S_tile_half2;
 #ifdef PA_INTEGRITY_CHECK  // CODE FOR DEBUGGING
         /* Snapshot softmax'd S to S_check_slm before packing to VNNI.
@@ -1219,7 +1228,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 #endif
-        tile_copy_to_half2(S_tile, S_tile_half2);
+        tile_copy_S_to_kv(S_tile, S_tile_half2);
 
         /* Store to SLM, in packed format */
         tile_store_t_sys_src2(S_tile_half2, (local uint *)S_slm,
@@ -1347,7 +1356,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 }
             #endif
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
             int kb_chunk = min(k_chunk - kb0, PAGED_ATTENTION_BLOCK_SIZE);
@@ -1438,7 +1447,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         for (; kb0 < k_chunk; kb0 += k_chunk) {
             global QRY_DATA_T *Vb0 = Vc + ldvc * (k0 + kb0 - past_lens[gws_mapping]);
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
-            local half *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
+            local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             int kb_chunk = k_chunk - kb0;
 
             a_tile_type A_tile1 = ugemm_vcs(
@@ -1514,6 +1523,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
+
+#if defined(KV_DT_BF16) && KV_DT_BF16
+    tile_reinterpret_half_to_bf16bits(A_tile_half);
+#endif
 
 #ifdef BLOCK_2D_A
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);

@@ -174,6 +174,32 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
                 = __builtin_convertvector(t.x[i], __typeof__(t_new.x[i])); \
     } while (0)
 
+#define tile_copy_to_bf16x2(t, t_new) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]) / 2; \
+                                   s++) { \
+                float2 fv = {t.x[i][2 * s], t.x[i][2 * s + 1]}; \
+                t_new.x[i][s] = as_uint(_convert_bfloat162_as_ushort2(fv)); \
+            } \
+        } \
+    } while (0)
+
+#define tile_reinterpret_half_to_bf16bits(t) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]); \
+                                   s++) { \
+                t.x[i][s] = as_half( \
+                        _convert_bfloat16_as_ushort(convert_float(t.x[i][s]))); \
+            } \
+        } \
+    } while (0)
+
 #define tile_copy_to_half2(t, t_new) \
     do { \
         _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
