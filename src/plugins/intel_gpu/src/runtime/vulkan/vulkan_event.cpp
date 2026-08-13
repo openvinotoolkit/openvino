@@ -11,8 +11,12 @@
 namespace cldnn {
 namespace vulkan {
 
-vulkan_submission_state::vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence) : _device(device), _queue(queue), _fence(fence) {
-    OPENVINO_ASSERT(_device != VK_NULL_HANDLE && _queue != VK_NULL_HANDLE && _fence != VK_NULL_HANDLE,
+vulkan_submission_state::vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id)
+    : _device(device),
+      _queue(queue),
+      _fence(fence),
+      _stream_id(stream_id) {
+    OPENVINO_ASSERT(_device != VK_NULL_HANDLE && _queue != VK_NULL_HANDLE && _fence != VK_NULL_HANDLE && _stream_id != 0,
                     "[GPU][Vulkan] A device submission requires valid Vulkan handles");
 }
 
@@ -48,6 +52,10 @@ bool vulkan_submission_state::belongs_to(VkDevice device, VkQueue queue) const {
     return _device == device && _queue == queue;
 }
 
+bool vulkan_submission_state::belongs_to_stream(VkDevice device, VkQueue queue, uint64_t stream_id) const {
+    return belongs_to(device, queue) && _stream_id == stream_id;
+}
+
 VkFence vulkan_submission_state::release_fence() {
     std::lock_guard<std::mutex> lock(_mutex);
     OPENVINO_ASSERT(_completed, "[GPU][Vulkan] Cannot recycle a fence before submission completion");
@@ -73,6 +81,10 @@ void vulkan_event::reset() {
 
 bool vulkan_event::is_device_submission(VkDevice device, VkQueue queue) const {
     return _submission != nullptr && _submission->belongs_to(device, queue);
+}
+
+bool vulkan_event::is_stream_submission(VkDevice device, VkQueue queue, uint64_t stream_id) const {
+    return _submission != nullptr && _submission->belongs_to_stream(device, queue, stream_id);
 }
 
 void vulkan_event::wait_impl() {

@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 
 #include <condition_variable>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
@@ -17,17 +18,19 @@ namespace vulkan {
 
 class vulkan_submission_state {
 public:
-    vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence);
+    vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id);
 
     void wait();
     bool is_complete();
     bool belongs_to(VkDevice device, VkQueue queue) const;
+    bool belongs_to_stream(VkDevice device, VkQueue queue, uint64_t stream_id) const;
     VkFence release_fence();
 
 private:
     VkDevice _device = VK_NULL_HANDLE;
     VkQueue _queue = VK_NULL_HANDLE;
     VkFence _fence = VK_NULL_HANDLE;
+    uint64_t _stream_id = 0;
     std::mutex _mutex;
     bool _completed = false;
 };
@@ -39,6 +42,7 @@ public:
 
     void reset() override;
     bool is_device_submission(VkDevice device, VkQueue queue) const;
+    bool is_stream_submission(VkDevice device, VkQueue queue, uint64_t stream_id) const;
 
 private:
     void wait_impl() override;

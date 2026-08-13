@@ -183,16 +183,24 @@ void vulkan_device::initialize() {
 
     VkPhysicalDevice8BitStorageFeatures available_storage8{};
     available_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
+    VkPhysicalDeviceSynchronization2Features available_synchronization2{};
+    available_synchronization2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    available_storage8.pNext = &available_synchronization2;
     VkPhysicalDeviceFeatures2 available_features{};
     available_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     available_features.pNext = &available_storage8;
     vkGetPhysicalDeviceFeatures2(_physical_device, &available_features);
     OPENVINO_ASSERT(available_storage8.storageBuffer8BitAccess == VK_TRUE,
                     "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
+    OPENVINO_ASSERT(available_synchronization2.synchronization2 == VK_TRUE, "[GPU][Vulkan] Exact buffer hazard tracking requires Vulkan 1.3 synchronization2");
 
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
     enabled_storage8.storageBuffer8BitAccess = VK_TRUE;
+    VkPhysicalDeviceSynchronization2Features enabled_synchronization2{};
+    enabled_synchronization2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    enabled_synchronization2.synchronization2 = VK_TRUE;
+    enabled_storage8.pNext = &enabled_synchronization2;
 
     VkDeviceCreateInfo device_create_info{};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
