@@ -322,6 +322,42 @@ TEST_F(DispatchGroupTest, set_property_for_unresolved_id_targets_only_that_winne
     EXPECT_EQ(core.get_property(device + ".1", ov::device::id.name()).as<std::string>(), "1");
 }
 
+// A candidate that forfeits some devices still enumerates them, so its id map must cover them.
+// Models OV_GPU_RUNTIME=ZE: OCL forfeits its Intel GPUs but still wins the non-Intel one.
+TEST_F(DispatchGroupTest, id_map_covers_devices_the_winner_scored_incompatible) {
+    // A serves cc and forfeits aa/bb; B serves bb. A's served device is enumerated first so its
+    // canonical id is "0" either way - the assertion below is then purely about map completeness.
+    script("0,cc," + std::to_string(SERVABLE) + ";1,aa," + std::to_string(INCOMPATIBLE) + ";2,bb," +
+               std::to_string(INCOMPATIBLE),
+           "0,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    // A wins canonical "0" (device cc) and must be renamed for all three devices it enumerates,
+    // because it still reports all three from its own device query once constructed.
+    EXPECT_EQ(resolved_tag(core, "0"), "A");
+    EXPECT_EQ(core.get_property(device + ".0", "MOCK_ADOPTED_IDS").as<std::vector<std::string>>(),
+              (std::vector<std::string>{"0", "1", "2"}));
+    // B still wins the device it scored, unaffected.
+    EXPECT_EQ(resolved_tag(core, "2"), "B");
+}
+
+// Canonical numbering must not shift just because a candidate forfeited devices: the ids come
+// from what the candidates enumerate, not from what they are willing to serve.
+TEST_F(DispatchGroupTest, forfeited_devices_keep_their_canonical_id_but_are_not_advertised) {
+    // Device aa is forfeited by A and unseen by B, so nothing can serve it.
+    script("0,aa," + std::to_string(INCOMPATIBLE) + ";1,bb," + std::to_string(INCOMPATIBLE) + ";2,cc," +
+               std::to_string(SERVABLE),
+           "0,bb," + std::to_string(PREFERRED));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    // "0" (aa) keeps its slot so "1"/"2" still mean bb/cc, but it is not offered...
+    EXPECT_EQ(core.get_property(device, ov::available_devices), std::vector<std::string>({"1", "2"}));
+    // ...and asking for it fails with a message naming the id, rather than silently serving another.
+    OV_EXPECT_THROW(std::ignore = resolved_tag(core, "0"), ov::Exception, ::testing::HasSubstr(device + ".0"));
+}
+
 // A library that cannot adopt Core's ids cannot share a device name: it would keep naming devices
 // by its own numbering, which leaks back through contexts and execution devices.
 TEST_F(DispatchGroupTest, group_member_without_id_map_support_throws) {

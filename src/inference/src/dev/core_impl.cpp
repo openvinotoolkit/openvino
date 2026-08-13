@@ -78,9 +78,9 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
         probe(enumerated);
         // probe_so is released here; the winner is re-opened lazily on construction.
 
+        // An INCOMPATIBLE view is recorded, not skipped: the candidate still enumerates that
+        // device once constructed, so the id map pushed to it must cover that device too.
         for (auto& dev : enumerated) {
-            if (dev.score == ov::PROBE_SCORE_INCOMPATIBLE)
-                continue;
             // An empty fingerprint has no identity: it would merge unrelated devices into one
             // entry (wrong winner / lost devices). Reject it - dispatch members must fingerprint.
             OPENVINO_ASSERT(!dev.fingerprint.empty(),
@@ -869,9 +869,16 @@ std::vector<std::string> ov::CoreImpl::dispatch_group_device_ids(const std::stri
         map_it = m_dispatch_map.emplace(device_name, build_dispatch_entries(candidate_libs)).first;
     }
 
+    // A device every candidate scored INCOMPATIBLE is not advertised, but its entry keeps its slot
+    // so the canonical ids stay stable and every member's id map stays complete.
     std::vector<std::string> ids;
-    for (const auto& entry : map_it->second)
-        ids.push_back(entry.canonical_id);
+    for (const auto& entry : map_it->second) {
+        const bool servable = std::any_of(entry.per_lib.begin(), entry.per_lib.end(), [](const auto& kv) {
+            return kv.second.score != ov::PROBE_SCORE_INCOMPATIBLE;
+        });
+        if (servable)
+            ids.push_back(entry.canonical_id);
+    }
     return ids;
 }
 
@@ -935,6 +942,7 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name, const s
             OPENVINO_ASSERT(winner.has_value(),
                             "No registered candidate library can serve device \"",
                             device_name,
+                            device_id.empty() ? "" : "." + device_id,
                             "\". Please check the plugins registry and device drivers.");
             instance_key = device_name + '#' + std::to_string(*winner);
             dispatch_id_map = dispatch_device_id_map_unsafe(device_name, *winner);

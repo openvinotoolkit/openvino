@@ -1094,6 +1094,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 namespace {
 
 void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
+    out.clear();  // The probe reports, it does not append: repeated calls must be idempotent.
     try {
         // Read once per process: the debug override cannot change while the library is loaded.
         static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");

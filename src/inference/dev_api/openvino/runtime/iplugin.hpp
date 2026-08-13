@@ -331,8 +331,9 @@ struct EnumeratedDevice {
  * @private
  * @brief Signature of the enumeration probe. Enumerates every device this library can
  * serve, cheaply (a driver device query at most) and WITHOUT constructing the plugin
- * engine. noexcept, idempotent, no observable per-call side effect. If the library can
- * serve nothing (no driver), it clears the output vector and returns.
+ * engine. noexcept, idempotent, no observable per-call side effect. It CLEARS the output
+ * vector before filling it - it reports a device list, it does not append to one - so a
+ * library that can serve nothing (no driver) leaves the vector empty.
  */
 using EnumerateDevicesFunc = void(std::vector<EnumeratedDevice>& /*out*/) noexcept;
 
