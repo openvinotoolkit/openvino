@@ -827,8 +827,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
 
             if (!m_weights)
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (offset > m_weights->size() || size > m_weights->size() - offset)
-                OPENVINO_THROW("Incorrect weights in bin file!");
+            validate_weights_range(m_weights->size(), offset, size);
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
                 ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
@@ -879,6 +878,11 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
     adapter.set(model);
 }
 
+void XmlDeserializer::validate_weights_range(size_t weights_size, size_t offset, size_t size) {
+    if (offset > weights_size || size > weights_size - offset)
+        OPENVINO_THROW("Incorrect weights in bin file!");
+}
+
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
     OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
@@ -894,8 +898,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    OPENVINO_ASSERT(offset <= m_weights->size() && size <= m_weights->size() - offset,
-                    "Incorrect weights in bin file!");
+    validate_weights_range(m_weights->size(), offset, size);
 
     char* data = m_weights->get_ptr<char>() + offset;
 

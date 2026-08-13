@@ -77,6 +77,9 @@ protected:
     virtual ov::Any parse_weightless_cache_attribute(const pugi::xml_node& node) const;
     virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
 
+    /// \brief Overflow-safe check that [offset, offset+size) fits within weights_size bytes.
+    static void validate_weights_range(size_t weights_size, size_t offset, size_t size);
+
     const pugi::xml_node& get_node() const;
     const std::shared_ptr<ov::AlignedBuffer>& get_weights() const {
         return m_weights;
