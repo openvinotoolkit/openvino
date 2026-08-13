@@ -151,6 +151,20 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, boo
         }
     }
 }
+
+/**
+ * @brief Overflow-safe check that [offset, offset+size) fits within weights_size bytes.
+ *
+ * Uses a split comparison to avoid unsigned wraparound when offset+size would overflow size_t.
+ *
+ * @param weights_size Total size of the weights buffer in bytes.
+ * @param offset Byte offset into the weights buffer.
+ * @param size Number of bytes to access starting at offset.
+ */
+void validate_weights_range(size_t weights_size, size_t offset, size_t size) {
+    if (offset > weights_size || size > weights_size - offset)
+        OPENVINO_THROW("Incorrect weights in bin file!");
+}
 }  // namespace
 
 struct GenericLayerParams {
@@ -876,11 +890,6 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
         OPENVINO_THROW("Error: not recognized adapter name: ", name, ".");
     }
     adapter.set(model);
-}
-
-void XmlDeserializer::validate_weights_range(size_t weights_size, size_t offset, size_t size) {
-    if (offset > weights_size || size > weights_size - offset)
-        OPENVINO_THROW("Incorrect weights in bin file!");
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
