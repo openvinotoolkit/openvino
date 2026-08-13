@@ -792,7 +792,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const std::size_t dyn_mask_idx = pyramid->mask_idx_at(pyramid_id);
                         const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dyn_mask_idx];
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs().at(dyn_mask_idx);
                         const auto& graph_mask = io.inputs.at(dyn_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
                         const auto present_len = dyn_query_size;
@@ -1218,6 +1218,7 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
                 LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
             }
+            mutable_pyramid->validate_port_indices();
         }
     }
 

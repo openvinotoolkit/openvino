@@ -814,6 +814,69 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
     }
 }
 
+void PyramidAttentionContiguous::validate_port_indices() const {
+    if (_attention_infos.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
+                       _attention_infos.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    for (size_t i = 0; i < _compiled_models.size(); ++i) {
+        if (!_compiled_models[i]) {
+            continue;
+        }
+        const auto inputs_size = _compiled_models[i]->inputs().size();
+        const auto& info = _attention_infos[i];
+        if (info.mask_idx >= inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention mask_idx (",
+                           info.mask_idx,
+                           ") out of bounds for model ",
+                           i,
+                           " with ",
+                           inputs_size,
+                           " inputs");
+        }
+        for (const auto& param : info.params) {
+            if (param.idx >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param idx (",
+                               param.idx,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+    }
+}
+
+void PyramidAttentionBlock::validate_port_indices() const {
+    if (_attention_infos.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
+                       _attention_infos.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    for (size_t i = 0; i < _compiled_models.size(); ++i) {
+        if (!_compiled_models[i]) {
+            continue;
+        }
+        const auto inputs_size = _compiled_models[i]->inputs().size();
+        const auto& info = _attention_infos[i];
+        if (info.mask_idx >= inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention mask_idx (",
+                           info.mask_idx,
+                           ") out of bounds for model ",
+                           i,
+                           " with ",
+                           inputs_size,
+                           " inputs");
+        }
+    }
+}
+
 // ── PyramidAttention::make() static factory ───────────────────────────────────────
 
 std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::PyramidAttention& func_pyramid) {
