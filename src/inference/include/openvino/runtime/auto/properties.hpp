@@ -5,8 +5,8 @@
 #pragma once
 
 #include <map>
-#include <string>
 #include <openvino/runtime/properties.hpp>
+#include <string>
 
 namespace ov {
 
