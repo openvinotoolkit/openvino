@@ -146,7 +146,7 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 auto pshape = input_node->get_output_shape(0);
                 std::vector<int32_t> result(pshape.size());
                 std::transform(pshape.begin(), pshape.end(), result.begin(),
-                    [](size_t v) { return static_cast<int32_t>(v); });
+                               [](size_t v) { return static_cast<int32_t>(v); });
                 return result;
             }
             return {};
