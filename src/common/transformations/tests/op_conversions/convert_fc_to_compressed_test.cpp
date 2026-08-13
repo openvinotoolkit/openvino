@@ -133,6 +133,172 @@ const auto params = std::vector<ConvertFCToCompressedParams>{
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressed, ::testing::ValuesIn(params));
 
+TEST_F(TransformationTestsF, ConvertFCToCompressed_ParameterWeightsWithZeroPoint) {
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types,
+                                                                                     nullptr,
+                                                                                     /*convert_u4zp_to_u8=*/false,
+                                                                                     /*enable_parameter_weights=*/true);
+
+    const ov::PartialShape input_shape{10, 2048};
+    const ov::Shape weights_shape{5, 16, 128};
+    const ov::Shape scale_zp_shape{5, 16, 1};
+    const ov::Shape flattened_weights_shape{5, 2048};
+    const ov::Shape flattened_scale_zp_shape{5, 16};
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, scale_zp_shape);
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        auto weights_zero_point = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_zp_shape);
+        auto weights_scale = std::make_shared<ov::op::v1::Multiply>(weights_zero_point, scale);
+        auto flatten_pattern = ov::op::v0::Constant::create(ov::element::i32, {2}, {5, 2048});
+        auto flattened = std::make_shared<ov::op::v1::Reshape>(weights_scale, flatten_pattern, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(input, flattened, bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fully_connected},
+                                            ov::ParameterVector{input, weights, zero_point, scale});
+    }
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto weights_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_weights_shape);
+        auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape_const, false);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, scale_zp_shape);
+        auto zero_point_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_scale_zp_shape);
+        auto zero_point_reshape = std::make_shared<ov::op::v1::Reshape>(zero_point, zero_point_shape_const, false);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_zp_shape);
+        auto scale_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_scale_zp_shape);
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape_const, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fully_connected_compressed =
+            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
+                                                                         weights_reshape,
+                                                                         bias,
+                                                                         scale_reshape,
+                                                                         zero_point_reshape);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fully_connected_compressed},
+                                                ov::ParameterVector{input, weights, zero_point, scale});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed_ParameterWeightsNoZeroPointPlaceholder) {
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u8};
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types,
+                                                                                     nullptr,
+                                                                                     /*convert_u4zp_to_u8=*/false,
+                                                                                     /*enable_parameter_weights=*/true);
+
+    const ov::PartialShape input_shape{10, 2048};
+    const ov::Shape weights_shape{5, 16, 128};
+    const ov::Shape scale_shape{5, 16, 1};
+    const ov::Shape flattened_weights_shape{5, 2048};
+    const ov::Shape flattened_scale_shape{5, 16};
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_shape);
+        auto weights_scale = std::make_shared<ov::op::v1::Multiply>(weights_convert, scale);
+        auto flatten_pattern = ov::op::v0::Constant::create(ov::element::i32, {2}, {5, 2048});
+        auto flattened = std::make_shared<ov::op::v1::Reshape>(weights_scale, flatten_pattern, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(input, flattened, bias);
+
+        model =
+            std::make_shared<ov::Model>(ov::OutputVector{fully_connected}, ov::ParameterVector{input, weights, scale});
+    }
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, weights_shape);
+        auto weights_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_weights_shape);
+        auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape_const, false);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_shape);
+        auto scale_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_scale_shape);
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape_const, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{0}, {0});
+        auto fully_connected_compressed = std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
+                                                                                                       weights_reshape,
+                                                                                                       bias,
+                                                                                                       scale_reshape,
+                                                                                                       zero_point);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fully_connected_compressed},
+                                                ov::ParameterVector{input, weights, scale});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed_ParameterU4ZeroPointConvertedToU8) {
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{ov::element::u4};
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types,
+                                                                                     nullptr,
+                                                                                     /*convert_u4zp_to_u8=*/true,
+                                                                                     /*enable_parameter_weights=*/true);
+
+    const ov::PartialShape input_shape{10, 2048};
+    const ov::Shape weights_shape{5, 16, 128};
+    const ov::Shape scale_zp_shape{5, 16, 1};
+    const ov::Shape flattened_weights_shape{5, 2048};
+    const ov::Shape flattened_scale_zp_shape{5, 16};
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, weights_shape);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, scale_zp_shape);
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32);
+        auto weights_zero_point = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_zp_shape);
+        auto weights_scale = std::make_shared<ov::op::v1::Multiply>(weights_zero_point, scale);
+        auto flatten_pattern = ov::op::v0::Constant::create(ov::element::i32, {2}, {5, 2048});
+        auto flattened = std::make_shared<ov::op::v1::Reshape>(weights_scale, flatten_pattern, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fully_connected = std::make_shared<ov::op::internal::FullyConnected>(input, flattened, bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fully_connected},
+                                            ov::ParameterVector{input, weights, zero_point, scale});
+    }
+
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, weights_shape);
+        auto weights_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_weights_shape);
+        auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape_const, false);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u4, scale_zp_shape);
+        auto zero_point_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_scale_zp_shape);
+        auto zero_point_reshape = std::make_shared<ov::op::v1::Reshape>(zero_point, zero_point_shape_const, false);
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point_reshape, ov::element::u8);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, scale_zp_shape);
+        auto scale_shape_const = ov::op::v0::Constant::create(ov::element::i64, {2}, flattened_scale_zp_shape);
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape_const, false);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fully_connected_compressed =
+            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input,
+                                                                         weights_reshape,
+                                                                         bias,
+                                                                         scale_reshape,
+                                                                         zero_point_convert);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fully_connected_compressed},
+                                                ov::ParameterVector{input, weights, zero_point, scale});
+    }
+}
+
 // Regression test: when the matched Transpose acts on the weights tensor and
 // scale / zero-point are rank-1 per-output-channel Constants, the old code
 // path tried to apply the rank-2 weight perm to a rank-1 input, which
