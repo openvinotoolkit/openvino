@@ -236,7 +236,7 @@ template <typename... Opts>
 void run_node_optimizations(program& p, Opts&&... opts) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
-        auto node = *it++;
+        auto* node = *it++;
         run_node_optimizations(*node, opts...);
     }
 }
