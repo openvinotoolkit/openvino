@@ -34,6 +34,10 @@ void InputModel::visit_subgraph(const std::function<void(std::shared_ptr<GgufDec
     m_decoder->visit_subgraph(node_visitor);
 }
 
+const std::shared_ptr<GgufDecoder>& InputModel::get_model_decoder() const {
+    return m_decoder;
+}
+
 }  // namespace gguf
 }  // namespace frontend
 }  // namespace ov

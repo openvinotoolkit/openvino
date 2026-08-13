@@ -14,6 +14,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include <stdexcept>
 #include <vector>
 
@@ -22,17 +23,19 @@ namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_reshape(const NodeContext & context) {
+OutputVector translate_reshape(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    if (context.get_input(0).get_partial_shape() == context.get_output_shape()) {
+    if (context.get_input_shape(0) == context.get_output_shape()) {
         return {context.get_input(0)};
     }
 
-    int op_case = context.get_attribute<int>("op_case", 0);
-    FRONT_END_CHECK_IMPLEMENTED(
-        op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4 || op_case == 5 || op_case == 6 ||
-            op_case == 7 || op_case == 8,
-        "Unsupported RESHAPE case");
+    // One numbering for both ingest paths: every case below is reachable from the llama.cpp cgraph
+    // decoder (see ggml-decoder.cpp::compute_op_case) and from the native .gguf builder, which
+    // describes its reshapes so that the same case applies.
+    int op_case = context.get_op_case();
+    FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4 || op_case == 5 ||
+                                    op_case == 6 || op_case == 7 || op_case == 8,
+                                "Unsupported RESHAPE case");
 
     if (op_case == 8) {
         // Identity reshape (ggml src ne == node ne): a no-op. Pass the input through so any dynamic
@@ -43,26 +46,67 @@ OutputVector translate_reshape(const NodeContext & context) {
     auto output_shape = context.get_output_shape().to_shape();
     std::shared_ptr<ov::Node> new_shape_node;
     if (op_case == 1) {
+        // [B, 1, T, n_head*head_size] -> [B, T, n_head, head_size]: split the last dim into heads and
+        // flatten whatever leads it into dim 1. Same shape in both stateful and non-stateful paths;
+        // the 3D form was causing RoPE broadcasting to T×T when the trailing dimensions are 1 (MQA,
+        // n_head_kv=1).
+        //
+        // The leading dim is COPIED from the input via special_zero rather than written as
+        // output_shape[0] (a literal 1). That is what makes the attention block layout-polymorphic:
+        // ov::pass::SDPAToPagedAttention moves the token count into dim 0 by rewriting input_ids, and
+        // a literal here would discard that and leave PA deriving [1, T*H*S] operands where the
+        // plugin wants [T, H*S]. With the 0 the same constant serves both:
+        //   SDPA inference: in [1, 1, T, H*S]  -> [1, T, H, S]
+        //   PagedAttention: in [T, 1, 1, H*S]  -> [T, 1, H, S]  (identical buffer, tokens in dim 0)
         new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64, {4},
-            std::vector<int64_t>{(int64_t) output_shape[0], -1, (int64_t) output_shape[2], (int64_t) output_shape[3]});
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{0, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, /*special_zero=*/true)},
+            context.get_name());
     } else if (op_case == 2) {
+        // Merge the heads back after attention. Like op_case 1, the leading dim is copied from the input
+        // (special_zero) rather than pinned to output_shape[0], so the token axis stays wherever the
+        // active attention backend put it.
+        //
+        // The rank stays 4 because the very next op is the residual Add against the layer input and OV
+        // broadcasts elementwise operands from the RIGHT: every activation in the graph is rank 4 (ggml's
+        // own convention), so mixing in a rank-3 result would right-align and silently form a
+        // token x token outer product once the token count is not on the axis one happens to expect.
+        //   in [1, T, H, S] -> [1, 1, T, H*S]
+        // The last dim is the static n_head*head_size and the -1 absorbs the remaining axis, so the
+        // following MatMul against [n_embd, n_embd] is unaffected.
         new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64, {4},
-            std::vector<int64_t>{(int64_t) output_shape[0], (int64_t) output_shape[1], -1, (int64_t) output_shape[3]});
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{0, (int64_t)output_shape[1], -1, (int64_t)output_shape[3]});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, /*special_zero=*/true)},
+            context.get_name());
 
     } else if (op_case == 3) {
         // Flatten-for-SET_ROWS: [F, tok, 1, 1] -> [1, F*tok, -1, 1] (the KV-cache write path, e.g.
         // gpt-oss cache_v). Token count stays on the dynamic axis via -1.
         new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64, {4}, std::vector<int64_t>{(int64_t) output_shape[0], (int64_t) output_shape[1], -1, 1});
+            ov::element::i64,
+            {4},
+            std::vector<int64_t>{(int64_t)output_shape[0], (int64_t)output_shape[1], -1, 1});
 
     } else if (op_case == 4) {
         return {context.get_input(0).get_node_shared_ptr()->input_value(0)};
 
     } else if (op_case == 5) {
-        std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t) output_shape[3]};
+        std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t)context.get_output_shape().to_shape()[3]};
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
+
+        // // Alternative
+        // auto token_len = context.get_input("token_len");
+        // auto emb_size =
+        //     ov::op::v0::Constant::create(ov::element::i64, {1}, {(int64_t)
+        //     context.get_output_shape().to_shape()[3]});
+        // auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        // new_shape_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{one, one, token_len, emb_size}, 0);
 
     } else if (op_case == 6) {
         // The output layout rearranges dims relative to the input (e.g. qwen3-next q/k_conv_predelta:
@@ -81,6 +125,7 @@ OutputVector translate_reshape(const NodeContext & context) {
         new_shape_node = ov::op::v0::Constant::create(
             ov::element::i64, {output_shape.size()},
             std::vector<int64_t>(output_shape.begin(), output_shape.end()));
+
     }
     auto res = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, false);
     return rename_outputs_with_suffix({res}, context.get_name());

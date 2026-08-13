@@ -61,13 +61,17 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                          [](const ::testing::TestParamInfo<BinaryCase>& i) { return std::string(i.param.name); });
 
 // ── Elementwise unary ops (single f32 input) ────────────────────────────────────
-// silu / gelu(tanh) / tanh / softplus share the same one-input graph and driver.
+// Every registered GGML_UNARY_OP_* plus the elementwise GGML_OP_{LOG,SIN,COS} share the same
+// one-input graph and driver, so they are parameterized over (op type, reference lambda).
 
 struct UnaryCase {
     const char* name;
     const char* op_type;
     std::function<float(float)> ref;
     float atol;
+    // Input values; empty means the default sign-spanning ramp below.  Ops with a restricted
+    // domain (log) supply their own.
+    std::vector<float> x{};
 };
 
 class GGUFUnaryElementwise : public ::testing::TestWithParam<UnaryCase> {};
@@ -80,7 +84,8 @@ TEST_P(GGUFUnaryElementwise, MatchesReference) {
                      .output("out", ov::element::f32, {2, 4})
                      .build();
 
-    std::vector<float> x{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3};
+    std::vector<float> x = c.x.empty() ? std::vector<float>{-2, -1, -0.5f, 0, 0.5f, 1, 2, 3} : c.x;
+    ASSERT_EQ(x.size(), 8u) << "UnaryCase input must match the [2,4] graph shape";
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
 
     std::vector<float> expected(x.size());
@@ -89,8 +94,10 @@ TEST_P(GGUFUnaryElementwise, MatchesReference) {
     expect_near(out, expected, c.atol);
 }
 
-// ggml GELU is the tanh approximation, but the frontend maps GGML_UNARY_OP_GELU to v7::Gelu(TANH)
-// which is close enough to the exact (erf) form to check against it at 1e-3.
+// References are the scalar ggml kernels from ggml/src/ggml-cpu/vec.h, so a translator that picks
+// a different-but-plausible formula for the same name is caught (GELU vs GELU_QUICK are distinct
+// approximations, not interchangeable).  GELU is checked against the exact erf form instead: the
+// frontend maps it to v7::Gelu(TANH), which agrees with ggml's tanh kernel and with erf to 1e-3.
 // Softplus uses 1e-3 to cover ARM CPU fp16 execution (small outputs where fp16 spacing ~1e-3
 // dominates); on x86 fp32 the exact reference still matches comfortably within that bound.
 INSTANTIATE_TEST_SUITE_P(
@@ -102,19 +109,27 @@ INSTANTIATE_TEST_SUITE_P(
                   "GGML_UNARY_OP_GELU",
                   [](float x) { return 0.5f * x * (1.0f + std::erf(x / std::sqrt(2.0f))); },
                   1e-3f},
-        UnaryCase{"tanh", "GGML_UNARY_OP_TANH", [](float x) { return std::tanh(x); }, 1e-4f},
-        UnaryCase{"relu", "GGML_UNARY_OP_RELU", [](float x) { return x > 0.0f ? x : 0.0f; }, 1e-4f},
-        UnaryCase{"elu", "GGML_UNARY_OP_ELU", [](float x) { return x > 0.0f ? x : std::expm1(x); }, 1e-4f},
+        // ggml_gelu_quick_f32: x*(1/(1+expf(-1.702f*x))) -- NOT the tanh GELU above.
         UnaryCase{"gelu_quick",
                   "GGML_UNARY_OP_GELU_QUICK",
-                  [](float x) { return x * (1.0f / (1.0f + std::exp(-1.702f * x))); },
+                  [](float x) { return x / (1.0f + std::exp(-1.702f * x)); },
                   1e-4f},
+        UnaryCase{"tanh", "GGML_UNARY_OP_TANH", [](float x) { return std::tanh(x); }, 1e-4f},
+        UnaryCase{"relu", "GGML_UNARY_OP_RELU", [](float x) { return x > 0.0f ? x : 0.0f; }, 1e-4f},
+        // ggml_vec_elu_f32: (x > 0) ? x : expm1f(x), i.e. ELU with alpha == 1.
+        UnaryCase{"elu", "GGML_UNARY_OP_ELU", [](float x) { return x > 0.0f ? x : std::expm1(x); }, 1e-4f},
         UnaryCase{"sin", "GGML_OP_SIN", [](float x) { return std::sin(x); }, 1e-4f},
         UnaryCase{"cos", "GGML_OP_COS", [](float x) { return std::cos(x); }, 1e-4f},
         UnaryCase{"softplus",
                   "GGML_UNARY_OP_SOFTPLUS",
                   [](float x) { return std::log1p(std::exp(-std::abs(x))) + std::max(x, 0.0f); },
-                  1e-3f}),
+                  1e-3f},
+        // Log's domain is x > 0, so this case overrides the default ramp.
+        UnaryCase{"log",
+                  "GGML_OP_LOG",
+                  [](float x) { return std::log(x); },
+                  1e-4f,
+                  {0.25f, 0.5f, 1.0f, 2.0f, 3.0f, 10.0f, 100.0f, 1e-3f}}),
     [](const ::testing::TestParamInfo<UnaryCase>& i) { return std::string(i.param.name); });
 
 // Log is only defined for x > 0, so it gets its own inputs rather than the shared range above.
@@ -153,25 +168,50 @@ TEST(GGUFOps, GetDimensionsKeepsOutputPort) {
     EXPECT_EQ(shape_of->input_value(0).get_index(), 1u) << "get_dimensions measured the wrong port";
 }
 
-// ggml_top_k: indices of the k largest values along ne[0], ordered by descending value.
-TEST(GGUFOps, TopK) {
+// ── Real-ggml reference data (test_data/*_ggml_{input,expected}.npy) ────────────
+// The parameterized cases above encode the ggml formula by hand in C++.  These cases instead run
+// the actual ggml kernel's output, captured offline from real ggml linked against
+// libggml, over a [-6, 6] ramp -- so a misreading of the kernel cannot be baked into both sides.
+// This is the check that distinguishes GELU_QUICK's sigmoid form from the tanh form: they differ
+// by 2.2e-2 in the negative tail, far outside these tolerances.
+//
+// Tolerances are set by ggml's own arithmetic, not by OV's.  ggml evaluates GELU and GELU_QUICK
+// through an fp16 lookup table (GGML_GELU_FP16), which costs ~2e-3 / ~3.3e-3 against the exact
+// fp32 form; SILU runs in fp32 in the reference build and needs only 1e-5.
+struct GgmlRefCase {
+    const char* name;   // also the test_data/<name>_ggml_{input,expected}.npy stem prefix
+    const char* op_type;
+    float atol;
+};
+
+class GGUFUnaryVsGgml : public ::testing::TestWithParam<GgmlRefCase> {};
+
+TEST_P(GGUFUnaryVsGgml, MatchesGgmlKernel) {
+    const GgmlRefCase c = GetParam();
+    const auto x = load_npy<float>(std::string(c.name) + "_ggml_input");
+    const auto expected = load_npy<float>(std::string(c.name) + "_ggml_expected");
+    ASSERT_EQ(x.size(), expected.size());
+    ASSERT_FALSE(x.empty());
+
+    // The captured reference is a [4, 32] ramp.
+    const ov::Shape shape{4, 32};
+    ASSERT_EQ(ov::shape_size(shape), x.size());
+
     auto model = SingleOpBuilder()
-                     .op("GGML_OP_TOP_K")
-                     .input("x", ov::element::f32, {1, 1, 2, 4})
-                     .output("out", ov::element::i32, {1, 1, 2, 2})
+                     .op(c.op_type)
+                     .input("x", ov::element::f32, shape)
+                     .output("out", ov::element::f32, shape)
                      .build();
-
-    std::vector<float> x{4, 1, 3, 2, 10, 40, 20, 30};
-    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
-
-    ASSERT_EQ(out.get_element_type(), ov::element::i32);
-    ASSERT_EQ(out.get_size(), 4u);
-    const int32_t* a = out.data<int32_t>();
-    // Row 0: 4,1,3,2 -> top2 are 4 (idx 0) then 3 (idx 2). Row 1: 10,40,20,30 -> 40 (1), 30 (3).
-    std::vector<int32_t> expected{0, 2, 1, 3};
-    for (size_t i = 0; i < expected.size(); ++i)
-        EXPECT_EQ(a[i], expected[i]) << "mismatch at index " << i;
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor(shape, x)}});
+    expect_near(out, expected, c.atol);
 }
+
+INSTANTIATE_TEST_SUITE_P(GGUFOps,
+                         GGUFUnaryVsGgml,
+                         ::testing::Values(GgmlRefCase{"silu", "GGML_UNARY_OP_SILU", 1e-5f},
+                                           GgmlRefCase{"gelu", "GGML_UNARY_OP_GELU", 2.5e-3f},
+                                           GgmlRefCase{"gelu_quick", "GGML_UNARY_OP_GELU_QUICK", 4e-3f}),
+                         [](const ::testing::TestParamInfo<GgmlRefCase>& i) { return std::string(i.param.name); });
 
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
@@ -302,7 +342,7 @@ TEST(GGUFOps, SoftMaxAlibi) {
     const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / n_head_log2);
     std::vector<float> expected(x.size());
     for (uint32_t h = 0; h < n_head; ++h) {
-        float slope = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1)) : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
+        float slope = h < n_head_log2 ? std::pow(m0, h + 1) : std::pow(m1, 2 * (h - n_head_log2) + 1);
         for (size_t t = 0; t < T; ++t) {
             float mx = -1e30f;
             std::vector<float> z(Kd);
@@ -560,6 +600,152 @@ TEST(GGUFOps, TransposePerm) {
     // [[1,2,3],[4,5,6]] -> [[1,4],[2,5],[3,6]]
     std::vector<float> expected{1, 4, 2, 5, 3, 6};
     expect_near(out, expected);
+}
+
+// Permute op_case 1: the plain head/token axis swap, perm {0,2,1,3}.
+TEST(GGUFOps, PermuteCase1SwapsHeadAndTokenAxes) {
+    // [1, tok=2, heads=3, hs=2] -> [1, heads=3, tok=2, hs=2]
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 2, 3, 2})
+                     .output("out", ov::element::f32, {1, 3, 2, 2})
+                     .op_case(1)
+                     .build();
+
+    std::vector<float> x(12);
+    for (size_t i = 0; i < x.size(); ++i)
+        x[i] = static_cast<float>(i);
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 3, 2}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 3, 2, 2}));
+    // out[0,h,t,d] == x[0,t,h,d]; with x flat == index, x[0,t,h,d] = ((t*3)+h)*2+d.
+    std::vector<float> expected;
+    for (int64_t h = 0; h < 3; ++h)
+        for (int64_t t = 0; t < 2; ++t)
+            for (int64_t d = 0; d < 2; ++d)
+                expected.push_back(static_cast<float>((t * 3 + h) * 2 + d));
+    expect_near(out, expected, 0.0f);
+}
+
+// Permute op_case 4: reshape the flat projection to [n_seq, -1, n_heads, head_size] first, then
+// apply the same axis swap.  This is the Q/K projection path, where the head split and the permute
+// are a single ggml op.
+TEST(GGUFOps, PermuteCase4SplitsHeadsThenSwaps) {
+    // Flat [1, 1, tok=2, heads*hs=6] -> [1, heads=3, tok=2, hs=2]
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 1, 2, 6})
+                     .output("out", ov::element::f32, {1, 3, 2, 2})
+                     .op_case(4)
+                     .build();
+
+    std::vector<float> x(12);
+    for (size_t i = 0; i < x.size(); ++i)
+        x[i] = static_cast<float>(i);
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 6}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 3, 2, 2}));
+    // The reshape splits the 6-wide row into 3 heads of 2, so out[0,h,t,d] == x_flat[t*6 + h*2 + d].
+    std::vector<float> expected;
+    for (int64_t h = 0; h < 3; ++h)
+        for (int64_t t = 0; t < 2; ++t)
+            for (int64_t d = 0; d < 2; ++d)
+                expected.push_back(static_cast<float>(t * 6 + h * 2 + d));
+    expect_near(out, expected, 0.0f);
+}
+
+// Permute rejects op_cases it does not implement rather than silently emitting a wrong graph.
+TEST(GGUFOps, PermuteUnsupportedCaseThrows) {
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_PERMUTE")
+                     .input("x", ov::element::f32, {1, 2, 3, 2})
+                     .output("out", ov::element::f32, {1, 3, 2, 2})
+                     .op_case(7)
+                     .build(),
+                 ov::Exception);
+}
+
+// View with no op_case is a pure reinterpretation of the same buffer: a pass-through.
+TEST(GGUFOps, ViewDefaultIsPassThrough) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 4})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+    expect_near(out, x, 0.0f);
+}
+
+// View op_case 3: the decoder resolves ggml's ne/nb/offset into a {axis, start, len} slice plus the
+// view's own output layout.  Here it selects columns [1, 3) of a [1,1,2,4] source.
+TEST(GGUFOps, ViewCase3SlicesAndReshapes) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .op_case(3)
+                     .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
+                     .attr<std::vector<int64_t>>("view_slice", {3, 1, 2})
+                     .attr<std::vector<int64_t>>("view_reshape", {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 2}));
+    std::vector<float> expected{2, 3, 6, 7};
+    expect_near(out, expected, 0.0f);
+}
+
+// View op_case 3 also has to restore the source's original ggml shape when the OV input arrives at
+// a different rank (a preceding op already reshaped it), otherwise the slice lands on the wrong
+// axis.  Same slice as above, but the input is presented flat.
+TEST(GGUFOps, ViewCase3RestoresGgmlShapeBeforeSlicing) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {2, 4})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .op_case(3)
+                     .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
+                     .attr<std::vector<int64_t>>("view_slice", {3, 1, 2})
+                     .attr<std::vector<int64_t>>("view_reshape", {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 4}, x)}});
+
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 2}));
+    std::vector<float> expected{2, 3, 6, 7};
+    expect_near(out, expected, 0.0f);
+}
+
+// TopK: indices of the k largest values per row, k taken from the output's last dim.
+//
+// ggml's own kernel deliberately swaps the first two result slots ("emphasize that the order is not
+// important", ops.cpp), so only the SET of returned indices is contractual -- the test compares
+// sorted index sets rather than positions.
+TEST(GGUFOps, TopK) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TOP_K")
+                     .input("x", ov::element::f32, {1, 1, 2, 5})
+                     .output("out", ov::element::i32, {1, 1, 2, 3})
+                     .build();
+
+    std::vector<float> x{1, 9, 3, 7, 5, 50, 10, 40, 20, 30};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 5}, x)}});
+
+    ASSERT_EQ(out.get_element_type(), ov::element::i32);
+    ASSERT_EQ(out.get_size(), 6u);
+    const int32_t* a = out.data<int32_t>();
+    // Row 0: values 1,9,3,7,5 -> top 3 are 9,7,5 at indices 1,3,4.
+    // Row 1: values 50,10,40,20,30 -> top 3 are 50,40,30 at indices 0,2,4.
+    std::vector<int32_t> row0(a, a + 3), row1(a + 3, a + 6);
+    std::sort(row0.begin(), row0.end());
+    std::sort(row1.begin(), row1.end());
+    EXPECT_EQ(row0, (std::vector<int32_t>{1, 3, 4}));
+    EXPECT_EQ(row1, (std::vector<int32_t>{0, 2, 4}));
 }
 
 // Repeat: tile src to fill the output shape (integer multiples per axis).
@@ -945,6 +1131,74 @@ TEST(GGUFOps, ReshapeCase3) {
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
     // Row-major reshape preserves element order.
     expect_near(out, x, 0.0f);
+}
+
+// RESHAPE op_cases 1 and 2 are the attention split/merge pair, and they must be LAYOUT-POLYMORPHIC:
+// valid both for plain SDPA inference, which feeds a batch-major activation ([1, tokens, ..]), and
+// after ov::pass::SDPAToPagedAttention, which moves the token count into dim 0 ([tokens, 1, ..]).
+// Those two are the same buffer, so the op must copy the leading dim through rather than pin a
+// literal 1 -- pinning silently rewrites a token-major activation into a batch-major one and the
+// PagedAttention operands come out token-count-squared.
+//
+// Feeding the same values under both arrangements and requiring the same output element order is
+// exactly that property, and it fails on a literal-1 reshape.
+TEST(GGUFOps, ReshapeCase1SplitHeadsIsLayoutPolymorphic) {
+    const int64_t tokens = 2, heads = 2, head_size = 2;
+    const std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+
+    // Batch-major (what genai feeds a plain SDPA model): [1, 1, tokens, heads*head_size].
+    auto sdpa = SingleOpBuilder()
+                    .op("GGML_OP_RESHAPE")
+                    .input("x", ov::element::f32, {1, 1, tokens, heads * head_size})
+                    .output("out", ov::element::f32, {1, tokens, heads, head_size})
+                    .op_case(1)
+                    .build();
+    auto sdpa_out = run_on_cpu(sdpa, {{"x", make_f32_tensor({1, 1, (size_t)tokens, (size_t)(heads * head_size)}, x)}});
+    EXPECT_EQ(sdpa_out.get_shape(), (ov::Shape{1, (size_t)tokens, (size_t)heads, (size_t)head_size}));
+
+    // Token-major (the layout SDPAToPagedAttention establishes): [tokens, 1, 1, heads*head_size].
+    // The op must keep the tokens in dim 0 instead of moving them to dim 1.
+    auto pa = SingleOpBuilder()
+                  .op("GGML_OP_RESHAPE")
+                  .input("x", ov::element::f32, {tokens, 1, 1, heads * head_size})
+                  .output("out", ov::element::f32, {1, tokens, heads, head_size})
+                  .op_case(1)
+                  .build();
+    auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, 1, (size_t)(heads * head_size)}, x)}});
+    EXPECT_EQ(pa_out.get_shape(), (ov::Shape{(size_t)tokens, 1, (size_t)heads, (size_t)head_size}));
+
+    // Same buffer in, same buffer out.
+    expect_near(sdpa_out, x, 0.0f);
+    expect_near(pa_out, x, 0.0f);
+}
+
+TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
+    const int64_t tokens = 2, heads = 2, head_size = 2;
+    const std::vector<float> x{1, 2, 3, 4, 5, 6, 7, 8};
+
+    // Non-stateful ggml keeps activations rank-4 throughout: [1, tokens, H, S] -> [1, 1, tokens, H*S].
+    auto sdpa = SingleOpBuilder()
+                    .op("GGML_OP_RESHAPE")
+                    .input("x", ov::element::f32, {1, tokens, heads, head_size})
+                    .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
+                    .op_case(2)
+                    .build();
+    auto sdpa_out =
+        run_on_cpu(sdpa, {{"x", make_f32_tensor({1, (size_t)tokens, (size_t)heads, (size_t)head_size}, x)}});
+    EXPECT_EQ(sdpa_out.get_shape(), (ov::Shape{1, 1, (size_t)tokens, (size_t)(heads * head_size)}));
+
+    // Token-major: the tokens stay in dim 0.
+    auto pa = SingleOpBuilder()
+                  .op("GGML_OP_RESHAPE")
+                  .input("x", ov::element::f32, {tokens, 1, heads, head_size})
+                  .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
+                  .op_case(2)
+                  .build();
+    auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, (size_t)heads, (size_t)head_size}, x)}});
+    EXPECT_EQ(pa_out.get_shape(), (ov::Shape{(size_t)tokens, 1, 1, (size_t)(heads * head_size)}));
+
+    expect_near(sdpa_out, x, 0.0f);
+    expect_near(pa_out, x, 0.0f);
 }
 
 // SET_ROWS into a flattened KV-cache row (row_size taken from the dst input, not the op output):

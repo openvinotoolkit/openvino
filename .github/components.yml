@@ -107,6 +107,12 @@ PROXY:
     - GPU
   build: []
 
+GGUF_FE:
+  revalidate:
+    - CPU # the per-op tests compile and infer their converted graphs on the CPU plugin
+  build:
+    - CPU
+
 IR_FE:
   revalidate:
     - C_API

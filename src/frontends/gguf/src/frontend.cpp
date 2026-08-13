@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/gguf/frontend.hpp"
 
+
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -18,12 +19,17 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// Discoverability (intentional): consumed only by direct linkage -- a caller (the llama.cpp
-// ggml-openvino backend, OpenVINO GenAI) links openvino::frontend::gguf and feeds FrontEnd a live
-// GgufDecoder (no .gguf-path reader; see supported_impl / load_impl). It exports the standard
-// plugin entry points so FrontEndManager can scan the frontend dir without error, but "gguf" is
-// treated as hidden there (manager.cpp is_hidden_frontend), so it is never listed or auto-selected.
-// Drop it from that list once this frontend gains file-based loading and passes production review.
+// The frontend converts a live GgufDecoder -- supplied by a direct linker, currently the llama.cpp
+// ggml-openvino backend -- through the op translators below.
+//
+// Discoverability: "gguf" is in manager.cpp's is_hidden_frontend list, so it is not advertised by
+// available_front_ends() and not auto-selected by load_by_model -- core.read_model(".gguf") does
+// not resolve to it. It is still reachable explicitly, either by direct linkage (what GenAI and
+// the llama.cpp backend do) or by name via load_by_framework("gguf"). supported_impl below stays
+// implemented, so enabling core.read_model later is just dropping the name from that list.
+//
+// Driving the frontend directly needs no follow-up pass: normalization runs inside convert(), and
+// the only step read_model adds, update_v10_model(), fires solely for legacy IR v10.
 
 struct FrontEnd::Impl {
     std::unordered_map<std::string, CreatorFunction> op_extension_translators;
@@ -91,17 +97,14 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     }
 }
 
-bool FrontEnd::supported_impl(const std::vector<ov::Any>&) const {
-    // Always false: this frontend is never selected by FrontEndManager (load_by_model). It is used
-    // only via direct linkage -- a caller constructs FrontEnd and calls convert() with an
-    // InputModel built from a GgufDecoder -- which does not go through supported(). See the
-    // discoverability note at the top of this file.
-    return false;
+bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
+    return !variants.empty() && variants[0].is<std::shared_ptr<GgufDecoder>>();
 }
 
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     FRONT_END_GENERAL_CHECK(!variants.empty(),
                             "GGUF Frontend requires at least one parameter in model representation.");
+
     FRONT_END_GENERAL_CHECK(variants[0].is<std::shared_ptr<GgufDecoder>>(),
                             "GGUF Frontend supports loading from a GgufDecoder only.");
     auto decoder = variants[0].as<std::shared_ptr<GgufDecoder>>();
@@ -113,10 +116,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 }  // namespace frontend
 }  // namespace ov
 
-// Plugin registration. The frontend is installed in the frontend directory, so it must export
-// these entry points or FrontEndManager throws while scanning it. It registers as hidden (see the
-// discoverability note above): FrontEndManager loads it without error but never lists or
-// auto-selects it; only direct linkers use it.
+// Plugin registration. Exports the standard entry points so FrontEndManager can load the library;
+// selection is covered by the discoverability note at the top of this file.
 GGUF_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
