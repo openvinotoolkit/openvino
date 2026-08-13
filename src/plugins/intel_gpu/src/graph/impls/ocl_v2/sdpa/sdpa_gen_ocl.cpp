@@ -147,8 +147,24 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_values = 2;
         config.sv_sg_per_wg_scores = 8;
     } else if (d_max <= 64) {
+        // kq_sg_tile_queries is 32 rather than the struct default 16, so the WG query tile is 64 --
+        // the same tile sdpa_micro uses. The KV cache is re-read once per (query block, head), so a
+        // 32-query tile reads it TWICE as often as micro does, and at head 64 that re-read is the
+        // dominant cost: measured on gpt-oss-20b (u4 cache, PA MIXED), 632 ms -> 398 ms, which took
+        // sdpa_ocl from 1.6x slower than micro to slightly faster.
+        //
+        // Widening further is NOT better, and the reason is worth recording because the static
+        // metrics say otherwise. Total subgroups = (aligned_queries / wg_queries) * heads *
+        // sg_per_wg, and this kernel hides its load latency with thread count:
+        //   wg_queries 32, sg_per_wg 16 -> 8192 subgroups -> 632 ms
+        //   wg_queries 64, sg_per_wg 16 -> 4096 subgroups -> 398 ms   <- here
+        //   wg_queries 64, sg_per_wg  8 -> 2048 subgroups -> 428 ms   (kq_sg_per_wg_keys 4; fewest
+        //                                                              loads per unit work, still lost)
+        // So ~4096 is the sweet spot, and any further traffic cut has to keep the subgroup count.
+        // Same lesson as SDPA_OCL_256GRF, which is a 70% REGRESSION here for the same reason.
+        config.kq_sg_tile_queries = 32;
         config.sv_sg_tile_values = 16;
-        config.sv_sg_tile_scores = 8;
+        config.sv_sg_tile_scores = 16;
         config.sv_sg_per_wg_values = 4;
         config.sv_sg_per_wg_scores = 4;
     } else if (d_max <= 128) {
@@ -842,6 +858,47 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_K_PA_I8_2D"))
         k_pa_2d_i8 = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
+    // Whole-page 1D subgroup block read, for the u4 pages block2d cannot reach. A u4 row is
+    // k_head_size/2 (K) or Align(v_head_size/2, subgroup) (V) BYTES, so the >= 64 && % 64 pitch rule
+    // needs k_head_size % 128 == 0 -- head 64 misses it on both tensors and every K/V element is then
+    // fetched by a per-lane byte gather (ISA on the gpt-oss-20b mixed kernel: 64 K + 128 V scattered
+    // messages per k0 iteration against 16 dpas, plus 5952 B of spill from the address arithmetic).
+    // The page's data region is contiguous though, so intel_sub_group_block_read_uc16 can take the
+    // whole thing in PA_PAGE_COLS messages and land it in the DPAS operand layout with no shuffle --
+    // see the PA_PAGE_* derivation in sdpa_ocl.cl.
+    //
+    // Conditions, all structural rather than tuned:
+    //   row % subgroup_size == 0    a 16-byte column group is what a single read's component covers,
+    //   COLS is a power of two      so [t*COLS, t*COLS + COLS) never straddles a read boundary and
+    //                               the read index stays a compile-time constant (the .cl indexes a
+    //                               uchar16 with it; a runtime index would become indirect addressing),
+    //   COLS <= 16                  one read must cover at least one whole token,
+    //   block_size == subgroup_size the page's token index must equal the key's subgroup-local index.
+    // Only ever enabled where the corresponding block2d path is off, so the two never compete; in
+    // practice that leaves u4 head 32 and 64 (COLS 1 and 2), which also keeps the live page small.
+    const auto pa_1d_page_ok = [&](size_t row_elems) {
+        const auto sg = static_cast<size_t>(ocl_config.subgroup_size);
+        if (row_elems == 0 || sg == 0 || row_elems % sg != 0)
+            return false;
+        if (static_cast<size_t>(config.paged_attention_block_size) != sg)
+            return false;
+        const size_t cols = row_elems / sg;
+        return cols <= 16 && (cols & (cols - 1)) == 0;
+    };
+    int k_pa_1d = (pa_u4_by_channel_tm && !k_pa_2d_i8 && pa_1d_page_ok(pa_k_row_elems)) ? 1 : 0;
+    // Bisection toggle, same role as SDPA_OCL_K_PA_I8_2D: =0 restores the scalar gather. Same
+    // dequant arithmetic on both sides, so a result that changes under =0 points at the page read
+    // or its index mapping. NOT bit-identical though, and deliberately so: the new branch drops the
+    // per-key `key < k` guard (like the block2d branches do), which leaves a key at/past k holding
+    // finite garbage instead of 0. The mask adds -INFINITY to that key's score either way, so the
+    // OUTPUT matches -- but a debug dump of k_raw/vb will not.
+    if (const char* env = std::getenv("SDPA_OCL_K_PA_1D"))
+        k_pa_1d = std::atoi(env);
+    jit.make("USE_1D_BLOCK_IO_K_PA_U4", k_pa_1d);
+    int v_pa_1d = (pa_u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(pa_v_row_elems)) ? 1 : 0;
+    if (const char* env = std::getenv("SDPA_OCL_V_PA_1D"))
+        v_pa_1d = std::atoi(env);
+    jit.make("USE_1D_BLOCK_IO_V_PA_U4", v_pa_1d);
     // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
     // output layout only, so KV compression must NOT disable it -- it used to share one flag with
     // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.

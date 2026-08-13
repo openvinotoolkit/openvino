@@ -239,6 +239,11 @@
 #if (KV_HEADS_GROUP_SIZE % Q_PER_WG) != 0
 // The last workgroup of a kv group has fewer than Q_PER_WG real heads (e.g. kv group 7 with M 4).
 #    define HAS_HEAD_LEFTOVERS 1
+// Row m's q-head, clamped the same way the Q load clamps it: a leftover slot must not index past the
+// last head, and nothing it computes is ever stored.
+#    define SINK_HEAD(m) (head_base + ((m) < heads_this_wg ? (m) : 0))
+#else
+#    define SINK_HEAD(m) (head_base + (m))
 #endif
 
 // M-wide operand/accumulator types. MAKE_VECTOR_TYPE(T, 1) is the scalar T, so element access needs
@@ -403,6 +408,9 @@ KERNEL(sdpa_ocl_decode)(
     const __global INPUT5_TYPE* block_indices_begins,
 #if HAS_SCALE_INPUT
     const __global SCALE_INPUT_TYPE* scale,
+#endif
+#ifdef HAS_SINK_INPUT
+    const __global SINK_DATA_T* sink_ptr,
 #endif
     __global OUTPUT_TYPE* output,
     __global SOFTMAX_ACCUMULATOR_TYPE* exp_sums,
@@ -799,6 +807,20 @@ KERNEL(sdpa_ocl_decode)(
             my_max = slm_max[lane * Q_PER_WG + m];
         }
         QV(m_wg, m) = sub_group_reduce_max(my_max);
+#ifdef HAS_SINK_INPUT
+        // Attention sink: an extra per-head logit whose value vector is ZERO, so it only widens the
+        // max and the denominator. PARTITION 0 ONLY -- every partition runs its own local softmax and
+        // the finalization merges them by rescaling each exp_sum with exp(local_max - global_max), so
+        // a sink counted in all P partitions would land in the denominator P times. Same placement
+        // and same reason as pa_sdpa_opt (paged_attention_opt.cl), whose SDPA_STAGE_1 this kernel
+        // feeds unchanged.
+        // Injected HERE, before slm_p is filled below, so the probabilities, l_sg and max_logits all
+        // see the sink-inclusive max. m_wg is reduced identically by every subgroup, so this needs no
+        // barrier and stays workgroup-consistent.
+        if (partition_idx == 0) {
+            QV(m_wg, m) = SOFTMAX_ACCUMULATOR_MAX_FUNC(QV(m_wg, m), TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[SINK_HEAD(m)]));
+        }
+#endif
     }
 
     // Probabilities against the partition max, so S*V needs no rescale at all. A fully masked key
@@ -848,7 +870,16 @@ KERNEL(sdpa_ocl_decode)(
         if (lane < SG_PER_WG) {
             my_sum = slm_sum[lane * Q_PER_WG + m];
         }
-        const SOFTMAX_ACCUMULATOR_TYPE lw = sub_group_reduce_add(my_sum);
+        SOFTMAX_ACCUMULATOR_TYPE lw = sub_group_reduce_add(my_sum);
+#ifdef HAS_SINK_INPUT
+        // The sink's own term, against the same partition max its logit already widened above. Only
+        // partition 0, for the reason spelled out at the max injection. It rides into inv_l (so
+        // tmp_out is normalised by the sink-inclusive sum) and into exp_sums, which is exactly the
+        // pair SDPA_STAGE_1 needs to reconstruct the global denominator.
+        if (partition_idx == 0) {
+            lw += native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(sink_ptr[SINK_HEAD(m)]) - QV(m_wg, m));
+        }
+#endif
         QV(l_wg, m) = lw;
         QV(inv_l, m) = SOFTMAX_ACCUMULATOR_VAL_ONE / lw;
     }
