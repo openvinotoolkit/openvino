@@ -10,7 +10,7 @@ set(TARGET_NAME "openvino_intel_gpu_onednn_obj${OV_GPU_SUFFIX}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
-    LINK_LIBRARIES onednn_gpu_tgt
+    LINK_LIBRARIES onednn_gpu_tgt${OV_GPU_SUFFIX}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
