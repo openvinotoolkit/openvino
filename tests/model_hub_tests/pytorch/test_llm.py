@@ -249,6 +249,30 @@ def unpatch_gptq(orig_cuda_check, orig_post_init_model, orig_awq_post_init, orig
                 pass
 
 
+def _replace_quant_layers_with_linear(model, quant_cls, dequantize):
+    """Replace every ``quant_cls`` module with a plain fp32 nn.Linear.
+
+    ``dequantize(module)`` must return the (in_features, out_features) weight
+    in any float dtype.
+    """
+    for name, module in list(model.named_modules()):
+        if not isinstance(module, quant_cls):
+            continue
+        weight = dequantize(module).t().contiguous().float()  # (in, out) -> (out, in)
+        linear = torch.nn.Linear(
+            module.in_features, module.out_features,
+            bias=module.bias is not None, dtype=weight.dtype,
+        )
+        linear.weight = torch.nn.Parameter(weight, requires_grad=False)
+        if module.bias is not None:
+            linear.bias = torch.nn.Parameter(
+                module.bias.detach().clone().float(), requires_grad=False)
+        # Replace module in parent
+        parts = name.rsplit(".", 1)
+        parent = model.get_submodule(parts[0]) if len(parts) == 2 else model
+        setattr(parent, parts[-1], linear)
+
+
 def _replace_awq_with_linear(model):
     """Replace AWQ quantized linear layers with plain nn.Linear.
 
@@ -262,24 +286,32 @@ def _replace_awq_with_linear(model):
     except ImportError:
         return
 
-    for name, module in list(model.named_modules()):
-        if not isinstance(module, AWQuantLinear):
-            continue
-        weight = dequantize_gemm(
-            module.qweight, module.qzeros, module.scales,
-            module.bits, module.group_size,
-        ).t().contiguous().float()  # dequantize_gemm returns (in, out); Linear expects (out, in)
-        linear = torch.nn.Linear(
-            module.in_features, module.out_features,
-            bias=module.bias is not None, dtype=weight.dtype,
-        )
-        linear.weight = torch.nn.Parameter(weight, requires_grad=False)
-        if module.bias is not None:
-            linear.bias = torch.nn.Parameter(module.bias.data.clone(), requires_grad=False)
-        # Replace module in parent
-        parts = name.rsplit(".", 1)
-        parent = model.get_submodule(parts[0]) if len(parts) == 2 else model
-        setattr(parent, parts[-1], linear)
+    _replace_quant_layers_with_linear(
+        model, AWQuantLinear,
+        lambda m: dequantize_gemm(m.qweight, m.qzeros, m.scales,
+                                  m.bits, m.group_size))
+
+
+def _replace_gptq_with_linear(model):
+    """Replace GPTQ quantized linear layers with plain fp32 nn.Linear.
+
+    Must be called after conversion so OpenVINO consumes the original packed
+    weights, while the framework reference runs exact fp32 math instead of
+    gptqmodel's bf16 train-mode forward, whose noise exceeds the comparison
+    tolerance.
+    """
+    try:
+        from gptqmodel.nn_modules.qlinear import PackableQuantLinear
+    except ImportError:
+        return
+
+    def dequantize(m):
+        # fp32 scales make dequantize_weight() exact (the checkpoint keeps
+        # fp16 scales); the module is discarded right after
+        m.scales = m.scales.detach().clone().float()
+        return m.dequantize_weight()
+
+    _replace_quant_layers_with_linear(model, PackableQuantLinear, dequantize)
 
 
 @contextmanager
@@ -605,6 +637,9 @@ class TestLLMModel(TestTorchConvertModel):
             from openvino.frontend.pytorch.quantized import unpatch_quantized
             unpatch_quantized(self.model)
             decompress_compressed_tensors_model(self.model)
+        from openvino.frontend.pytorch.quantized import detect_quantized_model
+        if detect_quantized_model(self.model) == "gptq":
+            _replace_gptq_with_linear(self.model)
         return ovm
 
     def _convert_model_export(self, model_obj):
@@ -652,6 +687,8 @@ class TestLLMModel(TestTorchConvertModel):
         finally:
             if is_quant_patched:
                 unpatch_quantized_for_export(self.model)
+        if quant_type == "gptq":
+            _replace_gptq_with_linear(self.model)
         return ovm
 
     def teardown_method(self):
@@ -754,14 +791,9 @@ class TestLLMModel(TestTorchConvertModel):
     def get_supported_export_precommit_models():
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             return []
-        
-        # Reason for "opt_gptq", "katuni4ka/opt-125m-gptq" skip: CVS-191720
-        # return [
-        #             ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-        #             ("opt_gptq", "katuni4ka/opt-125m-gptq"),
-        #         ]
         return [
-            ("llama_awq", "casperhansen/tinyllama-1b-awq")
+            ("llama_awq", "casperhansen/tinyllama-1b-awq"),
+            ("opt_gptq", "katuni4ka/opt-125m-gptq"),
         ]
 
     @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())

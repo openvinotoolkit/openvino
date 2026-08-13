@@ -2426,7 +2426,8 @@ def test_gptq_export_pipeline():
         assert not hasattr(m, "_openvino_quantized_patch_orig_forward")
 
 
-def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32):
+def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32,
+                                 scales_dtype=torch.float16, with_bias=False):
     """Build a minimal GPTQ model whose linear layer mimics gptqmodel's
     ``TorchFusedQuantLinear`` backend (``QUANT_TYPE == "torch_fused"``), using the
     standard 4-bit/int32 weight packing the OpenVINO GPTQ patcher expects. The
@@ -2436,6 +2437,7 @@ def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32)
     """
     bits = 4
     pack_num = 32 // bits  # 8 nibbles per int32
+    rng = torch.Generator().manual_seed(7)
 
     class FakeQuantConfig:
         quant_method = "gptq"
@@ -2455,13 +2457,18 @@ def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32)
             # parameters); the OpenVINO patcher re-assigns plain tensors to them.
             self.register_buffer("qweight", torch.randint(
                 0, 2 ** 31, (in_features // pack_num, out_features),
-                dtype=torch.int32))
+                dtype=torch.int32, generator=rng))
             self.register_buffer("qzeros", torch.randint(
                 0, 2 ** 31, (in_features // group_size, out_features // pack_num),
-                dtype=torch.int32))
+                dtype=torch.int32, generator=rng))
             self.register_buffer("scales", torch.randn(
-                in_features // group_size, out_features, dtype=torch.float16))
-            self.bias = None
+                in_features // group_size, out_features, dtype=scales_dtype,
+                generator=rng))
+            if with_bias:
+                self.register_buffer("bias", torch.randn(
+                    out_features, dtype=scales_dtype, generator=rng))
+            else:
+                self.bias = None
 
         def forward(self, x):
             return torch.zeros(*x.shape[:-1], out_features, dtype=x.dtype, device=x.device)
@@ -2475,7 +2482,7 @@ def _make_torch_fused_gptq_model(in_features=32, out_features=64, group_size=32)
         def forward(self, x):
             return self.linear(x)
 
-    return GPTQModel(), torch.randn(2, in_features)
+    return GPTQModel(), torch.randn(2, in_features, generator=rng)
 
 
 def test_gptq_torch_fused_convert_keeps_u4():
@@ -2522,6 +2529,77 @@ def test_gptq_torch_fused_export_supported():
         assert hasattr(model.linear, "_openvino_quantized_patch_orig_forward")
     finally:
         unpatch_quantized_for_export(model)
+
+
+def _dequantize_gptq_sym_reference(qweight, scales, group_size):
+    """Exact fp32 dequantization of symmetric 4-bit GPTQ packing: nibble ``k`` of
+    int32 word ``r`` is weight row ``r*8+k``; zero point is 8; each block of
+    ``group_size`` rows uses one scales row. Returns (in_features, out_features)."""
+    qw = qweight.numpy().astype(np.uint32)
+    nibbles = np.stack([(qw >> (4 * k)) & 0xF for k in range(8)], axis=1)
+    weight = nibbles.reshape(-1, qw.shape[1]).astype(np.float32) - 8.0
+    scales_full = np.repeat(scales.float().numpy(), group_size, axis=0)
+    return weight * scales_full
+
+
+def _gptq_fused_reference(model, x):
+    """Exact fp32 reference ``x @ dequant(qweight) + bias`` for the fixture model."""
+    linear = model.linear
+    w_ref = _dequantize_gptq_sym_reference(linear.qweight, linear.scales,
+                                           linear.group_size)
+    return x.numpy().astype(np.float32) @ w_ref + linear.bias.float().numpy()
+
+
+# Disable dynamic quantization of activations: the numeric tests verify conversion
+# numerics, not the CPU plugin's input-dependent quantized-GEMM accuracy.
+_no_dynamic_quant_cfg = {**default_cfg, "DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
+
+
+@pytest.mark.parametrize("scales_dtype,tolerance", [
+    (torch.float16, 2e-2),  # dequant chain in f16 rounds each weight to f16
+    (torch.float32, 1e-5),  # fp32 scales: conversion must be numerically exact
+])
+def test_gptq_torch_fused_export_numeric(scales_dtype, tolerance):
+    """The torch.export path of a symmetric torch_fused GPTQ linear must compute
+    the same numbers as exact fp32 dequantization ``x @ ((u4 - 8) * scales) + b``.
+    The reference is computed manually: the patched forward routes through the
+    ``ov_ext::gptq_gemm`` placeholder, which never computes the quantized matmul
+    on the torch side."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch.quantized import (
+        patch_quantized_for_export, unpatch_quantized_for_export)
+
+    model, x = _make_torch_fused_gptq_model(scales_dtype=scales_dtype,
+                                            with_bias=True)
+    model.eval()
+    ref = _gptq_fused_reference(model, x)
+
+    patch_quantized_for_export(model)
+    try:
+        with torch.no_grad():
+            ep = torch.export.export(model, (x,), strict=False)
+    finally:
+        unpatch_quantized_for_export(model)
+
+    cm = compile_model(convert_model(ep), "CPU", _no_dynamic_quant_cfg)
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], ref, atol=tolerance, rtol=tolerance)
+
+
+def test_gptq_torch_fused_convert_numeric():
+    """The TorchScript path of the same symmetric torch_fused GPTQ linear must
+    match the exact fp32 dequantization reference (the GPTQ patcher upcasts
+    scales to fp32 via ``module.float()`` before tracing)."""
+    from openvino import convert_model, compile_model
+
+    model, x = _make_torch_fused_gptq_model(with_bias=True)
+    model.eval()
+    ref = _gptq_fused_reference(model, x)
+
+    cm = compile_model(convert_model(model, example_input=(x,)), "CPU",
+                       _no_dynamic_quant_cfg)
+    res = cm([x.numpy()])
+    np.testing.assert_allclose(res[0], ref, atol=1e-5, rtol=1e-5)
 
 
 # ──────────────────────────────────────────────────────────────────────
