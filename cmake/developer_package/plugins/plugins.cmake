@@ -78,6 +78,9 @@ function(ov_add_plugin)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
                 OV_CREATE_PLUGIN=create_plugin_engine_${OV_PLUGIN_DEVICE_NAME})
+            # likewise for the device-dispatch enumeration probe every plugin defines
+            target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE
+                OV_ENUMERATE_DEVICES=ov_enumerate_dispatch_devices_${OV_PLUGIN_DEVICE_NAME})
             if(OV_PLUGIN_AS_EXTENSION)
                 # to distinguish functions creating extensions objects
                 target_compile_definitions(${OV_PLUGIN_NAME} PRIVATE

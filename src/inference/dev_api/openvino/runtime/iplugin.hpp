@@ -337,9 +337,20 @@ struct EnumeratedDevice {
 using EnumerateDevicesFunc = void(std::vector<EnumeratedDevice>& /*out*/) noexcept;
 
 /**
+ * @def OV_ENUMERATE_DEVICES
+ * @brief Defines a name of a function running the device-dispatch enumeration probe. A static
+ * build links every plugin into one binary, so the name is made per-device there (as for
+ * OV_CREATE_PLUGIN) to keep the definitions from colliding.
+ * @ingroup ov_dev_api_plugin_api
+ */
+#ifndef OV_ENUMERATE_DEVICES
+#    define OV_ENUMERATE_DEVICES ov_enumerate_dispatch_devices
+#endif
+
+/**
  * @private
  */
-constexpr static const auto enumerate_devices_function = "ov_enumerate_dispatch_devices";
+constexpr static const auto enumerate_devices_function = OV_PP_TOSTRING(OV_ENUMERATE_DEVICES);
 
 }  // namespace ov
 
@@ -368,11 +379,10 @@ constexpr static const auto enumerate_devices_function = "ov_enumerate_dispatch_
  * so @p enumerate_fn must not build an engine/context. See ov::EnumerateDevicesFunc.
  * @ingroup ov_dev_api_plugin_api
  */
-#define OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_fn)                                            \
-    OPENVINO_PLUGIN_API void ov_enumerate_dispatch_devices(                                          \
-        ::std::vector<::ov::EnumeratedDevice>& devices) noexcept;                                    \
-    void ov_enumerate_dispatch_devices(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {    \
-        (enumerate_fn)(devices);                                                                     \
+#define OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_fn)                                                   \
+    OPENVINO_PLUGIN_API void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept; \
+    void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {                    \
+        (enumerate_fn)(devices);                                                                            \
     }
 
 /**
@@ -383,9 +393,8 @@ constexpr static const auto enumerate_devices_function = "ov_enumerate_dispatch_
  * single-candidate device name, so a stubbed plugin keeps exactly today's behavior.
  * @ingroup ov_dev_api_plugin_api
  */
-#define OV_DEFINE_PLUGIN_ENUMERATE_STUB()                                                            \
-    OPENVINO_PLUGIN_API void ov_enumerate_dispatch_devices(                                          \
-        ::std::vector<::ov::EnumeratedDevice>& devices) noexcept;                                    \
-    void ov_enumerate_dispatch_devices(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {    \
-        devices.clear();                                                                             \
+#define OV_DEFINE_PLUGIN_ENUMERATE_STUB()                                                                   \
+    OPENVINO_PLUGIN_API void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept; \
+    void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {                    \
+        devices.clear();                                                                                    \
     }
