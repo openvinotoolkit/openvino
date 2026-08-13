@@ -298,6 +298,76 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_s
     paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
 }));
 
+// ------------------------------------------------------------------ attention sinks (gpt-oss)
+// A sink is one extra per-head logit whose value vector is ZERO: it enlarges the softmax denominator
+// and changes nothing else. PagedAttentionReference now models exactly that (a sink score column
+// concatenated before the softmax, plus a matching zero V row), so these cases are a VALUE check --
+// unlike paged_attention_sink_v2_effect_test above, which only asserts that the output moved.
+//
+// The sink VALUE has to be chosen against the denominator or the test is vacuous. Query/key data
+// here is N(0, 0.1), so at scale 1/sqrt(head_size) the logits are ~0.01 and every exp(s - m) is ~1,
+// which puts the denominator at ~kv_len. sink = log(kv_len) therefore lands the sink at ~50% of it,
+// and the per-head spread walks that across ~18%..82%: far above the comparison tolerance, and
+// DIFFERENT per head, so a kernel that reads the wrong head's sink cannot pass either.
+//
+// force_flashattn_v2 is deliberately left off. It also sets has_token_type_ids, which makes
+// can_use_micro_sdpa_for reject every stage but PREFILL -- these cases need to reach sdpa_ocl in
+// MIXED too.
+static paged_attention_test_params with_sinks(paged_attention_test_params p) {
+    int kv_len = 0;
+    for (const auto& s : p.subsequences)
+        kv_len = std::max(kv_len, s.num_tokens + s.past_len);
+
+    static const float spread[4] = {-1.5f, -0.5f, 0.5f, 1.5f};
+    std::vector<ov::float16> sinks(p.num_heads);
+    for (int h = 0; h < p.num_heads; h++)
+        sinks[h] = ov::float16(std::log(static_cast<float>(kv_len)) + spread[h % 4]);
+
+    p.has_sink_input = true;
+    p.sink_values = sinks;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    /* PREFILL: sdpa_ocl (or sdpa_micro) reads the K/V INPUTS, never the cache */
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL, GQA and a head size where D_MAX > HEAD_SIZE (48 -> 64), so the scalar fallbacks run */
+    with_sinks(paged_attention_test_params{ {{64, 0}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{64, 0}}, 4, 4, 48, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL, i8 cache in both quant modes -- exercises sdpa_ocl's dequant paths with a sink */
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL: two prompts in one batch, so the query-block mapping hands out blocks from both */
+    with_sinks(paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+
+    /* GENERATE: one partition */
+    with_sinks(paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: 516 keys > SEQ_LEN_PARTITION_SIZE, so the sink must land in partition 0 ONLY and the
+       finalization has to merge three partitions around it. This is THE case for the partition-0
+       contract; a sink counted per partition triples its weight here and passes at {1, 34}. */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: GQA, multi-partition, head 128 -- the M>1 path where each row needs ITS OWN head's sink */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: GQA group 7 is not a power of two, so the last workgroup of each group runs with
+       head leftovers and the sink index has to be clamped exactly like the Q load's */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 28, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: sliding window, which drops the fully-masked prefix from the partition COUNT --
+       partition 0 then starts mid-sequence and still has to be the one carrying the sink */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 300, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: i8 cache, both quant modes */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+
+    /* MIXED: 2nd token + 1st token + part of a 1st token in one batch. sdpa_ocl reads the K/V CACHE
+       here, and past_len is arbitrary, so the causal bound and the sink seed interact */
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* MIXED: i8 cache, both quant modes */
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+}));
+
 static paged_attention_test_params make_zero_key_regression_params(const ov::element::Type& kv_cache_precision) {
     paged_attention_test_params p{{{32, 0}},
                                   32,
