@@ -139,7 +139,7 @@ size_t SDPAOclDecodeGenerator::get_sg_per_wg() {
 bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     static const bool enabled = []() {
         const char* env = std::getenv("TEST_USE_SDPA_OCL_DECODE");
-        return env != nullptr && env[0] == '1';
+        return env == nullptr ? true : (env != nullptr && env[0] == '1');
     }();
     if (!enabled) {
         return false;
