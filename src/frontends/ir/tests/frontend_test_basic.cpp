@@ -1864,7 +1864,9 @@ TEST_F(IRFrontendTests, string_const_offset_overflow_is_rejected) {
     std::vector<unsigned char> buffer(16, 0);
     createTemporalModelFile(xmlModel, buffer);
 
-    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.read_model(xmlFileName, binFileName),
+                                  ov::Exception,
+                                  "Incorrect weights in bin file");
 }
 
 TEST_F(IRFrontendTests, string_const_size_exceeds_weights_is_rejected) {
@@ -1897,7 +1899,9 @@ TEST_F(IRFrontendTests, string_const_size_exceeds_weights_is_rejected) {
     std::vector<unsigned char> buffer(16, 0);
     createTemporalModelFile(xmlModel, buffer);
 
-    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.read_model(xmlFileName, binFileName),
+                                  ov::Exception,
+                                  "Incorrect weights in bin file");
 }
 
 TEST_F(IRFrontendTests, string_const_offset_plus_size_overflow_is_rejected) {
@@ -1930,5 +1934,7 @@ TEST_F(IRFrontendTests, string_const_offset_plus_size_overflow_is_rejected) {
     std::vector<unsigned char> buffer(16, 0);
     createTemporalModelFile(xmlModel, buffer);
 
-    ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.read_model(xmlFileName, binFileName),
+                                  ov::Exception,
+                                  "Incorrect weights in bin file");
 }
