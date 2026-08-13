@@ -4,17 +4,19 @@
   "signature_hash": "588722c200316c0d",
   "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-08-12T06:33:16Z",
-  "last_seen": "2026-08-12T06:33:16Z",
+  "last_seen": "2026-08-13T11:46:47Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/31691111065",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31565607750"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37053",
     "https://github.com/openvinotoolkit/openvino/pull/37369"
   ],
   "recent_timestamps": [
-    "2026-08-12T06:33:16Z"
+    "2026-08-13T11:46:47Z"
   ],
   "rerun_search_string": null
 }

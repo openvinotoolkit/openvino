@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-13-11-46-47-000-31691111065",
+  "timestamp": "2026-08-13T11:46:47Z",
+  "run_id": "31691111065",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31691111065",
+  "workflow_name": "iGPU Tests (func) / GPU",
+  "pr_number": "37053",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37053",
+  "author": "alvoron",
+  "category": "Code Issue",
+  "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
+  "signature": "smoke scaledattndynamic4d gpu scaledattnlayergputest comparewithref killed by signal sigsegv|Code Issue",
+  "signature_hash": "588722c200316c0d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest killed by SIGSEGV (1 of 41389 tests)"
+    }
+  ],
+  "key_errors": [
+    "[38571/41389] smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=f16_IS=[?.8.?.128]_[?.8.?.128]_[?.8.?.64]_[?.1.?.?]_TS=(...)_is_causal=1_has_attn=0_has_scale=1_is_scale_const=1_with_transpose0_has_sink=0_ killed by signal SIGSEGV (1380 ms)",
+    "Process completed with exit code 245."
+  ],
+  "root_cause": "The single GPU functional test smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs with specific parameters (4D dynamic inputs, causal=1, no attention mask, constant scale) crashed with SIGSEGV during the iGPU functional test run. This test is unrelated to the ARM CPU changes in PR #37053, which only modifies Intel CPU ARM transformation passes. The same test (smoke_ScaledAttnDynamic4D_GPU SIGSEGV) was previously seen on 2026-08-12 in PR #37369, indicating a pre-existing instability in the GPU ScaledDotProductAttention kernel for this specific 4D dynamic input configuration.",
+  "reproduction_steps": "Run: ov_gpu_func_tests --gtest_filter='smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=f16_IS=[?.8.?.128]_[?.8.?.128]_[?.8.?.64]_[?.1.?.?]*is_causal=1_has_attn=0*has_scale=1_is_scale_const=1_with_transpose0*' on iGPU hardware",
+  "recommended_actions": [
+    "Check if GPU ScaledAttnDynamic4D test SIGSEGV is a known issue in the GPU plugin tracker",
+    "The PR #37053 (ARM CPU transformations) is unrelated \u2014 do not block it for this GPU failure",
+    "Investigate the GPU SDPA kernel for 4D dynamic shapes with causal masking and constant scale but no attention mask"
+  ],
+  "prevention_strategies": "Add crash guard / signal handler in GPU SDPA tests for non-reproducible flaky SIGSEGV. Track GPU test stability in a separate issue.",
+  "historical_context": "Same SIGSEGV pattern seen previously on 2026-08-12 in run 31565607750 (PR #37369). Pattern hash 588722c200316c0d, count now 2."
+}

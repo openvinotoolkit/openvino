@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 154,
+  "total": 155,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1508,6 +1508,17 @@
       "category": "Network",
       "signature_hash": "272cc033ad86cee8",
       "pr_number": "37392"
+    },
+    {
+      "investigation_id": "2026-08-13-11-46-47-000-31691111065",
+      "run_id": "31691111065",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31691111065",
+      "workflow_name": "iGPU Tests (func) / GPU",
+      "timestamp": "2026-08-13T11:46:47Z",
+      "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
+      "category": "Code Issue",
+      "signature_hash": "588722c200316c0d",
+      "pr_number": "37053"
     }
   ]
 }
