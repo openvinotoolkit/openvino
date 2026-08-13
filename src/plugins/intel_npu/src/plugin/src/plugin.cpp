@@ -325,7 +325,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     ov::AnyMap localProperties = properties;
-    auto weightSharingContext = extract_weight_sharing_context(localProperties);
     if (localProperties.count(useNpuwKey)) {
         if (localProperties.at(useNpuwKey).as<bool>() == true) {
             return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), localProperties);
@@ -335,6 +334,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
+    auto weightSharingContext = extract_weight_sharing_context(localProperties);
     if (_backend != nullptr) {
         _backend->updateInfo(localProperties);
     }
