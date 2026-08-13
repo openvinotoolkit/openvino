@@ -1076,6 +1076,21 @@ protected:
             cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_key_by_channel);
         jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
 
+        // Give the PREFILL stage one extra workgroup along gws[2] that only quantizes V. V is
+        // BY_TOKEN over all of its head dims (a sub_group reduction), so a single workgroup has to own
+        // it -- and in prefill that same workgroup also quantizes K for every channel, then loops over
+        // all 16 tokens of V serially. Splitting them makes the cost max(K, V) instead of K + V.
+        // Measured on a 2-block dispatch (head 128, 8 kv heads, B70): u4 19.1 us -> 14.3 us,
+        // i8 8.2 us -> 5.6 us.
+        //
+        // Only BY_CHANNEL K can do this -- otherwise K is itself per-token and shares the reduction
+        // structure, leaving nothing to overlap. And only PREFILL benefits: in generate, K is already
+        // split over NUM_K_HEAD_SIZE_PARTITIONS workgroups and V costs 315 ns standalone but only
+        // 22 ns when appended to a workgroup's K (2755 -> 2777 ns), because K is a long dependent
+        // chain whose idle issue slots absorb it. An extra workgroup there would be pure overhead.
+        const bool separate_v_wg_prefill = is_kv_compressed && is_key_by_channel;
+        jit.make("HAS_SEPARATE_V_WG_PREFILL", separate_v_wg_prefill ? 1 : 0);
+
         return jit;
     }
 
@@ -1122,7 +1137,11 @@ protected:
             if (is_prefill) {
                 const auto blocks_number = rtp->paged_attention_aligned_seq_len / paged_attention_block_size;
 
-                wgs.global = {blocks_number, heads_number, subgroup_size};
+                // One extra workgroup along gws[2] that does only V, when the kernel was compiled for
+                // it (HAS_SEPARATE_V_WG_PREFILL). Must agree with that jit constant exactly: too few
+                // workgroups and V is never written, too many and V is written twice.
+                const bool separate_v_wg = get_kv_compressed(params) && desc->is_key_by_channel;
+                wgs.global = {blocks_number, heads_number, subgroup_size * (separate_v_wg ? 2 : 1)};
                 wgs.local = {1, 1, subgroup_size};
             } else {
                 const auto& key_input = params.input_layouts[0];
