@@ -89,7 +89,7 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
 
 #ifdef OV_GPU_VENDOR_NVIDIA
-        // cuDNN matmul doesn't support 5D/6D format tags (abcde, abcdef)
+        // cuDNN matmul doesn't support 4D/5D/6D format tags (abcde, abcdef)
         // Reject rank > 3 to fall back to OCL kernels
         if (in0_shape.rank().is_static() && in0_shape.rank().get_length() > 3)
             return false;
@@ -157,16 +157,19 @@ struct GemmImplementationManager : public ImplementationManager {
         std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
-        size_t out_rank = node.get_output_layout().get_rank();
-        auto target_format = format::get_default_format(out_rank);
-
-        for (size_t idx = 0 ; idx < in_fmts.size() ; idx++) {
+        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
             if (node.get_dependency(idx).is_constant())
                 continue;
 
+            size_t out_rank = node.get_output_layout().get_rank();
+            auto target_format = format::get_default_format(out_rank);
+
             in_fmts[idx] = target_format;
+
+            if (out_fmts[0] == format::any) {
+                out_fmts[0] = target_format;
+            }
         }
-        out_fmts[0] = target_format;
 
         return {in_fmts, out_fmts};
     }

@@ -17,7 +17,6 @@ namespace onednn {
 struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
     using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
-    // (no per-instance cached memory descs needed at the moment)
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::gemm_onednn)
 
@@ -77,8 +76,7 @@ protected:
                                                      gemm_with_bias,
                                                      bias_dt,
                                                      bias_dims,
-                                                     bias_fmt,
-                                                     /*is_update=*/true);
+                                                     bias_fmt);
             OPENVINO_ASSERT(md_ok, "[GPU] oneDNN GEMM runtime memory descriptor creation failed");
 
             in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
@@ -160,7 +158,6 @@ protected:
         }
     }
 
-    // Returns false if transpose order is not supported by oneDNN
     static bool get_gemm_primitive_md(const kernel_impl_params& impl_params,
                                       dnnl::memory::data_type& in0_dt,
                                       dnnl::memory::data_type& in1_dt,
@@ -176,8 +173,7 @@ protected:
                                       bool gemm_with_bias,
                                       dnnl::memory::data_type& bias_dt,
                                       dnnl::memory::dims& bias_dims,
-                                      dnnl::memory::format_tag& bias_fmt,
-                                      bool is_update) {
+                                      dnnl::memory::format_tag& bias_fmt) {
         auto prim = impl_params.typed_desc<gemm>();
         auto out_l = impl_params.get_output_layout();
 
@@ -191,12 +187,6 @@ protected:
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
-        bool is_dynamic_shape = in0_l.is_dynamic() || in1_l.is_dynamic() || out_l.is_dynamic();
-        if (gemm_with_bias) {
-            is_dynamic_shape = is_dynamic_shape || in_layouts[2].is_dynamic();
-        }
-
-        bool batched_dims_can_be_removed = !is_update;
         size_t rank = cldnn::format::dimension(out_l.format);
 
         in0_dt = onednn::convert_data_type(in0_l.data_type);
@@ -251,10 +241,10 @@ protected:
             return true;
         };
 
-        auto transpose_dims_and_format_tag = [&has_transpose_order_xy_only](std::vector<int64_t> transpose_order,
+        auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
                                                 dnnl::memory::dims& dims,
                                                 dnnl::memory::format_tag& tag,
-                                                bool is_input = true) -> bool {
+                                                bool is_input = true) {
             std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
             if (dims.size() > order.size()) {
                 size_t orders_to_add = dims.size() - order.size();
@@ -262,33 +252,6 @@ protected:
                     order.insert(order.begin(), i);
                 for (size_t i = orders_to_add; i < order.size(); ++i)
                     order[i] = order[i] + orders_to_add;
-            }
-
-            // Convert order to int64_t vector for has_transpose_order_xy_only check
-            std::vector<int64_t> order_int64(order.begin(), order.end());
-
-            // Check if the expanded order represents xy-only transpose
-            if (has_transpose_order_xy_only(order_int64)) {
-                // Helper lambda to transpose format tag
-                auto transpose_fmt = [](dnnl::memory::format_tag fmt) -> dnnl::memory::format_tag {
-                    using tag = dnnl::memory::format_tag;
-                    switch (fmt) {
-                        case tag::ab: return tag::ba;
-                        case tag::ba: return tag::ab;
-                        case tag::abc: return tag::acb;
-                        case tag::acb: return tag::abc;
-                        case tag::abcd: return tag::abdc;
-                        case tag::abdc: return tag::abcd;
-                        case tag::abcde: return tag::abced;
-                        case tag::abced: return tag::abcde;
-                        case tag::abcdef: return tag::abcdfe;
-                        case tag::abcdfe: return tag::abcdef;
-                        default: return fmt;
-                    }
-                };
-                tag = transpose_fmt(tag);
-                std::swap(dims[dims.size() - 1], dims[dims.size() - 2]);
-                return true;
             }
 
             bool ret = false;
@@ -312,10 +275,10 @@ protected:
                         dims[order[i]] = original_dims[i];
                     }
                 }
-                return true;
             } else {
-                // oneDNN GEMM doesn't support this transpose order - return false to skip this implementation
-                return false;
+                std::ostringstream ostream;
+                std::copy(order.begin(), order.end(), std::ostream_iterator<size_t>(ostream, ", "));
+                OPENVINO_ASSERT(false, "[GPU] Can't find fusable transpose format: ", ostream.str());
             }
         };
 
@@ -324,9 +287,7 @@ protected:
                 in0_fmt = transpose_format(in0_fmt);
                 std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
             } else {
-                if (!transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt)) {
-                    return false;  // Unsupported transpose order
-                }
+                transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
             }
         }
         if (has_transpose_order(prim->input1_transpose_order)) {
@@ -334,9 +295,7 @@ protected:
                 in1_fmt = transpose_format(in1_fmt);
                 std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
             } else {
-                if (!transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt)) {
-                    return false;  // Unsupported transpose order
-                }
+                transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
             }
         }
         if (has_transpose_order(prim->output_transpose_order)) {
@@ -344,22 +303,19 @@ protected:
                 out_fmt = transpose_format(out_fmt);
                 std::swap(out_dims[out_dims.size() - 1], out_dims[out_dims.size() - 2]);
             } else {
-                if (!transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false)) {
-                    return false;  // Unsupported transpose order
-                }
+                transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false);
             }
         }
 
         if (gemm_with_bias) {
-            // Use the already-transformed layout (in_layouts[2]), not the raw impl_params layout.
-            // bias_dims is already set correctly in both the dynamic path (convert_gemm_shape)
-            // and the static path (convert_gemm_tensor) above; do not overwrite it here.
-            const auto& bias_l = in_layouts[2];
+            auto bias_l = impl_params.get_input_layout(2);
+            auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
+            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
 
-        return true;  // Success
+        return true;
     }
 
     static dnnl::memory::desc get_input_memory_desc(const dnnl::memory::dims& dims,
@@ -399,11 +355,8 @@ protected:
         dnnl::memory::format_tag out_fmt;
         dnnl::memory::format_tag bias_fmt;
 
-        if (!get_gemm_primitive_md(impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
-                                   out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt, false)) {
-            // Transpose order not supported by oneDNN - return nullptr to skip this implementation
-            return nullptr;
-        }
+        get_gemm_primitive_md(impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
+                              out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt);
 
         dnnl::memory::desc in0_md = get_input_memory_desc(in0_dims, in0_dt, in0_fmt, in0_strides);
         dnnl::memory::desc in1_md = get_input_memory_desc(in1_dims, in1_dt, in1_fmt, in1_strides);
@@ -472,7 +425,7 @@ public:
         dnnl::memory::format_tag bias_fmt;
 
         if (!get_gemm_primitive_md(*impl_params, in0_dt, in1_dt, out_dt, in0_dims, in1_dims, in0_strides, in1_strides,
-                                   out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt, false)) {
+                                   out_dims, in0_fmt, in1_fmt, out_fmt, gemm_with_bias, bias_dt, bias_dims, bias_fmt)) {
             OPENVINO_ASSERT(false, "[GPU] oneDNN GEMM save failed: transpose order not supported");
         }
 
@@ -606,9 +559,6 @@ public:
         }
 
         auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
-        OPENVINO_ASSERT(prim_desc != nullptr,
-                        "[GPU] oneDNN GEMM primitive descriptor creation failed. "
-                        "This configuration must be rejected in validate_impl.");
 
         return std::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
