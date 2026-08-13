@@ -6,10 +6,15 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -71,6 +76,8 @@ constexpr uint32_t balanced_scalar_batch_width = 4;
 constexpr uint32_t division_scalar_batch_width = 2;
 constexpr uint32_t scalar_batch_width = 1;
 constexpr uint32_t scalar_elements_per_subgroup_budget = portable_max_local_work_group_size;
+constexpr size_t local_size_tuning_samples_per_candidate = 3;
+constexpr size_t local_size_stabilization_inferences = 20;
 
 enum class kernel_kind : uint8_t {
     dense,
@@ -122,6 +129,14 @@ bool is_f32_vector_kernel(kernel_kind kind) {
                    kernel_kind::fused_dense_f32_vec2_push_constants,
                    kernel_kind::fused_dense_f32_vec4_push_constants,
                    kernel_kind::dense_f32_vec2_no_tail_push_constants,
+                   kernel_kind::dense_f32_vec4_no_tail_push_constants,
+                   kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
+                   kernel_kind::fused_dense_f32_vec4_no_tail_push_constants});
+}
+
+bool is_no_tail_kernel(kernel_kind kind) {
+    return one_of(kind,
+                  {kernel_kind::dense_f32_vec2_no_tail_push_constants,
                    kernel_kind::dense_f32_vec4_no_tail_push_constants,
                    kernel_kind::fused_dense_f32_vec2_no_tail_push_constants,
                    kernel_kind::fused_dense_f32_vec4_no_tail_push_constants});
@@ -372,6 +387,144 @@ uint32_t select_local_work_group_size(uint32_t element_count, uint64_t device_ma
         local_size *= 2;
     }
     return local_size;
+}
+
+struct local_size_tuning_state {
+    std::mutex mutex;
+    std::atomic<uint32_t> cached_selected{0};
+    uint32_t invocation_count = 0;
+    uint32_t fallback = 1;
+    uint32_t selected = 1;
+    std::vector<uint32_t> candidates;
+    std::vector<std::vector<uint64_t>> samples;
+    size_t fallback_observations = 0;
+    bool prewarmed = false;
+    bool decided = false;
+};
+
+struct local_size_tuning_action {
+    uint32_t local_size = 1;
+    size_t candidate_index = 0;
+    bool prewarm = false;
+    bool measure = false;
+};
+
+std::vector<uint32_t> make_local_size_candidates(uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
+    const auto fallback = select_local_work_group_size(invocation_count, info.max_work_group_size);
+    std::vector<uint32_t> candidates{fallback};
+    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0) {
+        return candidates;
+    }
+
+    const auto limit = static_cast<uint32_t>(std::min<uint64_t>(info.max_work_group_size, std::numeric_limits<uint32_t>::max()));
+    const auto subgroup_size = info.supported_simd_sizes.front();
+    const auto add_candidate = [&](uint32_t candidate) {
+        if (candidate >= subgroup_size && candidate % subgroup_size == 0 && candidate <= limit && candidate <= invocation_count &&
+            (!require_exact_divisibility || invocation_count % candidate == 0)) {
+            candidates.push_back(candidate);
+        }
+    };
+    if (subgroup_size <= fallback / 2) {
+        const auto midpoint = (fallback / 2 / subgroup_size) * subgroup_size;
+        add_candidate(midpoint);
+    }
+    if (fallback <= limit / 2) {
+        const auto expanded = ((fallback * 2 + subgroup_size - 1) / subgroup_size) * subgroup_size;
+        add_candidate(expanded);
+    }
+    std::sort(candidates.begin(), candidates.end());
+    candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+    return candidates;
+}
+
+uint64_t median_local_size_sample(std::vector<uint64_t> samples) {
+    const auto middle = samples.begin() + samples.size() / 2;
+    std::nth_element(samples.begin(), middle, samples.end());
+    return *middle;
+}
+
+bool local_size_diagnostics_enabled() {
+    const auto* value = std::getenv("OV_GPU_VULKAN_LOCAL_SIZE_STATS");
+    return value != nullptr && value[0] != '\0' && std::string(value) != "0";
+}
+
+void initialize_local_size_tuning(local_size_tuning_state& state, uint32_t invocation_count, const device_info& info, bool require_exact_divisibility) {
+    state.invocation_count = invocation_count;
+    state.fallback = select_local_work_group_size(invocation_count, info.max_work_group_size);
+    state.selected = state.fallback;
+    state.candidates = make_local_size_candidates(invocation_count, info, require_exact_divisibility);
+    state.samples.assign(state.candidates.size(), {});
+    state.fallback_observations = 0;
+    state.prewarmed = false;
+    state.decided = state.candidates.size() == 1;
+    state.cached_selected.store(state.decided ? state.fallback : 0, std::memory_order_release);
+}
+
+void decide_local_size(local_size_tuning_state& state) {
+    const auto fallback_it = std::find(state.candidates.begin(), state.candidates.end(), state.fallback);
+    OPENVINO_ASSERT(fallback_it != state.candidates.end(), "[GPU][Vulkan] Eltwise local-size candidates lost the portable fallback");
+    const auto fallback_index = static_cast<size_t>(std::distance(state.candidates.begin(), fallback_it));
+    auto best_index = fallback_index;
+    auto best_median = median_local_size_sample(state.samples[fallback_index]);
+    for (size_t index = 0; index < state.candidates.size(); ++index) {
+        const auto candidate_median = median_local_size_sample(state.samples[index]);
+        if (candidate_median < best_median) {
+            best_index = index;
+            best_median = candidate_median;
+        }
+    }
+
+    if (best_index != fallback_index) {
+        const auto best_max = *std::max_element(state.samples[best_index].begin(), state.samples[best_index].end());
+        const auto fallback_min = *std::min_element(state.samples[fallback_index].begin(), state.samples[fallback_index].end());
+        if (best_max >= fallback_min) {
+            best_index = fallback_index;
+        }
+    }
+    state.selected = state.candidates[best_index];
+    state.decided = true;
+    state.cached_selected.store(state.selected, std::memory_order_release);
+
+    if (local_size_diagnostics_enabled()) {
+        std::clog << "[GPU][Vulkan][EltwiseLocalSize] invocations=" << state.invocation_count << " fallback=" << state.fallback
+                  << " selected=" << state.selected;
+        for (size_t index = 0; index < state.candidates.size(); ++index) {
+            std::clog << " candidate_" << state.candidates[index] << "_median_ns=" << median_local_size_sample(state.samples[index]);
+        }
+        std::clog << std::endl;
+    }
+}
+
+local_size_tuning_action next_local_size_action(local_size_tuning_state& state,
+                                                uint32_t invocation_count,
+                                                const device_info& info,
+                                                bool require_exact_divisibility) {
+    if (state.invocation_count != invocation_count || state.candidates.empty()) {
+        initialize_local_size_tuning(state, invocation_count, info, require_exact_divisibility);
+    }
+    if (state.decided) {
+        return {state.selected, 0, false, false};
+    }
+    if (state.fallback_observations < local_size_stabilization_inferences) {
+        ++state.fallback_observations;
+        return {state.fallback, 0, false, false};
+    }
+    if (!state.prewarmed) {
+        return {state.fallback, 0, true, false};
+    }
+
+    size_t total_samples = 0;
+    for (const auto& candidate_samples : state.samples) {
+        total_samples += candidate_samples.size();
+    }
+    const auto sample_round = total_samples / state.candidates.size();
+    if (sample_round == local_size_tuning_samples_per_candidate) {
+        decide_local_size(state);
+        return {state.selected, 0, false, false};
+    }
+    const auto position = total_samples % state.candidates.size();
+    const auto candidate_index = sample_round % 2 == 0 ? position : state.candidates.size() - position - 1;
+    return {state.candidates[candidate_index], candidate_index, false, true};
 }
 
 bool has_dense_storage(const layout& tensor_layout) {
@@ -1075,11 +1228,13 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
           _kernel_source(make_kernel_source(kind)),
           _kernel_kind(kind),
           _scalar_constant(std::move(scalar)),
-          _elements_per_invocation(elements_per_invocation) {}
+          _elements_per_invocation(elements_per_invocation),
+          _local_size_tuning(std::make_shared<local_size_tuning_state>()) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
         result->_metadata_initialized = false;
+        result->_local_size_tuning = std::make_shared<local_size_tuning_state>();
         return result;
     }
 
@@ -1238,11 +1393,25 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                                                                                        elements_per_invocation),
                         "[GPU][Vulkan] Fast broadcast Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
+        const auto& device_info = instance.get_network().get_engine().get_device_info();
+        local_size_tuning_action local_size_action;
+        std::unique_lock<std::mutex> local_size_tuning_lock;
+        if (_elements_per_invocation != 0) {
+            const auto cached_local_size = _local_size_tuning->cached_selected.load(std::memory_order_acquire);
+            if (cached_local_size != 0) {
+                local_size_action.local_size = cached_local_size;
+            } else {
+                local_size_tuning_lock = std::unique_lock<std::mutex>(_local_size_tuning->mutex);
+                local_size_action = next_local_size_action(*_local_size_tuning, invocation_count, device_info, is_no_tail_kernel(_kernel_kind));
+                if (!local_size_action.prewarm && !local_size_action.measure) {
+                    local_size_tuning_lock.unlock();
+                }
+            }
+        } else {
+            local_size_action.local_size = select_local_work_group_size(invocation_count, device_info.max_work_group_size);
+        }
         descriptor.workGroups.global = {invocation_count, 1, 1};
-        descriptor.workGroups.local = {
-            select_local_work_group_size(invocation_count, instance.get_network().get_engine().get_device_info().max_work_group_size),
-            1,
-            1};
+        descriptor.workGroups.local = {local_size_action.local_size, 1, 1};
         descriptor.specialize_local_size_x = true;
         descriptor.specialization_constants = {
             {shader_abi::index(shader_abi::specialization_id::mode), metadata[shader_abi::index(shader_abi::metadata_field::mode)]},
@@ -1306,6 +1475,27 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (!use_dense_push_constants) {
             arguments.intermediates = {metadata_memory};
         }
+        if (local_size_action.prewarm) {
+            for (const auto candidate : _local_size_tuning->candidates) {
+                descriptor.workGroups.local[0] = candidate;
+                stream.set_arguments(*_kernels.front(), descriptor, arguments);
+            }
+            _local_size_tuning->prewarmed = true;
+            local_size_tuning_lock.unlock();
+            descriptor.workGroups.local[0] = _local_size_tuning->fallback;
+        }
+        if (local_size_action.measure) {
+            stream.finish();
+            const auto start = std::chrono::steady_clock::now();
+            auto measured_event = stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, true);
+            OPENVINO_ASSERT(measured_event != nullptr, "[GPU][Vulkan] Eltwise local-size measurement did not produce a completion event");
+            measured_event->wait();
+            const auto elapsed = std::chrono::steady_clock::now() - start;
+            _local_size_tuning->samples[local_size_action.candidate_index].push_back(
+                static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count()));
+            local_size_tuning_lock.unlock();
+            return measured_event;
+        }
         return stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, instance.needs_completion_event());
     }
 
@@ -1314,6 +1504,7 @@ private:
     kernel_kind _kernel_kind = kernel_kind::broadcast_scalar;
     std::optional<scalar_constant> _scalar_constant;
     uint32_t _elements_per_invocation = 0;
+    std::shared_ptr<local_size_tuning_state> _local_size_tuning;
     std::vector<kernel::ptr> _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
