@@ -378,7 +378,7 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     const int head_size = 96;
 
     const layout qkv_layout({batch, seq_length, num_heads, head_size}, data_types::f16, format::bfyx);
-    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::u8, format::bfyx);
+    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::boolean, format::bfyx);
 
     auto q_mem = engine.allocate_memory(qkv_layout);
     auto k_mem = engine.allocate_memory(qkv_layout);
@@ -478,7 +478,7 @@ TEST(sdpa_gpu_custom, boolean_mask_opt_matches_reference) {
 
     const layout qk_layout({batch, seq_length, num_heads, qk_head_size}, data_types::f16, format::bfyx);
     const layout value_layout({batch, seq_length, num_heads, value_head_size}, data_types::f16, format::bfyx);
-    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::u8, format::bfyx);
+    const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::boolean, format::bfyx);
 
     auto q_mem = engine.allocate_memory(qk_layout);
     auto k_mem = engine.allocate_memory(qk_layout);

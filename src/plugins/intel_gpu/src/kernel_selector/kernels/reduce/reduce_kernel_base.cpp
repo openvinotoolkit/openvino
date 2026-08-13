@@ -17,6 +17,13 @@ bool ReduceKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    const bool is_logical = params.reduceMode == ReduceMode::AND || params.reduceMode == ReduceMode::OR;
+    const bool has_boolean_type = params.inputs[0].GetDType() == Datatype::BOOLEAN ||
+                                  params.outputs[0].GetDType() == Datatype::BOOLEAN;
+    if (is_logical != has_boolean_type) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -185,6 +192,8 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
         return input_dt;
     }
     switch (input_dt) {
+    case Datatype::BOOLEAN:
+        return Datatype::BOOLEAN;
     case Datatype::F32:
         return Datatype::F32;
     case Datatype::F16:

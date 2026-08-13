@@ -1122,7 +1122,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     if (!config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         const auto& attn_mask = params.input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK];
         attn_mask_data_type = attn_mask.data_type;
-        if (attn_mask.data_type == data_types::u8) {
+        if (attn_mask.data_type == data_types::boolean) {
             jit.make("BOOLEAN_ATTN_MASK", 1);
         }
     }

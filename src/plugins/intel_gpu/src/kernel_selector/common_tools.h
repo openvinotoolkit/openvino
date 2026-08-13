@@ -18,6 +18,7 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline uint32_t BytesPerElement(Datatype dt) {
     switch (dt) {
+        case Datatype::BOOLEAN:
         case Datatype::INT8:
         case Datatype::UINT8:
             return 1;

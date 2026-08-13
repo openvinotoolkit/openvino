@@ -242,6 +242,8 @@ bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::Ex
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
+        case cldnn::data_types::boolean:
+            return kernel_selector::data_type::BOOLEAN;
         case cldnn::data_types::u2:
             return kernel_selector::data_type::UINT2;
         case cldnn::data_types::i4:
@@ -283,6 +285,8 @@ kernel_selector::data_type to_data_type(data_types dt) {
 
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
+        case kernel_selector::data_type::BOOLEAN:
+            return cldnn::data_types::boolean;
         case kernel_selector::data_type::UINT2:
             return cldnn::data_types::u2;
         case kernel_selector::data_type::INT4:

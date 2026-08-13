@@ -37,6 +37,9 @@ using data_types = ov::element::Type_t;
 /// Helper class to identify key properties for data_types.
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
+        if (data_type == data_types::boolean)
+            return 1;
+
         auto et = ov::element::Type(data_type);
         OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
         return et.size();
@@ -128,8 +131,6 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     case ov::element::Type_t::u32:
     case ov::element::Type_t::u64:
         return cldnn::data_types::i32;
-    case ov::element::Type_t::boolean:
-        return cldnn::data_types::u8;
     default: return t;
     }
 }
@@ -335,6 +336,9 @@ struct layout {
 
     /// Number of bytes needed to store this layout
     size_t bytes_count() const {
+        if (data_type == data_types::boolean)
+            return get_linear_size();
+
         if (format == cldnn::format::custom) {
             auto bytes_of_layout = (ov::element::Type(data_type).bitwidth() * get_linear_size() + 7) >> 3;
             auto desc_size = format.traits().desc_size;

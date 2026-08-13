@@ -36,7 +36,7 @@ protected:
         if (sdpa_has_runtime_attn_mask_input(params)) {
             jit.make("HAS_ATTN_MASK_INPUT", 1);
             const auto& attn_mask_layout = params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK);
-            if (attn_mask_layout.data_type == data_types::u8) {
+            if (attn_mask_layout.data_type == data_types::boolean) {
                 jit.make("BOOLEAN_ATTN_MASK", 1);
             }
         }
