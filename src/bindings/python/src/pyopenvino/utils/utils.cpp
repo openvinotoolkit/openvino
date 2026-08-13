@@ -404,12 +404,12 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                                        ov::intel_auto::perf_curve_table.name(),
                                        " must be a Python integer");
                     }
-                    // The map key is unsigned; reject negatives here so they cannot silently wrap.
-                    // The [0, 100] upper bound and other semantic rules are enforced by PerfCurveTableValidator.
-                    if (utilization < 0) {
+                    // The map key is unsigned; reject values outside [0, 100] here so they cannot silently wrap.
+                    // Other semantic rules are enforced by PerfCurveTableValidator.
+                    if (utilization < 0 || utilization > 100) {
                         OPENVINO_THROW("The utilization key of ",
                                        ov::intel_auto::perf_curve_table.name(),
-                                       " must be a non-negative integer");
+                                       " must be an integer in range [0, 100]");
                     }
                     // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
                     if (py::isinstance<py::bool_>(curve_item.second)) {
