@@ -11,6 +11,10 @@
 #define ELTWISE_F32_VECTOR_WIDTH 0
 #endif
 
+#ifndef ELTWISE_F32_NO_TAIL
+#define ELTWISE_F32_NO_TAIL 0
+#endif
+
 #if ELTWISE_FUSED
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
@@ -1232,6 +1236,18 @@ void evaluate_and_store_dense_f32_scalar(uint linear_index) {
 void main() {
     const uint vector_width = ELTWISE_F32_VECTOR_WIDTH;
     uint first_element = gl_GlobalInvocationID.x * vector_width;
+#if ELTWISE_F32_NO_TAIL
+    ELTWISE_FLOAT_VECTOR lhs = load_f32_vector_0(dense_metadata.input0_offset + first_element);
+    ELTWISE_FLOAT_VECTOR rhs = load_f32_vector_1(dense_metadata.input1_offset + first_element);
+    ELTWISE_FLOAT_VECTOR result = apply_float_vector(lhs, rhs, selected_mode);
+#if ELTWISE_FUSED
+    ELTWISE_FLOAT_VECTOR fused_input = load_f32_vector_fused(dense_metadata.fused_input_offset + first_element);
+    lhs = selected_fused_input_position == fused_input_lhs ? fused_input : result;
+    rhs = selected_fused_input_position == fused_input_rhs ? fused_input : result;
+    result = apply_fused_float_vector(lhs, rhs);
+#endif
+    store_f32_vector(dense_metadata.output_offset + first_element, result);
+#else
     uint element_count = runtime_element_count();
     if (first_element >= element_count) {
         return;
@@ -1251,7 +1267,6 @@ void main() {
         store_f32_vector(dense_metadata.output_offset + first_element, result);
         return;
     }
-
     evaluate_and_store_dense_f32_scalar(first_element);
     if (remaining_elements > 1) {
         evaluate_and_store_dense_f32_scalar(first_element + 1);
@@ -1260,6 +1275,7 @@ void main() {
     if (remaining_elements > 2) {
         evaluate_and_store_dense_f32_scalar(first_element + 2);
     }
+#endif
 #endif
 }
 
