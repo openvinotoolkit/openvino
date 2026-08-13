@@ -115,6 +115,7 @@ void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferReques
 
     ov::Shape batchedShape = tensors.at(SINGLE_TENSOR)->get_shape();
     batchedShape[utils::BATCH_AXIS] = tensors.size();
+    const bool inputShapeChanged = levelZeroTensor == nullptr || levelZeroTensor->get_shape() != batchedShape;
 
     if (levelZeroTensor == nullptr || !levelZeroTensor->can_be_reused()) {
         levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
@@ -133,7 +134,8 @@ void ZeroDynamicInferRequest::sync_zero_tensors_with_graph(const ZeroInferReques
         _pipeline->update_graph_arguments(_metadata.inputs.at(foundPort.idx).indexUsedByDriver, levelZeroTensor);
     }
 
-    _isTensorChanged = true;
+    // Preserve shape changes from other inputs until the next inference predicts all output shapes.
+    _isTensorChanged = _isTensorChanged || !_pipelineIsCreated || inputShapeChanged;
 }
 
 std::shared_ptr<ZeroTensor> ZeroDynamicInferRequest::allocate_tensor(const size_t index,

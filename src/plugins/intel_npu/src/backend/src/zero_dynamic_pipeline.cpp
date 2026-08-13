@@ -531,7 +531,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
     _logger.debug("update_graph_arguments - started");
     // This is the tensor with right shape and strides
-    // The required check is alredy done in inferRequest
+    // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     _command_list_group->updateMutableCommandList(index,
@@ -551,7 +551,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                       "updateCommandListIndex");
     _logger.debug("update_graph_arguments - update command list by index");
     // This is the tensor with right shape and strides
-    // The required check is alredy done in inferRequest
+    // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     OPENVINO_ASSERT(batch_index == 0, "DynamicPipeline owns only one command-list group");
