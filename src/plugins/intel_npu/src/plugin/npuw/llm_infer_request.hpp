@@ -21,6 +21,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -111,7 +112,6 @@ protected:
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
-                        ov::SoPtr<ov::ITensor> token_type_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
     // Multiple generate inference request variants, each with a different KV cache size
@@ -204,6 +204,7 @@ protected:
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
 };
 
 }  // namespace npuw

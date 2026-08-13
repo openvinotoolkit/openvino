@@ -102,7 +102,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
     padding::DynamicDimsMask ret_update_pad_mask;
     OPENVINO_ASSERT(update_pad_mask.size() <= ret_update_pad_mask.size(), "invalid update_pad_mask.size().");
     for (size_t i = 0; i < update_pad_mask.size(); i++) {
-        ret_update_pad_mask[i] = update_pad_mask[i];
+        ret_update_pad_mask[i] = (update_pad_mask[i] != 0);
     }
     return padding(update_pad_lower, update_pad_upper, ret_update_pad_mask);
 }
@@ -149,7 +149,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto prim = impl_param.typed_desc<reshape>();
     auto input_layout = impl_param.get_input_layout(0);
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
 
     // For the cases with pattern being stored in a runtime tensor on program build stage
     // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
@@ -157,10 +157,9 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
         if (prim->output_shape.count() != 0) {
             return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
-        } else {
-            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
-            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
         }
+        auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
+        return {layout{prim->output_partial_shape, input_layout.data_type, fm}};
     }
 
     ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.get_input_layout(1).get<ShapeType>()
@@ -217,7 +216,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.get_stream());
 
-        auto pattern_ptr = pattern_lock.data();
+        auto* pattern_ptr = pattern_lock.data();
         auto pattern_tensor = make_tensor(pattern_mem->get_layout(), pattern_ptr);
 
         const_data.emplace(1, pattern_tensor);
@@ -289,7 +288,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
 }
 
 reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
-        parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
+        parent(network, node, !node.can_be_optimized() && node.get_output_layout().is_static()) {
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),

@@ -72,7 +72,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             auto reorder_impl = weights_reorder_node.type()->create_impl(weights_reorder_node);
 
             weights_reorder_node.set_selected_impl(std::move(reorder_impl));
-            if (auto impl = weights_reorder_node.get_selected_impl()) {
+            if (auto* impl = weights_reorder_node.get_selected_impl()) {
                 auto params = weights_reorder_node.get_kernel_impl_params();
                 p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
             }
@@ -161,7 +161,7 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
 void post_optimize_weights::select_implementation(program& p, program_node& node) {
     node.set_selected_impl(node.type()->create_impl(node));
-    if (auto impl = node.get_selected_impl()) {
+    if (auto* impl = node.get_selected_impl()) {
         auto params = node.get_kernel_impl_params();
         p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
     }
@@ -308,7 +308,7 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
 
 void post_optimize_weights::run(program& p) {
     bool found_lstm = false;
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (node->is_type<convolution>()) {
             optimize_weights(node->as<convolution>(), p);
         } else if (node->is_type<deconvolution>()) {

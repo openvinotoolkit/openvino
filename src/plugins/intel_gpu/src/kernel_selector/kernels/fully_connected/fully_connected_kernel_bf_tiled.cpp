@@ -39,14 +39,14 @@ static inline bool should_use_dyn_b_kernel(size_t batch, size_t ifm, size_t ofm,
     if (std::min(ifm, ofm) < simd)
         return false;
     uint64_t mask = (ifm < ofm) ? dyn_b_batches_ifm_lt_ofm : dyn_b_batches_ifm_gt_ofm;
-    return (mask >> batch) & 1ULL;
+    return ((mask >> batch) & 1ULL) != 0u;
 }
 
 namespace kernel_selector {
 
 namespace fc_kernel_bf_tiled_utils {
 std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
-    auto& input = params.inputs[0];
+    const auto& input = params.inputs[0];
     size_t input_f = input.Feature().v;
     size_t input_batch = input.Batch().v;
 
@@ -68,15 +68,15 @@ std::pair<size_t, size_t> get_output_aligned_bf_size(const fully_connected_param
                                                      uint32_t align_b,
                                                      int32_t align_f) {
     size_t output_f =
-        (needs_align == true) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
+        (needs_align) ? CeilDiv(params.outputs[0].Feature().v, align_f) : params.outputs[0].Feature().v;
     size_t output_b = params.outputs[0].Batch().v;
     // 3D output
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        output_f = (needs_align == true) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
+        output_f = (needs_align) ? CeilDiv(params.outputs[0].Y().v, align_f) : params.outputs[0].Y().v;
         output_b = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
     }
 
-    output_b = (needs_align == true) ? CeilDiv(output_b, align_b) : output_b;
+    output_b = (needs_align) ? CeilDiv(output_b, align_b) : output_b;
 
     return {output_b, output_f};
 }
@@ -88,10 +88,7 @@ size_t get_scale_group_size(const fully_connected_params& params) {
 bool is_8bit_asym_wei(const fully_connected_params& params) {
     auto weight_type = params.weights.GetDType();
     // UINT8 weight type is supported by FC dyn-quantize(with SLM).
-    if (weight_type == WeightsType::UINT8 && params.has_decompression_zp)
-        return true;
-
-    return false;
+    return weight_type == WeightsType::UINT8 && params.has_decompression_zp;
 }
 
 bool is_weight_dyn_quantizable(const fully_connected_params& params) {
@@ -99,18 +96,12 @@ bool is_weight_dyn_quantizable(const fully_connected_params& params) {
     if (weight_type == WeightsType::INT4 || weight_type == WeightsType::UINT4)
         return true;
     // No validated case of sym 8bit weight
-    if (is_8bit_asym_wei(params))
-        return true;
-
-    return false;
+    return is_8bit_asym_wei(params);
 }
 
 bool is_per_token_dynamic_quantize(const fully_connected_params& params) {
     auto dynamic_quantization_group_size = params.dynamic_quantization_group_size;
-    if (dynamic_quantization_group_size == UINT64_MAX)
-        return true;
-
-    return false;
+    return dynamic_quantization_group_size == UINT64_MAX;
 }
 
 // DYNAMIC_QUANTIZE
@@ -130,7 +121,7 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
             dynamic_quantization_group_size = scale_group_size;
 
             // For int8 ASYM model, activation_sum should fit to weight zp
-            if (is_8bit_asym_wei(params) && params.has_decompression_zp == true &&
+            if (is_8bit_asym_wei(params) && params.has_decompression_zp &&
                 dynamic_quantization_group_size > zp_group_size && (zp_group_size % input_load_size) == 0) {
                 dynamic_quantization_group_size = zp_group_size;
             }
@@ -313,10 +304,10 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
-    auto& input = fc_params.inputs[0];
-    auto& output = fc_params.outputs[0];
-    auto& weights = fc_params.weights;
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& input = fc_params.inputs[0];
+    const auto& output = fc_params.outputs[0];
+    const auto& weights = fc_params.weights;
 
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
@@ -442,17 +433,12 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
             return false;
 
         const auto required_slm_size = tparams.tile_ofm * simd * tparams.tile_ifm * simd * 2; // 2 bytes per value (FP16 data type)
-        if (params.engineInfo.maxLocalMemSize < required_slm_size)
-            return false;
-
-        return true;
+        return params.engineInfo.maxLocalMemSize >= required_slm_size;
     }
     if (params.compressed && is_dyn_quantable_type) {
-        if (!(tparams.tile_ofm == 2 || tparams.tile_ofm == 4))
+        if (tparams.tile_ofm != 2 && tparams.tile_ofm != 4)
             return false;
-        if (tparams.tile_ofm == 4 && tparams.outer_ofm == 2 && !is_suitable_outer_ofm(params, output_f))
-            return false;
-        return true;
+        return tparams.tile_ofm != 4 || tparams.outer_ofm != 2 || is_suitable_outer_ofm(params, output_f);
     }
 
     // Reject tile sizes that are guaranteed to spill out of registers.
@@ -463,10 +449,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     unsigned total_register_bytes = acc_register_bytes + in_register_bytes + wei_register_bytes;
     unsigned max_register_bytes = 128 * 32;
 
-    if (total_register_bytes > max_register_bytes)
-        return false;
-
-    return true;
+    return total_register_bytes <= max_register_bytes;
 }
 
 }  // namespace
@@ -499,35 +482,34 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                     return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
+                }
+                if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             } else if (is_weight_small_kn(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                     if (swiglu_fused)
                         return selector.Default(tune_params(1, 1, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    else
-                        return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else {
-                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+                }
+                if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                     // Here : b1 static
                     if (swiglu_fused) {
                         return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    } else {
-                        selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
-                                .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                     }
+                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT)).Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
                 } else {
                     if (swiglu_fused) {
                         return selector.Default(tune_params(1, 2, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    } else {
-                        return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                     }
+                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             }
         } else {
@@ -544,10 +526,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
                 return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+            if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
                 return selector.Default(tune_params(8, 4, 1, 2, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else
-                return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
+            return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -688,7 +669,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     WeightsType weights_dt = params.weights.GetDType();
     if (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4) {
         tile_k_ofm_packed /= 2;
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = get_scale_group_size(params);
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0 && !dispatchData.use_slm)
@@ -748,13 +729,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         if (weights_dt == WeightsType::INT4 || weights_dt == WeightsType::UINT4) {
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
             } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size / 2));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load / 2));
             } else {
                 jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
-                jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
+                jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE_PRELOAD", params.weights.GetDType(), weights_elements_per_load));
             }
         } else {
             jit.AddConstant(MakeJitConstant("FILTER_ACTUAL_LOAD_BLOCK_SIZE", block_read_size));
@@ -921,7 +902,7 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
 
         kd.kernels[execute].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        auto& input = prim_params.inputs[0];
+        const auto& input = prim_params.inputs[0];
         if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
             OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0,
                             "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
@@ -1020,7 +1001,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
                                                                 const int autoTuneIndex) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(auto_tune_params.size())
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
@@ -1137,7 +1118,7 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
 
 KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const {
     KernelsData res = {};
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetAutoTuneParams(fc_params);
 
     KernelsData kds = GetTunedKernelsDataByIndex(params, -1);
