@@ -174,7 +174,7 @@ class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
         return (self.random.randn(3, 2, 2),)
 
     def create_model(self, scale, zero_point, axis, quant_min, quant_max):
-        class fake_quantize_learnable_per_channel_affine(torch.nn.Module):
+        class FakeQuantizeLearnablePerChannelAffine(torch.nn.Module):
             def __init__(self, scale, zero_point, axis, quant_min, quant_max):
                 super().__init__()
                 self.scale = scale
@@ -182,7 +182,7 @@ class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
                 self.axis = axis
                 self.quant_min = quant_min
                 self.quant_max = quant_max
-                self.grad_factor = 1.0 
+                self.grad_factor = 1.0
 
             def forward(self, x):
                 return torch._fake_quantize_learnable_per_channel_affine(
@@ -190,7 +190,7 @@ class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
                 )
 
         return (
-            fake_quantize_learnable_per_channel_affine(scale, zero_point, axis, quant_min, quant_max),
+            FakeQuantizeLearnablePerChannelAffine(scale, zero_point, axis, quant_min, quant_max),
             "aten::_fake_quantize_learnable_per_channel_affine",
         )
 
@@ -201,8 +201,13 @@ class TestFakeQuantizeLearnablePerChannelAffine(PytorchLayerTest):
     @pytest.mark.parametrize(
         "scale, zero_point, axis, quant_min, quant_max",
         [
+            # scale and zero_point are learnable parameters, so both must be float tensors.
             (torch.tensor([0.005, 0.7]), torch.zeros(2), 1, 0, 255),
-            (torch.tensor([1.5, -0.7, -0.1]), torch.tensor([1, 0, -1], dtype=torch.int32), 0, -128, 127),
+            # fractional zero_point exercises the rounding applied by the aten op
+            (torch.tensor([0.5, 0.25]), torch.tensor([1.4, 2.6]), 1, 0, 255),
+            # zero_point outside of [quant_min, quant_max] exercises the clamping applied by the aten op
+            (torch.tensor([0.5, 0.25]), torch.tensor([-3.0, 400.0]), 1, 0, 255),
+            (torch.tensor([1.5, -0.7, -0.1]), torch.tensor([1.0, 0.0, -1.0]), 0, -128, 127),
         ],
     )
     def test_fake_quantize_learnable_per_channel_affine(
