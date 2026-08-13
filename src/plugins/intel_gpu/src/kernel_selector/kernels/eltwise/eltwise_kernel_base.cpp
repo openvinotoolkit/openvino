@@ -68,33 +68,20 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
     }
 }
 
-// Number of features packed into the innermost, stride-1 block of a blocked layout, 0 if the layout
-// has no such block. fs_b_yx_fsv32 is left out on purpose: it keeps the feature blocks outside of the
-// batch, so a feature index past the logical size does not land on the leftover lanes of the last
-// block of the same position.
+// Feature block sizes for blocked formats registered by the OCL eltwise implementation.
+// fs_b_yx_fsv32 is excluded because its feature blocks span batches.
 size_t GetOutputFeatureBlockSize(DataLayout l) {
     switch (l) {
-        case DataLayout::b_fs_yx_fsv2:
         case DataLayout::b_fs_zyx_fsv2:
         case DataLayout::bs_fs_yx_bsv4_fsv2:
         case DataLayout::bs_fs_yx_bsv8_fsv2:
         case DataLayout::bs_fs_zyx_bsv8_fsv2:
-        case DataLayout::bs_fs_yx_bsv16_fsv2:
         case DataLayout::bs_fs_zyx_bsv16_fsv2:
             return 2;
         case DataLayout::b_fs_yx_fsv4:
-        case DataLayout::b_fs_zyx_fsv4:
         case DataLayout::bs_fs_yx_bsv4_fsv4:
         case DataLayout::bs_fs_yx_bsv8_fsv4:
-        case DataLayout::bs_fs_zyx_bsv8_fsv4:
-        case DataLayout::bs_fs_yx_bsv16_fsv4:
-        case DataLayout::bs_fs_zyx_bsv16_fsv4:
             return 4;
-        case DataLayout::b_fs_yx_fsv8:
-        case DataLayout::b_fs_zyx_fsv8:
-        case DataLayout::bs_fs_yx_bsv16_fsv8:
-        case DataLayout::bs_fs_zyx_bsv16_fsv8:
-            return 8;
         case DataLayout::b_fs_yx_fsv16:
         case DataLayout::b_fs_zyx_fsv16:
         case DataLayout::bs_fs_yx_bsv16_fsv16:
@@ -500,9 +487,7 @@ size_t EltwiseKernelBase::GetFeaturePadResetBlockSize(const eltwise_params& para
     if (feature_block_size == 0)
         return 0;
 
-    // Addressing the leftover lanes needs the per dimension index order, which the
-    // ELTWISE_NO_PITCH_SAME_DIMS path does not have. That path cannot have any of them anyway, as
-    // CheckInputsOutputNoPitchSameDims() rejects an output whose pitches differ from its dimensions.
+    // The linear path has no per-dimension index order.
     if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params))
         return 0;
 
@@ -585,11 +570,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
             }
 
             if (GetFeaturePadResetBlockSize(params) != 0) {
-                // Index order of the work-items that only zero a leftover lane of the last feature
-                // block. It walks over the explicit feature padding, which has to keep its content as
-                // it can hold the data of a sibling of an in-place concatenation: the non-safe index
-                // adds PAD_BEFORE_FEATURE_NUM only, so feature OUTPUT_FEATURE_NUM + i +
-                // PAD_AFTER_FEATURE_NUM is lane (the whole padded feature size) + i of that block.
+                // Skip explicit feature padding to address only the leftover block lanes.
                 std::vector<std::string> pad_reset_idx_order;
                 if (out_c <= 4) {
                     pad_reset_idx_order = GetIdxOrderVecForLayout(params.outputs[0].GetLayout(),
@@ -600,7 +581,7 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                         pad_reset_idx_order.push_back("d" + std::to_string(out_c - i));
                     }
                 }
-                // The feature is always the second component, as GET_INDEX() takes them in bfyx order.
+                // GET_INDEX uses batch-feature-spatial order.
                 pad_reset_idx_order[1] = "(" + pad_reset_idx_order[1] + " + OUTPUT_PAD_AFTER_FEATURE_NUM)";
 
                 std::string idx_order;
@@ -791,14 +772,13 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     }
 
-    // The work-items that zero the leftover lanes of the last feature block are appended to the feature
-    // axis. It has to happen before the local sizes are derived from the global ones below.
+    // Append padding-reset work-items before calculating local sizes.
     const auto feature_pad_reset_size = GetFeaturePadResetSize(params);
     if (feature_pad_reset_size != 0) {
         if (params.layoutBased || params.int8_quantization || params.broadcast) {
             dispatchData.gws[1] += feature_pad_reset_size;
         } else {
-            // Here the feature and the batch share gws[2], see GWS_FEATURE_SIZE in the kernel.
+            // Feature and batch share gws[2].
             const auto& output = params.outputs[0];
             dispatchData.gws[2] = (output.Feature().v + feature_pad_reset_size) * output.Batch().v;
         }

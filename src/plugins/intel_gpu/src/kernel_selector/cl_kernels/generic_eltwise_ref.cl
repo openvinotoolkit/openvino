@@ -13,18 +13,13 @@
 #endif
 
 #if ZERO_OUTPUT_FEATURE_PADDING
-    // The last feature block of the output can have lanes that belong to the buffer but that no
-    // work-item of the logical dispatch writes, so they may still hold the data of whatever used the
-    // memory before. As a following primitive reading whole blocks - an oneDNN convolution for
-    // instance - would consume them, the feature axis of the dispatch is extended by that many
-    // work-items, each of which only zeroes its own lane and returns.
+    // Extend the feature GWS to clear unwritten lanes in the last feature block.
     #define OUTPUT_FEATURE_PAD_RESET_SIZE                                                                  \
         ((OUTPUT_FEATURE_BLOCK_SIZE - (OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM +                \
                                        OUTPUT_PAD_AFTER_FEATURE_NUM) % OUTPUT_FEATURE_BLOCK_SIZE) %        \
          OUTPUT_FEATURE_BLOCK_SIZE)
     #define GWS_FEATURE_SIZE(logical_feature_size) (OUTPUT_FEATURE_NUM + OUTPUT_FEATURE_PAD_RESET_SIZE)
-    // OUTPUT_PAD_RESET_IDX_ORDER walks over the explicit feature padding, so the non-safe index - the
-    // only one that does not wrap a feature past the logical size - lands on those lanes.
+    // Use non-safe indexing to address padding lanes past the logical feature range.
     #define GET_PAD_RESET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #else
     #define GWS_FEATURE_SIZE(logical_feature_size) (logical_feature_size)
