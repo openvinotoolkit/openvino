@@ -37,9 +37,8 @@ layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_imp
         return { output_type,
                  input_layout.format,
                  tensor(format::get_default_format(dims_converted.size()), dims_converted) };
-    } else {
-        return { output_type, input_layout.format, desc->broadcast_sizes };
     }
+    return {output_type, input_layout.format, desc->broadcast_sizes};
 }
 
 template<typename ShapeType>
@@ -77,7 +76,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         const_data.emplace(2, axes_mapping_tensor);
     }
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     if (constant_mem.count(1)) {
         auto target_shape_mem = constant_mem.at(1);
         cldnn::mem_lock<uint8_t, mem_lock_type::read> target_shape_lock(target_shape_mem, impl_param.get_stream());

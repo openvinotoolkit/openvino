@@ -41,6 +41,8 @@ private:
 
 inline constexpr std::string_view k_cpu_utilization_metric = "CPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
+// Fallback key: some platforms report integrated GPU utilization as "GPUUtilization".
+inline constexpr std::string_view k_igpu_utilization_fallback_metric = "GPUUtilization";
 inline constexpr std::string_view k_dgpu_utilization_metric = "DGPUUtilization";
 inline constexpr std::string_view k_npu_utilization_metric = "NPUUtilization";
 inline constexpr int k_low_power_mode_min_gear = 1;
@@ -71,6 +73,12 @@ inline constexpr std::string_view device_to_metric_key(std::string_view device_n
     }
     return metric_key;
 }
+
+#if defined(MULTIUNITTEST) && defined(OV_AUTO_ENABLE_IPF)
+std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type = "");
+#endif
 
 }  // namespace device_monitor
 }  // namespace auto_plugin
