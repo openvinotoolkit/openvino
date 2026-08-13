@@ -698,16 +698,20 @@ Plugin::DeviceKey Plugin::resolve_device_key(const std::string& device_name) con
     }
     // A GPU maps to "iGPU"/"dGPU" via ov::device::type; leave logical_key empty when it is unavailable.
     try {
-        key.device_type = get_core()->get_property(device_name, ov::device::type.name(), {}).as<std::string>();
+        const auto gpu_type =
+            get_core()->get_property(device_name, ov::device::type.name(), {}).as<ov::device::Type>();
+        if (gpu_type == ov::device::Type::INTEGRATED) {
+            key.logical_key = "iGPU";
+            key.device_type = "integrated";
+        } else if (gpu_type == ov::device::Type::DISCRETE) {
+            key.logical_key = "dGPU";
+            key.device_type = "discrete";
+        } else {
+            key.logical_key.clear();
+        }
     } catch (const ov::Exception&) {
-        key.device_type.clear();
-    }
-    if (key.device_type == "integrated") {
-        key.logical_key = "iGPU";
-    } else if (key.device_type == "discrete") {
-        key.logical_key = "dGPU";
-    } else {
         key.logical_key.clear();
+        key.device_type.clear();
     }
     return key;
 }

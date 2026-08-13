@@ -369,9 +369,10 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = thresholds;
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
-            // Only Python-type shape checks live here (str/dict structure, bool rejection,
-            // int/float discrimination). Semantic rules (empty curve, utilization range, finite
-            // non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
+            // Only Python-type shape and conversion-safety checks live here (str/dict structure, bool
+            // rejection, int/float discrimination, and rejecting negative utilization keys that the
+            // unsigned map key cannot represent). Semantic rules (empty curve, utilization upper bound,
+            // finite non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
             // enforced when the property is set on the plugin.
             ov::intel_auto::PerfCurveTable perf_curve_table;
             auto dict = py::cast<py::dict>(property.second);
@@ -402,6 +403,13 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
                         OPENVINO_THROW("The utilization key of ",
                                        ov::intel_auto::perf_curve_table.name(),
                                        " must be a Python integer");
+                    }
+                    // The map key is unsigned; reject negatives here so they cannot silently wrap.
+                    // The [0, 100] upper bound and other semantic rules are enforced by PerfCurveTableValidator.
+                    if (utilization < 0) {
+                        OPENVINO_THROW("The utilization key of ",
+                                       ov::intel_auto::perf_curve_table.name(),
+                                       " must be a non-negative integer");
                     }
                     // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
                     if (py::isinstance<py::bool_>(curve_item.second)) {

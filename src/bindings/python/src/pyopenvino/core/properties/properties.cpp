@@ -358,8 +358,7 @@ void regmodule_properties(py::module m) {
     // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
     m_intel_auto.def("perf_curve_table", [](const std::string& value) {
         try {
-            return ov::intel_auto::perf_curve_table(
-                ov::Any(value).as<ov::intel_auto::PerfCurveTable>());
+            return ov::intel_auto::perf_curve_table(ov::Any(value).as<ov::intel_auto::PerfCurveTable>());
         } catch (const ov::Exception& e) {
             OPENVINO_THROW("PERF_CURVE_TABLE: failed to parse string '",
                            value,

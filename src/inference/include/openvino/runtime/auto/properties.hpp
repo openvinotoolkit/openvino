@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <openvino/runtime/properties.hpp>
 #include <map>
 #include <string>
+#include <openvino/runtime/properties.hpp>
 
 namespace ov {
 
