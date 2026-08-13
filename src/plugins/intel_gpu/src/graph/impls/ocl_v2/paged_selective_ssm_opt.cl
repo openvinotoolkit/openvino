@@ -32,6 +32,11 @@ KERNEL(paged_selective_ssm_opt)(
     __local float* work) {
     const size_t lane = get_local_id(0);
     const size_t runtime_lws = get_local_size(0);
+#if SSM_USE_SUBGROUP_REDUCTION
+    const uint subgroup_lane = get_sub_group_local_id();
+    const uint subgroup_id = get_sub_group_id();
+    const uint subgroup_count = get_num_sub_groups();
+#endif
     const size_t h = get_global_id(1);
     const size_t seq = get_global_id(2);
 
@@ -129,29 +134,33 @@ KERNEL(paged_selective_ssm_opt)(
     // Keep recurrent state in FP32 across tokens; cast only when writing output.
     __local float* local_state = work;
     __local float* reduction = work + (size_t)block * state_size;
+#if SSM_JIT && !SSM_JIT_HAS_HEAD_DIM_TAIL
+    const int valid_head_dim_block = block;
+#else
+    const int valid_head_dim_block = p_base + (size_t)block <= head_dim
+                                         ? block
+                                         : (int)(head_dim - p_base);
+#endif
 
-    for (int p_offset = 0; p_offset < block; ++p_offset) {
+    for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
         const size_t p = p_base + (size_t)p_offset;
-        if (!SSM_P_VALID(p))
-            continue;
         for (size_t n = lane; n < state_size; n += lws) {
             const size_t state_idx = INPUT5_GET_INDEX((size_t)first_block, h, p, n);
             local_state[(size_t)p_offset * state_size + n] = SSM_TO_FLOAT(recurrent_state_table[state_idx]);
         }
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     for (long token = token_begin; token < token_end; ++token) {
         const size_t token_idx = (size_t)token;
         const size_t dt_idx = INPUT1_GET_INDEX(token_idx, h, 0, 0);
         const float dt_value = SSM_TO_FLOAT(dt[dt_idx]);
         const float dA = exp(A_value * dt_value);
-        float x_values[SSM_MAX_HEAD_DIM_BLOCK];
+        float input_scales[SSM_MAX_HEAD_DIM_BLOCK];
         float partial[SSM_MAX_HEAD_DIM_BLOCK];
 
-        for (int p_offset = 0; p_offset < block; ++p_offset) {
+        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
             const size_t p = p_base + (size_t)p_offset;
-            x_values[p_offset] = SSM_P_VALID(p) ? SSM_TO_FLOAT(x[INPUT3_GET_INDEX(token_idx, h, p, 0)]) : 0.0f;
+            input_scales[p_offset] = SSM_TO_FLOAT(x[INPUT3_GET_INDEX(token_idx, h, p, 0)]) * dt_value;
             partial[p_offset] = 0.0f;
         }
 
@@ -160,25 +169,42 @@ KERNEL(paged_selective_ssm_opt)(
             const size_t c_idx = INPUT4_GET_INDEX(token_idx, g, n, 0);
             const float b_value = SSM_TO_FLOAT(B[b_idx]);
             const float c_value = SSM_TO_FLOAT(C[c_idx]);
-            for (int p_offset = 0; p_offset < block; ++p_offset) {
-                const size_t p = p_base + (size_t)p_offset;
-                if (!SSM_P_VALID(p))
-                    continue;
+            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
                 const size_t local_idx = (size_t)p_offset * state_size + n;
-                const float new_state = fma(local_state[local_idx], dA,
-                                            x_values[p_offset] * dt_value * b_value);
+                const float new_state = fma(local_state[local_idx], dA, input_scales[p_offset] * b_value);
                 local_state[local_idx] = new_state;
                 partial[p_offset] = fma(new_state, c_value, partial[p_offset]);
             }
         }
 
-        for (int p_offset = 0; p_offset < block; ++p_offset)
+#if SSM_USE_SUBGROUP_REDUCTION
+        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
+            const float subgroup_sum = sub_group_reduce_add(partial[p_offset]);
+            if (subgroup_lane == 0)
+                reduction[(size_t)p_offset * lws + subgroup_id] = subgroup_sum;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (subgroup_id == 0) {
+            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
+                float total = subgroup_lane < subgroup_count
+                                  ? reduction[(size_t)p_offset * lws + subgroup_lane]
+                                  : 0.0f;
+                total = sub_group_reduce_add(total);
+                const size_t p = p_base + (size_t)p_offset;
+                if (subgroup_lane == 0)
+                    output[OUTPUT_GET_INDEX(token_idx, h, p, 0)] = TO_OUTPUT_TYPE(total);
+            }
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+#else
+        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset)
             reduction[(size_t)p_offset * lws + lane] = partial[p_offset];
         barrier(CLK_LOCAL_MEM_FENCE);
 
         for (size_t offset = lws / 2; offset > 0; offset /= 2) {
             if (lane < offset) {
-                for (int p_offset = 0; p_offset < block; ++p_offset) {
+                for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
                     const size_t reduction_idx = (size_t)p_offset * lws + lane;
                     reduction[reduction_idx] += reduction[reduction_idx + offset];
                 }
@@ -187,12 +213,12 @@ KERNEL(paged_selective_ssm_opt)(
         }
 
         if (lane == 0) {
-            for (int p_offset = 0; p_offset < block; ++p_offset) {
+            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
                 const size_t p = p_base + (size_t)p_offset;
-                if (SSM_P_VALID(p))
-                    output[OUTPUT_GET_INDEX(token_idx, h, p, 0)] = TO_OUTPUT_TYPE(reduction[(size_t)p_offset * lws]);
+                output[OUTPUT_GET_INDEX(token_idx, h, p, 0)] = TO_OUTPUT_TYPE(reduction[(size_t)p_offset * lws]);
             }
         }
+#endif
 
         if (cache_enabled) {
             const bool at_boundary = --tokens_until_boundary == 0;
@@ -202,10 +228,8 @@ KERNEL(paged_selective_ssm_opt)(
                 if (block_position < (ulong)block_end && block_position < (ulong)block_indices_count) {
                     const long block_id = (long)block_indices[INPUT7_GET_INDEX((size_t)block_position, 0, 0, 0)];
                     if (block_id >= 0 && (size_t)block_id < num_state_blocks) {
-                        for (int p_offset = 0; p_offset < block; ++p_offset) {
+                        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
                             const size_t p = p_base + (size_t)p_offset;
-                            if (!SSM_P_VALID(p))
-                                continue;
                             for (size_t n = lane; n < state_size; n += lws) {
                                 const size_t local_idx = (size_t)p_offset * state_size + n;
                                 const size_t state_idx = INPUT5_GET_INDEX((size_t)block_id, h, p, n);

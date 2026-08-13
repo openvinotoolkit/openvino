@@ -104,7 +104,11 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const bool is_bf16 = params.get_input_layout(0).data_type == ov::element::bf16;
+        const auto& info = params.get_device_info();
+        const bool use_subgroup_reduction =
+            info.dev_type == device_type::integrated_gpu || info.gfx_ver.major >= 20;
         jit.make("SSM_TO_FLOAT(v)", is_bf16 ? "_convert_as_bfloat16_float(v)" : "convert_float(v)");
+        jit.make("SSM_USE_SUBGROUP_REDUCTION", use_subgroup_reduction ? 1 : 0);
         add_jit_config(jit, get_jit_config(params));
         return jit;
     }
