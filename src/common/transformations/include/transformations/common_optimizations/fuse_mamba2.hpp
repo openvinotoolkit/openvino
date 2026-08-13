@@ -67,15 +67,15 @@ public:
  * @brief Fuses a loop-based Mamba2 selective state-space recurrence sub-graph into an internal
  *        SelectiveSSM operation.
  *
- * Discretization is performed ahead of the loop: `dA = exp(A * dt)` (Loop input 2) and
- * `dtB = unsqueeze(dt) * B` (Loop input 3), where the per-head log-decay `A` is a foldable constant.
- * The loop then consumes the discretized `dA`, `dtB`, the raw `x`, `C` and the initial
- * `recurrent_state`. Expected body semantics per step (state size N, head dim P):
- * 1) Squeeze the per-step inputs `dA_t`, `dtB_t`, `x_t`, `C_t` over the sequence axis.
- * 2) Compute the input contribution: `dBx_t = unsqueeze(dtB_t) outer x_t`.
- * 3) Update recurrent state: `state_t = state_{t-1} * dA_t + dBx_t`
- * 4) Compute per-step output: `y_t = reduce_sum(state_t * unsqueeze(C_t), axis=N)` and scatter to
- *    the current time index.
+ * Discretization is performed ahead of the loop and consumed as 5D per-step slices:
+ * `dA = reshape(exp(A * dt), [B, T, H, 1, 1])` (Loop input 2), `dBx = unsqueeze(dt*B, -2) *
+ * unsqueeze(x, -1)` (Loop input 3) and `C = unsqueeze(B/C-expanded, -2)` (Loop input 4), where the
+ * per-head log-decay `A` is a foldable constant. The loop then consumes the discretized `dA`, `dBx`,
+ * `C` and the initial `recurrent_state`. Expected body semantics per step (state size N, head dim P):
+ * 1) Squeeze the per-step inputs `dA_t`, `dBx_t`, `C_t` over the sequence axis.
+ * 2) Update recurrent state: `state_t = state_{t-1} * dA_t + dBx_t`
+ * 3) Compute per-step output: `y_t = reduce_sum(state_t * C_t, axis=N)` and scatter to the current
+ *    time index.
  *
  * The matcher validates this body shape/operation pattern before replacing the Loop with
  * `SelectiveSSM`.
