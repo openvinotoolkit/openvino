@@ -27,6 +27,14 @@
 #define ELTWISE_FAST_BROADCAST 0
 #endif
 
+#ifndef ELTWISE_FUSED_CHAIN
+#define ELTWISE_FUSED_CHAIN 0
+#endif
+
+#ifndef ELTWISE_FIXED_FUSED_CHAIN_LENGTH
+#define ELTWISE_FIXED_FUSED_CHAIN_LENGTH 0
+#endif
+
 #if ELTWISE_RESTRICT_OUTPUT && !ELTWISE_DENSE
 #error ELTWISE_RESTRICT_OUTPUT requires the single-output dense ABI
 #endif
@@ -37,7 +45,44 @@
 #define ELTWISE_OUTPUT_ALIAS_QUALIFIER
 #endif
 
-#if ELTWISE_FUSED
+#if ELTWISE_FUSED_CHAIN
+layout(set = 0, binding = 0) readonly buffer Input0 {
+    uint values[];
+} input0_data;
+
+layout(set = 0, binding = 1) readonly buffer Input1 {
+    uint values[];
+} input1_data;
+
+layout(set = 0, binding = 2) readonly buffer FusedInput0 {
+    uint values[];
+} fused_input0_data;
+layout(set = 0, binding = 3) readonly buffer FusedInput1 {
+    uint values[];
+} fused_input1_data;
+layout(set = 0, binding = 4) readonly buffer FusedInput2 {
+    uint values[];
+} fused_input2_data;
+layout(set = 0, binding = 5) readonly buffer FusedInput3 {
+    uint values[];
+} fused_input3_data;
+layout(set = 0, binding = 6) readonly buffer FusedInput4 {
+    uint values[];
+} fused_input4_data;
+layout(set = 0, binding = 7) readonly buffer FusedInput5 {
+    uint values[];
+} fused_input5_data;
+layout(set = 0, binding = 8) readonly buffer FusedInput6 {
+    uint values[];
+} fused_input6_data;
+layout(set = 0, binding = 9) readonly buffer FusedInput7 {
+    uint values[];
+} fused_input7_data;
+
+layout(set = 0, binding = 10) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
+    uint values[];
+} output_data;
+#elif ELTWISE_FUSED
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
 } input0_data;
@@ -115,7 +160,9 @@ layout(push_constant) uniform DenseMetadata {
 #endif
 } dense_metadata;
 #else
-#if ELTWISE_FUSED
+#if ELTWISE_FUSED_CHAIN
+layout(set = 0, binding = 11) readonly buffer Metadata {
+#elif ELTWISE_FUSED
 layout(set = 0, binding = 4) readonly buffer Metadata {
 #elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
 layout(set = 0, binding = 2) readonly buffer Metadata {
@@ -146,13 +193,15 @@ layout(set = 0, binding = 4) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Pac
 #define ELTWISE_SHADER_TENSOR_INDEX(name, code) const uint tensor_##name = code;
 #define ELTWISE_SHADER_STORAGE_FLAG(name, code) const uint storage_##name##_flag = code;
 #define ELTWISE_SHADER_INFINITY_FLAG(name, code) const uint infinity_##name##_flag = code;
-#if ELTWISE_FUSED
+#if ELTWISE_FUSED || ELTWISE_FUSED_CHAIN
 #define ELTWISE_SHADER_FUSED_INPUT_POSITION(name, code) const uint fused_input_##name = code;
 #endif
+#define ELTWISE_SHADER_LIMIT(name, code) const uint name = code;
 #define ELTWISE_SHADER_SPECIALIZATION_ID(name, code) const uint specialization_##name##_id = code;
 #include "../eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_SPECIALIZATION_ID
-#if ELTWISE_FUSED
+#undef ELTWISE_SHADER_LIMIT
+#if ELTWISE_FUSED || ELTWISE_FUSED_CHAIN
 #undef ELTWISE_SHADER_FUSED_INPUT_POSITION
 #endif
 #undef ELTWISE_SHADER_INFINITY_FLAG
@@ -192,6 +241,24 @@ layout(constant_id = specialization_fused_mode_id) const uint selected_fused_mod
 layout(constant_id = specialization_fused_input_type_id) const uint selected_fused_input_type = type_f32;
 layout(constant_id = specialization_fused_input_position_id) const uint selected_fused_input_position = fused_input_rhs;
 #endif
+#if ELTWISE_FUSED_CHAIN && ELTWISE_FIXED_FUSED_CHAIN_LENGTH > 0
+#define ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(stage)                                                                      \
+    layout(constant_id = specialization_fused_chain_mode_base_id + stage) const uint selected_fused_chain_mode_##stage =       \
+        mode_sum;                                                                                                              \
+    layout(constant_id = specialization_fused_chain_input_type_base_id + stage) const uint                                    \
+        selected_fused_chain_input_type_##stage = type_f32;                                                                    \
+    layout(constant_id = specialization_fused_chain_input_position_base_id + stage) const uint                                \
+        selected_fused_chain_input_position_##stage = fused_input_rhs;
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(0)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(1)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(2)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(3)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(4)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(5)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(6)
+ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION(7)
+#undef ELTWISE_DECLARE_FUSED_CHAIN_SPECIALIZATION
+#endif
 #if ELTWISE_FAST_BROADCAST
 layout(constant_id = specialization_broadcast_rank_id) const uint selected_broadcast_rank = 1;
 layout(constant_id = specialization_broadcast_input0_axes_id) const uint selected_broadcast_input0_axes = 0;
@@ -203,10 +270,24 @@ const uint max_rank = 8;
 const uint header_words = metadata_count;
 const uint tensor_words = max_rank * 2 + 1;
 const uint fused_metadata_base = header_words + tensor_count * tensor_words;
-#define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) const uint metadata_fused_##name = fused_metadata_base + code;
+#define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) const uint fused_metadata_##name = code;
 #include "../eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_FUSED_METADATA_FIELD
-const uint fast_divisor_metadata_base = metadata_fused_count;
+#define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) const uint metadata_fused_##name = fused_metadata_base + fused_metadata_##name;
+#include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_METADATA_FIELD
+const uint fused_chain_metadata_base = fused_metadata_base + max_fused_chain_length * fused_metadata_count;
+#define ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD(name, code) const uint fused_chain_metadata_##name = code;
+#include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD
+#define ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD(name, code) const uint metadata_fused_chain_##name = fused_chain_metadata_base + fused_chain_metadata_##name;
+#include "../eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD
+#if ELTWISE_FUSED_CHAIN
+const uint fast_divisor_metadata_base = fused_chain_metadata_base + fused_chain_metadata_count;
+#else
+const uint fast_divisor_metadata_base = fused_metadata_base + fused_metadata_count;
+#endif
 const uint byte_value_mask = 0xff;
 const uint half_value_mask = 0xffff;
 
@@ -250,6 +331,30 @@ uint runtime_input1_coefficient() {
 #endif
 }
 
+uint runtime_dense_input0_offset() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.input0_offset;
+#else
+    return metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2];
+#endif
+}
+
+uint runtime_dense_input1_offset() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.input1_offset;
+#else
+    return metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2];
+#endif
+}
+
+uint runtime_dense_output_offset() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.output_offset;
+#else
+    return metadata.values[header_words + tensor_output * tensor_words + max_rank * 2];
+#endif
+}
+
 #if ELTWISE_FUSED
 uint runtime_fused_input_offset() {
 #if ELTWISE_DENSE_PUSH_CONSTANTS
@@ -280,6 +385,20 @@ uint runtime_fused_input1_coefficient() {
     return dense_metadata.fused_input1_coefficient;
 #else
     return metadata.values[metadata_fused_input1_coefficient];
+#endif
+}
+#endif
+
+#if ELTWISE_FUSED_CHAIN
+uint fused_chain_metadata(uint stage, uint field) {
+    return metadata.values[fused_metadata_base + stage * fused_metadata_count + field];
+}
+
+uint runtime_fused_chain_length() {
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH > 0
+    return uint(ELTWISE_FIXED_FUSED_CHAIN_LENGTH);
+#else
+    return metadata.values[metadata_fused_chain_chain_length];
 #endif
 }
 #endif
@@ -371,6 +490,45 @@ uint load_u32_fused(uint offset) {
 
 uvec2 load_u64_fused(uint offset) {
     return uvec2(load_u32_fused(offset), load_u32_fused(offset + 4));
+}
+#endif
+
+#if ELTWISE_FUSED_CHAIN
+uint load_u32_fused_chain(uint stage, uint offset) {
+    uint word = offset / 4;
+    switch (stage) {
+    case 0:
+        return fused_input0_data.values[word];
+    case 1:
+        return fused_input1_data.values[word];
+    case 2:
+        return fused_input2_data.values[word];
+    case 3:
+        return fused_input3_data.values[word];
+    case 4:
+        return fused_input4_data.values[word];
+    case 5:
+        return fused_input5_data.values[word];
+    case 6:
+        return fused_input6_data.values[word];
+    case 7:
+        return fused_input7_data.values[word];
+    default:
+        return 0;
+    }
+}
+
+uint load_u8_fused_chain(uint stage, uint offset) {
+    uint word = load_u32_fused_chain(stage, offset);
+    return (word >> ((offset % 4) * 8)) & byte_value_mask;
+}
+
+uint load_u16_fused_chain(uint stage, uint offset) {
+    return load_u8_fused_chain(stage, offset) | (load_u8_fused_chain(stage, offset + 1) << 8);
+}
+
+uvec2 load_u64_fused_chain(uint stage, uint offset) {
+    return uvec2(load_u32_fused_chain(stage, offset), load_u32_fused_chain(stage, offset + 4));
 }
 #endif
 
@@ -478,6 +636,31 @@ uvec2 load_integer_fused(uint element_offset, uint type) {
 }
 #endif
 
+#if ELTWISE_FUSED_CHAIN
+uvec2 load_integer_fused_chain(uint stage, uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_i64) {
+        return load_u64_fused_chain(stage, offset);
+    }
+    if (type == type_i32) {
+        return sign_extend(load_u32_fused_chain(stage, offset), 32);
+    }
+    if (type == type_u32) {
+        return uvec2(load_u32_fused_chain(stage, offset), 0);
+    }
+    if (type == type_i16) {
+        return sign_extend(load_u16_fused_chain(stage, offset), 16);
+    }
+    if (type == type_u16) {
+        return uvec2(load_u16_fused_chain(stage, offset), 0);
+    }
+    if (type == type_i8) {
+        return sign_extend(load_u8_fused_chain(stage, offset), 8);
+    }
+    return uvec2(load_u8_fused_chain(stage, offset), 0);
+}
+#endif
+
 float signed_u64_to_float(uvec2 value) {
     bool negative = int(value.y) < 0;
     if (negative) {
@@ -562,6 +745,20 @@ float load_float_fused(uint element_offset, uint type) {
         return unpackHalf2x16(load_u16_fused(offset)).x;
     }
     uvec2 value = load_integer_fused(element_offset, type);
+    return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
+}
+#endif
+
+#if ELTWISE_FUSED_CHAIN
+float load_float_fused_chain(uint stage, uint element_offset, uint type) {
+    uint offset = element_offset * scalar_size(type);
+    if (type == type_f32) {
+        return uintBitsToFloat(load_u32_fused_chain(stage, offset));
+    }
+    if (type == type_f16) {
+        return unpackHalf2x16(load_u16_fused_chain(stage, offset)).x;
+    }
+    uvec2 value = load_integer_fused_chain(stage, element_offset, type);
     return is_signed_type(type) ? signed_u64_to_float(value) : unsigned_u64_to_float(value);
 }
 #endif
@@ -938,16 +1135,16 @@ uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
     }
 }
 
-#if ELTWISE_FUSED
-float apply_fused_float(float lhs, float rhs) {
-    if (selected_fused_mode == mode_sum) {
-        return lhs * uintBitsToFloat(runtime_fused_input0_coefficient()) + rhs * uintBitsToFloat(runtime_fused_input1_coefficient());
+#if ELTWISE_FUSED || ELTWISE_FUSED_CHAIN
+float apply_fused_float_runtime(float lhs, float rhs, uint mode, uint input0_coefficient, uint input1_coefficient) {
+    if (mode == mode_sum) {
+        return lhs * uintBitsToFloat(input0_coefficient) + rhs * uintBitsToFloat(input1_coefficient);
     }
-    return apply_float(lhs, rhs, selected_fused_mode);
+    return apply_float(lhs, rhs, mode);
 }
 
-uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
-    switch (selected_fused_mode) {
+uvec2 apply_fused_integer_runtime(uvec2 lhs, uvec2 rhs, bool signed_type, uint mode, bool python_division) {
+    switch (mode) {
     case mode_sum:
         return add_u64(lhs, rhs);
     case mode_sub:
@@ -960,7 +1157,7 @@ uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
         divide_integer(lhs,
                        rhs,
                        signed_type,
-                       runtime_fused_python_division() != 0,
+                       python_division,
                        quotient,
                        remainder);
         return quotient;
@@ -968,6 +1165,20 @@ uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
     default:
         return uvec2(0);
     }
+}
+#endif
+
+#if ELTWISE_FUSED
+float apply_fused_float(float lhs, float rhs) {
+    return apply_fused_float_runtime(lhs,
+                                     rhs,
+                                     selected_fused_mode,
+                                     runtime_fused_input0_coefficient(),
+                                     runtime_fused_input1_coefficient());
+}
+
+uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
+    return apply_fused_integer_runtime(lhs, rhs, signed_type, selected_fused_mode, runtime_fused_python_division() != 0);
 }
 #endif
 
@@ -1015,7 +1226,7 @@ uvec2 float_output_bits(float value, uint output_type) {
     return uvec2(uint(value), 0);
 }
 
-#if ELTWISE_FUSED
+#if ELTWISE_FUSED || ELTWISE_FUSED_CHAIN
 uvec2 evaluate_base_element(uint linear_index, out uint output_offset) {
 #else
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
@@ -1145,6 +1356,128 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uvec2 lhs = selected_fused_input_position == fused_input_lhs ? fused_input : base_value;
     uvec2 rhs = selected_fused_input_position == fused_input_rhs ? fused_input : base_value;
     return apply_fused_integer(lhs, rhs, is_signed_type(output_type));
+}
+#elif ELTWISE_FUSED_CHAIN
+uvec2 evaluate_fused_chain_stage(uvec2 result,
+                                 uint stage,
+                                 uint linear_index,
+                                 uint output_type,
+                                 uint mode,
+                                 uint input_type,
+                                 uint input_position) {
+    uint input_offset = fused_chain_metadata(stage, fused_metadata_input_offset) + linear_index;
+    if (is_float_type(output_type)) {
+        float original = output_type == type_f32 ? uintBitsToFloat(result.x) : unpackHalf2x16(result.x).x;
+        float external_value = load_float_fused_chain(stage, input_offset, input_type);
+        float lhs = input_position == fused_input_lhs ? external_value : original;
+        float rhs = input_position == fused_input_rhs ? external_value : original;
+        return float_output_bits(apply_fused_float_runtime(lhs,
+                                                           rhs,
+                                                           mode,
+                                                           fused_chain_metadata(stage, fused_metadata_input0_coefficient),
+                                                           fused_chain_metadata(stage, fused_metadata_input1_coefficient)),
+                                 output_type);
+    }
+
+    uvec2 external_value = load_integer_fused_chain(stage, input_offset, input_type);
+    uvec2 lhs = input_position == fused_input_lhs ? external_value : result;
+    uvec2 rhs = input_position == fused_input_rhs ? external_value : result;
+    return apply_fused_integer_runtime(lhs,
+                                       rhs,
+                                       is_signed_type(output_type),
+                                       mode,
+                                       fused_chain_metadata(stage, fused_metadata_python_division) != 0);
+}
+
+uvec2 evaluate_element(uint linear_index, out uint output_offset) {
+    uvec2 result = evaluate_base_element(linear_index, output_offset);
+    uint output_type = selected_output_type;
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH > 0
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 1
+    result = evaluate_fused_chain_stage(result,
+                                        0,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_0,
+                                        selected_fused_chain_input_type_0,
+                                        selected_fused_chain_input_position_0);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 2
+    result = evaluate_fused_chain_stage(result,
+                                        1,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_1,
+                                        selected_fused_chain_input_type_1,
+                                        selected_fused_chain_input_position_1);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 3
+    result = evaluate_fused_chain_stage(result,
+                                        2,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_2,
+                                        selected_fused_chain_input_type_2,
+                                        selected_fused_chain_input_position_2);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 4
+    result = evaluate_fused_chain_stage(result,
+                                        3,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_3,
+                                        selected_fused_chain_input_type_3,
+                                        selected_fused_chain_input_position_3);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 5
+    result = evaluate_fused_chain_stage(result,
+                                        4,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_4,
+                                        selected_fused_chain_input_type_4,
+                                        selected_fused_chain_input_position_4);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 6
+    result = evaluate_fused_chain_stage(result,
+                                        5,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_5,
+                                        selected_fused_chain_input_type_5,
+                                        selected_fused_chain_input_position_5);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 7
+    result = evaluate_fused_chain_stage(result,
+                                        6,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_6,
+                                        selected_fused_chain_input_type_6,
+                                        selected_fused_chain_input_position_6);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 8
+    result = evaluate_fused_chain_stage(result,
+                                        7,
+                                        linear_index,
+                                        output_type,
+                                        selected_fused_chain_mode_7,
+                                        selected_fused_chain_input_type_7,
+                                        selected_fused_chain_input_position_7);
+#endif
+#else
+    uint chain_length = runtime_fused_chain_length();
+    for (uint stage = 0; stage < chain_length; ++stage) {
+        result = evaluate_fused_chain_stage(result,
+                                            stage,
+                                            linear_index,
+                                            output_type,
+                                            fused_chain_metadata(stage, fused_metadata_mode),
+                                            fused_chain_metadata(stage, fused_metadata_input_type),
+                                            fused_chain_metadata(stage, fused_metadata_input_position));
+    }
+#endif
+    return result;
 }
 #endif
 
@@ -1574,19 +1907,101 @@ void store_f32_vector(uint offset, ELTWISE_FLOAT_VECTOR value) {
 }
 #endif
 
+#if ELTWISE_FUSED_CHAIN
+ELTWISE_FLOAT_VECTOR load_f32_vector_fused_chain(uint stage, uint offset) {
+#if ELTWISE_F32_VECTOR_WIDTH == 2
+    return uintBitsToFloat(ELTWISE_UINT_VECTOR(load_u32_fused_chain(stage, offset * 4),
+                                              load_u32_fused_chain(stage, (offset + 1) * 4)));
+#else
+    return uintBitsToFloat(ELTWISE_UINT_VECTOR(load_u32_fused_chain(stage, offset * 4),
+                                              load_u32_fused_chain(stage, (offset + 1) * 4),
+                                              load_u32_fused_chain(stage, (offset + 2) * 4),
+                                              load_u32_fused_chain(stage, (offset + 3) * 4)));
+#endif
+}
+#endif
+
+#if ELTWISE_FUSED || ELTWISE_FUSED_CHAIN
+ELTWISE_FLOAT_VECTOR apply_fused_float_vector_runtime(ELTWISE_FLOAT_VECTOR lhs,
+                                                      ELTWISE_FLOAT_VECTOR rhs,
+                                                      uint mode,
+                                                      uint input0_coefficient,
+                                                      uint input1_coefficient) {
+    if (mode == mode_sum) {
+        return lhs * ELTWISE_FLOAT_VECTOR(uintBitsToFloat(input0_coefficient)) +
+               rhs * ELTWISE_FLOAT_VECTOR(uintBitsToFloat(input1_coefficient));
+    }
+    return apply_float_vector(lhs, rhs, mode);
+}
+#endif
+
 #if ELTWISE_FUSED
 ELTWISE_FLOAT_VECTOR apply_fused_float_vector(ELTWISE_FLOAT_VECTOR lhs, ELTWISE_FLOAT_VECTOR rhs) {
-    if (selected_fused_mode == mode_sum) {
-        return lhs * ELTWISE_FLOAT_VECTOR(uintBitsToFloat(runtime_fused_input0_coefficient())) +
-               rhs * ELTWISE_FLOAT_VECTOR(uintBitsToFloat(runtime_fused_input1_coefficient()));
-    }
-    return apply_float_vector(lhs, rhs, selected_fused_mode);
+    return apply_fused_float_vector_runtime(lhs,
+                                            rhs,
+                                            selected_fused_mode,
+                                            runtime_fused_input0_coefficient(),
+                                            runtime_fused_input1_coefficient());
+}
+#endif
+
+#if ELTWISE_FUSED_CHAIN
+ELTWISE_FLOAT_VECTOR evaluate_fused_chain_float_vector_stage(ELTWISE_FLOAT_VECTOR result,
+                                                             uint stage,
+                                                             uint first_element,
+                                                             uint mode,
+                                                             uint input_position) {
+    uint input_offset = fused_chain_metadata(stage, fused_metadata_input_offset) + first_element;
+    ELTWISE_FLOAT_VECTOR external_value = load_f32_vector_fused_chain(stage, input_offset);
+    ELTWISE_FLOAT_VECTOR lhs = input_position == fused_input_lhs ? external_value : result;
+    ELTWISE_FLOAT_VECTOR rhs = input_position == fused_input_rhs ? external_value : result;
+    return apply_fused_float_vector_runtime(lhs,
+                                            rhs,
+                                            mode,
+                                            fused_chain_metadata(stage, fused_metadata_input0_coefficient),
+                                            fused_chain_metadata(stage, fused_metadata_input1_coefficient));
+}
+
+ELTWISE_FLOAT_VECTOR evaluate_fused_chain_float_vector(ELTWISE_FLOAT_VECTOR result, uint first_element) {
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 1
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 0, first_element, selected_fused_chain_mode_0, selected_fused_chain_input_position_0);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 2
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 1, first_element, selected_fused_chain_mode_1, selected_fused_chain_input_position_1);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 3
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 2, first_element, selected_fused_chain_mode_2, selected_fused_chain_input_position_2);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 4
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 3, first_element, selected_fused_chain_mode_3, selected_fused_chain_input_position_3);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 5
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 4, first_element, selected_fused_chain_mode_4, selected_fused_chain_input_position_4);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 6
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 5, first_element, selected_fused_chain_mode_5, selected_fused_chain_input_position_5);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 7
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 6, first_element, selected_fused_chain_mode_6, selected_fused_chain_input_position_6);
+#endif
+#if ELTWISE_FIXED_FUSED_CHAIN_LENGTH >= 8
+    result = evaluate_fused_chain_float_vector_stage(
+        result, 7, first_element, selected_fused_chain_mode_7, selected_fused_chain_input_position_7);
+#endif
+    return result;
 }
 #endif
 
 float evaluate_dense_f32_scalar(uint linear_index) {
-    float lhs = uintBitsToFloat(input0_data.values[dense_metadata.input0_offset + linear_index]);
-    float rhs = uintBitsToFloat(input1_data.values[dense_metadata.input1_offset + linear_index]);
+    float lhs = uintBitsToFloat(input0_data.values[runtime_dense_input0_offset() + linear_index]);
+    float rhs = uintBitsToFloat(input1_data.values[runtime_dense_input1_offset() + linear_index]);
     float result = apply_float(lhs, rhs, selected_mode);
 #if ELTWISE_FUSED
     float fused_input = uintBitsToFloat(fused_input_data.values[dense_metadata.fused_input_offset + linear_index]);
@@ -1598,23 +2013,30 @@ float evaluate_dense_f32_scalar(uint linear_index) {
 }
 
 void evaluate_and_store_dense_f32_scalar(uint linear_index) {
-    output_data.values[dense_metadata.output_offset + linear_index] = floatBitsToUint(evaluate_dense_f32_scalar(linear_index));
+#if ELTWISE_FUSED_CHAIN
+    uint output_offset;
+    output_data.values[runtime_dense_output_offset() + linear_index] = evaluate_element(linear_index, output_offset).x;
+#else
+    output_data.values[runtime_dense_output_offset() + linear_index] = floatBitsToUint(evaluate_dense_f32_scalar(linear_index));
+#endif
 }
 
 void main() {
     const uint vector_width = ELTWISE_F32_VECTOR_WIDTH;
     uint first_element = gl_GlobalInvocationID.x * vector_width;
 #if ELTWISE_F32_NO_TAIL
-    ELTWISE_FLOAT_VECTOR lhs = load_f32_vector_0(dense_metadata.input0_offset + first_element);
-    ELTWISE_FLOAT_VECTOR rhs = load_f32_vector_1(dense_metadata.input1_offset + first_element);
+    ELTWISE_FLOAT_VECTOR lhs = load_f32_vector_0(runtime_dense_input0_offset() + first_element);
+    ELTWISE_FLOAT_VECTOR rhs = load_f32_vector_1(runtime_dense_input1_offset() + first_element);
     ELTWISE_FLOAT_VECTOR result = apply_float_vector(lhs, rhs, selected_mode);
 #if ELTWISE_FUSED
     ELTWISE_FLOAT_VECTOR fused_input = load_f32_vector_fused(dense_metadata.fused_input_offset + first_element);
     lhs = selected_fused_input_position == fused_input_lhs ? fused_input : result;
     rhs = selected_fused_input_position == fused_input_rhs ? fused_input : result;
     result = apply_fused_float_vector(lhs, rhs);
+#elif ELTWISE_FUSED_CHAIN
+    result = evaluate_fused_chain_float_vector(result, first_element);
 #endif
-    store_f32_vector(dense_metadata.output_offset + first_element, result);
+    store_f32_vector(runtime_dense_output_offset() + first_element, result);
 #else
     uint element_count = runtime_element_count();
     if (first_element >= element_count) {
@@ -1623,16 +2045,18 @@ void main() {
 
     uint remaining_elements = element_count - first_element;
     if (remaining_elements >= vector_width) {
-        ELTWISE_FLOAT_VECTOR lhs = load_f32_vector_0(dense_metadata.input0_offset + first_element);
-        ELTWISE_FLOAT_VECTOR rhs = load_f32_vector_1(dense_metadata.input1_offset + first_element);
+        ELTWISE_FLOAT_VECTOR lhs = load_f32_vector_0(runtime_dense_input0_offset() + first_element);
+        ELTWISE_FLOAT_VECTOR rhs = load_f32_vector_1(runtime_dense_input1_offset() + first_element);
         ELTWISE_FLOAT_VECTOR result = apply_float_vector(lhs, rhs, selected_mode);
 #if ELTWISE_FUSED
         ELTWISE_FLOAT_VECTOR fused_input = load_f32_vector_fused(dense_metadata.fused_input_offset + first_element);
         lhs = selected_fused_input_position == fused_input_lhs ? fused_input : result;
         rhs = selected_fused_input_position == fused_input_rhs ? fused_input : result;
         result = apply_fused_float_vector(lhs, rhs);
+#elif ELTWISE_FUSED_CHAIN
+        result = evaluate_fused_chain_float_vector(result, first_element);
 #endif
-        store_f32_vector(dense_metadata.output_offset + first_element, result);
+        store_f32_vector(runtime_dense_output_offset() + first_element, result);
         return;
     }
     evaluate_and_store_dense_f32_scalar(first_element);

@@ -9,6 +9,12 @@
 
 namespace cldnn::vulkan::eltwise_shader_abi {
 
+enum class limit : uint32_t {
+#define ELTWISE_SHADER_LIMIT(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_LIMIT
+};
+
 enum class mode : uint32_t {
 #define ELTWISE_SHADER_MODE(name, code) name = code,
 #include "eltwise_shader_abi.inc"
@@ -31,6 +37,12 @@ enum class fused_metadata_field : size_t {
 #define ELTWISE_SHADER_FUSED_METADATA_FIELD(name, code) name = code,
 #include "eltwise_shader_abi.inc"
 #undef ELTWISE_SHADER_FUSED_METADATA_FIELD
+};
+
+enum class fused_chain_metadata_field : size_t {
+#define ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_CHAIN_METADATA_FIELD
 };
 
 enum class dense_metadata_field : size_t {
@@ -79,6 +91,10 @@ constexpr uint32_t value(mode value) {
     return static_cast<uint32_t>(value);
 }
 
+constexpr uint32_t value(limit value) {
+    return static_cast<uint32_t>(value);
+}
+
 constexpr uint32_t value(scalar_type value) {
     return static_cast<uint32_t>(value);
 }
@@ -104,6 +120,10 @@ constexpr size_t index(metadata_field field) {
 }
 
 constexpr size_t index(fused_metadata_field field) {
+    return static_cast<size_t>(field);
+}
+
+constexpr size_t index(fused_chain_metadata_field field) {
     return static_cast<size_t>(field);
 }
 

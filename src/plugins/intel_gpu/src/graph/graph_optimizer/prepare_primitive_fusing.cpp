@@ -45,6 +45,7 @@
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
 #include "broadcast_inst.h"
+#include "impls/vulkan/eltwise_shader_abi.hpp"
 #include <vector>
 #include <map>
 #include <list>
@@ -1070,6 +1071,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             for (size_t i = 0; i < parents.size(); i++) {
                 if (is_vulkan_runtime) {
+                    namespace vulkan_eltwise_abi = cldnn::vulkan::eltwise_shader_abi;
                     const auto& fused_layout = parents[i].first->get_output_layout();
                     const auto& peer_layout = parents[parents.size() - 1 - i].first->get_output_layout();
                     const auto& output_layout = node.get_output_layout();
@@ -1081,7 +1083,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                                   (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
                     }
                     can_fuse_parents[i] =
-                        parents[i].first->is_type<eltwise>() && !parents[i].first->has_fused_primitives() && parents[i].first->get_inputs_count() == 2 &&
+                        parents[i].first->is_type<eltwise>() &&
+                        parents[i].first->get_fused_primitives().size() <
+                            vulkan_eltwise_abi::value(vulkan_eltwise_abi::limit::max_fused_chain_length) &&
+                        parents[i].first->get_inputs_count() == 2 &&
                         !fused_layout.is_dynamic() && !peer_layout.is_dynamic() && !output_layout.is_dynamic() && packed_output_supported &&
                         parents[i].first->get_input_layout(0).identical(output_layout) && parents[i].first->get_input_layout(1).identical(output_layout) &&
                         fused_layout.identical(output_layout) && peer_layout.identical(output_layout);

@@ -122,6 +122,65 @@ add_vulkan_hot_eltwise_shader(eltwise_dense_i64_div_push_constants eltwise_dense
 add_vulkan_hot_eltwise_shader(eltwise_broadcast_f32_eq eltwise.comp mode_eq type_f32 type_f32 type_boolean)
 add_vulkan_hot_eltwise_shader(eltwise_broadcast_fast_f32_eq eltwise_broadcast_fast.comp mode_eq type_f32 type_f32 type_boolean)
 
+function(add_vulkan_fused_chain_shader chain_length vector_width no_tail)
+    set(shader_source "${VULKAN_KERNEL_DIR}/eltwise_fused_dense_chain.comp")
+    set(shader_stem "eltwise_fused_dense_chain_length${chain_length}")
+    set(vector_definitions "")
+    if(vector_width GREATER 0)
+        string(APPEND shader_stem "_f32_vec${vector_width}")
+        list(APPEND vector_definitions "-DELTWISE_F32_VECTOR_WIDTH=${vector_width}")
+    endif()
+    if(no_tail)
+        string(APPEND shader_stem "_no_tail")
+        list(APPEND vector_definitions "-DELTWISE_F32_NO_TAIL=1")
+    endif()
+
+    foreach(restrict_output FALSE TRUE)
+        set(variant_stem "${shader_stem}")
+        set(restrict_definition "")
+        set(variant_description "")
+        if(restrict_output)
+            string(APPEND variant_stem "_restrict")
+            set(restrict_definition -DELTWISE_RESTRICT_OUTPUT=1)
+            set(variant_description " with runtime-proven non-aliasing output")
+        endif()
+        set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${variant_stem}.raw.spv")
+        set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${variant_stem}.spv")
+        set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${variant_stem}_spirv.hpp")
+
+        add_custom_command(
+            OUTPUT "${generated_header}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
+            COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3 -I "${VULKAN_KERNEL_DIR}"
+                    "-DELTWISE_FIXED_FUSED_CHAIN_LENGTH=${chain_length}" ${vector_definitions}
+                    ${restrict_definition} "${shader_source}" -o "${raw_spirv}"
+            COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" -O "${raw_spirv}" -o "${optimized_spirv}"
+            COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
+            COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
+                    "${optimized_spirv}" "${generated_header}" "${variant_stem}_spirv"
+                    "kernels/eltwise_fused_dense_chain.comp fixed chain length=${chain_length}${variant_description}"
+            DEPENDS
+                "${shader_source}"
+                "${VULKAN_KERNEL_DIR}/eltwise_common.glsl"
+                "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+                "${VULKAN_SHADER_GENERATOR}"
+            COMMENT "Generating host-compiled Vulkan shader ${variant_stem}"
+            VERBATIM)
+        list(APPEND VULKAN_GENERATED_HEADERS "${generated_header}")
+    endforeach()
+    set(VULKAN_GENERATED_HEADERS "${VULKAN_GENERATED_HEADERS}" PARENT_SCOPE)
+endfunction()
+
+# Read the shared host/shader resource limit instead of duplicating its value in CMake.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc" fused_chain_limit_definition
+     REGEX "^ELTWISE_SHADER_LIMIT\\(max_fused_chain_length, [0-9]+\\)$")
+string(REGEX REPLACE ".*, ([0-9]+)\\).*" "\\1" max_fused_chain_length "${fused_chain_limit_definition}")
+set(min_multi_stage_fused_chain_length 2)
+foreach(chain_length RANGE ${min_multi_stage_fused_chain_length} ${max_fused_chain_length})
+    add_vulkan_fused_chain_shader(${chain_length} 0 FALSE)
+    add_vulkan_fused_chain_shader(${chain_length} 4 TRUE)
+endforeach()
+
 set_property(SOURCE ${VULKAN_GENERATED_HEADERS} PROPERTY GENERATED TRUE)
 add_custom_target(openvino_intel_gpu_vulkan_shaders DEPENDS ${VULKAN_GENERATED_HEADERS})
 
