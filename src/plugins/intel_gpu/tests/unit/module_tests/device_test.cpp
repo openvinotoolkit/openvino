@@ -125,6 +125,45 @@ TEST(devices_test, platform_priority) {
     ASSERT_LT(intel_platform_priority, ocl::get_platform_priority("Intel"));
 }
 
+TEST(devices_test, platform_order_intel_platform_is_moved_first) {
+    // ICD loader reports Microsoft platform before the Intel one
+    const std::vector<std::string> platform_vendors = {"Microsoft", "Intel(R) Corporation", "NVIDIA Corporation", "Mesa"};
+
+    // Intel platform comes first, the remaining ones keep their relative order
+    const std::vector<size_t> expected_order = {1, 0, 2, 3};
+
+    ASSERT_EQ(expected_order, ocl::get_sorted_platform_order(platform_vendors));
+}
+
+TEST(devices_test, platform_order_is_kept_when_intel_platform_is_first) {
+    const std::vector<std::string> platform_vendors = {"Intel(R) Corporation", "Microsoft", "NVIDIA Corporation"};
+
+    const std::vector<size_t> expected_order = {0, 1, 2};
+
+    ASSERT_EQ(expected_order, ocl::get_sorted_platform_order(platform_vendors));
+}
+
+TEST(devices_test, platform_order_is_kept_without_intel_platform) {
+    const std::vector<std::string> platform_vendors = {"Microsoft", "NVIDIA Corporation", "Mesa"};
+
+    const std::vector<size_t> expected_order = {0, 1, 2};
+
+    ASSERT_EQ(expected_order, ocl::get_sorted_platform_order(platform_vendors));
+}
+
+TEST(devices_test, platform_order_multiple_intel_platforms) {
+    const std::vector<std::string> platform_vendors = {"Microsoft", "Intel(R) Corporation", "Mesa", "Intel(R) Corporation"};
+
+    // Both Intel platforms are moved first, and both groups keep their relative order
+    const std::vector<size_t> expected_order = {1, 3, 0, 2};
+
+    ASSERT_EQ(expected_order, ocl::get_sorted_platform_order(platform_vendors));
+}
+
+TEST(devices_test, platform_order_no_platforms) {
+    ASSERT_TRUE(ocl::get_sorted_platform_order({}).empty());
+}
+
 TEST(devices_test, platform_sort_order) {
     ocl::ocl_device_detector device_detector;
 

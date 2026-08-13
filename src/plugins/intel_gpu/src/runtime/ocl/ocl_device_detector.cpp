@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -87,35 +88,34 @@ size_t get_platform_priority(const std::string& platform_vendor) {
     return std::numeric_limits<size_t>::max();
 }
 
+std::vector<size_t> get_sorted_platform_order(const std::vector<std::string>& platform_vendors) {
+    std::vector<size_t> order(platform_vendors.size());
+    std::iota(order.begin(), order.end(), 0);
+
+    // Stable sort keeps the ICD loader order of the platforms with the equal priority
+    std::stable_sort(order.begin(), order.end(), [&platform_vendors](size_t lhs, size_t rhs) {
+        return get_platform_priority(platform_vendors[lhs]) < get_platform_priority(platform_vendors[rhs]);
+    });
+
+    return order;
+}
+
 // ICD loader doesn't guarantee any particular order of the platforms it reports, so the same physical device
 // may get a different device ID depending on the ICD loader implementation and the set of the installed platforms.
 // Reordering the platforms here makes the devices reported by Intel OpenCL platform come first in the device list.
 static std::vector<cl_platform_id> sort_platforms(const std::vector<cl_platform_id>& platform_ids) {
-    struct platform_entry {
-        size_t priority;
-        std::string vendor;
-        cl_platform_id id;
-    };
-
-    std::vector<platform_entry> entries;
-    entries.reserve(platform_ids.size());
+    std::vector<std::string> vendors;
+    vendors.reserve(platform_ids.size());
     for (const auto& id : platform_ids) {
-        platform_entry entry{std::numeric_limits<size_t>::max(), {}, id};
-        entry.vendor = cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>();
-        entry.priority = get_platform_priority(entry.vendor);
-        entries.push_back(std::move(entry));
+        vendors.push_back(cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>());
     }
 
-    std::stable_sort(entries.begin(), entries.end(), [](const platform_entry& e1, const platform_entry& e2) {
-        return e1.priority < e2.priority;
-    });
-
     std::vector<cl_platform_id> sorted_ids;
-    sorted_ids.reserve(entries.size());
-    for (const auto& entry : entries) {
-        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << entry.vendor
-                      << ", priority=" << entry.priority << std::endl;
-        sorted_ids.push_back(entry.id);
+    sorted_ids.reserve(platform_ids.size());
+    for (const auto& idx : get_sorted_platform_order(vendors)) {
+        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << vendors[idx]
+                      << ", priority=" << get_platform_priority(vendors[idx]) << std::endl;
+        sorted_ids.push_back(platform_ids[idx]);
     }
 
     return sorted_ids;
