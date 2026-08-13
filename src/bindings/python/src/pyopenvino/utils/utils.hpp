@@ -99,6 +99,8 @@ private:
 
     std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties);
 
+    ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const py::object& py_obj);
+
     std::shared_ptr<ov::Model> convert_to_model(const py::object& obj);
 
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string(), int stacklevel=2);

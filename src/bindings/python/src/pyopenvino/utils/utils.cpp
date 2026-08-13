@@ -303,6 +303,73 @@ py::object from_ov_any(const ov::Any& any) {
     }
 }
 
+// Converts a Python dict[str, dict[int, float]] into PerfCurveTable, performing only the Python-type
+// conversions the C++ types require (str device keys, integer utilization keys with bool rejection,
+// float scores with bool rejection, and rejecting negative keys the unsigned map key cannot represent).
+// Value semantics (device whitelist, utilization range, finite non-negative scores, non-empty curves)
+// are owned by PerfCurveTableValidator and enforced when the property is set on the plugin.
+ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const py::object& py_obj) {
+    OPENVINO_ASSERT(py::isinstance<py::dict>(py_obj),
+                    "The value type of ",
+                    ov::intel_auto::perf_curve_table.name(),
+                    " should be dict[str, dict[int, float]]");
+    ov::intel_auto::PerfCurveTable perf_curve_table;
+    for (const auto& item : py::cast<py::dict>(py_obj)) {
+        if (!py::isinstance<py::str>(item.first)) {
+            OPENVINO_THROW("The key type of ",
+                           ov::intel_auto::perf_curve_table.name(),
+                           " should be dict[str, dict[int, float]] with string keys");
+        }
+        if (!py::isinstance<py::dict>(item.second)) {
+            OPENVINO_THROW("The value type of ",
+                           ov::intel_auto::perf_curve_table.name(),
+                           " should be dict[str, dict[int, float]] with dict values");
+        }
+        const auto device_key = py::str(item.first).cast<std::string>();
+        std::map<unsigned, float> curve;
+        for (const auto& curve_item : py::cast<py::dict>(item.second)) {
+            if (!py::isinstance<py::int_>(curve_item.first) || py::isinstance<py::bool_>(curve_item.first)) {
+                OPENVINO_THROW("The key type of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " should be dict[str, dict[int, float]] with integer inner keys");
+            }
+            long long utilization = 0;
+            try {
+                utilization = py::cast<long long>(curve_item.first);
+            } catch (const py::cast_error&) {
+                // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
+                OPENVINO_THROW("The utilization key of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " must be a Python integer");
+            }
+            // The map key is unsigned; reject negatives so they cannot silently wrap.
+            if (utilization < 0) {
+                OPENVINO_THROW("The utilization key of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " must be a non-negative integer");
+            }
+            // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
+            if (py::isinstance<py::bool_>(curve_item.second)) {
+                OPENVINO_THROW("The value type of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " should be dict[str, dict[int, float]] with float scores");
+            }
+            float score = 0.f;
+            try {
+                score = py::cast<float>(curve_item.second);
+            } catch (const py::cast_error&) {
+                // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
+                OPENVINO_THROW("The value type of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " should be dict[str, dict[int, float]] with numeric float scores");
+            }
+            curve[static_cast<unsigned>(utilization)] = score;
+        }
+        perf_curve_table[device_key] = curve;
+    }
+    return perf_curve_table;
+}
+
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
@@ -369,68 +436,7 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = thresholds;
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
-            // Only Python-type shape and conversion-safety checks live here (str/dict structure, bool
-            // rejection, int/float discrimination, and rejecting negative utilization keys that the
-            // unsigned map key cannot represent). Semantic rules (empty curve, utilization upper bound,
-            // finite non-negative scores, device-name whitelist) are owned by PerfCurveTableValidator and
-            // enforced when the property is set on the plugin.
-            ov::intel_auto::PerfCurveTable perf_curve_table;
-            auto dict = py::cast<py::dict>(property.second);
-            for (const auto& item : dict) {
-                if (!py::isinstance<py::str>(item.first)) {
-                    OPENVINO_THROW("The key type of ",
-                                   ov::intel_auto::perf_curve_table.name(),
-                                   " should be dict[str, dict[int in [0, 100], float]] with string keys");
-                }
-                if (!py::isinstance<py::dict>(item.second)) {
-                    OPENVINO_THROW("The value type of ",
-                                   ov::intel_auto::perf_curve_table.name(),
-                                   " should be dict[str, dict[int in [0, 100], float]] with dict values");
-                }
-                const auto device_key = py::str(item.first).cast<std::string>();
-                std::map<unsigned, float> curve;
-                for (const auto& curve_item : py::cast<py::dict>(item.second)) {
-                    if (!py::isinstance<py::int_>(curve_item.first) || py::isinstance<py::bool_>(curve_item.first)) {
-                        OPENVINO_THROW("The key type of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " should be dict[str, dict[int in [0, 100], float]] with integer inner keys");
-                    }
-                    long long utilization = 0;
-                    try {
-                        utilization = py::cast<long long>(curve_item.first);
-                    } catch (const py::cast_error&) {
-                        // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
-                        OPENVINO_THROW("The utilization key of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " must be a Python integer");
-                    }
-                    // The map key is unsigned; reject values outside [0, 100] here so they cannot silently wrap.
-                    // Other semantic rules are enforced by PerfCurveTableValidator.
-                    if (utilization < 0 || utilization > 100) {
-                        OPENVINO_THROW("The utilization key of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " must be an integer in range [0, 100]");
-                    }
-                    // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
-                    if (py::isinstance<py::bool_>(curve_item.second)) {
-                        OPENVINO_THROW("The value type of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " should be dict[str, dict[int in [0, 100], float]] with float scores");
-                    }
-                    float score = 0.f;
-                    try {
-                        score = py::cast<float>(curve_item.second);
-                    } catch (const py::cast_error&) {
-                        // Rethrow as ov::Exception so invalid types surface as a consistent RuntimeError.
-                        OPENVINO_THROW("The value type of ",
-                                       ov::intel_auto::perf_curve_table.name(),
-                                       " should be dict[str, dict[int in [0, 100], float]] with numeric float scores");
-                    }
-                    curve[static_cast<unsigned>(utilization)] = score;
-                }
-                perf_curve_table[device_key] = curve;
-            }
-            properties_to_cpp[property.first] = perf_curve_table;
+            properties_to_cpp[property.first] = py_object_to_perf_curve_table(property.second);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
