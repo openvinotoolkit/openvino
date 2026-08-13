@@ -68,21 +68,30 @@ $MAX_SUPPORTED_PYTHON_VERSION_MINOR = 14
 
 try
 {
-    # Should select the latest installed Python version as per https://docs.python.org/3/using/windows.html#getting-started
-    (py --version) | Out-Null
+    # Prefer the Python launcher, but support interpreters installed without it.
+    $python_command = "py"
+    (& $python_command --version) | Out-Null
 }
 catch
 {
-    Write-Host "Warning: Python is not installed. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
-    # Python is not mandatory so we can safely exit with 0
-    Exit 0
+    try
+    {
+        $python_command = "python"
+        (& $python_command --version) | Out-Null
+    }
+    catch
+    {
+        Write-Host "Warning: Python is not installed. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
+        # Python is not mandatory so we can safely exit with 0
+        Exit 0
+    }
 }
 
 # Check Python version if user did not pass -python_version
 if (-not $python_version)
 {
-    $installed_python_version_major = [int](py -c "import sys; print(f'{sys.version_info[0]}')")
-    $installed_python_version_minor = [int](py -c "import sys; print(f'{sys.version_info[1]}')")
+    $installed_python_version_major = [int](& $python_command -c "import sys; print(f'{sys.version_info[0]}')")
+    $installed_python_version_minor = [int](& $python_command -c "import sys; print(f'{sys.version_info[1]}')")
 }
 else
 {
@@ -104,7 +113,7 @@ if (-not ($PYTHON_VERSION_MAJOR -eq $installed_python_version_major -and $instal
 # Check Python bitness
 try
 {
-    $python_bitness = (py -c "import sys; print(64 if sys.maxsize > 2**32 else 32)")
+    $python_bitness = (& $python_command -c "import sys; print(64 if sys.maxsize > 2**32 else 32)").Trim()
 }
 catch
 {
