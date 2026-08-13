@@ -23,6 +23,7 @@
 
 #include "llm_test_helpers.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
@@ -249,6 +250,17 @@ TEST_F(NPUWBatchedElementTest, ExportWritesBatchedHeader) {
     ov::npuw::s11n::IndicatorType batched_indicator{};
     stream.read(reinterpret_cast<char*>(batched_indicator.data()), batched_indicator.size());
     EXPECT_EQ(batched_indicator, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+
+    int vmajor = 0, vminor = 0, vpatch = 0;
+    std::string s11n_version;
+    ov::npuw::s11n::read(stream, vmajor);
+    ov::npuw::s11n::read(stream, vminor);
+    ov::npuw::s11n::read(stream, vpatch);
+    ov::npuw::s11n::read(stream, s11n_version);
+    EXPECT_EQ(vmajor, OPENVINO_VERSION_MAJOR);
+    EXPECT_EQ(vminor, OPENVINO_VERSION_MINOR);
+    EXPECT_EQ(vpatch, OPENVINO_VERSION_PATCH);
+    EXPECT_EQ(s11n_version, std::string(NPUW_SERIALIZATION_VERSION));
 
     // The mock inner writes nothing, so the header is the whole stream.
     EXPECT_EQ(stream.peek(), std::char_traits<char>::eof());

@@ -13,6 +13,7 @@
 #include "../../util.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -46,6 +47,12 @@ void ov::npuw::batched::CompiledModel::export_model(std::ostream& model) const {
     // indicator alone.
     ov::npuw::s11n::write(model, NPUW_SERIALIZATION_INDICATOR);
     ov::npuw::s11n::write(model, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+    // Versions, as in the LLM blob header. The inner blob checks its own, but the
+    // wrapper header needs a version of its own in case its format ever changes.
+    ov::npuw::s11n::write(model, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(model, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(model, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(model, std::string(NPUW_SERIALIZATION_VERSION));
     m_inner->export_model(model);
 }
 
@@ -63,6 +70,34 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::impo
     ov::npuw::s11n::read(stream, batched_indicator);
     OPENVINO_ASSERT(batched_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR,
                     "This blob wasn't serialized via batched::CompiledModel!");
+
+    int vmajor = 0, vminor = 0, vpatch = 0;
+    std::string s11n_version;
+    ov::npuw::s11n::read(stream, vmajor);
+    ov::npuw::s11n::read(stream, vminor);
+    ov::npuw::s11n::read(stream, vpatch);
+    ov::npuw::s11n::read(stream, s11n_version);
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blob was serialized with different OV version!",
+                       "\nSerialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       "\nCurrent OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       "\nNPUW serialized by version ",
+                       s11n_version,
+                       "\nNPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
+    }
 
     auto inner = ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
     return std::make_shared<CompiledModel>(inner, plugin);
