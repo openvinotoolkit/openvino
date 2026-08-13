@@ -20,13 +20,19 @@
 #include <vector>
 
 #include "data_inst.h"
+#include "eltwise_broadcast_f32_eq_spirv.hpp"
+#include "eltwise_broadcast_fast_f32_eq_spirv.hpp"
 #include "eltwise_broadcast_fast_spirv.hpp"
 #include "eltwise_broadcast_fast_vector_spirv.hpp"
 #include "eltwise_broadcast_vector_spirv.hpp"
+#include "eltwise_dense_f32_div_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_sum_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec2_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec4_no_tail_push_constants_spirv.hpp"
 #include "eltwise_dense_f32_vec4_push_constants_spirv.hpp"
+#include "eltwise_dense_i64_div_push_constants_spirv.hpp"
+#include "eltwise_dense_i64_sum_push_constants_spirv.hpp"
 #include "eltwise_dense_packed_16bit_push_constants_spirv.hpp"
 #include "eltwise_dense_packed_8bit_push_constants_spirv.hpp"
 #include "eltwise_dense_packed_f16_push_constants_spirv.hpp"
@@ -104,6 +110,12 @@ enum class kernel_kind : uint8_t {
     fused_dense_packed_f16_push_constants,
     broadcast_fast_scalar,
     broadcast_fast_vector,
+    dense_f32_sum_push_constants,
+    dense_f32_div_push_constants,
+    dense_i64_sum_push_constants,
+    dense_i64_div_push_constants,
+    broadcast_f32_eq,
+    broadcast_fast_f32_eq,
 };
 
 enum class dense_vector_width : uint32_t {
@@ -153,8 +165,14 @@ bool is_packed_dense_kernel(kernel_kind kind) {
 }
 
 bool uses_dense_push_constants(kernel_kind kind) {
-    return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants || is_f32_vector_kernel(kind) ||
-           is_packed_dense_kernel(kind);
+    return one_of(kind,
+                  {kernel_kind::dense_push_constants,
+                   kernel_kind::fused_dense_push_constants,
+                   kernel_kind::dense_f32_sum_push_constants,
+                   kernel_kind::dense_f32_div_push_constants,
+                   kernel_kind::dense_i64_sum_push_constants,
+                   kernel_kind::dense_i64_div_push_constants}) ||
+           is_f32_vector_kernel(kind) || is_packed_dense_kernel(kind);
 }
 
 bool is_broadcast_vector_kernel(kernel_kind kind) {
@@ -162,13 +180,17 @@ bool is_broadcast_vector_kernel(kernel_kind kind) {
 }
 
 bool is_fast_broadcast_kernel(kernel_kind kind) {
-    return one_of(kind, {kernel_kind::broadcast_fast_scalar, kernel_kind::broadcast_fast_vector});
+    return one_of(kind, {kernel_kind::broadcast_fast_scalar, kernel_kind::broadcast_fast_vector, kernel_kind::broadcast_fast_f32_eq});
 }
 
 bool is_plain_dense_kernel(kernel_kind kind) {
     return one_of(kind,
                   {kernel_kind::dense,
                    kernel_kind::dense_push_constants,
+                   kernel_kind::dense_f32_sum_push_constants,
+                   kernel_kind::dense_f32_div_push_constants,
+                   kernel_kind::dense_i64_sum_push_constants,
+                   kernel_kind::dense_i64_div_push_constants,
                    kernel_kind::dense_f32_vec2_push_constants,
                    kernel_kind::dense_f32_vec4_push_constants,
                    kernel_kind::dense_f32_vec2_no_tail_push_constants,
@@ -717,6 +739,42 @@ kernel_kind select_f32_vector_kernel_kind(dense_vector_width width, bool fused, 
     return fused ? kernel_kind::fused_dense_f32_vec2_push_constants : kernel_kind::dense_f32_vec2_push_constants;
 }
 
+kernel_kind select_pre_specialized_kernel_kind(kernel_kind fallback,
+                                               eltwise_mode mode,
+                                               const layout& input0_layout,
+                                               const layout& input1_layout,
+                                               const layout& output_layout) {
+    if (fallback == kernel_kind::dense_push_constants && input0_layout.data_type == input1_layout.data_type &&
+        input0_layout.data_type == output_layout.data_type) {
+        if (input0_layout.data_type == data_types::f32) {
+            if (mode == eltwise_mode::sum) {
+                return kernel_kind::dense_f32_sum_push_constants;
+            }
+            if (mode == eltwise_mode::div) {
+                return kernel_kind::dense_f32_div_push_constants;
+            }
+        }
+        if (input0_layout.data_type == data_types::i64) {
+            if (mode == eltwise_mode::sum) {
+                return kernel_kind::dense_i64_sum_push_constants;
+            }
+            if (mode == eltwise_mode::div) {
+                return kernel_kind::dense_i64_div_push_constants;
+            }
+        }
+    }
+    if (mode == eltwise_mode::eq && input0_layout.data_type == data_types::f32 && input1_layout.data_type == data_types::f32 &&
+        output_layout.data_type == data_types::boolean) {
+        if (fallback == kernel_kind::broadcast_scalar) {
+            return kernel_kind::broadcast_f32_eq;
+        }
+        if (fallback == kernel_kind::broadcast_fast_scalar) {
+            return kernel_kind::broadcast_fast_f32_eq;
+        }
+    }
+    return fallback;
+}
+
 struct fused_eltwise_info {
     const fused_primitive_desc* descriptor = nullptr;
     size_t external_dependency_index = 0;
@@ -1145,6 +1203,18 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::dense_push_constants) {
         spirv = eltwise_dense_push_constants_spirv;
         spirv_size = sizeof(eltwise_dense_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_f32_sum_push_constants) {
+        spirv = eltwise_dense_f32_sum_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_f32_sum_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_f32_div_push_constants) {
+        spirv = eltwise_dense_f32_div_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_f32_div_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_i64_sum_push_constants) {
+        spirv = eltwise_dense_i64_sum_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_i64_sum_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_i64_div_push_constants) {
+        spirv = eltwise_dense_i64_div_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_i64_div_push_constants_spirv);
     } else if (kind == kernel_kind::dense_f32_vec2_push_constants) {
         spirv = eltwise_dense_f32_vec2_push_constants_spirv;
         spirv_size = sizeof(eltwise_dense_f32_vec2_push_constants_spirv);
@@ -1172,6 +1242,12 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::broadcast_fast_scalar) {
         spirv = eltwise_broadcast_fast_spirv;
         spirv_size = sizeof(eltwise_broadcast_fast_spirv);
+    } else if (kind == kernel_kind::broadcast_f32_eq) {
+        spirv = eltwise_broadcast_f32_eq_spirv;
+        spirv_size = sizeof(eltwise_broadcast_f32_eq_spirv);
+    } else if (kind == kernel_kind::broadcast_fast_f32_eq) {
+        spirv = eltwise_broadcast_fast_f32_eq_spirv;
+        spirv_size = sizeof(eltwise_broadcast_fast_f32_eq_spirv);
     } else if (kind == kernel_kind::broadcast_fast_vector) {
         spirv = eltwise_broadcast_fast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_fast_vector_spirv);
@@ -1619,6 +1695,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
         if (kind != kernel_kind::scalar_constant) {
             scalar.reset();
         }
+        kind = select_pre_specialized_kernel_kind(kind, node.as<eltwise>().get_primitive()->mode, input0_layout, input1_layout, params.get_output_layout(0));
     }
     uint32_t elements_per_invocation = 0;
     if (!params.is_dynamic()) {

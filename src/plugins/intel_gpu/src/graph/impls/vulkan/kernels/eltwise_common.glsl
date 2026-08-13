@@ -151,10 +151,26 @@ layout(set = 0, binding = 4) writeonly buffer PackedOutput {
 #undef ELTWISE_SHADER_MODE
 
 layout(local_size_x_id = specialization_local_size_x_id, local_size_y = 1, local_size_z = 1) in;
+#ifdef ELTWISE_FIXED_MODE
+const uint selected_mode = uint(ELTWISE_FIXED_MODE);
+#else
 layout(constant_id = specialization_mode_id) const uint selected_mode = mode_sum;
+#endif
+#ifdef ELTWISE_FIXED_INPUT0_TYPE
+const uint selected_input0_type = uint(ELTWISE_FIXED_INPUT0_TYPE);
+#else
 layout(constant_id = specialization_input0_type_id) const uint selected_input0_type = type_f32;
+#endif
+#ifdef ELTWISE_FIXED_INPUT1_TYPE
+const uint selected_input1_type = uint(ELTWISE_FIXED_INPUT1_TYPE);
+#else
 layout(constant_id = specialization_input1_type_id) const uint selected_input1_type = type_f32;
+#endif
+#ifdef ELTWISE_FIXED_OUTPUT_TYPE
+const uint selected_output_type = uint(ELTWISE_FIXED_OUTPUT_TYPE);
+#else
 layout(constant_id = specialization_output_type_id) const uint selected_output_type = type_f32;
+#endif
 layout(constant_id = specialization_storage_flags_id) const uint selected_storage_flags = 0;
 #if ELTWISE_DENSE || ELTWISE_BROADCAST_VECTOR || ELTWISE_SCALAR_CONSTANT
 layout(constant_id = specialization_elements_per_invocation_id) const uint selected_elements_per_invocation = 1;
