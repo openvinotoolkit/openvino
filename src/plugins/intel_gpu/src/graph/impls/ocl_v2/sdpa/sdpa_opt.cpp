@@ -66,7 +66,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
         const char* env = std::getenv("TEST_USE_SDPA_OCL");
-        const bool use_ocl = env && env[0] == '1';
+        const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
         if (use_ocl) {
             regular_micro_single_token = make_stage<SDPAOclGenerator>(!prefill);
             regular_micro_multi_tokens = make_stage<SDPAOclGenerator>(prefill);

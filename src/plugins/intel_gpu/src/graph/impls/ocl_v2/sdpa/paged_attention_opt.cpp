@@ -1412,7 +1412,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
     const char* env = std::getenv("TEST_USE_SDPA_OCL");
-    const bool use_ocl = env && env[0] == '1';
+    const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
     Stage::Ptr pa_sdpa_micro = use_ocl ? make_stage<SDPAOclGenerator>(true) : make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = use_ocl ? make_stage<SDPAOclGenerator>(false) : make_stage<SDPAMicroGenerator>(false);
 #endif
