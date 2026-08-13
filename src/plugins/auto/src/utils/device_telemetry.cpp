@@ -21,6 +21,62 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
+namespace {
+
+std::optional<float> parse_utilization_from_aiselector_json_impl(const std::string& json_str,
+                                                                 const std::string& metric_key,
+                                                                 std::string_view metric_key_view,
+                                                                 const std::string& device_name) {
+    try {
+        LOG_DEBUG_TAG("TelemetryClient: raw IPF response: %s", json_str.c_str());
+        const auto parsed = nlohmann::json::parse(json_str);
+        if (!parsed.contains("Performance")) {
+            LOG_WARNING_TAG("TelemetryClient: JSON missing 'Performance' section");
+            return std::nullopt;
+        }
+        const auto& performance = parsed["Performance"];
+        auto metric_it = performance.find(metric_key);
+        // IGPU may be reported under either IGPUUtilization or GPUUtilization; fall back to the latter.
+        const bool igpu_fallback_attempted = metric_it == performance.end() && metric_key_view == k_igpu_utilization_metric;
+        if (igpu_fallback_attempted) {
+            static const std::string igpu_fallback_key{k_igpu_utilization_fallback_metric};
+            metric_it = performance.find(igpu_fallback_key);
+        }
+        if (metric_it == performance.end()) {
+            if (igpu_fallback_attempted) {
+                LOG_WARNING_TAG("TelemetryClient: Performance section missing keys: %s and fallback %.*s",
+                                metric_key.c_str(),
+                                static_cast<int>(k_igpu_utilization_fallback_metric.size()),
+                                k_igpu_utilization_fallback_metric.data());
+            } else {
+                LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
+            }
+            return std::nullopt;
+        }
+        if (!metric_it->is_number()) {
+            const auto& resolved_metric_key = metric_it.key();
+            LOG_WARNING_TAG("TelemetryClient: Performance value for key %s is not a number", resolved_metric_key.c_str());
+            return std::nullopt;
+        }
+        float value = metric_it->get<float>();
+        const std::string value_as_string = std::to_string(value);
+        LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", value_as_string.c_str(), device_name.c_str());
+        if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
+            LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
+                            value_as_string.c_str(),
+                            device_name.c_str());
+            return std::nullopt;
+        }
+
+        return value;
+    } catch (const nlohmann::json::exception& e) {
+        LOG_DEBUG_TAG("TelemetryClient: JSON parsing exception: %s", e.what());
+        return std::nullopt;
+    }
+}
+
+}  // namespace
+
 // Calls into ClientApi.dll through the plain-C ABI (ClientApiC.h).
 class TelemetryClient::Impl {
 public:
@@ -57,34 +113,7 @@ public:
         if (json_str.empty()) {
             return std::nullopt;
         }
-        try {
-            LOG_DEBUG_TAG("TelemetryClient: raw IPF response: %s", json_str.c_str());
-            const auto parsed = nlohmann::json::parse(json_str);
-            if (!parsed.contains("Performance")) {
-                LOG_WARNING_TAG("TelemetryClient: JSON missing 'Performance' section");
-                return std::nullopt;
-            }
-            if (!parsed["Performance"].contains(metric_key)) {
-                LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
-                return std::nullopt;
-            }
-            float value = parsed["Performance"][metric_key].get<float>();
-            const std::string value_as_string = std::to_string(value);
-            LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s",
-                          value_as_string.c_str(),
-                          device_name.c_str());
-            if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
-                LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
-                              value_as_string.c_str(),
-                              device_name.c_str());
-                return std::nullopt;
-            }
-
-            return value;
-        } catch (const nlohmann::json::exception& e) {
-            LOG_DEBUG_TAG("TelemetryClient: JSON parsing exception: %s", e.what());
-            return std::nullopt;
-        }
+        return parse_utilization_from_aiselector_json_impl(json_str, metric_key, metric_key_view, device_name);
     }
 
 private:
@@ -119,6 +148,21 @@ TelemetryClient::~TelemetryClient() = default;
 std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
     return m_impl->utilization(device_name, device_type);
 }
+
+#ifdef MULTIUNITTEST
+std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type) {
+    const auto metric_key_view = device_to_metric_key(device_name, device_type);
+    if (metric_key_view.empty()) {
+        return std::nullopt;
+    }
+    return parse_utilization_from_aiselector_json_impl(json_str,
+                                                       std::string{metric_key_view},
+                                                       metric_key_view,
+                                                       device_name);
+}
+#endif
 
 }  // namespace device_monitor
 }  // namespace auto_plugin

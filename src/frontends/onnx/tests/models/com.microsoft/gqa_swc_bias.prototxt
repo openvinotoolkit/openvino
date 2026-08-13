@@ -15,7 +15,13 @@ graph {
     output: "output"
     output: "present_key"
     output: "present_value"
+    name: "GroupQueryAttention_0"
     op_type: "GroupQueryAttention"
+    attribute {
+      name: "do_rotary"
+      i: 0
+      type: INT
+    }
     attribute {
       name: "kv_num_heads"
       i: 1
@@ -32,13 +38,28 @@ graph {
       type: INT
     }
     attribute {
+      name: "rotary_interleaved"
+      i: 0
+      type: INT
+    }
+    attribute {
       name: "sliding_window_cache"
       i: 1
       type: INT
     }
+    attribute {
+      name: "smooth_softmax"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "softcap"
+      f: 0.0
+      type: FLOAT
+    }
     domain: "com.microsoft"
   }
-  name: "GQA_bias_swc"
+  name: "GroupQueryAttention_Graph"
   input {
     name: "query"
     type {
@@ -46,10 +67,10 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
-            dim_value: 1
+            dim_param: "sequence_length"
           }
           dim {
             dim_value: 64
@@ -65,13 +86,13 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
             dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_param: "past_sequence_length"
           }
           dim {
             dim_value: 16
@@ -87,13 +108,13 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
             dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_param: "past_sequence_length"
           }
           dim {
             dim_value: 16
@@ -109,7 +130,7 @@ graph {
         elem_type: 6
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
             dim_value: 1
@@ -141,10 +162,10 @@ graph {
             dim_value: 2
           }
           dim {
-            dim_value: 1
+            dim_param: "S"
           }
           dim {
-            dim_value: 2
+            dim_param: "T"
           }
         }
       }
@@ -157,10 +178,10 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
-            dim_value: 1
+            dim_param: "sequence_length"
           }
           dim {
             dim_value: 32
@@ -176,13 +197,13 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
             dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_param: "total_sequence_length"
           }
           dim {
             dim_value: 16
@@ -198,13 +219,13 @@ graph {
         elem_type: 1
         shape {
           dim {
-            dim_value: 1
+            dim_param: "batch_size"
           }
           dim {
             dim_value: 1
           }
           dim {
-            dim_value: 2
+            dim_param: "total_sequence_length"
           }
           dim {
             dim_value: 16
@@ -215,8 +236,7 @@ graph {
   }
 }
 opset_import {
-  domain: ""
-  version: 17
+  version: 11
 }
 opset_import {
   domain: "com.microsoft"
