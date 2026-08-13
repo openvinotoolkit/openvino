@@ -5,6 +5,7 @@
 #pragma once
 
 #include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
@@ -18,6 +19,7 @@
 #include <openvino/core/except.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
+#include <cmath>
 #include <cstring>
 #include <optional>
 
@@ -1239,7 +1241,8 @@ struct PagedAttentionReference {
                                                          pam.get_default_scale(),
                                                          xattn_threshold,
                                                          xattn_block_size,
-                                                         qq_bias_ptr);
+                                                         qq_bias_ptr,
+                                                         pam.sinks.empty() ? nullptr : &pam.sinks);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -1270,6 +1273,7 @@ private:
                                                                                 double xattention_threshold,
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
+                                                                                const std::vector<ov::float16>* sinks = nullptr,
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1316,19 +1320,32 @@ private:
             }
         }
 
+        // An attention sink is, literally, ONE extra key: its logit is sink[head] and its value
+        // vector is ZERO, so it joins the softmax denominator and contributes nothing to the output.
+        // Modelling it that way keeps the reference a plain softmax -- the score column is
+        // concatenated below, and the matching zero V row goes here, which is what makes the extra
+        // column cancel out of the numerator instead of needing a crop.
+        // Every value_shape above puts the key axis outermost (dim 1 when the leading dim is 1, dim 0
+        // in the GQA layout), so one extra key is one extra num_kv_heads * v_head_size run of zeros
+        // at the END of the buffer.
+        std::vector<ov::float16> value_with_sink;
+        if (sinks != nullptr) {
+            const auto& src = do_gqa_expand ? expanded_value_data : value_data;
+            value_with_sink.assign(src.begin(), src.end());
+            value_with_sink.resize(src.size() + static_cast<size_t>(num_kv_heads) * v_head_size, ov::float16(0.f));
+            value_shape[num_heads == num_kv_heads ? 1 : 0] = ov::Dimension(num_keys + 1);
+        }
+        const std::vector<ov::float16>& value_src =
+            sinks != nullptr ? value_with_sink : (do_gqa_expand ? expanded_value_data : value_data);
+
         auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
         auto key_layout = cldnn::layout{key_shape, cldnn::data_types::f16, cldnn::format::bfyx};
         auto value_layout = cldnn::layout{value_shape, cldnn::data_types::f16, cldnn::format::bfyx};
         auto scale_layout = cldnn::layout({1}, cldnn::data_types::f16, cldnn::format::bfyx);
 
         OPENVINO_ASSERT(query_layout.count() == query_data.size());
-        if (do_gqa_expand) {
-            OPENVINO_ASSERT(key_layout.count() == expanded_key_data.size());
-            OPENVINO_ASSERT(value_layout.count() == expanded_value_data.size());
-        } else {
-            OPENVINO_ASSERT(key_layout.count() == key_data.size());
-            OPENVINO_ASSERT(value_layout.count() == value_data.size());
-        }
+        OPENVINO_ASSERT(key_layout.count() == (do_gqa_expand ? expanded_key_data : key_data).size());
+        OPENVINO_ASSERT(value_layout.count() == value_src.size());
 
         auto query_mem = test_engine.allocate_memory(query_layout);
         auto key_mem = test_engine.allocate_memory(key_layout);
@@ -1336,13 +1353,8 @@ private:
         auto scale_mem = test_engine.allocate_memory(scale_layout);
 
         tests::set_values(query_mem, query_data);
-        if (do_gqa_expand) {
-            tests::set_values(key_mem, expanded_key_data);
-            tests::set_values(value_mem, expanded_value_data);
-        } else {
-            tests::set_values(key_mem, key_data);
-            tests::set_values(value_mem, value_data);
-        }
+        tests::set_values(key_mem, do_gqa_expand ? expanded_key_data : key_data);
+        tests::set_values(value_mem, value_src);
         tests::set_values(scale_mem, {static_cast<ov::float16>(scale)});
 
         ov::reference::XAttentionRetainedBlockIndicesForAllHeads retained_blocks;
@@ -1394,6 +1406,26 @@ private:
                                                          retained_blocks,
                                                          static_cast<int>(block_size),
                                                          qq_bias);
+        // The sink's score column: one entry per (q-head, query), constant along the query axis. The
+        // two topology branches below split the head axis differently -- [1, heads, q, k] against
+        // [kv_heads, group, q, k] -- but both enumerate q-heads in the same order (h = kv_head *
+        // group + group_idx, which is how query_data is reshaped), so the FLAT contents are the same
+        // and only the declared shape differs.
+        cldnn::memory::ptr sink_mem = nullptr;
+        if (sinks != nullptr) {
+            OPENVINO_ASSERT(sinks->size() == static_cast<size_t>(num_heads),
+                            "reference expects one sink per q-head, got ", sinks->size(), " for ", num_heads, " heads");
+            const ov::PartialShape sink_shape = (num_heads == num_kv_heads)
+                                                    ? ov::PartialShape{1, num_heads, num_queries, 1}
+                                                    : ov::PartialShape{num_kv_heads, num_heads / num_kv_heads, num_queries, 1};
+            sink_mem = test_engine.allocate_memory(cldnn::layout{sink_shape, cldnn::data_types::f16, cldnn::format::bfyx});
+            cldnn::mem_lock<ov::float16> sink_lock(sink_mem, test_stream);
+            for (int h = 0; h < num_heads; h++)
+                for (int qi = 0; qi < num_queries; qi++)
+                    sink_lock[h * num_queries + qi] = (*sinks)[h];
+        }
+        const std::string softmax_src = sinks != nullptr ? "eltwise_sink" : "eltwise";
+
         cldnn::topology topology;
         if (num_heads == num_kv_heads) {
             topology.add(
@@ -1408,7 +1440,7 @@ private:
                 cldnn::gemm("qk_gemm", {cldnn::input_info("query_transposed"), cldnn::input_info("key_transposed")}, cldnn::data_types::f16, false, false),
                 cldnn::eltwise("scale_div", {cldnn::input_info("qk_gemm"), cldnn::input_info("scale")}, cldnn::eltwise_mode::prod),
                 cldnn::eltwise("eltwise", {cldnn::input_info("scale_div"), cldnn::input_info("mask")}, cldnn::eltwise_mode::sum),
-                cldnn::softmax("softmax", cldnn::input_info("eltwise"), -1),
+                cldnn::softmax("softmax", cldnn::input_info(softmax_src), -1),
                 cldnn::gemm("qkv_gemm", {cldnn::input_info("softmax"), cldnn::input_info("value_transposed")}, cldnn::data_types::f16, false, false),
                 cldnn::permute("qkv_gemm_transposed", cldnn::input_info("qkv_gemm"), {0, 2, 1, 3}),
                 cldnn::reorder("output_data", cldnn::input_info("qkv_gemm_transposed"), cldnn::format::bfyx, cldnn::data_types::f16),
@@ -1426,12 +1458,21 @@ private:
                 cldnn::gemm("qk_gemm", {cldnn::input_info("query_transposed"), cldnn::input_info("key_transposed")}, cldnn::data_types::f16, false, false),
                 cldnn::eltwise("scale_div", {cldnn::input_info("qk_gemm"), cldnn::input_info("scale")}, cldnn::eltwise_mode::prod),
                 cldnn::eltwise("eltwise", {cldnn::input_info("scale_div"), cldnn::input_info("mask")}, cldnn::eltwise_mode::sum),
-                cldnn::softmax("softmax", cldnn::input_info("eltwise"), -1),
+                cldnn::softmax("softmax", cldnn::input_info(softmax_src), -1),
                 cldnn::gemm("qkv_gemm", {cldnn::input_info("softmax"), cldnn::input_info("value_transposed")}, cldnn::data_types::f16, false, false),
                 cldnn::reshape("qkv_gemm_reshape", cldnn::input_info("qkv_gemm"), {1, num_heads, v_head_size, num_queries}),
                 cldnn::permute("qkv_gemm_transposed", cldnn::input_info("qkv_gemm_reshape"), {0, 2, 1, 3}),
                 cldnn::reorder("output_data", cldnn::input_info("qkv_gemm_transposed"), cldnn::format::bfyx, cldnn::data_types::f16),
                 cldnn::reorder("scores_data", cldnn::input_info("softmax"), cldnn::format::bfyx, cldnn::data_types::f16));
+        }
+        if (sinks != nullptr) {
+            // Appended as the LAST key column so the softmax normalises over {keys, sink} together.
+            // The V row for it is zero (see value_with_sink), so the numerator is unchanged and only
+            // the denominator grows -- which is exactly the sink's definition.
+            topology.add(cldnn::data("sink_col", sink_mem),
+                         cldnn::concatenation("eltwise_sink",
+                                              {cldnn::input_info("eltwise"), cldnn::input_info("sink_col")},
+                                              3));
         }
 
         ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(test_engine);
@@ -1449,18 +1490,23 @@ private:
         auto output_scores_mem = outputs.at("scores_data").get_memory();
 
         return {get_output_data_vec(output_data_mem, num_queries, v_head_size, num_heads),
-                get_output_scores_vec(output_scores_mem, window_size, num_queries, num_keys, num_heads)};
+                get_output_scores_vec(output_scores_mem, window_size, num_queries, num_keys, num_heads,
+                                      num_keys + (sinks != nullptr ? 1 : 0))};
     }
 
-    std::vector<ov::float16> get_output_scores_vec(cldnn::memory::ptr scores_output, int window_size, int num_queries, int num_keys, int num_heads) {
-        OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * num_keys));
+    // keys_stride is the softmax's actual row length, which exceeds num_keys by one when a sink
+    // column was concatenated. Only the first num_keys of each row are real key scores, so keeping
+    // the stride separate drops the sink column without a crop primitive.
+    std::vector<ov::float16> get_output_scores_vec(cldnn::memory::ptr scores_output, int window_size, int num_queries, int num_keys, int num_heads,
+                                                   int keys_stride) {
+        OPENVINO_ASSERT(scores_output->count() == static_cast<size_t>(num_heads * num_queries * keys_stride));
 
         std::vector<ov::float16> output_scores(num_keys, 0);
         cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> mem_ptr(scores_output, test_stream);
         for (int row_idx = 0; row_idx < window_size; row_idx++) {
             for (int head_idx = 0; head_idx < num_heads; head_idx++) {
                 for (int score_idx = 0; score_idx < num_keys; score_idx++) {
-                    auto scores_offset = head_idx * num_queries * num_keys + (num_queries - window_size + row_idx) * num_keys + score_idx;
+                    auto scores_offset = head_idx * num_queries * keys_stride + (num_queries - window_size + row_idx) * keys_stride + score_idx;
                     output_scores[score_idx] += mem_ptr[scores_offset];
                 }
             }
@@ -2077,7 +2123,11 @@ public:
             EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
         }
 
-        if (p.has_sink_input && p.sink_values.has_value()) {
+        if (p.has_sink_input) {
+            // Without values the sinks tensor is allocated with shape {0,0,0,0} while the primitive
+            // still advertises has_sink_input, so the kernel would read out of bounds AND the
+            // reference would silently stay sink-free. Both failures are invisible; refuse instead.
+            OPENVINO_ASSERT(p.sink_values.has_value(), "has_sink_input requires explicit sink_values");
             pam.sinks = p.sink_values.value();
         }
 
@@ -2254,7 +2304,11 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
+        // has_token_type_ids doubles as the "disable micro-SDPA" lever (can_use_micro_sdpa_for
+        // rejects every stage but PREFILL when it is set), which is how the FA_V2 sink test pins
+        // itself to sdpa_opt.cl. Tie it to force_flashattn_v2 rather than to has_sink_input alone, so
+        // a plain sink case still reaches micro / sdpa_ocl in the MIXED stage.
+        pa_prim.has_token_type_ids = p.token_type_ids.has_value() || (p.has_sink_input && p.force_flashattn_v2);
         pa_prim.has_sink_input = p.has_sink_input;
 
         int num_outputs = 1;
@@ -3144,8 +3198,10 @@ struct paged_attention_test_params {
     // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
 
-    // Sink input testing: when true, enables has_sink_input on the primitive and forces
-    // the sdpa_opt.cl path (by setting has_token_type_ids=true to disable micro-SDPA).
+    // Sink input testing: enables has_sink_input on the primitive. Combined with force_flashattn_v2
+    // it ALSO sets has_token_type_ids, which is how the sdpa_opt.cl path is forced (that flag makes
+    // can_use_micro_sdpa_for reject every non-PREFILL stage). Leave force_flashattn_v2 off to let
+    // the sink cases reach micro / sdpa_ocl in MIXED as well.
     bool has_sink_input = false;
     // When set, overrides the default sink values in PAM before memory allocation.
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
