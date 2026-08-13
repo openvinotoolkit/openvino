@@ -38,6 +38,7 @@ static constexpr size_t ROUTED_INPUT_START = 3;
 static constexpr size_t ROUTED_INPUT_END = 11;
 static constexpr size_t SHARED_INPUT_START = 12;
 static constexpr size_t SHARED_INPUT_END = 21;
+static constexpr double AUTO_OFFLOAD_RATIO_FIT_SAFETY = 0.85;
 
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
     const auto users = op->get_output_target_inputs(0);
@@ -220,9 +221,8 @@ size_t calculate_auto_offload_ratio(const MoEOffloadWeightStats& stats, uint64_t
 
     const uint64_t w_fixed = stats.total - stats.routed;
 
-    const double fit_safety = 0.85;
     const double budget_for_moe =
-        static_cast<double>(memory_budget) * fit_safety - static_cast<double>(w_fixed);
+        static_cast<double>(memory_budget) * AUTO_OFFLOAD_RATIO_FIT_SAFETY - static_cast<double>(w_fixed);
 
     if (budget_for_moe >= static_cast<double>(stats.routed)) {
         return 0;  // everything fits, no offload needed
@@ -272,7 +272,7 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
     }
 
     const uint64_t w_fixed = stats.total - stats.routed;
-    const double budget_for_moe = static_cast<double>(m_budget) * 0.85 - static_cast<double>(w_fixed);
+    const double budget_for_moe = static_cast<double>(m_budget) * AUTO_OFFLOAD_RATIO_FIT_SAFETY - static_cast<double>(w_fixed);
     const size_t ratio = calculate_auto_offload_ratio(stats, m_budget);
 
     std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
