@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace reference {
@@ -69,6 +70,23 @@ void transpose_2bit(const uint8_t* data,
                     const Shape& data_shape,
                     const std::vector<int64_t>& axes_order,
                     const Shape& out_shape);
+
+/**
+ * @brief Reference implementation of Transpose operator for u3/u6 element types.
+ *
+ * @param data          Pointer to input data (packed sub-byte values).
+ * @param out           Pointer to output data (packed sub-byte values).
+ * @param data_shape    Input data shape.
+ * @param axes_order    Transpose order.
+ * @param out_shape     Output data shape.
+ * @param arg_type      Element type of data, must be u3 or u6.
+ */
+void transpose_subbyte(const uint8_t* data,
+                       uint8_t* out,
+                       const Shape& data_shape,
+                       const std::vector<int64_t>& axes_order,
+                       const Shape& out_shape,
+                       const element::Type& arg_type);
 
 }  // namespace reference
 }  // namespace ov

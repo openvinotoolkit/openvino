@@ -48,7 +48,8 @@ constexpr bool is_nibble_type(Type_t et) {
 /**
  * @brief Checks if element type is split bit type.
  *
- * The value is stored in byte(s) like [b0, b1, x, .., x, b2, b3].
+ * The value is packed LSB-first as a linear, cross-byte bit-stream: value `i` occupies bits
+ * `[i * bitwidth, i * bitwidth + bitwidth)` of the stream and may straddle a byte boundary.
  *
  * @param et  Element type to check
  * @return True if element type is split bit type otherwise false.
@@ -294,7 +295,8 @@ public:
 /**
  * @brief The BitProxy specialization for u3, u6 precisions.
  *
- * @note The input pointer must point on buffer which has got 3 * n bytes.
+ * Values are packed LSB-first as a linear bit-stream and may straddle a byte boundary, so a value
+ * spans at most 2 bytes (bit width <= 6, intra-byte offset <= 7).
  *
  * @tparam T  Fundamental type of sub-byte value which must be same as fundamental type of element::Type_t.
  * @tparam ET OpenVINO element type.
@@ -305,24 +307,14 @@ private:
     template <Type_t, class>
     friend class Iterator;  //!< Iterator class is friend to access private members to manipulate pointer.
 
-    static constexpr size_t m_bits = bit_width<ET>();         //!< Number of bit for single value.
-    static constexpr size_t m_num_values = (3 * 8) / m_bits;  //!< Number values in byte.
-    static constexpr size_t m_shift_init = m_num_values - 1;  //!< Initial value for bit shift.
+    using Bits = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
 
-    struct ByteValue {
-        uint8_t b0;
-        uint8_t b1;
-        uint8_t b2;
-    };
+    static constexpr size_t m_bits = bit_width<ET>();  //!< Number of bit for single value.
 
-    union {
-        T* m_ptr;            //!< Pointer to T buffer.
-        ByteValue* m_bytes;  //!< Pointer to buffer as 3 bytes representation.
-    };
+    Bits* m_ptr;         //!< Pointer to byte containing the first bit of the value.
+    size_t m_bit_shift;  //!< Offset (0..7) of the value's first bit within *m_ptr.
 
-    size_t m_bit_shift;  //!< Current bit shift to get value.
-
-    constexpr BitProxy(T* ptr) noexcept : m_ptr{ptr}, m_bit_shift{m_shift_init} {}
+    constexpr BitProxy(T* ptr) noexcept : m_ptr{reinterpret_cast<Bits*>(ptr)}, m_bit_shift{0} {}
 
 public:
     using value_type = std::decay_t<T>;  //!< Fundamental type of sub-byte.
@@ -357,17 +349,14 @@ public:
      * @return Value of BitProxy.
      */
     operator value_type() const {
-        constexpr uint16_t lower_mask_bits = 16 / m_num_values;
-        constexpr uint16_t upper_mask_bits = 8 / m_num_values;
-        constexpr uint16_t mask_lower = util::make_n_bit_mask(lower_mask_bits);
-        constexpr uint16_t mask_upper = util::make_n_bit_mask(upper_mask_bits) << lower_mask_bits;
-
-        // get lower part of value
-        uint16_t v = ((m_bytes->b0 << 8U) | m_bytes->b1) >> (lower_mask_bits * m_bit_shift);
-        v &= mask_lower;
-        // get upper part of value
-        v |= ((m_bytes->b2 << lower_mask_bits) >> (upper_mask_bits * m_bit_shift)) & mask_upper;
-        return static_cast<value_type>(v);
+        constexpr auto mask = static_cast<uint16_t>(util::make_n_bit_mask(m_bits));
+        // Only touch the 2nd byte when the value actually straddles into it (avoids reading past
+        // the end of the allocated buffer for the last value in a tensor).
+        uint16_t w = static_cast<uint16_t>(m_ptr[0]);
+        if (m_bit_shift + m_bits > 8) {
+            w |= static_cast<uint16_t>(m_ptr[1]) << 8;
+        }
+        return static_cast<value_type>((w >> m_bit_shift) & mask);
     }
 
     /**
@@ -375,20 +364,16 @@ public:
      * @param v  Value to be set.
      */
     BitProxy<T, ET>& operator=(const value_type v) {
-        constexpr uint16_t lower_mask_bits = 16 / m_num_values;
-        constexpr uint16_t upper_mask_bits = 8 / m_num_values;
-        constexpr uint16_t mask_lower = util::make_n_bit_mask(lower_mask_bits);
-        constexpr uint16_t mask_upper = util::make_n_bit_mask(upper_mask_bits) << lower_mask_bits;
+        constexpr auto mask = static_cast<uint16_t>(util::make_n_bit_mask(m_bits));
+        const auto shifted_mask = static_cast<uint16_t>(mask << m_bit_shift);
+        const auto shifted_value = static_cast<uint16_t>((static_cast<uint16_t>(v) & mask) << m_bit_shift);
 
-        uint16_t tmp = (m_bytes->b0 << 8U) | m_bytes->b1;
-        tmp &= ~(mask_lower << (lower_mask_bits * m_bit_shift));
-        tmp |= (v & mask_lower) << (lower_mask_bits * m_bit_shift);
-        m_bytes->b0 = tmp >> 8U;
-        m_bytes->b1 = tmp & 0x00ff;
-
-        tmp = m_bytes->b2 & ~((mask_upper >> lower_mask_bits) << (upper_mask_bits * m_bit_shift));
-        tmp |= (((v & mask_upper) >> lower_mask_bits) << (upper_mask_bits * m_bit_shift));
-        m_bytes->b2 = tmp & 0x00ff;
+        m_ptr[0] = static_cast<uint8_t>((m_ptr[0] & ~static_cast<uint8_t>(shifted_mask & 0xffU)) |
+                                        static_cast<uint8_t>(shifted_value & 0xffU));
+        if (m_bit_shift + m_bits > 8) {
+            m_ptr[1] = static_cast<uint8_t>((m_ptr[1] & ~static_cast<uint8_t>(shifted_mask >> 8U)) |
+                                            static_cast<uint8_t>(shifted_value >> 8U));
+        }
         return *this;
     }
 };
@@ -442,9 +427,11 @@ public:
             m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
             m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
         } else if constexpr (is_split_bit_type(ET)) {
-            --m_et_ptr.m_bit_shift;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
-            m_et_ptr.m_ptr += (m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init) ? 3 : 0;
+            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            if (m_et_ptr.m_bit_shift >= 8) {
+                m_et_ptr.m_bit_shift -= 8;
+                ++m_et_ptr.m_ptr;
+            }
         } else {
             if constexpr (is_lsb_packed(ET)) {
                 m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
@@ -470,9 +457,17 @@ public:
                 ++*this;
             }
         } else if constexpr (is_split_bit_type(ET)) {
-            const auto advance = n + m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values);
-            m_et_ptr.m_ptr += 3 * (advance / m_et_ptr.m_num_values);
+            // floor-divide the new absolute bit position by 8 to get byte advance + new offset
+            const auto total_bits = static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) +
+                                     n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
+            auto div = total_bits / 8;
+            auto rem = total_bits % 8;
+            if (rem < 0) {
+                rem += 8;
+                --div;
+            }
+            m_et_ptr.m_bit_shift = static_cast<size_t>(rem);
+            m_et_ptr.m_ptr += div;
         } else if constexpr (is_lsb_packed(ET)) {
             const auto advance = n + m_et_ptr.m_bit_shift / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -496,9 +491,11 @@ public:
             m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
             m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 4);
         } else if constexpr (is_split_bit_type(ET)) {
-            ++m_et_ptr.m_bit_shift;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
-            m_et_ptr.m_ptr -= m_et_ptr.m_bit_shift == 0 ? 3 : 0;
+            if (m_et_ptr.m_bit_shift < m_et_ptr.m_bits) {
+                m_et_ptr.m_bit_shift += 8;
+                --m_et_ptr.m_ptr;
+            }
+            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
         } else {
             if constexpr (is_lsb_packed(ET)) {
                 m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
@@ -524,9 +521,17 @@ public:
                 --*this;
             }
         } else if constexpr (is_split_bit_type(ET)) {
-            const auto advance = m_et_ptr.m_bit_shift + n;
-            m_et_ptr.m_bit_shift = advance % m_et_ptr.m_num_values;
-            m_et_ptr.m_ptr -= 3 * (advance / m_et_ptr.m_num_values);
+            // same as operator+=(-n): floor-divide the new absolute bit position by 8
+            const auto total_bits = static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) -
+                                     n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
+            auto div = total_bits / 8;
+            auto rem = total_bits % 8;
+            if (rem < 0) {
+                rem += 8;
+                --div;
+            }
+            m_et_ptr.m_bit_shift = static_cast<size_t>(rem);
+            m_et_ptr.m_ptr += div;
         } else if constexpr (is_lsb_packed(ET)) {
             const auto advance = n + (m_et_ptr.m_shift_last - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_last - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;

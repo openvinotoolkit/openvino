@@ -248,7 +248,7 @@ TEST_F(OVTensorTest, canCreateTensorU3UsingMockAllocator) {
 }
 
 TEST_F(OVTensorTest, canCreateTensorU6UsingMockAllocator) {
-    constexpr size_t exp_size = 6;
+    constexpr size_t exp_size = 5;
     ov::Shape shape = {1, 2, 3};
     OVMockAllocator allocator;
 
@@ -807,7 +807,7 @@ TEST_F(OVTensorTest, getByteSizeU2NotEvenDivByStorageUnit) {
 
 TEST_F(OVTensorTest, getByteSizeU3LessThanMinStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{3});
-    EXPECT_EQ(tensor.get_byte_size(), 3);
+    EXPECT_EQ(tensor.get_byte_size(), 2);
 }
 
 TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
@@ -817,7 +817,7 @@ TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
 
 TEST_F(OVTensorTest, getByteSizeU3NotEvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
+    EXPECT_EQ(tensor.get_byte_size(), 7);
 }
 
 TEST_F(OVTensorTest, getByteSizeU6LessThanMinStorageUnit) {
@@ -832,7 +832,7 @@ TEST_F(OVTensorTest, getByteSizeU6EvenDivByStorageUnit) {
 
 TEST_F(OVTensorTest, getByteSizeU6NotEvenDivByStorageUnit) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
+    EXPECT_EQ(tensor.get_byte_size(), 13);
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {
