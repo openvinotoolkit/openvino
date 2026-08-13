@@ -130,9 +130,12 @@ ov::pass::RemoveConcatSliceAfterLoopMamba2::RemoveConcatSliceAfterLoopMamba2() {
     auto concat_loop = pattern::wrap_type<v0::Concat>({reshape_output, reshape_state}, {{"axis", 0}});
     auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_output = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
-    auto restored_output = pattern::wrap_type<v1::Reshape>({slice_output, pattern::any_input()}); // [?, ?, head_num, head_dim]
+    auto restored_output = pattern::wrap_type<v1::Reshape>({slice_output, pattern::any_input()},
+                                                           pattern::shape_matches("[?, ?, head_num, head_dim]"));
     auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, out_numel, pattern::any_input(), {1}, {0}});
-    auto restored_state = pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()}); // [?, head_num, head_dim, state_size]
+    auto restored_state =
+        pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()},
+                                        pattern::shape_matches("[?, head_num, head_dim, state_size]"));
 
     auto restored_root = restored_output | restored_state;
 
@@ -140,13 +143,7 @@ ov::pass::RemoveConcatSliceAfterLoopMamba2::RemoveConcatSliceAfterLoopMamba2() {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
         auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
-        if (pattern_map.count(restored_output) && pattern_map.count(restored_state)) {
-            std::cout << "contains both" << std::endl;
-        } else {
-            std::cout << "not" << std::endl;
-        }
         if (pattern_map.count(restored_output)) {
-            std::cout << "first if " << std::endl;
             auto restored_output_out = pattern_map.at(restored_output);
             if (!ov::replace_output_update_name(restored_output_out, loop_node->output(0))) {
                 restored_output_out.replace(loop_node->output(0));
@@ -155,14 +152,12 @@ ov::pass::RemoveConcatSliceAfterLoopMamba2::RemoveConcatSliceAfterLoopMamba2() {
         }
 
         if (pattern_map.count(restored_state)) {
-            std::cout << "second if " << std::endl;
             auto restored_state_out = pattern_map.at(restored_state);
             if (!ov::replace_output_update_name(restored_state_out, loop_node->output(1))) {
                 restored_state_out.replace(loop_node->output(1));
             }
             changed = true;
         }
-        std::cout << " ---" << std::endl;
         return changed;
     };
 
@@ -179,14 +174,10 @@ ov::pass::FuseMamba2Loop::FuseMamba2Loop() {
     //   dA  = Reshape(exp(A * dt), [B, T, H, 1, 1])                       -> Loop input 2
     //   dBx = Unsqueeze(dt*B, -2) * Unsqueeze(x, -1)  -> [B, T, H, P, N]  -> Loop input 3
     //   C   = Unsqueeze(B/C-expanded, -2)            -> [B, T, H, 1, N]   -> Loop input 4
-    // `A` is a foldable per-head constant materialized as the op's `A` input; sharing the `dt` node
-    // between the dA and dBx subgraphs enforces that the same time steps feed both.
     auto A = pattern::any_input(pattern::rank_equals(1));
     auto dA = pattern::wrap_type<v1::Reshape>(
         {pattern::wrap_type<v0::Exp>({pattern::wrap_type<v1::Multiply>({A, dt})}), pattern::any_input()});
 
-    // The loop consumes B/C already expanded from groups to heads via Unsqueeze -> Tile -> Reshape.
-    // Capture the per-group operands so they can be fed to the op, which broadcasts them internally.
     auto B = pattern::any_input(pattern::shape_matches("[?, ?, group_num, state_size]"));
     auto B_expanded = pattern::wrap_type<v1::Reshape>(
         {pattern::wrap_type<v0::Tile>({pattern::wrap_type<v0::Unsqueeze>({B, 3}), pattern::any_input()}),
