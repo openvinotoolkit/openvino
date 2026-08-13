@@ -92,6 +92,7 @@ void vulkan_device::initialize_info() {
     _info.max_local_mem_size = properties.limits.maxComputeSharedMemorySize;
     _info.max_image2d_width = properties.limits.maxImageDimension2D;
     _info.max_image2d_height = properties.limits.maxImageDimension2D;
+    _max_push_constants_size = properties.limits.maxPushConstantsSize;
 
     // Eltwise uses a portable FP16 storage conversion path and performs arithmetic in FP32.
     _info.supports_fp16 = true;

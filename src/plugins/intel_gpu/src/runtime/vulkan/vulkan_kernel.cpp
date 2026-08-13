@@ -56,6 +56,11 @@ std::shared_ptr<const vulkan_pipeline_state> vulkan_kernel::get_or_create_pipeli
                                                                                    uint32_t push_constants_size,
                                                                                    uint32_t specialized_local_size_x,
                                                                                    const specialization_constants_desc& specialization_constants) {
+    OPENVINO_ASSERT(push_constants_size <= _state->device_owner->get_max_push_constants_size(),
+                    "[GPU][Vulkan] Requested ",
+                    push_constants_size,
+                    " push-constant bytes, but the device limit is ",
+                    _state->device_owner->get_max_push_constants_size());
     return _state->device_owner->get_pipeline_cache().get_or_create_pipeline(_state->shader,
                                                                              descriptor_count,
                                                                              push_constants_size,

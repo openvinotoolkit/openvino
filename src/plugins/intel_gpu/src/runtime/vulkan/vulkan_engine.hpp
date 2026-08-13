@@ -52,6 +52,7 @@ public:
     VkPhysicalDevice get_physical_device() const;
     VkQueue get_compute_queue() const;
     uint32_t get_compute_queue_family() const;
+    uint32_t get_max_push_constants_size() const;
     std::mutex& get_queue_mutex() const;
     std::shared_ptr<vulkan_device> get_vulkan_device_object() const;
 

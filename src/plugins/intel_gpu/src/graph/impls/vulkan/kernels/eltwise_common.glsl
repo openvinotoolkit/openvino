@@ -3,6 +3,10 @@
 #endif
 #extension GL_GOOGLE_include_directive : require
 
+#ifndef ELTWISE_DENSE_PUSH_CONSTANTS
+#define ELTWISE_DENSE_PUSH_CONSTANTS 0
+#endif
+
 #if ELTWISE_FUSED
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
@@ -63,6 +67,24 @@ layout(set = 0, binding = 2) writeonly buffer Output {
 } output_data;
 #endif
 
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+layout(push_constant) uniform DenseMetadata {
+    uint element_count;
+    uint input0_offset;
+    uint input1_offset;
+    uint output_offset;
+    uint python_division;
+    uint infinity_detection;
+    uint input0_coefficient;
+    uint input1_coefficient;
+#if ELTWISE_FUSED
+    uint fused_input_offset;
+    uint fused_python_division;
+    uint fused_input0_coefficient;
+    uint fused_input1_coefficient;
+#endif
+} dense_metadata;
+#else
 #if ELTWISE_FUSED
 layout(set = 0, binding = 4) readonly buffer Metadata {
 #elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
@@ -72,6 +94,7 @@ layout(set = 0, binding = 3) readonly buffer Metadata {
 #endif
     uint values[];
 } metadata;
+#endif
 
 #if ELTWISE_FUSED || ELTWISE_DENSE
 #define packed_output_data output_data
@@ -133,6 +156,80 @@ const uint fused_metadata_base = header_words + tensor_count * tensor_words;
 #endif
 const uint byte_value_mask = 0xff;
 const uint half_value_mask = 0xffff;
+
+uint runtime_element_count() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.element_count;
+#else
+    return metadata.values[metadata_element_count];
+#endif
+}
+
+uint runtime_python_division() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.python_division;
+#else
+    return metadata.values[metadata_python_division];
+#endif
+}
+
+uint runtime_infinity_detection() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.infinity_detection;
+#else
+    return metadata.values[metadata_infinity_detection];
+#endif
+}
+
+uint runtime_input0_coefficient() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.input0_coefficient;
+#else
+    return metadata.values[metadata_input0_coefficient];
+#endif
+}
+
+uint runtime_input1_coefficient() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.input1_coefficient;
+#else
+    return metadata.values[metadata_input1_coefficient];
+#endif
+}
+
+#if ELTWISE_FUSED
+uint runtime_fused_input_offset() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.fused_input_offset;
+#else
+    return metadata.values[metadata_fused_input_offset];
+#endif
+}
+
+uint runtime_fused_python_division() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.fused_python_division;
+#else
+    return metadata.values[metadata_fused_python_division];
+#endif
+}
+
+uint runtime_fused_input0_coefficient() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.fused_input0_coefficient;
+#else
+    return metadata.values[metadata_fused_input0_coefficient];
+#endif
+}
+
+uint runtime_fused_input1_coefficient() {
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    return dense_metadata.fused_input1_coefficient;
+#else
+    return metadata.values[metadata_fused_input1_coefficient];
+#endif
+}
+#endif
 
 uint scalar_size(uint type) {
     if (type == type_i64) {
@@ -556,6 +653,7 @@ uvec2 pow_u64(uvec2 base, uvec2 exponent) {
     return result;
 }
 
+#if !ELTWISE_DENSE
 uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
     uint base = header_words + tensor_index * tensor_words;
     uint offset = metadata.values[base + max_rank * 2];
@@ -566,6 +664,7 @@ uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint 
     }
     return offset;
 }
+#endif
 
 bool is_boolean_mode(uint mode) {
     return (mode >= mode_eq && mode <= mode_logic_xor) || (mode >= mode_is_finite && mode <= mode_is_nan);
@@ -614,8 +713,7 @@ float apply_pow(float lhs, float rhs) {
 float apply_float(float lhs, float rhs, uint mode) {
     switch (mode) {
     case mode_sum:
-        return lhs * uintBitsToFloat(metadata.values[metadata_input0_coefficient]) +
-               rhs * uintBitsToFloat(metadata.values[metadata_input1_coefficient]);
+        return lhs * uintBitsToFloat(runtime_input0_coefficient()) + rhs * uintBitsToFloat(runtime_input1_coefficient());
     case mode_sub:
         return lhs - rhs;
     case mode_max:
@@ -666,7 +764,7 @@ bool apply_float_boolean(float lhs, float rhs, uint mode) {
     case mode_is_finite:
         return !isnan(lhs) && !isinf(lhs);
     case mode_is_inf: {
-        uint detect_mask = metadata.values[metadata_infinity_detection];
+        uint detect_mask = runtime_infinity_detection();
         return isinf(lhs) && ((lhs < 0.0 && (detect_mask & infinity_negative_flag) != 0) ||
                               (lhs > 0.0 && (detect_mask & infinity_positive_flag) != 0));
     }
@@ -683,7 +781,7 @@ bool apply_float_unary_boolean(float value, uint mode) {
     case mode_is_finite:
         return !isnan(value) && !isinf(value);
     case mode_is_inf: {
-        uint detect_mask = metadata.values[metadata_infinity_detection];
+        uint detect_mask = runtime_infinity_detection();
         return isinf(value) && ((value < 0.0 && (detect_mask & infinity_negative_flag) != 0) ||
                                 (value > 0.0 && (detect_mask & infinity_positive_flag) != 0));
     }
@@ -708,7 +806,7 @@ uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
     case mode_div: {
         uvec2 quotient;
         uvec2 remainder;
-        divide_integer(lhs, rhs, signed_type, metadata.values[metadata_python_division] != 0, quotient, remainder);
+        divide_integer(lhs, rhs, signed_type, runtime_python_division() != 0, quotient, remainder);
         return quotient;
     }
     case mode_min:
@@ -749,8 +847,7 @@ uvec2 apply_integer(uvec2 lhs, uvec2 rhs, uint mode, bool signed_type) {
 #if ELTWISE_FUSED
 float apply_fused_float(float lhs, float rhs) {
     if (selected_fused_mode == mode_sum) {
-        return lhs * uintBitsToFloat(metadata.values[metadata_fused_input0_coefficient]) +
-               rhs * uintBitsToFloat(metadata.values[metadata_fused_input1_coefficient]);
+        return lhs * uintBitsToFloat(runtime_fused_input0_coefficient()) + rhs * uintBitsToFloat(runtime_fused_input1_coefficient());
     }
     return apply_float(lhs, rhs, selected_fused_mode);
 }
@@ -769,7 +866,7 @@ uvec2 apply_fused_integer(uvec2 lhs, uvec2 rhs, bool signed_type) {
         divide_integer(lhs,
                        rhs,
                        signed_type,
-                       metadata.values[metadata_fused_python_division] != 0,
+                       runtime_fused_python_division() != 0,
                        quotient,
                        remainder);
         return quotient;
@@ -846,9 +943,15 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 #endif
 #endif
 #if ELTWISE_DENSE
+#if ELTWISE_DENSE_PUSH_CONSTANTS
+    input0_offset = dense_metadata.input0_offset + linear_index;
+    input1_offset = dense_metadata.input1_offset + linear_index;
+    output_offset = dense_metadata.output_offset + linear_index;
+#else
     input0_offset = metadata.values[header_words + tensor_input0 * tensor_words + max_rank * 2] + linear_index;
     input1_offset = metadata.values[header_words + tensor_input1 * tensor_words + max_rank * 2] + linear_index;
     output_offset = metadata.values[header_words + tensor_output * tensor_words + max_rank * 2] + linear_index;
+#endif
 #else
     uint rank = metadata.values[metadata_rank];
     if ((selected_storage_flags & storage_linear_flag) != 0) {
@@ -931,7 +1034,7 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uvec2 base_value = evaluate_base_element(linear_index, output_offset);
     uint output_type = selected_output_type;
-    uint fused_input_offset = metadata.values[metadata_fused_input_offset] + linear_index;
+    uint fused_input_offset = runtime_fused_input_offset() + linear_index;
     if (is_float_type(output_type)) {
         float original = output_type == type_f32 ? uintBitsToFloat(base_value.x) : unpackHalf2x16(base_value.x).x;
         float fused_input = load_float_fused(fused_input_offset, selected_fused_input_type);
@@ -964,7 +1067,7 @@ void store_element(uint output_offset, uint output_size, uvec2 value) {
 
 void main() {
     uint invocation_index = gl_GlobalInvocationID.x;
-    uint element_count = metadata.values[metadata_element_count];
+    uint element_count = runtime_element_count();
     uint output_type = selected_output_type;
     uint output_size = scalar_size(output_type);
     bool pack_output = output_size < 4 && (selected_storage_flags & storage_packed_output_flag) != 0;

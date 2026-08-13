@@ -55,6 +55,10 @@ public:
         return _compute_queue_family;
     }
 
+    uint32_t get_max_push_constants_size() const {
+        return _max_push_constants_size;
+    }
+
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
     }
@@ -69,6 +73,7 @@ private:
     uint32_t _compute_queue_family = 0;
     VkDevice _device = VK_NULL_HANDLE;
     VkQueue _compute_queue = VK_NULL_HANDLE;
+    uint32_t _max_push_constants_size = 0;
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};

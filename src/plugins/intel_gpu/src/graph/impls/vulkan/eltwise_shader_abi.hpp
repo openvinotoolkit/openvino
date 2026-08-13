@@ -33,6 +33,18 @@ enum class fused_metadata_field : size_t {
 #undef ELTWISE_SHADER_FUSED_METADATA_FIELD
 };
 
+enum class dense_metadata_field : size_t {
+#define ELTWISE_SHADER_DENSE_METADATA_FIELD(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_DENSE_METADATA_FIELD
+};
+
+enum class fused_dense_metadata_field : size_t {
+#define ELTWISE_SHADER_FUSED_DENSE_METADATA_FIELD(name, code) name = code,
+#include "eltwise_shader_abi.inc"
+#undef ELTWISE_SHADER_FUSED_DENSE_METADATA_FIELD
+};
+
 enum class tensor_index : uint32_t {
 #define ELTWISE_SHADER_TENSOR_INDEX(name, code) name = code,
 #include "eltwise_shader_abi.inc"
@@ -92,6 +104,14 @@ constexpr size_t index(metadata_field field) {
 }
 
 constexpr size_t index(fused_metadata_field field) {
+    return static_cast<size_t>(field);
+}
+
+constexpr size_t index(dense_metadata_field field) {
+    return static_cast<size_t>(field);
+}
+
+constexpr size_t index(fused_dense_metadata_field field) {
     return static_cast<size_t>(field);
 }
 

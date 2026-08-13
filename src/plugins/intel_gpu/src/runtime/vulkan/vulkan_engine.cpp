@@ -46,6 +46,10 @@ uint32_t vulkan_engine::get_compute_queue_family() const {
     return get_vulkan_device_object_impl()->get_compute_queue_family();
 }
 
+uint32_t vulkan_engine::get_max_push_constants_size() const {
+    return get_vulkan_device_object_impl()->get_max_push_constants_size();
+}
+
 std::mutex& vulkan_engine::get_queue_mutex() const {
     return get_vulkan_device_object_impl()->get_queue_mutex();
 }
