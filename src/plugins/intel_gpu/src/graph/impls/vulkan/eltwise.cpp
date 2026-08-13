@@ -16,8 +16,12 @@
 
 #include "data_inst.h"
 #include "eltwise_broadcast_vector_spirv.hpp"
+#include "eltwise_dense_f32_vec2_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_vec4_push_constants_spirv.hpp"
 #include "eltwise_dense_push_constants_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec2_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec4_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_spirv.hpp"
 #include "eltwise_scalar_constant_spirv.hpp"
@@ -60,18 +64,56 @@ enum class kernel_kind : uint8_t {
     fused_dense,
     dense_push_constants,
     fused_dense_push_constants,
+    dense_f32_vec2_push_constants,
+    dense_f32_vec4_push_constants,
+    fused_dense_f32_vec2_push_constants,
+    fused_dense_f32_vec4_push_constants,
 };
 
+enum class dense_vector_width : uint32_t {
+    scalar = 1,
+    vec2 = 2,
+    vec4 = 4,
+};
+
+constexpr uint32_t value(dense_vector_width width) {
+    return static_cast<uint32_t>(width);
+}
+
+bool is_f32_vector_kernel(kernel_kind kind) {
+    return one_of(kind,
+                  {kernel_kind::dense_f32_vec2_push_constants,
+                   kernel_kind::dense_f32_vec4_push_constants,
+                   kernel_kind::fused_dense_f32_vec2_push_constants,
+                   kernel_kind::fused_dense_f32_vec4_push_constants});
+}
+
 bool uses_dense_push_constants(kernel_kind kind) {
-    return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants;
+    return kind == kernel_kind::dense_push_constants || kind == kernel_kind::fused_dense_push_constants || is_f32_vector_kernel(kind);
 }
 
 bool is_plain_dense_kernel(kernel_kind kind) {
-    return kind == kernel_kind::dense || kind == kernel_kind::dense_push_constants;
+    return one_of(
+        kind,
+        {kernel_kind::dense, kernel_kind::dense_push_constants, kernel_kind::dense_f32_vec2_push_constants, kernel_kind::dense_f32_vec4_push_constants});
 }
 
 bool is_fused_dense_kernel(kernel_kind kind) {
-    return kind == kernel_kind::fused_dense || kind == kernel_kind::fused_dense_push_constants;
+    return one_of(kind,
+                  {kernel_kind::fused_dense,
+                   kernel_kind::fused_dense_push_constants,
+                   kernel_kind::fused_dense_f32_vec2_push_constants,
+                   kernel_kind::fused_dense_f32_vec4_push_constants});
+}
+
+dense_vector_width get_dense_vector_width(kernel_kind kind) {
+    if (kind == kernel_kind::dense_f32_vec4_push_constants || kind == kernel_kind::fused_dense_f32_vec4_push_constants) {
+        return dense_vector_width::vec4;
+    }
+    if (kind == kernel_kind::dense_f32_vec2_push_constants || kind == kernel_kind::fused_dense_f32_vec2_push_constants) {
+        return dense_vector_width::vec2;
+    }
+    return dense_vector_width::scalar;
 }
 
 struct scalar_constant {
@@ -305,6 +347,57 @@ bool can_use_fused_dense_kernel(const layout& input0_layout, const layout& input
     }
     const auto packed_width = output_elements_per_invocation(output_layout);
     return packed_width == 1 || (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
+}
+
+bool is_aligned_for_vector_width(const layout& tensor_layout, dense_vector_width width) {
+    return tensor_layout.get_linear_offset() % value(width) == 0;
+}
+
+bool can_use_f32_dense_vector_width(const layout& input0_layout,
+                                    const layout& input1_layout,
+                                    const layout& output_layout,
+                                    const layout* fused_input_layout,
+                                    dense_vector_width width) {
+    return input0_layout.data_type == data_types::f32 && input1_layout.data_type == data_types::f32 && output_layout.data_type == data_types::f32 &&
+           (fused_input_layout == nullptr || fused_input_layout->data_type == data_types::f32) && is_aligned_for_vector_width(input0_layout, width) &&
+           is_aligned_for_vector_width(input1_layout, width) && is_aligned_for_vector_width(output_layout, width) &&
+           (fused_input_layout == nullptr || is_aligned_for_vector_width(*fused_input_layout, width));
+}
+
+dense_vector_width select_f32_dense_vector_width(const layout& input0_layout,
+                                                 const layout& input1_layout,
+                                                 const layout& output_layout,
+                                                 const layout* fused_input_layout,
+                                                 const device_info& info) {
+    const auto max_work_group_size = std::max<uint64_t>(info.max_work_group_size, 1);
+    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0) {
+        return dense_vector_width::scalar;
+    }
+    const auto subgroup_size = static_cast<uint64_t>(info.supported_simd_sizes.front());
+    const auto subgroups_per_full_work_group = (max_work_group_size + subgroup_size - 1) / subgroup_size;
+    constexpr std::array candidates{dense_vector_width::vec4, dense_vector_width::vec2};
+    for (const auto width : candidates) {
+        if (!can_use_f32_dense_vector_width(input0_layout, input1_layout, output_layout, fused_input_layout, width)) {
+            continue;
+        }
+        const auto vector_width = value(width);
+        const auto element_count = output_layout.count();
+        const auto invocation_count = element_count / vector_width + (element_count % vector_width != 0 ? 1 : 0);
+        const bool wide_subgroup = subgroup_size >= subgroups_per_full_work_group * vector_width;
+        const auto required_full_work_groups = wide_subgroup ? uint64_t{1} : subgroups_per_full_work_group;
+        if (invocation_count / max_work_group_size >= required_full_work_groups) {
+            return width;
+        }
+    }
+    return dense_vector_width::scalar;
+}
+
+kernel_kind select_f32_vector_kernel_kind(dense_vector_width width, bool fused) {
+    if (width == dense_vector_width::vec4) {
+        return fused ? kernel_kind::fused_dense_f32_vec4_push_constants : kernel_kind::dense_f32_vec4_push_constants;
+    }
+    OPENVINO_ASSERT(width == dense_vector_width::vec2, "[GPU][Vulkan] Invalid dense vector width selected for Eltwise");
+    return fused ? kernel_kind::fused_dense_f32_vec2_push_constants : kernel_kind::dense_f32_vec2_push_constants;
 }
 
 struct fused_eltwise_info {
@@ -580,6 +673,12 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::dense_push_constants) {
         spirv = eltwise_dense_push_constants_spirv;
         spirv_size = sizeof(eltwise_dense_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_f32_vec2_push_constants) {
+        spirv = eltwise_dense_f32_vec2_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_f32_vec2_push_constants_spirv);
+    } else if (kind == kernel_kind::dense_f32_vec4_push_constants) {
+        spirv = eltwise_dense_f32_vec4_push_constants_spirv;
+        spirv_size = sizeof(eltwise_dense_f32_vec4_push_constants_spirv);
     } else if (kind == kernel_kind::broadcast_vector) {
         spirv = eltwise_broadcast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_vector_spirv);
@@ -595,6 +694,12 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::fused_dense_push_constants) {
         spirv = eltwise_fused_dense_push_constants_spirv;
         spirv_size = sizeof(eltwise_fused_dense_push_constants_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec2_push_constants) {
+        spirv = eltwise_fused_dense_f32_vec2_push_constants_spirv;
+        spirv_size = sizeof(eltwise_fused_dense_f32_vec2_push_constants_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec4_push_constants) {
+        spirv = eltwise_fused_dense_f32_vec4_push_constants_spirv;
+        spirv_size = sizeof(eltwise_fused_dense_f32_vec4_push_constants_spirv);
     }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
@@ -732,6 +837,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto& input1_layout = base_input_count == 1 ? input0_layout : instance.get_input_layout(1);
         const auto& output_layout = instance.get_output_layout(0);
         const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_dense_kernel;
+        const auto* fused_input_layout = use_fused_dense_kernel ? &instance.get_input_layout(fused->external_dependency_index) : nullptr;
+        const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
         const bool use_broadcast_vector_kernel = _kernel_kind == kernel_kind::broadcast_vector;
         const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
         const bool use_scalar_constant_kernel = _kernel_kind == kernel_kind::scalar_constant;
@@ -739,17 +846,19 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                         "[GPU][Vulkan] Scalar Eltwise kernel and constant metadata are inconsistent");
         OPENVINO_ASSERT(!is_plain_dense_kernel(_kernel_kind) || can_use_dense_kernel(input0_layout, input1_layout, output_layout),
                         "[GPU][Vulkan] Dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
-        OPENVINO_ASSERT(
-            !use_fused_dense_kernel ||
-                can_use_fused_dense_kernel(input0_layout, input1_layout, instance.get_input_layout(fused->external_dependency_index), output_layout),
-            "[GPU][Vulkan] Fused dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
+        OPENVINO_ASSERT(!use_fused_dense_kernel || can_use_fused_dense_kernel(input0_layout, input1_layout, *fused_input_layout, output_layout),
+                        "[GPU][Vulkan] Fused dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
+        OPENVINO_ASSERT(selected_dense_vector_width == dense_vector_width::scalar ||
+                            can_use_f32_dense_vector_width(input0_layout, input1_layout, output_layout, fused_input_layout, selected_dense_vector_width),
+                        "[GPU][Vulkan] F32 vector Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
                         "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
-        const auto elements_per_invocation = use_fused_dense_kernel        ? fused_dense_elements_per_invocation(output_layout)
-                                             : use_dense_kernel            ? dense_elements_per_invocation(output_layout)
-                                             : use_broadcast_vector_kernel ? broadcast_vector_width
-                                             : use_scalar_constant_kernel  ? scalar_constant_elements_per_invocation(output_layout)
-                                                                           : output_elements_per_invocation(output_layout);
+        const auto elements_per_invocation = selected_dense_vector_width != dense_vector_width::scalar ? value(selected_dense_vector_width)
+                                             : use_fused_dense_kernel                                  ? fused_dense_elements_per_invocation(output_layout)
+                                             : use_dense_kernel                                        ? dense_elements_per_invocation(output_layout)
+                                             : use_broadcast_vector_kernel                             ? broadcast_vector_width
+                                             : use_scalar_constant_kernel                              ? scalar_constant_elements_per_invocation(output_layout)
+                                                                                                       : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
         descriptor.workGroups.local = {
@@ -864,6 +973,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     const auto* engine = dynamic_cast<const vulkan_engine*>(&node.get_program().get_engine());
     OPENVINO_ASSERT(engine != nullptr, "[GPU][Vulkan] Eltwise implementation requires a Vulkan engine");
     const auto max_push_constants_size = engine->get_max_push_constants_size();
+    const auto& device_info = engine->get_device_info();
     const auto input_count = params.input_layouts.size();
     const auto fused = get_supported_fused_eltwise(node);
     OPENVINO_ASSERT(input_count == 1 || input_count == 2 || (input_count == 3 && fused.has_value()),
@@ -873,7 +983,15 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
     kernel_kind kind = kernel_kind::broadcast_scalar;
     std::optional<scalar_constant> scalar;
     if (fused.has_value()) {
-        kind = max_push_constants_size >= fused_dense_push_constant_bytes ? kernel_kind::fused_dense_push_constants : kernel_kind::fused_dense;
+        kind = kernel_kind::fused_dense;
+        if (max_push_constants_size >= fused_dense_push_constant_bytes) {
+            const auto vector_width = select_f32_dense_vector_width(input0_layout,
+                                                                    input1_layout,
+                                                                    params.get_output_layout(0),
+                                                                    &params.get_input_layout(fused->external_dependency_index),
+                                                                    device_info);
+            kind = vector_width == dense_vector_width::scalar ? kernel_kind::fused_dense_push_constants : select_f32_vector_kernel_kind(vector_width, true);
+        }
     } else if (is_unary_mode(node.as<eltwise>().get_primitive()->mode)) {
         kind = kernel_kind::unary;
     } else if (!params.is_dynamic()) {
@@ -882,7 +1000,11 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
         if (scalar.has_value() && output_layout.count() >= broadcast_vector_min_elements) {
             kind = kernel_kind::scalar_constant;
         } else if (can_use_dense_kernel(input0_layout, input1_layout, output_layout)) {
-            kind = max_push_constants_size >= dense_push_constant_bytes ? kernel_kind::dense_push_constants : kernel_kind::dense;
+            kind = kernel_kind::dense;
+            if (max_push_constants_size >= dense_push_constant_bytes) {
+                const auto vector_width = select_f32_dense_vector_width(input0_layout, input1_layout, output_layout, nullptr, device_info);
+                kind = vector_width == dense_vector_width::scalar ? kernel_kind::dense_push_constants : select_f32_vector_kernel_kind(vector_width, false);
+            }
         } else if (can_use_broadcast_vector_kernel(output_layout)) {
             kind = kernel_kind::broadcast_vector;
         }
