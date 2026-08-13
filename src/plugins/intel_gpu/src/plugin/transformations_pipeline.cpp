@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -40,6 +41,7 @@
 #include "low_precision/recurrent_cell.hpp"
 #include "low_precision/transpose.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -120,15 +122,13 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
-#include "intel_gpu/op/fully_connected.hpp"
-#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
+#include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
-#include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
@@ -147,6 +147,7 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
@@ -223,8 +224,6 @@
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 namespace {
 template <typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -695,17 +694,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::BroadcastTransition>();
 
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
-        pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
-            [](const_node_ptr& node) -> bool {
-                auto* next_node = node->get_output_target_inputs(0).begin()->get_node();
-                if (is_type<ov::op::v0::Convert>(next_node)) {
-                    next_node = next_node->get_output_target_inputs(0).begin()->get_node();
-                }
-                return !is_type_any_of<ov::op::v0::MatMul,
-                                       ov::op::internal::MOE,
-                                       ov::op::internal::GatherMatmulCompressed,
-                                       ov::op::internal::GroupedMatMulCompressed>(next_node);
-            });
+        pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>([](const_node_ptr& node) -> bool {
+            auto* next_node = node->get_output_target_inputs(0).begin()->get_node();
+            if (is_type<ov::op::v0::Convert>(next_node)) {
+                next_node = next_node->get_output_target_inputs(0).begin()->get_node();
+            }
+            return !is_type_any_of<ov::op::v0::MatMul,
+                                   ov::op::internal::MOE,
+                                   ov::op::internal::GatherMatmulCompressed,
+                                   ov::op::internal::GroupedMatMulCompressed>(next_node);
+        });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
@@ -909,9 +907,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // - The number of dimensions for each input is expected to be 4 or 3
-            if ((query_ps.size() != 3 && query_ps.size() != 4) ||
-                (key_ps.size() != 3 && key_ps.size() != 4) ||
-                (value_ps.size() != 3 && value_ps.size() != 4))
+            if ((query_ps.size() != 3 && query_ps.size() != 4) || (key_ps.size() != 3 && key_ps.size() != 4) || (value_ps.size() != 3 && value_ps.size() != 4))
                 return false;
 
             // - The head size of all Q, K, and V inputs should be the same static value
@@ -1125,13 +1121,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             if (const auto& gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
-                return gru_seq->get_clip() == 0.0f &&
-                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                    max_seq_len != 1 &&
-                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                        gru_seq->get_input_node_shared_ptr(2)) ||
-                    is_batch_one_with_dynamic_seq_len) &&
-                    gru_seq->get_linear_before_reset();
+                return gru_seq->get_clip() == 0.0f && gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} && max_seq_len != 1 &&
+                       (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0), gru_seq->get_input_node_shared_ptr(2)) ||
+                        is_batch_one_with_dynamic_seq_len) &&
+                       gru_seq->get_linear_before_reset();
             }
             if (const auto& lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 if (!data_pshape[1].is_static())
@@ -1164,14 +1157,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return !isSequencePrimitiveSupported(node);
                 });
 
-        pass_config->set_callback<ov::pass::MVN6Decomposition>(
-            [](const_node_ptr &node) -> bool {
-                const auto mvn = ov::as_type_ptr<const ov::op::v6::MVN>(node);
-                if (mvn != nullptr && node->get_input_size() == 2) {
-                    if (auto* axes_node = ov::as_type<ov::op::v0::Constant>(mvn->get_input_node_ptr(1))) {
-                        auto mvn_axes = axes_node->cast_vector<int64_t>();
-                        auto out_rank = mvn->get_output_partial_shape(0).size();
-                        ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
+        pass_config->set_callback<ov::pass::MVN6Decomposition>([](const_node_ptr& node) -> bool {
+            const auto mvn = ov::as_type_ptr<const ov::op::v6::MVN>(node);
+            if (mvn != nullptr && node->get_input_size() == 2) {
+                if (auto* axes_node = ov::as_type<ov::op::v0::Constant>(mvn->get_input_node_ptr(1))) {
+                    auto mvn_axes = axes_node->cast_vector<int64_t>();
+                    auto out_rank = mvn->get_output_partial_shape(0).size();
+                    ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
 
                     std::sort(mvn_axes.begin(), mvn_axes.end());
 
