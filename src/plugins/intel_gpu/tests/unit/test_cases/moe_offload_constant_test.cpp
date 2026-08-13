@@ -100,7 +100,7 @@ struct MoETestGraph {
     }
 };
 
-uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
+static uint64_t sum_constant_bytes(const MoETestGraph& g, MoEConstantRole role) {
     uint64_t bytes = 0;
     for (const auto& constant : g.constants) {
         if (get_moe_constant_role(constant) == role)

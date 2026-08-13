@@ -223,7 +223,6 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
