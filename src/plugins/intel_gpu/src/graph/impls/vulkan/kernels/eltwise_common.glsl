@@ -27,6 +27,16 @@
 #define ELTWISE_FAST_BROADCAST 0
 #endif
 
+#if ELTWISE_RESTRICT_OUTPUT && !ELTWISE_DENSE
+#error ELTWISE_RESTRICT_OUTPUT requires the single-output dense ABI
+#endif
+
+#if ELTWISE_RESTRICT_OUTPUT
+#define ELTWISE_OUTPUT_ALIAS_QUALIFIER restrict
+#else
+#define ELTWISE_OUTPUT_ALIAS_QUALIFIER
+#endif
+
 #if ELTWISE_FUSED
 layout(set = 0, binding = 0) readonly buffer Input0 {
     uint values[];
@@ -40,7 +50,7 @@ layout(set = 0, binding = 2) readonly buffer FusedInput {
     uint values[];
 } fused_input_data;
 
-layout(set = 0, binding = 3) writeonly buffer Output {
+layout(set = 0, binding = 3) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
     uint values[];
 } output_data;
 #elif ELTWISE_UNARY
@@ -48,7 +58,7 @@ layout(set = 0, binding = 0) readonly buffer Input0 {
     uint8_t values[];
 } input0_data;
 
-layout(set = 0, binding = 1) writeonly buffer Output {
+layout(set = 0, binding = 1) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
     uint8_t values[];
 } output_data;
 #elif ELTWISE_SCALAR_CONSTANT
@@ -58,7 +68,7 @@ layout(set = 0, binding = 0) readonly buffer TensorInput {
 #define input0_data tensor_input_data
 #define input1_data tensor_input_data
 
-layout(set = 0, binding = 1) writeonly buffer Output {
+layout(set = 0, binding = 1) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
     uint8_t values[];
 } output_data;
 #elif ELTWISE_DENSE
@@ -70,7 +80,7 @@ layout(set = 0, binding = 1) readonly buffer Input1 {
     uint values[];
 } input1_data;
 
-layout(set = 0, binding = 2) writeonly buffer Output {
+layout(set = 0, binding = 2) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
     uint values[];
 } output_data;
 #else
@@ -82,7 +92,7 @@ layout(set = 0, binding = 1) readonly buffer Input1 {
     uint8_t values[];
 } input1_data;
 
-layout(set = 0, binding = 2) writeonly buffer Output {
+layout(set = 0, binding = 2) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer Output {
     uint8_t values[];
 } output_data;
 #endif
@@ -119,14 +129,16 @@ layout(set = 0, binding = 3) readonly buffer Metadata {
 #if ELTWISE_FUSED || ELTWISE_DENSE
 #define packed_output_data output_data
 #elif ELTWISE_UNARY || ELTWISE_SCALAR_CONSTANT
-layout(set = 0, binding = 3) writeonly buffer PackedOutput {
+layout(set = 0, binding = 3) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer PackedOutput {
     uint values[];
 } packed_output_data;
 #else
-layout(set = 0, binding = 4) writeonly buffer PackedOutput {
+layout(set = 0, binding = 4) writeonly ELTWISE_OUTPUT_ALIAS_QUALIFIER buffer PackedOutput {
     uint values[];
 } packed_output_data;
 #endif
+
+#undef ELTWISE_OUTPUT_ALIAS_QUALIFIER
 
 #define ELTWISE_SHADER_MODE(name, code) const uint mode_##name = code;
 #define ELTWISE_SHADER_SCALAR_TYPE(name, code) const uint type_##name = code;

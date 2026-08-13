@@ -39,36 +39,77 @@ foreach(shader_source IN LISTS VULKAN_SHADER_SOURCES)
         COMMENT "Generating host-compiled Vulkan shader ${shader_name}"
         VERBATIM)
     list(APPEND VULKAN_GENERATED_HEADERS "${generated_header}")
+
+    if(shader_name MATCHES "^eltwise_(dense|fused_dense).*\\.comp$")
+        set(restrict_shader_stem "${shader_stem}_restrict")
+        set(restrict_raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${restrict_shader_stem}.raw.spv")
+        set(restrict_optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${restrict_shader_stem}.spv")
+        set(restrict_generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${restrict_shader_stem}_spirv.hpp")
+
+        add_custom_command(
+            OUTPUT "${restrict_generated_header}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
+            COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3 -I "${VULKAN_KERNEL_DIR}"
+                    -DELTWISE_RESTRICT_OUTPUT=1 "${shader_source}" -o "${restrict_raw_spirv}"
+            COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" --eliminate-dead-code-aggressive
+                    "${restrict_raw_spirv}" -o "${restrict_optimized_spirv}"
+            COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${restrict_optimized_spirv}"
+            COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
+                    "${restrict_optimized_spirv}" "${restrict_generated_header}" "${restrict_shader_stem}_spirv"
+                    "kernels/${shader_name} with runtime-proven non-aliasing output"
+            DEPENDS
+                "${shader_source}"
+                "${VULKAN_KERNEL_DIR}/eltwise_common.glsl"
+                "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+                "${VULKAN_SHADER_GENERATOR}"
+            COMMENT "Generating host-compiled Vulkan shader ${restrict_shader_stem}"
+            VERBATIM)
+        list(APPEND VULKAN_GENERATED_HEADERS "${restrict_generated_header}")
+    endif()
 endforeach()
 
 function(add_vulkan_hot_eltwise_shader shader_stem shader_name fixed_mode input0_type input1_type output_type)
-    set(shader_source "${VULKAN_KERNEL_DIR}/${shader_name}")
-    set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${shader_stem}.raw.spv")
-    set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${shader_stem}.spv")
-    set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${shader_stem}_spirv.hpp")
+    set(restrict_variants FALSE)
+    if(shader_name MATCHES "^eltwise_dense.*\\.comp$")
+        list(APPEND restrict_variants TRUE)
+    endif()
+    foreach(restrict_output IN LISTS restrict_variants)
+        set(variant_stem "${shader_stem}")
+        set(restrict_definition "")
+        set(variant_description "")
+        if(restrict_output)
+            set(variant_stem "${shader_stem}_restrict")
+            set(restrict_definition -DELTWISE_RESTRICT_OUTPUT=1)
+            set(variant_description " with runtime-proven non-aliasing output")
+        endif()
+        set(shader_source "${VULKAN_KERNEL_DIR}/${shader_name}")
+        set(raw_spirv "${CMAKE_CURRENT_BINARY_DIR}/${variant_stem}.raw.spv")
+        set(optimized_spirv "${CMAKE_CURRENT_BINARY_DIR}/${variant_stem}.spv")
+        set(generated_header "${VULKAN_GENERATED_INCLUDE_DIR}/${variant_stem}_spirv.hpp")
 
-    add_custom_command(
-        OUTPUT "${generated_header}"
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
-        COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3 -I "${VULKAN_KERNEL_DIR}"
-                "-DELTWISE_FIXED_MODE=${fixed_mode}"
-                "-DELTWISE_FIXED_INPUT0_TYPE=${input0_type}"
-                "-DELTWISE_FIXED_INPUT1_TYPE=${input1_type}"
-                "-DELTWISE_FIXED_OUTPUT_TYPE=${output_type}"
-                "${shader_source}" -o "${raw_spirv}"
-        COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" -O "${raw_spirv}" -o "${optimized_spirv}"
-        COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
-        COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
-                "${optimized_spirv}" "${generated_header}" "${shader_stem}_spirv"
-                "kernels/${shader_name} fixed mode=${fixed_mode} input0=${input0_type} input1=${input1_type} output=${output_type}"
-        DEPENDS
-            "${shader_source}"
-            "${VULKAN_KERNEL_DIR}/eltwise_common.glsl"
-            "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
-            "${VULKAN_SHADER_GENERATOR}"
-        COMMENT "Generating host-compiled Vulkan shader ${shader_stem}"
-        VERBATIM)
-    list(APPEND VULKAN_GENERATED_HEADERS "${generated_header}")
+        add_custom_command(
+            OUTPUT "${generated_header}"
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${VULKAN_GENERATED_INCLUDE_DIR}"
+            COMMAND "${OV_GPU_GLSLC_EXECUTABLE}" --target-env=vulkan1.3 -I "${VULKAN_KERNEL_DIR}"
+                    "-DELTWISE_FIXED_MODE=${fixed_mode}"
+                    "-DELTWISE_FIXED_INPUT0_TYPE=${input0_type}"
+                    "-DELTWISE_FIXED_INPUT1_TYPE=${input1_type}"
+                    "-DELTWISE_FIXED_OUTPUT_TYPE=${output_type}"
+                    ${restrict_definition} "${shader_source}" -o "${raw_spirv}"
+            COMMAND "${OV_GPU_SPIRV_OPT_EXECUTABLE}" -O "${raw_spirv}" -o "${optimized_spirv}"
+            COMMAND "${OV_GPU_SPIRV_VAL_EXECUTABLE}" --target-env vulkan1.3 "${optimized_spirv}"
+            COMMAND "${Python3_EXECUTABLE}" "${VULKAN_SHADER_GENERATOR}"
+                    "${optimized_spirv}" "${generated_header}" "${variant_stem}_spirv"
+                    "kernels/${shader_name} fixed mode=${fixed_mode} input0=${input0_type} input1=${input1_type} output=${output_type}${variant_description}"
+            DEPENDS
+                "${shader_source}"
+                "${VULKAN_KERNEL_DIR}/eltwise_common.glsl"
+                "${CMAKE_CURRENT_SOURCE_DIR}/eltwise_shader_abi.inc"
+                "${VULKAN_SHADER_GENERATOR}"
+            COMMENT "Generating host-compiled Vulkan shader ${variant_stem}"
+            VERBATIM)
+        list(APPEND VULKAN_GENERATED_HEADERS "${generated_header}")
+    endforeach()
     set(VULKAN_GENERATED_HEADERS "${VULKAN_GENERATED_HEADERS}" PARENT_SCOPE)
 endfunction()
 

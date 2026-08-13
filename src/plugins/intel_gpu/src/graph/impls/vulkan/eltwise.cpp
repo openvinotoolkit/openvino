@@ -25,27 +25,49 @@
 #include "eltwise_broadcast_fast_spirv.hpp"
 #include "eltwise_broadcast_fast_vector_spirv.hpp"
 #include "eltwise_broadcast_vector_spirv.hpp"
+#include "eltwise_dense_f32_div_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_div_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_sum_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_sum_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_vec2_no_tail_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_vec2_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_vec2_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_vec4_no_tail_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_vec4_no_tail_push_constants_spirv.hpp"
+#include "eltwise_dense_f32_vec4_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_f32_vec4_push_constants_spirv.hpp"
+#include "eltwise_dense_i64_div_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_i64_div_push_constants_spirv.hpp"
+#include "eltwise_dense_i64_sum_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_i64_sum_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_16bit_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_packed_16bit_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_8bit_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_packed_8bit_push_constants_spirv.hpp"
+#include "eltwise_dense_packed_f16_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_packed_f16_push_constants_spirv.hpp"
+#include "eltwise_dense_push_constants_restrict_spirv.hpp"
 #include "eltwise_dense_push_constants_spirv.hpp"
+#include "eltwise_dense_restrict_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec2_no_tail_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec2_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec4_no_tail_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_f32_vec4_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec4_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_16bit_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_packed_16bit_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_8bit_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_packed_8bit_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_packed_f16_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_packed_f16_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_push_constants_spirv.hpp"
+#include "eltwise_fused_dense_restrict_spirv.hpp"
 #include "eltwise_fused_dense_spirv.hpp"
 #include "eltwise_scalar_constant_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
@@ -56,6 +78,7 @@
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"
 #include "vulkan/vulkan_engine.hpp"
+#include "vulkan/vulkan_memory.hpp"
 
 namespace cldnn {
 namespace vulkan {
@@ -211,6 +234,10 @@ bool is_fused_dense_kernel(kernel_kind kind) {
                    kernel_kind::fused_dense_packed_8bit_push_constants,
                    kernel_kind::fused_dense_packed_16bit_push_constants,
                    kernel_kind::fused_dense_packed_f16_push_constants});
+}
+
+bool supports_restricted_output(kernel_kind kind) {
+    return is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind);
 }
 
 dense_vector_width get_dense_vector_width(kernel_kind kind) {
@@ -1193,49 +1220,65 @@ scalars_desc make_dense_push_constants(const std::array<uint32_t, metadata_words
     return result;
 }
 
-std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
+std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind, bool restrict_output) {
+    OPENVINO_ASSERT(!restrict_output || supports_restricted_output(kind),
+                    "[GPU][Vulkan] Restricted Eltwise module requires the single-output dense ABI");
     auto source = std::make_shared<kernel_string>();
-    const uint32_t* spirv = eltwise_spirv;
-    size_t spirv_size = sizeof(eltwise_spirv);
+    const uint32_t* spirv = nullptr;
+    size_t spirv_size = 0;
+    const auto select_spirv = [&](const auto& alias_safe, const auto& restricted) {
+        if (restrict_output) {
+            spirv = restricted;
+            spirv_size = sizeof(restricted);
+        } else {
+            spirv = alias_safe;
+            spirv_size = sizeof(alias_safe);
+        }
+    };
     if (kind == kernel_kind::dense) {
-        spirv = eltwise_dense_spirv;
-        spirv_size = sizeof(eltwise_dense_spirv);
+        select_spirv(eltwise_dense_spirv, eltwise_dense_restrict_spirv);
     } else if (kind == kernel_kind::dense_push_constants) {
-        spirv = eltwise_dense_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_push_constants_spirv);
+        select_spirv(eltwise_dense_push_constants_spirv, eltwise_dense_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_sum_push_constants) {
-        spirv = eltwise_dense_f32_sum_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_sum_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_sum_push_constants_spirv, eltwise_dense_f32_sum_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_div_push_constants) {
-        spirv = eltwise_dense_f32_div_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_div_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_div_push_constants_spirv, eltwise_dense_f32_div_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_i64_sum_push_constants) {
-        spirv = eltwise_dense_i64_sum_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_i64_sum_push_constants_spirv);
+        select_spirv(eltwise_dense_i64_sum_push_constants_spirv, eltwise_dense_i64_sum_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_i64_div_push_constants) {
-        spirv = eltwise_dense_i64_div_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_i64_div_push_constants_spirv);
+        select_spirv(eltwise_dense_i64_div_push_constants_spirv, eltwise_dense_i64_div_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_vec2_push_constants) {
-        spirv = eltwise_dense_f32_vec2_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_vec2_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_vec2_push_constants_spirv, eltwise_dense_f32_vec2_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_vec4_push_constants) {
-        spirv = eltwise_dense_f32_vec4_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_vec4_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_vec4_push_constants_spirv, eltwise_dense_f32_vec4_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_vec2_no_tail_push_constants) {
-        spirv = eltwise_dense_f32_vec2_no_tail_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_vec2_no_tail_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_vec2_no_tail_push_constants_spirv, eltwise_dense_f32_vec2_no_tail_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_f32_vec4_no_tail_push_constants) {
-        spirv = eltwise_dense_f32_vec4_no_tail_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_f32_vec4_no_tail_push_constants_spirv);
+        select_spirv(eltwise_dense_f32_vec4_no_tail_push_constants_spirv, eltwise_dense_f32_vec4_no_tail_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_packed_8bit_push_constants) {
-        spirv = eltwise_dense_packed_8bit_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_packed_8bit_push_constants_spirv);
+        select_spirv(eltwise_dense_packed_8bit_push_constants_spirv, eltwise_dense_packed_8bit_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_packed_16bit_push_constants) {
-        spirv = eltwise_dense_packed_16bit_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_packed_16bit_push_constants_spirv);
+        select_spirv(eltwise_dense_packed_16bit_push_constants_spirv, eltwise_dense_packed_16bit_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::dense_packed_f16_push_constants) {
-        spirv = eltwise_dense_packed_f16_push_constants_spirv;
-        spirv_size = sizeof(eltwise_dense_packed_f16_push_constants_spirv);
+        select_spirv(eltwise_dense_packed_f16_push_constants_spirv, eltwise_dense_packed_f16_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense) {
+        select_spirv(eltwise_fused_dense_spirv, eltwise_fused_dense_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_push_constants) {
+        select_spirv(eltwise_fused_dense_push_constants_spirv, eltwise_fused_dense_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec2_push_constants) {
+        select_spirv(eltwise_fused_dense_f32_vec2_push_constants_spirv, eltwise_fused_dense_f32_vec2_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec4_push_constants) {
+        select_spirv(eltwise_fused_dense_f32_vec4_push_constants_spirv, eltwise_fused_dense_f32_vec4_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec2_no_tail_push_constants) {
+        select_spirv(eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv, eltwise_fused_dense_f32_vec2_no_tail_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_f32_vec4_no_tail_push_constants) {
+        select_spirv(eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv, eltwise_fused_dense_f32_vec4_no_tail_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_8bit_push_constants) {
+        select_spirv(eltwise_fused_dense_packed_8bit_push_constants_spirv, eltwise_fused_dense_packed_8bit_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_16bit_push_constants) {
+        select_spirv(eltwise_fused_dense_packed_16bit_push_constants_spirv, eltwise_fused_dense_packed_16bit_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_dense_packed_f16_push_constants) {
+        select_spirv(eltwise_fused_dense_packed_f16_push_constants_spirv, eltwise_fused_dense_packed_f16_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::broadcast_vector) {
         spirv = eltwise_broadcast_vector_spirv;
         spirv_size = sizeof(eltwise_broadcast_vector_spirv);
@@ -1257,39 +1300,48 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind) {
     } else if (kind == kernel_kind::scalar_constant) {
         spirv = eltwise_scalar_constant_spirv;
         spirv_size = sizeof(eltwise_scalar_constant_spirv);
-    } else if (kind == kernel_kind::fused_dense) {
-        spirv = eltwise_fused_dense_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_spirv);
-    } else if (kind == kernel_kind::fused_dense_push_constants) {
-        spirv = eltwise_fused_dense_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_f32_vec2_push_constants) {
-        spirv = eltwise_fused_dense_f32_vec2_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_f32_vec2_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_f32_vec4_push_constants) {
-        spirv = eltwise_fused_dense_f32_vec4_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_f32_vec4_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_f32_vec2_no_tail_push_constants) {
-        spirv = eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_f32_vec4_no_tail_push_constants) {
-        spirv = eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_f32_vec4_no_tail_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_packed_8bit_push_constants) {
-        spirv = eltwise_fused_dense_packed_8bit_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_packed_8bit_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_packed_16bit_push_constants) {
-        spirv = eltwise_fused_dense_packed_16bit_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_packed_16bit_push_constants_spirv);
-    } else if (kind == kernel_kind::fused_dense_packed_f16_push_constants) {
-        spirv = eltwise_fused_dense_packed_f16_push_constants_spirv;
-        spirv_size = sizeof(eltwise_fused_dense_packed_f16_push_constants_spirv);
+    } else {
+        spirv = eltwise_spirv;
+        spirv_size = sizeof(eltwise_spirv);
     }
     source->str.assign(reinterpret_cast<const char*>(spirv), spirv_size);
     source->entry_point = "main";
     source->batch_compilation = false;
     source->language = kernel_language::SPIRV;
     return source;
+}
+
+std::vector<std::shared_ptr<kernel_string>> make_kernel_sources(kernel_kind kind) {
+    std::vector<std::shared_ptr<kernel_string>> sources{make_kernel_source(kind, false)};
+    if (supports_restricted_output(kind)) {
+        sources.push_back(make_kernel_source(kind, true));
+    }
+    return sources;
+}
+
+bool output_is_disjoint_from_reads(const memory::cptr& output, const std::vector<memory::cptr>& reads) {
+    const auto* output_buffer = output == nullptr ? nullptr : dynamic_cast<const vulkan_buffer*>(output.get());
+    if (output_buffer == nullptr) {
+        return false;
+    }
+
+    const auto output_begin = output_buffer->get_offset();
+    const auto output_end = output_begin + output_buffer->size();
+    for (const auto& read : reads) {
+        const auto* read_buffer = read == nullptr ? nullptr : dynamic_cast<const vulkan_buffer*>(read.get());
+        if (read_buffer == nullptr) {
+            return false;
+        }
+        if (output_buffer->get_allocation() != read_buffer->get_allocation()) {
+            continue;
+        }
+        const auto read_begin = read_buffer->get_offset();
+        const auto read_end = read_begin + read_buffer->size();
+        if (std::max(output_begin, read_begin) < std::min(output_end, read_end)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 struct eltwise_impl : typed_primitive_impl<eltwise> {
@@ -1301,7 +1353,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     eltwise_impl(kernel_kind kind, std::optional<scalar_constant> scalar, uint32_t elements_per_invocation)
         : parent("vulkan_eltwise"),
-          _kernel_source(make_kernel_source(kind)),
+          _kernel_sources(make_kernel_sources(kind)),
           _kernel_kind(kind),
           _scalar_constant(std::move(scalar)),
           _elements_per_invocation(elements_per_invocation),
@@ -1347,6 +1399,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         } else {
             _scalar_constant.reset();
         }
+        _kernel_sources = make_kernel_sources(_kernel_kind);
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
@@ -1358,7 +1411,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     void init_kernels(const kernels_cache& cache, const kernel_impl_params& params) override {
         _kernels = cache.get_kernels(params);
-        OPENVINO_ASSERT(_kernels.size() == 1, "[GPU][Vulkan] Eltwise expects exactly one selected SPIR-V kernel");
+        OPENVINO_ASSERT(_kernels.size() == _kernel_sources.size(), "[GPU][Vulkan] Eltwise compiled an unexpected number of SPIR-V kernels");
     }
 
     void init_by_cached_kernels(const kernels_cache& cache, std::vector<std::string>& cached_kernel_ids) override {
@@ -1366,6 +1419,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         for (const auto& id : cached_kernel_ids) {
             _kernels.push_back(cache.get_kernel_from_cached_kernels(id));
         }
+        OPENVINO_ASSERT(_kernels.size() == 1 || (supports_restricted_output(_kernel_kind) && _kernels.size() == 2),
+                        "[GPU][Vulkan] Cached Eltwise expects an alias-safe kernel and an optional restricted kernel");
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& cache) override {
@@ -1373,11 +1428,11 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     }
 
     std::vector<std::shared_ptr<kernel_string>> get_kernels_source() override {
-        return _kernel_source == nullptr ? std::vector<std::shared_ptr<kernel_string>>{} : std::vector<std::shared_ptr<kernel_string>>{_kernel_source};
+        return _kernel_sources;
     }
 
     void reset_kernels_source() override {
-        _kernel_source.reset();
+        _kernel_sources.clear();
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
@@ -1387,7 +1442,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     void set_kernels(kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Eltwise expects one compiled kernel set");
         const auto& entries = kernels.begin()->second;
-        OPENVINO_ASSERT(entries.size() == 1, "[GPU][Vulkan] Eltwise expects exactly one selected compiled kernel");
+        OPENVINO_ASSERT(entries.size() == _kernel_sources.size(), "[GPU][Vulkan] Eltwise compiled an unexpected number of kernels");
         _kernels.resize(entries.size());
         for (const auto& entry : entries) {
             _kernels.at(entry.second) = entry.first;
@@ -1395,7 +1450,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, eltwise_inst& instance) override {
-        OPENVINO_ASSERT(_kernels.size() == 1 && _kernels.front() != nullptr, "[GPU][Vulkan] Eltwise kernel was not initialized");
+        OPENVINO_ASSERT((_kernels.size() == 1 || _kernels.size() == 2) && _kernels.front() != nullptr, "[GPU][Vulkan] Eltwise kernel was not initialized");
         const auto desc = instance.get_typed_desc<eltwise>();
         const auto base_input_count = is_unary_mode(desc->mode) ? 1U : 2U;
         const auto fused = get_supported_fused_eltwise(instance.get_node());
@@ -1551,10 +1606,23 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (!use_dense_push_constants) {
             arguments.intermediates = {metadata_memory};
         }
+        std::vector<memory::cptr> read_memories;
+        if (use_scalar_constant_kernel) {
+            const auto tensor_input_index = _scalar_constant->input_index == shader_abi::tensor_index::input0
+                                                ? shader_abi::index(shader_abi::tensor_index::input1)
+                                                : shader_abi::index(shader_abi::tensor_index::input0);
+            read_memories.push_back(arguments.inputs.at(tensor_input_index));
+        } else {
+            read_memories.insert(read_memories.end(), arguments.inputs.begin(), arguments.inputs.end());
+        }
+        read_memories.insert(read_memories.end(), arguments.fused_op_inputs.begin(), arguments.fused_op_inputs.end());
+        read_memories.insert(read_memories.end(), arguments.intermediates.begin(), arguments.intermediates.end());
+        const auto use_restricted_kernel = _kernels.size() == 2 && output_is_disjoint_from_reads(arguments.outputs.front(), read_memories);
+        auto& selected_kernel = *_kernels.at(use_restricted_kernel ? 1 : 0);
         if (local_size_action.prewarm) {
             for (const auto candidate : _local_size_tuning->candidates) {
                 descriptor.workGroups.local[0] = candidate;
-                stream.set_arguments(*_kernels.front(), descriptor, arguments);
+                stream.set_arguments(selected_kernel, descriptor, arguments);
             }
             _local_size_tuning->prewarmed = true;
             local_size_tuning_lock.unlock();
@@ -1563,7 +1631,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (local_size_action.measure) {
             stream.finish();
             const auto start = std::chrono::steady_clock::now();
-            auto measured_event = stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, true);
+            auto measured_event = stream.enqueue_kernel(selected_kernel, descriptor, arguments, events, true);
             OPENVINO_ASSERT(measured_event != nullptr, "[GPU][Vulkan] Eltwise local-size measurement did not produce a completion event");
             measured_event->wait();
             const auto elapsed = std::chrono::steady_clock::now() - start;
@@ -1572,11 +1640,11 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             local_size_tuning_lock.unlock();
             return measured_event;
         }
-        return stream.enqueue_kernel(*_kernels.front(), descriptor, arguments, events, instance.needs_completion_event());
+        return stream.enqueue_kernel(selected_kernel, descriptor, arguments, events, instance.needs_completion_event());
     }
 
 private:
-    std::shared_ptr<kernel_string> _kernel_source;
+    std::vector<std::shared_ptr<kernel_string>> _kernel_sources;
     kernel_kind _kernel_kind = kernel_kind::broadcast_scalar;
     std::optional<scalar_constant> _scalar_constant;
     uint32_t _elements_per_invocation = 0;
