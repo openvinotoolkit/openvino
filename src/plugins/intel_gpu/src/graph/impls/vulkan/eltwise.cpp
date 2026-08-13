@@ -64,9 +64,13 @@ constexpr uint32_t fused_dense_push_constant_words = dense_push_constant_words +
 constexpr uint32_t dense_push_constant_bytes = dense_push_constant_words * sizeof(uint32_t);
 constexpr uint32_t fused_dense_push_constant_bytes = fused_dense_push_constant_words * sizeof(uint32_t);
 constexpr uint32_t portable_max_local_work_group_size = 128;
-constexpr uint32_t dense_vector_bytes = 16;
 constexpr uint32_t broadcast_vector_width = 4;
 constexpr uint32_t broadcast_vector_min_elements = 256;
+constexpr uint32_t maximum_scalar_batch_width = 8;
+constexpr uint32_t balanced_scalar_batch_width = 4;
+constexpr uint32_t division_scalar_batch_width = 2;
+constexpr uint32_t scalar_batch_width = 1;
+constexpr uint32_t scalar_elements_per_subgroup_budget = portable_max_local_work_group_size;
 
 enum class kernel_kind : uint8_t {
     dense,
@@ -414,20 +418,6 @@ uint32_t output_elements_per_invocation(const layout& output_layout) {
     return checked_u32(sizeof(uint32_t) / scalar_size, "packed output width");
 }
 
-uint32_t dense_elements_per_invocation(const layout& output_layout) {
-    const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
-    return checked_u32(std::max<size_t>(1, dense_vector_bytes / scalar_size), "dense vector width");
-}
-
-uint32_t scalar_constant_elements_per_invocation(const layout& output_layout) {
-    return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) ? broadcast_vector_width : output_elements_per_invocation(output_layout);
-}
-
-uint32_t fused_dense_elements_per_invocation(const layout& output_layout) {
-    return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) ? dense_elements_per_invocation(output_layout)
-                                                                                  : output_elements_per_invocation(output_layout);
-}
-
 bool can_use_dense_kernel(const layout& input0_layout, const layout& input1_layout, const layout& output_layout) {
     return data_type_traits::size_of(output_layout.data_type) >= sizeof(uint32_t) && can_use_linear_storage(input0_layout, input1_layout, output_layout);
 }
@@ -634,6 +624,106 @@ std::optional<fused_eltwise_info> get_supported_fused_eltwise(const program_node
                               *external_position == 0 ? shader_abi::fused_input_position::lhs : shader_abi::fused_input_position::rhs};
 }
 
+uint32_t operation_batch_width_limit(eltwise_mode mode, data_types type, kernel_kind kind, const device_info& info) {
+    switch (mode) {
+    case eltwise_mode::pow:
+    case eltwise_mode::atan2:
+        return scalar_batch_width;
+    case eltwise_mode::div:
+    case eltwise_mode::mod:
+    case eltwise_mode::floor_mod:
+        if (type == data_types::i64) {
+            return scalar_batch_width;
+        }
+        if (is_broadcast_vector_kernel(kind) && info.max_work_group_size != 0) {
+            const auto capability_width = std::max<uint64_t>(info.max_work_group_size / portable_max_local_work_group_size, scalar_batch_width);
+            return static_cast<uint32_t>(std::min<uint64_t>(capability_width, balanced_scalar_batch_width));
+        }
+        return division_scalar_batch_width;
+    case eltwise_mode::squared_diff:
+        return balanced_scalar_batch_width;
+    default:
+        return maximum_scalar_batch_width;
+    }
+}
+
+bool has_aligned_offset(const layout& tensor_layout, uint32_t width) {
+    return tensor_layout.get_linear_offset() % width == 0;
+}
+
+uint32_t select_generic_elements_per_invocation(kernel_kind kind,
+                                                const layout& input0_layout,
+                                                const layout& input1_layout,
+                                                const layout& output_layout,
+                                                const layout* fused_input_layout,
+                                                eltwise_mode mode,
+                                                std::optional<eltwise_mode> fused_mode,
+                                                const device_info& info) {
+    const auto packed_width = get_packed_dense_width(kind);
+    if (packed_width != packed_dense_width::none) {
+        return value(packed_width);
+    }
+    const auto vector_width = get_dense_vector_width(kind);
+    if (vector_width != dense_vector_width::scalar) {
+        return value(vector_width);
+    }
+    const auto output_width = output_elements_per_invocation(output_layout);
+    if (output_width != 1 || kind == kernel_kind::unary || kind == kernel_kind::broadcast_scalar || kind == kernel_kind::broadcast_fast_scalar) {
+        return output_width;
+    }
+    OPENVINO_ASSERT(is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind) || is_broadcast_vector_kernel(kind) || kind == kernel_kind::scalar_constant,
+                    "[GPU][Vulkan] Eltwise scalar batch selection received an unsupported kernel kind");
+
+    uint32_t width_limit = std::min({operation_batch_width_limit(mode, input0_layout.data_type, kind, info),
+                                     operation_batch_width_limit(mode, input1_layout.data_type, kind, info),
+                                     operation_batch_width_limit(mode, output_layout.data_type, kind, info)});
+    if (fused_mode.has_value()) {
+        width_limit = std::min(width_limit, operation_batch_width_limit(*fused_mode, output_layout.data_type, kind, info));
+    }
+    if (is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind) || kind == kernel_kind::scalar_constant) {
+        width_limit = std::min(width_limit, balanced_scalar_batch_width);
+    }
+    auto maximum_scalar_size = std::max({data_type_traits::size_of(input0_layout.data_type),
+                                         data_type_traits::size_of(input1_layout.data_type),
+                                         data_type_traits::size_of(output_layout.data_type)});
+    if (fused_input_layout != nullptr) {
+        maximum_scalar_size = std::max(maximum_scalar_size, data_type_traits::size_of(fused_input_layout->data_type));
+    }
+    if (maximum_scalar_size >= sizeof(uint64_t) && width_limit >= division_scalar_batch_width) {
+        return division_scalar_batch_width;
+    }
+    if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0 || info.max_work_group_size == 0) {
+        return scalar_batch_width;
+    }
+
+    const auto subgroup_size = static_cast<uint64_t>(info.supported_simd_sizes.front());
+    const auto subgroup_width_limit = std::max<uint64_t>(scalar_elements_per_subgroup_budget / subgroup_size, balanced_scalar_batch_width);
+    width_limit = static_cast<uint32_t>(std::min<uint64_t>(width_limit, subgroup_width_limit));
+    const auto max_work_group_size = std::max<uint64_t>(info.max_work_group_size, 1);
+    const auto subgroups_per_full_work_group = (max_work_group_size + subgroup_size - 1) / subgroup_size;
+    const auto useful_subgroup_coverage = std::min<uint64_t>(subgroups_per_full_work_group, width_limit);
+    const auto required_parallel_invocations = max_work_group_size * useful_subgroup_coverage;
+    const auto has_aligned_layouts = [&](uint32_t candidate) {
+        if (!has_aligned_offset(output_layout, candidate)) {
+            return false;
+        }
+        return !(is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind)) ||
+               (has_aligned_offset(input0_layout, candidate) && has_aligned_offset(input1_layout, candidate) &&
+                (fused_input_layout == nullptr || has_aligned_offset(*fused_input_layout, candidate)));
+    };
+    constexpr std::array candidates{maximum_scalar_batch_width, balanced_scalar_batch_width, division_scalar_batch_width, scalar_batch_width};
+    for (const auto candidate : candidates) {
+        if (candidate > width_limit || !has_aligned_layouts(candidate)) {
+            continue;
+        }
+        const auto invocation_count = (output_layout.count() + candidate - 1) / candidate;
+        if (invocation_count >= required_parallel_invocations) {
+            return candidate;
+        }
+    }
+    return scalar_batch_width;
+}
+
 bool can_use_broadcast_vector_kernel(const layout& output_layout) {
     if (data_type_traits::size_of(output_layout.data_type) < sizeof(uint32_t) || output_layout.count() < broadcast_vector_min_elements) {
         return false;
@@ -780,7 +870,7 @@ bool should_use_fast_broadcast_kernel(const layout& input0_layout,
                                       const layout& input1_layout,
                                       const layout& output_layout,
                                       const device_info& info,
-                                      bool vector_kernel) {
+                                      uint32_t elements_per_invocation) {
     if (info.supported_simd_sizes.empty() || info.supported_simd_sizes.front() == 0 || info.max_work_group_size == 0) {
         return false;
     }
@@ -788,7 +878,6 @@ bool should_use_fast_broadcast_kernel(const layout& input0_layout,
     const auto subgroup_slots = std::max<uint64_t>(info.max_work_group_size / subgroup_size, 1);
     const auto rank = collapsed_broadcast_rank(input0_layout, input1_layout, output_layout);
     const auto coordinate_schedule_pressure = static_cast<uint64_t>(rank) * subgroup_slots;
-    const auto elements_per_invocation = vector_kernel ? broadcast_vector_width : output_elements_per_invocation(output_layout);
     const auto invocation_count = (output_layout.count() + elements_per_invocation - 1) / elements_per_invocation;
     return coordinate_schedule_pressure <= portable_max_local_work_group_size && invocation_count >= subgroup_size;
 }
@@ -979,13 +1068,14 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::vulkan::eltwise_impl)
 
-    eltwise_impl() : eltwise_impl(kernel_kind::broadcast_scalar, std::nullopt) {}
+    eltwise_impl() : eltwise_impl(kernel_kind::broadcast_scalar, std::nullopt, 0) {}
 
-    eltwise_impl(kernel_kind kind, std::optional<scalar_constant> scalar)
+    eltwise_impl(kernel_kind kind, std::optional<scalar_constant> scalar, uint32_t elements_per_invocation)
         : parent("vulkan_eltwise"),
           _kernel_source(make_kernel_source(kind)),
           _kernel_kind(kind),
-          _scalar_constant(std::move(scalar)) {}
+          _scalar_constant(std::move(scalar)),
+          _elements_per_invocation(elements_per_invocation) {}
 
     std::unique_ptr<primitive_impl> clone() const override {
         auto result = std::make_unique<eltwise_impl>(*this);
@@ -1004,6 +1094,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     void save(BinaryOutputBuffer& buffer) const override {
         parent::save(buffer);
         buffer << make_data(&_kernel_kind, sizeof(_kernel_kind));
+        buffer << make_data(&_elements_per_invocation, sizeof(_elements_per_invocation));
         const bool has_scalar_constant = _scalar_constant.has_value();
         buffer << make_data(&has_scalar_constant, sizeof(has_scalar_constant));
         if (has_scalar_constant) {
@@ -1015,6 +1106,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     void load(BinaryInputBuffer& buffer) override {
         parent::load(buffer);
         buffer >> make_data(&_kernel_kind, sizeof(_kernel_kind));
+        buffer >> make_data(&_elements_per_invocation, sizeof(_elements_per_invocation));
         bool has_scalar_constant = false;
         buffer >> make_data(&has_scalar_constant, sizeof(has_scalar_constant));
         if (has_scalar_constant) {
@@ -1105,7 +1197,6 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_dense_kernel;
         const auto* fused_input_layout = use_fused_dense_kernel ? &instance.get_input_layout(fused->external_dependency_index) : nullptr;
         const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
-        const auto selected_packed_dense_width = get_packed_dense_width(_kernel_kind);
         const bool use_broadcast_vector_kernel = is_broadcast_vector_kernel(_kernel_kind);
         const bool use_fast_broadcast_kernel = is_fast_broadcast_kernel(_kernel_kind);
         const bool use_unary_kernel = _kernel_kind == kernel_kind::unary;
@@ -1125,19 +1216,27 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                         "[GPU][Vulkan] F32 vector Eltwise runtime layouts no longer satisfy the compiled kernel contract");
         OPENVINO_ASSERT(!use_broadcast_vector_kernel || can_use_broadcast_vector_kernel(output_layout),
                         "[GPU][Vulkan] Vector broadcast Eltwise runtime layout no longer satisfies the compiled kernel contract");
+        auto elements_per_invocation = _elements_per_invocation;
+        if (elements_per_invocation == 0) {
+            std::optional<eltwise_mode> fused_mode;
+            if (fused.has_value()) {
+                fused_mode = fused->descriptor->typed_desc<eltwise>()->mode;
+            }
+            elements_per_invocation = select_generic_elements_per_invocation(_kernel_kind,
+                                                                             input0_layout,
+                                                                             input1_layout,
+                                                                             output_layout,
+                                                                             fused_input_layout,
+                                                                             desc->mode,
+                                                                             fused_mode,
+                                                                             instance.get_network().get_engine().get_device_info());
+        }
         OPENVINO_ASSERT(!use_fast_broadcast_kernel || should_use_fast_broadcast_kernel(input0_layout,
                                                                                        input1_layout,
                                                                                        output_layout,
                                                                                        instance.get_network().get_engine().get_device_info(),
-                                                                                       use_broadcast_vector_kernel),
+                                                                                       elements_per_invocation),
                         "[GPU][Vulkan] Fast broadcast Eltwise runtime layouts no longer satisfy the compiled kernel contract");
-        const auto elements_per_invocation = selected_packed_dense_width != packed_dense_width::none     ? value(selected_packed_dense_width)
-                                             : selected_dense_vector_width != dense_vector_width::scalar ? value(selected_dense_vector_width)
-                                             : use_fused_dense_kernel                                    ? fused_dense_elements_per_invocation(output_layout)
-                                             : use_dense_kernel                                          ? dense_elements_per_invocation(output_layout)
-                                             : use_broadcast_vector_kernel                               ? broadcast_vector_width
-                                             : use_scalar_constant_kernel ? scalar_constant_elements_per_invocation(output_layout)
-                                                                          : output_elements_per_invocation(output_layout);
         const auto invocation_count = (element_count + elements_per_invocation - 1) / elements_per_invocation;
         descriptor.workGroups.global = {invocation_count, 1, 1};
         descriptor.workGroups.local = {
@@ -1214,6 +1313,7 @@ private:
     std::shared_ptr<kernel_string> _kernel_source;
     kernel_kind _kernel_kind = kernel_kind::broadcast_scalar;
     std::optional<scalar_constant> _scalar_constant;
+    uint32_t _elements_per_invocation = 0;
     std::vector<kernel::ptr> _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
@@ -1312,7 +1412,16 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
             }
         } else {
             const bool vector_kernel = can_use_broadcast_vector_kernel(output_layout);
-            const bool fast_kernel = should_use_fast_broadcast_kernel(input0_layout, input1_layout, output_layout, device_info, vector_kernel);
+            const auto provisional_kind = vector_kernel ? kernel_kind::broadcast_vector : kernel_kind::broadcast_scalar;
+            const auto elements_per_invocation = select_generic_elements_per_invocation(provisional_kind,
+                                                                                        input0_layout,
+                                                                                        input1_layout,
+                                                                                        output_layout,
+                                                                                        nullptr,
+                                                                                        node.as<eltwise>().get_primitive()->mode,
+                                                                                        std::nullopt,
+                                                                                        device_info);
+            const bool fast_kernel = should_use_fast_broadcast_kernel(input0_layout, input1_layout, output_layout, device_info, elements_per_invocation);
             kind = vector_kernel ? (fast_kernel ? kernel_kind::broadcast_fast_vector : kernel_kind::broadcast_vector)
                                  : (fast_kernel ? kernel_kind::broadcast_fast_scalar : kernel_kind::broadcast_scalar);
         }
@@ -1320,7 +1429,23 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
             scalar.reset();
         }
     }
-    return std::make_unique<eltwise_impl>(kind, std::move(scalar));
+    uint32_t elements_per_invocation = 0;
+    if (!params.is_dynamic()) {
+        const auto* fused_input_layout = fused.has_value() ? &params.get_input_layout(fused->external_dependency_index) : nullptr;
+        std::optional<eltwise_mode> fused_mode;
+        if (fused.has_value()) {
+            fused_mode = fused->descriptor->typed_desc<eltwise>()->mode;
+        }
+        elements_per_invocation = select_generic_elements_per_invocation(kind,
+                                                                         input0_layout,
+                                                                         input1_layout,
+                                                                         params.get_output_layout(0),
+                                                                         fused_input_layout,
+                                                                         node.as<eltwise>().get_primitive()->mode,
+                                                                         fused_mode,
+                                                                         device_info);
+    }
+    return std::make_unique<eltwise_impl>(kind, std::move(scalar), elements_per_invocation);
 }
 
 }  // namespace vulkan
