@@ -75,6 +75,7 @@ struct GqaParams {
     bool smooth_softmax = false;
     bool head_sink = false;
     bool attention_bias = false;
+    Dimension bias_kv_len = Dimension::dynamic();
     Dimension past_len = Dimension::dynamic();
     Dimension seq_len = 1;
     // Expected decomposed structure.
@@ -113,8 +114,11 @@ struct GqaParams {
         expected_sdpa_inputs = 6;
         return *this;
     }
-    GqaParams& bias() {
+    // kv_len lets a case declare the bias narrower than the buffer it will be added against (e.g. a
+    // static preallocated cache wider than total_sequence_length), reproducing a kv_len/bias-width mismatch.
+    GqaParams& bias(const Dimension& kv_len = Dimension::dynamic()) {
         attention_bias = true;
+        bias_kv_len = kv_len;
         return *this;
     }
     GqaParams& shape(const Dimension& seq, const Dimension& past) {
@@ -157,7 +161,7 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
     }
     if (p.attention_bias) {
         pad_to(10);
-        add(f32, PartialShape{1, NUM_HEADS, p.seq_len, -1});  // 10: attention_bias
+        add(f32, PartialShape{1, NUM_HEADS, p.seq_len, p.bias_kv_len});  // 10: attention_bias
     }
     if (p.head_sink) {
         pad_to(11);
@@ -250,6 +254,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"rotary"}.rotary(),
                                          GqaParams{"rotary_interleaved"}.rotary(/*interleaved*/ true),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
+                                         GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
                                          GqaParams{"attention_bias"}.bias(),
                                          GqaParams{"sliding_window_bias"}.window(2).bias(),

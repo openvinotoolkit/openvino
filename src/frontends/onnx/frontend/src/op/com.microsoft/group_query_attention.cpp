@@ -80,14 +80,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        // attention_bias (input 10) is indexed by absolute total_sequence_length, but a windowed cache rolls
-        // with front eviction so cache slot j holds absolute key (survivor_start + j). After the first
-        // eviction the bias columns no longer align with the cache slots, and the decomposition slices the
-        // bias as bias[..., 0:capacity] regardless. Reject the combination until the bias is gathered with
-        // the same survivor/new index sets that build the present buffer.
-        FRONT_END_OP_CONVERSION_CHECK(
-            !common::is_input_valid(onnx_op_inputs, 10),
-            "GroupQueryAttention: attention_bias is not supported together with sliding_window_cache=1.");
         // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
         // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
         // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
