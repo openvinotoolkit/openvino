@@ -55,14 +55,6 @@ TEST(OptionSupportCacheTests, SetOptionsMergesWithExisting) {
     EXPECT_EQ(cache.isOptionSupported(kFirstKey, "OPT_BULK"), std::make_optional(true));
 }
 
-TEST(OptionSupportCacheTests, OptionWithValueIsFound) {
-    ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_VAL", std::string{"VALUE_A"});
-    EXPECT_EQ(cache.isOptionSupported(kFirstKey, "OPT_VAL", std::string{"VALUE_A"}), std::make_optional(true));
-    EXPECT_FALSE(cache.isOptionSupported(kFirstKey, "OPT_VAL", std::string{"VALUE_B"}).has_value());
-    EXPECT_FALSE(cache.isOptionSupported(kFirstKey, "OPT_VAL").has_value());
-}
-
 TEST(OptionSupportCacheTests, DifferentKeysAreIndependent) {
     ::intel_npu::OptionSupportCache cache;
     cache.setSupportedOptions(kFirstKey, {"FIRST_ONLY"});
@@ -82,32 +74,32 @@ TEST(OptionSupportCacheTests, AddDoesNotCreateDuplicates) {
 
 TEST(OptionSupportCacheTests, UnsupportedOptionCanBeCachedExplicitly) {
     ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", std::optional<std::string>{}, false);
+    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", false);
     EXPECT_EQ(cache.isOptionSupported(kFirstKey, "OPT_UNSUPPORTED"), std::make_optional(false));
 }
 
 TEST(OptionSupportCacheTests, RepeatedUnsupportedOptionInsertIsIdempotent) {
     ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", std::optional<std::string>{}, false);
-    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", std::optional<std::string>{}, false);
+    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", false);
+    cache.addSupportedOption(kFirstKey, "OPT_UNSUPPORTED", false);
     EXPECT_EQ(cache.isOptionSupported(kFirstKey, "OPT_UNSUPPORTED"), std::make_optional(false));
 }
 
 TEST(OptionSupportCacheTests, ConflictingSupportStateFromTrueToFalseThrows) {
     ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_FLIP", std::optional<std::string>{}, true);
-    EXPECT_THROW(cache.addSupportedOption(kFirstKey, "OPT_FLIP", std::optional<std::string>{}, false), ov::Exception);
+    cache.addSupportedOption(kFirstKey, "OPT_FLIP", true);
+    EXPECT_THROW(cache.addSupportedOption(kFirstKey, "OPT_FLIP", false), ov::Exception);
 }
 
 TEST(OptionSupportCacheTests, ConflictingSupportStateFromFalseToTrueThrows) {
     ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_FLIP", std::optional<std::string>{}, false);
-    EXPECT_THROW(cache.addSupportedOption(kFirstKey, "OPT_FLIP", std::optional<std::string>{}, true), ov::Exception);
+    cache.addSupportedOption(kFirstKey, "OPT_FLIP", false);
+    EXPECT_THROW(cache.addSupportedOption(kFirstKey, "OPT_FLIP", true), ov::Exception);
 }
 
 TEST(OptionSupportCacheTests, SetSupportedOptionsConflictsWithExistingUnsupportedState) {
     ::intel_npu::OptionSupportCache cache;
-    cache.addSupportedOption(kFirstKey, "OPT_CONFLICT", std::optional<std::string>{}, false);
+    cache.addSupportedOption(kFirstKey, "OPT_CONFLICT", false);
     EXPECT_THROW(cache.setSupportedOptions(kFirstKey, {"OPT_CONFLICT"}), ov::Exception);
 }
 

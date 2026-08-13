@@ -327,16 +327,17 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    if (_optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname, optValue);
+    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
+    if (optionSupportCache) {
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
         if (cachedSupport.has_value()) {
             return cachedSupport.value();
         }
     }
 
     const bool supported = _compiler->is_option_supported(optname, optValue);
-    if (_optionSupportCache) {
-        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, optValue, supported);
+    if (optionSupportCache) {
+        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
     }
 
     const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -30,8 +30,8 @@ private:
     const ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<OptionSupportCache> _optionSupportCache;
 
-    std::atomic<bool> _driverSupportedOptionsLoaded{false};
-    std::atomic<bool> _pluginSupportedOptionsLoaded{false};
+    std::once_flag _driverSupportedOptionsLoaded;
+    std::once_flag _pluginSupportedOptionsLoaded;
 };
 
 }  // namespace intel_npu

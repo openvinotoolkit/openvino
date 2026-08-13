@@ -362,8 +362,9 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
                                                 const std::optional<std::string>& optValue) const {
-    if (_optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(driverOptionSupportKey, optName, optValue);
+    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
+    if (optionSupportCache) {
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(driverOptionSupportKey, optName);
         if (cachedSupport.has_value()) {
             return cachedSupport.value();
         }
@@ -372,8 +373,8 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     if (isOptionSupported.has_value()) {
         const bool supported = isOptionSupported.value();
-        if (_optionSupportCache) {
-            _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, optValue, supported);
+        if (optionSupportCache) {
+            _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
         }
 
         return supported;
@@ -385,7 +386,7 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
         if (prop.name == optName) {
             const bool supported = isVersionSupportedByCompiler(prop.version, compilerVersion);
             if (_optionSupportCache) {
-                _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, std::nullopt, supported);
+                _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
             }
             return supported;
         }

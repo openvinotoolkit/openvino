@@ -10,17 +10,6 @@
 
 namespace {
 
-std::string buildOptionCacheKey(const std::string& optionName, const std::optional<std::string>& optionValue) {
-    if (!optionValue.has_value()) {
-        return optionName;
-    }
-
-    std::string key = optionName;
-    key += '=';
-    key += optionValue.value();
-    return key;
-}
-
 std::optional<bool> getCachedOptionSupportFromVector(
     const std::vector<intel_npu::OptionSupportCache::OptionSupportState>& options,
     const std::string& optionCacheKey) {
@@ -64,24 +53,16 @@ void addOptionSupportInVector(std::vector<intel_npu::OptionSupportCache::OptionS
 
 namespace intel_npu {
 
-std::optional<bool> OptionSupportCache::isOptionSupported(const CacheKey key,
-                                                          const std::string& optionName,
-                                                          const std::optional<std::string>& optionValue) {
+std::optional<bool> OptionSupportCache::isOptionSupported(const CacheKey key, const std::string& optionName) {
     std::lock_guard<std::mutex> lock(_mutex);
     auto& optionSupportState = getStateForKey(key);
-    const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
-    return getCachedOptionSupportFromVector(optionSupportState.supportedOptions, optionCacheKey);
+    return getCachedOptionSupportFromVector(optionSupportState.supportedOptions, optionName);
 }
 
-void OptionSupportCache::addSupportedOption(const CacheKey key,
-                                            const std::string& optionName,
-                                            const std::optional<std::string>& optionValue,
-                                            bool supported) {
+void OptionSupportCache::addSupportedOption(const CacheKey key, const std::string& optionName, bool supported) {
     std::lock_guard<std::mutex> lock(_mutex);
     auto& optionSupportState = getStateForKey(key);
-
-    const auto optionCacheKey = buildOptionCacheKey(optionName, optionValue);
-    addOptionSupportInVector(optionSupportState.supportedOptions, optionCacheKey, supported);
+    addOptionSupportInVector(optionSupportState.supportedOptions, optionName, supported);
 }
 
 void OptionSupportCache::setSupportedOptions(const CacheKey key, const std::vector<std::string>& supportedOptions) {

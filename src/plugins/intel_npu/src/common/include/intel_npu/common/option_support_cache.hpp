@@ -21,15 +21,8 @@ public:
         bool supported;
     };
 
-    std::optional<bool> isOptionSupported(CacheKey key,
-                                          const std::string& optionName,
-                                          const std::optional<std::string>& optionValue = std::nullopt);
-
-    void addSupportedOption(CacheKey key,
-                            const std::string& optionName,
-                            const std::optional<std::string>& optionValue = std::nullopt,
-                            bool supported = true);
-
+    std::optional<bool> isOptionSupported(CacheKey key, const std::string& optionName);
+    void addSupportedOption(CacheKey key, const std::string& optionName, bool supported = true);
     void setSupportedOptions(CacheKey key, const std::vector<std::string>& supportedOptions);
 
 private:

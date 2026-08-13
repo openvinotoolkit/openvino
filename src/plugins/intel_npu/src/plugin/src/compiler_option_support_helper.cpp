@@ -31,8 +31,15 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     OPENVINO_ASSERT(compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN,
                     "Expected concrete compiler type before cache lookup");
     const auto cacheKey = toCacheKey(compilerType);
-    if (const auto cachedSupport = _optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue);
-        cachedSupport.has_value()) {
+
+    const auto getCachedSupport = [&]() -> std::optional<bool> {
+        if (optionValue.has_value()) {
+            return std::nullopt;
+        }
+        return _optionSupportCache->isOptionSupported(cacheKey, optionName);
+    };
+
+    if (const auto cachedSupport = getCachedSupport(); cachedSupport.has_value()) {
         return cachedSupport.value();
     }
 
@@ -43,15 +50,15 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
         return false;
     }
 
-    std::atomic<bool>& optionsLoaded = (compilerType == ov::intel_npu::CompilerType::DRIVER)
-                                           ? _driverSupportedOptionsLoaded
-                                           : _pluginSupportedOptionsLoaded;
-    if (!optionsLoaded.exchange(true)) {
+    std::once_flag& optionsLoaded = (compilerType == ov::intel_npu::CompilerType::DRIVER)
+                                        ? _driverSupportedOptionsLoaded
+                                        : _pluginSupportedOptionsLoaded;
+    std::call_once(optionsLoaded, [&compiler]() {
         compiler->get_supported_options();
-        if (const auto cachedSupport = _optionSupportCache->isOptionSupported(cacheKey, optionName, optionValue);
-            cachedSupport.has_value()) {
-            return cachedSupport.value();
-        }
+    });
+
+    if (const auto cachedSupport = getCachedSupport(); cachedSupport.has_value()) {
+        return cachedSupport.value();
     }
 
     return compiler->is_option_supported(optionName, optionValue);
