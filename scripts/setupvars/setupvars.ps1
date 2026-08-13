@@ -87,29 +87,38 @@ function Get-AvailablePythonVersions
 
 try
 {
-    # Should select the latest installed Python version as per https://docs.python.org/3/using/windows.html#getting-started
-    (py --version) | Out-Null
+    # Prefer the Python launcher, but support interpreters installed without it.
+    $python_command = "py"
+    (& $python_command --version) | Out-Null
 }
 catch
 {
-    $available_python_versions = @(Get-AvailablePythonVersions)
-    if ($available_python_versions.Count -gt 0)
+    try
     {
-        Write-Host "Warning: Python is not installed. Please install one of Python $($available_python_versions -join ', ') (64-bit) from https://www.python.org/downloads/"
+        $python_command = "python"
+        (& $python_command --version) | Out-Null
     }
-    else
+    catch
     {
-        Write-Host "Warning: Python is not installed. Please install Python (64-bit) from https://www.python.org/downloads/"
+        $available_python_versions = @(Get-AvailablePythonVersions)
+        if ($available_python_versions.Count -gt 0)
+        {
+            Write-Host "Warning: Python is not installed. Please install one of Python $($available_python_versions -join ', ') (64-bit) from https://www.python.org/downloads/"
+        }
+        else
+        {
+            Write-Host "Warning: Python is not installed. Please install Python (64-bit) from https://www.python.org/downloads/"
+        }
+        # Python is not mandatory so we can safely exit with 0
+        Exit 0
     }
-    # Python is not mandatory so we can safely exit with 0
-    Exit 0
 }
 
 # Check Python version if user did not pass -python_version
 if (-not $python_version)
 {
-    $installed_python_version_major = [int](py -c "import sys; print(f'{sys.version_info[0]}')")
-    $installed_python_version_minor = [int](py -c "import sys; print(f'{sys.version_info[1]}')")
+    $installed_python_version_major = [int](& $python_command -c "import sys; print(f'{sys.version_info[0]}')")
+    $installed_python_version_minor = [int](& $python_command -c "import sys; print(f'{sys.version_info[1]}')")
 }
 else
 {
@@ -138,7 +147,7 @@ elseif ($available_python_versions -notcontains $current_python_version)
 # Check Python bitness
 try
 {
-    $python_bitness = (py -c "import sys; print(64 if sys.maxsize > 2**32 else 32)")
+    $python_bitness = (& $python_command -c "import sys; print(64 if sys.maxsize > 2**32 else 32)").Trim()
 }
 catch
 {
