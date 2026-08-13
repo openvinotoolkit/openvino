@@ -5,7 +5,9 @@
 #include "vulkan_stream.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
@@ -143,6 +145,8 @@ struct vulkan_stream::resource_state {
     static constexpr size_t max_in_flight_submissions = 8;
     static constexpr size_t max_cached_descriptor_sets = 256;
     static constexpr size_t max_retained_dispatches_per_batch = 8;
+    // This bounds calibration work; measured host costs select the operating path.
+    static constexpr size_t max_command_reuse_tuning_samples_per_path = 3;
 
     struct descriptor_key {
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
@@ -190,6 +194,23 @@ struct vulkan_stream::resource_state {
         std::vector<access_range> ranges;
     };
 
+    struct recorded_dispatch {
+        std::shared_ptr<const vulkan_pipeline_state> pipeline;
+        VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+        std::array<uint32_t, 3> group_counts{};
+        std::vector<uint8_t> push_constants;
+        size_t barrier_offset = 0;
+        size_t barrier_count = 0;
+        bool external_dependency_barrier = false;
+    };
+
+    struct command_sequence {
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        std::vector<recorded_dispatch> dispatches;
+        std::vector<VkBufferMemoryBarrier2> barriers;
+        std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
+    };
+
     using allocation_key = std::weak_ptr<vulkan_buffer_allocation>;
     using allocation_access_map = std::map<allocation_key, allocation_access_state, std::owner_less<allocation_key>>;
 
@@ -206,6 +227,7 @@ struct vulkan_stream::resource_state {
         std::vector<VkDescriptorBufferInfo> descriptor_buffer_infos;
         std::vector<std::shared_ptr<const void>> retained_kernels;
         size_t recorded_dispatches = 0;
+        bool transient_command_buffer_submitted = false;
     };
 
     explicit resource_state(const vulkan_engine& engine)
@@ -250,7 +272,14 @@ struct vulkan_stream::resource_state {
                       << " descriptor_reuses=" << descriptor_reuses << " dispatches=" << dispatches << " queue_submissions=" << queue_submissions
                       << " max_batch_size=" << largest_batch << " selected_batch_limit_min=" << (dispatches == 0 ? 0 : smallest_selected_batch_limit)
                       << " selected_batch_limit_max=" << largest_selected_batch_limit << " argument_accesses=" << argument_accesses
-                      << " hazard_barriers=" << hazard_barriers << " external_dependency_barriers=" << external_dependency_barriers << std::endl;
+                      << " hazard_barriers=" << hazard_barriers << " external_dependency_barriers=" << external_dependency_barriers
+                      << " command_sequence_hits=" << command_sequence_hits << " command_sequence_misses=" << command_sequence_misses
+                      << " command_sequences_cached=" << command_sequences.size()
+                      << " last_command_sequence_miss_submission=" << last_command_sequence_miss_submission
+                      << " command_reuse_selected=" << (command_reuse_decided ? (command_reuse_selected ? "yes" : "no") : "calibrating")
+                      << " direct_tuning_samples=" << direct_recording_samples.size() << " reuse_tuning_samples=" << command_reuse_samples.size()
+                      << " direct_inference_median_ns=" << (direct_recording_samples.empty() ? 0 : median_sample(direct_recording_samples))
+                      << " reuse_inference_median_ns=" << (command_reuse_samples.empty() ? 0 : median_sample(command_reuse_samples)) << std::endl;
         }
     }
 
@@ -267,12 +296,28 @@ struct vulkan_stream::resource_state {
         }
 
         auto& slot = acquire(descriptor_count);
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer");
         recording_slot = &slot;
         active_batch_limit = selected_limit;
+        if (!inference_in_progress) {
+            inference_in_progress = true;
+            inference_uses_direct_recording = select_direct_recording_for_inference();
+            inference_all_batches_cache_hits = !inference_uses_direct_recording;
+            inference_all_batches_replayable = !inference_uses_direct_recording;
+            if (!command_reuse_decided) {
+                inference_started = std::chrono::steady_clock::now();
+            }
+        }
+        active_direct_recording = inference_uses_direct_recording;
+        if (active_direct_recording) {
+            VkCommandBufferBeginInfo begin_info{};
+            begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer");
+        }
+        current_dispatches.clear();
+        current_sequence_barriers.clear();
+        current_allocations.clear();
+        current_sequence_cacheable = true;
         return slot;
     }
 
@@ -297,22 +342,12 @@ struct vulkan_stream::resource_state {
         hazard_barrier_scratch.clear();
         current_access_scratch.resize(prepared.buffer_infos.size());
         access_state_scratch.resize(prepared.buffer_infos.size());
+        current_external_dependency_barrier = false;
 
         if (external_dependency_pending) {
-            VkMemoryBarrier2 memory_barrier{};
-            memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
-            memory_barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            memory_barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-            memory_barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-            memory_barrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-
-            VkDependencyInfo dependency_info{};
-            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            dependency_info.memoryBarrierCount = 1;
-            dependency_info.pMemoryBarriers = &memory_barrier;
-            vkCmdPipelineBarrier2(slot.command_buffer, &dependency_info);
             clear_access_history();
             external_dependency_pending = false;
+            current_external_dependency_barrier = true;
             ++external_dependency_barriers;
         }
 
@@ -323,20 +358,43 @@ struct vulkan_stream::resource_state {
             append_hazard_barriers(prepared.allocations[index], state->second.ranges, current_access_scratch[index], hazard_barrier_scratch);
         }
 
-        if (!hazard_barrier_scratch.empty()) {
-            VkDependencyInfo dependency_info{};
-            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            dependency_info.bufferMemoryBarrierCount = checked_u32(hazard_barrier_scratch.size(), "buffer hazard barrier count");
-            dependency_info.pBufferMemoryBarriers = hazard_barrier_scratch.data();
-            vkCmdPipelineBarrier2(slot.command_buffer, &dependency_info);
-            hazard_barriers += hazard_barrier_scratch.size();
-        }
+        hazard_barriers += hazard_barrier_scratch.size();
 
         advance_access_generation();
         for (size_t index = 0; index < current_access_scratch.size(); ++index) {
             current_access_scratch[index].generation = access_generation;
             update_access_state(access_state_scratch[index]->ranges, current_access_scratch[index]);
         }
+    }
+
+    void record_dispatch(slot& slot,
+                         std::shared_ptr<const vulkan_pipeline_state> pipeline,
+                         VkDescriptorSet descriptor_set,
+                         prepared_arguments& prepared,
+                         const std::array<uint32_t, 3>& group_counts,
+                         bool descriptor_is_immutable) {
+        OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Dispatch does not belong to the active command batch");
+        const auto barrier_offset = current_sequence_barriers.size();
+        current_sequence_barriers.insert(current_sequence_barriers.end(), hazard_barrier_scratch.begin(), hazard_barrier_scratch.end());
+        current_dispatches.push_back({std::move(pipeline),
+                                      descriptor_set,
+                                      group_counts,
+                                      std::move(prepared.push_constants),
+                                      barrier_offset,
+                                      hazard_barrier_scratch.size(),
+                                      current_external_dependency_barrier});
+        current_allocations.insert(current_allocations.end(), prepared.allocations.begin(), prepared.allocations.end());
+        current_sequence_cacheable = current_sequence_cacheable && descriptor_is_immutable;
+    }
+
+    void record_immediate_dispatch(slot& slot,
+                                   const vulkan_pipeline_state& pipeline,
+                                   VkDescriptorSet descriptor_set,
+                                   const prepared_arguments& prepared,
+                                   const std::array<uint32_t, 3>& group_counts) const {
+        OPENVINO_ASSERT(recording_slot == &slot && active_direct_recording, "[GPU][Vulkan] Immediate dispatch requires an active direct-recording batch");
+        record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
+        record_dispatch_commands(slot.command_buffer, pipeline, descriptor_set, prepared.push_constants, group_counts);
     }
 
     void mark_external_dependency() {
@@ -347,6 +405,10 @@ struct vulkan_stream::resource_state {
         return recording_slot != nullptr && recording_slot->recorded_dispatches >= active_batch_limit;
     }
 
+    bool direct_recording_is_active() const {
+        return active_direct_recording;
+    }
+
     std::shared_ptr<vulkan_submission_state> flush() {
         if (recording_slot == nullptr) {
             return latest_submission.lock();
@@ -354,12 +416,28 @@ struct vulkan_stream::resource_state {
 
         auto& slot = *recording_slot;
         OPENVINO_ASSERT(slot.recorded_dispatches > 0, "[GPU][Vulkan] Cannot submit an empty command batch");
-        check_vk_result(vkEndCommandBuffer(slot.command_buffer), "vkEndCommandBuffer");
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        bool cache_hit = false;
+        bool sequence_replayable = false;
+        if (active_direct_recording) {
+            check_vk_result(vkEndCommandBuffer(slot.command_buffer), "vkEndCommandBuffer");
+            slot.transient_command_buffer_submitted = true;
+            command_buffer = slot.command_buffer;
+        } else {
+            OPENVINO_ASSERT(slot.recorded_dispatches == current_dispatches.size(), "[GPU][Vulkan] Recorded dispatch metadata does not match the command batch");
+            command_buffer = get_or_record_command_sequence(slot, cache_hit, sequence_replayable);
+        }
+        if (!active_direct_recording && !cache_hit) {
+            inference_all_batches_cache_hits = false;
+        }
+        if (!active_direct_recording && !sequence_replayable) {
+            inference_all_batches_replayable = false;
+        }
 
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &slot.command_buffer;
+        submit_info.pCommandBuffers = &command_buffer;
         {
             std::lock_guard<std::mutex> lock(queue_mutex);
             check_vk_result(vkQueueSubmit(queue, 1, &submit_info, slot.fence), "vkQueueSubmit");
@@ -369,6 +447,9 @@ struct vulkan_stream::resource_state {
         largest_batch = std::max(largest_batch, slot.recorded_dispatches);
         recording_slot = nullptr;
         active_batch_limit = 0;
+        current_dispatches.clear();
+        current_sequence_barriers.clear();
+        current_allocations.clear();
         return mark_submitted(slot);
     }
 
@@ -381,9 +462,20 @@ struct vulkan_stream::resource_state {
         }
         clear_access_history();
         external_dependency_pending = false;
+        discard_expired_command_sequences();
+        if (inference_in_progress && !command_reuse_decided) {
+            observe_inference_cost(inference_uses_direct_recording,
+                                   inference_all_batches_cache_hits,
+                                   inference_all_batches_replayable,
+                                   std::chrono::steady_clock::now() - inference_started);
+        }
+        inference_in_progress = false;
     }
 
-    VkDescriptorSet get_or_update_descriptor_set(slot& slot, const vulkan_pipeline_state& pipeline, const prepared_arguments& prepared) {
+    VkDescriptorSet get_or_update_descriptor_set(slot& slot,
+                                                 const vulkan_pipeline_state& pipeline,
+                                                 const prepared_arguments& prepared,
+                                                 bool& descriptor_is_immutable) {
         const auto descriptor_count = checked_u32(prepared.buffer_infos.size(), "descriptor count");
         OPENVINO_ASSERT(descriptor_count == pipeline.descriptor_count && slot.descriptor_pool != VK_NULL_HANDLE,
                         "[GPU][Vulkan] Descriptor resources do not match the selected pipeline");
@@ -391,6 +483,7 @@ struct vulkan_stream::resource_state {
         auto key = make_descriptor_key(prepared);
         const auto cached = descriptor_cache.find(key);
         if (cached != descriptor_cache.end()) {
+            descriptor_is_immutable = true;
             ++descriptor_reuses;
             return cached->second;
         }
@@ -398,6 +491,7 @@ struct vulkan_stream::resource_state {
             const auto descriptor_set = allocate_cached_descriptor_set(pipeline.descriptor_set_layout, descriptor_count);
             update_descriptor_set(descriptor_set, prepared.buffer_infos);
             descriptor_cache.emplace(std::move(key), descriptor_set);
+            descriptor_is_immutable = true;
             ++descriptor_allocations;
             ++descriptor_updates;
             return descriptor_set;
@@ -406,6 +500,7 @@ struct vulkan_stream::resource_state {
         // All Vulkan compute pipelines describe consecutive storage-buffer bindings,
         // so layouts with the same binding count are descriptor-set compatible. A
         // cache miss at capacity starts a new batch before this mutable set is used.
+        descriptor_is_immutable = false;
         if (slot.descriptor_set == VK_NULL_HANDLE || slot.descriptor_binding_count != descriptor_count) {
             if (slot.descriptor_set != VK_NULL_HANDLE) {
                 check_vk_result(vkResetDescriptorPool(device, slot.descriptor_pool, 0), "vkResetDescriptorPool");
@@ -469,6 +564,9 @@ struct vulkan_stream::resource_state {
     uint64_t argument_accesses = 0;
     uint64_t hazard_barriers = 0;
     uint64_t external_dependency_barriers = 0;
+    uint64_t command_sequence_hits = 0;
+    uint64_t command_sequence_misses = 0;
+    uint64_t last_command_sequence_miss_submission = 0;
     size_t largest_batch = 0;
     size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
     size_t largest_selected_batch_limit = 0;
@@ -478,9 +576,248 @@ struct vulkan_stream::resource_state {
     std::vector<VkBufferMemoryBarrier2> hazard_barrier_scratch;
     std::vector<access_range> current_access_scratch;
     std::vector<allocation_access_state*> access_state_scratch;
+    std::vector<command_sequence> command_sequences;
+    std::vector<recorded_dispatch> current_dispatches;
+    std::vector<VkBufferMemoryBarrier2> current_sequence_barriers;
+    std::vector<std::weak_ptr<vulkan_buffer_allocation>> current_allocations;
+    std::vector<uint64_t> direct_recording_samples;
+    std::vector<uint64_t> command_reuse_samples;
     uint64_t access_generation = 0;
+    bool current_external_dependency_barrier = false;
+    bool current_sequence_cacheable = true;
+    bool command_reuse_calibration_started = false;
+    bool command_reuse_decided = false;
+    bool command_reuse_selected = false;
+    bool tune_next_inference_with_direct_recording = false;
+    bool active_direct_recording = false;
+    bool inference_in_progress = false;
+    bool inference_uses_direct_recording = false;
+    bool inference_all_batches_cache_hits = false;
+    bool inference_all_batches_replayable = false;
+    std::chrono::steady_clock::time_point inference_started;
 
 private:
+    bool select_direct_recording_for_inference() const {
+        if (command_reuse_decided) {
+            return !command_reuse_selected;
+        }
+        return command_reuse_calibration_started && tune_next_inference_with_direct_recording;
+    }
+
+    static uint64_t median_sample(std::vector<uint64_t> samples) {
+        const auto middle = samples.begin() + samples.size() / 2;
+        std::nth_element(samples.begin(), middle, samples.end());
+        return *middle;
+    }
+
+    void observe_inference_cost(bool used_direct_recording,
+                                bool all_batches_cache_hits,
+                                bool all_batches_replayable,
+                                std::chrono::steady_clock::duration elapsed) {
+        if (command_reuse_decided) {
+            return;
+        }
+        if (!used_direct_recording && !all_batches_replayable) {
+            command_reuse_selected = false;
+            command_reuse_decided = true;
+            return;
+        }
+        const auto elapsed_ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count());
+        if (used_direct_recording) {
+            direct_recording_samples.push_back(elapsed_ns);
+        } else if (all_batches_cache_hits) {
+            command_reuse_samples.push_back(elapsed_ns);
+            command_reuse_calibration_started = true;
+        } else {
+            return;
+        }
+
+        if (direct_recording_samples.size() < max_command_reuse_tuning_samples_per_path ||
+            command_reuse_samples.size() < max_command_reuse_tuning_samples_per_path) {
+            static constexpr std::array<bool, 4> counterbalanced_direct_schedule{false, true, true, false};
+            const auto next_sample = direct_recording_samples.size() + command_reuse_samples.size();
+            tune_next_inference_with_direct_recording = counterbalanced_direct_schedule[next_sample % counterbalanced_direct_schedule.size()];
+            return;
+        }
+        command_reuse_selected = *std::max_element(command_reuse_samples.begin(), command_reuse_samples.end()) <
+                                 *std::min_element(direct_recording_samples.begin(), direct_recording_samples.end());
+        command_reuse_decided = true;
+    }
+
+    static bool barriers_equal(const VkBufferMemoryBarrier2& lhs, const VkBufferMemoryBarrier2& rhs) {
+        return lhs.srcStageMask == rhs.srcStageMask && lhs.srcAccessMask == rhs.srcAccessMask && lhs.dstStageMask == rhs.dstStageMask &&
+               lhs.dstAccessMask == rhs.dstAccessMask && lhs.srcQueueFamilyIndex == rhs.srcQueueFamilyIndex &&
+               lhs.dstQueueFamilyIndex == rhs.dstQueueFamilyIndex && lhs.buffer == rhs.buffer && lhs.offset == rhs.offset && lhs.size == rhs.size;
+    }
+
+    static bool dispatches_equal(const recorded_dispatch& lhs,
+                                 const std::vector<VkBufferMemoryBarrier2>& lhs_barriers,
+                                 const recorded_dispatch& rhs,
+                                 const std::vector<VkBufferMemoryBarrier2>& rhs_barriers) {
+        if (lhs.pipeline->pipeline != rhs.pipeline->pipeline || lhs.pipeline->pipeline_layout != rhs.pipeline->pipeline_layout ||
+            lhs.descriptor_set != rhs.descriptor_set || lhs.group_counts != rhs.group_counts || lhs.push_constants != rhs.push_constants ||
+            lhs.external_dependency_barrier != rhs.external_dependency_barrier || lhs.barrier_count != rhs.barrier_count) {
+            return false;
+        }
+        for (size_t index = 0; index < lhs.barrier_count; ++index) {
+            if (!barriers_equal(lhs_barriers[lhs.barrier_offset + index], rhs_barriers[rhs.barrier_offset + index])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool sequence_matches(const command_sequence& sequence) const {
+        if (sequence.dispatches.size() != current_dispatches.size()) {
+            return false;
+        }
+        for (size_t index = 0; index < current_dispatches.size(); ++index) {
+            if (!dispatches_equal(sequence.dispatches[index], sequence.barriers, current_dispatches[index], current_sequence_barriers)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static bool sequence_allocations_alive(const command_sequence& sequence) {
+        return std::all_of(sequence.allocations.begin(), sequence.allocations.end(), [](const auto& allocation) {
+            return !allocation.expired();
+        });
+    }
+
+    VkCommandBuffer allocate_command_buffer() const {
+        VkCommandBufferAllocateInfo command_buffer_info{};
+        command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        command_buffer_info.commandPool = command_pool;
+        command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        command_buffer_info.commandBufferCount = 1;
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &command_buffer), "vkAllocateCommandBuffers");
+        return command_buffer;
+    }
+
+    static void record_synchronization(VkCommandBuffer command_buffer,
+                                       bool external_dependency_barrier,
+                                       const VkBufferMemoryBarrier2* barriers,
+                                       size_t barrier_count) {
+        if (external_dependency_barrier) {
+            VkMemoryBarrier2 memory_barrier{};
+            memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+            memory_barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            memory_barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+            memory_barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            memory_barrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+
+            VkDependencyInfo dependency_info{};
+            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependency_info.memoryBarrierCount = 1;
+            dependency_info.pMemoryBarriers = &memory_barrier;
+            vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+        }
+        if (barrier_count > 0) {
+            VkDependencyInfo dependency_info{};
+            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependency_info.bufferMemoryBarrierCount = checked_u32(barrier_count, "buffer hazard barrier count");
+            dependency_info.pBufferMemoryBarriers = barriers;
+            vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+        }
+    }
+
+    static void record_dispatch_commands(VkCommandBuffer command_buffer,
+                                         const vulkan_pipeline_state& pipeline,
+                                         VkDescriptorSet descriptor_set,
+                                         const std::vector<uint8_t>& push_constants,
+                                         const std::array<uint32_t, 3>& group_counts) {
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline);
+        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+        if (!push_constants.empty()) {
+            vkCmdPushConstants(command_buffer,
+                               pipeline.pipeline_layout,
+                               VK_SHADER_STAGE_COMPUTE_BIT,
+                               0,
+                               checked_u32(push_constants.size(), "push constant size"),
+                               push_constants.data());
+        }
+        vkCmdDispatch(command_buffer, group_counts[0], group_counts[1], group_counts[2]);
+    }
+
+    static void record_commands(VkCommandBuffer command_buffer,
+                                const std::vector<recorded_dispatch>& dispatches,
+                                const std::vector<VkBufferMemoryBarrier2>& barriers,
+                                VkCommandBufferUsageFlags flags) {
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = flags;
+        check_vk_result(vkBeginCommandBuffer(command_buffer, &begin_info), "vkBeginCommandBuffer");
+
+        for (const auto& dispatch : dispatches) {
+            record_synchronization(command_buffer,
+                                   dispatch.external_dependency_barrier,
+                                   dispatch.barrier_count == 0 ? nullptr : barriers.data() + dispatch.barrier_offset,
+                                   dispatch.barrier_count);
+            record_dispatch_commands(command_buffer, *dispatch.pipeline, dispatch.descriptor_set, dispatch.push_constants, dispatch.group_counts);
+        }
+        check_vk_result(vkEndCommandBuffer(command_buffer), "vkEndCommandBuffer");
+    }
+
+    size_t current_sequence_cache_capacity() const {
+        size_t descriptor_footprint = 0;
+        for (const auto& dispatch : current_dispatches) {
+            const auto dispatch_footprint = std::max<uint32_t>(dispatch.pipeline->descriptor_count, 1);
+            if (dispatch_footprint > max_cached_descriptor_sets || descriptor_footprint > max_cached_descriptor_sets - dispatch_footprint) {
+                return 0;
+            }
+            descriptor_footprint += dispatch_footprint;
+        }
+        return max_cached_descriptor_sets / std::max<size_t>(descriptor_footprint, 1);
+    }
+
+    VkCommandBuffer get_or_record_command_sequence(slot& slot, bool& cache_hit, bool& sequence_replayable) {
+        cache_hit = false;
+        sequence_replayable = false;
+        if (current_sequence_cacheable) {
+            const auto cached = std::find_if(command_sequences.begin(), command_sequences.end(), [this](const auto& sequence) {
+                return sequence_allocations_alive(sequence) && sequence_matches(sequence);
+            });
+            if (cached != command_sequences.end()) {
+                cache_hit = true;
+                sequence_replayable = true;
+                ++command_sequence_hits;
+                return cached->command_buffer;
+            }
+        }
+
+        ++command_sequence_misses;
+        last_command_sequence_miss_submission = queue_submissions + 1;
+        const auto cache_capacity = current_sequence_cache_capacity();
+        if (current_sequence_cacheable && command_sequences.size() < cache_capacity) {
+            command_sequence sequence;
+            sequence.command_buffer = allocate_command_buffer();
+            sequence.dispatches = current_dispatches;
+            sequence.barriers = current_sequence_barriers;
+            sequence.allocations = current_allocations;
+            record_commands(sequence.command_buffer, sequence.dispatches, sequence.barriers, VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+            command_sequences.push_back(std::move(sequence));
+            sequence_replayable = true;
+            return command_sequences.back().command_buffer;
+        }
+
+        record_commands(slot.command_buffer, current_dispatches, current_sequence_barriers, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+        slot.transient_command_buffer_submitted = true;
+        return slot.command_buffer;
+    }
+
+    void discard_expired_command_sequences() {
+        for (auto iterator = command_sequences.begin(); iterator != command_sequences.end();) {
+            if (sequence_allocations_alive(*iterator)) {
+                ++iterator;
+                continue;
+            }
+            vkFreeCommandBuffers(device, command_pool, 1, &iterator->command_buffer);
+            iterator = command_sequences.erase(iterator);
+        }
+    }
+
     static const access_range* range_for_interval(const std::vector<access_range>& ranges, VkDeviceSize begin, VkDeviceSize end) {
         for (const auto& range : ranges) {
             if (range.begin <= begin && end <= range.end) {
@@ -658,13 +995,7 @@ private:
         if (slots.size() < max_in_flight_submissions) {
             slots.emplace_back();
             auto& slot = slots.back();
-
-            VkCommandBufferAllocateInfo command_buffer_info{};
-            command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            command_buffer_info.commandPool = command_pool;
-            command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            command_buffer_info.commandBufferCount = 1;
-            check_vk_result(vkAllocateCommandBuffers(device, &command_buffer_info, &slot.command_buffer), "vkAllocateCommandBuffers");
+            slot.command_buffer = allocate_command_buffer();
 
             VkFenceCreateInfo fence_info{};
             fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -748,7 +1079,10 @@ private:
         slot.retained_kernels.clear();
         slot.recorded_dispatches = 0;
         check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
-        check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
+        if (slot.transient_command_buffer_submitted) {
+            check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
+            slot.transient_command_buffer_submitted = false;
+        }
         // Keep the descriptor set allocated. The next dispatch can reuse both
         // the set and its bindings after this slot's fence has completed.
     }
@@ -841,7 +1175,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
 
     auto* vk_kernel = dynamic_cast<vulkan_kernel*>(&kernel);
     OPENVINO_ASSERT(vk_kernel != nullptr, "[GPU][Vulkan] Cannot dispatch a kernel from another backend");
-    const auto prepared = prepare_arguments(descriptor, data);
+    auto prepared = prepare_arguments(descriptor, data);
     const auto specialized_local_size_x = descriptor.specialize_local_size_x ? static_cast<uint32_t>(descriptor.workGroups.local.at(0)) : 0U;
     const auto pipeline = vk_kernel->get_or_create_pipeline(static_cast<uint32_t>(prepared.buffer_infos.size()),
                                                             static_cast<uint32_t>(prepared.push_constants.size()),
@@ -850,7 +1184,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
 
     OPENVINO_ASSERT(descriptor.workGroups.global.size() == 3 && descriptor.workGroups.local.size() == 3,
                     "[GPU][Vulkan] Compute dispatch requires three-dimensional global and local work-group sizes");
-    uint32_t group_counts[3]{};
+    std::array<uint32_t, 3> group_counts{};
     size_t local_invocations = 1;
     for (size_t axis = 0; axis < 3; ++axis) {
         const auto local_size = descriptor.workGroups.local[axis];
@@ -866,21 +1200,14 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
     }
     auto& resources = _resources->get_or_begin_batch(checked_u32(prepared.buffer_infos.size(), "descriptor count"), local_invocations);
 
-    const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared);
+    bool descriptor_is_immutable = false;
+    const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
     _resources->record_buffer_hazards(resources, prepared);
-
-    vkCmdBindPipeline(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
-    vkCmdBindDescriptorSets(resources.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-    if (!prepared.push_constants.empty()) {
-        vkCmdPushConstants(resources.command_buffer,
-                           pipeline->pipeline_layout,
-                           VK_SHADER_STAGE_COMPUTE_BIT,
-                           0,
-                           static_cast<uint32_t>(prepared.push_constants.size()),
-                           prepared.push_constants.data());
+    if (_resources->direct_recording_is_active()) {
+        _resources->record_immediate_dispatch(resources, *pipeline, descriptor_set, prepared, group_counts);
+    } else {
+        _resources->record_dispatch(resources, pipeline, descriptor_set, prepared, group_counts, descriptor_is_immutable);
     }
-
-    vkCmdDispatch(resources.command_buffer, group_counts[0], group_counts[1], group_counts[2]);
     _resources->retain_dispatch(resources, prepared, pipeline);
     if (is_output_event || m_sync_method == SyncMethods::events || _resources->batch_is_full()) {
         return std::make_shared<vulkan_event>(_resources->flush());
