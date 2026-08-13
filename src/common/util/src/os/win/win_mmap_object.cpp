@@ -619,7 +619,7 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
 }
 
 void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size, MmapMode mode) {
-    const DWORD access = (mode == MmapMode::READ_WRITE) ? FILE_MAP_WRITE : FILE_MAP_READ;
+    const DWORD access = (mode == MmapMode::READ_WRITE) ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
     if (auto view = ::MapViewOfFile(m_handle.get(),
                                     access,
                                     static_cast<DWORD>(aligned_offset >> 32),
@@ -668,8 +668,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
 
     // When no_placeholder is set, skip the placeholder/VEH path to guarantee a single uniform AllocationBase
     // (required for NPU zero-copy blob import). Otherwise prefer placeholder for RSS reduction.
-    // Read-write mappings always take the legacy path: the VEH only remaps on read faults, so an evicted
-    // granule hit by a write would fault indefinitely.
+    // RW mappings are ignored by the current VEH registration: the handler only remaps read faults.
     if (no_placeholder || mode == MmapMode::READ_WRITE ||
         !try_placeholder_setup(m_aligned_offset, head_pad, total_va_size, file_size)) {
         legacy_setup(m_aligned_offset, head_pad, m_size, mode);
