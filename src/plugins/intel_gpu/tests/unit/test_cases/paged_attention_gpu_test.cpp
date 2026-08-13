@@ -102,6 +102,18 @@ INSTANTIATE_TEST_SUITE_P(
     paged_attention_u4_swa_tail_test,
     ::testing::Values(paged_attention_test_params{{{1, 35}}, 8, 2, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 
+class paged_attention_swa_partition_finalization_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_swa_partition_finalization_test, ignores_inactive_partition) {
+    auto p = GetParam();
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_swa_partition_finalization,
+    paged_attention_swa_partition_finalization_test,
+    ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
+
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();
