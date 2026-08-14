@@ -173,6 +173,21 @@ private:
         std::vector<ze_event_handle_t> ev_ts_copy;    // [N]
         std::vector<ze_event_handle_t> ev_ts_kernel;  // [N]
 
+        // Command lists holding this collective's recorded commands, one per
+        // rank.  Every collective owns its own so that a recording survives
+        // the next collective: with a single list per rank each call
+        // overwrote the previous recording, and one decode step re-recorded
+        // all 64 collectives for nothing.  Empty on the immediate path,
+        // which appends directly at execute time.
+        std::vector<ze_command_list_handle_t> compute_lists;  // [N]
+        std::vector<ze_command_list_handle_t> copy_lists;     // [N], null without a copy engine
+
+        // Whether compute_lists currently hold commands matching the
+        // signature above, and which scratch generation they were recorded
+        // against (the staging pointers are baked into the recording).
+        bool                        recorded{false};
+        uint64_t                    recorded_scratch_generation{0};
+
         bool matches(const std::vector<void*>& ins,
                      const std::vector<void*>& outs,
                      std::size_t want_n,
@@ -231,6 +246,11 @@ private:
                     ov::element::Type dtype,
                     Plan& plan);
     void record_plan(Plan& plan);
+
+    /// Creates the plan's per-rank command lists if it has none.  Called at
+    /// setup so the cost does not land on the first inference, and again from
+    /// build_plan for safety.  No-op on the immediate path.
+    void ensure_plan_lists(Plan& plan);
     bool ensure_scratch_capacity(std::size_t payload_bytes);
     void destroy_scratch();
     void* scratch_buffer(int index) const;
@@ -286,12 +306,6 @@ private:
 
     mutable std::mutex              m_scratch_mutex;
     ScratchArena                    m_scratch;
-
-    // Rank command lists are coordinator-wide rather than plan-owned.
-    // Track which plan is physically recorded so alternating collective
-    // IDs never execute a stale command list from another slot.
-    Plan*                           m_recorded_plan{nullptr};
-    uint64_t                        m_recorded_scratch_generation{0};
 
     // One rendezvous + one cached plan per collective_id.
     std::vector<std::unique_ptr<Rendezvous>> m_rendezvous;

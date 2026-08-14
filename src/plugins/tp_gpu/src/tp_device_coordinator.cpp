@@ -281,11 +281,25 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
 
     m_rendezvous.resize(num_collectives);
     m_plans.resize(num_collectives);
-    for (int i = 0; i < num_collectives; ++i) {
-        auto rdz = std::make_unique<Rendezvous>();
-        rdz->in_ptrs.assign(world_size, nullptr);
-        rdz->out_ptrs.assign(world_size, nullptr);
-        m_rendezvous[i] = std::move(rdz);
+    try {
+        for (int i = 0; i < num_collectives; ++i) {
+            auto rdz = std::make_unique<Rendezvous>();
+            rdz->in_ptrs.assign(world_size, nullptr);
+            rdz->out_ptrs.assign(world_size, nullptr);
+            m_rendezvous[i] = std::move(rdz);
+
+            // Command lists are cheap to keep but not to create: making them
+            // lazily put ~50 ms of driver work on the first inference, which
+            // is the one whose latency users measure as time to first token.
+            m_plans[i] = std::make_unique<Plan>();
+            ensure_plan_lists(*m_plans[i]);
+        }
+    } catch (...) {
+        for (auto& plan : m_plans) {
+            if (plan) destroy_plan(*plan);
+        }
+        for (auto& rs : m_ranks) destroy_rank(rs);
+        throw;
     }
 
     m_ready = true;
@@ -352,9 +366,9 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
         ZE_THROW(ov::zeCommandListCreateImmediate(ctx, dev, &qd, &rs.compute_list));
     } else {
         ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &qd, &rs.compute_queue));
-        ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
-        ld.commandQueueGroupOrdinal = rs.compute_ordinal;
-        ZE_THROW(ov::zeCommandListCreate(ctx, dev, &ld, &rs.compute_list));
+
+        // No rank-wide command list on the regular path: each collective owns
+        // its own, so a recording is not clobbered by the next collective.
 
         // Optional dedicated copy engine for the cross-device memcpy step.
         if (tp_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
@@ -364,9 +378,6 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
             cqd.mode     = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
             cqd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
             ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &cqd, &rs.copy_queue));
-            ze_command_list_desc_t cld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
-            cld.commandQueueGroupOrdinal = rs.copy_ordinal;
-            ZE_THROW(ov::zeCommandListCreate(ctx, dev, &cld, &rs.copy_list));
         }
     }
 
@@ -472,10 +483,8 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     for (auto& e : plan.ev_ts_copy)   if (e) ov::zeEventDestroy(e);
     for (auto& e : plan.ev_ts_kernel) if (e) ov::zeEventDestroy(e);
     if (plan.ts_pool) ov::zeEventPoolDestroy(plan.ts_pool);
-    if (m_recorded_plan == &plan) {
-        m_recorded_plan = nullptr;
-        m_recorded_scratch_generation = 0;
-    }
+    for (auto& l : plan.compute_lists) if (l) ov::zeCommandListDestroy(l);
+    for (auto& l : plan.copy_lists)    if (l) ov::zeCommandListDestroy(l);
     plan.ev_recv.clear();
     plan.ev_bcast.clear();
     plan.ev_reduce = nullptr;
@@ -483,6 +492,10 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.ev_ts_copy.clear();
     plan.ev_ts_kernel.clear();
     plan.ts_pool = nullptr;
+    plan.compute_lists.clear();
+    plan.copy_lists.clear();
+    plan.recorded = false;
+    plan.recorded_scratch_generation = 0;
     plan.in_ptrs.clear();
     plan.out_ptrs.clear();
     plan.n = 0;
@@ -570,8 +583,6 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     ++m_scratch.generation;
     ++m_scratch.growth_count;
     m_scratch.allocation_count += m_world_size == 2 ? 2 : 1;
-    m_recorded_plan = nullptr;
-    m_recorded_scratch_generation = 0;
 
     if (tp_profiling_enabled()) {
         std::cerr << "[TP][MEM] scratch grow generation=" << m_scratch.generation
@@ -598,8 +609,6 @@ void TPDeviceCoordinator::destroy_scratch() {
     std::fill(m_scratch.bytes_per_rank.begin(), m_scratch.bytes_per_rank.end(), 0);
     m_scratch.payload_capacity_bytes = 0;
     m_scratch.total_allocated_bytes = 0;
-    m_recorded_plan = nullptr;
-    m_recorded_scratch_generation = 0;
 }
 
 void* TPDeviceCoordinator::scratch_buffer(int index) const {
@@ -642,6 +651,10 @@ void TPDeviceCoordinator::build_plan(int /*collective_id*/,
     if (resources_already_built) {
         return;
     }
+
+    // Command lists are per collective, so a recording is not clobbered by
+    // the next collective's.  Normally already created at setup.
+    ensure_plan_lists(plan);
 
     if (N == 2) {
         // Symmetric N=2: every rank pushes its `in` to peer's local staging,
@@ -727,6 +740,29 @@ void TPDeviceCoordinator::build_plan(int /*collective_id*/,
 
 }
 
+void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
+    // The immediate path records nothing ahead of time and keeps using the
+    // rank's immediate list.
+    if (m_use_immediate || !plan.compute_lists.empty()) {
+        return;
+    }
+
+    auto ctx = m_shared->context;
+    plan.compute_lists.assign(static_cast<std::size_t>(m_world_size), nullptr);
+    plan.copy_lists.assign(static_cast<std::size_t>(m_world_size), nullptr);
+    for (int r = 0; r < m_world_size; ++r) {
+        auto& rs = m_ranks[r];
+        ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
+        ld.commandQueueGroupOrdinal = rs.compute_ordinal;
+        ZE_THROW(ov::zeCommandListCreate(ctx, rs.device, &ld, &plan.compute_lists[r]));
+        if (rs.has_dedicated_copy) {
+            ze_command_list_desc_t cld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
+            cld.commandQueueGroupOrdinal = rs.copy_ordinal;
+            ZE_THROW(ov::zeCommandListCreate(ctx, rs.device, &cld, &plan.copy_lists[r]));
+        }
+    }
+}
+
 void TPDeviceCoordinator::record_plan(Plan& plan) {
     constexpr uint32_t kGroupSize = 256;
     const int N = m_world_size;
@@ -740,21 +776,22 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         return;
     }
 
-    // Reset all rank command lists (must be done before re-recording).
+    // Reset this plan's command lists (must be done before re-recording).
     // zeCommandListReset on a list that still has work in-flight on its
     // queue is undefined; on shared multi-device L0 contexts it can
     // deadlock.  Sync each queue first so the previous submission has
     // fully drained before we wipe the recorded commands.
-    for (auto& rs : m_ranks) {
+    for (int r = 0; r < N; ++r) {
+        auto& rs = m_ranks[r];
         if (rs.compute_queue) {
             sync_queue(rs.compute_queue, "re-record: compute queue drain");
         }
         if (rs.copy_queue) {
             sync_queue(rs.copy_queue, "re-record: copy queue drain");
         }
-        ZE_THROW(ov::zeCommandListReset(rs.compute_list));
-        if (rs.copy_list) {
-            ZE_THROW(ov::zeCommandListReset(rs.copy_list));
+        ZE_THROW(ov::zeCommandListReset(plan.compute_lists[r]));
+        if (plan.copy_lists[r]) {
+            ZE_THROW(ov::zeCommandListReset(plan.copy_lists[r]));
         }
     }
 
@@ -766,6 +803,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         for (int r = 0; r < 2; ++r) {
             auto& self = m_ranks[r];
             const int peer = 1 - r;
+            ze_command_list_handle_t self_compute = plan.compute_lists[r];
 
             ze_kernel_handle_t kernel =
                 (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
@@ -778,7 +816,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
             //    copy queue; the cross-device wait below resolves on the
             //    peer's compute queue regardless of which engine signaled.
             ze_command_list_handle_t copy_target =
-                self.copy_list ? self.copy_list : self.compute_list;
+                plan.copy_lists[r] ? plan.copy_lists[r] : self_compute;
             ZE_THROW(ov::zeCommandListAppendMemoryCopy(
                 copy_target,
                 scratch_buffer(peer),
@@ -788,7 +826,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
                 0, nullptr));
 
             // 2. Wait for peer's push to land in our staging.
-            ZE_THROW(ov::zeCommandListAppendWaitOnEvents(self.compute_list,
+            ZE_THROW(ov::zeCommandListAppendWaitOnEvents(self_compute,
                                                          1, &plan.ev_recv[peer]));
 
             // 3. Reduce: out_self = in_self + staging_self.
@@ -799,13 +837,13 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
             ZE_THROW(ov::zeKernelSetArgumentValue(kernel, 3, sizeof(cn64), &cn64));
-            ZE_THROW(ov::zeCommandListAppendLaunchKernel(self.compute_list,
+            ZE_THROW(ov::zeCommandListAppendLaunchKernel(self_compute,
                                                          kernel, &gc,
                                                          plan.ev_ts_kernel[r], 0, nullptr));
 
-            ZE_THROW(ov::zeCommandListClose(self.compute_list));
-            if (self.copy_list) {
-                ZE_THROW(ov::zeCommandListClose(self.copy_list));
+            ZE_THROW(ov::zeCommandListClose(self_compute));
+            if (plan.copy_lists[r]) {
+                ZE_THROW(ov::zeCommandListClose(plan.copy_lists[r]));
             }
         }
         return;
@@ -814,28 +852,29 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     // ---- Legacy N>2 main-funnel path ----
     const int W = N - 1;
     auto& main_rs = m_ranks[0];
+    ze_command_list_handle_t main_list = plan.compute_lists[0];
     ze_kernel_handle_t main_kernel =
         (plan.dtype == ov::element::f16) ? main_rs.kernel_f16 : main_rs.kernel_f32;
 
     // --- Worker lists: copy local input to rank-0 scratch, wait scatter ---
     for (int w = 0; w < W; ++w) {
-        auto& worker = m_ranks[w + 1];
+        ze_command_list_handle_t worker_list = plan.compute_lists[w + 1];
         ZE_THROW(ov::zeCommandListAppendMemoryCopy(
-            worker.compute_list,
+            worker_list,
             scratch_buffer(w),
             plan.in_ptrs[w + 1],
             bytes,
             plan.ev_recv[w],
             0, nullptr));
         // Wait for our scatter to land before the queue-sync returns.
-        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(worker.compute_list, 1, &plan.ev_bcast[w]));
+        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(worker_list, 1, &plan.ev_bcast[w]));
     }
 
     // --- Main compute list: wait recvs, run accumulate kernels, scatter ---
     ZE_THROW(ov::zeKernelSetGroupSize(main_kernel, kGroupSize, 1, 1));
 
     if (W > 0) {
-        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(main_rs.compute_list,
+        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(main_list,
                                                      static_cast<uint32_t>(W),
                                                      plan.ev_recv.data()));
     }
@@ -855,7 +894,7 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         ZE_THROW(ov::zeKernelSetArgumentValue(main_kernel, 2, sizeof(void*), &b));
         ZE_THROW(ov::zeKernelSetArgumentValue(main_kernel, 3, sizeof(cn64), &cn64));
         ze_event_handle_t signal = (w == W - 1) ? plan.ev_reduce : nullptr;
-        ZE_THROW(ov::zeCommandListAppendLaunchKernel(main_rs.compute_list,
+        ZE_THROW(ov::zeCommandListAppendLaunchKernel(main_list,
                                                      main_kernel, &gc,
                                                      signal, 0, nullptr));
         // Every accumulation but the first reads the result of the previous
@@ -864,15 +903,15 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
         // appended kernels, so without this barrier consecutive launches
         // overlap and the sum loses the contributions still in flight.
         if (w + 1 < W) {
-            ZE_THROW(ov::zeCommandListAppendBarrier(main_rs.compute_list, nullptr, 0, nullptr));
+            ZE_THROW(ov::zeCommandListAppendBarrier(main_list, nullptr, 0, nullptr));
         }
     }
 
     // --- Main scatter: copy result to each worker's out_ptr ---
     for (int w = 0; w < W; ++w) {
-        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(main_rs.compute_list, 1, &plan.ev_reduce));
+        ZE_THROW(ov::zeCommandListAppendWaitOnEvents(main_list, 1, &plan.ev_reduce));
         ZE_THROW(ov::zeCommandListAppendMemoryCopy(
-            main_rs.compute_list,
+            main_list,
             plan.out_ptrs[w + 1],
             dst_main,
             bytes,
@@ -881,8 +920,8 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     }
 
     // Close all lists.
-    for (auto& rs : m_ranks) {
-        ZE_THROW(ov::zeCommandListClose(rs.compute_list));
+    for (auto& list : plan.compute_lists) {
+        ZE_THROW(ov::zeCommandListClose(list));
     }
 }
 
@@ -1041,10 +1080,10 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         for (int r = 0; r < 2; ++r) {
             if (m_ranks[r].copy_queue) {
                 ZE_THROW(ov::zeCommandQueueExecuteCommandLists(
-                    m_ranks[r].copy_queue, 1, &m_ranks[r].copy_list, nullptr));
+                    m_ranks[r].copy_queue, 1, &plan.copy_lists[r], nullptr));
             }
             ZE_THROW(ov::zeCommandQueueExecuteCommandLists(
-                m_ranks[r].compute_queue, 1, &m_ranks[r].compute_list, nullptr));
+                m_ranks[r].compute_queue, 1, &plan.compute_lists[r], nullptr));
         }
         auto ts1 = clk::now();
         sync_queue(m_ranks[0].compute_queue, "allreduce: rank 0 queue");
@@ -1095,14 +1134,12 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
     // Submit workers first so their gather copies get going.
     trace("execute: submit workers");
     for (int w = 0; w < m_world_size - 1; ++w) {
-        auto& worker = m_ranks[w + 1];
         ZE_THROW(ov::zeCommandQueueExecuteCommandLists(
-            worker.compute_queue, 1, &worker.compute_list, nullptr));
+            m_ranks[w + 1].compute_queue, 1, &plan.compute_lists[w + 1], nullptr));
     }
     trace("execute: submit main");
-    auto& main_rs = m_ranks[0];
     ZE_THROW(ov::zeCommandQueueExecuteCommandLists(
-        main_rs.compute_queue, 1, &main_rs.compute_list, nullptr));
+        m_ranks[0].compute_queue, 1, &plan.compute_lists[0], nullptr));
 
     // Sync all queues.
     for (int r = 0; r < m_world_size; ++r) {
@@ -1229,14 +1266,25 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         return 0;
     }();
     using clk = std::chrono::steady_clock;
-    static thread_local std::chrono::nanoseconds t_phase1{}, t_phase2{}, t_exec{},
-                                                  t_record{}, t_phase3{};
-    static thread_local std::chrono::nanoseconds t_reset{}, t_submit{},
-                                                  t_sync_a{}, t_sync_b{};
-    static thread_local std::chrono::nanoseconds t_dev_copy{}, t_dev_kernel{},
-                                                  t_dev_ts_query{};
-    static thread_local std::atomic<uint64_t> n_calls{0}, n_rebuild{0};
-    static thread_local uint64_t t_copy_bytes{0};
+    // Not thread_local: InferRequest launches every rank through std::async,
+    // so rank 0's collectives run on a fresh thread each inference.  With
+    // thread-local counters the totals reset every step and a dump period
+    // larger than the number of collectives per step never fires.  Outer
+    // inferences are serialized by CompiledModel::lock_inference(), and
+    // future::get() orders the writes, so plain statics are safe here.
+    static std::chrono::nanoseconds t_phase1{}, t_phase2{}, t_exec{},
+                                    t_record{}, t_phase3{};
+    static std::chrono::nanoseconds t_reset{}, t_submit{},
+                                    t_sync_a{}, t_sync_b{};
+    static std::chrono::nanoseconds t_dev_copy{}, t_dev_kernel{},
+                                    t_dev_ts_query{};
+    // ph2 minus record minus exec turned out to be the largest single item in
+    // continuous batching, and none of the code in between looks expensive.
+    // Split it: t_prep is barrier-exit to start of the plan work, t_tail is
+    // end of execution to releasing the other ranks.
+    static std::chrono::nanoseconds t_prep{}, t_tail{};
+    static std::atomic<uint64_t> n_calls{0}, n_rebuild{0}, n_record{0};
+    static uint64_t t_copy_bytes{0};
     auto t0 = clk::now();
 
     auto& rdz = *m_rendezvous[collective_id];
@@ -1305,8 +1353,8 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         const bool resources_missing = slot->pool == nullptr;
         const bool signature_matches = slot->matches(rdz.in_ptrs, rdz.out_ptrs, n, dtype);
         const bool recorded_matches = !m_use_immediate &&
-                                      m_recorded_plan == slot.get() &&
-                                      m_recorded_scratch_generation == m_scratch.generation &&
+                                      slot->recorded &&
+                                      slot->recorded_scratch_generation == m_scratch.generation &&
                                       signature_matches;
         const bool need_record = !m_use_immediate && !recorded_matches;
 
@@ -1340,8 +1388,9 @@ void TPDeviceCoordinator::allreduce(int collective_id,
 
         if (need_record) {
             record_plan(*slot);
-            m_recorded_plan = slot.get();
-            m_recorded_scratch_generation = m_scratch.generation;
+            slot->recorded = true;
+            slot->recorded_scratch_generation = m_scratch.generation;
+            ++n_record;
         }
         auto tr1 = clk::now();
 
@@ -1362,11 +1411,15 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         t_dev_kernel   += es.dev_kernel;
         t_dev_ts_query += es.dev_ts_query;
         t_copy_bytes   += es.copy_bytes;
+        t_prep         += tr0 - t1;
 
-        std::unique_lock<std::mutex> lk(rdz.mtx);
-        abort_guard.armed = false;
-        rdz.done = true;
-        rdz.cv.notify_all();
+        {
+            std::unique_lock<std::mutex> lk(rdz.mtx);
+            abort_guard.armed = false;
+            rdz.done = true;
+            rdz.cv.notify_all();
+        }
+        t_tail += clk::now() - te1;
     } else {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
@@ -1403,9 +1456,14 @@ void TPDeviceCoordinator::allreduce(int collective_id,
     trace("phase3: passed (return)");
 
     auto t3 = clk::now();
-    t_phase1 += t1 - t0;
-    t_phase2 += t2 - t1;
-    t_phase3 += t3 - t2;
+    // Only rank 0's phases are accumulated, to match record/exec/prep/tail and
+    // the call counter below.  Adding every rank here would double the phase
+    // totals while the inner breakdown stayed single-rank.
+    if (rank == 0) {
+        t_phase1 += t1 - t0;
+        t_phase2 += t2 - t1;
+        t_phase3 += t3 - t2;
+    }
     if (prof_every > 0 && rank == 0) {
         uint64_t c = ++n_calls;
         if ((c % prof_every) == 0) {
@@ -1413,13 +1471,16 @@ void TPDeviceCoordinator::allreduce(int collective_id,
             const double cf = static_cast<double>(c);
             std::cerr << "[TP][PROF] r0 calls=" << c
                       << " rebuilds=" << n_rebuild.load()
+                      << " records=" << n_record.load()
                       << "  totals: ph1=" << ms(t_phase1).count() << "ms"
                       << " ph2=" << ms(t_phase2).count() << "ms"
                       << " (record=" << ms(t_record).count() << "ms"
                       << ", exec=" << ms(t_exec).count() << "ms)"
                       << " ph3=" << ms(t_phase3).count() << "ms"
                       << "  per-call: ph1=" << ms(t_phase1).count() / cf << "ms"
+                      << " prep=" << ms(t_prep).count() / cf << "ms"
                       << " exec=" << ms(t_exec).count() / cf << "ms"
+                      << " tail=" << ms(t_tail).count() / cf << "ms"
                       << " ph3=" << ms(t_phase3).count() / cf << "ms"
                       << std::endl;
             // exec breakdown: reset events / submit / sync(rank0) / sync(rank1)
