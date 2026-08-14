@@ -187,13 +187,25 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 }
             }
 
-            const auto expand_key = pattern_map.at(expand_key_m).get_node_shared_ptr();
-            const auto expand_value = pattern_map.at(expand_value_m).get_node_shared_ptr();
-            auto key_source = expand_key->input_value(0).get_node()->input_value(0);
-            auto value_source = expand_value->input_value(0).get_node()->input_value(0);
-            sdpa->input(1).replace_source_output(key_source);
-            sdpa->input(2).replace_source_output(value_source);
-            return true;
+            auto replace_sdpa_inputs = [&](ov::Node* reshape_k, ov::Node* reshape_v) {
+                auto key_source = reshape_k->input_value(0);
+                auto value_source = reshape_v->input_value(0);
+                sdpa->input(1).replace_source_output(key_source);
+                sdpa->input(2).replace_source_output(value_source);
+                return true;
+            };
+
+            if (pattern_map.count(concat_k_expand_m) > 0 && pattern_map.count(concat_v_expand_m) > 0) {
+                auto concat_k_node = pattern_map.at(concat_k_expand_m).get_node_shared_ptr();
+                auto reshape_k = concat_k_node->input_value(0).get_node();
+                auto concat_v_node = pattern_map.at(concat_v_expand_m).get_node_shared_ptr();
+                auto reshape_v = concat_v_node->input_value(0).get_node();
+                return replace_sdpa_inputs(reshape_k, reshape_v);
+            } else if (pattern_map.count(broadcast_k_expand_m) > 0 && pattern_map.count(broadcast_v_expand_m) > 0) {
+                auto reshape_k = pattern_map.at(reshape_k_m).get_node_shared_ptr().get();
+                auto reshape_v = pattern_map.at(reshape_v_m).get_node_shared_ptr().get();
+                return replace_sdpa_inputs(reshape_k, reshape_v);
+            }
         }
 
         // ── Pattern A path: validate broadcast shapes and rebuild SDPA without the expand chain ──
