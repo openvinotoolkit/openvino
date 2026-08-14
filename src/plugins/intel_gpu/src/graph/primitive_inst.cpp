@@ -3,6 +3,7 @@
 //
 
 #include <sstream>
+#include <exception>
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
@@ -191,6 +192,36 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                _node.is_dynamic());
     }
     return pool.get_memory(layout, type, reset);
+}
+
+static memory::ptr get_in_place_output_memory(network& network,
+                                              const program_node& node,
+                                              size_t in_place_input_idx,
+                                              bool use_memory_pool) {
+    const auto& input_node = node.get_dependency(in_place_input_idx);
+    const auto& input_inst = network.get_primitive(input_node.id());
+    OPENVINO_ASSERT(input_inst->outputs_allocated(), "[GPU] In-place input memory was not allocated for ", node.id());
+    auto& input_memory = input_inst->output_memory();
+    auto& engine = network.get_engine();
+
+    if (!use_memory_pool) {
+        return engine.reinterpret_buffer(input_memory, node.get_output_layout());
+    }
+
+    auto reduced_dependencies = node.get_memory_dependencies();
+    reduced_dependencies.erase(std::remove(reduced_dependencies.begin(),
+                                           reduced_dependencies.end(),
+                                           static_cast<uint32_t>(input_node.get_unique_id())),
+                               reduced_dependencies.end());
+    const memory_restricter<uint32_t> restrictions(&reduced_dependencies);
+    return get_memory_from_pool(engine,
+                                network.get_id(),
+                                network.get_memory_pool(),
+                                node,
+                                node.get_output_layout(),
+                                input_memory.get_allocation_type(),
+                                true,
+                                restrictions);
 }
 
 std::shared_ptr<kernel_impl_params> primitive_impl::get_weights_reorder_kernel_params() const {
@@ -2478,6 +2509,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
 
     if (allocate_memory) {
+        const auto in_place_input_idx = program_helpers::get_in_place_input_idx(node);
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // synchronization, The output memory of such primitive will be fused with mutable_data
         auto users = node.get_users();
@@ -2490,7 +2522,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+        if (in_place_input_idx.has_value() && !node.get_program().get_config().get_enable_memory_pool()) {
+            _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, false));
+        } else if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
@@ -2513,7 +2547,22 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
                     if (user->is_type<mutable_data>())
                         _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
             } else {
-                _outputs = allocate_outputs();
+                try {
+                    _outputs = allocate_outputs();
+                } catch (const std::bad_alloc&) {
+                    const auto allocation_error = std::current_exception();
+                    if (!in_place_input_idx.has_value() || !node.get_program().get_config().get_enable_memory_pool()) {
+                        throw;
+                    }
+                    try {
+                        GPU_DEBUG_TRACE_DETAIL << node.id()
+                                               << ": retry output allocation by reusing a dead dense input"
+                                               << std::endl;
+                        _outputs.push_back(get_in_place_output_memory(_network, node, *in_place_input_idx, true));
+                    } catch (...) {
+                        std::rethrow_exception(allocation_error);
+                    }
+                }
             }
         }
     }

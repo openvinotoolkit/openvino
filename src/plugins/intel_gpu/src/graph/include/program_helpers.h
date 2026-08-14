@@ -15,6 +15,7 @@
 #include <vector>
 #include <utility>
 #include <iostream>
+#include <optional>
 
 namespace cldnn {
 struct program_helpers {
@@ -97,6 +98,8 @@ struct program_helpers {
         else
             do_for_types<RestOfT...>(node, rest...);
     }
+
+    static std::optional<size_t> get_in_place_input_idx(const program_node& node);
 
     // helper functions for deconvolution optimizations
     static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,

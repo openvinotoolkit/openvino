@@ -5,7 +5,9 @@
 #include "vulkan_memory.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
+#include <new>
 #include <optional>
 #include <utility>
 
@@ -18,7 +20,28 @@ namespace cldnn {
 namespace vulkan {
 namespace {
 
+class vulkan_bad_alloc final : public std::bad_alloc {
+public:
+    vulkan_bad_alloc(const char* operation, VkResult result) noexcept {
+        std::snprintf(_message,
+                      sizeof(_message),
+                      "[GPU][Vulkan] %s failed with VkResult %d",
+                      operation,
+                      static_cast<int>(result));
+    }
+
+    const char* what() const noexcept override {
+        return _message;
+    }
+
+private:
+    char _message[96]{};
+};
+
 void check_vk_result(VkResult result, const char* operation) {
+    if (result == VK_ERROR_OUT_OF_HOST_MEMORY || result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        throw vulkan_bad_alloc(operation, result);
+    }
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
 }
 

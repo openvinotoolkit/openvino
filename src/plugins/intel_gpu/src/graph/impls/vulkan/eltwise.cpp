@@ -1871,6 +1871,10 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         return _kernels;
     }
 
+    std::vector<size_t> get_in_place_input_indices() const override {
+        return supports_restricted_output(_kernel_kind) ? std::vector<size_t>{0, 1} : std::vector<size_t>{};
+    }
+
     void set_kernels(kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Eltwise expects one compiled kernel set");
         const auto& entries = kernels.begin()->second;

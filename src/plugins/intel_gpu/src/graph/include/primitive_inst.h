@@ -95,6 +95,8 @@ struct primitive_impl {
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
+    // Input indices whose allocations may hold this primitive's output when graph liveness and layouts permit it.
+    virtual std::vector<size_t> get_in_place_input_indices() const { return {}; }
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {
         ob << can_reuse_memory;
         ob << _kernel_name;
