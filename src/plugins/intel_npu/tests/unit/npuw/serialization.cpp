@@ -18,6 +18,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
+#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/parallel.hpp"
@@ -28,9 +29,22 @@
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "util.hpp"
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
+
+namespace ov {
+namespace npuw {
+
+class CompiledModelDescAccess {
+public:
+    using Desc = ov::npuw::CompiledModel::CompiledModelDesc;
+};
+
+}  // namespace npuw
+}  // namespace ov
 
 namespace {
 
@@ -292,6 +306,108 @@ TEST(SerializationTest, OVTypes_Spatial) {
     EXPECT_EQ(var.out_dim, res.out_dim);
     EXPECT_EQ(var.nway_iters, res.nway_iters);
     EXPECT_EQ(var.tail_size, res.tail_size);
+}
+
+TEST(SerializationTest, ValidateSpatialRejectsInvalidImportedMetadata) {
+    ov::npuw::compiled::Spatial spatial;
+    spatial.params = {{3, 1}};
+    spatial.range = 8;
+    spatial.nway = 4;
+    spatial.out_dim = 2;
+    spatial.nway_iters = 2;
+    spatial.tail_size = 0;
+
+    const std::vector<ov::Shape> input_shapes{ov::Shape{8, 8}};
+    const std::vector<ov::Shape> output_shapes{ov::Shape{8, 8}};
+
+    try {
+        ov::npuw::orc::validate_spatial(spatial, input_shapes, output_shapes, 1u);
+        FAIL() << "Expected invalid spatial metadata to be rejected";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("Invalid NPUW spatial metadata"), std::string::npos) << ex.what();
+    }
+}
+
+TEST(SerializationTest, ValidateSpatialRejectsInconsistentIterationLayout) {
+    ov::npuw::compiled::Spatial spatial;
+    spatial.params = {{0, 0}};
+    spatial.range = 9;
+    spatial.nway = 4;
+    spatial.out_dim = 1;
+    spatial.nway_iters = 2;
+    spatial.tail_size = 2;
+
+    const std::vector<ov::Shape> input_shapes{ov::Shape{9, 9}};
+    const std::vector<ov::Shape> output_shapes{ov::Shape{9, 9}};
+
+    try {
+        ov::npuw::orc::validate_spatial(spatial, input_shapes, output_shapes, 1u);
+        FAIL() << "Expected invalid spatial iteration layout to be rejected";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("inconsistent range, nway, nway_iters, and tail_size"), std::string::npos)
+            << ex.what();
+    }
+}
+
+TEST(SerializationTest, CompiledModelDescImportRejectsInvalidSpatialMetadata) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{8, 8});
+    auto result = std::make_shared<ov::op::v0::Result>(parameter);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter}, "spatial");
+
+    auto plugin = std::make_shared<ov::test::npuw::NullPlugin>();
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    plugin->set_core(core);
+
+    auto compiled_model = std::make_shared<ov::test::npuw::MockSubCompiledModel>(model, plugin, ov::AnyMap{});
+    ON_CALL(
+        *core,
+        import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::A<const ov::AnyMap&>()))
+        .WillByDefault([compiled_model](std::istream&, const std::string&, const ov::AnyMap&) {
+            return compiled_model;
+        });
+
+    ov::npuw::CompiledModelDescAccess::Desc source_desc;
+    source_desc.compiled_model = compiled_model;
+    source_desc.param_base = 1u;
+    source_desc.spatial.emplace();
+    source_desc.spatial->params = {{3u, 1u}};
+    source_desc.spatial->range = 8u;
+    source_desc.spatial->nway = 4u;
+    source_desc.spatial->out_dim = 2u;
+    source_desc.spatial->nway_iters = 2u;
+    source_desc.spatial->tail_size = 0u;
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = ov::npuw::s11n::Stream::writer(buffer);
+    ov::npuw::s11n::WeightsContext weights_context;
+    source_desc.serialize(writer, weights_context, 0u);
+
+    buffer.seekg(0);
+
+    ov::npuw::CompiledModelDescAccess::Desc target_desc;
+    target_desc.compiled_model = compiled_model;
+    ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
+        plugin,
+        target_desc.compiled_model,
+        [](std::size_t) {
+            return std::string("CPU");
+        },
+        [](const std::string&) {
+            return ov::AnyMap{};
+        });
+
+    auto reader = ov::npuw::s11n::Stream::reader(buffer);
+    EXPECT_THROW(target_desc.serialize(reader, weights_context, std::nullopt, &submodel_ctx), ov::Exception);
+}
+
+TEST(SerializationTest, UtilViewRejectsOffsetLenBeyondExtent) {
+    auto src = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{128}));
+    EXPECT_THROW(ov::npuw::util::view(src, 0u, 100u, 64u), ov::Exception);
+}
+
+TEST(SerializationTest, UtilViewAllowsInBoundsOffsetLen) {
+    auto src = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{128}));
+    EXPECT_NO_THROW(ov::npuw::util::view(src, 0u, 64u, 64u));
 }
 
 TEST(SerializationTest, OVTypes_Config) {
