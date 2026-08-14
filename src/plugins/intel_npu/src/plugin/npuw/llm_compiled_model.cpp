@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <queue>
 #include "llm_compiled_model.hpp"
+
+#include <queue>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -699,8 +700,9 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     }
 }
 
-bool constant_can_be_shared(const ov::op::v0::Constant& constant, const std::vector<std::string> &shared_ctx_names,
-                            size_t single_weight_shared_source_size_max) {
+static bool constant_can_be_shared(const ov::op::v0::Constant& constant,
+                                   const std::vector<std::string>& shared_ctx_names,
+                                   size_t single_weight_shared_source_size_max) {
     if (constant.get_byte_size() < static_cast<size_t>(ov::util::get_system_page_size()) ||
         constant.get_byte_size() > single_weight_shared_source_size_max) {
         return false;
@@ -710,20 +712,20 @@ bool constant_can_be_shared(const ov::op::v0::Constant& constant, const std::vec
     // TODO check types of remote context
     // The code below is written in assumption that we have NPU and GPU as the remote contexts
     (void)shared_ctx_names;
-    if (ov::shape_size(constant.get_shape()) == 1 &&
-        constant.get_output_element_type(0) == ov::element::f64) {
+    if (ov::shape_size(constant.get_shape()) == 1 && constant.get_output_element_type(0) == ov::element::f64) {
         // If a constant has element type f64 but contains no elements (empty tensor),
         // GPU have to convert it to f32 because the GPU plugin only supports the f32 data type internally.
         needs_conversion = true;
     } else if (constant.get_output_element_type(0) == ov::element::u16 ||
-        constant.get_output_element_type(0) == ov::element::i16) {
+               constant.get_output_element_type(0) == ov::element::i16) {
         needs_conversion = true;
     }
     return !needs_conversion;
 }
 
-std::vector<std::shared_ptr<ov::op::v0::Constant>> collect_weights_to_share(const std::shared_ptr<ov::Model>& model,
-                                                                            const std::function<bool(const ov::op::v0::Constant&)> &constant_can_be_shared) {
+static std::vector<std::shared_ptr<ov::op::v0::Constant>> collect_weights_to_share(
+    const std::shared_ptr<ov::Model>& model,
+    const std::function<bool(const ov::op::v0::Constant&)>& constant_can_be_shared) {
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constant_to_share;
     for (const auto& op : model->get_ops()) {
         auto shared_weight_candidate = std::dynamic_pointer_cast<ov::op::v0::Constant>(op);
@@ -739,9 +741,10 @@ std::vector<std::shared_ptr<ov::op::v0::Constant>> collect_weights_to_share(cons
     return constant_to_share;
 }
 
-std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>> partition_constants_by_size(std::vector<std::shared_ptr<ov::op::v0::Constant>>&& constants,
-                                                                                    size_t single_weight_shared_source_size_max,
-                                                                                    const std::function<size_t(const ov::op::v0::Constant&)> &get_constant_aligned_size) {
+static std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>> partition_constants_by_size(
+    std::vector<std::shared_ptr<ov::op::v0::Constant>>&& constants,
+    size_t single_weight_shared_source_size_max,
+    const std::function<size_t(const ov::op::v0::Constant&)>& get_constant_aligned_size) {
     std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>> partitioned_constants;
     std::vector<std::shared_ptr<ov::op::v0::Constant>> current_partition;
     size_t current_partition_size = 0;
@@ -763,30 +766,32 @@ std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>> partition_consta
     return partitioned_constants;
 }
 
-std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>> make_constant_shareable(
-                            std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>>&& partitioned_constants,
-                            std::function<std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(const std::vector<std::shared_ptr<ov::op::v0::Constant>>&)> shared_source_generator,
-                            const std::function<size_t(const ov::op::v0::Constant&)> &get_constant_aligned_size) {
-    std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>> shared_sources;
+static std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>
+make_constant_shareable(std::vector<std::vector<std::shared_ptr<ov::op::v0::Constant>>>&& partitioned_constants,
+                        std::function<std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                            const std::vector<std::shared_ptr<ov::op::v0::Constant>>&)> shared_source_generator,
+                        const std::function<size_t(const ov::op::v0::Constant&)>& get_constant_aligned_size) {
+    std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>
+        shared_sources;
     size_t non_shared_constant_hold_bytes = 0;
     for (const auto& partition : partitioned_constants) {
         auto shared_source = shared_source_generator(partition);
-        size_t constant_id = 0; // as the weight sharing mechanism implies, the constants ID is a weigth offset in the shared source buffer, so we can use a single counter for all constants in the partition
+        size_t constant_id =
+            0;  // as the weight sharing mechanism implies, the constants ID is a weigth offset in the shared source
+                // buffer, so we can use a single counter for all constants in the partition
         std::vector<std::shared_ptr<ov::op::v0::Constant>> shared_constants;
         for (const auto& constant : partition) {
-            auto const_descriptor = ov::create_base_descriptor(
-                                        shared_source->get_descriptor()->get_id(),
-                                        constant_id,
-                                        shared_source);
+            auto const_descriptor =
+                ov::create_base_descriptor(shared_source->get_descriptor()->get_id(), constant_id, shared_source);
             auto constant_shared_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
-                                                    shared_source->get_ptr<char>() + constant_id,
-                                                    constant->get_byte_size(),
-                                                    shared_source,
-                                                    const_descriptor);
+                shared_source->get_ptr<char>() + constant_id,
+                constant->get_byte_size(),
+                shared_source,
+                const_descriptor);
             constant_id += get_constant_aligned_size(*constant);
-            auto shared_constant =
-                std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
-                                                       constant->get_shape(), constant_shared_buffer);
+            auto shared_constant = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
+                                                                          constant->get_shape(),
+                                                                          constant_shared_buffer);
             shared_constant->set_friendly_name(constant->get_friendly_name());
             ov::copy_runtime_info(constant, shared_constant);
             std::memcpy(constant_shared_buffer->get_ptr(), constant->get_data_ptr(), constant->get_byte_size());
@@ -819,9 +824,10 @@ std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::share
     return shared_sources;
 }
 
-void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
-const ov::AnyMap& properties) {
-
+void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(
+    const std::shared_ptr<ov::Model> model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
     NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
     NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
     auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
@@ -839,10 +845,12 @@ const ov::AnyMap& properties) {
         }
     }
 
-    auto shared_device_contexts = ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
+    auto shared_device_contexts =
+        ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
     size_t kMinRelocateBytes = ov::util::get_system_page_size();
     constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
-    auto is_constant_shareable = [shared_device_contexts, single_weigh_shared_source_size_max](const ov::op::v0::Constant& constant) {
+    auto is_constant_shareable = [shared_device_contexts,
+                                  single_weigh_shared_source_size_max](const ov::op::v0::Constant& constant) {
         return constant_can_be_shared(constant, shared_device_contexts, single_weigh_shared_source_size_max);
     };
 
@@ -852,47 +860,52 @@ const ov::AnyMap& properties) {
     auto align_bytes = [](size_t bytes, size_t alignment) {
         return ((bytes + alignment - 1) / alignment) * alignment;
     };
-    auto align_page_size = [kMinRelocateBytes, align_bytes] (const ov::op::v0::Constant& constant) {
+    auto align_page_size = [kMinRelocateBytes, align_bytes](const ov::op::v0::Constant& constant) {
         return align_bytes(constant.get_byte_size(), kMinRelocateBytes);
     };
-    auto partitioned_constants = partition_constants_by_size(std::move(constant_to_share), single_weigh_shared_source_size_max, align_page_size);
+    auto partitioned_constants =
+        partition_constants_by_size(std::move(constant_to_share), single_weigh_shared_source_size_max, align_page_size);
     for (size_t i = 0; i < partitioned_constants.size(); ++i) {
         LOG_INFO("[NPUW] SHARED_WEIGHTS: partition " << i + 1 << "/" << partitioned_constants.size()
-                 << ", constants count: " << partitioned_constants[i].size());
+                                                     << ", constants count: " << partitioned_constants[i].size());
     }
 
-    auto shared_source_generator = [this, kMinRelocateBytes, align_page_size](const std::vector<std::shared_ptr<ov::op::v0::Constant>>& partition) {
+    auto shared_source_generator = [this, kMinRelocateBytes, align_page_size](
+                                       const std::vector<std::shared_ptr<ov::op::v0::Constant>>& partition) {
         size_t total_partition_size = 0;
         for (const auto& constant : partition) {
             total_partition_size += align_page_size(*constant);
         }
         // TODO not a unique ID in general: as it can clash with mmap weight source if generation.
         // The uniqueness must met the conditions:
-        // 1) persistent across different processes, so that the same weight bank can be shared across different processes.
-        // 2) unique across different weight banks in the same process, so that different weight banks can be shared across different contexts.
-        // 3) shared weight for cross device/plugins allocation must be distinguishable from mmap weight sources for weightless cache
+        // 1) persistent across different processes, so that the same weight bank can be shared across different
+        // processes. 2) unique across different weight banks in the same process, so that different weight banks can be
+        // shared across different contexts. 3) shared weight for cross device/plugins allocation must be
+        // distinguishable from mmap weight sources for weightless cache
         static std::atomic<size_t> source_id_counter{1};
         const size_t source_id = source_id_counter.fetch_add(1, std::memory_order_relaxed);
         auto raw = std::make_shared<AlignedBuffer>(total_partition_size, kMinRelocateBytes);
 
         LOG_DEBUG("[NPUW] SHARED_WEIGHTS: allocating source buffer for weights: source_id: "
-                  << source_id
-                  << ", ptr: " << static_cast<void*>(raw->get_ptr<char>())
+                  << source_id << ", ptr: " << static_cast<void*>(raw->get_ptr<char>())
                   << ", size: " << total_partition_size);
         return std::make_shared<ov::SharedBuffer<std::shared_ptr<AlignedBuffer>>>(
-            raw->get_ptr<char>(), raw->size(), raw,
+            raw->get_ptr<char>(),
+            raw->size(),
+            raw,
             ov::create_base_descriptor(source_id, 0, raw));
     };
 
     m_shared_weight_sources.clear();
-    auto shared_sources_with_constants = make_constant_shareable(std::move(partitioned_constants), shared_source_generator, align_page_size);
+    auto shared_sources_with_constants =
+        make_constant_shareable(std::move(partitioned_constants), shared_source_generator, align_page_size);
 
     size_t total_shared_constant_bytes = 0;
     for (const auto& [shared_source, constants] : shared_sources_with_constants) {
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocated shared source buffer: source_id: " << shared_source->get_descriptor()->get_id() 
+        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocated shared source buffer: source_id: "
+                 << shared_source->get_descriptor()->get_id()
                  << ", ptr: " << static_cast<void*>(shared_source->get_ptr<char>())
-                 << ", size: " << shared_source->size()
-                 << ", holds shared weight count: " << constants.size());
+                 << ", size: " << shared_source->size() << ", holds shared weight count: " << constants.size());
         total_shared_constant_bytes += shared_source->size();
     }
     LOG_INFO("[NPUW] SHARED_WEIGHTS: total shared constant bytes acquired: " << total_shared_constant_bytes);
@@ -900,7 +913,9 @@ const ov::AnyMap& properties) {
     register_shared_weight_in_cache(std::move(shared_sources_with_constants));
 }
 
-void ov::npuw::LLMCompiledModel::register_shared_weight_in_cache(std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>&& shared_sources_with_constants) {
+void ov::npuw::LLMCompiledModel::register_shared_weight_in_cache(
+    std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>&&
+        shared_sources_with_constants) {
     if (!m_shared_ctx_ptr) {
         m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>();
     }
@@ -908,17 +923,21 @@ void ov::npuw::LLMCompiledModel::register_shared_weight_in_cache(std::vector<std
         // Pre-register this bank as a cache source now that it has a valid descriptor ID.
         // All constants sliced from this bank will use the same source_id as the outer key.
         ov::weight_sharing::set_weight_source(*m_shared_ctx_ptr, shared_source);
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: registering shared weight source buffer, ptr: " << static_cast<void*>(shared_source->get_ptr<char>())
-                  << ", size: " << shared_source->size()
-                  << ", source ID: " << shared_source->get_descriptor()->get_id() << ", shared constants count: " << shared_constants.size());
-        //remember the source of constants into long-live storage to avoid its destruction before the model is destroyed
+        LOG_INFO("[NPUW] SHARED_WEIGHTS: registering shared weight source buffer, ptr: "
+                 << static_cast<void*>(shared_source->get_ptr<char>()) << ", size: " << shared_source->size()
+                 << ", source ID: " << shared_source->get_descriptor()->get_id()
+                 << ", shared constants count: " << shared_constants.size());
+        // remember the source of constants into long-live storage to avoid its destruction before the model is
+        // destroyed
         m_shared_weight_sources.push_back(shared_source);
         for (const auto& shared_constant : shared_constants) {
             ov::weight_sharing::set_constant(*m_shared_ctx_ptr, *shared_constant);
-            ov::weight_sharing::set_runtime_weight_source(*m_shared_ctx_ptr, ov::weight_sharing::Extension::get_constant_source_buffer(*shared_constant));
-            LOG_DEBUG("[NPUW] SHARED_WEIGHTS: registering shared constant: source ID: " << ov::weight_sharing::Extension::get_constant_id(*shared_constant) 
-                      << ", ptr: " << shared_constant->get_data_ptr()
-                      << ", size: " << shared_constant->get_byte_size());
+            ov::weight_sharing::set_runtime_weight_source(
+                *m_shared_ctx_ptr,
+                ov::weight_sharing::Extension::get_constant_source_buffer(*shared_constant));
+            LOG_DEBUG("[NPUW] SHARED_WEIGHTS: registering shared constant: source ID: "
+                      << ov::weight_sharing::Extension::get_constant_id(*shared_constant) << ", ptr: "
+                      << shared_constant->get_data_ptr() << ", size: " << shared_constant->get_byte_size());
         }
     }
 }

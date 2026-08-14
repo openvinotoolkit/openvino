@@ -3595,11 +3595,12 @@ TEST_P(CachingTest, test_single_file_storage_shared_ctx_between_two_plugins) {
             .WillByDefault(Return(std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
                                                                 ov::internal::model_sharing_context.name()}));
         ON_CALL(*plugin, get_property(ov::internal::caching_properties.name(), _))
-            .WillByDefault(Return(decltype(ov::internal::caching_properties)::value_type{
-                ov::device::architecture.name()}));
+            .WillByDefault(
+                Return(decltype(ov::internal::caching_properties)::value_type{ov::device::architecture.name()}));
         ON_CALL(*plugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).WillByDefault(Return(true));
         ON_CALL(*plugin, get_property(ov::device::capabilities.name(), _))
-            .WillByDefault(Return(decltype(ov::device::capabilities)::value_type{ov::device::capability::EXPORT_IMPORT}));
+            .WillByDefault(
+                Return(decltype(ov::device::capabilities)::value_type{ov::device::capability::EXPORT_IMPORT}));
         ON_CALL(*plugin, get_property(ov::device::architecture.name(), _)).WillByDefault(Return("mock"));
 
         ON_CALL(*plugin, query_model(_, _))

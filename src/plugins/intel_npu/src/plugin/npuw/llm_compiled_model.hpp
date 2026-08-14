@@ -176,7 +176,9 @@ private:
     void assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                                    const ov::AnyMap& properties);
-    void register_shared_weight_in_cache(std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>&& shared_sources_with_constants);
+    void register_shared_weight_in_cache(
+        std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>&&
+            shared_sources_with_constants);
 
     bool m_is_eagle = false;
 

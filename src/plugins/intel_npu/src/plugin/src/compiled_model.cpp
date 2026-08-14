@@ -211,7 +211,8 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::internal::model_sharing_context.name()) {
-        _logger.debug("WeightSharingCtxPtr handoff succeeded for compiled model '%s'.", _graph->get_metadata().name.c_str());
+        _logger.debug("WeightSharingCtxPtr handoff succeeded for compiled model '%s'.",
+                      _graph->get_metadata().name.c_str());
         return ov::Any(_weightSharingContext);
     }
 
