@@ -5,6 +5,7 @@
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <mutex>
 #include <openvino/runtime/intel_npu/properties.hpp>
