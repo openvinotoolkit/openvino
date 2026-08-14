@@ -147,6 +147,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/random_poisson.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rdft.cpp

@@ -44,28 +44,29 @@ struct UniformSampler {
     size_t available_elements = 0;
     size_t cursor_index = 0;
     op::PhiloxAlignment alignment;
-    std::shared_ptr<philox::PhiloxGenerator> generator;
+    philox::PhiloxGenerator* generator;
     std::shared_ptr<philox::PhiloxConverter> converter;
-    size_t* philox_random_invocations = nullptr;
 
     UniformSampler(double* temp_output_buffer,
-                   std::shared_ptr<philox::PhiloxGenerator> generator,
+                   philox::PhiloxGenerator* generator,
                    std::shared_ptr<philox::PhiloxConverter> converter,
-                   op::PhiloxAlignment alignment,
-                   size_t* philox_random_invocations = nullptr)
+                   op::PhiloxAlignment alignment)
         : temp_output_buffer(temp_output_buffer),
-          generator(std::move(generator)),
-          converter(std::move(converter)),
           alignment(alignment),
-          philox_random_invocations(philox_random_invocations) {}
+          generator(generator),
+          converter(std::move(converter)) {}
+
+    // Like TF's uniform_remaining = 0 after gen = rng; gen.Skip(...): rebind Philox and discard leftover uniforms.
+    void reset(philox::PhiloxGenerator* new_generator) {
+        generator = new_generator;
+        available_elements = 0;
+        cursor_index = 0;
+    }
 
     double next() {
         if (alignment == op::PhiloxAlignment::PYTORCH) {
             if (cursor_index >= available_elements) {
                 const auto& result = generator->random();
-                if (philox_random_invocations != nullptr) {
-                    ++(*philox_random_invocations);
-                }
                 converter->convert(result, 0);
                 available_elements = converter->get_converted_elements_count();
                 cursor_index = 0;
@@ -74,9 +75,6 @@ struct UniformSampler {
         }
         if (cursor_index == 0) {
             const auto& result = generator->random();
-            if (philox_random_invocations != nullptr) {
-                ++(*philox_random_invocations);
-            }
             converter->convert(result, 0);
             available_elements = converter->get_converted_elements_count();
             cursor_index = available_elements;
@@ -86,39 +84,35 @@ struct UniformSampler {
 };
 
 // Knuth's algorithm for generating Poisson distributed random numbers Donald E. Knuth (1969)
+// Rate math is in double (same as TF's ComputeType). f16/bf16 lambda would lose precision in exp/prod.
 template <typename T>
-T knuth_poisson(T lambda, UniformSampler& uniform_sampler) {
-    auto enlam = std::exp(-lambda);
-    T X = 0;
-    auto prod = 1.0;
-    while (true) {
-        auto U_i = uniform_sampler.next();
-        prod *= U_i;
-        if (prod > enlam) {
-            X += 1;
-        } else {
-            return static_cast<T>(X);
-        }
-    }
-    return static_cast<T>(X);
+T knuth_poisson(const double lambda, UniformSampler& sampler) {
+    const double exp_neg_lambda = std::exp(-lambda);
+    double prod = 1.0;
+    int64_t k = -1;
+    do {
+        prod *= sampler.next();
+        ++k;
+    } while (prod > exp_neg_lambda);
+    return static_cast<T>(k);
 }
 
 // Transformed rejection method for generating Poisson distributed random numbers (Hoermann, 1993)
 template <typename T>
-T transformed_rejection_method_hoermann(T lambda, UniformSampler& uniform_sampler) {
-    double slam = std::sqrt(lambda);
-    double loglam = std::log(lambda);
-    double b = 0.931 + 2.53 * slam;
-    double a = -0.059 + 0.02483 * b;
-    double invalpha = 1.1239 + 1.1328 / (b - 3.4);
-    double vr = 0.9277 - 3.6224 / (b - 2);
+T transformed_rejection_method_hoermann(const double lambda, UniformSampler& sampler) {
+    const double slam = std::sqrt(lambda);
+    const double loglam = std::log(lambda);
+    const double b = 0.931 + 2.53 * slam;
+    const double a = -0.059 + 0.02483 * b;
+    const double invalpha = 1.1239 + 1.1328 / (b - 3.4);
+    const double vr = 0.9277 - 3.6224 / (b - 2);
 
     while (true) {
-        double U_i = uniform_sampler.next();
-        double V_i = uniform_sampler.next();
-        auto u = U_i - 0.5;
-        auto us = 0.5 - std::fabs(u);
-        auto k = std::floor((2 * a / us + b) * u + lambda + 0.43);
+        const double U_i = sampler.next();
+        const double V_i = sampler.next();
+        const double u = U_i - 0.5;
+        const double us = 0.5 - std::fabs(u);
+        const double k = std::floor((2 * a / us + b) * u + lambda + 0.43);
         if ((us >= 0.07) && (V_i <= vr)) {
             return static_cast<T>(k);
         }
@@ -130,15 +124,12 @@ T transformed_rejection_method_hoermann(T lambda, UniformSampler& uniform_sample
             return static_cast<T>(k);
         }
     }
-    return static_cast<T>(0);
 }
 
 template <typename T>
 std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates tensor aka lambda values
-                                                                     // const T* generator_tensor,
                                              T* output_tensor,
                                              const Shape& input_shape,
-                                             // const Shape& generator_shape,
                                              const Shape& output_shape,
                                              uint64_t seed,
                                              uint64_t seed2,
@@ -159,6 +150,9 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
     if (output_element_count != input_element_count) {
         OPENVINO_THROW("RandomPoisson: output shape and input shape must have the same number of elements");
     }
+    // MOCK is only a Philox stub; `!= PYTORCH` would treat it as TensorFlow Skip streams.
+    OPENVINO_ASSERT(alignment != ov::op::PhiloxAlignment::MOCK,
+                    "RandomPoisson: MOCK Philox alignment is not supported in the reference implementation");
 
     // Temporary buffer for the uniform distribution, so the philox generator can be used to generate random numbers
     // and the philox converter can be used to convert the random numbers to the target type
@@ -179,7 +173,7 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
     if (alignment == op::PhiloxAlignment::PYTORCH) {
         std::shared_ptr<philox::PhiloxGenerator> generator =
             philox::make_philox_generator(seed, seed2, prev_state, output_element_count, alignment);
-        UniformSampler uniform_sampler(temp_output_buffer_vector.data(), generator, converter, alignment);
+        UniformSampler uniform_sampler(temp_output_buffer_vector.data(), generator.get(), converter, alignment);
         // For each element in the input tensor, generate a random poisson distributed random number
         // https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/random-poisson-v2#:~:text=This%20op%20uses,2.%20Addison%20Wesley
         for (size_t i = 0; i < output_element_count; i++) {
@@ -188,45 +182,44 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
             // if lambda > 0 and < 10, knuth poisson algorithm
             // if lambda >= 10, use transformed rejection method, (Hoermann, 1993)use hoeran's algorithm
             T cur_ele = *(input_tensor + i);
-            if (cur_ele < 0) {
-                OPENVINO_THROW("RandomPoisson: lambda < 0, rates cannot be negative");
-            } else if (cur_ele == 0) {
+            const double rate = static_cast<double>(cur_ele);
+            // NaN < 0 is false, so a `< 0` check would let NaN into Hörmann and hang.
+            OPENVINO_ASSERT(rate >= 0.0, "RandomPoisson: rates cannot be negative");
+            if (rate == 0) {
                 *(output_tensor + i) = 0;
-            } else if (cur_ele > 0 && cur_ele < 10) {
-                *(output_tensor + i) = knuth_poisson(cur_ele, uniform_sampler);
+            } else if (rate < 10) {
+                *(output_tensor + i) = knuth_poisson<T>(rate, uniform_sampler);
             } else {
-                *(output_tensor + i) = transformed_rejection_method_hoermann(cur_ele, uniform_sampler);
+                *(output_tensor + i) = transformed_rejection_method_hoermann<T>(rate, uniform_sampler);
             }
         }
         return generator->get_next_state();
     }
 
-    // TensorFlow: one Philox substream per flat output index (Skip 256 * i from prev_state), one shared U(0,1)
-    // converter. A single sequential generator would not match TF RandomPoissonV2 (per-output Skip).
-    size_t total_philox_random_calls = 0;
+    // TensorFlow: one Philox substream per flat output index (Skip 256 * i from prev_state).
+    // A single sequential generator would not match TF RandomPoissonV2 (per-output Skip).
+    // PhiloxGenerator has no Skip(); TF copy+Skip is emulated by reconstructing
+    // TensorflowPhiloxGenerator on the stack from the skipped state pair (no shared_ptr per cell).
+    // UniformSampler is kept outside the loop (like TF's Uniform); reset() matches uniform_remaining = 0.
+    UniformSampler uniform_sampler(temp_output_buffer_vector.data(), nullptr, converter, alignment);
     for (size_t i = 0; i < output_element_count; i++) {
         T cur_ele = *(input_tensor + i);
-        if (cur_ele < 0) {
-            OPENVINO_THROW("RandomPoisson: lambda < 0, rates cannot be negative");
-        }
-        if (cur_ele == 0) {
+        const double rate = static_cast<double>(cur_ele);
+        // NaN < 0 is false, so a `< 0` check would let NaN into Hörmann and hang.
+        OPENVINO_ASSERT(rate >= 0.0, "RandomPoisson: rates cannot be negative");
+        if (rate == 0) {
             *(output_tensor + i) = 0;
             continue;
         }
         const auto cell_prev =
             tensorflow_philox_skip(prev_state,
                                    static_cast<uint64_t>(i) * static_cast<uint64_t>(kReserveSamplesPerExecution));
-        std::shared_ptr<philox::PhiloxGenerator> cell_generator =
-            philox::make_philox_generator(seed, seed2, cell_prev, output_element_count, alignment);
-        UniformSampler uniform_sampler(temp_output_buffer_vector.data(),
-                                       cell_generator,
-                                       converter,
-                                       alignment,
-                                       &total_philox_random_calls);
-        if (cur_ele > 0 && cur_ele < 10) {
-            *(output_tensor + i) = knuth_poisson(cur_ele, uniform_sampler);
+        philox::TensorflowPhiloxGenerator cell_generator(seed, seed2, cell_prev);
+        uniform_sampler.reset(&cell_generator);
+        if (rate < 10) {
+            *(output_tensor + i) = knuth_poisson<T>(rate, uniform_sampler);
         } else {
-            *(output_tensor + i) = transformed_rejection_method_hoermann(cur_ele, uniform_sampler);
+            *(output_tensor + i) = transformed_rejection_method_hoermann<T>(rate, uniform_sampler);
         }
     }
 
