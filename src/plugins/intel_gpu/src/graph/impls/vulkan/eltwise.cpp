@@ -51,6 +51,7 @@
 #include "eltwise_dense_push_constants_spirv.hpp"
 #include "eltwise_dense_restrict_spirv.hpp"
 #include "eltwise_dense_spirv.hpp"
+#include "eltwise_fused_broadcast_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_no_tail_push_constants_restrict_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_no_tail_push_constants_spirv.hpp"
 #include "eltwise_fused_dense_f32_vec2_push_constants_restrict_spirv.hpp"
@@ -130,7 +131,9 @@ constexpr uint32_t fused_chain_metadata_base = fused_metadata_base + max_fused_c
 constexpr uint32_t fused_chain_fast_divisor_metadata_base =
     fused_chain_metadata_base + shader_abi::index(shader_abi::fused_chain_metadata_field::count);
 constexpr uint32_t fused_chain_metadata_words = fused_chain_fast_divisor_metadata_base + max_rank;
-constexpr uint32_t metadata_words = fused_chain_metadata_words;
+constexpr uint32_t fused_broadcast_metadata_base = fused_chain_metadata_words;
+constexpr uint32_t fused_broadcast_metadata_words = fused_broadcast_metadata_base + tensor_words;
+constexpr uint32_t metadata_words = fused_broadcast_metadata_words;
 constexpr uint32_t dense_push_constant_words = shader_abi::index(shader_abi::dense_metadata_field::count);
 constexpr uint32_t fused_dense_push_constant_words = dense_push_constant_words + shader_abi::index(shader_abi::fused_dense_metadata_field::count);
 constexpr uint32_t dense_push_constant_bytes = dense_push_constant_words * sizeof(uint32_t);
@@ -179,6 +182,7 @@ enum class kernel_kind : uint8_t {
     broadcast_fast_f32_eq,
     fused_dense_chain,
     fused_dense_chain_f32_vec4_no_tail,
+    fused_broadcast,
 };
 
 enum class dense_vector_width : uint32_t {
@@ -278,12 +282,24 @@ bool is_single_fused_dense_kernel(kernel_kind kind) {
                    kernel_kind::fused_dense_packed_f16_push_constants});
 }
 
+bool is_fused_broadcast_kernel(kernel_kind kind) {
+    return kind == kernel_kind::fused_broadcast;
+}
+
+bool is_single_fused_kernel(kernel_kind kind) {
+    return is_single_fused_dense_kernel(kind) || is_fused_broadcast_kernel(kind);
+}
+
 bool is_fused_chain_kernel(kernel_kind kind) {
     return one_of(kind, {kernel_kind::fused_dense_chain, kernel_kind::fused_dense_chain_f32_vec4_no_tail});
 }
 
 bool is_fused_dense_kernel(kernel_kind kind) {
     return is_single_fused_dense_kernel(kind) || is_fused_chain_kernel(kind);
+}
+
+bool is_fused_kernel(kernel_kind kind) {
+    return is_fused_dense_kernel(kind) || is_fused_broadcast_kernel(kind);
 }
 
 bool supports_restricted_output(kernel_kind kind) {
@@ -857,9 +873,27 @@ struct fused_eltwise_info {
     const fused_primitive_desc* descriptor = nullptr;
     size_t external_dependency_index = 0;
     shader_abi::fused_input_position external_position = shader_abi::fused_input_position::rhs;
+    bool broadcast_input = false;
 };
 
 using fused_eltwise_chain = std::vector<fused_eltwise_info>;
+
+bool is_numpy_broadcast_compatible(const layout& input_layout, const layout& output_layout) {
+    if (input_layout.is_dynamic() || output_layout.is_dynamic() || input_layout.get_rank() > output_layout.get_rank()) {
+        return false;
+    }
+    const auto input_shape = input_layout.get_shape();
+    const auto output_shape = output_layout.get_shape();
+    const auto leading_dimensions = output_shape.size() - input_shape.size();
+    for (size_t input_axis = 0; input_axis < input_shape.size(); ++input_axis) {
+        const auto input_dimension = input_shape[input_axis];
+        const auto output_dimension = output_shape[leading_dimensions + input_axis];
+        if (input_dimension != 1 && input_dimension != output_dimension) {
+            return false;
+        }
+    }
+    return true;
+}
 
 std::optional<fused_eltwise_chain> get_supported_fused_eltwise_chain(const program_node& node) {
     const auto& fused_primitives = node.get_fused_primitives();
@@ -924,17 +958,29 @@ std::optional<fused_eltwise_chain> get_supported_fused_eltwise_chain(const progr
             return std::nullopt;
         }
         const auto& input_layout = node.get_input_layout(external_dependency_index);
-        if (input_layout.is_dynamic() || !input_layout.identical(output_layout) || !has_dense_storage(input_layout)) {
+        const bool broadcast_input = !input_layout.identical(output_layout);
+        if (input_layout.is_dynamic() || !has_dense_storage(input_layout) ||
+            !is_supported_data_type(input_layout.data_type) ||
+            !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank ||
+            (broadcast_input &&
+             (fused_primitives.size() != 1 ||
+              data_type_traits::size_of(output_layout.data_type) < sizeof(uint32_t) ||
+              !is_numpy_broadcast_compatible(input_layout, output_layout)))) {
             return std::nullopt;
         }
-        if (!can_use_fused_dense_kernel(node.get_input_layout(0), node.get_input_layout(1), input_layout, output_layout)) {
+        if (!broadcast_input &&
+            !can_use_fused_dense_kernel(node.get_input_layout(0),
+                                        node.get_input_layout(1),
+                                        input_layout,
+                                        output_layout)) {
             return std::nullopt;
         }
 
         chain.push_back(fused_eltwise_info{&fused,
                                            external_dependency_index,
                                            *external_position == 0 ? shader_abi::fused_input_position::lhs
-                                                                   : shader_abi::fused_input_position::rhs});
+                                                                   : shader_abi::fused_input_position::rhs,
+                                           broadcast_input});
     }
 
     return chain;
@@ -987,7 +1033,8 @@ uint32_t select_generic_elements_per_invocation(kernel_kind kind,
     if (output_width != 1 || kind == kernel_kind::unary || kind == kernel_kind::broadcast_scalar || kind == kernel_kind::broadcast_fast_scalar) {
         return output_width;
     }
-    OPENVINO_ASSERT(is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind) || is_broadcast_vector_kernel(kind) || kind == kernel_kind::scalar_constant,
+    OPENVINO_ASSERT(is_plain_dense_kernel(kind) || is_fused_kernel(kind) ||
+                        is_broadcast_vector_kernel(kind) || kind == kernel_kind::scalar_constant,
                     "[GPU][Vulkan] Eltwise scalar batch selection received an unsupported kernel kind");
 
     uint32_t width_limit = std::min({operation_batch_width_limit(mode, input0_layout.data_type, kind, info),
@@ -996,7 +1043,7 @@ uint32_t select_generic_elements_per_invocation(kernel_kind kind,
     for (const auto fused_mode : fused_modes) {
         width_limit = std::min(width_limit, operation_batch_width_limit(fused_mode, output_layout.data_type, kind, info));
     }
-    if (is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind) || kind == kernel_kind::scalar_constant) {
+    if (is_plain_dense_kernel(kind) || is_fused_kernel(kind) || kind == kernel_kind::scalar_constant) {
         width_limit = std::min(width_limit, balanced_scalar_batch_width);
     }
     auto maximum_scalar_size = std::max({data_type_traits::size_of(input0_layout.data_type),
@@ -1023,9 +1070,10 @@ uint32_t select_generic_elements_per_invocation(kernel_kind kind,
         if (!has_aligned_offset(output_layout, candidate)) {
             return false;
         }
-        return !(is_plain_dense_kernel(kind) || is_fused_dense_kernel(kind)) ||
+        return !(is_plain_dense_kernel(kind) || is_fused_kernel(kind)) ||
                (has_aligned_offset(input0_layout, candidate) && has_aligned_offset(input1_layout, candidate) &&
-                (fused_input_layout == nullptr || has_aligned_offset(*fused_input_layout, candidate)));
+                (fused_input_layout == nullptr || is_fused_broadcast_kernel(kind) ||
+                 has_aligned_offset(*fused_input_layout, candidate)));
     };
     constexpr std::array candidates{maximum_scalar_batch_width, balanced_scalar_batch_width, division_scalar_batch_width, scalar_batch_width};
     for (const auto candidate : candidates) {
@@ -1047,12 +1095,14 @@ bool can_use_broadcast_vector_kernel(const layout& output_layout) {
     return output_layout.count() % broadcast_vector_width == 0;
 }
 
-void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shader_abi::tensor_index tensor, const layout& tensor_layout, uint32_t output_rank) {
+void write_tensor_metadata_at(std::array<uint32_t, metadata_words>& metadata,
+                              uint32_t base,
+                              const layout& tensor_layout,
+                              uint32_t output_rank) {
     const auto shape = tensor_layout.get_shape();
     const auto pitches = tensor_layout.get_pitches();
     OPENVINO_ASSERT(shape.size() <= pitches.size() && shape.size() <= output_rank, "[GPU][Vulkan] Eltwise received an invalid tensor rank");
 
-    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
     const auto leading_dimensions = output_rank - checked_u32(shape.size(), "rank");
     for (uint32_t axis = 0; axis < max_rank; ++axis) {
         metadata[base + axis] = 1;
@@ -1066,14 +1116,23 @@ void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata, shade
     metadata[base + max_rank * 2] = checked_u32(tensor_layout.get_linear_offset(), "base offset");
 }
 
-bool collapsed_tensor_axis(const std::array<uint32_t, metadata_words>& metadata,
+void write_tensor_metadata(std::array<uint32_t, metadata_words>& metadata,
                            shader_abi::tensor_index tensor,
+                           const layout& tensor_layout,
+                           uint32_t output_rank) {
+    write_tensor_metadata_at(metadata,
+                             header_words + shader_abi::index(tensor) * tensor_words,
+                             tensor_layout,
+                             output_rank);
+}
+
+bool collapsed_tensor_axis(const std::array<uint32_t, metadata_words>& metadata,
+                           uint32_t base,
                            uint32_t axis,
                            uint32_t output_left_dimension,
                            uint32_t output_right_dimension,
                            uint32_t& collapsed_dimension,
                            uint32_t& collapsed_pitch) {
-    const auto base = header_words + shader_abi::index(tensor) * tensor_words;
     const auto left_dimension = metadata[base + axis];
     const auto right_dimension = metadata[base + axis + 1];
     const auto left_pitch = metadata[base + max_rank + axis];
@@ -1103,7 +1162,9 @@ bool collapsed_tensor_axis(const std::array<uint32_t, metadata_words>& metadata,
     return false;
 }
 
-uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& metadata, uint32_t rank) {
+uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& metadata,
+                                      uint32_t rank,
+                                      std::optional<uint32_t> extra_tensor_base = std::nullopt) {
     if (rank < 2) {
         return rank;
     }
@@ -1112,12 +1173,20 @@ uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& meta
         const auto output_base = header_words + shader_abi::index(shader_abi::tensor_index::output) * tensor_words;
         const auto output_left_dimension = metadata[output_base + static_cast<uint32_t>(axis)];
         const auto output_right_dimension = metadata[output_base + static_cast<uint32_t>(axis) + 1];
-        std::array<uint32_t, tensor_count> collapsed_dimensions{};
-        std::array<uint32_t, tensor_count> collapsed_pitches{};
-        bool can_collapse = true;
+        std::array<uint32_t, tensor_count + 1> tensor_bases{};
         for (uint32_t tensor = 0; tensor < tensor_count; ++tensor) {
+            tensor_bases[tensor] = header_words + tensor * tensor_words;
+        }
+        const auto active_tensor_count = tensor_count + (extra_tensor_base.has_value() ? 1U : 0U);
+        if (extra_tensor_base.has_value()) {
+            tensor_bases[tensor_count] = *extra_tensor_base;
+        }
+        std::array<uint32_t, tensor_count + 1> collapsed_dimensions{};
+        std::array<uint32_t, tensor_count + 1> collapsed_pitches{};
+        bool can_collapse = true;
+        for (uint32_t tensor = 0; tensor < active_tensor_count; ++tensor) {
             can_collapse &= collapsed_tensor_axis(metadata,
-                                                  static_cast<shader_abi::tensor_index>(tensor),
+                                                  tensor_bases[tensor],
                                                   static_cast<uint32_t>(axis),
                                                   output_left_dimension,
                                                   output_right_dimension,
@@ -1128,8 +1197,8 @@ uint32_t collapse_metadata_dimensions(std::array<uint32_t, metadata_words>& meta
             continue;
         }
 
-        for (uint32_t tensor = 0; tensor < tensor_count; ++tensor) {
-            const auto base = header_words + tensor * tensor_words;
+        for (uint32_t tensor = 0; tensor < active_tensor_count; ++tensor) {
+            const auto base = tensor_bases[tensor];
             metadata[base + static_cast<uint32_t>(axis)] = collapsed_dimensions[tensor];
             metadata[base + max_rank + static_cast<uint32_t>(axis)] = collapsed_pitches[tensor];
             for (uint32_t shifted_axis = static_cast<uint32_t>(axis) + 1; shifted_axis + 1 < rank; ++shifted_axis) {
@@ -1229,7 +1298,11 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
              : 0U) |
         (output_elements_per_invocation(output_layout) > 1 ? shader_abi::value(shader_abi::storage_flag::packed_output) : 0U) |
         (scalar.has_value() && scalar->input_index == shader_abi::tensor_index::input0 ? shader_abi::value(shader_abi::storage_flag::scalar_constant_input0)
-                                                                                       : 0U);
+                                                                                       : 0U) |
+        (fused.has_value() && fused->size() == 1 && fused->front().broadcast_input &&
+                 instance.get_input_layout(fused->front().external_dependency_index).count() == 1
+             ? shader_abi::value(shader_abi::storage_flag::fused_scalar_input)
+             : 0U);
     metadata[shader_abi::index(shader_abi::metadata_field::input0_type)] = shader_abi::value(scalar_type_code(input0_layout.data_type));
     metadata[shader_abi::index(shader_abi::metadata_field::input1_type)] = shader_abi::value(scalar_type_code(input1_layout.data_type));
     metadata[shader_abi::index(shader_abi::metadata_field::output_type)] = shader_abi::value(scalar_type_code(output_layout.data_type));
@@ -1245,7 +1318,16 @@ std::array<uint32_t, metadata_words> make_metadata(const eltwise_inst& instance,
     write_tensor_metadata(metadata, shader_abi::tensor_index::input0, input0_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::input1, input1_layout, output_rank);
     write_tensor_metadata(metadata, shader_abi::tensor_index::output, output_layout, output_rank);
-    metadata[shader_abi::index(shader_abi::metadata_field::rank)] = collapse_metadata_dimensions(metadata, output_rank);
+    std::optional<uint32_t> extra_tensor_base;
+    if (fused.has_value() && fused->size() == 1 && fused->front().broadcast_input) {
+        write_tensor_metadata_at(metadata,
+                                 fused_broadcast_metadata_base,
+                                 instance.get_input_layout(fused->front().external_dependency_index),
+                                 output_rank);
+        extra_tensor_base = fused_broadcast_metadata_base;
+    }
+    metadata[shader_abi::index(shader_abi::metadata_field::rank)] =
+        collapse_metadata_dimensions(metadata, output_rank, extra_tensor_base);
     write_fast_divisor_metadata(metadata, fused.has_value() && fused->size() > 1);
     if (scalar.has_value()) {
         const auto scalar_metadata_base = header_words + shader_abi::index(scalar->input_index) * tensor_words;
@@ -1380,6 +1462,9 @@ std::shared_ptr<kernel_string> make_kernel_source(kernel_kind kind, bool restric
         select_spirv(eltwise_fused_dense_packed_16bit_push_constants_spirv, eltwise_fused_dense_packed_16bit_push_constants_restrict_spirv);
     } else if (kind == kernel_kind::fused_dense_packed_f16_push_constants) {
         select_spirv(eltwise_fused_dense_packed_f16_push_constants_spirv, eltwise_fused_dense_packed_f16_push_constants_restrict_spirv);
+    } else if (kind == kernel_kind::fused_broadcast) {
+        spirv = eltwise_fused_broadcast_spirv;
+        spirv_size = sizeof(eltwise_fused_broadcast_spirv);
     } else if (kind == kernel_kind::fused_dense_chain || kind == kernel_kind::fused_dense_chain_f32_vec4_no_tail) {
         constexpr size_t fixed_chain_variant_count = max_fused_chain_length - min_multi_stage_fused_chain_length + 1;
         static const std::array<spirv_blob, fixed_chain_variant_count> scalar_alias_safe{{
@@ -1556,7 +1641,11 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         if (uses_dense_push_constants(_kernel_kind)) {
             return {};
         }
-        const auto buffer_words = is_fused_chain_kernel(_kernel_kind) ? fused_chain_metadata_words : regular_metadata_words;
+        const auto buffer_words = is_fused_broadcast_kernel(_kernel_kind)
+                                      ? fused_broadcast_metadata_words
+                                      : (is_fused_chain_kernel(_kernel_kind)
+                                             ? fused_chain_metadata_words
+                                             : regular_metadata_words);
         return {BufferDescriptor(buffer_words, ov::element::u32, true, false)};
     }
 
@@ -1605,13 +1694,18 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto desc = instance.get_typed_desc<eltwise>();
         const auto base_input_count = is_unary_mode(desc->mode) ? 1U : 2U;
         const auto fused = get_supported_fused_eltwise_chain(instance.get_node());
+        const bool use_fused_kernel = is_fused_kernel(_kernel_kind);
         const bool use_fused_dense_kernel = is_fused_dense_kernel(_kernel_kind);
-        const bool use_single_fused_dense_kernel = is_single_fused_dense_kernel(_kernel_kind);
+        const bool use_fused_broadcast_kernel = is_fused_broadcast_kernel(_kernel_kind);
+        const bool use_single_fused_kernel = is_single_fused_kernel(_kernel_kind);
         const bool use_fused_chain_kernel = is_fused_chain_kernel(_kernel_kind);
         const bool use_dense_push_constants = uses_dense_push_constants(_kernel_kind);
-        OPENVINO_ASSERT(use_fused_dense_kernel == fused.has_value(), "[GPU][Vulkan] Fused Eltwise kernel and graph metadata are inconsistent");
-        OPENVINO_ASSERT(!use_single_fused_dense_kernel || fused->size() == 1,
+        OPENVINO_ASSERT(use_fused_kernel == fused.has_value(),
+                        "[GPU][Vulkan] Fused Eltwise kernel and graph metadata are inconsistent");
+        OPENVINO_ASSERT(!use_single_fused_kernel || fused->size() == 1,
                         "[GPU][Vulkan] Single-stage fused Eltwise kernel received a longer chain");
+        OPENVINO_ASSERT(!use_fused_broadcast_kernel || fused->front().broadcast_input,
+                        "[GPU][Vulkan] Fused broadcast Eltwise kernel received a dense external input");
         OPENVINO_ASSERT(!use_fused_chain_kernel ||
                             (fused->size() >= min_multi_stage_fused_chain_length && fused->size() <= max_fused_chain_length &&
                              fused->size() == _fused_chain_length),
@@ -1642,8 +1736,10 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         const auto& input0_layout = instance.get_input_layout(0);
         const auto& input1_layout = base_input_count == 1 ? input0_layout : instance.get_input_layout(1);
         const auto& output_layout = instance.get_output_layout(0);
-        const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_dense_kernel;
-        const auto* fused_input_layout = use_fused_dense_kernel ? &instance.get_input_layout(fused->front().external_dependency_index) : nullptr;
+        const bool use_dense_kernel = is_plain_dense_kernel(_kernel_kind) || use_fused_kernel;
+        const auto* fused_input_layout = use_fused_kernel
+                                             ? &instance.get_input_layout(fused->front().external_dependency_index)
+                                             : nullptr;
         const auto selected_dense_vector_width = get_dense_vector_width(_kernel_kind);
         const bool use_broadcast_vector_kernel = is_broadcast_vector_kernel(_kernel_kind);
         const bool use_fast_broadcast_kernel = is_fast_broadcast_kernel(_kernel_kind);
@@ -1665,6 +1761,12 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
                                                                          output_layout);
                                    })),
                         "[GPU][Vulkan] Fused dense Eltwise runtime layouts no longer satisfy the compiled kernel contract");
+        OPENVINO_ASSERT(!use_fused_broadcast_kernel ||
+                            (fused->size() == 1 && fused->front().broadcast_input &&
+                             has_dense_storage(*fused_input_layout) &&
+                             is_numpy_broadcast_compatible(*fused_input_layout, output_layout)),
+                        "[GPU][Vulkan] Fused broadcast Eltwise runtime layouts no longer satisfy the compiled "
+                        "kernel contract");
         OPENVINO_ASSERT(selected_dense_vector_width == dense_vector_width::scalar ||
                             can_use_f32_dense_vector_width(input0_layout, input1_layout, output_layout, fused_input_layout, selected_dense_vector_width),
                         "[GPU][Vulkan] F32 vector Eltwise runtime layouts no longer satisfy the compiled kernel contract");
@@ -1735,7 +1837,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             descriptor.specialization_constants.push_back(
                 {shader_abi::index(shader_abi::specialization_id::broadcast_output_axes), active_broadcast_axes(metadata, shader_abi::tensor_index::output)});
         }
-        if (use_single_fused_dense_kernel) {
+        if (use_single_fused_kernel) {
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_mode),
                                                            metadata[fused_metadata_base + shader_abi::index(shader_abi::fused_metadata_field::mode)]});
             descriptor.specialization_constants.push_back({shader_abi::index(shader_abi::specialization_id::fused_input_type),
@@ -1759,7 +1861,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
             }
         }
         if (use_dense_push_constants) {
-            descriptor.scalars = make_dense_push_constants(metadata, use_single_fused_dense_kernel);
+            descriptor.scalars = make_dense_push_constants(metadata, is_single_fused_dense_kernel(_kernel_kind));
         }
         descriptor.arguments = {{argument_desc::Types::INPUT, 0}};
         if (use_scalar_constant_kernel) {
@@ -1769,7 +1871,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         } else if (!use_unary_kernel) {
             descriptor.arguments.push_back({argument_desc::Types::INPUT, 1});
         }
-        if (use_single_fused_dense_kernel) {
+        if (use_single_fused_kernel) {
             descriptor.arguments.push_back({argument_desc::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
         } else if (use_fused_chain_kernel) {
             for (size_t stage = 0; stage < max_fused_chain_length; ++stage) {
@@ -1789,7 +1891,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
         for (size_t input_index = 0; input_index < base_input_count; ++input_index) {
             arguments.inputs.push_back(instance.input_memory_ptr(input_index));
         }
-        if (use_fused_dense_kernel) {
+        if (use_fused_kernel) {
             for (size_t stage = 0; stage < fused->size(); ++stage) {
                 arguments.fused_op_inputs.push_back(instance.fused_memory(stage));
             }
@@ -1904,7 +2006,9 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
                                         ? checked_u32(fused->size(), "fused chain length")
                                         : 0U;
     if (fused.has_value()) {
-        kind = fused->size() == 1 ? kernel_kind::fused_dense : kernel_kind::fused_dense_chain;
+        kind = fused->size() == 1
+                   ? (fused->front().broadcast_input ? kernel_kind::fused_broadcast : kernel_kind::fused_dense)
+                   : kernel_kind::fused_dense_chain;
         if (fused_chain_length != 0) {
             const auto& fused_input_layout = params.get_input_layout(fused->front().external_dependency_index);
             const auto vector_width =
@@ -1912,7 +2016,7 @@ std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const 
             if (vector_width == dense_vector_width::vec4 && can_use_f32_no_tail_kernel(params.get_output_layout(0), vector_width, device_info)) {
                 kind = kernel_kind::fused_dense_chain_f32_vec4_no_tail;
             }
-        } else if (max_push_constants_size >= fused_dense_push_constant_bytes) {
+        } else if (!fused->front().broadcast_input && max_push_constants_size >= fused_dense_push_constant_bytes) {
             const auto& fused_input_layout = params.get_input_layout(fused->front().external_dependency_index);
             const auto packed_width = select_packed_dense_width(input0_layout, input1_layout, params.get_output_layout(0), &fused_input_layout, device_info);
             if (packed_width != packed_dense_width::none) {

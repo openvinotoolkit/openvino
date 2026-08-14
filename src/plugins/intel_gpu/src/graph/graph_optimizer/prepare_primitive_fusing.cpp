@@ -1076,6 +1076,39 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     const auto& fused_layout = parents[i].first->get_output_layout();
                     const auto& peer_layout = parents[parents.size() - 1 - i].first->get_output_layout();
                     const auto& output_layout = node.get_output_layout();
+                    const auto has_dense_storage = [](const layout& tensor_layout) {
+                        return !static_cast<bool>(tensor_layout.data_padding) &&
+                               tensor_layout.bytes_count() ==
+                                   tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
+                    };
+                    const auto is_numpy_broadcast_compatible = [](const layout& input_layout,
+                                                                  const layout& target_layout) {
+                        const auto input_shape = input_layout.get_shape();
+                        const auto target_shape = target_layout.get_shape();
+                        if (input_shape.size() > target_shape.size()) {
+                            return false;
+                        }
+                        const auto leading_dimensions = target_shape.size() - input_shape.size();
+                        for (size_t input_axis = 0; input_axis < input_shape.size(); ++input_axis) {
+                            const auto input_dimension = input_shape[input_axis];
+                            const auto target_dimension = target_shape[leading_dimensions + input_axis];
+                            if (input_dimension != 1 && input_dimension != target_dimension) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    };
+                    const bool layouts_are_static = !fused_layout.is_dynamic() &&
+                                                    !peer_layout.is_dynamic() &&
+                                                    !output_layout.is_dynamic();
+                    const bool peer_is_broadcast = layouts_are_static && !peer_layout.identical(output_layout);
+                    const bool peer_layout_supported =
+                        layouts_are_static &&
+                        (!peer_is_broadcast || (prim->broadcast_spec.m_type == ov::op::AutoBroadcastType::NUMPY &&
+                                                data_type_traits::size_of(output_layout.data_type) >=
+                                                    sizeof(uint32_t) &&
+                                                parents[i].first->get_fused_primitives().empty() &&
+                                                is_numpy_broadcast_compatible(peer_layout, output_layout)));
                     bool packed_output_supported = false;
                     if (!output_layout.is_dynamic()) {
                         const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
@@ -1089,9 +1122,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         parents[i].first->get_fused_primitives().size() <
                             vulkan_eltwise_abi::value(vulkan_eltwise_abi::limit::max_fused_chain_length) &&
                         parents[i].first->get_inputs_count() == 2 &&
-                        !fused_layout.is_dynamic() && !peer_layout.is_dynamic() && !output_layout.is_dynamic() && packed_output_supported &&
+                        layouts_are_static && has_dense_storage(fused_layout) && has_dense_storage(peer_layout) &&
+                        has_dense_storage(output_layout) && packed_output_supported && peer_layout_supported &&
                         parents[i].first->get_input_layout(0).identical(output_layout) && parents[i].first->get_input_layout(1).identical(output_layout) &&
-                        fused_layout.identical(output_layout) && peer_layout.identical(output_layout);
+                        fused_layout.identical(output_layout);
                     continue;
                 }
 
@@ -1141,7 +1175,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            if (parent1.first->get_output_layout().is_static() && parent2.first->get_output_layout().is_static()) {
+            if (!is_vulkan_runtime &&
+                parent1.first->get_output_layout().is_static() &&
+                parent2.first->get_output_layout().is_static()) {
                 auto p1_raw_size = parent1.first->get_output_layout().get_tensor().sizes();
                 auto p2_raw_size = parent2.first->get_output_layout().get_tensor().sizes();
                 for (unsigned k = 0; k < p1_raw_size.size(); k++) {
@@ -1155,7 +1191,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
-            } else {
+            } else if (!is_vulkan_runtime) {
                 // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
                 // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
                 // which may ruin shape inference

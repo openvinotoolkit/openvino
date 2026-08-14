@@ -31,6 +31,10 @@
 #define ELTWISE_FUSED_CHAIN 0
 #endif
 
+#ifndef ELTWISE_FUSED_BROADCAST
+#define ELTWISE_FUSED_BROADCAST 0
+#endif
+
 #ifndef ELTWISE_FIXED_FUSED_CHAIN_LENGTH
 #define ELTWISE_FIXED_FUSED_CHAIN_LENGTH 0
 #endif
@@ -288,6 +292,7 @@ const uint fast_divisor_metadata_base = fused_chain_metadata_base + fused_chain_
 #else
 const uint fast_divisor_metadata_base = fused_metadata_base + fused_metadata_count;
 #endif
+const uint fused_broadcast_metadata_base = fused_chain_metadata_base + fused_chain_metadata_count + max_rank;
 const uint byte_value_mask = 0xff;
 const uint half_value_mask = 0xffff;
 
@@ -903,9 +908,8 @@ uvec2 pow_u64(uvec2 base, uvec2 exponent) {
     return result;
 }
 
-#if !ELTWISE_DENSE
-uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
-    uint base = header_words + tensor_index * tensor_words;
+#if !ELTWISE_DENSE || ELTWISE_FUSED_BROADCAST
+uint storage_element_offset_from_base(uint base, uint coordinates[max_rank], uint rank) {
     uint offset = metadata.values[base + max_rank * 2];
     for (uint axis = 0; axis < rank; ++axis) {
         uint dimension = metadata.values[base + axis];
@@ -915,7 +919,13 @@ uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint 
     return offset;
 }
 
-#if ELTWISE_FAST_BROADCAST
+#if !ELTWISE_DENSE
+uint storage_element_offset(uint tensor_index, uint coordinates[max_rank], uint rank) {
+    return storage_element_offset_from_base(header_words + tensor_index * tensor_words, coordinates, rank);
+}
+#endif
+
+#if ELTWISE_FAST_BROADCAST || ELTWISE_FUSED_BROADCAST
 uint fast_divide_u32(uint numerator, uint divisor, uint reciprocal) {
     if (divisor == 1) {
         return numerator;
@@ -927,6 +937,9 @@ uint fast_divide_u32(uint numerator, uint divisor, uint reciprocal) {
     return product_high + (remainder >= divisor ? 1u : 0u);
 }
 
+#endif
+
+#if ELTWISE_FAST_BROADCAST
 void fast_broadcast_offsets(uint linear_index, out uint input0_offset, out uint input1_offset, out uint output_offset) {
     uint input0_base = header_words + tensor_input0 * tensor_words;
     uint input1_base = header_words + tensor_input1 * tensor_words;
@@ -939,7 +952,8 @@ void fast_broadcast_offsets(uint linear_index, out uint input0_offset, out uint 
     for (int axis = int(selected_broadcast_rank) - 1; axis >= 0; --axis) {
         uint unsigned_axis = uint(axis);
         uint dimension = metadata.values[output_base + unsigned_axis];
-        uint quotient = fast_divide_u32(remainder, dimension, metadata.values[fast_divisor_metadata_base + unsigned_axis]);
+        uint reciprocal = metadata.values[fast_divisor_metadata_base + unsigned_axis];
+        uint quotient = fast_divide_u32(remainder, dimension, reciprocal);
         uint coordinate = remainder - quotient * dimension;
         uint axis_bit = 1u << unsigned_axis;
         if ((selected_broadcast_input0_axes & axis_bit) != 0) {
@@ -955,6 +969,27 @@ void fast_broadcast_offsets(uint linear_index, out uint input0_offset, out uint 
     }
 }
 #endif
+#endif
+
+#if ELTWISE_FUSED_BROADCAST
+uint fused_broadcast_input_offset(uint linear_index) {
+    if ((selected_storage_flags & storage_fused_scalar_input_flag) != 0) {
+        return metadata.values[fused_broadcast_metadata_base + max_rank * 2];
+    }
+    uint rank = metadata.values[metadata_rank];
+    uint output_base = header_words + tensor_output * tensor_words;
+    uint coordinates[max_rank];
+    uint remainder = linear_index;
+    for (int axis = int(rank) - 1; axis >= 0; --axis) {
+        uint unsigned_axis = uint(axis);
+        uint dimension = metadata.values[output_base + unsigned_axis];
+        uint reciprocal = metadata.values[fast_divisor_metadata_base + unsigned_axis];
+        uint quotient = fast_divide_u32(remainder, dimension, reciprocal);
+        coordinates[unsigned_axis] = remainder - quotient * dimension;
+        remainder = quotient;
+    }
+    return storage_element_offset_from_base(fused_broadcast_metadata_base, coordinates, rank);
+}
 #endif
 
 bool is_boolean_mode(uint mode) {
@@ -1343,7 +1378,11 @@ uvec2 evaluate_element(uint linear_index, out uint output_offset) {
 uvec2 evaluate_element(uint linear_index, out uint output_offset) {
     uvec2 base_value = evaluate_base_element(linear_index, output_offset);
     uint output_type = selected_output_type;
+#if ELTWISE_FUSED_BROADCAST
+    uint fused_input_offset = fused_broadcast_input_offset(linear_index);
+#else
     uint fused_input_offset = runtime_fused_input_offset() + linear_index;
+#endif
     if (is_float_type(output_type)) {
         float original = output_type == type_f32 ? uintBitsToFloat(base_value.x) : unpackHalf2x16(base_value.x).x;
         float fused_input = load_float_fused(fused_input_offset, selected_fused_input_type);
