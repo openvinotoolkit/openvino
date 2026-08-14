@@ -23,6 +23,7 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
+#include "impls/vulkan/eltwise_shader_abi.hpp"
 
 #include <vector>
 #include <list>
@@ -462,6 +463,17 @@ void remove_redundant_reorders::run(program& p) {
                  input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
+
+            if (p.get_engine().runtime_type() == runtime_types::vulkan && input.is_type<eltwise>()) {
+                const auto& info = p.get_engine().get_device_info();
+                const auto subgroup_size = info.supported_simd_sizes.empty()
+                                               ? 0
+                                               : info.supported_simd_sizes.front();
+                if (!vulkan::eltwise_shader_abi::post_op_fusion_has_enough_work(
+                        output_layout.count(), info.max_work_group_size, subgroup_size)) {
+                    continue;
+                }
+            }
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;

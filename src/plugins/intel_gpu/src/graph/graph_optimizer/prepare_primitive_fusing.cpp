@@ -545,9 +545,67 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        const bool can_fuse_vulkan_output_eltwise = is_vulkan_runtime && node->is_output() && node->is_type<eltwise>();
-        if ((node->is_output() && !can_fuse_vulkan_output_eltwise) || node->is_constant())
+        const bool can_fuse_vulkan_output =
+            is_vulkan_runtime && node->is_output() &&
+            (node->is_type<eltwise>() || node->is_type<activation>() ||
+             node->is_type<quantize>() || node->is_type<reorder>());
+        if ((node->is_output() && !can_fuse_vulkan_output) || node->is_constant())
             continue;
+
+        const auto has_vulkan_dense_storage = [](const layout& tensor_layout) {
+            return !tensor_layout.is_dynamic() && !static_cast<bool>(tensor_layout.data_padding) &&
+                   tensor_layout.bytes_count() ==
+                       tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
+        };
+        const auto same_vulkan_dense_geometry = [&](const layout& input_layout,
+                                                    const layout& output_layout) {
+            return has_vulkan_dense_storage(input_layout) && has_vulkan_dense_storage(output_layout) &&
+                   input_layout.get_shape() == output_layout.get_shape() &&
+                   input_layout.format == output_layout.format &&
+                   input_layout.data_padding == output_layout.data_padding;
+        };
+        const auto vulkan_post_op_fusion_has_enough_work = [&](const layout& output_layout) {
+            const auto& info = p.get_engine().get_device_info();
+            const auto subgroup_size = info.supported_simd_sizes.empty()
+                                           ? 0
+                                           : info.supported_simd_sizes.front();
+            return vulkan::eltwise_shader_abi::post_op_fusion_has_enough_work(
+                output_layout.count(), info.max_work_group_size, subgroup_size);
+        };
+        const auto vulkan_eltwise_supports_terminal_post_op = [&](const program_node& input,
+                                                                 const layout& post_output_layout) {
+            if (!input.is_type<eltwise>() || input.is_output() || input.get_users().size() != 1 ||
+                input.has_fused_primitives() || input.get_dependencies().empty() ||
+                input.get_inputs_count() != 2) {
+                return false;
+            }
+            const auto& base_output_layout = input.get_output_layout();
+            if (!one_of(base_output_layout.data_type, {data_types::f16, data_types::f32}) ||
+                !same_vulkan_dense_geometry(base_output_layout, post_output_layout) ||
+                !vulkan_post_op_fusion_has_enough_work(post_output_layout)) {
+                return false;
+            }
+            return input.get_input_layout(0).identical(base_output_layout) &&
+                   input.get_input_layout(1).identical(base_output_layout);
+        };
+        const auto vulkan_supports_activation = [](activation_func function) {
+            return one_of(function,
+                          {activation_func::none,
+                           activation_func::relu,
+                           activation_func::relu_negative_slope,
+                           activation_func::clamp,
+                           activation_func::abs,
+                           activation_func::linear,
+                           activation_func::square,
+                           activation_func::sqrt,
+                           activation_func::negative,
+                           activation_func::floor,
+                           activation_func::ceil,
+                           activation_func::reciprocal,
+                           activation_func::hard_sigmoid,
+                           activation_func::hsigmoid,
+                           activation_func::hswish});
+        };
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
             auto in_layout = node.get_input_layout(0);
@@ -793,8 +851,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            if (is_vulkan_runtime)
+            if (is_vulkan_runtime) {
+                auto& input = activation_node.get_dependency(0);
+                const auto desc = activation_node.get_primitive();
+                if (activation_node.get_dependencies().size() != 1 ||
+                    desc->additional_params_input.is_valid() ||
+                    !vulkan_supports_activation(desc->activation_function) ||
+                    activation_node.get_output_layout().data_type != input.get_output_layout().data_type ||
+                    !vulkan_eltwise_supports_terminal_post_op(input,
+                                                               activation_node.get_output_layout())) {
+                    return;
+                }
+                p.fuse_nodes(input,
+                             activation_node,
+                             &fusing_history,
+                             activation_node.is_output());
                 return;
+            }
 
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
@@ -940,8 +1013,26 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
-            if (is_vulkan_runtime)
+            if (is_vulkan_runtime) {
+                auto& input = quantize_node.get_dependency(0);
+                const bool uses_output_range = quantize_node.get_per_tensor_output_range() &&
+                                               quantize_node.get_output_lo_val() <
+                                                   quantize_node.get_output_hi_val();
+                if (!quantize_node.get_scale_shift_opt() ||
+                    !quantize_node.has_per_tensor_values() ||
+                    (!uses_output_range && quantize_node.get_need_clamp()) ||
+                    !one_of(quantize_node.get_output_layout().data_type,
+                            {data_types::f16, data_types::f32, data_types::i8, data_types::u8}) ||
+                    !vulkan_eltwise_supports_terminal_post_op(input,
+                                                               quantize_node.get_output_layout())) {
+                    return;
+                }
+                p.fuse_nodes(input,
+                             quantize_node,
+                             &fusing_history,
+                             quantize_node.is_output());
                 return;
+            }
 
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
@@ -1426,11 +1517,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history, is_vulkan_runtime && node.is_output());
         };
 
+        auto fuse_reorder_f = [&](reorder_node& reorder_node) {
+            if (!is_vulkan_runtime || reorder_node.get_dependencies().size() != 1 ||
+                !reorder_node.is_type_conversion_only()) {
+                return;
+            }
+            auto& input = reorder_node.get_dependency(0);
+            const auto& input_layout = input.get_output_layout();
+            const auto& output_layout = reorder_node.get_output_layout();
+            if (!one_of(input_layout.data_type, {data_types::f16, data_types::f32}) ||
+                !one_of(output_layout.data_type, {data_types::f16, data_types::f32}) ||
+                !vulkan_eltwise_supports_terminal_post_op(input, output_layout)) {
+                return;
+            }
+            p.fuse_nodes(input, reorder_node, &fusing_history, reorder_node.is_output());
+        };
+
         // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
-        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
+        program_helpers::do_for_types<activation, quantize, eltwise, reorder>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
-                fuse_eltwise_f);
+                fuse_eltwise_f,
+                fuse_reorder_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater
