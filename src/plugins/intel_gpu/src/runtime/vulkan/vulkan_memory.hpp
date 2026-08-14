@@ -19,6 +19,21 @@ class vulkan_engine;
 class vulkan_device;
 class vulkan_memory_allocator;
 
+enum class vulkan_buffer_memory_usage {
+    device,
+    host_staging,
+};
+
+struct vulkan_memory_type_selection {
+    uint32_t index = 0;
+    VkMemoryPropertyFlags flags = 0;
+};
+
+vulkan_memory_type_selection select_vulkan_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
+                                                       uint32_t allowed_types,
+                                                       vulkan_buffer_memory_usage usage,
+                                                       bool prefer_unified_memory);
+
 class vulkan_buffer_allocation {
 public:
     using ptr = std::shared_ptr<vulkan_buffer_allocation>;
@@ -29,7 +44,7 @@ public:
                              VkDeviceMemory memory,
                              void* mapped_data,
                              VkDeviceSize size,
-                             bool host_coherent);
+                             VkMemoryPropertyFlags memory_flags);
     ~vulkan_buffer_allocation();
 
     vulkan_buffer_allocation(const vulkan_buffer_allocation&) = delete;
@@ -38,12 +53,20 @@ public:
     void flush() const;
     void invalidate() const;
 
+    bool is_host_visible() const {
+        return (memory_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+    }
+
+    bool is_device_local() const {
+        return (memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
+    }
+
     VkDevice device = VK_NULL_HANDLE;
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     void* mapped_data = nullptr;
     VkDeviceSize size = 0;
-    bool host_coherent = false;
+    VkMemoryPropertyFlags memory_flags = 0;
 
 private:
     std::shared_ptr<vulkan_device> _device_owner;
@@ -167,10 +190,12 @@ public:
 private:
     void validate_range(size_t offset, size_t size, const char* operation) const;
     void* mapped_data() const;
+    vulkan_buffer_allocation::ptr allocate_staging(size_t size) const;
 
     vulkan_buffer_region::ptr _region;
     VkDeviceSize _view_offset = 0;
     mutable std::mutex _lock_mutex;
+    vulkan_buffer_allocation::ptr _lock_staging;
     size_t _lock_count = 0;
     bool _write_access = false;
 };

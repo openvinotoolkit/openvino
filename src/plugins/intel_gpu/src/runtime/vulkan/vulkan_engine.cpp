@@ -82,8 +82,13 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     check_allocatable(layout, type);
 
     auto region = allocate_buffer_region(layout.bytes_count());
-    auto* mapped_data = static_cast<unsigned char*>(region->get_allocation()->mapped_data) + region->get_offset();
-    auto memory_tracker = std::make_shared<MemoryTracker>(this, mapped_data, layout.bytes_count(), allocation_type::vulkan_buffer);
+    auto* tracking_address = region->get_allocation()->mapped_data;
+    if (tracking_address != nullptr) {
+        tracking_address = static_cast<unsigned char*>(tracking_address) + region->get_offset();
+    } else {
+        tracking_address = region.get();
+    }
+    auto memory_tracker = std::make_shared<MemoryTracker>(this, tracking_address, layout.bytes_count(), allocation_type::vulkan_buffer);
     auto result = std::make_shared<vulkan_buffer>(this, layout, std::move(region), 0, std::move(memory_tracker));
     if (reset || result->is_memory_reset_needed(layout)) {
         result->fill(get_service_stream());

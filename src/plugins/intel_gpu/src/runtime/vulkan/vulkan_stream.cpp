@@ -47,6 +47,88 @@ void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
 }
 
+class synchronous_buffer_transfer {
+public:
+    synchronous_buffer_transfer(VkDevice device, uint32_t queue_family) : _device(device) {
+        try {
+            VkCommandPoolCreateInfo pool_info{};
+            pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+            pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+            pool_info.queueFamilyIndex = queue_family;
+            check_vk_result(vkCreateCommandPool(_device, &pool_info, nullptr, &_pool), "vkCreateCommandPool(staging transfer)");
+
+            VkCommandBufferAllocateInfo command_info{};
+            command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            command_info.commandPool = _pool;
+            command_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            command_info.commandBufferCount = 1;
+            check_vk_result(vkAllocateCommandBuffers(_device, &command_info, &_command_buffer), "vkAllocateCommandBuffers(staging transfer)");
+
+            VkFenceCreateInfo fence_info{};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            check_vk_result(vkCreateFence(_device, &fence_info, nullptr, &_fence), "vkCreateFence(staging transfer)");
+        } catch (...) {
+            release();
+            throw;
+        }
+    }
+
+    ~synchronous_buffer_transfer() {
+        release();
+    }
+
+    synchronous_buffer_transfer(const synchronous_buffer_transfer&) = delete;
+    synchronous_buffer_transfer& operator=(const synchronous_buffer_transfer&) = delete;
+
+    void execute(VkQueue queue,
+                 std::mutex& queue_mutex,
+                 VkBuffer source,
+                 VkDeviceSize source_offset,
+                 VkBuffer destination,
+                 VkDeviceSize destination_offset,
+                 VkDeviceSize size) {
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        check_vk_result(vkBeginCommandBuffer(_command_buffer, &begin_info), "vkBeginCommandBuffer(staging transfer)");
+
+        VkBufferCopy copy{};
+        copy.srcOffset = source_offset;
+        copy.dstOffset = destination_offset;
+        copy.size = size;
+        vkCmdCopyBuffer(_command_buffer, source, destination, 1, &copy);
+        check_vk_result(vkEndCommandBuffer(_command_buffer), "vkEndCommandBuffer(staging transfer)");
+
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &_command_buffer;
+        {
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            check_vk_result(vkQueueSubmit(queue, 1, &submit_info, _fence), "vkQueueSubmit(staging transfer)");
+        }
+        check_vk_result(vkWaitForFences(_device, 1, &_fence, VK_TRUE, std::numeric_limits<uint64_t>::max()), "vkWaitForFences(staging transfer)");
+    }
+
+private:
+    void release() noexcept {
+        if (_fence != VK_NULL_HANDLE) {
+            vkDestroyFence(_device, _fence, nullptr);
+        }
+        if (_pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(_device, _pool, nullptr);
+        }
+        _fence = VK_NULL_HANDLE;
+        _command_buffer = VK_NULL_HANDLE;
+        _pool = VK_NULL_HANDLE;
+    }
+
+    VkDevice _device = VK_NULL_HANDLE;
+    VkCommandPool _pool = VK_NULL_HANDLE;
+    VkCommandBuffer _command_buffer = VK_NULL_HANDLE;
+    VkFence _fence = VK_NULL_HANDLE;
+};
+
 memory::cptr get_argument_memory(const argument_desc& descriptor, const kernel_arguments_data& data) {
     switch (descriptor.t) {
     case argument_desc::Types::INPUT:
@@ -1375,6 +1457,21 @@ event::ptr vulkan_stream::create_base_event() {
 
 std::unique_ptr<surfaces_lock> vulkan_stream::create_surfaces_lock(const std::vector<memory::ptr>&) const {
     return std::make_unique<empty_surfaces_lock>();
+}
+
+void vulkan_stream::copy_buffer(VkBuffer source, VkDeviceSize source_offset, VkBuffer destination, VkDeviceSize destination_offset, VkDeviceSize size) const {
+    if (size == 0) {
+        return;
+    }
+    OPENVINO_ASSERT(source != VK_NULL_HANDLE && destination != VK_NULL_HANDLE, "[GPU][Vulkan] Staging transfer received a null buffer");
+    if (source == destination) {
+        const auto non_overlapping =
+            source_offset < destination_offset ? size <= destination_offset - source_offset : size <= source_offset - destination_offset;
+        OPENVINO_ASSERT(non_overlapping, "[GPU][Vulkan] Staging transfer ranges overlap in one buffer");
+    }
+    finish();
+    synchronous_buffer_transfer transfer(_engine.get_device_handle(), _engine.get_compute_queue_family());
+    transfer.execute(_engine.get_compute_queue(), _engine.get_queue_mutex(), source, source_offset, destination, destination_offset, size);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

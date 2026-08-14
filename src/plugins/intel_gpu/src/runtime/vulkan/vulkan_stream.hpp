@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vulkan/vulkan.h>
+
 #include <memory>
 
 #include "intel_gpu/runtime/stream.hpp"
@@ -36,6 +38,7 @@ public:
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr>& memory) const override;
+    void copy_buffer(VkBuffer source, VkDeviceSize source_offset, VkBuffer destination, VkDeviceSize destination_offset, VkDeviceSize size) const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;

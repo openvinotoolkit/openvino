@@ -47,40 +47,33 @@ void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
 }
 
-uint32_t select_memory_type(VkPhysicalDevice physical_device, uint32_t allowed_types) {
-    VkPhysicalDeviceMemoryProperties properties{};
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
-
-    std::optional<uint32_t> selected;
-    int selected_score = -1;
+std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
+                                                             uint32_t allowed_types,
+                                                             VkMemoryPropertyFlags required,
+                                                             VkMemoryPropertyFlags forbidden = 0) {
     for (uint32_t index = 0; index < properties.memoryTypeCount; ++index) {
         if ((allowed_types & (1U << index)) == 0) {
             continue;
         }
 
         const auto flags = properties.memoryTypes[index].propertyFlags;
-        if ((flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0) {
-            continue;
-        }
-
-        const int score = ((flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0 ? 2 : 0) + ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0 ? 1 : 0);
-        if (score > selected_score) {
-            selected = index;
-            selected_score = score;
+        if ((flags & required) == required && (flags & forbidden) == 0) {
+            return vulkan_memory_type_selection{index, flags};
         }
     }
-
-    OPENVINO_ASSERT(selected.has_value(), "[GPU][Vulkan] No host-visible memory type is available for a storage buffer");
-    return *selected;
+    return std::nullopt;
 }
 
-vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requested_size) {
+vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requested_size, vulkan_buffer_memory_usage usage) {
     const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.size = buffer_size;
-    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    if (usage == vulkan_buffer_memory_usage::device) {
+        buffer_info.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    }
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkBuffer buffer = VK_NULL_HANDLE;
@@ -88,16 +81,15 @@ vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requ
 
     VkMemoryRequirements requirements{};
     vkGetBufferMemoryRequirements(engine.get_device_handle(), buffer, &requirements);
-    const auto memory_type = select_memory_type(engine.get_physical_device(), requirements.memoryTypeBits);
-
     VkPhysicalDeviceMemoryProperties memory_properties{};
     vkGetPhysicalDeviceMemoryProperties(engine.get_physical_device(), &memory_properties);
-    const auto memory_flags = memory_properties.memoryTypes[memory_type].propertyFlags;
+    const auto prefer_unified_memory = engine.get_device_info().dev_type != device_type::discrete_gpu;
+    const auto memory_type = select_vulkan_memory_type(memory_properties, requirements.memoryTypeBits, usage, prefer_unified_memory);
 
     VkMemoryAllocateInfo allocation_info{};
     allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocation_info.allocationSize = requirements.size;
-    allocation_info.memoryTypeIndex = memory_type;
+    allocation_info.memoryTypeIndex = memory_type.index;
 
     VkDeviceMemory device_memory = VK_NULL_HANDLE;
     const auto allocation_result = vkAllocateMemory(engine.get_device_handle(), &allocation_info, nullptr, &device_memory);
@@ -114,11 +106,13 @@ vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requ
     }
 
     void* mapped_data = nullptr;
-    const auto map_result = vkMapMemory(engine.get_device_handle(), device_memory, 0, VK_WHOLE_SIZE, 0, &mapped_data);
-    if (map_result != VK_SUCCESS) {
-        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
-        vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
-        check_vk_result(map_result, "vkMapMemory");
+    if ((memory_type.flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0) {
+        const auto map_result = vkMapMemory(engine.get_device_handle(), device_memory, 0, VK_WHOLE_SIZE, 0, &mapped_data);
+        if (map_result != VK_SUCCESS) {
+            vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+            vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
+            check_vk_result(map_result, "vkMapMemory");
+        }
     }
 
     return std::make_shared<vulkan_buffer_allocation>(engine.get_vulkan_device_object(),
@@ -127,7 +121,7 @@ vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requ
                                                       device_memory,
                                                       mapped_data,
                                                       buffer_size,
-                                                      (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0);
+                                                      memory_type.flags);
 }
 
 const vulkan_stream& validate_stream(const stream& stream) {
@@ -138,19 +132,68 @@ const vulkan_stream& validate_stream(const stream& stream) {
 
 }  // namespace
 
+vulkan_memory_type_selection select_vulkan_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
+                                                       uint32_t allowed_types,
+                                                       vulkan_buffer_memory_usage usage,
+                                                       bool prefer_unified_memory) {
+    const auto device_local = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    const auto host_visible = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    const auto host_coherent = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    if (usage == vulkan_buffer_memory_usage::host_staging) {
+        if (const auto selected = find_memory_type(properties, allowed_types, host_visible | host_coherent, device_local)) {
+            return *selected;
+        }
+        if (const auto selected = find_memory_type(properties, allowed_types, host_visible, device_local)) {
+            return *selected;
+        }
+        if (const auto selected = find_memory_type(properties, allowed_types, host_visible | host_coherent)) {
+            return *selected;
+        }
+        if (const auto selected = find_memory_type(properties, allowed_types, host_visible)) {
+            return *selected;
+        }
+        OPENVINO_THROW("[GPU][Vulkan] No host-visible memory type is available for a staging buffer");
+    }
+
+    if (prefer_unified_memory) {
+        if (const auto selected = find_memory_type(properties, allowed_types, device_local | host_visible | host_coherent)) {
+            return *selected;
+        }
+        if (const auto selected = find_memory_type(properties, allowed_types, device_local | host_visible)) {
+            return *selected;
+        }
+    } else if (const auto selected = find_memory_type(properties, allowed_types, device_local, host_visible)) {
+        return *selected;
+    }
+    if (const auto selected = find_memory_type(properties, allowed_types, device_local)) {
+        return *selected;
+    }
+    if (const auto selected = find_memory_type(properties, allowed_types, host_visible | host_coherent)) {
+        return *selected;
+    }
+    if (const auto selected = find_memory_type(properties, allowed_types, host_visible)) {
+        return *selected;
+    }
+    if (const auto selected = find_memory_type(properties, allowed_types, 0)) {
+        return *selected;
+    }
+    OPENVINO_THROW("[GPU][Vulkan] No compatible memory type is available for a storage buffer");
+}
+
 vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device> device_owner,
                                                    VkDevice device,
                                                    VkBuffer buffer,
                                                    VkDeviceMemory memory,
                                                    void* mapped_data,
                                                    VkDeviceSize size,
-                                                   bool host_coherent)
+                                                   VkMemoryPropertyFlags memory_flags)
     : device(device),
       buffer(buffer),
       memory(memory),
       mapped_data(mapped_data),
       size(size),
-      host_coherent(host_coherent),
+      memory_flags(memory_flags),
       _device_owner(std::move(device_owner)) {}
 
 vulkan_buffer_allocation::~vulkan_buffer_allocation() {
@@ -166,7 +209,8 @@ vulkan_buffer_allocation::~vulkan_buffer_allocation() {
 }
 
 void vulkan_buffer_allocation::flush() const {
-    if (host_coherent) {
+    OPENVINO_ASSERT(is_host_visible(), "[GPU][Vulkan] Cannot flush non-host-visible memory");
+    if ((memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0) {
         return;
     }
     std::lock_guard<std::mutex> lock(_visibility_mutex);
@@ -179,7 +223,8 @@ void vulkan_buffer_allocation::flush() const {
 }
 
 void vulkan_buffer_allocation::invalidate() const {
-    if (host_coherent) {
+    OPENVINO_ASSERT(is_host_visible(), "[GPU][Vulkan] Cannot invalidate non-host-visible memory");
+    if ((memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0) {
         return;
     }
     std::lock_guard<std::mutex> lock(_visibility_mutex);
@@ -278,14 +323,14 @@ vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
 
     vulkan_buffer_allocation::ptr allocation;
     try {
-        allocation = allocate_buffer(*_engine, static_cast<size_t>(block_size));
+        allocation = allocate_buffer(*_engine, static_cast<size_t>(block_size), vulkan_buffer_memory_usage::device);
     } catch (const std::bad_alloc&) {
         if (block_size == requested_size) {
             throw;
         }
         block_size = requested_size;
         reserved_size = requested_size;
-        allocation = allocate_buffer(*_engine, size);
+        allocation = allocate_buffer(*_engine, size, vulkan_buffer_memory_usage::device);
     }
 
     block new_block;
@@ -391,38 +436,72 @@ void vulkan_buffer::validate_range(size_t offset, size_t size, const char* opera
 }
 
 void* vulkan_buffer::mapped_data() const {
+    OPENVINO_ASSERT(get_allocation()->is_host_visible() && get_allocation()->mapped_data != nullptr,
+                    "[GPU][Vulkan] Buffer memory is not directly host visible");
     return static_cast<unsigned char*>(get_allocation()->mapped_data) + get_offset();
 }
 
+vulkan_buffer_allocation::ptr vulkan_buffer::allocate_staging(size_t size) const {
+    auto* engine = dynamic_cast<vulkan_engine*>(_engine);
+    OPENVINO_ASSERT(engine != nullptr, "[GPU][Vulkan] Staging allocation requires a Vulkan engine");
+    return allocate_buffer(*engine, size, vulkan_buffer_memory_usage::host_staging);
+}
+
 void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
-    validate_stream(stream).finish();
+    const auto& vulkan_stream = validate_stream(stream);
+    vulkan_stream.finish();
     std::lock_guard<std::mutex> lock(_lock_mutex);
-    if (_lock_count == 0 && type != mem_lock_type::write) {
-        get_allocation()->invalidate();
+    if (_lock_count == 0) {
+        if (get_allocation()->is_host_visible()) {
+            if (type != mem_lock_type::write) {
+                get_allocation()->invalidate();
+            }
+        } else {
+            if (_lock_staging == nullptr || _lock_staging->size < std::max<size_t>(_bytes_count, 1)) {
+                _lock_staging = allocate_staging(_bytes_count);
+            }
+            if (type != mem_lock_type::write && _bytes_count > 0) {
+                vulkan_stream.copy_buffer(get_buffer(), get_offset(), _lock_staging->buffer, 0, _bytes_count);
+                _lock_staging->invalidate();
+            }
+        }
     }
     _write_access = _write_access || type != mem_lock_type::read;
     ++_lock_count;
-    return mapped_data();
+    return get_allocation()->is_host_visible() ? mapped_data() : _lock_staging->mapped_data;
 }
 
 void vulkan_buffer::unlock(const stream& stream) {
-    validate_stream(stream);
+    const auto& vulkan_stream = validate_stream(stream);
     std::lock_guard<std::mutex> lock(_lock_mutex);
     OPENVINO_ASSERT(_lock_count > 0, "[GPU][Vulkan] Attempt to unlock a buffer that is not locked");
     --_lock_count;
     if (_lock_count == 0 && _write_access) {
-        get_allocation()->flush();
+        if (get_allocation()->is_host_visible()) {
+            get_allocation()->flush();
+        } else if (_bytes_count > 0) {
+            OPENVINO_ASSERT(_lock_staging != nullptr, "[GPU][Vulkan] Locked device-local buffer has no staging memory");
+            _lock_staging->flush();
+            vulkan_stream.copy_buffer(_lock_staging->buffer, 0, get_buffer(), get_offset(), _bytes_count);
+        }
         _write_access = false;
     }
 }
 
 event::ptr vulkan_buffer::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool) {
-    validate_stream(stream);
+    const auto& vulkan_stream = validate_stream(stream);
     stream.wait_for_events(dep_events);
     stream.finish();
     if (_bytes_count > 0) {
-        std::memset(mapped_data(), pattern, _bytes_count);
-        get_allocation()->flush();
+        if (get_allocation()->is_host_visible()) {
+            std::memset(mapped_data(), pattern, _bytes_count);
+            get_allocation()->flush();
+        } else {
+            auto staging = allocate_staging(_bytes_count);
+            std::memset(staging->mapped_data, pattern, _bytes_count);
+            staging->flush();
+            vulkan_stream.copy_buffer(staging->buffer, 0, get_buffer(), get_offset(), _bytes_count);
+        }
     }
     return stream.create_user_event(true);
 }
@@ -442,44 +521,86 @@ shared_mem_params vulkan_buffer::get_internal_params(runtime_types runtime_type)
 }
 
 event::ptr vulkan_buffer::copy_from(stream& stream, const void* source, size_t source_offset, size_t destination_offset, size_t size, bool) {
-    validate_stream(stream);
+    const auto& vulkan_stream = validate_stream(stream);
     validate_range(destination_offset, size, "copy_from(host)");
     OPENVINO_ASSERT(source != nullptr || size == 0, "[GPU][Vulkan] Source pointer is null");
     stream.finish();
     if (size > 0) {
         const auto* source_bytes = static_cast<const unsigned char*>(source) + source_offset;
-        auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
-        std::memcpy(destination_bytes, source_bytes, size);
-        get_allocation()->flush();
+        if (get_allocation()->is_host_visible()) {
+            auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
+            std::memcpy(destination_bytes, source_bytes, size);
+            get_allocation()->flush();
+        } else {
+            auto staging = allocate_staging(size);
+            std::memcpy(staging->mapped_data, source_bytes, size);
+            staging->flush();
+            vulkan_stream.copy_buffer(staging->buffer, 0, get_buffer(), get_offset() + destination_offset, size);
+        }
     }
     return stream.create_user_event(true);
 }
 
 event::ptr vulkan_buffer::copy_from(stream& stream, const memory& source, size_t source_offset, size_t destination_offset, size_t size, bool) {
-    validate_stream(stream);
+    const auto& vulkan_stream = validate_stream(stream);
     const auto* source_buffer = dynamic_cast<const vulkan_buffer*>(&source);
-    OPENVINO_ASSERT(source_buffer != nullptr, "[GPU][Vulkan] Device copy source is not a Vulkan buffer");
+    OPENVINO_ASSERT(source_buffer != nullptr && source.get_engine() == _engine, "[GPU][Vulkan] Device copy source is not a Vulkan buffer from this engine");
     source_buffer->validate_range(source_offset, size, "copy_from(device source)");
     validate_range(destination_offset, size, "copy_from(device destination)");
     stream.finish();
     if (size > 0) {
-        source_buffer->get_allocation()->invalidate();
-        const auto* source_bytes = static_cast<const unsigned char*>(source_buffer->mapped_data()) + source_offset;
-        auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
-        std::memmove(destination_bytes, source_bytes, size);
-        get_allocation()->flush();
+        const auto source_host_visible = source_buffer->get_allocation()->is_host_visible();
+        const auto destination_host_visible = get_allocation()->is_host_visible();
+        if (source_host_visible && destination_host_visible) {
+            source_buffer->get_allocation()->invalidate();
+            const auto* source_bytes = static_cast<const unsigned char*>(source_buffer->mapped_data()) + source_offset;
+            auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
+            std::memmove(destination_bytes, source_bytes, size);
+            get_allocation()->flush();
+        } else {
+            if (source_host_visible) {
+                source_buffer->get_allocation()->flush();
+            }
+            const auto absolute_source_offset = source_buffer->get_offset() + source_offset;
+            const auto absolute_destination_offset = get_offset() + destination_offset;
+            const auto same_buffer = source_buffer->get_buffer() == get_buffer();
+            const auto ranges_overlap =
+                same_buffer && absolute_source_offset < absolute_destination_offset + size && absolute_destination_offset < absolute_source_offset + size;
+            if (same_buffer && absolute_source_offset == absolute_destination_offset) {
+                return stream.create_user_event(true);
+            }
+            if (ranges_overlap) {
+                auto staging = allocate_staging(size);
+                vulkan_stream.copy_buffer(source_buffer->get_buffer(), absolute_source_offset, staging->buffer, 0, size);
+                vulkan_stream.copy_buffer(staging->buffer, 0, get_buffer(), absolute_destination_offset, size);
+            } else {
+                vulkan_stream.copy_buffer(source_buffer->get_buffer(), absolute_source_offset, get_buffer(), absolute_destination_offset, size);
+            }
+            if (destination_host_visible) {
+                get_allocation()->invalidate();
+            }
+        }
     }
     return stream.create_user_event(true);
 }
 
 event::ptr vulkan_buffer::copy_to(stream& stream, void* destination, size_t source_offset, size_t destination_offset, size_t size, bool) const {
-    validate_stream(stream);
+    const auto& vulkan_stream = validate_stream(stream);
     validate_range(source_offset, size, "copy_to(host)");
     OPENVINO_ASSERT(destination != nullptr || size == 0, "[GPU][Vulkan] Destination pointer is null");
     stream.finish();
     if (size > 0) {
-        get_allocation()->invalidate();
-        const auto* source_bytes = static_cast<const unsigned char*>(mapped_data()) + source_offset;
+        const unsigned char* source_bytes = nullptr;
+        vulkan_buffer_allocation::ptr staging;
+        if (get_allocation()->is_host_visible()) {
+            get_allocation()->invalidate();
+            source_bytes = static_cast<const unsigned char*>(mapped_data()) + source_offset;
+        } else {
+            staging = allocate_staging(size);
+            vulkan_stream.copy_buffer(get_buffer(), get_offset() + source_offset, staging->buffer, 0, size);
+            staging->invalidate();
+            source_bytes = static_cast<const unsigned char*>(staging->mapped_data);
+        }
         auto* destination_bytes = static_cast<unsigned char*>(destination) + destination_offset;
         std::memcpy(destination_bytes, source_bytes, size);
     }
