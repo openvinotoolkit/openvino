@@ -87,8 +87,6 @@ public:
 
     virtual ~MetadataBase() = default;
 
-    static size_t get_stream_remaining_size(std::istream& stream);
-
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
      * @details Convention for bumping the metadata version:

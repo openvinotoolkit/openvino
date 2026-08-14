@@ -35,11 +35,9 @@ size_t get_stream_total_size(std::istream& stream) {
 
 namespace intel_npu {
 
-BlobSource::BlobSource(std::istream& source, const ov::log::Level log_level = Logger::global().level())
-    : BlobSource(source, log_level) {}
+BlobSource::BlobSource(std::istream& source, const ov::log::Level log_level) : BlobSource(source, log_level) {}
 
-BlobSource::BlobSource(const ov::Tensor& source, const ov::log::Level log_level = Logger::global().level())
-    : BlobSource(source, log_level) {}
+BlobSource::BlobSource(const ov::Tensor& source, const ov::log::Level log_level) : BlobSource(source, log_level) {}
 
 BlobSource::BlobSource(const std::variant<std::reference_wrapper<std::istream>,
                                           std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>& source,
