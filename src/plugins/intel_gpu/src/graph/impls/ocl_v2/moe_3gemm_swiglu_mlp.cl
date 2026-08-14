@@ -1796,7 +1796,9 @@ __attribute__((intel_reqd_sub_group_size(U2_DPAS_SG))) KERNEL(moe_u2_gemm)(
 #        error "U2_GEMM_GROUP_SIZE must be a multiple of FAKE_GROUP_SIZE"
 #    endif
 // This kernel has no ELEMS_PER_LANE 8 branch (reachable at SUBGROUP_SIZE 16 with group_size >= 128).
-// Reject it loudly instead of silently taking a wrong-width branch.
+// MoE3GemmSwigluU2Gemm::fma_supported() keeps the host from selecting this variant there, so this
+// is the backstop for the two drifting apart: reject loudly instead of silently taking a
+// wrong-width branch.
 #    if ELEMS_PER_LANE != 1 && ELEMS_PER_LANE != 2 && ELEMS_PER_LANE != 4
 #        error "u2 GEMM supports ELEMS_PER_LANE 1, 2 or 4 only"
 #    endif
