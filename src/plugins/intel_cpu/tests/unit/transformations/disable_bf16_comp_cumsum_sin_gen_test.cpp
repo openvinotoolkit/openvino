@@ -26,8 +26,6 @@ using namespace ov::intel_cpu;
 
 namespace {
 
-const std::string l_sin_gen_prefix = "__module.decoder.generator.m_source.l_sin_gen/";
-
 // Names used to look up matched nodes after the pass has run.
 const std::string name_transpose_pre = "transpose_pre";
 const std::string name_interp_pre = "interp_pre";
@@ -38,7 +36,7 @@ const std::string name_transpose_after_mul = "transpose_after_mul";
 const std::string name_scale_mul = "scale_mul";
 const std::string name_interp_after = "interp_after";
 const std::string name_transpose_after_interp = "transpose_after_interp";
-const std::string name_sin = l_sin_gen_prefix + "aten::sin/Sin";
+const std::string name_sin = "sin";
 
 ov::op::util::InterpolateBase::InterpolateAttrs make_interp_attrs() {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
