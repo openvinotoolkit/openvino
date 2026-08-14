@@ -13,6 +13,7 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
@@ -1556,7 +1557,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
+        bool empty_constant = ov::util::is_empty_constant_tensor(proto_node);
+
         bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            if (empty_constant) {
+                return ov::util::is_empty_constant_tensor(other_node);
+            }
             return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                    values_are_the_same(proto_node, other_node);
         });
