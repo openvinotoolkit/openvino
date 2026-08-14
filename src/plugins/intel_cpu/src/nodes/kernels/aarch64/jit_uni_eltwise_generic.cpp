@@ -51,7 +51,13 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
+    static const std::vector<element::Type> exec_precisions_priority = {
+        element::i8,
+        element::u8,
+        element::i32,
+        element::f16,
+        element::f32,
+    };
     const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
@@ -737,6 +743,10 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseLogicalOr, ov::intel_cpu::aarch64::jit_logical_or_emitter),
         OV_CASE(Algorithm::EltwiseLogicalNot, ov::intel_cpu::aarch64::jit_logical_not_emitter),
         OV_CASE(Algorithm::EltwiseLogicalXor, ov::intel_cpu::aarch64::jit_logical_xor_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseAnd, ov::intel_cpu::aarch64::jit_bitwise_and_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseNot, ov::intel_cpu::aarch64::jit_bitwise_not_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseOr, ov::intel_cpu::aarch64::jit_bitwise_or_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseXor, ov::intel_cpu::aarch64::jit_bitwise_xor_emitter),
         OV_CASE(Algorithm::EltwiseIsNaN, ov::intel_cpu::aarch64::jit_is_nan_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, ov::intel_cpu::aarch64::jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, ov::intel_cpu::aarch64::jit_minimum_emitter),
@@ -879,6 +889,10 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseAnd, jit_bitwise_and_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseNot, jit_bitwise_not_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter),
               OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
               OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),
