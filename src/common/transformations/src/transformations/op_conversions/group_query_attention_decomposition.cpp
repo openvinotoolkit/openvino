@@ -590,8 +590,11 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_kv_sc
         // the (static) scale length when known, otherwise falls back to a -1 wildcard.
         int64_t head_size = -1;
         const auto& scale_pshape = scale.get_partial_shape();
-        if (scale_pshape.rank().is_static() && scale_pshape.rank().get_length() == 1 && scale_pshape[0].is_static()) {
-            head_size = scale_pshape[0].get_length() / kv_num_heads;
+        if (scale_pshape.is_static()) {
+            // Element count alone determines head_size, regardless of rank/dim order (e.g. rank 1
+            // [kv_num_heads*head_size], rank 2 [kv_num_heads,head_size], rank 4
+            // [1,kv_num_heads,1,head_size] all resolve the same way).
+            head_size = static_cast<int64_t>(ov::shape_size(scale_pshape.to_shape())) / kv_num_heads;
         }
         target_shape = {1, kv_num_heads, 1, head_size};
     } else {

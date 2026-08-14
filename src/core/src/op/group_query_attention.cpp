@@ -273,8 +273,8 @@ void GroupQueryAttention::validate_and_infer_types() {
                               "GroupQueryAttention supports k/v quant types: {PER_TENSOR, PER_CHANNEL}, got: ",
                               as_string(m_k_quant_type));
 
-        check_input(GroupQueryAttentionInputs::K_SCALE, {0, 1}, {element::f32, element::f16}, true);
-        check_input(GroupQueryAttentionInputs::V_SCALE, {0, 1}, {element::f32, element::f16}, true);
+        check_input(GroupQueryAttentionInputs::K_SCALE, {0, 1, 2, 3, 4}, {element::f32, element::f16}, true);
+        check_input(GroupQueryAttentionInputs::V_SCALE, {0, 1, 2, 3, 4}, {element::f32, element::f16}, true);
     }
 
     // present_key/present_value keep the past KV layout: kv head size may differ from query head size
