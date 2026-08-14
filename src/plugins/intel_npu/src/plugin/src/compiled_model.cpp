@@ -32,7 +32,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _weightSharingContext(std::move(weightSharingContext)),
       _graph(graph),
       _batchSize(batchSize),
       _propertiesManager(
