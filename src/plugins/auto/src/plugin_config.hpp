@@ -165,24 +165,30 @@ public:
 
 class PerfCurveTableValidator : public BaseValidator {
 public:
-    bool is_valid(const ov::Any& v) const override {
-        try {
-            const auto table = parse_perf_curve_table(v);
-            static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
-            for (const auto& [device, curve] : table) {
-                if (allowed_devices.find(device) == allowed_devices.end()) {
-                    return false;
+    static std::string get_error(const ov::intel_auto::PerfCurveTable& table) {
+        static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
+        for (const auto& [device, curve] : table) {
+            if (allowed_devices.find(device) == allowed_devices.end()) {
+                return "unsupported device key '" + device + "'";
+            }
+            if (curve.empty()) {
+                return "curve for device '" + device + "' must not be empty";
+            }
+            for (const auto& [utilization, score] : curve) {
+                if (utilization > 100) {
+                    return "utilization for device '" + device + "' must be in [0,100]";
                 }
-                if (curve.empty()) {
-                    return false;
-                }
-                for (const auto& [utilization, score] : curve) {
-                    if (utilization > 100 || score < 0.f || !std::isfinite(score)) {
-                        return false;
-                    }
+                if (!std::isfinite(score) || score < 0.f) {
+                    return "score for device '" + device + "' must be finite and non-negative";
                 }
             }
-            return true;
+        }
+        return {};
+    }
+
+    bool is_valid(const ov::Any& v) const override {
+        try {
+            return get_error(parse_perf_curve_table(v)).empty();
         } catch (const ov::Exception&) {
             return false;
         }

@@ -52,8 +52,9 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
         if (is_supported(kv.first)) {
             if (name == ov::intel_auto::perf_curve_table.name()) {
                 const ov::Any normalized_value = ov::Any(parse_perf_curve_table(val));
-                OPENVINO_ASSERT(property_validators.at(name)->is_valid(normalized_value),
-                        "Invalid value for property ", name, ": PERF_CURVE_TABLE validation failed");
+                const auto error = PerfCurveTableValidator::get_error(
+                    normalized_value.as<ov::intel_auto::PerfCurveTable>());
+                OPENVINO_ASSERT(error.empty(), "Invalid value for property ", name, ": ", error);
                 internal_properties[name] = normalized_value;
                 user_properties[name] = normalized_value;
                 continue;
@@ -106,8 +107,9 @@ void PluginConfig::set_user_property(const ov::AnyMap& config) {
         if (is_supported(name)) {
             if (name == ov::intel_auto::perf_curve_table.name()) {
                 const ov::Any normalized_value = ov::Any(parse_perf_curve_table(val));
-                OPENVINO_ASSERT(property_validators.at(name)->is_valid(normalized_value),
-                            "Invalid value for property ", name, ": PERF_CURVE_TABLE validation failed");
+                const auto error = PerfCurveTableValidator::get_error(
+                    normalized_value.as<ov::intel_auto::PerfCurveTable>());
+                OPENVINO_ASSERT(error.empty(), "Invalid value for property ", name, ": ", error);
                 internal_properties[kv.first] = normalized_value;
                 user_properties[kv.first] = normalized_value;
                 continue;
