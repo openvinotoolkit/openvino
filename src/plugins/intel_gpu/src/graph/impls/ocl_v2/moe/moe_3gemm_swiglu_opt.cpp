@@ -735,6 +735,26 @@ public:
         return dpas_stage_ok(hidden_size, inter_size, gate_up_gs) && dpas_stage_ok(inter_size, hidden_size, down_gs);
     }
 
+    // The FMA fallback picks its inner-loop variant from ELEMS_PER_LANE = FAKE_GROUP_SIZE /
+    // SUBGROUP_SIZE and only implements 1, 2 and 4. The remaining value, 8 -- reachable on
+    // pre-xe2 hardware, where SUBGROUP_SIZE is 16, once both group sizes are >= 128 -- is an
+    // #error in moe_3gemm_swiglu_mlp.cl, i.e. a failed OpenCL build at model load rather than a
+    // fallback. Mirror the kernel's arithmetic (including its min-with-128 clamp) here so the
+    // impl can decline the native path while it still has one.
+    static bool fma_supported(gpu_arch arch, size_t gate_up_gs, size_t down_gs) {
+        const size_t sg = (arch >= gpu_arch::xe2) ? 32u : 16u;
+        const size_t fake_gs = std::min({gate_up_gs, down_gs, size_t{128}});
+        const size_t elems_per_lane = fake_gs / sg;
+        return elems_per_lane == 1 || elems_per_lane == 2 || elems_per_lane == 4;
+    }
+
+    // Exactly one of the two variants is compiled (U2_DPAS_ENABLE selects between them), so the
+    // native u2 GEMM is available whenever the variant that would be chosen is.
+    static bool supported(gpu_arch arch, size_t hidden_size, size_t inter_size, size_t gate_up_gs, size_t down_gs) {
+        return dpas_supported(arch, hidden_size, inter_size, gate_up_gs, down_gs) ||
+               fma_supported(arch, gate_up_gs, down_gs);
+    }
+
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
@@ -1272,8 +1292,17 @@ public:
     // exists to support. The unpack decision in execute() and the routing decision in
     // exec_prefill_grouped_gemm() must use this same predicate: if they disagree, a mixed layer
     // ends up on the oneDNN u4 path with routed weights that were never unpacked.
-    bool use_native_u2_prefill() const {
-        return _gemm_weights_u2[0] && _gemm_weights_u2[1] && _gemm_weights_u2[2];
+    //
+    // `arch` is a parameter rather than a cached flag so that the compiler enforces the agreement:
+    // the kernel does not build for every (arch, group_size) pair, and when it does not the impl
+    // must decline here and let the unpack + grouped GEMM path run.
+    bool use_native_u2_prefill(gpu_arch arch) const {
+        return _gemm_weights_u2[0] && _gemm_weights_u2[1] && _gemm_weights_u2[2] &&
+               MoE3GemmSwigluU2Gemm::supported(arch,
+                                               static_cast<size_t>(_hidden_size),
+                                               static_cast<size_t>(_intermediate_size),
+                                               static_cast<size_t>(_gate_up_group_size),
+                                               static_cast<size_t>(_down_group_size));
     }
 
     // Which variant of moe_u2_gemm was JIT-compiled. This mirrors the decision the kernel
@@ -1400,7 +1429,12 @@ public:
             add_stage(u2_unpack, params);
             // Native u2 GEMM stages. Registered alongside the unpack so the impl can fall back
             // to the unpack + u4 grouped GEMM path if the native kernel fails at runtime.
-            if (_weights_u2) {
+            //
+            // Registered under the same predicate that decides whether they are ever dispatched.
+            // Under the OR, a mixed layer such as {u2, u8, u2} also registers the stage for its u8
+            // GEMM, and building that stage asserts on a per-group zp that is not u2 -- so the
+            // model fails to load rather than quietly compiling a kernel nobody calls.
+            if (use_native_u2_prefill(info.arch)) {
                 add_stage(u2_gemm_gate, params);
                 add_stage(u2_gemm_up, params);
                 add_stage(u2_gemm_down, params);
@@ -3239,7 +3273,7 @@ public:
         // Native u2 path: the three expert GEMMs run on the u2 weights directly, so no oneDNN
         // grouped primitive is built and no u4 unpack scratch is allocated. Everything around
         // them (gather, SiLU*mul, scatter_reduce, the shared expert) is unchanged.
-        const bool use_native_u2 = use_native_u2_prefill();
+        const bool use_native_u2 = use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch);
         int u2_num_blocks = 0;
         if (use_native_u2) {
             u2_num_blocks = build_u2_gemm_blocks(instance, experts_id_cpu, tokens_lens_per_expert_cpu);
@@ -3439,7 +3473,11 @@ public:
             try {
                 // _weights_u2 => the routed experts take the native u2 GEMM below, so only the
                 // shared expert's projections still need a u4 copy.
-                unpack_event = unpack_u2_weights_for_prefill(instance, scratch, events, /*skip_routed=*/use_native_u2_prefill());
+                unpack_event = unpack_u2_weights_for_prefill(
+                    instance,
+                    scratch,
+                    events,
+                    /*skip_routed=*/use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch));
             } catch (const std::exception& e) {
                 // The batched GEMV fuses the shared expert in-kernel, so returning it
                 // directly also skips the oneDNN shared-expert block below.
