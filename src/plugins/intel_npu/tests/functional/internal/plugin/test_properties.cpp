@@ -181,11 +181,11 @@ public:
             }
         }
 
-        propertiesManager =
-            std::make_unique<PluginPropertyManager>(npu_config,
-                                                    backend,
-                                                    std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend),
-                                                    ::intel_npu::Logger::global());
+        propertiesManager = std::make_unique<PluginPropertyManager>(
+            npu_config,
+            backend,
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
+            ::intel_npu::Logger::global());
     }
 
     void TearDown() override {

@@ -78,4 +78,11 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 }
 
+const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getSupportedCompilerTypes() {
+    static const std::vector<ov::intel_npu::CompilerType> supportedCompilerTypes = {
+        ov::intel_npu::CompilerType::DRIVER,
+        ov::intel_npu::CompilerType::PLUGIN};
+    return supportedCompilerTypes;
+}
+
 }  // namespace intel_npu

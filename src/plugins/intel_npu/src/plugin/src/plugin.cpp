@@ -277,7 +277,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend);
+    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory());
     _propertiesManager =
         std::make_unique<PluginPropertyManager>(config, _backend, _compilerOptionSupportHelper, _logger);
 }

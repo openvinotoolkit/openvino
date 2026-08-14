@@ -45,10 +45,8 @@ bool isVersionSupportedByCompiler(uint32_t version, const ze_graph_compiler_vers
 const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
     {ov::compilation_num_threads.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::enable_profiling.name(), ONEAPI_MAKE_VERSION(0, 0)},
-    {ov::device::id.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::hint::execution_mode.name(), ONEAPI_MAKE_VERSION(5, 6)},
     {ov::hint::inference_precision.name(), ONEAPI_MAKE_VERSION(5, 4)},
-    {ov::hint::num_requests.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::hint::performance_mode.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::log::level.name(), ONEAPI_MAKE_VERSION(0, 0)},
     {ov::intel_npu::batch_compiler_mode_settings.name(), ONEAPI_MAKE_VERSION(7, 4)},

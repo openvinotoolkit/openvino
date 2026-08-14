@@ -7,6 +7,7 @@
 #include <atomic>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
@@ -24,6 +25,8 @@ public:
         ov::intel_npu::CompilerType& compilerType,
         std::string_view platform,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
+
+    static const std::vector<ov::intel_npu::CompilerType>& getSupportedCompilerTypes();
 
 private:
     inline static std::atomic<bool> _pluginCompilerIsPresent{true};

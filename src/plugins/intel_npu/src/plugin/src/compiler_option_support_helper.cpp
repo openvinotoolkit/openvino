@@ -4,9 +4,9 @@
 
 #include "compiler_option_support_helper.hpp"
 
+#include <algorithm>
 #include <memory>
 
-#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 
 namespace intel_npu {
@@ -17,8 +17,10 @@ OptionSupportCache::CacheKey toCacheKey(const ov::intel_npu::CompilerType compil
 }
 }  // namespace
 
-CompilerOptionSupportHelper::CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend)
+CompilerOptionSupportHelper::CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend,
+                                                         const CompilerAdapterFactory& adapterFactory)
     : _backend(backend),
+      _adapterFactory(adapterFactory),
       _optionSupportCache(std::make_shared<OptionSupportCache>()) {}
 
 const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptionSupportCache() const {
@@ -28,10 +30,12 @@ const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptio
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                                     const std::string& optionName,
                                                     const std::optional<std::string>& optionValue) {
-    OPENVINO_ASSERT(compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN,
-                    "Expected concrete compiler type before cache lookup");
-    const auto cacheKey = toCacheKey(compilerType);
+    const auto& supportedCompilerTypes = CompilerAdapterFactory::getSupportedCompilerTypes();
+    OPENVINO_ASSERT(std::find(supportedCompilerTypes.begin(), supportedCompilerTypes.end(), compilerType) !=
+                        supportedCompilerTypes.end(),
+                    "Unsupported compiler type");
 
+    const auto cacheKey = toCacheKey(compilerType);
     const auto getCachedSupport = [&]() -> std::optional<bool> {
         if (optionValue.has_value()) {
             return std::nullopt;
@@ -44,12 +48,14 @@ bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType 
     }
 
     std::unique_ptr<ICompilerAdapter> compiler;
-    compiler = CompilerAdapterFactory().getCompiler(_backend, compilerType, "", _optionSupportCache);
+    compiler = _adapterFactory.getCompiler(_backend, compilerType, "", _optionSupportCache);
 
-    std::once_flag& optionsLoaded = (compilerType == ov::intel_npu::CompilerType::DRIVER)
-                                        ? _driverSupportedOptionsLoaded
-                                        : _pluginSupportedOptionsLoaded;
-    std::call_once(optionsLoaded, [&compiler]() {
+    std::once_flag* optionsLoaded = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(_supportedOptionsLoadedMutex);
+        optionsLoaded = &_supportedOptionsLoaded[cacheKey];
+    }
+    std::call_once(*optionsLoaded, [&compiler]() {
         compiler->get_supported_options();
     });
 
