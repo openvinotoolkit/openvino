@@ -193,40 +193,6 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
-| ``ov::intel_auto::``                         | **Type**: ``dict[str, int]``                                       |
-| ``devices_utilization_threshold``            |                                                                    |
-|                                              | Per-device utilization thresholds (in percent, ``[0, 100]``).      |
-|                                              | AUTO skips a candidate device whose current utilization is at or   |
-|                                              | above its threshold and selects the next available device. Keys    |
-|                                              | are device names (e.g. ``"CPU"``, ``"GPU.0"``); values are the     |
-|                                              | corresponding threshold percent.                                   |
-|                                              |                                                                    |
-|                                              | Example: ``{"CPU": 80, "GPU": 70}``                                |
-|                                              |                                                                    |
-|                                              | The default value is empty (no threshold applied).                 |
-+----------------------------------------------+--------------------------------------------------------------------+
-| ``ov::intel_auto::perf_curve_table``         | **Type**: ``dict[str, dict[int, float]]``                          |
-|                                              |                                                                    |
-|                                              | Per-device performance curve mapping utilization percent           |
-|                                              | (``[0, 100]``) to a relative performance score. AUTO ranks         |
-|                                              | candidate devices in ascending order of their interpolated score   |
-|                                              | at the current utilization and selects the one with the lowest     |
-|                                              | score. If both ``devices_utilization_threshold`` and               |
-|                                              | ``perf_curve_table`` are set, AUTO first filters candidates by     |
-|                                              | ``devices_utilization_threshold``. Then it ranks only the          |
-|                                              | threshold-passing candidates with ``perf_curve_table`` when        |
-|                                              | curve entries are available and utilization can be scored. If no   |
-|                                              | candidate gets scored by the curve, AUTO keeps threshold result    |
-|                                              | and selects by priority among the remaining candidates.            |
-|                                              | Allowed device keys: ``"CPU"``, ``"iGPU"``, ``"dGPU"``, ``"NPU"``. |
-|                                              | Each device's curve must have at least one entry. Scores must be   |
-|                                              | non-negative and finite.                                           |
-|                                              |                                                                    |
-|                                              | Example: ``{"CPU": {0: 0.0, 100: 100.0},``                         |
-|                                              | ``"NPU": {0: 0.0, 100: 50.0}}``                                    |
-|                                              |                                                                    |
-|                                              | The default value is empty (curve ranking disabled).               |
-+----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
