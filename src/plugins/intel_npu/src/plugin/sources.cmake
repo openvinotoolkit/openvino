@@ -43,12 +43,16 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/embedding_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/embedding_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/encoder_embedding_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/encoder_embedding_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/prepare_embedding_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/prepare_embedding_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/redirect_new_kv_to_output.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/redirect_new_kv_to_output.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/remove_empty_kv_inputs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/embedding/remove_empty_kv_inputs.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/flux2_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gqa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_flash_attention.cpp
@@ -67,6 +71,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_compiled_model_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuous_kvcache_strategy.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_eagle3_extension.cpp
@@ -113,6 +118,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/right_align_mask_slice_for_conv.cpp
@@ -126,6 +133,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/replace_deepstack_scatter_with_add.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_sliced_head_to_static.cpp
@@ -136,6 +145,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp

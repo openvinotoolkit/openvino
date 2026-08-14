@@ -11,6 +11,7 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -80,6 +81,132 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
     model->validate_nodes_and_infer_types();
     return model;
 }
+
+// Build a model where Q is f32 but K/V cache are f16 (Gemma-4 style mixed precision).
+std::shared_ptr<ov::Model> build_sdpa_model_mixed_dtype(size_t query_size = QUERY_SIZE,
+                                                        size_t past_len = PAST_LEN,
+                                                        size_t num_heads = NUM_HEADS,
+                                                        size_t head_dim = HEAD_DIM) {
+    using namespace ov;
+    const size_t context_size = past_len + query_size;
+    const Shape kv_shape = {BATCH, num_heads, past_len, head_dim};
+    const Shape new_kv_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape q_shape_s = {BATCH, num_heads, query_size, head_dim};
+    const Shape mask_shape = {BATCH, 1, query_size, context_size};
+
+    ParameterVector params;
+    ResultVector results;
+    auto make_param = [&](const std::string& name, const Shape& shape, element::Type dtype) {
+        auto p = std::make_shared<op::v0::Parameter>(dtype, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        params.push_back(p);
+        return p;
+    };
+
+    // Q is f32 (compute precision), KV cache stored as f16 (storage precision),
+    // present-KV from the upstream NPU subgraph is f32.
+    // This mirrors the real Gemma-4 pattern:
+    //   Convert(f16 past_block) ─┐
+    //   f32 present_kv           ┴→ Concat(f32) → MatMul
+    auto query = make_param("query.0", q_shape_s, element::f32);
+    auto past_key = make_param("past_key_values.0.key", kv_shape, element::f16);
+    auto past_val = make_param("past_key_values.0.value", kv_shape, element::f16);
+    auto new_key = make_param("new_key.0", new_kv_shape, element::f32);
+    auto new_val = make_param("new_value.0", new_kv_shape, element::f32);
+    auto mask = make_param("mask.0", mask_shape, element::f32);
+
+    // Upcast stored f16 KV blocks before Concat (matches block_kv_dtype derivation).
+    auto past_key_f32 = std::make_shared<op::v0::Convert>(past_key, element::f32);
+    auto past_val_f32 = std::make_shared<op::v0::Convert>(past_val, element::f32);
+
+    auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key_f32, new_key}, 2);
+    key_concat->set_friendly_name("concat_key.0");
+    auto val_concat = std::make_shared<op::v0::Concat>(OutputVector{past_val_f32, new_val}, 2);
+    val_concat->set_friendly_name("concat_value.0");
+
+    // Q@K and softmax@V — both sides already f32, no extra Convert needed.
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+    qk->set_friendly_name("matmul1.0");
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    add->set_friendly_name("add.0");
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    softmax->set_friendly_name("softmax.0");
+    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat);
+    matmul2->set_friendly_name("matmul2.0");
+
+    auto make_result = [&](const Output<Node>& out, const std::string& name) {
+        results.push_back(std::make_shared<op::v0::Result>(out));
+        results.back()->set_friendly_name(name);
+    };
+    make_result(key_concat->output(0), "present.0.key");
+    make_result(val_concat->output(0), "present.0.value");
+    make_result(matmul2->output(0), "attn_out.0");
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_model_mixed_dtype");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+}  // namespace
+
+// ============================================================================
+// MixedDtype suite — Q=f32, KV=f16.  The tile model must declare the Q
+// parameter as f32 and KV/state parameters as f16, matching runtime tensors.
+// ============================================================================
+
+TEST(HostFlashAttentionMixedDtypeTest, FromReturnsValue) {
+    EXPECT_TRUE(ov::npuw::function::HostFlashAttention::from(build_sdpa_model_mixed_dtype(), true).has_value());
+}
+
+// Helper: get element type of a model input by HFATileInputId name
+static ov::element::Type get_input_dtype(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (const auto& in : model->inputs()) {
+        if (in.get_names().count(name))
+            return in.get_element_type();
+    }
+    throw std::runtime_error("input '" + name + "' not found in model");
+}
+
+// Q parameter must be f32 (matching query_tensor dtype at runtime)
+TEST(HostFlashAttentionMixedDtypeTest, Fused_QParamIsF32) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_mixed_dtype(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "Q"), ov::element::f32)
+        << "Q tile parameter must match query tensor dtype (f32)";
+    EXPECT_EQ(get_input_dtype(result->_final_tile_model, "Q"), ov::element::f32);
+}
+
+// KV tile parameters: regular tile = f16 (KV block storage), final tile = f32 (present-KV).
+// This is the core invariant of the mixed-dtype fix.
+TEST(HostFlashAttentionMixedDtypeTest, Fused_KVTileParamsAreF16) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_mixed_dtype(), true);
+    ASSERT_TRUE(result.has_value());
+    // Regular tile reads stored KV blocks → f16.
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "K_TILE"), ov::element::f16)
+        << "K_TILE parameter must match KV cache dtype (f16)";
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "V_TILE"), ov::element::f16)
+        << "V_TILE parameter must match KV cache dtype (f16)";
+    // Final tile receives present-KV from upstream NPU subgraph → f32.
+    EXPECT_EQ(get_input_dtype(result->_final_tile_model, "K_TILE"), ov::element::f32)
+        << "Final tile K_TILE must match present-KV dtype (f32)";
+    EXPECT_EQ(get_input_dtype(result->_final_tile_model, "V_TILE"), ov::element::f32)
+        << "Final tile V_TILE must match present-KV dtype (f32)";
+}
+
+// State parameters: both tile models use f16 so regular-tile outputs feed final-tile
+// inputs without conversion.
+TEST(HostFlashAttentionMixedDtypeTest, Fused_StateParamsAreF16) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_mixed_dtype(), true);
+    ASSERT_TRUE(result.has_value());
+    for (const auto& tile_model : {result->_tile_model, result->_final_tile_model}) {
+        EXPECT_EQ(get_input_dtype(tile_model, "PAST_ACC"), ov::element::f16);
+        EXPECT_EQ(get_input_dtype(tile_model, "PAST_MAX"), ov::element::f16);
+        EXPECT_EQ(get_input_dtype(tile_model, "PAST_D"), ov::element::f16);
+    }
+}
+
+namespace {
 
 void expect_input_name(const std::shared_ptr<ov::Model>& model,
                        size_t idx,
@@ -167,10 +294,19 @@ TEST(HostFlashAttentionFromTest, NonFused_MaskTileAtIndexSixInBothModels) {
 }
 
 TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInFinalTileOnly) {
-    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, true);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->_tile_model->inputs().size(), 6u);
     EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
+    expect_input_name(result->_final_tile_model, 6, "MASK_TILE", "fused final tile");
+}
+
+TEST(HostFlashAttentionFromTest, Fused_MaskTileAtIndexSixInRegularTileWhenMaskSkippingDisabled) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_tile_model->inputs().size(), 7u);
+    EXPECT_EQ(result->_final_tile_model->inputs().size(), 7u);
+    expect_input_name(result->_tile_model, 6, "MASK_TILE", "fused regular tile with mask skipping disabled");
     expect_input_name(result->_final_tile_model, 6, "MASK_TILE", "fused final tile");
 }
 
@@ -211,19 +347,83 @@ TEST(HostFlashAttentionFromTest, Fused_ContextSizeIsCorrect) {
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
 }
 
+namespace {
 // ============================================================================
-// Input / output shape checks
+// Build a model where V is pre-transposed (axis=3), simulating a model that
+// has been processed by OptimizeValueTensors.  V parameters are stored as
+// [B, H, head_dim, seq] and the V-Concat is along axis 3.
+// ============================================================================
+std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUERY_SIZE,
+                                                         size_t past_len = PAST_LEN,
+                                                         size_t num_heads = NUM_HEADS,
+                                                         size_t head_dim = HEAD_DIM) {
+    using namespace ov;
+    const Shape past_k_shape = {BATCH, num_heads, past_len, head_dim};  // K: normal layout
+    const Shape new_k_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape past_v_shape = {BATCH, num_heads, head_dim, past_len};  // V: pre-transposed
+    const Shape new_v_shape = {BATCH, num_heads, head_dim, query_size};
+    const Shape q_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape mask_shape = {BATCH, 1, query_size, past_len + query_size};
+
+    ParameterVector params;
+    ResultVector results;
+    auto make_param = [&](const std::string& name, const Shape& shape) {
+        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        params.push_back(p);
+        return p;
+    };
+
+    auto query = make_param("query.0", q_shape);
+    auto past_key = make_param("past_key_values.0.key", past_k_shape);
+    auto past_val = make_param("past_key_values.0.value", past_v_shape);
+    auto new_key = make_param("new_key.0", new_k_shape);
+    auto new_val = make_param("new_value.0", new_v_shape);
+    auto mask = make_param("mask.0", mask_shape);
+
+    auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
+    key_concat->set_friendly_name("concat_key.0");
+    // axis=3: concat along the last dim, which is the sequence dimension in transposed V layout
+    auto val_concat = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 3);
+    val_concat->set_friendly_name("concat_value.0");
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+    qk->set_friendly_name("matmul1.0");
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    add->set_friendly_name("add.0");
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    softmax->set_friendly_name("softmax.0");
+    // transpose_b=true: softmax[B,H,q,k] x V[B,H,head_dim,k]^T -> [B,H,q,head_dim]
+    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat->output(0), false, true);
+    matmul2->set_friendly_name("matmul2.0");
+
+    auto make_result = [&](const Output<Node>& out, const std::string& name) {
+        results.push_back(std::make_shared<op::v0::Result>(out));
+        results.back()->set_friendly_name(name);
+    };
+    make_result(key_concat->output(0), "present.0.key");
+    make_result(val_concat->output(0), "present.0.value");
+    make_result(matmul2->output(0), "attn_out.0");
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_model_transposed_v");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+}  // namespace
+
+// ============================================================================
+// Input / output shape checks — V NOT transposed (axis=2, the default)
 // Expected shapes (BATCH=1, NUM_HEADS=8, HEAD_DIM=64, QUERY_SIZE=16):
-//   past_acc  [1, 8, 16, 64]   past_max  [1, 8, 16, 1]   past_d  [1, 8, 16, 1]
-//   k_tile    [1, 8, 16, 64]   v_tile    [1, 8, 64, 16]  (V stored pre-transposed)
-//   q         [1, 8, 16, 64]   mask_tile [1, 1, 16, 16]
-//   regular tile outputs: acc [1,8,16,64]  maxx [1,8,16,1]  d [1,8,16,1]
-//   final tile output:    [1, QUERY_SIZE, NUM_HEADS*HEAD_DIM] = [1, 16, 512]
+//   past_acc  [1,8,16,64]  past_max [1,8,16,1]  past_d [1,8,16,1]
+//   k_tile    [1,8,16,64]  v_tile   [1,8,16,64]  (normal [B,H,tile,head_dim])
+//   q         [1,8,16,64]  mask_tile [1,1,16,16]
 // ============================================================================
 
-// Fused path — regular tile (6 inputs, no mask)
+// Fused path with mask skipping enabled — regular tile (6 inputs, no mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, Fused_RegularTileInputShapes) {
-    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true, true);
     ASSERT_TRUE(result.has_value());
     // [past_acc, past_max, past_d, k_tile, v_tile, q]
     const std::vector<ov::Shape> expected_inputs = {
@@ -231,13 +431,13 @@ TEST(HostFlashAttentionFromTest, Fused_RegularTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile  [B, kv_heads, tile, head_dim]
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile  [B, kv_heads, head_dim, tile]
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile  [B, kv_heads, tile, head_dim] (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
     };
     check_input_shapes(result->_tile_model, expected_inputs, "fused regular tile");
 }
 
-// Fused path — final tile (7 inputs, with mask)
+// Fused path — final tile (7 inputs, with mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, Fused_FinalTileInputShapes) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
@@ -247,14 +447,14 @@ TEST(HostFlashAttentionFromTest, Fused_FinalTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
         {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile [B, 1, seq, tile]
     };
     check_input_shapes(result->_final_tile_model, expected_inputs, "fused final tile");
 }
 
-// Non-fused path — regular tile (7 inputs, with mask)
+// Non-fused path — regular tile (7 inputs, with mask); v_tile in normal layout
 TEST(HostFlashAttentionFromTest, NonFused_RegularTileInputShapes) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
@@ -263,10 +463,10 @@ TEST(HostFlashAttentionFromTest, NonFused_RegularTileInputShapes) {
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
         {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
-        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile  [B, kv_heads, tile, head_dim]
-        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile  [B, kv_heads, head_dim, tile]
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // v_tile (normal)
         {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
-        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile [B, 1, seq, tile]
+        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile
     };
     check_input_shapes(result->_tile_model, expected_inputs, "non-fused regular tile");
 }
@@ -305,4 +505,86 @@ TEST(HostFlashAttentionFromTest, NonFused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
     check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "non-fused final tile");
+}
+
+// ============================================================================
+// TransposedV suite — V pre-transposed (axis=3), simulating OptimizeValueTensors.
+// v_tile must be [B, H, head_dim, tile_size] (transposed storage layout).
+// ============================================================================
+
+// Sanity: the transposed-V model is parseable
+TEST(HostFlashAttentionTransposedVTest, FromReturnsValue) {
+    EXPECT_TRUE(ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true).has_value());
+}
+
+// v_seq_dim == 3 -> _v_seq_dim field stored correctly
+TEST(HostFlashAttentionTransposedVTest, VSeqDimIsThree) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_v_seq_dim, 3u);
+}
+
+// Contrast: non-transposed model has _v_seq_dim == 2
+TEST(HostFlashAttentionFromTest, VSeqDimIsTwoForNormalModel) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_v_seq_dim, 2u);
+}
+
+// Fused regular tile with mask skipping enabled: v_tile in transposed layout [B, H, head_dim, tile]
+TEST(HostFlashAttentionTransposedVTest, Fused_RegularTileVTileIsTransposed) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true, true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile [B,H,head_dim,tile] — pre-transposed
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
+    };
+    check_input_shapes(result->_tile_model, expected, "transposed-V fused regular tile");
+}
+
+// Fused final tile: v_tile in transposed layout [B, H, head_dim, tile]
+TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileVTileIsTransposed) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // past_acc
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_max
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},         // past_d
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // k_tile
+        {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE},  // v_tile [B,H,head_dim,tile] — pre-transposed
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},  // q
+        {BATCH, 1, QUERY_SIZE, QUERY_SIZE},        // mask_tile
+    };
+    check_input_shapes(result->_final_tile_model, expected, "transposed-V fused final tile");
+}
+
+// Output shapes are independent of V layout
+TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileOutputShape) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    check_output_shapes(result->_final_tile_model,
+                        {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}},
+                        "transposed-V fused final tile");
+}
+
+TEST(HostFlashAttentionTransposedVTest, Fused_RegularTileOutputShapes) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    const std::vector<ov::Shape> expected = {
+        {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM},
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},
+        {BATCH, NUM_HEADS, QUERY_SIZE, 1},
+    };
+    check_output_shapes(result->_tile_model, expected, "transposed-V fused regular tile");
+}
+
+// Context size is derived from the transposed concat (axis=3, dim=3 of output)
+TEST(HostFlashAttentionTransposedVTest, ContextSizeIsCorrect) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
 }

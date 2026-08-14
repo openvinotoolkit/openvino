@@ -80,16 +80,14 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
                 break;
         }
         return data_tensor.Dimentions() - one_size_dims;
-    } else {
-        return 1;
     }
+    return 1;
 }
 
 static int64_t GetGatherBatchDim(const gather_params& params) {
     if (params.batch_dim < 0)
         return (int64_t)GetNonEmptyDimsNumber(params.inputs[1]) + params.batch_dim;
-    else
-        return params.batch_dim;
+    return params.batch_dim;
 }
 
 static inline Tensor::Dim GetGatherIndexDim(const gather_params& params) {
@@ -157,8 +155,8 @@ static inline std::vector<std::string> GetOrder(size_t size) {
 
 static std::string GetDictionaryIndexOrder(const gather_params& params, size_t axis) {
     auto idx_order = GetOrder(params.outputs[0].GetDims().size());
-    auto input_axis_index_macro = "INPUT_AXIS_INDEX";
-    auto zero_val = "0";
+    const auto* input_axis_index_macro = "INPUT_AXIS_INDEX";
+    const auto* zero_val = "0";
 
     size_t dictionary_dims_num = GetNonEmptyDimsNumber(params.inputs[0]);
     size_t indices_dims_num = GetNonEmptyDimsNumber(params.outputs[0]) - dictionary_dims_num + 1;
@@ -188,9 +186,9 @@ static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, 
     const size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
 
     idx_order = GetOrder(output_rank);
-    const auto zero_val = "0";
+    const auto* const zero_val = "0";
 
-     // Shift indices of Gather indices input related to output dims
+    // Shift indices of Gather indices input related to output dims
     for (size_t i = static_cast<size_t>(batch_dim); i < indices_dims_num; i++) {
         size_t output_idx = axis + i - static_cast<size_t>(batch_dim);
         if (output_idx < idx_order.size()) {
@@ -321,7 +319,7 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
     const gather_params& params = static_cast<const gather_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -333,11 +331,11 @@ bool GatherKernelRef::Validate(const Params& p) const {
                 t.GetLayout() == DataLayout::bfwzyx;
         };
 
-        for (auto& in : params.inputs) {
+        for (const auto& in : params.inputs) {
             if (!supported_tensor_layout(in))
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
-        for (auto& out : params.outputs) {
+        for (const auto& out : params.outputs) {
             if (!supported_tensor_layout(out))
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
