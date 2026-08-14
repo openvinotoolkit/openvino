@@ -77,6 +77,8 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
 
     auto concat_expand_pred = [](const ov::Output<ov::Node>& out) {
         auto concat = ov::as_type_ptr<ov::op::v0::Concat>(out.get_node_shared_ptr());
+        if (!concat)
+            return false;
         auto reshape_input = ov::as_type_ptr<ov::op::v1::Reshape>(concat->get_input_node_shared_ptr(0));
         bool reshape_check = reshape_input &&
             reshape_input->get_output_partial_shape(0).rank().is_static() &&
