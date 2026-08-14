@@ -49,6 +49,34 @@ inline ov::intel_auto::PerfCurveTable parse_perf_curve_table(const ov::Any& v) {
     };
 
     const auto parse_float = [](const ov::Any& value) -> float {
+        if (value.is<float>()) {
+            return value.as<float>();
+        }
+        if (value.is<double>()) {
+            return static_cast<float>(value.as<double>());
+        }
+        if (value.is<long double>()) {
+            return static_cast<float>(value.as<long double>());
+        }
+        if (value.is<int>()) {
+            return static_cast<float>(value.as<int>());
+        }
+        if (value.is<unsigned>()) {
+            return static_cast<float>(value.as<unsigned>());
+        }
+        if (value.is<long>()) {
+            return static_cast<float>(value.as<long>());
+        }
+        if (value.is<unsigned long>()) {
+            return static_cast<float>(value.as<unsigned long>());
+        }
+        if (value.is<long long>()) {
+            return static_cast<float>(value.as<long long>());
+        }
+        if (value.is<unsigned long long>()) {
+            return static_cast<float>(value.as<unsigned long long>());
+        }
+
         const auto text = value.as<std::string>();
         const auto trimmed = ov::util::trim(text);
         size_t parsed_chars = 0;
