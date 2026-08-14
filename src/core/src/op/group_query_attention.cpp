@@ -110,7 +110,7 @@ void GroupQueryAttention::validate_and_infer_types() {
     };
 
     const auto check_input = [&](GroupQueryAttentionInputs input,
-                                 std::initializer_list<int64_t> allowed_ranks,
+                                 std::initializer_list<Rank> allowed_ranks,
                                  const std::vector<element::Type>& allowed_types,
                                  bool required = true) {
         const auto pos = static_cast<size_t>(input);
@@ -129,10 +129,8 @@ void GroupQueryAttention::validate_and_infer_types() {
 
         const auto& pshape = get_input_partial_shape(pos);
         const auto& rank = pshape.rank();
-        const bool rank_ok = rank.is_dynamic() || allowed_ranks.size() == 0 ||
-                             std::any_of(allowed_ranks.begin(), allowed_ranks.end(), [&](int64_t allowed_rank) {
-                                 return rank.compatible(allowed_rank);
-                             });
+        const bool rank_ok =
+            rank.is_dynamic() || allowed_ranks.size() == 0 || ov::util::is_rank_compatible_any_of(rank, allowed_ranks);
         NODE_VALIDATION_CHECK(this,
                               rank_ok,
                               "GroupQueryAttention expects ",
