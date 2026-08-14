@@ -18,9 +18,10 @@ bool ReduceKernelBase::Validate(const Params& p) const {
     }
 
     const bool is_logical = params.reduceMode == ReduceMode::AND || params.reduceMode == ReduceMode::OR;
-    const bool has_boolean_type = params.inputs[0].GetDType() == Datatype::BOOLEAN ||
-                                  params.outputs[0].GetDType() == Datatype::BOOLEAN;
-    if (is_logical != has_boolean_type) {
+    const bool has_boolean_input = params.inputs[0].GetDType() == Datatype::BOOLEAN;
+    const bool has_boolean_output = params.outputs[0].GetDType() == Datatype::BOOLEAN;
+    if ((has_boolean_input || has_boolean_output) &&
+        (!is_logical || has_boolean_input != has_boolean_output)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
