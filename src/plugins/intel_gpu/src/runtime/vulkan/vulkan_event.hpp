@@ -16,21 +16,53 @@
 namespace cldnn {
 namespace vulkan {
 
+class vulkan_timeline_state {
+public:
+    explicit vulkan_timeline_state(VkDevice device);
+    ~vulkan_timeline_state();
+
+    vulkan_timeline_state(const vulkan_timeline_state&) = delete;
+    vulkan_timeline_state& operator=(const vulkan_timeline_state&) = delete;
+
+    void close();
+    void wait(uint64_t value);
+    bool is_complete(uint64_t value);
+
+    VkDevice device() const {
+        return _device;
+    }
+
+    VkSemaphore semaphore() const {
+        return _semaphore;
+    }
+
+private:
+    VkDevice _device = VK_NULL_HANDLE;
+    VkSemaphore _semaphore = VK_NULL_HANDLE;
+    std::mutex _mutex;
+};
+
 class vulkan_submission_state {
 public:
+    vulkan_submission_state(std::shared_ptr<vulkan_timeline_state> timeline, VkQueue queue, uint64_t stream_id, uint64_t completion_value);
     vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id);
 
     void wait();
     bool is_complete();
     bool belongs_to(VkDevice device, VkQueue queue) const;
     bool belongs_to_stream(VkDevice device, VkQueue queue, uint64_t stream_id) const;
+    bool uses_fence() const {
+        return _fence != VK_NULL_HANDLE;
+    }
     VkFence release_fence();
 
 private:
     VkDevice _device = VK_NULL_HANDLE;
+    std::shared_ptr<vulkan_timeline_state> _timeline;
     VkQueue _queue = VK_NULL_HANDLE;
     VkFence _fence = VK_NULL_HANDLE;
     uint64_t _stream_id = 0;
+    uint64_t _completion_value = 0;
     std::mutex _mutex;
     bool _completed = false;
 };

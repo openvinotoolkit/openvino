@@ -250,7 +250,10 @@ void vulkan_device::initialize() {
     available_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
     VkPhysicalDeviceSynchronization2Features available_synchronization2{};
     available_synchronization2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
+    VkPhysicalDeviceTimelineSemaphoreFeatures available_timeline{};
+    available_timeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
     available_storage8.pNext = &available_synchronization2;
+    available_synchronization2.pNext = &available_timeline;
     VkPhysicalDeviceFeatures2 available_features{};
     available_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     available_features.pNext = &available_storage8;
@@ -258,6 +261,7 @@ void vulkan_device::initialize() {
     OPENVINO_ASSERT(available_storage8.storageBuffer8BitAccess == VK_TRUE,
                     "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
     OPENVINO_ASSERT(available_synchronization2.synchronization2 == VK_TRUE, "[GPU][Vulkan] Exact buffer hazard tracking requires Vulkan 1.3 synchronization2");
+    OPENVINO_ASSERT(available_timeline.timelineSemaphore == VK_TRUE, "[GPU][Vulkan] Asynchronous batch completion requires Vulkan timeline semaphores");
 
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
@@ -265,7 +269,11 @@ void vulkan_device::initialize() {
     VkPhysicalDeviceSynchronization2Features enabled_synchronization2{};
     enabled_synchronization2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES;
     enabled_synchronization2.synchronization2 = VK_TRUE;
+    VkPhysicalDeviceTimelineSemaphoreFeatures enabled_timeline{};
+    enabled_timeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+    enabled_timeline.timelineSemaphore = VK_TRUE;
     enabled_storage8.pNext = &enabled_synchronization2;
+    enabled_synchronization2.pNext = &enabled_timeline;
 
     VkDeviceCreateInfo device_create_info{};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

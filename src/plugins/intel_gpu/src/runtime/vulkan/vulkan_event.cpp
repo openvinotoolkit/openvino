@@ -11,13 +11,70 @@
 namespace cldnn {
 namespace vulkan {
 
+vulkan_timeline_state::vulkan_timeline_state(VkDevice device) : _device(device) {
+    OPENVINO_ASSERT(_device != VK_NULL_HANDLE, "[GPU][Vulkan] A completion timeline requires a valid Vulkan device");
+
+    VkSemaphoreTypeCreateInfo type_info{};
+    type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+    type_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+    type_info.initialValue = 0;
+
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphore_info.pNext = &type_info;
+    const auto result = vkCreateSemaphore(_device, &semaphore_info, nullptr, &_semaphore);
+    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkCreateSemaphore(timeline) failed with VkResult ", static_cast<int>(result));
+}
+
+vulkan_timeline_state::~vulkan_timeline_state() {
+    close();
+}
+
+void vulkan_timeline_state::close() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_semaphore != VK_NULL_HANDLE) {
+        vkDestroySemaphore(_device, _semaphore, nullptr);
+        _semaphore = VK_NULL_HANDLE;
+    }
+}
+
+void vulkan_timeline_state::wait(uint64_t value) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    OPENVINO_ASSERT(_semaphore != VK_NULL_HANDLE, "[GPU][Vulkan] Cannot wait on a closed completion timeline");
+    VkSemaphoreWaitInfo wait_info{};
+    wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+    wait_info.semaphoreCount = 1;
+    wait_info.pSemaphores = &_semaphore;
+    wait_info.pValues = &value;
+    const auto result = vkWaitSemaphores(_device, &wait_info, UINT64_MAX);
+    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkWaitSemaphores failed with VkResult ", static_cast<int>(result));
+}
+
+bool vulkan_timeline_state::is_complete(uint64_t value) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    OPENVINO_ASSERT(_semaphore != VK_NULL_HANDLE, "[GPU][Vulkan] Cannot query a closed completion timeline");
+    uint64_t completed_value = 0;
+    const auto result = vkGetSemaphoreCounterValue(_device, _semaphore, &completed_value);
+    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkGetSemaphoreCounterValue failed with VkResult ", static_cast<int>(result));
+    return completed_value >= value;
+}
+
+vulkan_submission_state::vulkan_submission_state(std::shared_ptr<vulkan_timeline_state> timeline, VkQueue queue, uint64_t stream_id, uint64_t completion_value)
+    : _timeline(std::move(timeline)),
+      _queue(queue),
+      _stream_id(stream_id),
+      _completion_value(completion_value) {
+    OPENVINO_ASSERT(_timeline != nullptr && _queue != VK_NULL_HANDLE && _stream_id != 0 && _completion_value != 0,
+                    "[GPU][Vulkan] A device submission requires valid Vulkan handles");
+}
+
 vulkan_submission_state::vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id)
     : _device(device),
       _queue(queue),
       _fence(fence),
       _stream_id(stream_id) {
     OPENVINO_ASSERT(_device != VK_NULL_HANDLE && _queue != VK_NULL_HANDLE && _fence != VK_NULL_HANDLE && _stream_id != 0,
-                    "[GPU][Vulkan] A device submission requires valid Vulkan handles");
+                    "[GPU][Vulkan] A fence submission requires valid Vulkan handles");
 }
 
 void vulkan_submission_state::wait() {
@@ -26,9 +83,12 @@ void vulkan_submission_state::wait() {
         return;
     }
 
-    OPENVINO_ASSERT(_fence != VK_NULL_HANDLE, "[GPU][Vulkan] A pending submission has no fence");
-    const auto result = vkWaitForFences(_device, 1, &_fence, VK_TRUE, UINT64_MAX);
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkWaitForFences failed with VkResult ", static_cast<int>(result));
+    if (_timeline != nullptr) {
+        _timeline->wait(_completion_value);
+    } else {
+        const auto result = vkWaitForFences(_device, 1, &_fence, VK_TRUE, UINT64_MAX);
+        OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkWaitForFences failed with VkResult ", static_cast<int>(result));
+    }
     _completed = true;
 }
 
@@ -38,18 +98,24 @@ bool vulkan_submission_state::is_complete() {
         return true;
     }
 
-    OPENVINO_ASSERT(_fence != VK_NULL_HANDLE, "[GPU][Vulkan] A pending submission has no fence");
-    const auto result = vkGetFenceStatus(_device, _fence);
-    if (result == VK_NOT_READY) {
-        return false;
+    if (_timeline != nullptr) {
+        if (!_timeline->is_complete(_completion_value)) {
+            return false;
+        }
+    } else {
+        const auto result = vkGetFenceStatus(_device, _fence);
+        if (result == VK_NOT_READY) {
+            return false;
+        }
+        OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkGetFenceStatus failed with VkResult ", static_cast<int>(result));
     }
-    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkGetFenceStatus failed with VkResult ", static_cast<int>(result));
     _completed = true;
     return true;
 }
 
 bool vulkan_submission_state::belongs_to(VkDevice device, VkQueue queue) const {
-    return _device == device && _queue == queue;
+    const auto submission_device = _timeline != nullptr ? _timeline->device() : _device;
+    return submission_device == device && _queue == queue;
 }
 
 bool vulkan_submission_state::belongs_to_stream(VkDevice device, VkQueue queue, uint64_t stream_id) const {
@@ -58,7 +124,7 @@ bool vulkan_submission_state::belongs_to_stream(VkDevice device, VkQueue queue, 
 
 VkFence vulkan_submission_state::release_fence() {
     std::lock_guard<std::mutex> lock(_mutex);
-    OPENVINO_ASSERT(_completed, "[GPU][Vulkan] Cannot recycle a fence before submission completion");
+    OPENVINO_ASSERT(_completed && _fence != VK_NULL_HANDLE, "[GPU][Vulkan] Cannot recycle a fence before submission completion");
     return std::exchange(_fence, VK_NULL_HANDLE);
 }
 

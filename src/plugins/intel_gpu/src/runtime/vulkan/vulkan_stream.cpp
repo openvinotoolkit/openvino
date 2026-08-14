@@ -151,6 +151,7 @@ struct vulkan_stream::resource_state {
     static constexpr size_t max_command_reuse_tuning_samples_per_path = 3;
     // This caps calibration latency; paired inference wins can stop it earlier.
     static constexpr size_t max_pool_reset_tuning_pairs = 7;
+    static constexpr size_t max_completion_tuning_pairs = 7;
 
     struct descriptor_key {
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> allocations;
@@ -244,6 +245,7 @@ struct vulkan_stream::resource_state {
           stream_id(next_stream_id()),
           max_work_group_invocations(engine.get_device_info().max_work_group_size),
           subgroup_size(engine.get_device_info().supported_simd_sizes.empty() ? 0 : engine.get_device_info().supported_simd_sizes.front()),
+          completion_timeline(std::make_shared<vulkan_timeline_state>(device)),
           diagnostics_enabled(stream_diagnostics_enabled()) {
         VkCommandPoolCreateInfo command_pool_info{};
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -266,6 +268,7 @@ struct vulkan_stream::resource_state {
                 vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
             }
         }
+        completion_timeline->close();
         if (transient_command_pool != VK_NULL_HANDLE) {
             vkDestroyCommandPool(device, transient_command_pool, nullptr);
         }
@@ -298,7 +301,14 @@ struct vulkan_stream::resource_state {
                       << " generation_reset_pair_wins=" << generation_reset_pair_wins << " individual_reset_pair_wins=" << individual_reset_pair_wins
                       << " individual_reset_median_ns=" << (individual_reset_samples.empty() ? 0 : median_sample(individual_reset_samples))
                       << " generation_reset_median_ns=" << (generation_reset_samples.empty() ? 0 : median_sample(generation_reset_samples))
-                      << " buffer_copies=" << buffer_copies << " buffer_fills=" << buffer_fills << " transfer_bytes=" << transfer_bytes << std::endl;
+                      << " buffer_copies=" << buffer_copies << " buffer_fills=" << buffer_fills << " transfer_bytes=" << transfer_bytes
+                      << " completion_timeline_count=1 max_pending_submissions=" << max_pending_submissions
+                      << " timeline_completion_selected=" << (completion_tuning_decided ? (timeline_completion_selected ? "yes" : "no") : "calibrating")
+                      << " fence_completion_samples=" << fence_completion_samples.size()
+                      << " timeline_completion_samples=" << timeline_completion_samples.size()
+                      << " fence_completion_median_ns=" << (fence_completion_samples.empty() ? 0 : median_sample(fence_completion_samples))
+                      << " timeline_completion_median_ns=" << (timeline_completion_samples.empty() ? 0 : median_sample(timeline_completion_samples))
+                      << std::endl;
         }
     }
 
@@ -323,12 +333,15 @@ struct vulkan_stream::resource_state {
             inference_all_batches_cache_hits = !inference_uses_direct_recording;
             inference_all_batches_replayable = !inference_uses_direct_recording;
             inference_uses_generation_pool_reset = select_generation_pool_reset_for_inference();
+            inference_uses_timeline_completion = select_timeline_completion_for_inference();
             inference_tunes_command_reuse = !command_reuse_decided;
             inference_tunes_pool_reset = command_reuse_decided && !pool_reset_decided;
-            if (inference_tunes_command_reuse || inference_tunes_pool_reset) {
+            inference_tunes_completion = command_reuse_decided && pool_reset_decided && !completion_tuning_decided;
+            if (inference_tunes_command_reuse || inference_tunes_pool_reset || inference_tunes_completion) {
                 inference_started = std::chrono::steady_clock::now();
             }
         }
+        active_submission_uses_timeline = inference_uses_timeline_completion;
         active_direct_recording = inference_uses_direct_recording;
         if (active_direct_recording) {
             VkCommandBufferBeginInfo begin_info{};
@@ -505,11 +518,24 @@ struct vulkan_stream::resource_state {
 
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        const auto completion_value = active_submission_uses_timeline ? next_completion_value++ : 0;
+        const auto completion_semaphore = completion_timeline->semaphore();
+        VkTimelineSemaphoreSubmitInfo timeline_info{};
+        timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timeline_info.signalSemaphoreValueCount = 1;
+        timeline_info.pSignalSemaphoreValues = &completion_value;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &command_buffer;
+        if (active_submission_uses_timeline) {
+            submit_info.pNext = &timeline_info;
+            submit_info.signalSemaphoreCount = 1;
+            submit_info.pSignalSemaphores = &completion_semaphore;
+        } else {
+            OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE, "[GPU][Vulkan] A fence completion submission has no fence");
+        }
         {
             std::lock_guard<std::mutex> lock(queue_mutex);
-            check_vk_result(vkQueueSubmit(queue, 1, &submit_info, slot.fence), "vkQueueSubmit");
+            check_vk_result(vkQueueSubmit(queue, 1, &submit_info, active_submission_uses_timeline ? VK_NULL_HANDLE : slot.fence), "vkQueueSubmit");
         }
 
         ++queue_submissions;
@@ -517,10 +543,12 @@ struct vulkan_stream::resource_state {
         recording_slot = nullptr;
         active_batch_limit = 0;
         active_direct_recording = false;
+        const auto submitted_with_timeline = active_submission_uses_timeline;
+        active_submission_uses_timeline = false;
         current_dispatches.clear();
         current_sequence_barriers.clear();
         current_allocations.clear();
-        return mark_submitted(slot);
+        return mark_submitted(slot, completion_value, submitted_with_timeline);
     }
 
     void finish() {
@@ -540,6 +568,8 @@ struct vulkan_stream::resource_state {
                                    std::chrono::steady_clock::now() - inference_started);
         } else if (inference_in_progress && inference_tunes_pool_reset) {
             observe_pool_reset_cost(inference_uses_generation_pool_reset, std::chrono::steady_clock::now() - inference_started);
+        } else if (inference_in_progress && inference_tunes_completion) {
+            observe_completion_cost(inference_uses_timeline_completion, std::chrono::steady_clock::now() - inference_started);
         }
         inference_in_progress = false;
     }
@@ -624,6 +654,8 @@ struct vulkan_stream::resource_state {
     uint64_t subgroup_size = 0;
     VkCommandPool transient_command_pool = VK_NULL_HANDLE;
     VkCommandPool replay_command_pool = VK_NULL_HANDLE;
+    std::shared_ptr<vulkan_timeline_state> completion_timeline;
+    uint64_t next_completion_value = 1;
     std::vector<slot> slots;
     size_t next_slot = 0;
     bool diagnostics_enabled = false;
@@ -644,6 +676,7 @@ struct vulkan_stream::resource_state {
     uint64_t command_pool_resets = 0;
     uint64_t descriptor_pool_resets = 0;
     uint64_t command_buffer_resets = 0;
+    size_t max_pending_submissions = 0;
     size_t largest_batch = 0;
     size_t smallest_selected_batch_limit = max_retained_dispatches_per_batch;
     size_t largest_selected_batch_limit = 0;
@@ -661,6 +694,8 @@ struct vulkan_stream::resource_state {
     std::vector<uint64_t> command_reuse_samples;
     std::vector<uint64_t> individual_reset_samples;
     std::vector<uint64_t> generation_reset_samples;
+    std::vector<uint64_t> fence_completion_samples;
+    std::vector<uint64_t> timeline_completion_samples;
     size_t generation_reset_pair_wins = 0;
     size_t individual_reset_pair_wins = 0;
     uint64_t access_generation = 0;
@@ -681,6 +716,12 @@ struct vulkan_stream::resource_state {
     bool inference_uses_generation_pool_reset = false;
     bool inference_tunes_command_reuse = false;
     bool inference_tunes_pool_reset = false;
+    bool completion_tuning_decided = false;
+    bool timeline_completion_selected = false;
+    bool tune_next_inference_with_timeline_completion = false;
+    bool inference_uses_timeline_completion = false;
+    bool inference_tunes_completion = false;
+    bool active_submission_uses_timeline = false;
     std::chrono::steady_clock::time_point inference_started;
 
 private:
@@ -699,6 +740,16 @@ private:
             return generation_pool_reset_selected;
         }
         return tune_next_inference_with_generation_pool_reset;
+    }
+
+    bool select_timeline_completion_for_inference() const {
+        if (!pool_reset_decided) {
+            return false;
+        }
+        if (completion_tuning_decided) {
+            return timeline_completion_selected;
+        }
+        return tune_next_inference_with_timeline_completion;
     }
 
     static uint64_t median_sample(std::vector<uint64_t> samples) {
@@ -774,6 +825,36 @@ private:
         static constexpr std::array<bool, 4> counterbalanced_generation_schedule{false, true, true, false};
         const auto next_sample = individual_reset_samples.size() + generation_reset_samples.size();
         tune_next_inference_with_generation_pool_reset = counterbalanced_generation_schedule[next_sample % counterbalanced_generation_schedule.size()];
+    }
+
+    void observe_completion_cost(bool used_timeline, std::chrono::steady_clock::duration elapsed) {
+        if (completion_tuning_decided) {
+            return;
+        }
+        const auto elapsed_ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count());
+        (used_timeline ? timeline_completion_samples : fence_completion_samples).push_back(elapsed_ns);
+        if (fence_completion_samples.size() == timeline_completion_samples.size()) {
+            size_t timeline_wins = 0;
+            size_t fence_wins = 0;
+            for (size_t index = 0; index < fence_completion_samples.size(); ++index) {
+                if (timeline_completion_samples[index] < fence_completion_samples[index]) {
+                    ++timeline_wins;
+                } else {
+                    ++fence_wins;
+                }
+            }
+            const auto remaining_pairs = max_completion_tuning_pairs - fence_completion_samples.size();
+            const bool timeline_is_decisive = timeline_wins > fence_wins + remaining_pairs;
+            const bool fence_is_decisive = fence_wins > timeline_wins + remaining_pairs;
+            if (timeline_is_decisive || fence_is_decisive || remaining_pairs == 0) {
+                timeline_completion_selected = timeline_wins > fence_wins;
+                completion_tuning_decided = true;
+                return;
+            }
+        }
+        static constexpr std::array<bool, 4> counterbalanced_timeline_schedule{false, true, true, false};
+        const auto next_sample = fence_completion_samples.size() + timeline_completion_samples.size();
+        tune_next_inference_with_timeline_completion = counterbalanced_timeline_schedule[next_sample % counterbalanced_timeline_schedule.size()];
     }
 
     static bool barriers_equal(const VkBufferMemoryBarrier2& lhs, const VkBufferMemoryBarrier2& rhs) {
@@ -1162,10 +1243,18 @@ private:
         return slot;
     }
 
-    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot) {
-        OPENVINO_ASSERT(slot.fence != VK_NULL_HANDLE && slot.submission == nullptr, "[GPU][Vulkan] Submission resources are already in use");
-        slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence, stream_id);
-        slot.fence = VK_NULL_HANDLE;
+    std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, uint64_t completion_value, bool used_timeline) {
+        OPENVINO_ASSERT(slot.submission == nullptr && (used_timeline == (completion_value != 0)), "[GPU][Vulkan] Submission resources are already in use");
+        if (used_timeline) {
+            slot.submission = std::make_shared<vulkan_submission_state>(completion_timeline, queue, stream_id, completion_value);
+        } else {
+            slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence, stream_id);
+            slot.fence = VK_NULL_HANDLE;
+        }
+        const auto pending_submissions = std::count_if(slots.begin(), slots.end(), [](const auto& candidate) {
+            return candidate.submission != nullptr;
+        });
+        max_pending_submissions = std::max(max_pending_submissions, static_cast<size_t>(pending_submissions));
         latest_submission = slot.submission;
         return slot.submission;
     }
@@ -1223,14 +1312,16 @@ private:
         }
 
         slot.submission->wait();
-        slot.fence = slot.submission->release_fence();
+        if (slot.submission->uses_fence()) {
+            slot.fence = slot.submission->release_fence();
+            check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
+        }
         slot.submission.reset();
         slot.retained_memories.clear();
         slot.retained_allocations.clear();
         slot.retained_transfer_lifetimes.clear();
         slot.retained_kernels.clear();
         slot.recorded_dispatches = 0;
-        check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
         if (reset_transient_command && slot.transient_command_buffer_submitted) {
             check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
             ++command_buffer_resets;
@@ -1310,6 +1401,7 @@ private:
         recording_slot = &slot;
         active_batch_limit = 1;
         active_direct_recording = true;
+        active_submission_uses_timeline = completion_tuning_decided && timeline_completion_selected;
         current_dispatches.clear();
         current_sequence_barriers.clear();
         current_allocations.clear();
