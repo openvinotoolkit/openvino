@@ -49,18 +49,16 @@ public:
 
 protected:
     /// \brief Check if FrontEnd can recognize the model from the given parts.
-    /// \param variants Either a `std::shared_ptr<GgufDecoder>`, or a path to a file whose extension
-    ///        is `.gguf` and whose first four bytes are the GGUF magic.
-    /// \return True for either of those; false otherwise.
+    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>`. No other variant
+    ///        is recognized in this frontend: file-path (`.gguf`) loading is not yet implemented.
+    /// \return True iff variants holds exactly that; false otherwise.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    /// \brief Load the input model, from either of the frontend's two ingest paths.
-    /// \param variants A single element, holding either:
-    ///        - a `std::shared_ptr<GgufDecoder>` — a decoder supplied by a direct linker, wrapping
-    ///          an already-built ggml graph (the llama.cpp cgraph path); or
-    ///        - a path to a `.gguf` file — parsed here, with the transformer graph built
-    ///          per-architecture by the native builder.
-    ///        Both yield a GgufDecoder, so conversion past this point is identical.
+    /// \brief Load the input model from a GgufDecoder.
+    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>` -- a decoder
+    ///        supplied by a direct linker, wrapping an already-built ggml graph (the llama.cpp
+    ///        cgraph path). File-path (`.gguf`) loading, built per-architecture by the native
+    ///        builder, is not yet implemented in this frontend.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 

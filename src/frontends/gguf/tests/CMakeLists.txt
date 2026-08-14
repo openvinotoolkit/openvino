@@ -53,7 +53,6 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/top_k.cpp"
     "${FE_SRC_DIR}/op/tri.cpp"
     "${FE_SRC_DIR}/op/sum_rows.cpp"
-    "${FE_SRC_DIR}/op/top_k.cpp"
     "${FE_SRC_DIR}/op/transpose.cpp"
     "${FE_SRC_DIR}/op/unary_elu.cpp"
     "${FE_SRC_DIR}/op/unary_gelu.cpp"
