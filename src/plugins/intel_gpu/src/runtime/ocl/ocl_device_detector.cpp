@@ -8,7 +8,6 @@
 #include "ocl_common.hpp"
 
 #include <algorithm>
-#include <limits>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -81,20 +80,12 @@ static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
 #endif // _WIN32
 
-size_t get_platform_priority(const std::string& platform_vendor) {
-    if (platform_vendor == INTEL_PLATFORM_VENDOR) {
-        return 0;
-    }
-    return std::numeric_limits<size_t>::max();
-}
-
 std::vector<size_t> get_sorted_platform_order(const std::vector<std::string>& platform_vendors) {
     std::vector<size_t> order(platform_vendors.size());
     std::iota(order.begin(), order.end(), 0);
 
-    // Stable sort keeps the ICD loader order of the platforms with the equal priority
-    std::stable_sort(order.begin(), order.end(), [&platform_vendors](size_t lhs, size_t rhs) {
-        return get_platform_priority(platform_vendors[lhs]) < get_platform_priority(platform_vendors[rhs]);
+    std::stable_partition(order.begin(), order.end(), [&platform_vendors](size_t idx) {
+        return platform_vendors[idx] == INTEL_PLATFORM_VENDOR;
     });
 
     return order;
@@ -113,8 +104,7 @@ static std::vector<cl_platform_id> sort_platforms(const std::vector<cl_platform_
     std::vector<cl_platform_id> sorted_ids;
     sorted_ids.reserve(platform_ids.size());
     for (const auto& idx : get_sorted_platform_order(vendors)) {
-        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << vendors[idx]
-                      << ", priority=" << get_platform_priority(vendors[idx]) << std::endl;
+        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << vendors[idx] << std::endl;
         sorted_ids.push_back(platform_ids[idx]);
     }
 
