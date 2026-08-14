@@ -889,52 +889,36 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
 
-                        // Collect all KV block tensors (works for single-block and multi-block cases)
+                        // Collect all KV block tensors and accumulate block_sum in one pass.
+                        // (works for single-block and multi-block cases)
                         NPUW_ASSERT(!sdpa_in.past_key_blocks.empty() && !sdpa_in.past_value_blocks.empty() &&
                                     "SDPA indices must have at least one past_key/value block");
                         NPUW_ASSERT(sdpa_in.past_key_blocks.size() == sdpa_in.past_value_blocks.size() &&
                                     "Number of past key blocks must match number of past value blocks");
                         std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
                         std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
+                        int64_t block_sum = 0;
                         for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
                             past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
                             past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+                            block_sum += static_cast<int64_t>(past_key_blocks.back()->get_shape()[K_SEQ_DIM]);
                         }
                         auto query_tensor = hfa_inputs.at(sdpa_in.query);
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+                        block_sum += static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
 
-                        // `total_kv_length` MUST reflect the ACTUAL current capacity of the tensors bound to
-                        // THIS SPECIFIC HFA subgraph - NOT `state.hfa_selector->context_length()` (a single,
-                        // uniform value derived from `position_ids`, i.e. the ABSOLUTE position in the whole
-                        // conversation, shared by ALL layers regardless of their own individual KV capacity).
-                        // That invariant (global position == this layer's actual bound KV length) silently
-                        // held before Sliding Window Attention: every layer's past KV buffer capacity grew
-                        // 1:1 with the conversation. It breaks for a sliding-window layer, whose past KV
-                        // blocks are capped at `window_size` independent of how long the conversation has
-                        // actually run - using the global position here would compute MORE tiles than this
-                        // layer's `past_key_blocks` can actually supply once the conversation exceeds the
-                        // window, while still being within the (larger) overall model/variant capacity.
-                        // Confirmed via a real crash: `NPUW: Assertion past_kv_tiles == 0 ... failed` on a 4K
-                        // generate variant, once the conversation ran long enough to exceed a 1024-token
-                        // sliding window (1K/2K variants never hit this in testing simply because the
-                        // conversation there never got that long yet - same latent bug, not yet triggered).
-                        //
-                        // The robust, SWA-agnostic fix is to derive `total_kv_length` directly from the
-                        // tensors actually bound to this subgraph: each entry in `past_key_blocks` is, by the
-                        // paged/block KV cache invariant, a FULLY completed block (its live shape IS its full
-                        // valid length), and the present tile's valid length is guaranteed by compilation to
-                        // equal `tile_size` (see the `final_tile_length == tile_size` assert below) - so their
-                        // sum is always exactly the number of KV positions actually available for THIS layer,
-                        // whatever that layer's own (possibly windowed) capacity is.
-                        int64_t total_kv_length = static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
-                        for (const auto& k_block : past_key_blocks) {
-                            total_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
-                        }
+                        // total_kv_length = min(context_length(), block_sum) works for both:
+                        //   Global SDPA: block_sum == context_length() → min picks either.
+                        //   SWA within window: block_sum == context_length() → same.
+                        //   SWA past window:   block_sum < context_length() (blocks capped at window_size)
+                        //                      → min picks block_sum, the actual occupied KV length.
+                        const int64_t total_kv_length = std::min(state.hfa_selector->context_length(), block_sum);
                         const int64_t num_tiles = total_kv_length / tile_size;
                         OPENVINO_ASSERT(total_kv_length % tile_size == 0,
                                         "HFA total KV length must be multiple of tile size for now");
+
                         auto& regular_tile_request = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
                         auto attention_output_tensor =
