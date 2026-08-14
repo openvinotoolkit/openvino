@@ -362,7 +362,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
-        !(localConfig.has<DYNAMIC_SHAPE_TO_STATIC>() && localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        !localConfig.get<DYNAMIC_SHAPE_TO_STATIC>()) {
         const auto isDynamicHostCompilePort = [](const auto& port) {
             const auto& shape = port.get_partial_shape();
             const auto rank = shape.rank();
