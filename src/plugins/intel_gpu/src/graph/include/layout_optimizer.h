@@ -194,17 +194,6 @@ private:
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
-    // True for the small-input-feature, very-many-tap 1D convolutions that
-    // ConvolutionKernel_1d_small_ic_gemm handles as an implicit GEMM. Blocked
-    // layouts pad the feature dimension up to their block size, throwing away 15 of
-    // every 16 MACs at IC == 1; a planar layout lets that kernel merge IC and the
-    // taps into one reduction axis instead. Kept deliberately narrow so it cannot
-    // divert a shape the blocked kernels are good at. Its shape bounds come from the
-    // kernel class, so the two gates widen together.
-    static bool convolution_1d_small_ic_gemm_opt(const layout& input_layout,
-                                                 const layout& output_layout,
-                                                 const layout& weights_layout,
-                                                 std::shared_ptr<const convolution> conv);
     bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout &input_layout,
                                               const layout& output_layout,
                                               const layout& weights_layout,

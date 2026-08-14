@@ -11,19 +11,11 @@
 
 namespace kernel_selector {
 
-// Implicit-GEMM convolution for 1D convolutions with a single input feature and
-// a large tap count, e.g. IC=1, taps=2048, OC=1025.
-//
-// The blocked-layout kernels pad the feature dimension up to the block size (16),
-// so an IC=1 convolution wastes 15/16 of every MAC it issues. This kernel merges
-// IC and the taps into one reduction axis instead, giving
-//
-//   M = OC, N = batch * output_length, K = IC * taps
-//
-// so there is no feature padding and K is large enough to amortize the tile
-// loads. The im2col matrix is never materialized: K maps back to
-// (input feature, tap) and N to (batch, output position) on the fly while
-// loading tiles into SLM.
+// Implicit-GEMM convolution for a 1D convolution with a single input feature and a
+// large filter, e.g. IC=1, filter length 2048, OC=1025. IC and the filter are
+// merged into one reduction axis - M = OC, N = batch * output length,
+// K = IC * filter length - so the feature dimension is not padded up to a blocked
+// block size. The im2col matrix is never materialized.
 class ConvolutionKernel_1d_small_ic_gemm : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
@@ -35,35 +27,26 @@ public:
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
-    // 1 because that is the only value measured, not a limit of the formulation:
-    // the kernel decomposes K into (input feature, tap) and is correct for any IC.
-    // At IC > 1 the competitor is ConvolutionKernel_bfyx_to_bfyx_f16, whose input
-    // is planar and pays no padding cost, so widening needs a benchmark against it
-    // plus kernel-side accuracy coverage. Until then
-    // convolution_1d_small_ic_gemm_f32.rejects_input_features_above_max repeats
-    // this bound as a literal so widening cannot pass silently.
+    // The formulation is correct for any IC; 1 is the only value measured. Widening
+    // needs a benchmark against ConvolutionKernel_bfyx_to_bfyx_f16.
     static constexpr size_t max_input_features = 1;
-    // K = IC * taps has to be large enough that loading a K tile pays for itself.
-    static constexpr size_t min_taps = 256;
+    // K = IC * filter length has to be large enough that loading a K tile pays off.
+    static constexpr size_t min_filter_len = 256;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override;
-    // Boundary conditions are handled by the tile loads, so the input does not
-    // have to be pre-padded into a larger buffer.
+    // The tile loads handle boundaries, so the input needs no pre-padded buffer.
     bool NeedPaddedInput() const override { return false; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
 
-    // The plugin swaps X and Y so a 1D convolution's long axis lands on X (see
-    // convolution_impl::get_kernel_params), consistently across the tensors,
-    // filterSize, padding, stride and dilation. Picking whichever axis is
-    // non-degenerate makes the kernel independent of whether the swap happened;
-    // Validate() rejects anything where the two disagree.
+    // The plugin may swap X and Y (see convolution_impl::get_kernel_params), so pick
+    // the axis by filter extent rather than assuming one.
     static bool long_axis_is_x(const convolution_params& params) {
         return params.filterSize.x >= params.filterSize.y;
     }
-    static size_t get_taps(const convolution_params& params) {
+    static size_t get_filter_len(const convolution_params& params) {
         return long_axis_is_x(params) ? params.filterSize.x : params.filterSize.y;
     }
 };

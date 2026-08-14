@@ -12,29 +12,21 @@
 namespace kernel_selector {
 namespace {
 
-// Tile shape of the implicit GEMM.
-//
-// A lane owns n_per_lane output columns, so TILE_N = simd * n_per_lane while the
-// work-group stays one sub-group wide. That is what pays for the inner loop's
-// memory traffic: one SLM read of A feeds n_per_lane FMAs instead of one. (A
-// lane's columns are simd apart, not adjacent, to keep loads and stores
-// coalesced - see the kernel.)
-//
-// n_per_lane is 2, not 4: TILE_N=64 covers fewer shapes on the B_IN_BOUNDS fast
-// path (gemm_n must be a multiple) and halves the accumulator to 32 registers.
+// Tile shape of the implicit GEMM. A lane owns n_per_lane output columns, so one
+// SLM read of A feeds n_per_lane FMAs. n_per_lane is 2, not 4: TILE_N=64 covers
+// fewer shapes on the B_IN_BOUNDS path and doubles the accumulator.
 constexpr size_t simd = 16;
 constexpr size_t n_per_lane = 2;
 constexpr size_t tile_m = 16;
 constexpr size_t tile_n = simd * n_per_lane;
 constexpr size_t tile_k = 32;
 
-// SLM per work-group: the A staging buffer only. B stays in registers, since a
-// lane stages the K slice of its own output column and is its only reader. The
-// accumulator is fp32 for every dtype (see GetJitConstants), hence the 4 bytes.
+// SLM per work-group: the A staging buffer only, B stays in registers. 4 bytes
+// because the accumulator is fp32 for every dtype (see GetJitConstants).
 constexpr size_t slm_bytes_per_wg = tile_m * tile_k * 4;
 
-// Width of the vector load used to stage B on the unguarded path. Must divide
-// tile_k. OpenCL only defines vloadN for N in {2,3,4,8,16}.
+// Width of the vector load used to stage B. OpenCL only defines vloadN for N in
+// {2,3,4,8,16}.
 constexpr size_t b_vec = 8;
 static_assert(tile_k % b_vec == 0, "B_VEC must divide TILE_K");
 
@@ -84,8 +76,8 @@ DeviceFeaturesKey ConvolutionKernel_1d_small_ic_gemm::get_required_device_featur
 }
 
 WeightsLayout ConvolutionKernel_1d_small_ic_gemm::GetPreferredWeightsLayout(const convolution_params&) const {
-    // [OC][IC][taps] is already contiguous as [OC][IC * taps], exactly the A
-    // matrix this kernel wants, so the default layout avoids a weights reorder.
+    // Already contiguous as [OC][IC * filter length], i.e. the A matrix, so no
+    // weights reorder is needed.
     return WeightsLayout::oiyx;
 }
 
@@ -96,11 +88,7 @@ bool ConvolutionKernel_1d_small_ic_gemm::Validate(const Params& p) const {
 
     const auto& params = static_cast<const convolution_params&>(p);
 
-    // Shape-agnostic execution is out of scope. Convolution has no dynamic onednn
-    // impl either, and the ocl dynamic path is a narrow auto_pad == EXPLICIT
-    // fallback (see registry/convolution_impls.cpp), so a dynamic variant would
-    // never be selected for a real model while costing the tile-size constant
-    // folding this kernel depends on.
+    // Static shapes only: the shape is folded into the jit constants below.
     if (params.is_shape_agnostic || params.has_dynamic_tensors()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -112,34 +100,27 @@ bool ConvolutionKernel_1d_small_ic_gemm::Validate(const Params& p) const {
     const auto& in = params.inputs[0];
     const auto& out = params.outputs[0];
 
-    // 1D only, and the long axis has to be the same one everywhere: the kernel
-    // indexes input, output and weights through a single LONG_AXIS_IS_X switch, so
-    // every short-axis extent must be degenerate, or the axis the host picked from
-    // filterSize would disagree with the tensors.
-    //
-    // padding_end is deliberately not checked: the XY swap updates filterSize,
-    // padding_begin, stride and dilation but leaves padding_end alone (see
-    // convolution_impl::get_kernel_params), so after a swap it refers to the other
-    // axis. This kernel never reads it - the output length comes from the output
-    // tensor and the trailing boundary from the in-range test on the staged
-    // position.
+    if (in.Feature().v > max_input_features) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    if (get_filter_len(params) < min_filter_len) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    // 1D only: the kernel indexes every tensor through a single LONG_AXIS_IS_X
+    // switch, so all axes but the long one must be degenerate and unpadded.
+    // padding_end is not checked - the XY swap leaves it referring to the other axis
+    // (see convolution_impl::get_kernel_params) and this kernel never reads it.
     const bool long_x = long_axis_is_x(params);
     const size_t short_filter = long_x ? params.filterSize.y : params.filterSize.x;
     const size_t short_in = long_x ? in.Y().v : in.X().v;
     const size_t short_out = long_x ? out.Y().v : out.X().v;
     const size_t short_pad_begin = long_x ? params.padding_begin.y : params.padding_begin.x;
 
-    const bool is_1d = in.Z().v == 1 && out.Z().v == 1 && params.filterSize.z == 1 && short_filter == 1 &&
-                       short_in == 1 && short_out == 1 && short_pad_begin == 0;
+    const bool is_1d = short_filter == 1 && short_in == 1 && short_out == 1 && short_pad_begin == 0 &&
+                       params.filterSize.z == 1 && in.Z().v == 1 && out.Z().v == 1;
     if (!is_1d) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
-    if (in.Feature().v > max_input_features) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
-    if (get_taps(params) < min_taps) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -162,11 +143,9 @@ JitConstants ConvolutionKernel_1d_small_ic_gemm::GetJitConstants(const convoluti
     const auto& in = params.inputs[0];
     const auto& out = params.outputs[0];
 
-    // Read every long-axis value off the same axis so the kernel is correct
-    // whether or not the XY swap happened; Validate() has already checked that the
-    // short axis is degenerate.
+    // Read every value off the long axis, so the XY swap does not matter.
     const bool long_x = long_axis_is_x(params);
-    const size_t taps = get_taps(params);
+    const size_t filter_len = get_filter_len(params);
     const size_t in_len = long_x ? in.X().v : in.Y().v;
     const size_t out_len = long_x ? out.X().v : out.Y().v;
     const size_t stride_l = long_x ? params.stride.x : params.stride.y;
@@ -175,33 +154,23 @@ JitConstants ConvolutionKernel_1d_small_ic_gemm::GetJitConstants(const convoluti
 
     const size_t gemm_m = out.Feature().v;
     const size_t gemm_n = out.Batch().v * out_len;
-    const size_t gemm_k = in.Feature().v * taps;
+    const size_t gemm_k = in.Feature().v * filter_len;
 
-    // Whether the kernel may stage B with unguarded vector loads. That path has no
-    // per-element fallback, so each of its assumptions is proved here for the whole
-    // iteration space rather than assumed:
-    //
-    //  - no left padding and the highest position read (last tap of the last
-    //    output) still inside the input, so no bounds test is needed;
-    //  - a K run is contiguous: dilation 1 and long-axis pitch 1 make consecutive
-    //    taps consecutive elements. This holds in practice (DataTensor::SwapXY sets
-    //    y.pitch = 1, and X is bfyx's innermost axis otherwise) but is checked;
-    //  - tile_k divides taps, so a tile never straddles a k / taps boundary and the
-    //    input feature is constant within it;
-    //  - tile_n divides gemm_n, so every lane has a valid column;
-    //  - b_vec divides tile_k, so the vector loop covers the tile exactly.
-    //
-    // last_pos is written without subtraction so it cannot wrap.
-    const size_t last_pos = (out_len - 1) * stride_l + (taps - 1) * dilation_l;
+    // The unguarded vector loads for B have no per-element fallback, so every
+    // position must be provably in range (no left padding, last read inside the
+    // input) and a K run contiguous (dilation 1, unit pitch), with tile_k and tile_n
+    // dividing the filter length and gemm_n so no tile is ragged. last_pos avoids
+    // subtraction so it cannot wrap.
+    const size_t last_pos = (out_len - 1) * stride_l + (filter_len - 1) * dilation_l;
     const size_t long_pitch = long_x ? in.X().pitch : in.Y().pitch;
     const bool b_in_bounds = pad_begin_l == 0 && dilation_l == 1 && long_pitch == 1 && last_pos < in_len &&
-                             taps % tile_k == 0 && gemm_n % tile_n == 0 && tile_k % b_vec == 0;
+                             filter_len % tile_k == 0 && gemm_n % tile_n == 0 && tile_k % b_vec == 0;
 
     jit.AddConstants({
         MakeJitConstant("B_IN_BOUNDS", b_in_bounds),
         MakeJitConstant("B_VEC", b_vec),
         MakeJitConstant("N_PER_LANE", n_per_lane),
-        MakeJitConstant("TAPS", taps),
+        MakeJitConstant("FILTER_LEN", filter_len),
         MakeJitConstant("IN_LEN", in_len),
         MakeJitConstant("OUT_LEN", out_len),
         MakeJitConstant("STRIDE_L", stride_l),
@@ -214,12 +183,10 @@ JitConstants ConvolutionKernel_1d_small_ic_gemm::GetJitConstants(const convoluti
         MakeJitConstant("TILE_N", tile_n),
         MakeJitConstant("TILE_K", tile_k),
         MakeJitConstant("SIMD", simd),
-        // Which axis the long one landed on, so the kernel's index macros pick
-        // the matching argument order. Consistent with get_taps().
         MakeJitConstant("LONG_AXIS_IS_X", long_x),
     });
 
-    // fp32 accumulation for every dtype, including int8: this keeps one code path.
+    // fp32 accumulation for every dtype, including int8, to keep one code path.
     const Datatype accumulator_dt = Datatype::F32;
     const Datatype activation_dt = Datatype::F32;
 
@@ -248,8 +215,8 @@ ConvolutionKernel_1d_small_ic_gemm::Parent::DispatchData ConvolutionKernel_1d_sm
 }
 
 KernelsPriority ConvolutionKernel_1d_small_ic_gemm::GetKernelsPriority(const Params& /*params*/) const {
-    // Must beat convolution_gpu_bfyx_os_iyx_osv16, which is picked for these
-    // shapes today and reaches only a few percent of peak on them.
+    // Must beat convolution_gpu_bfyx_os_iyx_osv16, which is picked for these shapes
+    // today and reaches only a few percent of peak.
     return FORCE_PRIORITY_2;
 }
 
