@@ -14,6 +14,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/property_registration.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/remote_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/shared_weights_assigner.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/transformations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
@@ -26,6 +27,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shared_weights_assigner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations.cpp
 )
 
