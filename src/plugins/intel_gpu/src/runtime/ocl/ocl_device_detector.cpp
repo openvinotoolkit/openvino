@@ -8,7 +8,7 @@
 #include "ocl_common.hpp"
 
 #include <algorithm>
-#include <numeric>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -79,37 +79,6 @@ static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 #ifdef _WIN32
 static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
 #endif // _WIN32
-
-std::vector<size_t> get_sorted_platform_order(const std::vector<std::string>& platform_vendors) {
-    std::vector<size_t> order(platform_vendors.size());
-    std::iota(order.begin(), order.end(), 0);
-
-    std::stable_partition(order.begin(), order.end(), [&platform_vendors](size_t idx) {
-        return platform_vendors[idx] == INTEL_PLATFORM_VENDOR;
-    });
-
-    return order;
-}
-
-// ICD loader doesn't guarantee any particular order of the platforms it reports, so the same physical device
-// may get a different device ID depending on the ICD loader implementation and the set of the installed platforms.
-// Reordering the platforms here makes the devices reported by Intel OpenCL platform come first in the device list.
-static std::vector<cl_platform_id> sort_platforms(const std::vector<cl_platform_id>& platform_ids) {
-    std::vector<std::string> vendors;
-    vendors.reserve(platform_ids.size());
-    for (const auto& id : platform_ids) {
-        vendors.push_back(cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>());
-    }
-
-    std::vector<cl_platform_id> sorted_ids;
-    sorted_ids.reserve(platform_ids.size());
-    for (const auto& idx : get_sorted_platform_order(vendors)) {
-        GPU_DEBUG_LOG << "Platform " << sorted_ids.size() << ": vendor=" << vendors[idx] << std::endl;
-        sorted_ids.push_back(platform_ids[idx]);
-    }
-
-    return sorted_ids;
-}
 
 static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     cl_uint maxSubDevices;
@@ -221,7 +190,13 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
-    platform_ids = sort_platforms(platform_ids);
+    // The ICD loader doesn't guarantee platform order. Keep Intel devices first.
+    const auto intel_platform = std::find_if(platform_ids.begin(), platform_ids.end(), [](const cl_platform_id id) {
+        return cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>() == INTEL_PLATFORM_VENDOR;
+    });
+    if (intel_platform != platform_ids.end()) {
+        std::rotate(platform_ids.begin(), intel_platform, std::next(intel_platform));
+    }
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {

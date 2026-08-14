@@ -39,7 +39,7 @@ public:
 // Lower priority value means lower device ID
 // Current behavior is: Intel iGPU < Intel dGPU < any other GPU
 // Devices with the equal priority keep the order they were enumerated in.
-// For the OCL runtime that order is defined by cldnn::ocl::sort_platforms()
+// The OCL runtime moves the Intel platform to the beginning of the platform list.
 // Order of the devices reported by the same platform is undefined and depends on the OCL impl
 inline size_t get_device_priority(const cldnn::device_info& info) {
     if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {

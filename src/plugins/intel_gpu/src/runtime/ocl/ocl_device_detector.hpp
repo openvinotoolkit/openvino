@@ -15,8 +15,6 @@
 namespace cldnn {
 namespace ocl {
 
-std::vector<size_t> get_sorted_platform_order(const std::vector<std::string>& platform_vendors);
-
 class ocl_device_detector {
 public:
     ocl_device_detector() = default;
