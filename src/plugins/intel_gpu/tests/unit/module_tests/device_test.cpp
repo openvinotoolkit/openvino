@@ -7,9 +7,7 @@
 #include "runtime/ocl/ocl_device_detector.hpp"
 #include "runtime/ocl/ocl_device.hpp"
 
-#include <algorithm>
 #include <memory>
-#include <utility>
 
 using namespace cldnn;
 using namespace ::tests;
