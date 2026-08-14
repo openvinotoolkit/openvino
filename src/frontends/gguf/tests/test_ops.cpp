@@ -13,6 +13,8 @@
 #include <functional>
 
 #include "op_test_utils.hpp"
+#include "openvino/op/topk.hpp"
+#include "utils.hpp"
 
 using namespace ov_gguf_test;
 
@@ -101,11 +103,75 @@ INSTANTIATE_TEST_SUITE_P(
                   [](float x) { return 0.5f * x * (1.0f + std::erf(x / std::sqrt(2.0f))); },
                   1e-3f},
         UnaryCase{"tanh", "GGML_UNARY_OP_TANH", [](float x) { return std::tanh(x); }, 1e-4f},
+        UnaryCase{"relu", "GGML_UNARY_OP_RELU", [](float x) { return x > 0.0f ? x : 0.0f; }, 1e-4f},
+        UnaryCase{"elu", "GGML_UNARY_OP_ELU", [](float x) { return x > 0.0f ? x : std::expm1(x); }, 1e-4f},
+        UnaryCase{"gelu_quick",
+                  "GGML_UNARY_OP_GELU_QUICK",
+                  [](float x) { return x * (1.0f / (1.0f + std::exp(-1.702f * x))); },
+                  1e-4f},
+        UnaryCase{"sin", "GGML_OP_SIN", [](float x) { return std::sin(x); }, 1e-4f},
+        UnaryCase{"cos", "GGML_OP_COS", [](float x) { return std::cos(x); }, 1e-4f},
         UnaryCase{"softplus",
                   "GGML_UNARY_OP_SOFTPLUS",
                   [](float x) { return std::log1p(std::exp(-std::abs(x))) + std::max(x, 0.0f); },
                   1e-3f}),
     [](const ::testing::TestParamInfo<UnaryCase>& i) { return std::string(i.param.name); });
+
+// Log is only defined for x > 0, so it gets its own inputs rather than the shared range above.
+TEST(GGUFOps, Log) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_LOG")
+                     .input("x", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+
+    std::vector<float> x{0.25f, 0.5f, 1, 2, 4, 10};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t i = 0; i < x.size(); ++i)
+        expected[i] = std::log(x[i]);
+    expect_near(out, expected, 1e-4f);
+}
+
+// get_dimensions must read the shape of the given output, not of the producing node's output 0.
+// TOP_K and ARGSORT hand downstream translators output(1) of a TopK, so taking the node instead
+// of the output would silently measure the values port.
+TEST(GGUFOps, GetDimensionsKeepsOutputPort) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 4});
+    auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto topk = std::make_shared<ov::op::v11::TopK>(data,
+                                                    k,
+                                                    -1,
+                                                    ov::op::v11::TopK::Mode::MAX,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                    ov::element::i32);
+
+    auto dims = ov::frontend::gguf::get_dimensions(topk->output(1), {0});
+    auto shape_of = dims->input_value(0).get_node_shared_ptr();
+    ASSERT_EQ(shape_of->get_input_size(), 1u);
+    EXPECT_EQ(shape_of->input_value(0).get_index(), 1u) << "get_dimensions measured the wrong port";
+}
+
+// ggml_top_k: indices of the k largest values along ne[0], ordered by descending value.
+TEST(GGUFOps, TopK) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TOP_K")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::i32, {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> x{4, 1, 3, 2, 10, 40, 20, 30};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+
+    ASSERT_EQ(out.get_element_type(), ov::element::i32);
+    ASSERT_EQ(out.get_size(), 4u);
+    const int32_t* a = out.data<int32_t>();
+    // Row 0: 4,1,3,2 -> top2 are 4 (idx 0) then 3 (idx 2). Row 1: 10,40,20,30 -> 40 (1), 30 (3).
+    std::vector<int32_t> expected{0, 2, 1, 3};
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_EQ(a[i], expected[i]) << "mismatch at index " << i;
+}
 
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
@@ -308,6 +374,71 @@ TEST(GGUFOps, Norm) {
                      .op("GGML_OP_NORM")
                      .input("x", ov::element::f32, {2, cols})
                      .output("out", ov::element::f32, {2, cols})
+                     .attr<float>("eps", eps)
+                     .build();
+
+    std::vector<float> x{1, 2, 3, 4, -2, 0, 2, 8};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, cols}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t r = 0; r < 2; ++r) {
+        float mean = 0.f;
+        for (size_t c = 0; c < cols; ++c)
+            mean += x[r * cols + c];
+        mean /= cols;
+        float var = 0.f;
+        for (size_t c = 0; c < cols; ++c)
+            var += (x[r * cols + c] - mean) * (x[r * cols + c] - mean);
+        var /= cols;
+        float inv = 1.0f / std::sqrt(var + eps);
+        for (size_t c = 0; c < cols; ++c)
+            expected[r * cols + c] = (x[r * cols + c] - mean) * inv;
+    }
+    expect_near(out, expected, 1e-4f);
+}
+
+// The index type comes from the decoder, not a hardcoded i32: an i64 TOP_K output must produce
+// an i64 tensor, otherwise the model signature and the actual tensor disagree.
+TEST(GGUFOps, TopKIndexTypeFollowsOutput) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_TOP_K")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("out", ov::element::i64, {1, 1, 2, 2})
+                     .build();
+
+    std::vector<float> x{4, 1, 3, 2, 10, 40, 20, 30};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
+
+    ASSERT_EQ(out.get_element_type(), ov::element::i64);
+    const int64_t* a = out.data<int64_t>();
+    std::vector<int64_t> expected{0, 2, 1, 3};
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_EQ(a[i], expected[i]) << "mismatch at index " << i;
+}
+
+// A pass-through VIEW must not rename its producer: that node belongs to another ggml tensor
+// (here a model input), and the helper appends, so the name would compound on every such view.
+TEST(GGUFOps, ViewPassThroughKeepsProducerName) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 2, 4})
+                     .output("myview", ov::element::f32, {1, 1, 2, 4})
+                     .attr<int>("op_case", 3)
+                     .attr<ov::Shape>("input_ggml_shape", ov::Shape{1, 1, 2, 4})
+                     .build();
+
+    ASSERT_EQ(model->get_parameters().size(), 1u);
+    EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
+}
+
+// The norm axis is the literal -1, so a dynamic token dim must still convert and run.
+TEST(GGUFOps, NormDynamicShape) {
+    const float eps = 1e-5f;
+    const size_t cols = 4;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_NORM")
+                     .input("x", ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(cols)})
+                     .output("out", ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(cols)})
                      .attr<float>("eps", eps)
                      .build();
 

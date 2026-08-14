@@ -15,11 +15,22 @@ set(BUILD_SHARED_LIBS OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-Wno-all)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ov_add_compiler_flags(-fpermissive)
+        ov_add_compiler_flags(-funsigned-char)
+    endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
+        ov_add_compiler_flags(-Wno-ignored-qualifiers)
+        ov_add_compiler_flags(-Wno-deprecated-declarations)
+        ov_add_compiler_flags(-Wno-attributes)
+        ov_add_compiler_flags(-Wno-sign-conversion)
+        ov_add_compiler_flags(-Wno-array-bounds)
+    endif()
+    if(OV_COMPILER_IS_CLANG)
+        ov_add_compiler_flags(-Wno-sign-conversion)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # protobuf\src\google\protobuf\descriptor.cc(822) : error C4703: potentially uninitialized local pointer variable 'to_use' used
     ov_add_compiler_flags(/wd4703)
 endif()
 
@@ -28,6 +39,12 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
+# Disable protobuf's own install/export rules.  OpenVINO installs and exports
+# libprotobuf/libprotobuf-lite via ov_install_static_lib → OpenVINOTargets.
+set(protobuf_INSTALL OFF CACHE BOOL "Disable protobuf self-install (managed by OpenVINO)" FORCE)
+# utf8_range.cmake sets utf8_range_ENABLE_INSTALL from protobuf_INSTALL but
+# without FORCE, so a stale ON value in the cache survives even when protobuf_INSTALL=OFF
+set(utf8_range_ENABLE_INSTALL OFF CACHE BOOL "Disable utf8_range self-install (managed by OpenVINO)" FORCE)
 
 # some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
 unset(HAVE_ZLIB CACHE)
@@ -53,10 +70,25 @@ else()
     set(protobuf_dir protobuf/cmake)
 endif()
 
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
 
 set(Protobuf_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src)
+
+include(GNUInstallDirs)
+
+# Mimic protobuf's cmake/install.cmake
+foreach(_proto_lib IN ITEMS libprotobuf libprotobuf-lite)
+    if(TARGET "${_proto_lib}")
+        set_property(TARGET "${_proto_lib}"
+            PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protobuf/src>"
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+    endif()
+endforeach()
+unset(_proto_lib)
 
 # to hide libprotobuf warnings
 target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
@@ -69,12 +101,15 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-        if(ENABLE_THREAD_SANITIZER)
-            foreach(_lib ${_protoc_libs})
+    endif()
+    # protobuf is incompatible with thread sanitizers
+    if(ENABLE_THREAD_SANITIZER)
+        foreach(_lib protoc libprotoc libprotobuf libprotobuf-lite)
+            if(TARGET ${_lib})
                 target_compile_options(${_lib} PRIVATE -fno-sanitize=thread)
-            endforeach()
-            target_link_options(protoc PRIVATE -fno-sanitize=thread)
-        endif()
+                target_link_options(${_lib} PRIVATE -fno-sanitize=thread)
+            endif()
+        endforeach()
     endif()
     ov_disable_all_warnings(${_protoc_libs} libprotobuf-lite)
     set_target_properties(libprotobuf-lite PROPERTIES
@@ -92,6 +127,10 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
 
     if(ENABLE_THREAD_SANITIZER)
         set(protoc_extra_flags "-fno-sanitize=thread")
+    endif()
+
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(protoc_extra_flags "${protoc_extra_flags} -fpermissive")
     endif()
 
     set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
