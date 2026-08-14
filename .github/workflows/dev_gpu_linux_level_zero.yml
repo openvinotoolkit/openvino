@@ -111,7 +111,6 @@ jobs:
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
-            -DENABLE_SAMPLES=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
