@@ -57,7 +57,7 @@ namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace v15 = ov::op::v15;
 ov::pass::GroupQueryAttentionDecomposition::GroupQueryAttentionDecomposition() {
-    MATCHER_SCOPE(GroupQeuryAttentionDecomposition);
+    MATCHER_SCOPE(GroupQueryAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
