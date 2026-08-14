@@ -33,9 +33,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
-      _weightSharingContext(std::move(weightSharingContext)),
       _graph(graph),
-      _batchSize(batchSize) {
+      _batchSize(batchSize),
+      _weightSharingContext(std::move(weightSharingContext)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     // Support for specific properties might depend on the characteristics of the compiled model.

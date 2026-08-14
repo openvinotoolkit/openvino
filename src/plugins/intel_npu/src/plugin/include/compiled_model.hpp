@@ -74,11 +74,12 @@ private:
 
     std::shared_ptr<IGraph> _graph;
 
-    ov::internal::WeightSharingCtxPtr _weightSharingContext;
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;
     mutable std::once_flag _streamExecutorsInitFlag;
 
     std::optional<int64_t> _batchSize;
+
+    ov::internal::WeightSharingCtxPtr _weightSharingContext;
 };
 
 }  //  namespace intel_npu
