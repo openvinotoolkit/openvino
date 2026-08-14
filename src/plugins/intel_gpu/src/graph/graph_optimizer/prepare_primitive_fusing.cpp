@@ -545,7 +545,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        if (node->is_output() || node->is_constant())
+        const bool can_fuse_vulkan_output_eltwise = is_vulkan_runtime && node->is_output() && node->is_type<eltwise>();
+        if ((node->is_output() && !can_fuse_vulkan_output_eltwise) || node->is_constant())
             continue;
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
@@ -1060,7 +1061,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 eltwise_mode::div
             };
 
-            if (node.is_output() || node.get_inputs_count() != 2 ||
+            if ((!is_vulkan_runtime && node.is_output()) || node.get_inputs_count() != 2 ||
                 std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
                 !prim->stride.empty())
                 return;
@@ -1083,6 +1084,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                                   (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
                     }
                     can_fuse_parents[i] =
+                        !parents[i].first->is_output() &&
                         parents[i].first->is_type<eltwise>() &&
                         parents[i].first->get_fused_primitives().size() <
                             vulkan_eltwise_abi::value(vulkan_eltwise_abi::limit::max_fused_chain_length) &&
@@ -1385,7 +1387,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 recalc_processing_order = true;
             }
 
-            p.fuse_nodes(*fused_node, node, &fusing_history);
+            p.fuse_nodes(*fused_node, node, &fusing_history, is_vulkan_runtime && node.is_output());
         };
 
         // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
