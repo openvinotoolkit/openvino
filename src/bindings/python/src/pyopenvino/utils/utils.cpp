@@ -8,6 +8,7 @@
 #include <pybind11/stl/filesystem.h>
 
 #include <cmath>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -347,6 +348,11 @@ ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const py::object& p
                 OPENVINO_THROW("The utilization key of ",
                                ov::intel_auto::perf_curve_table.name(),
                                " must be a non-negative integer");
+            }
+            if (utilization > static_cast<long long>(std::numeric_limits<unsigned>::max())) {
+                OPENVINO_THROW("The utilization key of ",
+                               ov::intel_auto::perf_curve_table.name(),
+                               " is too large to fit into an unsigned integer");
             }
             // bool is implicitly castable to float (True/False -> 1.0/0.0); reject it explicitly.
             if (py::isinstance<py::bool_>(curve_item.second)) {
