@@ -533,8 +533,10 @@ public:
         auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
 
+        bool gemm_with_bias = arg.get_primitive()->dependencies().size() == 3;
         bool is_dynamic = impl_params.get_input_layout(0).is_dynamic() ||
-                          impl_params.get_input_layout(1).is_dynamic();
+                          impl_params.get_input_layout(1).is_dynamic() ||
+                          (gemm_with_bias && impl_params.get_input_layout(2).is_dynamic());
         if (!is_dynamic && (impl_params.get_input_layout(0).count() == 0 ||
                            impl_params.get_input_layout(1).count() == 0)) {
             return std::make_unique<gemm_onednn>(engine);

@@ -106,6 +106,9 @@ struct GemmImplementationManager : public ImplementationManager {
                         return false;
                     if (act_prim->additional_params.a != 0.0f)
                         return false;
+                    if ((in0_layout.is_dynamic() || in1_layout.is_dynamic() || out_layout.is_dynamic()) &&
+                        func == activation_func::relu)
+                        return false;
                 } else {
                     return false;
                 }
