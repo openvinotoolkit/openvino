@@ -33,6 +33,8 @@ namespace {
 
 class empty_surfaces_lock final : public surfaces_lock {};
 
+constexpr VkDeviceSize buffer_transfer_alignment = sizeof(uint32_t);
+
 bool stream_diagnostics_enabled() {
     const auto* value = std::getenv("OV_GPU_VULKAN_STREAM_STATS");
     return value != nullptr && value[0] != '\0' && std::string(value) != "0";
@@ -46,88 +48,6 @@ uint64_t next_stream_id() {
 void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
 }
-
-class synchronous_buffer_transfer {
-public:
-    synchronous_buffer_transfer(VkDevice device, uint32_t queue_family) : _device(device) {
-        try {
-            VkCommandPoolCreateInfo pool_info{};
-            pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-            pool_info.queueFamilyIndex = queue_family;
-            check_vk_result(vkCreateCommandPool(_device, &pool_info, nullptr, &_pool), "vkCreateCommandPool(staging transfer)");
-
-            VkCommandBufferAllocateInfo command_info{};
-            command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            command_info.commandPool = _pool;
-            command_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            command_info.commandBufferCount = 1;
-            check_vk_result(vkAllocateCommandBuffers(_device, &command_info, &_command_buffer), "vkAllocateCommandBuffers(staging transfer)");
-
-            VkFenceCreateInfo fence_info{};
-            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            check_vk_result(vkCreateFence(_device, &fence_info, nullptr, &_fence), "vkCreateFence(staging transfer)");
-        } catch (...) {
-            release();
-            throw;
-        }
-    }
-
-    ~synchronous_buffer_transfer() {
-        release();
-    }
-
-    synchronous_buffer_transfer(const synchronous_buffer_transfer&) = delete;
-    synchronous_buffer_transfer& operator=(const synchronous_buffer_transfer&) = delete;
-
-    void execute(VkQueue queue,
-                 std::mutex& queue_mutex,
-                 VkBuffer source,
-                 VkDeviceSize source_offset,
-                 VkBuffer destination,
-                 VkDeviceSize destination_offset,
-                 VkDeviceSize size) {
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        check_vk_result(vkBeginCommandBuffer(_command_buffer, &begin_info), "vkBeginCommandBuffer(staging transfer)");
-
-        VkBufferCopy copy{};
-        copy.srcOffset = source_offset;
-        copy.dstOffset = destination_offset;
-        copy.size = size;
-        vkCmdCopyBuffer(_command_buffer, source, destination, 1, &copy);
-        check_vk_result(vkEndCommandBuffer(_command_buffer), "vkEndCommandBuffer(staging transfer)");
-
-        VkSubmitInfo submit_info{};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &_command_buffer;
-        {
-            std::lock_guard<std::mutex> lock(queue_mutex);
-            check_vk_result(vkQueueSubmit(queue, 1, &submit_info, _fence), "vkQueueSubmit(staging transfer)");
-        }
-        check_vk_result(vkWaitForFences(_device, 1, &_fence, VK_TRUE, std::numeric_limits<uint64_t>::max()), "vkWaitForFences(staging transfer)");
-    }
-
-private:
-    void release() noexcept {
-        if (_fence != VK_NULL_HANDLE) {
-            vkDestroyFence(_device, _fence, nullptr);
-        }
-        if (_pool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(_device, _pool, nullptr);
-        }
-        _fence = VK_NULL_HANDLE;
-        _command_buffer = VK_NULL_HANDLE;
-        _pool = VK_NULL_HANDLE;
-    }
-
-    VkDevice _device = VK_NULL_HANDLE;
-    VkCommandPool _pool = VK_NULL_HANDLE;
-    VkCommandBuffer _command_buffer = VK_NULL_HANDLE;
-    VkFence _fence = VK_NULL_HANDLE;
-};
 
 memory::cptr get_argument_memory(const argument_desc& descriptor, const kernel_arguments_data& data) {
     switch (descriptor.t) {
@@ -179,7 +99,7 @@ std::vector<uint8_t> pack_push_constants(const scalars_desc& scalars) {
 struct prepared_arguments {
     std::vector<VkDescriptorBufferInfo> buffer_infos;
     std::vector<vulkan_buffer_allocation::ptr> allocations;
-    std::vector<VkAccessFlags2> shader_accesses;
+    std::vector<VkAccessFlags2> accesses;
     std::vector<memory::cptr> memories;
     std::vector<uint8_t> push_constants;
 };
@@ -207,7 +127,7 @@ prepared_arguments prepare_arguments(const kernel_arguments_desc& descriptor, co
         OPENVINO_ASSERT(buffer->size() > 0, "[GPU][Vulkan] Zero-sized storage buffer arguments are not supported");
         prepared.buffer_infos.push_back({buffer->get_buffer(), buffer->get_offset(), buffer->size()});
         prepared.allocations.push_back(buffer->get_allocation());
-        prepared.shader_accesses.push_back(get_shader_access(argument.t));
+        prepared.accesses.push_back(get_shader_access(argument.t));
         prepared.memories.push_back(std::move(memory));
     }
     prepared.push_constants = pack_push_constants(descriptor.scalars);
@@ -270,6 +190,7 @@ struct vulkan_stream::resource_state {
     struct access_range {
         VkDeviceSize begin = 0;
         VkDeviceSize end = 0;
+        VkPipelineStageFlags2 stages = 0;
         VkAccessFlags2 access = 0;
         uint64_t generation = 0;
     };
@@ -307,6 +228,8 @@ struct vulkan_stream::resource_state {
         VkFence fence = VK_NULL_HANDLE;
         std::shared_ptr<vulkan_submission_state> submission;
         std::vector<memory::cptr> retained_memories;
+        std::vector<vulkan_buffer_allocation::ptr> retained_allocations;
+        std::vector<std::shared_ptr<const void>> retained_transfer_lifetimes;
         std::vector<std::weak_ptr<vulkan_buffer_allocation>> descriptor_allocations;
         std::vector<VkDescriptorBufferInfo> descriptor_buffer_infos;
         std::vector<std::shared_ptr<const void>> retained_kernels;
@@ -374,7 +297,8 @@ struct vulkan_stream::resource_state {
                       << " individual_reset_samples=" << individual_reset_samples.size() << " generation_reset_samples=" << generation_reset_samples.size()
                       << " generation_reset_pair_wins=" << generation_reset_pair_wins << " individual_reset_pair_wins=" << individual_reset_pair_wins
                       << " individual_reset_median_ns=" << (individual_reset_samples.empty() ? 0 : median_sample(individual_reset_samples))
-                      << " generation_reset_median_ns=" << (generation_reset_samples.empty() ? 0 : median_sample(generation_reset_samples)) << std::endl;
+                      << " generation_reset_median_ns=" << (generation_reset_samples.empty() ? 0 : median_sample(generation_reset_samples))
+                      << " buffer_copies=" << buffer_copies << " buffer_fills=" << buffer_fills << " transfer_bytes=" << transfer_bytes << std::endl;
         }
     }
 
@@ -431,9 +355,9 @@ struct vulkan_stream::resource_state {
         ++dispatches;
     }
 
-    void record_buffer_hazards(slot& slot, const prepared_arguments& prepared) {
+    void record_buffer_hazards(slot& slot, const prepared_arguments& prepared, VkPipelineStageFlags2 stages) {
         OPENVINO_ASSERT(recording_slot == &slot && slot.submission == nullptr, "[GPU][Vulkan] Buffer hazards must be recorded in the active command batch");
-        OPENVINO_ASSERT(prepared.buffer_infos.size() == prepared.allocations.size() && prepared.buffer_infos.size() == prepared.shader_accesses.size(),
+        OPENVINO_ASSERT(prepared.buffer_infos.size() == prepared.allocations.size() && prepared.buffer_infos.size() == prepared.accesses.size(),
                         "[GPU][Vulkan] Prepared buffer access metadata is inconsistent");
         argument_accesses += prepared.buffer_infos.size();
         discard_expired_accesses();
@@ -450,7 +374,7 @@ struct vulkan_stream::resource_state {
         }
 
         for (size_t index = 0; index < prepared.buffer_infos.size(); ++index) {
-            current_access_scratch[index] = make_access_range(prepared.buffer_infos[index], prepared.shader_accesses[index], 0);
+            current_access_scratch[index] = make_access_range(prepared.buffer_infos[index], stages, prepared.accesses[index], 0);
             const auto state = access_states.try_emplace(prepared.allocations[index]).first;
             access_state_scratch[index] = &state->second;
             append_hazard_barriers(prepared.allocations[index], state->second.ranges, current_access_scratch[index], hazard_barrier_scratch);
@@ -493,6 +417,53 @@ struct vulkan_stream::resource_state {
         OPENVINO_ASSERT(recording_slot == &slot && active_direct_recording, "[GPU][Vulkan] Immediate dispatch requires an active direct-recording batch");
         record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
         record_dispatch_commands(slot.command_buffer, pipeline, descriptor_set, prepared.push_constants, group_counts);
+    }
+
+    std::shared_ptr<vulkan_submission_state> submit_buffer_copy(const vulkan_buffer_allocation::ptr& source,
+                                                                VkDeviceSize source_offset,
+                                                                const vulkan_buffer_allocation::ptr& destination,
+                                                                VkDeviceSize destination_offset,
+                                                                VkDeviceSize size,
+                                                                std::vector<std::shared_ptr<const void>> lifetimes) {
+        OPENVINO_ASSERT(source != nullptr && destination != nullptr, "[GPU][Vulkan] Buffer copy allocation is null");
+        prepared_arguments prepared;
+        prepared.buffer_infos = {{source->buffer, source_offset, size}, {destination->buffer, destination_offset, size}};
+        prepared.allocations = {source, destination};
+        prepared.accesses = {VK_ACCESS_2_TRANSFER_READ_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT};
+        auto& slot = begin_transfer(prepared);
+
+        VkBufferCopy copy{};
+        copy.srcOffset = source_offset;
+        copy.dstOffset = destination_offset;
+        copy.size = size;
+        vkCmdCopyBuffer(slot.command_buffer, source->buffer, destination->buffer, 1, &copy);
+        slot.retained_allocations = {source, destination};
+        slot.retained_transfer_lifetimes = std::move(lifetimes);
+        ++slot.recorded_dispatches;
+        ++buffer_copies;
+        transfer_bytes += size;
+        return flush();
+    }
+
+    std::shared_ptr<vulkan_submission_state> submit_buffer_fill(const vulkan_buffer_allocation::ptr& destination,
+                                                                VkDeviceSize destination_offset,
+                                                                VkDeviceSize size,
+                                                                uint32_t pattern,
+                                                                std::shared_ptr<const void> lifetime) {
+        OPENVINO_ASSERT(destination != nullptr, "[GPU][Vulkan] Buffer fill allocation is null");
+        prepared_arguments prepared;
+        prepared.buffer_infos = {{destination->buffer, destination_offset, size}};
+        prepared.allocations = {destination};
+        prepared.accesses = {VK_ACCESS_2_TRANSFER_WRITE_BIT};
+        auto& slot = begin_transfer(prepared);
+
+        vkCmdFillBuffer(slot.command_buffer, destination->buffer, destination_offset, size, pattern);
+        slot.retained_allocations = {destination};
+        slot.retained_transfer_lifetimes = {std::move(lifetime)};
+        ++slot.recorded_dispatches;
+        ++buffer_fills;
+        transfer_bytes += size;
+        return flush();
     }
 
     void mark_external_dependency() {
@@ -545,6 +516,7 @@ struct vulkan_stream::resource_state {
         largest_batch = std::max(largest_batch, slot.recorded_dispatches);
         recording_slot = nullptr;
         active_batch_limit = 0;
+        active_direct_recording = false;
         current_dispatches.clear();
         current_sequence_barriers.clear();
         current_allocations.clear();
@@ -659,6 +631,9 @@ struct vulkan_stream::resource_state {
     uint64_t descriptor_updates = 0;
     uint64_t descriptor_reuses = 0;
     uint64_t dispatches = 0;
+    uint64_t buffer_copies = 0;
+    uint64_t buffer_fills = 0;
+    uint64_t transfer_bytes = 0;
     uint64_t queue_submissions = 0;
     uint64_t argument_accesses = 0;
     uint64_t hazard_barriers = 0;
@@ -984,10 +959,10 @@ private:
         return nullptr;
     }
 
-    static access_range make_access_range(const VkDescriptorBufferInfo& info, VkAccessFlags2 access, uint64_t generation) {
+    static access_range make_access_range(const VkDescriptorBufferInfo& info, VkPipelineStageFlags2 stages, VkAccessFlags2 access, uint64_t generation) {
         OPENVINO_ASSERT(info.range > 0 && info.offset <= std::numeric_limits<VkDeviceSize>::max() - info.range,
                         "[GPU][Vulkan] Buffer access range overflows VkDeviceSize");
-        return {info.offset, info.offset + info.range, access, generation};
+        return {info.offset, info.offset + info.range, stages, access, generation};
     }
 
     static void update_access_state(std::vector<access_range>& ranges, const access_range& current) {
@@ -997,6 +972,7 @@ private:
         }
         if (ranges.size() == 1 && ranges.front().begin == current.begin && ranges.front().end == current.end) {
             auto& range = ranges.front();
+            range.stages = range.generation == current.generation ? range.stages | current.stages : current.stages;
             range.access = range.generation == current.generation ? range.access | current.access : current.access;
             range.generation = current.generation;
             return;
@@ -1035,16 +1011,19 @@ private:
                 continue;
             }
 
+            auto stages = previous != nullptr ? previous->stages : VkPipelineStageFlags2{0};
             auto access = previous != nullptr ? previous->access : VkAccessFlags2{0};
             auto generation = previous != nullptr ? previous->generation : uint64_t{0};
             if (current_covers_interval) {
+                stages = previous != nullptr && previous->generation == current.generation ? previous->stages | current.stages : current.stages;
                 access = previous != nullptr && previous->generation == current.generation ? previous->access | current.access : current.access;
                 generation = current.generation;
             }
-            if (!result.empty() && result.back().end == begin && result.back().access == access && result.back().generation == generation) {
+            if (!result.empty() && result.back().end == begin && result.back().stages == stages && result.back().access == access &&
+                result.back().generation == generation) {
                 result.back().end = end;
             } else {
-                result.push_back({begin, end, access, generation});
+                result.push_back({begin, end, stages, access, generation});
             }
         }
         ranges = std::move(result);
@@ -1057,17 +1036,18 @@ private:
         for (const auto& previous_range : previous) {
             const auto begin = std::max(previous_range.begin, current.begin);
             const auto end = std::min(previous_range.end, current.end);
-            const bool previous_writes = (previous_range.access & VK_ACCESS_2_SHADER_WRITE_BIT) != 0;
-            const bool current_writes = (current.access & VK_ACCESS_2_SHADER_WRITE_BIT) != 0;
+            const auto write_access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            const bool previous_writes = (previous_range.access & write_access) != 0;
+            const bool current_writes = (current.access & write_access) != 0;
             if (begin >= end || (!previous_writes && !current_writes)) {
                 continue;
             }
 
             VkBufferMemoryBarrier2 barrier{};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            barrier.srcStageMask = previous_range.stages;
             barrier.srcAccessMask = previous_range.access;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            barrier.dstStageMask = current.stages;
             barrier.dstAccessMask = current.access;
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1246,6 +1226,8 @@ private:
         slot.fence = slot.submission->release_fence();
         slot.submission.reset();
         slot.retained_memories.clear();
+        slot.retained_allocations.clear();
+        slot.retained_transfer_lifetimes.clear();
         slot.retained_kernels.clear();
         slot.recorded_dispatches = 0;
         check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
@@ -1321,6 +1303,25 @@ private:
     size_t active_batch_limit = 0;
     bool external_dependency_pending = false;
     std::weak_ptr<vulkan_submission_state> latest_submission;
+
+    slot& begin_transfer(const prepared_arguments& prepared) {
+        flush();
+        auto& slot = acquire(0, false);
+        recording_slot = &slot;
+        active_batch_limit = 1;
+        active_direct_recording = true;
+        current_dispatches.clear();
+        current_sequence_barriers.clear();
+        current_allocations.clear();
+
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer(transfer)");
+        record_buffer_hazards(slot, prepared, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+        record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
+        return slot;
+    }
 };
 
 vulkan_stream::vulkan_stream(const vulkan_engine& engine)
@@ -1408,7 +1409,7 @@ event::ptr vulkan_stream::enqueue_kernel(kernel& kernel,
 
     bool descriptor_is_immutable = false;
     const auto descriptor_set = _resources->get_or_update_descriptor_set(resources, *pipeline, prepared, descriptor_is_immutable);
-    _resources->record_buffer_hazards(resources, prepared);
+    _resources->record_buffer_hazards(resources, prepared, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     if (_resources->direct_recording_is_active()) {
         _resources->record_immediate_dispatch(resources, *pipeline, descriptor_set, prepared, group_counts);
     } else {
@@ -1459,19 +1460,72 @@ std::unique_ptr<surfaces_lock> vulkan_stream::create_surfaces_lock(const std::ve
     return std::make_unique<empty_surfaces_lock>();
 }
 
-void vulkan_stream::copy_buffer(VkBuffer source, VkDeviceSize source_offset, VkBuffer destination, VkDeviceSize destination_offset, VkDeviceSize size) const {
+event::ptr vulkan_stream::enqueue_buffer_copy(const std::shared_ptr<vulkan_buffer_allocation>& source,
+                                              VkDeviceSize source_offset,
+                                              const std::shared_ptr<vulkan_buffer_allocation>& destination,
+                                              VkDeviceSize destination_offset,
+                                              VkDeviceSize size,
+                                              bool blocking,
+                                              std::vector<std::shared_ptr<const void>> lifetimes) const {
+    OPENVINO_ASSERT(source != nullptr && destination != nullptr, "[GPU][Vulkan] Buffer copy allocation is null");
+    OPENVINO_ASSERT(source_offset <= source->size && size <= source->size - source_offset, "[GPU][Vulkan] Buffer copy source range exceeds its allocation");
+    OPENVINO_ASSERT(destination_offset <= destination->size && size <= destination->size - destination_offset,
+                    "[GPU][Vulkan] Buffer copy destination range exceeds its allocation");
     if (size == 0) {
-        return;
+        return std::make_shared<vulkan_event>(true);
     }
-    OPENVINO_ASSERT(source != VK_NULL_HANDLE && destination != VK_NULL_HANDLE, "[GPU][Vulkan] Staging transfer received a null buffer");
+    OPENVINO_ASSERT(
+        source_offset % buffer_transfer_alignment == 0 && destination_offset % buffer_transfer_alignment == 0 && size % buffer_transfer_alignment == 0,
+        "[GPU][Vulkan] Buffer copy range is not transfer-aligned");
     if (source == destination) {
         const auto non_overlapping =
             source_offset < destination_offset ? size <= destination_offset - source_offset : size <= source_offset - destination_offset;
-        OPENVINO_ASSERT(non_overlapping, "[GPU][Vulkan] Staging transfer ranges overlap in one buffer");
+        OPENVINO_ASSERT(non_overlapping, "[GPU][Vulkan] Buffer copy ranges overlap in one allocation");
     }
-    finish();
-    synchronous_buffer_transfer transfer(_engine.get_device_handle(), _engine.get_compute_queue_family());
-    transfer.execute(_engine.get_compute_queue(), _engine.get_queue_mutex(), source, source_offset, destination, destination_offset, size);
+
+    auto event =
+        std::make_shared<vulkan_event>(_resources->submit_buffer_copy(source, source_offset, destination, destination_offset, size, std::move(lifetimes)));
+    if (blocking) {
+        event->wait();
+    }
+    return event;
+}
+
+event::ptr vulkan_stream::enqueue_buffer_fill(const std::shared_ptr<vulkan_buffer_allocation>& destination,
+                                              VkDeviceSize destination_offset,
+                                              VkDeviceSize size,
+                                              uint32_t pattern,
+                                              std::shared_ptr<const void> lifetime,
+                                              const std::vector<event::ptr>& dependencies,
+                                              bool blocking) const {
+    OPENVINO_ASSERT(destination != nullptr, "[GPU][Vulkan] Buffer fill allocation is null");
+    OPENVINO_ASSERT(destination_offset <= destination->size && size <= destination->size - destination_offset,
+                    "[GPU][Vulkan] Buffer fill range exceeds its allocation");
+    if (size == 0) {
+        return std::make_shared<vulkan_event>(true);
+    }
+    OPENVINO_ASSERT(destination_offset % buffer_transfer_alignment == 0 && size % buffer_transfer_alignment == 0,
+                    "[GPU][Vulkan] Buffer fill range is not transfer-aligned");
+
+    for (const auto& dependency : dependencies) {
+        if (dependency == nullptr) {
+            continue;
+        }
+        const auto* vk_event = dynamic_cast<const vulkan_event*>(dependency.get());
+        if (vk_event == nullptr || !vk_event->is_device_submission(_engine.get_device_handle(), _engine.get_compute_queue())) {
+            _resources->flush();
+            dependency->wait();
+        } else if (!vk_event->is_stream_submission(_engine.get_device_handle(), _engine.get_compute_queue(), _resources->stream_id)) {
+            _resources->flush();
+            _resources->mark_external_dependency();
+        }
+    }
+
+    auto event = std::make_shared<vulkan_event>(_resources->submit_buffer_fill(destination, destination_offset, size, pattern, std::move(lifetime)));
+    if (blocking) {
+        event->wait();
+    }
+    return event;
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

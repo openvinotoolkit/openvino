@@ -61,6 +61,10 @@ public:
         return (memory_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
     }
 
+    bool is_host_cached() const {
+        return (memory_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0;
+    }
+
     VkDevice device = VK_NULL_HANDLE;
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
