@@ -35,7 +35,7 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 }
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
-    int dim = nb.size() - 1;
+    const auto dim = static_cast<int>(nb.size() - 1);
     size_t bytes = nb[dim];
     for (int i = dim; i > 0; i--) {
         bytes *= ne[i];

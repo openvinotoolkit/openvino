@@ -142,7 +142,13 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     std::set<ov::Node*> deferred_use_params;
 
     for (const auto& it : gguf_model_decoder->get_model_inputs()) {
-        params.push_back(std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second));
+        // Not every decoder splits auxiliary inputs into get_model_extra_inputs(): one that still
+        // folds them into get_model_inputs() (see the decoder.hpp contract) hands us a mix of
+        // Parameters and other node types here, so guard the cast instead of pushing a null
+        // Parameter into `params`.
+        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(it.second)) {
+            params.push_back(param);
+        }
         (*tensor_map)[it.first] = it.second;
     }
 

@@ -186,7 +186,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         auto sink_f16 = sink.get_element_type() != element::f16
                             ? std::make_shared<v0::Convert>(sink, element::f16)->output(0)
                             : sink;
-        auto sink_shape = v0::Constant::create(element::i64, {4}, std::vector<int64_t>{1, (int64_t)q_shape[2], 1, 1});
+        auto sink_shape =
+            v0::Constant::create(element::i64, {4}, std::vector<int64_t>{1, (int64_t)q_shape[head_axis], 1, 1});
         auto sink_r = std::make_shared<v1::Reshape>(sink_f16, sink_shape, false);
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t,
                                                                         k_t,

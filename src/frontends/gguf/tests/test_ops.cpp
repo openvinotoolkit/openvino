@@ -342,7 +342,8 @@ TEST(GGUFOps, SoftMaxAlibi) {
     const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / n_head_log2);
     std::vector<float> expected(x.size());
     for (uint32_t h = 0; h < n_head; ++h) {
-        float slope = h < n_head_log2 ? std::pow(m0, h + 1) : std::pow(m1, 2 * (h - n_head_log2) + 1);
+        float slope = h < n_head_log2 ? static_cast<float>(std::pow(m0, h + 1))
+                                       : static_cast<float>(std::pow(m1, 2 * (h - n_head_log2) + 1));
         for (size_t t = 0; t < T; ++t) {
             float mx = -1e30f;
             std::vector<float> z(Kd);
@@ -1616,6 +1617,73 @@ TEST(GGUFOps, FlashAttnExt) {
             for (int s = 0; s < Tk; ++s)
                 acc += (z[s] / sum) * v[s * D + d];
             expected[t * D + d] = acc;
+        }
+    }
+    expect_near(out, expected, 2e-2f);  // fp16 SDPA
+}
+
+// FlashAttnExt with gpt-oss attention sinks (5th input), on the default op_case 0 (llama.cpp cgraph)
+// layout where q/k/v already arrive as [B, n_head, T, D]. Regression test for a bug where the sink
+// logit was reshaped to [1, q_shape[2], 1, 1] instead of [1, q_shape[head_axis], 1, 1]: q_shape[2] is
+// T on this layout (head_axis == 1), not n_head, so with n_head != T the reshape either throws a
+// shape mismatch or silently broadcasts the wrong values into the softmax denominator. Using
+// n_head=2 and T=3 (both != 1, and different from each other) makes either failure mode observable.
+TEST(GGUFOps, FlashAttnExtWithSinksCgraphLayout) {
+    const size_t n_head = 2, T = 3, Tk = 3, D = 2;
+    const float scale = 1.0f;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, n_head, T, D})
+                     .input("k", ov::element::f32, {1, n_head, Tk, D})
+                     .input("v", ov::element::f32, {1, n_head, Tk, D})
+                     .input("mask", ov::element::f32, {1, 1, T, Tk})
+                     .input("sinks", ov::element::f32, {n_head})
+                     .output("out", ov::element::f32, {1, T, n_head, D})
+                     .attr<float>("scale", scale)
+                     .build();
+
+    std::vector<float> q, k, v;
+    for (size_t i = 0; i < n_head * T * D; ++i)
+        q.push_back(0.1f * static_cast<float>(i) - 1.0f);
+    for (size_t i = 0; i < n_head * Tk * D; ++i) {
+        k.push_back(0.2f * static_cast<float>(i) - 1.0f);
+        v.push_back(0.05f * static_cast<float>(i));
+    }
+    std::vector<float> mask(T * Tk, 0.0f);
+    std::vector<float> sinks{0.5f, -0.3f};
+
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, n_head, T, D}, q)},
+                           {"k", make_f32_tensor({1, n_head, Tk, D}, k)},
+                           {"v", make_f32_tensor({1, n_head, Tk, D}, v)},
+                           {"mask", make_f32_tensor({1, 1, T, Tk}, mask)},
+                           {"sinks", make_f32_tensor({n_head}, sinks)}});
+
+    // Reference: per head, augment the softmax denominator with the head's sink logit (dropped from
+    // the weighted value sum), same convention as SoftMaxSinks. Output layout [1,T,H,D].
+    std::vector<float> expected(T * n_head * D);
+    for (size_t h = 0; h < n_head; ++h) {
+        for (size_t t = 0; t < T; ++t) {
+            std::vector<float> z(Tk + 1);
+            for (size_t s = 0; s < Tk; ++s) {
+                float dot = 0.f;
+                for (size_t d = 0; d < D; ++d)
+                    dot += q[(h * T + t) * D + d] * k[(h * Tk + s) * D + d];
+                z[s] = scale * dot + mask[t * Tk + s];
+            }
+            z[Tk] = sinks[h];
+            float mx = *std::max_element(z.begin(), z.end());
+            float sum = 0.f;
+            for (float& zi : z) {
+                zi = std::exp(zi - mx);
+                sum += zi;
+            }
+            for (size_t d = 0; d < D; ++d) {
+                float acc = 0.f;
+                for (size_t s = 0; s < Tk; ++s)
+                    acc += (z[s] / sum) * v[(h * Tk + s) * D + d];
+                expected[(t * n_head + h) * D + d] = acc;
+            }
         }
     }
     expect_near(out, expected, 2e-2f);  // fp16 SDPA

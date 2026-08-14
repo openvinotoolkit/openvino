@@ -29,6 +29,7 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
@@ -254,6 +255,43 @@ private:
     std::map<std::string, std::shared_ptr<ov::Node>> m_split_main = SingleOpDecoder::get_model_inputs();
     std::map<std::string, std::shared_ptr<ov::Node>> m_split_extra;
 };
+
+// A decoder that folds a non-Parameter node into get_model_inputs() instead of routing it through
+// get_model_extra_inputs() -- decoder.hpp's contract explicitly still allows this ("A decoder that
+// folds these into get_model_inputs() leaves this empty"), which is what the llama.cpp cgraph
+// decoder currently does for its auxiliary inputs. Regression test for a crash where
+// TranslateSession::translate_graph pushed every get_model_inputs() entry's
+// dynamic_pointer_cast<Parameter> into params unconditionally, so a non-Parameter entry landed as a
+// null Parameter and crashed when the unused-Parameter pruning later dereferenced it.
+class MixedMainInputDecoder : public SingleOpDecoder {
+public:
+    explicit MixedMainInputDecoder(const SingleOpDecoder& base) : SingleOpDecoder(base) {
+        m_mixed_inputs = SingleOpDecoder::get_model_inputs();
+        m_mixed_inputs["const_aux"] = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+    }
+
+    const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const override {
+        return m_mixed_inputs;
+    }
+
+private:
+    std::map<std::string, std::shared_ptr<ov::Node>> m_mixed_inputs;
+};
+
+}  // namespace
+
+// A decoder need not split every auxiliary input into get_model_extra_inputs(); one that still
+// folds a non-Parameter node into get_model_inputs() (the decoder.hpp contract permits this, and the
+// llama.cpp cgraph decoder currently relies on it) must not crash conversion.
+TEST(GGUFExtensions, GetModelInputsToleratesNonParameterEntries) {
+    auto base = kv_cache_write_builder();
+    FrontEnd fe;
+    auto mixed =
+        std::make_shared<MixedMainInputDecoder>(*std::dynamic_pointer_cast<SingleOpDecoder>(base.decoder()));
+    EXPECT_NO_THROW(fe.convert(fe.load(std::static_pointer_cast<GgufDecoder>(mixed))));
+}
+
+namespace {
 
 std::set<std::string> input_names(const std::shared_ptr<ov::Model>& model) {
     std::set<std::string> names;
