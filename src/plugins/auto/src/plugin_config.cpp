@@ -50,6 +50,14 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
         auto& name = kv.first;
         auto& val = kv.second;
         if (is_supported(kv.first)) {
+            if (name == ov::intel_auto::perf_curve_table.name()) {
+                const ov::Any normalized_value = ov::Any(parse_perf_curve_table(val));
+                OPENVINO_ASSERT(property_validators.at(name)->is_valid(normalized_value),
+                        "Invalid value for property ", name,  ": ", val.as<std::string>());
+                internal_properties[name] = normalized_value;
+                user_properties[name] = normalized_value;
+                continue;
+            }
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
                     "Invalid value for property ", name,  ": ", val.as<std::string>());
             internal_properties[name] = val;
@@ -96,6 +104,14 @@ void PluginConfig::set_user_property(const ov::AnyMap& config) {
         auto& name = kv.first;
         auto& val = kv.second;
         if (is_supported(name)) {
+            if (name == ov::intel_auto::perf_curve_table.name()) {
+                const ov::Any normalized_value = ov::Any(parse_perf_curve_table(val));
+                OPENVINO_ASSERT(property_validators.at(name)->is_valid(normalized_value),
+                            "Invalid value for property ", name,  ": ", val.as<std::string>());
+                internal_properties[kv.first] = normalized_value;
+                user_properties[kv.first] = normalized_value;
+                continue;
+            }
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
                         "Invalid value for property ", name,  ": ", val.as<std::string>());
             internal_properties[kv.first] = kv.second;

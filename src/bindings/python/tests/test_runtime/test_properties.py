@@ -666,9 +666,9 @@ def test_properties_perf_curve_table_set_property_roundtrip():
     core.set_property("AUTO", intel_auto.perf_curve_table("{CPU:{0:0,100:100}}"))
     assert core.get_property("AUTO", intel_auto.perf_curve_table) == {"CPU": {0: 0.0, 100: 100.0}}
 
-    # Raw string in a property dict exercises py_object_to_any -> validator Any::as parsing.
+    # Raw string in a property dict exercises py_object_to_any -> validator parsing.
     core.set_property("AUTO", {"PERF_CURVE_TABLE": "{NPU:{0:0,100:50}}"})
-    assert core.get_property("AUTO", intel_auto.perf_curve_table) == "{NPU:{0:0,100:50}}"
+    assert core.get_property("AUTO", intel_auto.perf_curve_table) == {"NPU": {0: 0.0, 100: 50.0}}
 
     # Semantic rules are enforced by PerfCurveTableValidator at set_property time.
     with pytest.raises(RuntimeError):

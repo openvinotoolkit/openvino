@@ -8,11 +8,66 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
+#include <limits>
+
 namespace py = pybind11;
+
+namespace {
+ov::intel_auto::PerfCurveTable parse_perf_curve_table_string(const std::string& value) {
+    auto to_unsigned = [](std::string_view text) -> unsigned {
+        const auto trimmed = ov::util::trim(text);
+        size_t parsed_chars = 0;
+        long long utilization = 0;
+        try {
+            utilization = std::stoll(std::string(trimmed), &parsed_chars);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': ", e.what());
+        }
+        if (parsed_chars != trimmed.size()) {
+            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': trailing characters");
+        }
+        if (utilization < 0) {
+            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': must be non-negative");
+        }
+        if (utilization > static_cast<long long>(std::numeric_limits<unsigned>::max())) {
+            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': value is too large");
+        }
+        return static_cast<unsigned>(utilization);
+    };
+
+    auto to_float = [](std::string_view text) -> float {
+        const auto trimmed = ov::util::trim(text);
+        size_t parsed_chars = 0;
+        float score = 0.f;
+        try {
+            score = std::stof(std::string(trimmed), &parsed_chars);
+        } catch (const std::exception& e) {
+            OPENVINO_THROW("Failed to parse perf_curve_table score '", text, "': ", e.what());
+        }
+        if (parsed_chars != trimmed.size()) {
+            OPENVINO_THROW("Failed to parse perf_curve_table score '", text, "': trailing characters");
+        }
+        return score;
+    };
+
+    ov::AnyMap raw_table = ov::Any(value).as<ov::AnyMap>();
+    ov::intel_auto::PerfCurveTable table;
+    for (const auto& [device_name, curve_value] : raw_table) {
+        ov::AnyMap raw_curve = ov::Any(curve_value).as<ov::AnyMap>();
+        ov::intel_auto::PerfCurveTable::mapped_type curve;
+        for (const auto& [utilization_text, score_text] : raw_curve) {
+            curve.emplace(to_unsigned(utilization_text), to_float(score_text));
+        }
+        table.emplace(device_name, std::move(curve));
+    }
+    return table;
+}
+}  // namespace
 
 void regmodule_properties(py::module m) {
     // Top submodule
@@ -354,7 +409,7 @@ void regmodule_properties(py::module m) {
     // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
     m_intel_auto.def("perf_curve_table", [](const std::string& value) {
         try {
-            return ov::intel_auto::perf_curve_table(ov::Any(value).as<ov::intel_auto::PerfCurveTable>());
+            return ov::intel_auto::perf_curve_table(parse_perf_curve_table_string(value));
         } catch (const ov::Exception& e) {
             OPENVINO_THROW("PERF_CURVE_TABLE: failed to parse string '",
                            value,
