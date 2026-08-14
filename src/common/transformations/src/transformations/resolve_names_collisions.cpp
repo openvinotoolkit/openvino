@@ -25,23 +25,17 @@ namespace {
 std::string make_unique_tensor_name(const TensorNamesMap& names_map, const std::string& name, size_t hash) {
     static const auto port_num_pattern = std::regex(R"((.*?)(:\d+)?$)");
     std::smatch matches;
-    if (!std::regex_match(name, matches, port_num_pattern)) {
-        return name;
-    }
+    // "." doesn't match line terminators, so names containing them don't match port_num_pattern.
+    const bool has_port_num = std::regex_match(name, matches, port_num_pattern);
+    const std::string base_name = has_port_num ? matches[1].str() : name;
+    const std::string port_suffix = (has_port_num && matches[2].matched) ? matches[2].str() : std::string();
 
     auto idx = 1;
 
-    auto new_name = matches[1].str() + ov::descriptor::unique_name_sep + std::to_string(idx);
-    if (matches[2].matched) {
-        new_name += matches[2];
-    }
+    auto new_name = base_name + ov::descriptor::unique_name_sep + std::to_string(idx) + port_suffix;
 
     for (auto it = names_map.find(name); it != names_map.end() && hash != it->second; ++idx) {
-        new_name = matches[1].str() + ov::descriptor::unique_name_sep + std::to_string(idx);
-        if (matches[2].matched) {
-            new_name += matches[2];
-        }
-
+        new_name = base_name + ov::descriptor::unique_name_sep + std::to_string(idx) + port_suffix;
         it = names_map.find(new_name);
     }
 
