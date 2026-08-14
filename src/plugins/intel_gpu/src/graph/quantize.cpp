@@ -32,7 +32,7 @@ std::string quantize_inst::to_string(quantize_node const& node) {
     auto& input_high = node.input(2);
     auto& output_low = node.input(3);
     auto& output_high = node.input(4);
-    auto scale_shift_opt = node.get_scale_shift_opt() ? "true" : "false";
+    const auto* scale_shift_opt = node.get_scale_shift_opt() ? "true" : "false";
 
     std::stringstream primitive_description;
 

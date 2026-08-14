@@ -34,22 +34,39 @@ void validate_decoration(const std::string& decoration) {
 
 std::string Conv1x1WeightCompressedToMatmulTest::getTestCaseName(
     const testing::TestParamInfo<Conv1x1WeightCompressedToMatmulParams>& obj) {
-    const auto& [shape_params, in_decoration, out_decoration, act_prec, weights_prec, expected_op_counts, device] =
-        obj.param;
+    const auto& [shape_params,
+                 in_decoration,
+                 out_decoration,
+                 act_prec,
+                 weights_prec,
+                 expected_op_counts,
+                 config,
+                 device] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << shape_params.data_shape << "_";
     result << "Cout=" << shape_params.channels_out << "_";
     result << "in=" << in_decoration << "_out=" << out_decoration << "_";
-    result << "actPrec=" << act_prec << "_wPrec=" << weights_prec << "_device=" << device;
+    result << "actPrec=" << act_prec << "_wPrec=" << weights_prec << "_config=(";
+    for (const auto& configEntry : config) {
+        result << configEntry.first << "_";
+    }
+    result << ")_device=" << device;
     return result.str();
 }
 
 void Conv1x1WeightCompressedToMatmulTest::SetUp() {
-    const auto& [shape_params, in_decoration, out_decoration, act_prec, weights_prec, expected_op_counts, device] =
-        GetParam();
+    const auto& [shape_params,
+                 in_decoration,
+                 out_decoration,
+                 act_prec,
+                 weights_prec,
+                 expected_op_counts,
+                 config,
+                 device] = GetParam();
     targetDevice = device;
     expected_op_counts_ = expected_op_counts;
+    configuration.insert(config.begin(), config.end());
     abs_threshold = 0.05f;
     rel_threshold = 0.01f;
     validate_decoration(in_decoration);

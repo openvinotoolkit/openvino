@@ -21,8 +21,7 @@ namespace ov::intel_cpu::pass::x64 {
 class EliminateBrgemmCopyB : public ov::intel_cpu::pass::EliminateCopyB {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateBrgemmCopyB");
-    explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers)
-        : EliminateCopyB(input_repackers, true, {}) {}
+    explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers) : EliminateCopyB(input_repackers) {}
 
 private:
     [[nodiscard]] std::shared_ptr<ov::Node> get_copy_b_pattern(const std::shared_ptr<ov::Node>& input) const override;

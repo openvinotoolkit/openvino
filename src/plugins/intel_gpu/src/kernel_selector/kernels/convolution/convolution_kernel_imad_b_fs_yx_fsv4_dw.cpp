@@ -111,7 +111,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params) cons
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
     // Checks that tune_params can be used for specified convolution_params
-    auto& weights = params.weights;
+    const auto& weights = params.weights;
 
     if (tune_params.tiled) {
         bool tiled_x_once = tune_params.tiled_simd >= (weights.X().v - 1) * params.dilation.x + 1;
@@ -156,8 +156,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         return all_tune_params[index];
     }
 
-    auto& output = params.outputs[0];
-    auto& weights = params.weights;
+    const auto& output = params.outputs[0];
+    const auto& weights = params.weights;
 
     AutoTuneParams tune_params;
 
@@ -279,7 +279,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
     }
     mem_consts.AddConstant(MakeJitConstant("FILTER_BLOCKED", filter_blocked));
 
-    auto& work_mode = dispatchData.cldnnStyle.prefetch;
+    const auto& work_mode = dispatchData.cldnnStyle.prefetch;
     bool tiled = (work_mode & mode::tiled) != 0;
     bool preload_input = (work_mode & mode::preload_input) != 0;
     bool preload_weights = (work_mode & mode::preload_weights) != 0;
@@ -337,7 +337,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetDefault(const convolution_params& params,
                                                                                        int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
 
@@ -393,7 +393,7 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsDataForAutoTune(co
     if (!Validate(params)) {
         return {};
     }
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
 
     KernelsData res = {};
 
