@@ -152,18 +152,8 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, boo
     }
 }
 
-/**
- * @brief Overflow-safe check that [offset, offset+size) fits within weights_size bytes.
- *
- * Uses a split comparison to avoid unsigned wraparound when offset+size would overflow size_t.
- *
- * @param weights_size Total size of the weights buffer in bytes.
- * @param offset Byte offset into the weights buffer.
- * @param size Number of bytes to access starting at offset.
- */
-void validate_weights_range(size_t weights_size, size_t offset, size_t size) {
-    if (offset > weights_size || size > weights_size - offset)
-        OPENVINO_THROW("Incorrect weights in bin file!");
+bool is_valid_weights_range(size_t weights_size, size_t offset, size_t size) {
+    return offset <= weights_size && size <= weights_size - offset;
 }
 }  // namespace
 
@@ -841,7 +831,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<void
 
             if (!m_weights)
                 OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            validate_weights_range(m_weights->size(), offset, size);
+            OPENVINO_ASSERT(is_valid_weights_range(m_weights->size(), offset, size), "Incorrect weights in bin file!");
             char* data = m_weights->get_ptr<char>() + offset;
             auto buffer =
                 ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
@@ -907,7 +897,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-    validate_weights_range(m_weights->size(), offset, size);
+    OPENVINO_ASSERT(is_valid_weights_range(m_weights->size(), offset, size), "Incorrect weights in bin file!");
 
     char* data = m_weights->get_ptr<char>() + offset;
 
