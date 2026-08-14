@@ -19,6 +19,52 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #define sv_key_blocks        (kq_wg_tile_keys / DPAS_K)
 #define q_blocks             (kq_wg_tile_queries / SUBGROUP_SIZE)
 
+// Depth (head-dim) tiles that actually hold data, for the KQ contraction only.
+//
+// DKS is D_MAX / DPAS_K, and D_MAX is HEAD_SIZE rounded UP to a power of two, so whenever
+// HEAD_SIZE is not itself a power-of-two multiple of DPAS_K the top tiles address channels past
+// the head dim entirely: they load nothing (the `head < d` guard masks every lane) and their
+// dpas adds zero. At HEAD_SIZE 72 -> D_MAX 128, DKS is 8 and only ceil(72/16) == 5 tiles are
+// real -- three whole tiles plus half of the fourth are pure waste, 1.78x the necessary KQ dpas
+// and K loads. sdpa_micro never pays this because its ugemm_kq takes the reduction extent as a
+// RUNTIME argument (k = d), so it loops 5 blocks with remainder handling.
+//
+// This bounds the KQ depth loop and the Q->SLM staging. It deliberately does NOT touch D_MAX
+// itself: the S*V split (sv_sg_tile_values * sv_sg_per_wg_values == d_max) and the alpha-rescale
+// nesting are derived from D_MAX, and shrinking it there would break the WG coverage invariants
+// documented in choose_config().
+// CAVEAT, measured with ocloc on the head-72 prelude (test/splice_head72.sh): shrinking the depth
+// loop makes the 2D-block path strictly better (fewer dpas AND fewer messages, spill stays 0) but
+// makes the SCALAR fallback path spill MORE, monotonically:
+//     DKS_ACTIVE 8 -> instCount 7043, spill 2688     (== what ships today)
+//     DKS_ACTIVE 6 -> instCount 5808, spill 13568
+//     DKS_ACTIVE 5 -> instCount 5631, spill 16064
+// Less work, more spill -- IGC schedules the smaller unrolled body more aggressively and peak
+// pressure goes up. Which of the two wins on the scalar path is not decidable from static counts,
+// so USE_DKS_ACTIVE exists to A/B it per config with no rebuild (SDPA_OCL_DKS_ACTIVE=0). It only
+// matters where DKS_FULL < DKS *and* the config still takes a scalar fallback -- head 48 and 96;
+// head 64/128 have DKS_FULL == DKS and are unaffected either way.
+#if USE_DKS_ACTIVE
+#  define DKS_FULL ((HEAD_SIZE + DPAS_K - 1) / DPAS_K)
+#  if IS_PA_K_U4
+// The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
+// count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
+// >= 32) and DKS_FULL <= DKS, so the rounded value still fits.
+#    define DKS_ACTIVE (((DKS_FULL + 1) / 2) * 2)
+#  else
+#    define DKS_ACTIVE DKS_FULL
+#  endif
+#else
+#  define DKS_FULL DKS
+#  define DKS_ACTIVE DKS
+#endif
+#if DKS_ACTIVE > DKS
+#  error "sdpa_ocl.cl: DKS_ACTIVE must not exceed DKS (D_MAX is HEAD_SIZE rounded up, so it cannot)"
+#endif
+#if DKS_ACTIVE < 1
+#  error "sdpa_ocl.cl: DKS_ACTIVE must cover at least one depth tile"
+#endif
+
 // Mask-kind predicates. When the host proved the mask shape at compile time
 // (MASK_KIND in {0,1,2}) these fold to compile-time constants so IGC drops the
 // dead mask branches; MASK_KIND == -1 keeps the original runtime MSK_D2/MSK_D3
@@ -173,10 +219,12 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // PA_K_ROW_ELEMS is HEAD_SIZE/2 exactly, with no rounding anywhere.
 #    error "sdpa_ocl.cl: u4 needs an even HEAD_SIZE"
 #  endif
-#  if (DKS % 2) != 0
+#  if (DKS % 2) != 0 || (DKS_ACTIVE % 2) != 0
 // The depth permutation pairs DPAS tiles (2g, 2g+1) over a 32-channel window. DKS is D_MAX/DPAS_K and
 // D_MAX is a power of two >= 32, so this always holds -- it is here to make a drift loud.
-#    error "sdpa_ocl.cl: u4 needs an even DKS so the depth tiles pair up"
+// DKS_ACTIVE (which is what the loops below are bounded by) is rounded up to even for exactly this
+// reason; the test covers it too so a change to that rounding cannot silently half-form a pair.
+#    error "sdpa_ocl.cl: u4 needs an even DKS/DKS_ACTIVE so the depth tiles pair up"
 #  endif
 #  if (PA_V_ROW_ELEMS % SUBGROUP_SIZE) != 0
 // PA_V_U4_COL folds whole 16-wide byte-column groups, which assumes the split point is one.
@@ -439,7 +487,53 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
     const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
     const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
-    local uint  Q_slm[DKS * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
+
+#if USE_2D_BLOCK_IO_KV
+    // 2D block IO surface origin for the f16 K/V loads.
+    //
+    // The builtins require a 64B-aligned base. K and V have already been advanced to this head's
+    // rows above, by an offset that is an integer multiple of the row width
+    // (head_size * element_size) but not necessarily of 64: at HEAD_SIZE 72 the f16 row is 144 B,
+    // so every head with (head % 4) != 0 lands 16, 32 or 48 bytes past a boundary.
+    //
+    // Repair it the way sdpa_micro's block2d_load helper always has: round the base DOWN to the 64 B
+    // boundary, then compensate by shifting the x coordinate and WIDENING the surface by the same
+    // number of bytes. The widening extends backwards -- the rounded base sits `prem` bytes before
+    // this head's first element -- so the surface still ends exactly at this head's last element.
+    // Columns past the head dim therefore stay out of bounds and the hardware zero-fills them, which
+    // is precisely what the `head < d` guard did on the scalar path. Nothing from the next head can
+    // leak in.
+    //
+    // The x shift must divide exactly. The base is buffer_base (>= 64B aligned) plus an offset in
+    // ELEMENTS, so prem is always a multiple of sizeof(KEY_DATA_T) -- which is all these 16b
+    // builtins need, and it holds even when a view offset (INPUT*_OFFSET) makes the base something
+    // other than a whole number of rows. The stronger property (prem a multiple of 16, from
+    // base = m * row_bytes and the host's row_bytes % 16 == 0 gate) is what a 32-bit transposed read
+    // would need; Q is not routed through here yet.
+    //
+    // as_long() on a global pointer is the same form sdpa_micro's block2d_load uses, so it is known
+    // to compile on this toolchain.
+    //
+    // Hoisted out of the k0 loop: neither base moves once the head is fixed.
+    const global KEY_DATA_T *K_b2d = K;
+    const global VAL_DATA_T *V_b2d = V;
+    int KD_w_b2d = KD_w, VD_w_b2d = VD_w;
+    int KD_x0 = 0, VD_x0 = 0;
+    #if BLOCK2D_KV_BASE_FIXUP
+    {
+        const uint k_prem = (uint)(as_long(K) & 63);
+        const uint v_prem = (uint)(as_long(V) & 63);
+        K_b2d = (const global KEY_DATA_T *)((const global char *)K - k_prem);
+        V_b2d = (const global VAL_DATA_T *)((const global char *)V - v_prem);
+        KD_w_b2d = KD_w + (int)k_prem;
+        VD_w_b2d = VD_w + (int)v_prem;
+        KD_x0 = (int)(k_prem / sizeof(KEY_DATA_T));
+        VD_x0 = (int)(v_prem / sizeof(VAL_DATA_T));
+    }
+    #endif
+#endif
+
+    local uint  Q_slm[DKS_ACTIVE * q_blocks * Q_DWORDS * SUBGROUP_SIZE];
     local uint  S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
     local float S_sum_slm[kq_wg_tile_queries * kq_sg_per_wg_keys];
     local float S_max_slm[kq_wg_tile_queries];
@@ -454,14 +548,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         S_max_slm[qi] = -INFINITY;
 #endif
 
-    // Cooperative Q->SLM staging: the Q tile is q_blocks query-blocks x DKS head-dim
-    // chunks = q_blocks*DKS independent (q_block, db) tiles. Distribute them round-robin
+    // Cooperative Q->SLM staging: the Q tile is q_blocks query-blocks x DKS_ACTIVE head-dim
+    // chunks = q_blocks*DKS_ACTIVE independent (q_block, db) tiles. Distribute them round-robin
     // across the workgroup subgroups so all subgroups load Q and every tile is staged even
-    // when q_blocks*DKS exceeds sg_per_wg (e.g. D_MAX >= 256), shrinking the prologue
+    // when q_blocks*DKS_ACTIVE exceeds sg_per_wg (e.g. D_MAX >= 256), shrinking the prologue
     // Q-load latency. The loop bound guarantees q_block < q_blocks, so no guard is needed.
-    for (int tile = sg_ij; tile < q_blocks * DKS; tile += sg_per_wg) {
-        const int q_block = tile / DKS;   // 0..q_blocks-1
-        const int db      = tile % DKS;   // 0..DKS-1
+    // Bounded by DKS_ACTIVE, not DKS: the tiles past the head dim would stage all-zero Q and the
+    // KQ loop no longer reads them.
+    for (int tile = sg_ij; tile < q_blocks * DKS_ACTIVE; tile += sg_per_wg) {
+        const int q_block = tile / DKS_ACTIVE;   // 0..q_blocks-1
+        const int db      = tile % DKS_ACTIVE;   // 0..DKS_ACTIVE-1
         const int query_base = wg_j0 + q_block * SUBGROUP_SIZE;
         uint8 q_pack;
 #if IS_PA_K_U4
@@ -707,8 +803,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         //    (0 - zp_c) * sc_c != 0, which is fine -- finite garbage plus -INFINITY is -INFINITY --
         //    so all this path has to guarantee is FINITENESS, which kv_cache_update's by-channel
         //    range-expansion guard provides for any page holding at least one written token.
-        half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS];
-        half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS];
+        half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
+        half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         #pragma unroll
         for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
             const global uint *k_comp_ch = (const global uint *)(
@@ -728,7 +824,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // comp bytes are then arbitrary -- sc = zp = 0 keeps the dequant finite, which is all the
             // masked-out score needs.
             #pragma unroll
-            for (int g = 0; g < DKS / 2; ++g) {
+            for (int g = 0; g < DKS_ACTIVE / 2; ++g) {
                 const int u4_win = g * (2 * DPAS_K);
                 uint2 pair2 = (uint2)(0u, 0u);
                 if (u4_win + 2 * DPAS_K <= HEAD_SIZE) {
@@ -748,7 +844,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         #else
             #pragma unroll
-            for (int db = 0; db < DKS; ++db) {
+            for (int db = 0; db < DKS_ACTIVE; ++db) {
                 uint pair = 0u;
                 if (db < HEAD_SIZE / DPAS_K) {
                     pair = sc_valid ? intel_sub_group_block_read(k_comp_ch + db * SUBGROUP_SIZE) : 0u;
@@ -823,7 +919,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
         #pragma unroll
-        for (int db = 0; db < DKS; ++db) {
+        for (int db = 0; db < DKS_ACTIVE; ++db) {
             int8 qB[kq_query_blocks];
             #pragma unroll
             for (int qb = 0; qb < kq_query_blocks; ++qb) {
@@ -1150,8 +1246,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
                 intel_sub_group_2d_block_read_16b_16r16x1c(
-                    (global void *)K, KD_w, KD_h, KD_p,
-                    (int2)(db * DPAS_K, key_base + kg * SUBGROUP_SIZE),
+                    (global void *)K_b2d, KD_w_b2d, KD_h, KD_p,
+                    (int2)(KD_x0 + db * DPAS_K, key_base + kg * SUBGROUP_SIZE),
                     (private ushort *)&k_raw[kg * (SUBGROUP_SIZE / DPAS_ROWS)]);
             }
 #else
@@ -1350,8 +1446,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int cd = 0; cd < sv_value_blocks; ++cd) {
                 intel_sub_group_2d_block_prefetch_16b_16r16x1c(
-                    (const global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
+                    (const global void *)V_b2d, VD_w_b2d, VD_h, VD_p,
+                    (int2)(VD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE));
             }
         }
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
@@ -1871,14 +1967,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 }
             #elif V_F16_MULTIBLOCK_READ && USE_2D_BLOCK_IO_KV && sv_value_blocks == 2
                 intel_sub_group_2d_block_read_transform_16b_16r16x2c(
-                    (global void *)V, VD_w, VD_h, VD_p,
-                    (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[0]);
+                    (global void *)V_b2d, VD_w_b2d, VD_h, VD_p,
+                    (int2)(VD_x0 + sg_j0_sv, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[0]);
             #elif USE_2D_BLOCK_IO_KV
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     intel_sub_group_2d_block_read_transform_16b_16r16x1c(
-                        (global void *)V, VD_w, VD_h, VD_p,
-                        (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE), (private uint *)&vb[cd]);
+                        (global void *)V_b2d, VD_w_b2d, VD_h, VD_p,
+                        (int2)(VD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
+                        (private uint *)&vb[cd]);
                 }
             #else
                 #pragma unroll
