@@ -1632,19 +1632,14 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
     const auto reg_it = m_plugin_registry.find(device_name);
     if (reg_it != m_plugin_registry.end() && reg_it->second.is_dispatch_group()) {
         const std::string prefix = device_name + '#';
-        bool erased = false;
         for (auto it = m_plugins.begin(); it != m_plugins.end();) {
-            if (it->first.rfind(prefix, 0) == 0) {
+            if (it->first.rfind(prefix, 0) == 0)
                 it = m_plugins.erase(it);
-                erased = true;
-            } else {
+            else
                 ++it;
-            }
         }
-        if (!erased) {
-            OPENVINO_THROW("Device with \"", device_name, "\" name is not registered in the OpenVINO Runtime");
-        }
-
+        // Having nothing to unload is not an error here: a group answers available_devices from the
+        // probe, so enumerating it never constructs a winner. An unknown name still throws below.
         m_dispatch_map.erase(device_name);
         reg_it->second.m_extensions.clear();
         return;
