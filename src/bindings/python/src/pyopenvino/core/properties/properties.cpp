@@ -4,6 +4,8 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include <limits>
+
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
@@ -12,8 +14,6 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
-
-#include <limits>
 
 namespace py = pybind11;
 

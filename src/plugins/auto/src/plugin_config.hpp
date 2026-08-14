@@ -48,7 +48,8 @@ inline ov::intel_auto::PerfCurveTable parse_perf_curve_table(const ov::Any& v) {
         return static_cast<unsigned>(utilization);
     };
 
-    const auto parse_float = [](std::string_view text) -> float {
+    const auto parse_float = [](const ov::Any& value) -> float {
+        const auto text = value.as<std::string>();
         const auto trimmed = ov::util::trim(text);
         size_t parsed_chars = 0;
         float score = 0.f;
