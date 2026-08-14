@@ -106,6 +106,42 @@ inline bool block2d_layout_ok(const layout& l, size_t row_bytes) {
     return block2d_surface_ok(row_bytes);// && !l.data_padding && !l.data_padding.is_dynamic();
 }
 
+// Relaxed tier: the same three hardware rules, minus the "base is ALREADY 64B-aligned" part, which
+// the kernel then repairs itself (BLOCK2D_KV_BASE_FIXUP in sdpa_ocl.cl).
+//
+// block2d_surface_ok() above folds all three rules into one % 64 test, which is much stricter than
+// the hardware. Reusing the premise its own comment states -- the pitch and the base offset are
+// integer multiples of row_bytes -- row_bytes >= 64 && row_bytes % 16 == 0 already gives:
+//   - width: >= 64 and a multiple of 4        (16 | row_bytes implies 4 | row_bytes),
+//   - pitch: = n * row_bytes, hence >= 64 and a multiple of 16,
+// leaving ONLY the base rule violated, and violated by a bounded amount: base = m * row_bytes, so
+// prem = base & 63 is a multiple of gcd(row_bytes, 64), itself a multiple of 16. The kernel's fixup
+// rounds the base down by prem and shifts the x coordinate by prem / element_size, which is
+// therefore exact for every element size the builtins use (1, 2 or 4 bytes).
+//
+// This is what sdpa_micro has always done -- its block2d_load helper carries the identical
+// round-down-and-compensate in three lines -- and it is why micro could use 2D block IO at head 72
+// while sdpa_ocl fell back to a per-lane scalar gather and ran 8.1x slower on the gemma-4 vision
+// tower (see test/sdpa_ocl_head72_analysis.md).
+//
+// The % 64 tier is kept as the "no fixup needed" fast path so every already-enabled config keeps
+// byte-identical codegen. For f16 this widens head_size % 32 == 0 to head_size % 8 == 0
+// (40/48/56/72/80/88/104/112/120/...); for i8 row_bytes == head_size, so % 64 widens to % 16.
+inline bool block2d_surface_fixup_ok(size_t row_bytes) {
+    return row_bytes >= 64 && (row_bytes % 16) == 0;
+}
+
+// block2d_surface_fixup_ok() plus the no-padding precondition.
+//
+// Unlike the % 64 tier above (whose padding check is currently disabled), this one MUST reject
+// padded layouts rather than inherit that gap: padding is folded into the pitch and the base by the
+// kernel and is invisible in row_bytes, so it is exactly what breaks the "pitch is an integer
+// multiple of row_bytes" premise the relaxation rests on. Widening the eligible head sizes must not
+// also widen a pre-existing hazard.
+inline bool block2d_layout_fixup_ok(const layout& l, size_t row_bytes) {
+    return block2d_surface_fixup_ok(row_bytes) && !l.data_padding && !l.data_padding.is_dynamic();
+}
+
 // Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
 // choose_config_* tables. The KQ workgroup tile is kept at 128 keys with sg_per_wg = 16
 // across all head sizes; only the S*V split (and, for d_max <= 32, the query tile) vary.
@@ -643,6 +679,14 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("sv_sg_per_wg_values", ocl_config.sv_sg_per_wg_values);
     jit.make("D_MAX", d_max);
     jit.make("DKS", "(D_MAX / DPAS_K)");
+    // Bound the KQ depth loop by the head-dim tiles that actually hold data instead of by DKS
+    // (= D_MAX / DPAS_K, with D_MAX the head size rounded UP to a power of two). At head 72 that is
+    // 5 tiles instead of 8: three whole tiles were loading nothing and feeding zeros to the dpas.
+    // =0 restores the DKS bound -- see the measured scalar-path spill caveat in sdpa_ocl.cl.
+    int use_dks_active = 1;
+    if (const char* env = std::getenv("SDPA_OCL_DKS_ACTIVE"))
+        use_dks_active = std::atoi(env);
+    jit.make("USE_DKS_ACTIVE", use_dks_active);
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
     // Q is f16 and carries no dequant, so this is independent of the KV-cache precision. The only
@@ -666,7 +710,14 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // The gate is the full surface rule: a bare (ld % 16 == 0) check accepts row widths below the
     // 64-byte minimum and bases that are not 64-byte aligned (e.g. f16 head_size 16 -> 32 bytes),
     // which is undefined behaviour rather than a compile error.
-    int kv_2d = !config.is_kv_compressed && block2d_layout_ok(K, ldk) && block2d_layout_ok(V, ldv);
+    // Two tiers: naturally 64B-aligned bases take the path as-is, everything else that still
+    // satisfies the width/pitch rules takes it with the in-kernel base fixup (see
+    // block2d_surface_fixup_ok). kv_aligned is evaluated separately from kv_2d because it is what
+    // decides the fixup flag, and the env override below must not be able to turn the fixup OFF on
+    // a surface that needs it.
+    const bool kv_aligned = block2d_layout_ok(K, ldk) && block2d_layout_ok(V, ldv);
+    const bool kv_fixup_ok = block2d_layout_fixup_ok(K, ldk) && block2d_layout_fixup_ok(V, ldv);
+    int kv_2d = !config.is_kv_compressed && (kv_aligned || kv_fixup_ok);
     // Diagnostic toggle: forcing the f16 K/V loads onto the scalar per-lane path is the cheapest way
     // to bisect a wrong-result config -- if accuracy comes back with =0, the fault is in the 2D
     // block read (geometry/row count), not in the softmax/S*V indexing. Mirrors the existing
@@ -674,6 +725,12 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_KV_2D"))
         kv_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
+    // Derived from kv_aligned, NOT from kv_fixup_ok, and computed after the override: a surface that
+    // is not provably aligned gets the fixup whenever the block path is on at all. That is a no-op
+    // (prem == 0) when the base happens to be aligned, and it is what makes SDPA_OCL_KV_2D=1
+    // numerically correct on a surface the gate would otherwise have rejected -- before this, forcing
+    // the toggle on at head 72 gave right timings and wrong results for 12 of 16 heads.
+    jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
     int v_f16_multiblock = 0;
     if (const char* env = std::getenv("SDPA_OCL_V_F16_MULTIBLOCK"))
         v_f16_multiblock = std::atoi(env);
