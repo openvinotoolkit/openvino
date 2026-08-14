@@ -34,6 +34,13 @@ vulkan_memory_type_selection select_vulkan_memory_type(const VkPhysicalDeviceMem
                                                        vulkan_buffer_memory_usage usage,
                                                        bool prefer_unified_memory);
 
+struct vulkan_non_coherent_range {
+    VkDeviceSize offset = 0;
+    VkDeviceSize size = 0;
+};
+
+vulkan_non_coherent_range align_vulkan_non_coherent_range(VkDeviceSize offset, VkDeviceSize size, VkDeviceSize allocation_size, VkDeviceSize atom_size);
+
 class vulkan_buffer_allocation {
 public:
     using ptr = std::shared_ptr<vulkan_buffer_allocation>;
@@ -44,14 +51,16 @@ public:
                              VkDeviceMemory memory,
                              void* mapped_data,
                              VkDeviceSize size,
-                             VkMemoryPropertyFlags memory_flags);
+                             VkDeviceSize memory_size,
+                             VkMemoryPropertyFlags memory_flags,
+                             VkDeviceSize non_coherent_atom_size);
     ~vulkan_buffer_allocation();
 
     vulkan_buffer_allocation(const vulkan_buffer_allocation&) = delete;
     vulkan_buffer_allocation& operator=(const vulkan_buffer_allocation&) = delete;
 
-    void flush() const;
-    void invalidate() const;
+    void flush(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
+    void invalidate(VkDeviceSize offset = 0, VkDeviceSize size = VK_WHOLE_SIZE) const;
 
     bool is_host_visible() const {
         return (memory_flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
@@ -65,12 +74,18 @@ public:
         return (memory_flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0;
     }
 
+    bool is_host_coherent() const {
+        return (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+    }
+
     VkDevice device = VK_NULL_HANDLE;
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     void* mapped_data = nullptr;
     VkDeviceSize size = 0;
+    VkDeviceSize memory_size = 0;
     VkMemoryPropertyFlags memory_flags = 0;
+    VkDeviceSize non_coherent_atom_size = 1;
 
 private:
     std::shared_ptr<vulkan_device> _device_owner;

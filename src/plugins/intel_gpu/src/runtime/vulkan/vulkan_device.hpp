@@ -63,6 +63,10 @@ public:
         return _max_memory_allocation_count;
     }
 
+    VkDeviceSize get_non_coherent_atom_size() const {
+        return _non_coherent_atom_size;
+    }
+
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
     }
@@ -79,6 +83,7 @@ private:
     VkQueue _compute_queue = VK_NULL_HANDLE;
     uint32_t _max_push_constants_size = 0;
     uint32_t _max_memory_allocation_count = 1;
+    VkDeviceSize _non_coherent_atom_size = 1;
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};

@@ -94,6 +94,7 @@ void vulkan_device::initialize_info() {
     _info.max_image2d_height = properties.limits.maxImageDimension2D;
     _max_push_constants_size = properties.limits.maxPushConstantsSize;
     _max_memory_allocation_count = std::max(properties.limits.maxMemoryAllocationCount, 1U);
+    _non_coherent_atom_size = std::max<VkDeviceSize>(properties.limits.nonCoherentAtomSize, 1);
 
     // Eltwise uses a portable FP16 storage conversion path and performs arithmetic in FP32.
     _info.supports_fp16 = true;
