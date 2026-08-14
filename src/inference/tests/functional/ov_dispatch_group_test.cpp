@@ -358,6 +358,33 @@ TEST_F(DispatchGroupTest, forfeited_devices_keep_their_canonical_id_but_are_not_
     OV_EXPECT_THROW(std::ignore = resolved_tag(core, "0"), ov::Exception, ::testing::HasSubstr(device + ".0"));
 }
 
+// A reserved slot must not make the sole remaining device unreachable. The bare name resolves to
+// canonical "0", so a group whose only servable id is not "0" must be advertised id-qualified.
+TEST_F(DispatchGroupTest, sole_servable_device_is_advertised_id_qualified_when_not_zero) {
+    // aa (canonical "0") is forfeited by A and unseen by B; only bb is servable, as canonical "1".
+    script("0,aa," + std::to_string(INCOMPATIBLE) + ";1,bb," + std::to_string(SERVABLE), "");
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    // Bare "FAKE" would resolve to canonical "0", which nothing serves - so offer "FAKE.1".
+    EXPECT_EQ(group_devices(core), (std::vector<std::string>{device + ".1"}));
+    // And the advertised name must actually work.
+    EXPECT_EQ(resolved_tag(core, "1"), "A");
+}
+
+// Discovery must not throw for a group that can serve nothing: an empty merged list is the right
+// answer, exactly as for an ordinary plugin that reports no devices.
+TEST_F(DispatchGroupTest, group_serving_nothing_reports_an_empty_device_list) {
+    script("0,aa," + std::to_string(INCOMPATIBLE), "0,aa," + std::to_string(INCOMPATIBLE));
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    OV_ASSERT_NO_THROW(std::ignore = core.get_property(device, ov::available_devices));
+    EXPECT_TRUE(core.get_property(device, ov::available_devices).empty());
+    EXPECT_TRUE(group_devices(core).empty());
+    OV_ASSERT_NO_THROW(std::ignore = core.get_available_devices());
+}
+
 // A library that cannot adopt Core's ids cannot share a device name: it would keep naming devices
 // by its own numbering, which leaks back through contexts and execution devices.
 TEST_F(DispatchGroupTest, group_member_without_id_map_support_throws) {

@@ -854,11 +854,11 @@ std::map<std::string, std::string> ov::CoreImpl::dispatch_device_id_map_unsafe(c
     return id_map;
 }
 
-std::vector<std::string> ov::CoreImpl::dispatch_group_device_ids(const std::string& device_name) const {
+std::optional<std::vector<std::string>> ov::CoreImpl::dispatch_group_device_ids(const std::string& device_name) const {
     std::lock_guard<std::mutex> g_lock(get_mutex());
     auto reg_it = m_plugin_registry.find(device_name);
     if (reg_it == m_plugin_registry.end() || !reg_it->second.is_dispatch_group())
-        return {};
+        return std::nullopt;
 
     auto map_it = m_dispatch_map.find(device_name);
     if (map_it == m_dispatch_map.end()) {
@@ -1334,12 +1334,14 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
             continue;
         // A dispatch group's device list is the merged canonical list core owns (each physical
         // device once), not a single candidate's - answer it here rather than delegating.
-        if (auto group_ids = dispatch_group_device_ids(device_name); !group_ids.empty()) {
-            if (group_ids.size() > 1) {
-                for (auto&& id : group_ids)
-                    devices.push_back(device_name + '.' + id);
-            } else {
+        if (auto group_ids = dispatch_group_device_ids(device_name)) {
+            // The bare form is only usable when the sole servable id is the default ("0"), which is
+            // what a bare request resolves to; otherwise the qualified id is the only way in.
+            if (group_ids->size() == 1 && group_ids->front() == "0") {
                 devices.push_back(std::move(device_name));
+            } else {
+                for (auto&& id : *group_ids)
+                    devices.push_back(device_name + '.' + id);
             }
             continue;
         }
@@ -1404,6 +1406,12 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     const auto& flattened_config = flattened.m_config;
     const auto& device_name = flattened.m_device_name;
 
+    // The id was demoted out of the name into the flattened config; pass it back as an argument so
+    // a dispatch group answers from the requested device's winner, not the default device's.
+    ov::AnyMap device_id_arg;
+    if (const auto it = flattened_config.find(ov::device::id.name()); it != flattened_config.end())
+        device_id_arg[ov::device::id.name()] = it->second;
+
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
     std::vector<std::string> supported_config_keys;
@@ -1415,7 +1423,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against OV API 2.0' mutable supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, {})) {
+        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, device_id_arg)) {
             if (property.is_mutable()) {
                 *key_inserter = std::move(property);
             }
@@ -1425,7 +1433,7 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against internal supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, {})) {
+        for (auto&& property : ICore::get_property(device_name, ov::internal::supported_properties, device_id_arg)) {
             if (property.is_mutable()) {
                 *key_inserter = std::move(property);
             }
@@ -1606,10 +1614,10 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
         return {
             m_core_config.get_cache_config_for_device(get_plugin(parsed.m_device_name, parsed.m_config)).m_cache_dir};
     } else if (name == ov::available_devices.name()) {
-        // A dispatch group's device list is core's merged canonical list (every physical device
-        // once, with canonical ids), not a single candidate's view. Empty => not a group.
-        if (auto group_ids = dispatch_group_device_ids(parsed.m_device_name); !group_ids.empty())
-            return group_ids;
+        // A group's device list is core's merged canonical list, not a candidate's view; a group
+        // serving nothing answers empty, as an ordinary plugin with no devices does.
+        if (auto group_ids = dispatch_group_device_ids(parsed.m_device_name))
+            return *group_ids;
     }
     // Route by id so a per-device query (e.g. get_property("<device>.1", architecture)) is
     // answered by that device's winner; a bare-name query resolves to the default-device winner.
@@ -1843,7 +1851,9 @@ void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensio
 
 bool ov::CoreImpl::device_supports_model_caching(const std::string& device_name) const {
     auto parsed = parse_device_name_into_config(device_name);
-    return device_supports_model_caching(get_plugin(parsed.m_device_name));
+    // Route on the id: for a dispatch group the answer belongs to that device's winner, which
+    // need not be the default device's.
+    return device_supports_model_caching(get_plugin(parsed.m_device_name, parsed.m_config));
 }
 
 bool ov::CoreImpl::device_supports_model_caching(const ov::Plugin& plugin, const ov::AnyMap& arguments) const {

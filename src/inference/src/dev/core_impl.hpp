@@ -288,10 +288,9 @@ private:
     std::map<std::string, std::string> dispatch_device_id_map_unsafe(const std::string& device_name,
                                                                      size_t candidate_idx) const;
 
-    // Canonical merged device ids ("0","1",...) for a dispatch group, built from m_dispatch_map
-    // (each physical device once). Empty for a non-group name. Builds the map on first use.
-    std::vector<std::string> dispatch_group_device_ids(const std::string& device_name) const;
-
+    // Canonical merged device ids of a dispatch group (each device once, unserviceable omitted);
+    // nullopt for a non-group name, empty if no candidate serves any. Builds the map on first use.
+    std::optional<std::vector<std::string>> dispatch_group_device_ids(const std::string& device_name) const;
 
     void add_extensions_unsafe(const std::vector<ov::Extension::Ptr>& extensions) const;
 
