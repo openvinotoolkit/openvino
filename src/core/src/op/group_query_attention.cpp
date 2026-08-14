@@ -11,13 +11,15 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/validation_util.hpp"
 
-namespace ov::op::internal {}  // namespace ov::op::internal
+namespace ov::op::internal {
 
-namespace ov {
-
-std::ostream& operator<<(std::ostream& s, const op::internal::GroupQueryAttentionQuantType& quant_type) {
+std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQuantType& quant_type) {
     return s << as_string(quant_type);
 }
+
+}  // namespace ov::op::internal
+
+namespace ov {
 
 template <>
 OPENVINO_API EnumNames<op::internal::GroupQueryAttentionQuantType>&
@@ -262,14 +264,14 @@ void GroupQueryAttention::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == m_v_quant_type,
                               "GroupQueryAttention requires matching k_quant_type and v_quant_type, got: ",
-                              m_k_quant_type,
+                              as_string(m_k_quant_type),
                               " and ",
-                              m_v_quant_type);
+                              as_string(m_v_quant_type));
         NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == GroupQueryAttentionQuantType::PER_TENSOR ||
                                   m_k_quant_type == GroupQueryAttentionQuantType::PER_CHANNEL,
                               "GroupQueryAttention supports k/v quant types: {PER_TENSOR, PER_CHANNEL}, got: ",
-                              m_k_quant_type);
+                              as_string(m_k_quant_type));
 
         check_input(GroupQueryAttentionInputs::K_SCALE, {0, 1}, {element::f32, element::f16}, true);
         check_input(GroupQueryAttentionInputs::V_SCALE, {0, 1}, {element::f32, element::f16}, true);
