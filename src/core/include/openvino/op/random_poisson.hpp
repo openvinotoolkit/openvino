@@ -9,6 +9,9 @@
 
 namespace ov {
 namespace op {
+namespace random_poisson {
+struct Evaluate;
+}  // namespace random_poisson
 namespace v17 {
 /// \brief Tensor RandomPoisson operation.
 /// \ingroup ov_ops_cpp_api
@@ -24,7 +27,6 @@ public:
     /// \param op_seed The operational seed value.
     /// \param alignment The alignment mode.
     RandomPoisson(const Output<Node>& input,
-                  // const Output<Node>& generator, We can ignore the generator input for now
                   uint64_t global_seed = 0,
                   uint64_t op_seed = 0,
                   ov::op::PhiloxAlignment alignment = ov::op::PhiloxAlignment::TENSORFLOW);
@@ -51,9 +53,6 @@ public:
     /// \return The state value.
     std::pair<uint64_t, uint64_t> get_state() const;
 
-    /// \brief Set the state value.
-    void set_state(std::pair<uint64_t, uint64_t> state) const;
-
     /// \return The alignment mode.
     ov::op::PhiloxAlignment get_alignment() const;
 
@@ -68,7 +67,9 @@ protected:
     ov::op::PhiloxAlignment m_alignment = ov::op::PhiloxAlignment::TENSORFLOW;
 
     mutable std::pair<uint64_t, uint64_t> m_state;
-    // friend struct random_poisson::Evaluate;
+
+private:
+    friend struct ov::op::random_poisson::Evaluate;
 };
 }  // namespace v17
 }  // namespace op

@@ -31,7 +31,7 @@ struct Evaluate : element::NoAction<bool> {
                                                    op_seed,
                                                    prev_state,
                                                    alignment);
-        node->set_state(result);
+        node->m_state = result;
         return true;
     }
 };
@@ -122,11 +122,6 @@ void RandomPoisson::set_op_seed(uint64_t seed2) {
 /// \return The state value.
 std::pair<uint64_t, uint64_t> RandomPoisson::get_state() const {
     return m_state;
-}
-
-/// \brief Set the state value.
-void RandomPoisson::set_state(std::pair<uint64_t, uint64_t> state) const {
-    m_state = state;
 }
 
 /// \return The alignment mode.
