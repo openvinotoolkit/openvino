@@ -262,6 +262,7 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     if (const char* v = std::getenv("TP_USE_IMMEDIATE")) {
         m_use_immediate = std::atoi(v) != 0;
     }
+    m_profiling_enabled = tp_profiling_enabled();
 
     m_ranks.resize(world_size);
     for (int r = 0; r < world_size; ++r) {
@@ -841,6 +842,15 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
                                                          kernel, &gc,
                                                          plan.ev_ts_kernel[r], 0, nullptr));
 
+            // Rank r is the only consumer of ev_recv[peer], so it can also
+            // clear it for the next call.  The list is not IN_ORDER, so the
+            // reset needs an explicit barrier to be ordered after the wait
+            // and the kernel that depends on the copied data.
+            if (use_device_event_reset()) {
+                ZE_THROW(ov::zeCommandListAppendBarrier(self_compute, nullptr, 0, nullptr));
+                ZE_THROW(ov::zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
+            }
+
             ZE_THROW(ov::zeCommandListClose(self_compute));
             if (plan.copy_lists[r]) {
                 ZE_THROW(ov::zeCommandListClose(plan.copy_lists[r]));
@@ -934,8 +944,12 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
     using clk = std::chrono::steady_clock;
     auto tr0 = clk::now();
     // Reset events on host (they are signal-once, must be reset between calls).
+    // On the recorded N=2 path the tail of each rank's command list already
+    // cleared ev_recv on the device, so there is nothing left to do here.
     trace("execute: reset events");
-    for (auto& e : plan.ev_recv)  ZE_THROW(ov::zeEventHostReset(e));
+    if (!use_device_event_reset()) {
+        for (auto& e : plan.ev_recv)  ZE_THROW(ov::zeEventHostReset(e));
+    }
     for (auto& e : plan.ev_bcast) ZE_THROW(ov::zeEventHostReset(e));
     for (auto& e : plan.ev_ts_kernel) if (e) ZE_THROW(ov::zeEventHostReset(e));
     if (plan.ev_reduce) ZE_THROW(ov::zeEventHostReset(plan.ev_reduce));

@@ -251,6 +251,19 @@ private:
     /// setup so the cost does not land on the first inference, and again from
     /// build_plan for safety.  No-op on the immediate path.
     void ensure_plan_lists(Plan& plan);
+
+    /// True when ev_recv is reset by a command appended to the tail of the
+    /// recorded command list instead of by zeEventHostReset in execute_plan.
+    /// The host reset is two driver round-trips on every collective (64 per
+    /// model step) and measured ~7% of a continuous-batching step; the
+    /// device-side reset costs a command-processor slot that the queue drain
+    /// already pays for.  Restricted to the recorded N=2 path: the immediate
+    /// path records nothing, and profiling reads kernel timestamps back from
+    /// ev_recv after the sync, which a device-side reset would have wiped.
+    bool use_device_event_reset() const {
+        return m_world_size == 2 && !m_use_immediate && !m_profiling_enabled;
+    }
+
     bool ensure_scratch_capacity(std::size_t payload_bytes);
     void destroy_scratch();
     void* scratch_buffer(int index) const;
@@ -301,6 +314,11 @@ private:
     // immediate-cmdlist + counter-based event sync (true).  Driven by
     // env var TP_USE_IMMEDIATE.  Latched at construction time.
     bool                            m_use_immediate{false};
+
+    // Latched TP_PROF state.  Kernel-timestamp events are only created when
+    // this is set, and their values must survive until execute_plan reads
+    // them back, which forbids the device-side event reset.
+    bool                            m_profiling_enabled{false};
 
     std::vector<RankState>          m_ranks;        // [N]
 
