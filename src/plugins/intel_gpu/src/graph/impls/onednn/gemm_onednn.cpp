@@ -307,10 +307,10 @@ protected:
         }
 
         if (gemm_with_bias) {
-            auto bias_l = impl_params.get_input_layout(2);
+            const auto& bias_l = in_layouts[2];
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
+            bias_dims = onednn::convert_layout(bias_l, bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims, bias_l.format);
         }
     }

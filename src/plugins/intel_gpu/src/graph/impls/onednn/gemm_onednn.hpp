@@ -74,16 +74,25 @@ struct GemmImplementationManager : public ImplementationManager {
             return false;
 
 #ifdef OV_GPU_VENDOR_NVIDIA
-        // cuDNN matmul doesn't support 4D/5D/6D format tags (abcde, abcdef)
-        // Reject rank > 3 to fall back to OCL kernels
-        const auto& in0_shape = in0_layout.get_partial_shape();
-        const auto& in1_shape = in1_layout.get_partial_shape();
-        const auto& out_shape = out_layout.get_partial_shape();
-        if (in0_shape.rank().is_static() && in0_shape.rank().get_length() > 3)
+        // Keep validation consistent with get_gemm_primitive_md(), which uses transformed
+        // layouts to build oneDNN descriptors.
+        std::vector<layout> in_layouts { in0_layout, in1_layout };
+        if (gemm_prim->input_size() == 3) {
+            in_layouts.emplace_back(node.get_input_layout(2));
+        }
+        in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, node.get_program().is_new_shape_infer());
+        auto transformed_out_layout = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_layout);
+
+        // cuDNN matmul doesn't support 4D/5D/6D format tags (abcd, abcde, abcdef).
+        // Reject if effective descriptor rank is greater than 3.
+        if (in_layouts[0].get_partial_shape().rank().is_static() &&
+            in_layouts[0].get_partial_shape().rank().get_length() > 3)
             return false;
-        if (in1_shape.rank().is_static() && in1_shape.rank().get_length() > 3)
+        if (in_layouts[1].get_partial_shape().rank().is_static() &&
+            in_layouts[1].get_partial_shape().rank().get_length() > 3)
             return false;
-        if (out_shape.rank().is_static() && out_shape.rank().get_length() > 3)
+        if (transformed_out_layout.get_partial_shape().rank().is_static() &&
+            transformed_out_layout.get_partial_shape().rank().get_length() > 3)
             return false;
 
         // cuDNN matmul only supports a limited set of activation post-ops:
