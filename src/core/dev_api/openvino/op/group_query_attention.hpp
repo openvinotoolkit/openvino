@@ -35,6 +35,29 @@ enum class GroupQueryAttentionQuantType {
     PER_CHANNEL,
 };
 
+}  // namespace ov::op::internal
+
+namespace ov {
+
+template <>
+class OPENVINO_API AttributeAdapter<op::internal::GroupQueryAttentionQuantType>
+    : public EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQuantType> {
+public:
+    AttributeAdapter(op::internal::GroupQueryAttentionQuantType& value)
+        : EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQuantType>(value) {}
+
+    ~AttributeAdapter() override;
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::GroupQueryAttentionQuantType>");
+};
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const op::internal::GroupQueryAttentionQuantType& quant_type);
+
+}  // namespace ov
+
+namespace ov::op::internal {
+
 // This is an experimental operation that is implemented in the plugins.
 class OPENVINO_API GroupQueryAttention : public Op {
 public:

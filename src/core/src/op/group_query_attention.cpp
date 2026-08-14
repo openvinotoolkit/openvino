@@ -11,34 +11,30 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/validation_util.hpp"
 
+namespace ov::op::internal {}  // namespace ov::op::internal
+
+namespace ov {
+
+std::ostream& operator<<(std::ostream& s, const op::internal::GroupQueryAttentionQuantType& quant_type) {
+    return s << as_string(quant_type);
+}
+
+template <>
+OPENVINO_API EnumNames<op::internal::GroupQueryAttentionQuantType>&
+EnumNames<op::internal::GroupQueryAttentionQuantType>::get() {
+    static auto enum_names = EnumNames<op::internal::GroupQueryAttentionQuantType>(
+        "op::internal::GroupQueryAttentionQuantType",
+        {{"NONE", op::internal::GroupQueryAttentionQuantType::NONE},
+         {"PER_TENSOR", op::internal::GroupQueryAttentionQuantType::PER_TENSOR},
+         {"PER_CHANNEL", op::internal::GroupQueryAttentionQuantType::PER_CHANNEL}});
+    return enum_names;
+}
+
+AttributeAdapter<op::internal::GroupQueryAttentionQuantType>::~AttributeAdapter() = default;
+
+}  // namespace ov
+
 namespace ov::op::internal {
-
-namespace {
-const char* quant_type_to_string(GroupQueryAttentionQuantType quant_type) {
-    switch (quant_type) {
-    case GroupQueryAttentionQuantType::NONE:
-        return "NONE";
-    case GroupQueryAttentionQuantType::PER_TENSOR:
-        return "PER_TENSOR";
-    case GroupQueryAttentionQuantType::PER_CHANNEL:
-        return "PER_CHANNEL";
-    }
-    OPENVINO_THROW("Unsupported GroupQueryAttentionQuantType enum value");
-}
-
-GroupQueryAttentionQuantType quant_type_from_string(const std::string& quant_type) {
-    if (quant_type == "NONE") {
-        return GroupQueryAttentionQuantType::NONE;
-    }
-    if (quant_type == "PER_TENSOR") {
-        return GroupQueryAttentionQuantType::PER_TENSOR;
-    }
-    if (quant_type == "PER_CHANNEL") {
-        return GroupQueryAttentionQuantType::PER_CHANNEL;
-    }
-    OPENVINO_THROW("Unsupported GroupQueryAttention quant type: ", quant_type);
-}
-}  // namespace
 
 GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t num_heads,
@@ -268,14 +264,14 @@ void GroupQueryAttention::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == m_v_quant_type,
                               "GroupQueryAttention requires matching k_quant_type and v_quant_type, got: ",
-                              quant_type_to_string(m_k_quant_type),
+                              m_k_quant_type,
                               " and ",
-                              quant_type_to_string(m_v_quant_type));
+                              m_v_quant_type);
         NODE_VALIDATION_CHECK(this,
                               m_k_quant_type == GroupQueryAttentionQuantType::PER_TENSOR ||
                                   m_k_quant_type == GroupQueryAttentionQuantType::PER_CHANNEL,
                               "GroupQueryAttention supports k/v quant types: {PER_TENSOR, PER_CHANNEL}, got: ",
-                              quant_type_to_string(m_k_quant_type));
+                              m_k_quant_type);
 
         check_input(GroupQueryAttentionInputs::K_SCALE, {0, 1}, {element::f32, element::f16}, true);
         check_input(GroupQueryAttentionInputs::V_SCALE, {0, 1}, {element::f32, element::f16}, true);
@@ -299,10 +295,8 @@ void GroupQueryAttention::validate_and_infer_types() {
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
-    std::string k_quant_type = quant_type_to_string(m_k_quant_type);
-    std::string v_quant_type = quant_type_to_string(m_v_quant_type);
     visitor.on_attribute("do_rotary", m_do_rotary);
-    visitor.on_attribute("k_quant_type", k_quant_type);
+    visitor.on_attribute("k_quant_type", m_k_quant_type);
     visitor.on_attribute("kv_cache_bit_width", m_kv_cache_bit_width);
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("local_window_size", m_local_window_size);
@@ -311,9 +305,7 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("smooth_softmax", m_smooth_softmax);
-    visitor.on_attribute("v_quant_type", v_quant_type);
-    m_k_quant_type = quant_type_from_string(k_quant_type);
-    m_v_quant_type = quant_type_from_string(v_quant_type);
+    visitor.on_attribute("v_quant_type", m_v_quant_type);
     return true;
 }
 

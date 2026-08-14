@@ -173,6 +173,14 @@ TEST(type_prop, group_query_attention_rotary_inputs_static_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 5, 8}));
 }
 
+TEST(type_prop, group_query_attention_quant_type_enum_names) {
+    EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::NONE), "NONE");
+    EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::PER_TENSOR), "PER_TENSOR");
+    EXPECT_EQ(as_string(op::internal::GroupQueryAttentionQuantType::PER_CHANNEL), "PER_CHANNEL");
+    EXPECT_EQ(as_enum<op::internal::GroupQueryAttentionQuantType>("PER_TENSOR"),
+              op::internal::GroupQueryAttentionQuantType::PER_TENSOR);
+}
+
 // ---------- quantized KV cache ----------
 
 TEST(type_prop, group_query_attention_kv_cache_int8_per_tensor) {
