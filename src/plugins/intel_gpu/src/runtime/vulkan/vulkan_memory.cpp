@@ -5,8 +5,10 @@
 #include "vulkan_memory.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <new>
 #include <optional>
 #include <utility>
@@ -124,7 +126,7 @@ vulkan_buffer_allocation::ptr allocate_buffer(vulkan_engine& engine, size_t requ
                                                       buffer,
                                                       device_memory,
                                                       mapped_data,
-                                                      requirements.size,
+                                                      buffer_size,
                                                       (memory_flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0);
 }
 
@@ -167,6 +169,7 @@ void vulkan_buffer_allocation::flush() const {
     if (host_coherent) {
         return;
     }
+    std::lock_guard<std::mutex> lock(_visibility_mutex);
     VkMappedMemoryRange range{};
     range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     range.memory = memory;
@@ -179,6 +182,7 @@ void vulkan_buffer_allocation::invalidate() const {
     if (host_coherent) {
         return;
     }
+    std::lock_guard<std::mutex> lock(_visibility_mutex);
     VkMappedMemoryRange range{};
     range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     range.memory = memory;
@@ -187,21 +191,198 @@ void vulkan_buffer_allocation::invalidate() const {
     check_vk_result(vkInvalidateMappedMemoryRanges(device, 1, &range), "vkInvalidateMappedMemoryRanges");
 }
 
-vulkan_buffer::vulkan_buffer(vulkan_engine* engine, const layout& layout)
-    : memory(engine, layout, allocation_type::vulkan_buffer, nullptr),
-      _allocation(allocate_buffer(*engine, _bytes_count)) {
-    m_mem_tracker = std::make_shared<MemoryTracker>(engine, _allocation->mapped_data, _bytes_count, allocation_type::vulkan_buffer);
+vulkan_buffer_region::vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator> owner,
+                                           vulkan_buffer_allocation::ptr allocation,
+                                           VkDeviceSize offset,
+                                           VkDeviceSize size)
+    : _owner(std::move(owner)),
+      _allocation(std::move(allocation)),
+      _offset(offset),
+      _size(size) {}
+
+vulkan_buffer_region::~vulkan_buffer_region() {
+    if (auto owner = _owner.lock()) {
+        try {
+            owner->release(_allocation, _offset, _size);
+        } catch (...) {
+            // Destructors must not throw while unwinding. The backing block remains owned by the allocator.
+        }
+    }
+}
+
+vulkan_memory_allocator::vulkan_memory_allocator(vulkan_engine& engine, VkDeviceSize alignment, VkDeviceSize preferred_block_size)
+    : _engine(&engine),
+      _alignment(std::max<VkDeviceSize>(alignment, 1)),
+      _preferred_block_size(std::max<VkDeviceSize>(preferred_block_size, 1)) {
+    _stats.alignment = _alignment;
+    _stats.preferred_block_size = _preferred_block_size;
+}
+
+VkDeviceSize vulkan_memory_allocator::align_size(VkDeviceSize size) const {
+    const auto remainder = size % _alignment;
+    if (remainder == 0) {
+        return size;
+    }
+
+    const auto padding = _alignment - remainder;
+    OPENVINO_ASSERT(size <= (std::numeric_limits<VkDeviceSize>::max)() - padding, "[GPU][Vulkan] Buffer suballocation size overflows VkDeviceSize");
+    return size + padding;
+}
+
+vulkan_buffer_region::ptr vulkan_memory_allocator::allocate(size_t size) {
+    const auto requested_size = std::max<VkDeviceSize>(static_cast<VkDeviceSize>(size), 1);
+    auto reserved_size = align_size(requested_size);
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    size_t selected_block = _blocks.size();
+    size_t selected_range = 0;
+    VkDeviceSize smallest_range = (std::numeric_limits<VkDeviceSize>::max)();
+    for (size_t block_index = 0; block_index < _blocks.size(); ++block_index) {
+        const auto& current_block = _blocks[block_index];
+        for (size_t range_index = 0; range_index < current_block.free_ranges.size(); ++range_index) {
+            const auto& range = current_block.free_ranges[range_index];
+            if (range.size >= reserved_size && range.size < smallest_range) {
+                selected_block = block_index;
+                selected_range = range_index;
+                smallest_range = range.size;
+            }
+        }
+    }
+
+    if (selected_block != _blocks.size()) {
+        auto& current_block = _blocks[selected_block];
+        auto& range = current_block.free_ranges[selected_range];
+        const auto offset = range.offset;
+        range.offset += reserved_size;
+        range.size -= reserved_size;
+        if (range.size == 0) {
+            current_block.free_ranges.erase(current_block.free_ranges.begin() + selected_range);
+        }
+        ++current_block.live_regions;
+        ++_stats.region_allocations;
+        ++_stats.region_reuses;
+        return vulkan_buffer_region::ptr(new vulkan_buffer_region(shared_from_this(), current_block.allocation, offset, reserved_size));
+    }
+
+    const auto max_block_size = std::max<VkDeviceSize>(_engine->get_device_info().max_alloc_mem_size, 1);
+    auto block_size = reserved_size;
+    if (reserved_size < _preferred_block_size) {
+        const auto balanced_size =
+            static_cast<VkDeviceSize>(std::sqrt(static_cast<long double>(reserved_size) * static_cast<long double>(_preferred_block_size)));
+        block_size = std::min(_preferred_block_size, align_size(std::max(reserved_size, balanced_size)));
+    }
+    if (block_size > max_block_size && requested_size <= max_block_size) {
+        block_size = requested_size;
+        reserved_size = requested_size;
+    }
+
+    vulkan_buffer_allocation::ptr allocation;
+    try {
+        allocation = allocate_buffer(*_engine, static_cast<size_t>(block_size));
+    } catch (const std::bad_alloc&) {
+        if (block_size == requested_size) {
+            throw;
+        }
+        block_size = requested_size;
+        reserved_size = requested_size;
+        allocation = allocate_buffer(*_engine, size);
+    }
+
+    block new_block;
+    new_block.allocation = allocation;
+    new_block.live_regions = 1;
+    new_block.cacheable = block_size <= _preferred_block_size;
+    if (block_size > reserved_size) {
+        new_block.free_ranges.push_back({reserved_size, block_size - reserved_size});
+    }
+    _blocks.push_back(std::move(new_block));
+
+    ++_stats.region_allocations;
+    ++_stats.block_allocations;
+    _stats.current_blocks = _blocks.size();
+    _stats.current_reserved_bytes += block_size;
+    _stats.peak_reserved_bytes = std::max(_stats.peak_reserved_bytes, _stats.current_reserved_bytes);
+    return vulkan_buffer_region::ptr(new vulkan_buffer_region(shared_from_this(), std::move(allocation), 0, reserved_size));
+}
+
+void vulkan_memory_allocator::release(const vulkan_buffer_allocation::ptr& allocation, VkDeviceSize offset, VkDeviceSize size) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    const auto block_it = std::find_if(_blocks.begin(), _blocks.end(), [&](const block& candidate) {
+        return candidate.allocation == allocation;
+    });
+    if (block_it == _blocks.end() || block_it->live_regions == 0) {
+        return;
+    }
+
+    --block_it->live_regions;
+    block_it->free_ranges.push_back({offset, size});
+    std::sort(block_it->free_ranges.begin(), block_it->free_ranges.end(), [](const free_range& lhs, const free_range& rhs) {
+        return lhs.offset < rhs.offset;
+    });
+
+    std::vector<free_range> coalesced;
+    coalesced.reserve(block_it->free_ranges.size());
+    for (const auto& range : block_it->free_ranges) {
+        if (coalesced.empty() || coalesced.back().offset + coalesced.back().size < range.offset) {
+            coalesced.push_back(range);
+        } else {
+            const auto range_end = range.offset + range.size;
+            const auto previous_end = coalesced.back().offset + coalesced.back().size;
+            coalesced.back().size = std::max(previous_end, range_end) - coalesced.back().offset;
+        }
+    }
+    block_it->free_ranges = std::move(coalesced);
+
+    const bool fully_empty = block_it->live_regions == 0 && block_it->free_ranges.size() == 1 && block_it->free_ranges.front().offset == 0 &&
+                             block_it->free_ranges.front().size == block_it->allocation->size;
+    if (!fully_empty) {
+        return;
+    }
+
+    if (block_it->cacheable) {
+        const auto retained_it = std::max_element(_blocks.begin(), _blocks.end(), [&](const block& lhs, const block& rhs) {
+            const auto lhs_size = &lhs != &*block_it && lhs.cacheable && lhs.live_regions == 0 ? lhs.allocation->size : 0;
+            const auto rhs_size = &rhs != &*block_it && rhs.cacheable && rhs.live_regions == 0 ? rhs.allocation->size : 0;
+            return lhs_size < rhs_size;
+        });
+        if (retained_it == _blocks.end() || retained_it == block_it || !retained_it->cacheable || retained_it->live_regions != 0) {
+            return;
+        }
+        if (retained_it->allocation->size < block_it->allocation->size) {
+            _stats.current_reserved_bytes -= retained_it->allocation->size;
+            ++_stats.block_releases;
+            _blocks.erase(retained_it);
+            _stats.current_blocks = _blocks.size();
+            return;
+        }
+    } else {
+        _stats.current_reserved_bytes -= block_it->allocation->size;
+        ++_stats.block_releases;
+        _blocks.erase(block_it);
+        _stats.current_blocks = _blocks.size();
+        return;
+    }
+
+    _stats.current_reserved_bytes -= block_it->allocation->size;
+    ++_stats.block_releases;
+    _blocks.erase(block_it);
+    _stats.current_blocks = _blocks.size();
+}
+
+vulkan_memory_allocator_stats vulkan_memory_allocator::get_stats() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _stats;
 }
 
 vulkan_buffer::vulkan_buffer(vulkan_engine* engine,
                              const layout& layout,
-                             vulkan_buffer_allocation::ptr allocation,
-                             VkDeviceSize offset,
+                             vulkan_buffer_region::ptr region,
+                             VkDeviceSize view_offset,
                              std::shared_ptr<MemoryTracker> memory_tracker)
     : memory(engine, layout, allocation_type::vulkan_buffer, std::move(memory_tracker)),
-      _allocation(std::move(allocation)),
-      _offset(offset) {
-    OPENVINO_ASSERT(_allocation != nullptr && _offset <= _allocation->size && _bytes_count <= _allocation->size - _offset,
+      _region(std::move(region)),
+      _view_offset(view_offset) {
+    OPENVINO_ASSERT(_region != nullptr && _view_offset <= _region->get_size() && _bytes_count <= _region->get_size() - _view_offset,
                     "[GPU][Vulkan] Reinterpreted buffer range exceeds the underlying allocation");
 }
 
@@ -210,14 +391,14 @@ void vulkan_buffer::validate_range(size_t offset, size_t size, const char* opera
 }
 
 void* vulkan_buffer::mapped_data() const {
-    return static_cast<unsigned char*>(_allocation->mapped_data) + _offset;
+    return static_cast<unsigned char*>(get_allocation()->mapped_data) + get_offset();
 }
 
 void* vulkan_buffer::lock(const stream& stream, mem_lock_type type) {
     validate_stream(stream).finish();
     std::lock_guard<std::mutex> lock(_lock_mutex);
     if (_lock_count == 0 && type != mem_lock_type::write) {
-        _allocation->invalidate();
+        get_allocation()->invalidate();
     }
     _write_access = _write_access || type != mem_lock_type::read;
     ++_lock_count;
@@ -230,7 +411,7 @@ void vulkan_buffer::unlock(const stream& stream) {
     OPENVINO_ASSERT(_lock_count > 0, "[GPU][Vulkan] Attempt to unlock a buffer that is not locked");
     --_lock_count;
     if (_lock_count == 0 && _write_access) {
-        _allocation->flush();
+        get_allocation()->flush();
         _write_access = false;
     }
 }
@@ -241,7 +422,7 @@ event::ptr vulkan_buffer::fill(stream& stream, unsigned char pattern, const std:
     stream.finish();
     if (_bytes_count > 0) {
         std::memset(mapped_data(), pattern, _bytes_count);
-        _allocation->flush();
+        get_allocation()->flush();
     }
     return stream.create_user_event(true);
 }
@@ -269,7 +450,7 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const void* source, size_t s
         const auto* source_bytes = static_cast<const unsigned char*>(source) + source_offset;
         auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
         std::memcpy(destination_bytes, source_bytes, size);
-        _allocation->flush();
+        get_allocation()->flush();
     }
     return stream.create_user_event(true);
 }
@@ -282,11 +463,11 @@ event::ptr vulkan_buffer::copy_from(stream& stream, const memory& source, size_t
     validate_range(destination_offset, size, "copy_from(device destination)");
     stream.finish();
     if (size > 0) {
-        source_buffer->_allocation->invalidate();
+        source_buffer->get_allocation()->invalidate();
         const auto* source_bytes = static_cast<const unsigned char*>(source_buffer->mapped_data()) + source_offset;
         auto* destination_bytes = static_cast<unsigned char*>(mapped_data()) + destination_offset;
         std::memmove(destination_bytes, source_bytes, size);
-        _allocation->flush();
+        get_allocation()->flush();
     }
     return stream.create_user_event(true);
 }
@@ -297,7 +478,7 @@ event::ptr vulkan_buffer::copy_to(stream& stream, void* destination, size_t sour
     OPENVINO_ASSERT(destination != nullptr || size == 0, "[GPU][Vulkan] Destination pointer is null");
     stream.finish();
     if (size > 0) {
-        _allocation->invalidate();
+        get_allocation()->invalidate();
         const auto* source_bytes = static_cast<const unsigned char*>(mapped_data()) + source_offset;
         auto* destination_bytes = static_cast<unsigned char*>(destination) + destination_offset;
         std::memcpy(destination_bytes, source_bytes, size);

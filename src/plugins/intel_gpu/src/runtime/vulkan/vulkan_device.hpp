@@ -59,6 +59,10 @@ public:
         return _max_push_constants_size;
     }
 
+    uint32_t get_max_memory_allocation_count() const {
+        return _max_memory_allocation_count;
+    }
+
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
     }
@@ -74,6 +78,7 @@ private:
     VkDevice _device = VK_NULL_HANDLE;
     VkQueue _compute_queue = VK_NULL_HANDLE;
     uint32_t _max_push_constants_size = 0;
+    uint32_t _max_memory_allocation_count = 1;
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};

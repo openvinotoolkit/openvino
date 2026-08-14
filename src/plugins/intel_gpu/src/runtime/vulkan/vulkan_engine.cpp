@@ -4,6 +4,8 @@
 
 #include "vulkan_engine.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "openvino/core/except.hpp"
@@ -21,6 +23,21 @@ vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_ty
     if (!vulkan_device->is_initialized()) {
         vulkan_device->initialize();
     }
+    const auto& info = vulkan_device->get_info();
+    const auto alignment = std::max<VkDeviceSize>(info.sub_buffer_base_alignment.value_or(1), 1);
+    const auto allocation_count = std::max<uint64_t>(vulkan_device->get_max_memory_allocation_count(), 1);
+    auto allocation_count_root = std::max<uint64_t>(static_cast<uint64_t>(std::sqrt(allocation_count)), 1);
+    if (allocation_count_root * allocation_count_root < allocation_count) {
+        ++allocation_count_root;
+    }
+    const auto per_allocation_size = std::max<uint64_t>(info.max_global_mem_size / allocation_count_root, 1);
+    const auto max_block_size = std::max<uint64_t>(info.max_alloc_mem_size, 1);
+    auto preferred_block_size = std::min(per_allocation_size, max_block_size);
+    preferred_block_size -= preferred_block_size % alignment;
+    if (preferred_block_size == 0) {
+        preferred_block_size = std::min<uint64_t>(alignment, max_block_size);
+    }
+    _memory_allocator = std::make_shared<vulkan_memory_allocator>(*this, alignment, preferred_block_size);
     _service_stream = std::make_unique<vulkan_stream>(*this);
 }
 
@@ -64,7 +81,10 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     OPENVINO_ASSERT(type == allocation_type::vulkan_buffer, "[GPU][Vulkan] Unsupported allocation type: ", type);
     check_allocatable(layout, type);
 
-    auto result = std::make_shared<vulkan_buffer>(this, layout);
+    auto region = allocate_buffer_region(layout.bytes_count());
+    auto* mapped_data = static_cast<unsigned char*>(region->get_allocation()->mapped_data) + region->get_offset();
+    auto memory_tracker = std::make_shared<MemoryTracker>(this, mapped_data, layout.bytes_count(), allocation_type::vulkan_buffer);
+    auto result = std::make_shared<vulkan_buffer>(this, layout, std::move(region), 0, std::move(memory_tracker));
     if (reset || result->is_memory_reset_needed(layout)) {
         result->fill(get_service_stream());
     }
@@ -80,7 +100,7 @@ memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& l
     OPENVINO_ASSERT(source != nullptr && memory.get_engine() == this, "[GPU][Vulkan] Cannot create a subbuffer from memory owned by another backend");
     OPENVINO_ASSERT(byte_offset <= source->size() && layout.bytes_count() <= source->size() - byte_offset,
                     "[GPU][Vulkan] Subbuffer range exceeds its parent buffer");
-    return std::make_shared<vulkan_buffer>(this, layout, source->get_allocation(), source->get_offset() + byte_offset, source->get_mem_tracker());
+    return std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset() + byte_offset, source->get_mem_tracker());
 }
 
 memory_ptr vulkan_engine::create_hostbuffer(void*, size_t, allocation_type, const layout) {
@@ -94,9 +114,10 @@ memory_ptr vulkan_engine::create_hostbuffer(const void*, size_t, allocation_type
 memory_ptr vulkan_engine::reinterpret_buffer(const memory& memory, const layout& layout) {
     const auto* source = dynamic_cast<const vulkan_buffer*>(&memory);
     OPENVINO_ASSERT(source != nullptr && memory.get_engine() == this, "[GPU][Vulkan] Cannot reinterpret memory owned by another backend");
-    OPENVINO_ASSERT(layout.bytes_count() <= source->get_allocation()->size - source->get_offset(),
-                    "[GPU][Vulkan] Reinterpreted layout exceeds the underlying allocation");
-    auto result = std::make_shared<vulkan_buffer>(this, layout, source->get_allocation(), source->get_offset(), source->get_mem_tracker());
+    OPENVINO_ASSERT(
+        source->get_view_offset() <= source->get_region()->get_size() && layout.bytes_count() <= source->get_region()->get_size() - source->get_view_offset(),
+        "[GPU][Vulkan] Reinterpreted layout exceeds the underlying allocation");
+    auto result = std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset(), source->get_mem_tracker());
     result->from_memory_pool = memory.from_memory_pool;
     return result;
 }
@@ -108,7 +129,18 @@ memory_ptr vulkan_engine::import_buffer(const layout&, ov::intel_gpu::os_handle_
 bool vulkan_engine::is_the_same_buffer(const memory& lhs, const memory& rhs) {
     const auto* lhs_buffer = dynamic_cast<const vulkan_buffer*>(&lhs);
     const auto* rhs_buffer = dynamic_cast<const vulkan_buffer*>(&rhs);
-    return lhs_buffer != nullptr && rhs_buffer != nullptr && lhs_buffer->get_allocation() == rhs_buffer->get_allocation();
+    return lhs_buffer != nullptr && rhs_buffer != nullptr && lhs.get_engine() == this && rhs.get_engine() == this &&
+           lhs_buffer->get_allocation() == rhs_buffer->get_allocation() && lhs_buffer->get_offset() == rhs_buffer->get_offset();
+}
+
+std::shared_ptr<vulkan_buffer_region> vulkan_engine::allocate_buffer_region(size_t size) {
+    OPENVINO_ASSERT(_memory_allocator != nullptr, "[GPU][Vulkan] Memory allocator is not initialized");
+    return _memory_allocator->allocate(size);
+}
+
+vulkan_memory_allocator_stats vulkan_engine::get_memory_allocator_stats() const {
+    OPENVINO_ASSERT(_memory_allocator != nullptr, "[GPU][Vulkan] Memory allocator is not initialized");
+    return _memory_allocator->get_stats();
 }
 
 void* vulkan_engine::get_user_context(runtime_types runtime_type) const {

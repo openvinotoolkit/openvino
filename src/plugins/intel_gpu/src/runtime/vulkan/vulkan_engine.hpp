@@ -10,6 +10,10 @@
 namespace cldnn {
 namespace vulkan {
 
+class vulkan_buffer_region;
+class vulkan_memory_allocator;
+struct vulkan_memory_allocator_stats;
+
 class vulkan_engine final : public engine {
 public:
     vulkan_engine(const device::ptr& device, runtime_types runtime_type);
@@ -55,6 +59,8 @@ public:
     uint32_t get_max_push_constants_size() const;
     std::mutex& get_queue_mutex() const;
     std::shared_ptr<vulkan_device> get_vulkan_device_object() const;
+    std::shared_ptr<vulkan_buffer_region> allocate_buffer_region(size_t size);
+    vulkan_memory_allocator_stats get_memory_allocator_stats() const;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     void create_onednn_engine(const ExecutionConfig&) override;
@@ -62,6 +68,7 @@ public:
 
 private:
     std::shared_ptr<vulkan_device> get_vulkan_device_object_impl() const;
+    std::shared_ptr<vulkan_memory_allocator> _memory_allocator;
 };
 
 }  // namespace vulkan

@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #include "intel_gpu/runtime/memory.hpp"
 
@@ -16,6 +17,7 @@ namespace vulkan {
 
 class vulkan_engine;
 class vulkan_device;
+class vulkan_memory_allocator;
 
 class vulkan_buffer_allocation {
 public:
@@ -45,17 +47,91 @@ public:
 
 private:
     std::shared_ptr<vulkan_device> _device_owner;
+    mutable std::mutex _visibility_mutex;
+};
+
+struct vulkan_memory_allocator_stats {
+    uint64_t region_allocations = 0;
+    uint64_t region_reuses = 0;
+    uint64_t block_allocations = 0;
+    uint64_t block_releases = 0;
+    uint64_t current_blocks = 0;
+    uint64_t current_reserved_bytes = 0;
+    uint64_t peak_reserved_bytes = 0;
+    VkDeviceSize alignment = 1;
+    VkDeviceSize preferred_block_size = 1;
+};
+
+class vulkan_buffer_region {
+public:
+    using ptr = std::shared_ptr<vulkan_buffer_region>;
+
+    ~vulkan_buffer_region();
+
+    const vulkan_buffer_allocation::ptr& get_allocation() const {
+        return _allocation;
+    }
+
+    VkDeviceSize get_offset() const {
+        return _offset;
+    }
+
+    VkDeviceSize get_size() const {
+        return _size;
+    }
+
+private:
+    friend class vulkan_memory_allocator;
+
+    vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator> owner, vulkan_buffer_allocation::ptr allocation, VkDeviceSize offset, VkDeviceSize size);
+
+    std::weak_ptr<vulkan_memory_allocator> _owner;
+    vulkan_buffer_allocation::ptr _allocation;
+    VkDeviceSize _offset = 0;
+    VkDeviceSize _size = 0;
+};
+
+class vulkan_memory_allocator final : public std::enable_shared_from_this<vulkan_memory_allocator> {
+public:
+    vulkan_memory_allocator(vulkan_engine& engine, VkDeviceSize alignment, VkDeviceSize preferred_block_size);
+
+    vulkan_buffer_region::ptr allocate(size_t size);
+    vulkan_memory_allocator_stats get_stats() const;
+
+private:
+    friend class vulkan_buffer_region;
+
+    struct free_range {
+        VkDeviceSize offset = 0;
+        VkDeviceSize size = 0;
+    };
+
+    struct block {
+        vulkan_buffer_allocation::ptr allocation;
+        std::vector<free_range> free_ranges;
+        size_t live_regions = 0;
+        bool cacheable = false;
+    };
+
+    void release(const vulkan_buffer_allocation::ptr& allocation, VkDeviceSize offset, VkDeviceSize size);
+    VkDeviceSize align_size(VkDeviceSize size) const;
+
+    vulkan_engine* _engine = nullptr;
+    VkDeviceSize _alignment = 1;
+    VkDeviceSize _preferred_block_size = 1;
+    mutable std::mutex _mutex;
+    std::vector<block> _blocks;
+    vulkan_memory_allocator_stats _stats;
 };
 
 class vulkan_buffer final : public memory {
 public:
     using memory::fill;
 
-    vulkan_buffer(vulkan_engine* engine, const layout& layout);
     vulkan_buffer(vulkan_engine* engine,
                   const layout& layout,
-                  vulkan_buffer_allocation::ptr allocation,
-                  VkDeviceSize offset,
+                  vulkan_buffer_region::ptr region,
+                  VkDeviceSize view_offset,
                   std::shared_ptr<MemoryTracker> memory_tracker);
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
@@ -69,23 +145,31 @@ public:
     event::ptr copy_to(stream& stream, void* destination, size_t source_offset, size_t destination_offset, size_t size, bool blocking) const override;
 
     VkBuffer get_buffer() const {
-        return _allocation->buffer;
+        return _region->get_allocation()->buffer;
     }
 
     VkDeviceSize get_offset() const {
-        return _offset;
+        return _region->get_offset() + _view_offset;
     }
 
     const vulkan_buffer_allocation::ptr& get_allocation() const {
-        return _allocation;
+        return _region->get_allocation();
+    }
+
+    const vulkan_buffer_region::ptr& get_region() const {
+        return _region;
+    }
+
+    VkDeviceSize get_view_offset() const {
+        return _view_offset;
     }
 
 private:
     void validate_range(size_t offset, size_t size, const char* operation) const;
     void* mapped_data() const;
 
-    vulkan_buffer_allocation::ptr _allocation;
-    VkDeviceSize _offset = 0;
+    vulkan_buffer_region::ptr _region;
+    VkDeviceSize _view_offset = 0;
     mutable std::mutex _lock_mutex;
     size_t _lock_count = 0;
     bool _write_access = false;
