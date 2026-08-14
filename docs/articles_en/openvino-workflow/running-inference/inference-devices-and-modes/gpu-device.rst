@@ -27,9 +27,10 @@ Device Naming Convention
 #######################################
 
 * Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}`` (both Intel® and non-Intel GPUs are considered).
+* The order of GPUs is predefined: integrated Intel® GPUs first, followed by discrete Intel® GPUs, and then non-Intel® GPUs. The order of non-Intel® GPUs is not guaranteed.
+* A physical GPU exposed through multiple OpenCL® runtime platforms may appear as more than one device entry. When the same GPU is exposed by both the Intel® and another OpenCL® platform, the Intel®-platform entry is enumerated first. The order of non-Intel® OpenCL® platforms is not guaranteed.
 * If the system has an integrated Intel® GPU, its ``id`` is always 0 (``GPU.0``).
 * If the system does not have an integrated Intel® GPU, devices are enumerated, starting from 0.
-* The order of GPUs is predefined: an integrated Intel® GPU is enumerated first, followed by discrete Intel® GPUs. The order of non-Intel® GPUs is not guaranteed.
 * The ``GPU`` is an alias for ``GPU.0``.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
