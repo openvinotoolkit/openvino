@@ -17,6 +17,18 @@
 
 namespace cldnn {
 namespace vulkan {
+namespace {
+
+memory_ptr wrap_imported_buffer(vulkan_engine& engine, const layout& layout, vulkan_buffer_region::ptr region, void* tracking_address) {
+    OPENVINO_ASSERT(region != nullptr, "[GPU][Vulkan] Imported buffer region is null");
+    if (tracking_address == nullptr) {
+        tracking_address = region.get();
+    }
+    auto tracker = std::make_shared<MemoryTracker>(nullptr, tracking_address, layout.bytes_count(), allocation_type::vulkan_buffer);
+    return std::make_shared<vulkan_buffer>(&engine, layout, std::move(region), 0, std::move(tracker));
+}
+
+}  // namespace
 
 vulkan_engine::vulkan_engine(const device::ptr& device, runtime_types runtime_type) : engine(device) {
     OPENVINO_ASSERT(runtime_type == runtime_types::vulkan, "[GPU][Vulkan] Invalid runtime type for Vulkan engine");
@@ -103,8 +115,10 @@ memory_ptr vulkan_engine::allocate_memory(const layout& layout, allocation_type 
     return result;
 }
 
-memory_ptr vulkan_engine::reinterpret_handle(const layout&, shared_mem_params) {
-    OPENVINO_THROW("[GPU][Vulkan] External Vulkan memory handles are not supported");
+memory_ptr vulkan_engine::reinterpret_handle(const layout& layout, shared_mem_params params) {
+    OPENVINO_ASSERT(params.mem_type == shared_mem_type::shared_mem_buffer, "[GPU][Vulkan] Only native external Vulkan buffers can be reinterpreted");
+    auto region = import_vulkan_native_buffer(*this, params.mem, layout.bytes_count());
+    return wrap_imported_buffer(*this, layout, std::move(region), params.mem);
 }
 
 memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& layout, size_t byte_offset) {
@@ -115,12 +129,14 @@ memory_ptr vulkan_engine::create_subbuffer(const memory& memory, const layout& l
     return std::make_shared<vulkan_buffer>(this, layout, source->get_region(), source->get_view_offset() + byte_offset, source->get_mem_tracker());
 }
 
-memory_ptr vulkan_engine::create_hostbuffer(void*, size_t, allocation_type, const layout) {
-    OPENVINO_THROW("[GPU][Vulkan] Zero-copy wrapping of host memory is not supported");
+memory_ptr vulkan_engine::create_hostbuffer(void* address, size_t size, allocation_type type, const layout layout) {
+    OPENVINO_ASSERT(type == allocation_type::vulkan_buffer, "[GPU][Vulkan] Host pointer import requires vulkan_buffer allocation type");
+    auto region = import_vulkan_host_buffer(*this, address, size, layout.bytes_count());
+    return wrap_imported_buffer(*this, layout, std::move(region), address);
 }
 
-memory_ptr vulkan_engine::create_hostbuffer(const void*, size_t, allocation_type, const layout) {
-    OPENVINO_THROW("[GPU][Vulkan] Zero-copy wrapping of host memory is not supported");
+memory_ptr vulkan_engine::create_hostbuffer(const void* address, size_t size, allocation_type type, const layout layout) {
+    return create_hostbuffer(const_cast<void*>(address), size, type, layout);
 }
 
 memory_ptr vulkan_engine::reinterpret_buffer(const memory& memory, const layout& layout) {
@@ -134,8 +150,14 @@ memory_ptr vulkan_engine::reinterpret_buffer(const memory& memory, const layout&
     return result;
 }
 
-memory_ptr vulkan_engine::import_buffer(const layout&, ov::intel_gpu::os_handle_param) {
-    OPENVINO_THROW("[GPU][Vulkan] External OS memory handle import is not supported");
+memory_ptr vulkan_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+#if defined(__linux__)
+    const auto handle_value = static_cast<intptr_t>(external_handle);
+#else
+    const auto handle_value = reinterpret_cast<intptr_t>(external_handle);
+#endif
+    auto region = import_vulkan_os_buffer(*this, handle_value, layout.bytes_count());
+    return wrap_imported_buffer(*this, layout, std::move(region), nullptr);
 }
 
 bool vulkan_engine::is_the_same_buffer(const memory& lhs, const memory& rhs) {

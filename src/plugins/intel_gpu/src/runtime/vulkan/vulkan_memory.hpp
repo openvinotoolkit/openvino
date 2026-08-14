@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -53,7 +54,8 @@ public:
                              VkDeviceSize size,
                              VkDeviceSize memory_size,
                              VkMemoryPropertyFlags memory_flags,
-                             VkDeviceSize non_coherent_atom_size);
+                             VkDeviceSize non_coherent_atom_size,
+                             bool release_to_foreign = false);
     ~vulkan_buffer_allocation();
 
     vulkan_buffer_allocation(const vulkan_buffer_allocation&) = delete;
@@ -89,6 +91,7 @@ public:
 
 private:
     std::shared_ptr<vulkan_device> _device_owner;
+    bool _release_to_foreign = false;
     mutable std::mutex _visibility_mutex;
 };
 
@@ -109,6 +112,8 @@ public:
     using ptr = std::shared_ptr<vulkan_buffer_region>;
 
     ~vulkan_buffer_region();
+
+    static ptr create_external(vulkan_buffer_allocation::ptr allocation, VkDeviceSize size);
 
     const vulkan_buffer_allocation::ptr& get_allocation() const {
         return _allocation;
@@ -132,6 +137,10 @@ private:
     VkDeviceSize _offset = 0;
     VkDeviceSize _size = 0;
 };
+
+vulkan_buffer_region::ptr import_vulkan_host_buffer(vulkan_engine& engine, void* address, size_t data_size, size_t buffer_size);
+vulkan_buffer_region::ptr import_vulkan_os_buffer(vulkan_engine& engine, intptr_t external_handle, size_t buffer_size);
+vulkan_buffer_region::ptr import_vulkan_native_buffer(vulkan_engine& engine, void* external_handle, size_t buffer_size);
 
 class vulkan_memory_allocator final : public std::enable_shared_from_this<vulkan_memory_allocator> {
 public:

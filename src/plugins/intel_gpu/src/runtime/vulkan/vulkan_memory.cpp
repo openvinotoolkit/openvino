@@ -13,6 +13,18 @@
 #include <optional>
 #include <utility>
 
+#if defined(__linux__)
+#    include <fcntl.h>
+#    include <sys/stat.h>
+#    include <unistd.h>
+#endif
+#if defined(__APPLE__)
+#    include <vulkan/vulkan_metal.h>
+#endif
+#if defined(__ANDROID__)
+#    include <vulkan/vulkan_android.h>
+#endif
+
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "vulkan_engine.hpp"
@@ -57,6 +69,221 @@ void check_vk_result(VkResult result, const char* operation) {
         throw vulkan_bad_alloc(operation, result);
     }
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
+}
+
+bool transition_foreign_buffer_ownership(const std::shared_ptr<vulkan_device>& device_owner, VkBuffer buffer, bool acquire) noexcept {
+    if (device_owner == nullptr || buffer == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    const auto device = device_owner->get_device();
+    const auto queue_family = device_owner->get_compute_queue_family();
+    std::lock_guard<std::mutex> lock(device_owner->get_queue_mutex());
+
+    VkCommandPool pool = VK_NULL_HANDLE;
+    VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+    VkFence fence = VK_NULL_HANDLE;
+    const auto cleanup = [&]() {
+        if (fence != VK_NULL_HANDLE) {
+            vkDestroyFence(device, fence, nullptr);
+        }
+        if (pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, pool, nullptr);
+        }
+    };
+
+    VkCommandPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    pool_info.queueFamilyIndex = queue_family;
+    if (vkCreateCommandPool(device, &pool_info, nullptr, &pool) != VK_SUCCESS) {
+        cleanup();
+        return false;
+    }
+
+    VkCommandBufferAllocateInfo command_info{};
+    command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    command_info.commandPool = pool;
+    command_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    command_info.commandBufferCount = 1;
+    if (vkAllocateCommandBuffers(device, &command_info, &command_buffer) != VK_SUCCESS) {
+        cleanup();
+        return false;
+    }
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS) {
+        cleanup();
+        return false;
+    }
+
+    VkBufferMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    barrier.srcStageMask = acquire ? VK_PIPELINE_STAGE_2_NONE : VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    barrier.srcAccessMask = acquire ? VK_ACCESS_2_NONE : VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    barrier.dstStageMask = acquire ? VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT : VK_PIPELINE_STAGE_2_NONE;
+    barrier.dstAccessMask = acquire ? VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT : VK_ACCESS_2_NONE;
+    barrier.srcQueueFamilyIndex = acquire ? VK_QUEUE_FAMILY_FOREIGN_EXT : queue_family;
+    barrier.dstQueueFamilyIndex = acquire ? queue_family : VK_QUEUE_FAMILY_FOREIGN_EXT;
+    barrier.buffer = buffer;
+    barrier.offset = 0;
+    barrier.size = VK_WHOLE_SIZE;
+
+    VkDependencyInfo dependency_info{};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency_info.bufferMemoryBarrierCount = 1;
+    dependency_info.pBufferMemoryBarriers = &barrier;
+    vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+    if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+        cleanup();
+        return false;
+    }
+
+    VkFenceCreateInfo fence_info{};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    if (vkCreateFence(device, &fence_info, nullptr, &fence) != VK_SUCCESS) {
+        cleanup();
+        return false;
+    }
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+    const auto submit_result = vkQueueSubmit(device_owner->get_compute_queue(), 1, &submit_info, fence);
+    const auto wait_result = submit_result == VK_SUCCESS ? vkWaitForFences(device, 1, &fence, VK_TRUE, (std::numeric_limits<uint64_t>::max)()) : submit_result;
+    cleanup();
+    return submit_result == VK_SUCCESS && wait_result == VK_SUCCESS;
+}
+
+struct vulkan_external_buffer_import {
+    VkExternalMemoryHandleTypeFlagBits handle_type{};
+    const void* allocation_pnext = nullptr;
+    uint32_t memory_type_bits = 0;
+    VkDeviceSize allocation_size = 0;
+    bool map_memory = false;
+    bool foreign_owned = false;
+    int imported_fd = -1;
+};
+
+void close_imported_fd(vulkan_external_buffer_import& import) noexcept {
+#if defined(__linux__)
+    if (import.imported_fd >= 0) {
+        close(import.imported_fd);
+        import.imported_fd = -1;
+    }
+#else
+    static_cast<void>(import);
+#endif
+}
+
+vulkan_buffer_allocation::ptr import_external_buffer(vulkan_engine& engine,
+                                                     size_t requested_size,
+                                                     vulkan_buffer_memory_usage usage,
+                                                     vulkan_external_buffer_import import) {
+    const auto device_owner = engine.get_vulkan_device_object();
+    OPENVINO_ASSERT(device_owner->get_external_memory_capabilities().supports(import.handle_type),
+                    "[GPU][Vulkan] Requested external buffer handle type is not importable");
+    const VkDeviceSize buffer_size = std::max<VkDeviceSize>(requested_size, 1);
+
+    VkExternalMemoryBufferCreateInfo external_info{};
+    external_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
+    external_info.handleTypes = import.handle_type;
+
+    VkBufferCreateInfo buffer_info{};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.pNext = &external_info;
+    buffer_info.size = buffer_size;
+    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkBuffer buffer = VK_NULL_HANDLE;
+    const auto create_result = vkCreateBuffer(engine.get_device_handle(), &buffer_info, nullptr, &buffer);
+    if (create_result != VK_SUCCESS) {
+        close_imported_fd(import);
+        check_vk_result(create_result, "vkCreateBuffer(external)");
+    }
+
+    VkMemoryRequirements requirements{};
+    vkGetBufferMemoryRequirements(engine.get_device_handle(), buffer, &requirements);
+    const auto allowed_types = requirements.memoryTypeBits & import.memory_type_bits;
+    vulkan_memory_type_selection memory_type{};
+    try {
+        VkPhysicalDeviceMemoryProperties memory_properties{};
+        vkGetPhysicalDeviceMemoryProperties(engine.get_physical_device(), &memory_properties);
+        const bool prefer_unified_memory = engine.get_device_info().dev_type != device_type::discrete_gpu;
+        memory_type = select_vulkan_memory_type(memory_properties, allowed_types, usage, prefer_unified_memory);
+    } catch (...) {
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        close_imported_fd(import);
+        throw;
+    }
+
+    const auto allocation_size = import.allocation_size == 0 ? requirements.size : import.allocation_size;
+    if (allocation_size < requirements.size) {
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        close_imported_fd(import);
+        OPENVINO_THROW("[GPU][Vulkan] External allocation is smaller than Vulkan buffer requirements: ", allocation_size, " < ", requirements.size);
+    }
+
+    VkMemoryDedicatedAllocateInfo dedicated_info{};
+    dedicated_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
+    dedicated_info.pNext = import.allocation_pnext;
+    dedicated_info.buffer = buffer;
+
+    VkMemoryAllocateInfo allocation_info{};
+    allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocation_info.pNext = &dedicated_info;
+    allocation_info.allocationSize = allocation_size;
+    allocation_info.memoryTypeIndex = memory_type.index;
+
+    VkDeviceMemory device_memory = VK_NULL_HANDLE;
+    const auto allocation_result = vkAllocateMemory(engine.get_device_handle(), &allocation_info, nullptr, &device_memory);
+    if (allocation_result != VK_SUCCESS) {
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        close_imported_fd(import);
+        check_vk_result(allocation_result, "vkAllocateMemory(external)");
+    }
+    import.imported_fd = -1;
+
+    const auto bind_result = vkBindBufferMemory(engine.get_device_handle(), buffer, device_memory, 0);
+    if (bind_result != VK_SUCCESS) {
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
+        check_vk_result(bind_result, "vkBindBufferMemory(external)");
+    }
+
+    void* mapped_data = nullptr;
+    if (import.map_memory) {
+        const auto map_result = vkMapMemory(engine.get_device_handle(), device_memory, 0, allocation_size, 0, &mapped_data);
+        if (map_result != VK_SUCCESS) {
+            vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+            vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
+            check_vk_result(map_result, "vkMapMemory(external)");
+        }
+    }
+
+    if (import.foreign_owned && !transition_foreign_buffer_ownership(device_owner, buffer, true)) {
+        if (mapped_data != nullptr) {
+            vkUnmapMemory(engine.get_device_handle(), device_memory);
+        }
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        vkFreeMemory(engine.get_device_handle(), device_memory, nullptr);
+        OPENVINO_THROW("[GPU][Vulkan] Failed to acquire external buffer ownership from a foreign queue family");
+    }
+
+    return std::make_shared<vulkan_buffer_allocation>(device_owner,
+                                                      engine.get_device_handle(),
+                                                      buffer,
+                                                      device_memory,
+                                                      mapped_data,
+                                                      buffer_size,
+                                                      allocation_size,
+                                                      memory_type.flags,
+                                                      engine.get_non_coherent_atom_size(),
+                                                      import.foreign_owned);
 }
 
 std::optional<vulkan_memory_type_selection> find_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
@@ -146,6 +373,136 @@ const vulkan_stream& validate_stream(const stream& stream) {
 
 }  // namespace
 
+vulkan_buffer_region::ptr import_vulkan_host_buffer(vulkan_engine& engine, void* address, size_t data_size, size_t buffer_size) {
+    const auto& capabilities = engine.get_vulkan_device_object()->get_external_memory_capabilities();
+    OPENVINO_ASSERT(capabilities.supports(VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT),
+                    "[GPU][Vulkan] VK_EXT_external_memory_host is unavailable for this device");
+    OPENVINO_ASSERT(address != nullptr, "[GPU][Vulkan] Imported host pointer must not be null");
+    OPENVINO_ASSERT(data_size >= buffer_size, "[GPU][Vulkan] Imported host allocation is smaller than the tensor: ", data_size, " < ", buffer_size);
+    const auto alignment = capabilities.min_imported_host_pointer_alignment;
+    OPENVINO_ASSERT(reinterpret_cast<std::uintptr_t>(address) % alignment == 0, "[GPU][Vulkan] Imported host pointer must be ", alignment, "-byte aligned");
+    OPENVINO_ASSERT(data_size > 0 && data_size % alignment == 0,
+                    "[GPU][Vulkan] Imported host allocation size must be a positive multiple of ",
+                    alignment,
+                    " bytes");
+
+    const auto get_properties =
+        reinterpret_cast<PFN_vkGetMemoryHostPointerPropertiesEXT>(vkGetDeviceProcAddr(engine.get_device_handle(), "vkGetMemoryHostPointerPropertiesEXT"));
+    OPENVINO_ASSERT(get_properties != nullptr, "[GPU][Vulkan] vkGetMemoryHostPointerPropertiesEXT is unavailable");
+    VkMemoryHostPointerPropertiesEXT properties{};
+    properties.sType = VK_STRUCTURE_TYPE_MEMORY_HOST_POINTER_PROPERTIES_EXT;
+    check_vk_result(get_properties(engine.get_device_handle(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, address, &properties),
+                    "vkGetMemoryHostPointerPropertiesEXT");
+
+    VkImportMemoryHostPointerInfoEXT host_import{};
+    host_import.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT;
+    host_import.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT;
+    host_import.pHostPointer = address;
+    auto allocation =
+        import_external_buffer(engine,
+                               buffer_size,
+                               vulkan_buffer_memory_usage::host_staging,
+                               {VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT, &host_import, properties.memoryTypeBits, data_size, true, false, -1});
+    OPENVINO_ASSERT(allocation->is_host_coherent(),
+                    "[GPU][Vulkan] Imported host pointers require a host-coherent memory type because the public "
+                    "CPU_VA API has no explicit Vulkan flush operation");
+    return vulkan_buffer_region::create_external(std::move(allocation), buffer_size);
+}
+
+vulkan_buffer_region::ptr import_vulkan_os_buffer(vulkan_engine& engine, intptr_t external_handle, size_t buffer_size) {
+#if defined(__linux__)
+    OPENVINO_ASSERT(external_handle >= 0 && external_handle <= (std::numeric_limits<int>::max)(),
+                    "[GPU][Vulkan] DMA-BUF handle must be a valid file descriptor");
+    const auto& capabilities = engine.get_vulkan_device_object()->get_external_memory_capabilities();
+    OPENVINO_ASSERT(capabilities.supports(VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT), "[GPU][Vulkan] DMA-BUF import is unavailable for this device");
+    const auto source_fd = static_cast<int>(external_handle);
+    struct stat source_status{};
+    OPENVINO_ASSERT(fstat(source_fd, &source_status) == 0 && source_status.st_size > 0, "[GPU][Vulkan] Failed to query DMA-BUF allocation size");
+    const auto allocation_size = static_cast<VkDeviceSize>(source_status.st_size);
+    OPENVINO_ASSERT(allocation_size >= buffer_size, "[GPU][Vulkan] DMA-BUF allocation is smaller than the tensor: ", allocation_size, " < ", buffer_size);
+
+    const auto get_properties = reinterpret_cast<PFN_vkGetMemoryFdPropertiesKHR>(vkGetDeviceProcAddr(engine.get_device_handle(), "vkGetMemoryFdPropertiesKHR"));
+    OPENVINO_ASSERT(get_properties != nullptr, "[GPU][Vulkan] vkGetMemoryFdPropertiesKHR is unavailable");
+    VkMemoryFdPropertiesKHR properties{};
+    properties.sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR;
+    check_vk_result(get_properties(engine.get_device_handle(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, source_fd, &properties),
+                    "vkGetMemoryFdPropertiesKHR");
+
+    const auto imported_fd = fcntl(source_fd, F_DUPFD_CLOEXEC, 0);
+    OPENVINO_ASSERT(imported_fd >= 0, "[GPU][Vulkan] Failed to duplicate DMA-BUF file descriptor before ownership transfer");
+    VkImportMemoryFdInfoKHR fd_import{};
+    fd_import.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR;
+    fd_import.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+    fd_import.fd = imported_fd;
+    auto allocation = import_external_buffer(
+        engine,
+        buffer_size,
+        vulkan_buffer_memory_usage::device,
+        {VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT, &fd_import, properties.memoryTypeBits, allocation_size, false, true, imported_fd});
+    return vulkan_buffer_region::create_external(std::move(allocation), buffer_size);
+#else
+    static_cast<void>(engine);
+    static_cast<void>(external_handle);
+    static_cast<void>(buffer_size);
+    OPENVINO_THROW("[GPU][Vulkan] OS-handle buffer import is only implemented for Linux DMA-BUF file descriptors");
+#endif
+}
+
+vulkan_buffer_region::ptr import_vulkan_native_buffer(vulkan_engine& engine, void* external_handle, size_t buffer_size) {
+    OPENVINO_ASSERT(external_handle != nullptr, "[GPU][Vulkan] Native external buffer handle must not be null");
+#if defined(__ANDROID__)
+    const auto& capabilities = engine.get_vulkan_device_object()->get_external_memory_capabilities();
+    OPENVINO_ASSERT(capabilities.supports(VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID),
+                    "[GPU][Vulkan] AHardwareBuffer import is unavailable for this device");
+    const auto get_properties = reinterpret_cast<PFN_vkGetAndroidHardwareBufferPropertiesANDROID>(
+        vkGetDeviceProcAddr(engine.get_device_handle(), "vkGetAndroidHardwareBufferPropertiesANDROID"));
+    OPENVINO_ASSERT(get_properties != nullptr, "[GPU][Vulkan] vkGetAndroidHardwareBufferPropertiesANDROID is unavailable");
+    auto* hardware_buffer = static_cast<AHardwareBuffer*>(external_handle);
+    VkAndroidHardwareBufferPropertiesANDROID properties{};
+    properties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
+    check_vk_result(get_properties(engine.get_device_handle(), hardware_buffer, &properties), "vkGetAndroidHardwareBufferPropertiesANDROID");
+
+    VkImportAndroidHardwareBufferInfoANDROID ahb_import{};
+    ahb_import.sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
+    ahb_import.buffer = hardware_buffer;
+    auto allocation = import_external_buffer(engine,
+                                             buffer_size,
+                                             vulkan_buffer_memory_usage::device,
+                                             {VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID,
+                                              &ahb_import,
+                                              properties.memoryTypeBits,
+                                              properties.allocationSize,
+                                              false,
+                                              true,
+                                              -1});
+    return vulkan_buffer_region::create_external(std::move(allocation), buffer_size);
+#elif defined(__APPLE__)
+    const auto& capabilities = engine.get_vulkan_device_object()->get_external_memory_capabilities();
+    OPENVINO_ASSERT(capabilities.supports(VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT), "[GPU][Vulkan] MTLBuffer import is unavailable for this device");
+    const auto get_properties =
+        reinterpret_cast<PFN_vkGetMemoryMetalHandlePropertiesEXT>(vkGetDeviceProcAddr(engine.get_device_handle(), "vkGetMemoryMetalHandlePropertiesEXT"));
+    OPENVINO_ASSERT(get_properties != nullptr, "[GPU][Vulkan] vkGetMemoryMetalHandlePropertiesEXT is unavailable");
+    VkMemoryMetalHandlePropertiesEXT properties{};
+    properties.sType = VK_STRUCTURE_TYPE_MEMORY_METAL_HANDLE_PROPERTIES_EXT;
+    check_vk_result(get_properties(engine.get_device_handle(), VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT, external_handle, &properties),
+                    "vkGetMemoryMetalHandlePropertiesEXT");
+
+    VkImportMemoryMetalHandleInfoEXT metal_import{};
+    metal_import.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_METAL_HANDLE_INFO_EXT;
+    metal_import.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT;
+    metal_import.handle = external_handle;
+    auto allocation = import_external_buffer(engine,
+                                             buffer_size,
+                                             vulkan_buffer_memory_usage::device,
+                                             {VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT, &metal_import, properties.memoryTypeBits, 0, false, false, -1});
+    return vulkan_buffer_region::create_external(std::move(allocation), buffer_size);
+#else
+    static_cast<void>(engine);
+    static_cast<void>(buffer_size);
+    OPENVINO_THROW("[GPU][Vulkan] Native external buffers are supported only on Android and macOS");
+#endif
+}
+
 vulkan_memory_type_selection select_vulkan_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
                                                        uint32_t allowed_types,
                                                        vulkan_buffer_memory_usage usage,
@@ -221,7 +578,8 @@ vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device
                                                    VkDeviceSize size,
                                                    VkDeviceSize memory_size,
                                                    VkMemoryPropertyFlags memory_flags,
-                                                   VkDeviceSize non_coherent_atom_size)
+                                                   VkDeviceSize non_coherent_atom_size,
+                                                   bool release_to_foreign)
     : device(device),
       buffer(buffer),
       memory(memory),
@@ -230,9 +588,13 @@ vulkan_buffer_allocation::vulkan_buffer_allocation(std::shared_ptr<vulkan_device
       memory_size(memory_size),
       memory_flags(memory_flags),
       non_coherent_atom_size(non_coherent_atom_size),
-      _device_owner(std::move(device_owner)) {}
+      _device_owner(std::move(device_owner)),
+      _release_to_foreign(release_to_foreign) {}
 
 vulkan_buffer_allocation::~vulkan_buffer_allocation() {
+    if (_release_to_foreign) {
+        transition_foreign_buffer_ownership(_device_owner, buffer, false);
+    }
     if (mapped_data != nullptr) {
         vkUnmapMemory(device, memory);
     }
@@ -288,6 +650,11 @@ vulkan_buffer_region::vulkan_buffer_region(std::weak_ptr<vulkan_memory_allocator
       _allocation(std::move(allocation)),
       _offset(offset),
       _size(size) {}
+
+vulkan_buffer_region::ptr vulkan_buffer_region::create_external(vulkan_buffer_allocation::ptr allocation, VkDeviceSize size) {
+    OPENVINO_ASSERT(allocation != nullptr && size <= allocation->size, "[GPU][Vulkan] External buffer region exceeds the imported allocation");
+    return vulkan_buffer_region::ptr(new vulkan_buffer_region({}, std::move(allocation), 0, size));
+}
 
 vulkan_buffer_region::~vulkan_buffer_region() {
     if (auto owner = _owner.lock()) {

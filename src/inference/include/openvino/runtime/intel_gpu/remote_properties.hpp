@@ -121,8 +121,8 @@ enum class SharedMemType {
     USM_DEVICE_BUFFER = 4,   //!< Shared USM pointer type with device allocation type allocated by plugin
     VA_SURFACE = 5,          //!< Shared video decoder surface or D3D 2D texture blob
     DX_BUFFER = 6,           //!< Shared D3D buffer blob
-    BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle on Windows,
-                             //!< DMA-BUF fd on Linux) imported by the plugin into a cl_mem
+    BUFFER_FROM_HANDLE = 7,  //!< OS-level external memory handle (e.g. DX12 NT handle, DMA-BUF fd,
+                             //!< MTLBuffer, or AHardwareBuffer) imported by the selected GPU runtime
     CPU_VA = 8,              //!< Shared mmap-backed/aligned allocated host pointer mapped by plugin
 };
 
@@ -197,7 +197,7 @@ inline std::istream& operator>>(std::istream& is, SharedMemType& share_mem_type)
 static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
 
 /**
- * @brief This key identifies OpenCL memory handle
+ * @brief This key identifies an API-native memory handle
  * in a shared memory blob parameter map
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */

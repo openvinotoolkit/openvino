@@ -15,6 +15,15 @@ namespace vulkan {
 
 class vulkan_pipeline_cache;
 
+struct vulkan_external_memory_capabilities {
+    VkExternalMemoryHandleTypeFlags importable_buffer_handle_types = 0;
+    VkDeviceSize min_imported_host_pointer_alignment = 1;
+
+    bool supports(VkExternalMemoryHandleTypeFlagBits handle_type) const {
+        return (importable_buffer_handle_types & handle_type) != 0;
+    }
+};
+
 class vulkan_device : public device {
 public:
     using ptr = std::shared_ptr<vulkan_device>;
@@ -67,6 +76,10 @@ public:
         return _non_coherent_atom_size;
     }
 
+    const vulkan_external_memory_capabilities& get_external_memory_capabilities() const {
+        return _external_memory_capabilities;
+    }
+
     std::mutex& get_queue_mutex() {
         return _queue_mutex;
     }
@@ -84,6 +97,7 @@ private:
     uint32_t _max_push_constants_size = 0;
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
+    vulkan_external_memory_capabilities _external_memory_capabilities{};
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::vulkan_buffer}};

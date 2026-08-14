@@ -400,6 +400,10 @@ void RemoteTensorImpl::allocate() {
         m_memory_object = engine.share_buffer(m_layout, m_mem);
         break;
     }
+    case TensorType::BT_VULKAN_BUF_SHARED: {
+        m_memory_object = engine.share_buffer(m_layout, m_mem);
+        break;
+    }
     case TensorType::BT_BUF_SHARED_FROM_HANDLE: {
         m_memory_object = engine.import_buffer(m_layout, m_shared_buffer_handle.value);
         break;
@@ -409,10 +413,9 @@ void RemoteTensorImpl::allocate() {
         break;
     }
     case TensorType::BT_CPU_VA: {
-        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr,
-                                        m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(),
-                                        cldnn::allocation_type::cl_mem,
-                                        m_layout);
+        const auto allocation_type =
+            engine.runtime_type() == cldnn::runtime_types::vulkan ? cldnn::allocation_type::vulkan_buffer : cldnn::allocation_type::cl_mem;
+        m_memory_object = engine.create_hostbuffer(m_va_mem.ptr, m_va_mem.size > -1 ? m_va_mem.size : m_layout.bytes_count(), allocation_type, m_layout);
         break;
     }
 #ifdef _WIN32
@@ -450,13 +453,9 @@ const std::string& RemoteTensorImpl::get_device_name() const {
 }
 
 bool RemoteTensorImpl::is_shared() const noexcept {
-    return m_mem_type == TensorType::BT_BUF_SHARED ||
-           m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE ||
-           m_mem_type == TensorType::BT_CPU_VA ||
-           m_mem_type == TensorType::BT_USM_SHARED ||
-           m_mem_type == TensorType::BT_IMG_SHARED ||
-           m_mem_type == TensorType::BT_SURF_SHARED ||
-           m_mem_type == TensorType::BT_DX_BUF_SHARED;
+    return m_mem_type == TensorType::BT_BUF_SHARED || m_mem_type == TensorType::BT_BUF_SHARED_FROM_HANDLE || m_mem_type == TensorType::BT_VULKAN_BUF_SHARED ||
+           m_mem_type == TensorType::BT_CPU_VA || m_mem_type == TensorType::BT_USM_SHARED || m_mem_type == TensorType::BT_IMG_SHARED ||
+           m_mem_type == TensorType::BT_SURF_SHARED || m_mem_type == TensorType::BT_DX_BUF_SHARED;
 }
 
 bool RemoteTensorImpl::supports_caching() const {
@@ -521,10 +520,32 @@ void RemoteTensorImpl::update_properties() {
     const auto ctx_type = it->second.as<ContextType>();
 
     if (ctx_type == ContextType::VULKAN) {
-        OPENVINO_ASSERT(m_mem_type == TensorType::BT_BUF_INTERNAL,
-                        "[GPU][Vulkan] External remote tensor memory is not supported");
-        m_properties.clear();
-        return;
+        switch (m_mem_type) {
+        case TensorType::BT_BUF_INTERNAL:
+            m_properties.clear();
+            return;
+        case TensorType::BT_BUF_SHARED_FROM_HANDLE:
+            m_properties = {
+                ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE),
+                ov::intel_gpu::os_handle(m_shared_buffer_handle.value),
+            };
+            return;
+        case TensorType::BT_CPU_VA:
+            m_properties = {
+                ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::CPU_VA),
+                ov::intel_gpu::cpu_va(m_va_mem.ptr),
+                ov::intel_gpu::cpu_va_size(m_va_mem.size),
+            };
+            return;
+        case TensorType::BT_VULKAN_BUF_SHARED:
+            m_properties = {
+                ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE),
+                ov::intel_gpu::mem_handle(m_mem),
+            };
+            return;
+        default:
+            OPENVINO_THROW("[GPU][Vulkan] Unsupported external remote tensor memory type ", static_cast<int>(m_mem_type));
+        }
     }
 
     cldnn::shared_mem_params params;

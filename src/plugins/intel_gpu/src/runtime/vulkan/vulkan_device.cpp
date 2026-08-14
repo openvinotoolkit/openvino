@@ -20,6 +20,14 @@ namespace vulkan {
 namespace {
 
 constexpr const char* portability_subset_extension_name = "VK_KHR_portability_subset";
+constexpr const char* external_memory_host_extension_name = "VK_EXT_external_memory_host";
+constexpr const char* external_memory_fd_extension_name = "VK_KHR_external_memory_fd";
+constexpr const char* external_memory_dma_buf_extension_name = "VK_EXT_external_memory_dma_buf";
+constexpr const char* external_memory_ahb_extension_name = "VK_ANDROID_external_memory_android_hardware_buffer";
+#if defined(__APPLE__)
+constexpr const char* external_memory_metal_extension_name = "VK_EXT_external_memory_metal";
+#endif
+constexpr const char* queue_family_foreign_extension_name = "VK_EXT_queue_family_foreign";
 
 void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
@@ -30,6 +38,26 @@ std::string make_driver_version(const VkPhysicalDeviceProperties& properties) {
     stream << "Vulkan " << VK_API_VERSION_MAJOR(properties.apiVersion) << "." << VK_API_VERSION_MINOR(properties.apiVersion) << "."
            << VK_API_VERSION_PATCH(properties.apiVersion) << ", driver 0x" << std::hex << properties.driverVersion;
     return stream.str();
+}
+
+bool has_extension(const std::vector<VkExtensionProperties>& extensions, const char* name) {
+    return std::any_of(extensions.begin(), extensions.end(), [name](const auto& extension) {
+        return std::string(extension.extensionName) == name;
+    });
+}
+
+bool supports_external_buffer_import(VkPhysicalDevice device, VkExternalMemoryHandleTypeFlagBits handle_type) {
+    VkPhysicalDeviceExternalBufferInfo buffer_info{};
+    buffer_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO;
+    buffer_info.flags = 0;
+    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer_info.handleType = handle_type;
+
+    VkExternalBufferProperties properties{};
+    properties.sType = VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES;
+    vkGetPhysicalDeviceExternalBufferProperties(device, &buffer_info, &properties);
+    const auto& external = properties.externalMemoryProperties;
+    return (external.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) != 0 && (external.compatibleHandleTypes & handle_type) != 0;
 }
 
 }  // namespace
@@ -171,10 +199,44 @@ void vulkan_device::initialize() {
     }
 
     std::vector<const char*> enabled_extensions;
-    if (std::any_of(extensions.begin(), extensions.end(), [](const auto& extension) {
-            return std::string(extension.extensionName) == portability_subset_extension_name;
-        })) {
+    if (has_extension(extensions, portability_subset_extension_name)) {
         enabled_extensions.push_back(portability_subset_extension_name);
+    }
+
+    const auto enable_external_import = [&](const char* extension_name, VkExternalMemoryHandleTypeFlagBits handle_type) {
+        if (!has_extension(extensions, extension_name) || !supports_external_buffer_import(_physical_device, handle_type)) {
+            return false;
+        }
+        enabled_extensions.push_back(extension_name);
+        _external_memory_capabilities.importable_buffer_handle_types |= handle_type;
+        return true;
+    };
+
+    if (enable_external_import(external_memory_host_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT)) {
+        VkPhysicalDeviceExternalMemoryHostPropertiesEXT host_properties{};
+        host_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
+        VkPhysicalDeviceProperties2 properties{};
+        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        properties.pNext = &host_properties;
+        vkGetPhysicalDeviceProperties2(_physical_device, &properties);
+        _external_memory_capabilities.min_imported_host_pointer_alignment = std::max<VkDeviceSize>(host_properties.minImportedHostPointerAlignment, 1);
+    }
+
+    const bool queue_family_foreign_available = has_extension(extensions, queue_family_foreign_extension_name);
+    const bool dma_buf_enabled = queue_family_foreign_available && has_extension(extensions, external_memory_fd_extension_name) &&
+                                 enable_external_import(external_memory_dma_buf_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+    if (dma_buf_enabled) {
+        enabled_extensions.push_back(external_memory_fd_extension_name);
+    }
+
+    const bool ahb_enabled = queue_family_foreign_available &&
+                             enable_external_import(external_memory_ahb_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID);
+#if defined(__APPLE__)
+    enable_external_import(external_memory_metal_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT);
+#endif
+
+    if (dma_buf_enabled || ahb_enabled) {
+        enabled_extensions.push_back(queue_family_foreign_extension_name);
     }
 
     constexpr float queue_priority = 1.0f;

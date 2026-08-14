@@ -204,10 +204,16 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 check_if_shared();
 #endif
             } else if (ov::intel_gpu::SharedMemType::BUFFER_FROM_HANDLE == mem_type) {
-                tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
-                const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
-                SharedBufferHandle handle{os_handle};
-                return { reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr };
+                const auto native_handle = params.find(ov::intel_gpu::mem_handle.name());
+                if (m_type == ContextType::VULKAN && native_handle != params.end()) {
+                    tensor_type = TensorType::BT_VULKAN_BUF_SHARED;
+                    mem = native_handle->second.as<cldnn::shared_handle>();
+                } else {
+                    tensor_type = TensorType::BT_BUF_SHARED_FROM_HANDLE;
+                    const auto os_handle = extract_object(params, ov::intel_gpu::os_handle);
+                    SharedBufferHandle handle{os_handle};
+                    return {reuse_memory_from_handle(type, shape, handle, tensor_type), nullptr};
+                }
             } else {
                 OPENVINO_THROW("[GPU] Unsupported shared object type ", mem_type);
             }
