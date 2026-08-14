@@ -11,6 +11,7 @@
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "flux2_compiled_model.hpp"
 #include "gqa_compiled_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "just_sync_infer_request.hpp"
@@ -44,6 +45,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
+#include "partitioning/patterns/sdpa.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace {
@@ -295,6 +297,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     LOG_INFO("Choosing which NPUW CompiledModel to create");
     LOG_BLOCK();
     std::shared_ptr<ov::npuw::ICompiledModel> compiled_model;
+    auto use_flux2_key = ov::intel_npu::npuw::flux2::enabled.name();
     auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
@@ -305,7 +308,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+    if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
+    } else if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
@@ -346,6 +352,24 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
+
+    auto attn_isolation = [](auto properties) {
+        if (properties.count("NPUW_ATTN") > 0 && properties.at("NPUW_ATTN") != "STATIC") {
+            return true;
+        }
+
+        if (properties.count("NPUW_ONLINE_ISOLATE") > 0) {
+            auto val = properties.at("NPUW_ONLINE_ISOLATE").template as<std::string>();
+            return val == "ATTN" || val.find("attn") != std::string::npos;
+        }
+        return false;
+    };
+
+    if (attn_isolation(properties)) {
+        // In case we bypass LLMCompiledModel and step directly into CompiledModel we still need to regularize SDPA for
+        // the attention isolation to work properly
+        ov::npuw::patterns::regularize::RegularizeSDPA(true).run_on_model(model);
+    }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
@@ -557,9 +581,29 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 compiledFunctions.insert({subgraph._funcall, id});
 
                 // For HFA, use the final tile model instead of the original SDPA model
-                // because the original SDPA model won't be compiled
+                // because the original SDPA model won't be compiled.
+                // Invariant: the prototype model must expose exactly the same number of
+                // results as the HFA tile model.  A mismatch means the prototype carries
+                // extra pass-through outputs (e.g. shared-KV block tensors routed to
+                // downstream subgraphs) that the tile model does not produce.  Allowing
+                // this silently would leave those output slots unregistered in
+                // m_funcall_result and cause an invalid-key crash at inference time.
                 if (fcn_template._host_flash_attention) {
-                    m_compiled_submodels[id].model = fcn_template._host_flash_attention.value()._final_tile_model;
+                    const auto& hfa = fcn_template._host_flash_attention.value();
+                    const size_t proto_outs = fcn_template._model->get_results().size();
+                    const size_t tile_outs = hfa._final_tile_model->outputs().size();
+                    if (proto_outs != tile_outs) {
+                        OPENVINO_THROW("NPUW HFA: subgraph[",
+                                       id,
+                                       "] prototype model has ",
+                                       proto_outs,
+                                       " result(s) but the HFA tile model has ",
+                                       tile_outs,
+                                       ".  The prototype carries extra outputs that would be silently"
+                                       " dropped, causing inference failures.  Ensure all shared-KV"
+                                       " fan-outs are resolved before HFA is applied.");
+                    }
+                    m_compiled_submodels[id].model = hfa._final_tile_model;
                 } else {
                     m_compiled_submodels[id].model = fcn_template._model;
                 }
@@ -693,8 +737,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
-                                                       << ", but was not found in the device list: "
-                                                       << "[" << dev_list_str << "] -- ignoring");
+                                                       << ", but was not found in the device list: " << "["
+                                                       << dev_list_str << "] -- ignoring");
             } else {
                 LOG_INFO("Force Subgraph[" << id << "] target device to " << *forced_dev_it);
                 devices.push_back(*forced_dev_it);
@@ -1943,8 +1987,7 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
     LOG_INFO("Dumping Subgraph[" << id << "]");
     LOG_BLOCK();
     if (real_id != id) {
-        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
-                                           << " as it is a function body for Subgraph[" << id << "]");
+        LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id << "]");
     }
 
     const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
@@ -2440,6 +2483,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
                           BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
                           BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
+                          BIND(npuw::partitioning::online::keep_block_tag, NPUW_ONLINE_KEEP_BLOCKS_TAGGED),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),

@@ -67,15 +67,20 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+        return ov::element::f4e2m1;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
         return ov::element::f8e4m3;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+        return ov::element::f8e8m0;
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
-                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, "
+                               "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, FLOAT16, "
+                               "DOUBLE, INT4, INT8, INT16, "
                                "INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
 }
 

@@ -22,13 +22,12 @@ void mark_state_init_subgraphs::mark_init_subgraph(program& p, read_value_node& 
         if (p.has_state_initializers(variable_id, dep_node->id()))
             return false;
 
-        for (auto& u : dep_node->get_users()) {
+        for (const auto& u : dep_node->get_users()) {
             if (u == &node)
                 continue;
             if (p.has_state_initializers(variable_id, u->id()))
                 continue;
-            else
-                return false;
+            return false;
         }
         GPU_DEBUG_TRACE_DETAIL << "marked " << dep_node->id() << " as node in a init_subgraph for " << node.id() << std::endl;
         return true;
@@ -39,7 +38,7 @@ void mark_state_init_subgraphs::mark_init_subgraph(program& p, read_value_node& 
         for (size_t i = 0; i < cur_size; ++i) {
             auto& cur_node = q.front();
             q.pop();
-            for (auto& dep : cur_node->get_dependencies()) {
+            for (const auto& dep : cur_node->get_dependencies()) {
                 if (can_be_marked(dep.first)) {
                     p.set_state_initializers(variable_id, dep.first->id());
                     q.push(dep.first);
@@ -52,7 +51,7 @@ void mark_state_init_subgraphs::mark_init_subgraph(program& p, read_value_node& 
 void mark_state_init_subgraphs::run(program& p) {
     auto rit = p.get_processing_order().rbegin();
     for (; rit != p.get_processing_order().rend(); rit++) {
-        auto& node = *rit;
+        const auto& node = *rit;
         if (node->is_type<read_value>()) {
             mark_init_subgraph(p, node->as<read_value>());
         }
