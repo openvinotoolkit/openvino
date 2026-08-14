@@ -483,6 +483,8 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
 
     if (element_count == 0) {
+        // A failsafe constant holds no external data, so it has no offset there
+        has_weightless_offset = false;
         constant = common::make_failsafe_constant(ov_type);
     } else if (constant_buffer) {
         try {

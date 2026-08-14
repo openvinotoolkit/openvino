@@ -103,21 +103,28 @@ bool is_graph_iterator_enabled() {
                    "Expected 1 (enable) or 0 (disable).");
 }
 
-// Marks Constants which offset in an external data file is unknown with an index in order of walking through the model
+// !!! Experimental feature, it may be changed or removed in the future !!!
+// Constants loaded from an external data file are already marked with a real offset there.
+// If a model has such constants, the rest are left unmarked, otherwise all constants are marked
+// with an index in order of walking through the model.
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
+    const auto has_external_data =
+        std::any_of(operations.begin(), operations.end(), [](const std::shared_ptr<ov::Node>& operation) {
+            return operation->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) > 0;
+        });
+    if (has_external_data)
+        return;
+
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        const auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
-        auto& rt_info = const_node->get_rt_info();
-        // Keep a real offset in an external data file if it is already known
-        if (rt_info.count(ov::WeightlessCacheAttribute::get_type_info_static()))
-            continue;
-        rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] =
+        const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
             ov::WeightlessCacheAttribute(0, idx, const_node->get_element_type());
     }
 }
+// !!! End of Experimental feature
 
 ov::frontend::FrameworkNodeExtractor make_onnx_extractor() {
     return [](const std::shared_ptr<ov::Node>& node) -> std::optional<std::pair<std::string, std::string>> {
@@ -266,7 +273,9 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    // !!! Experimental feature, it may be changed or removed in the future !!!
     enumerate_constants(model);
+    // !!! End of Experimental feature
 
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
