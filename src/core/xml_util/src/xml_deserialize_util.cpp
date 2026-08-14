@@ -15,8 +15,6 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/fused_conv.hpp"
-#include "openvino/op/linear_attn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/assign_base.hpp"

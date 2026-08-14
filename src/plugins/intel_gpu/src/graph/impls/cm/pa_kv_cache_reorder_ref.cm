@@ -1,0 +1,357 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#define ATTR_BUF [[type("buffer_t")]]
+#endif
+
+// JIT constants:
+//   KV_HEADS_NUM
+//   K_HEAD_SIZE, V_HEAD_SIZE
+//   BLOCK_SIZE                    (paged attention block size)
+//   KV_CACHE_COMPRESSION          (0=non, 1=per-token int8, 2=per-channel K + per-token V)
+//   SUB_BLOCK_SIZE                (per-channel quant sub-block size; only used when ==2)
+//
+// Layout per head (offset relative to (block_id*KV_HEADS_NUM+head_idx) * stride_per_head):
+//   mode 0: [BLOCK_SIZE * head_size halves]
+//   mode 1: [BLOCK_SIZE * head_size bytes][BLOCK_SIZE halves scale][BLOCK_SIZE halves zp]
+//   mode 2 K: [BLOCK_SIZE * head_size bytes][(BLOCK_SIZE/SUB) * head_size halves scale][... zp]
+//   mode 2 V: same as mode 1 V
+
+// ---------------- helpers (load/store full head_size vectors) ----------------
+
+template <int N>
+CM_INLINE void load_half_vec(vector_ref<half, N> dst, const half* base [[type("svmptr_t")]], uint offset_bytes) {
+    if constexpr (N == 16 || N == 32 || N == 64 || N == 128) {
+        dst.template format<int>() = cm_ptr_load<int, N / 2>((int*)base, offset_bytes);
+    } else if constexpr (N == 96) {
+        dst.template select<64, 1>(0).template format<int>() = cm_ptr_load<int, 32>((int*)base, offset_bytes);
+        dst.template select<32, 1>(64).template format<int>() = cm_ptr_load<int, 16>((int*)base, offset_bytes + 32 * sizeof(int));
+    } else {
+        #pragma unroll
+        for (int i = 0; i < N / 16; i++) {
+            dst.template select<16, 1>(16 * i).template format<int>() = cm_ptr_load<int, 8>((int*)base, offset_bytes + i * 8 * sizeof(int));
+        }
+    }
+}
+
+template <int N>
+CM_INLINE void store_half_vec(half* base [[type("svmptr_t")]], uint offset_bytes, vector_ref<half, N> src) {
+    if constexpr (N == 16 || N == 32 || N == 64 || N == 128) {
+        cm_ptr_store<int, N / 2>((int*)base, offset_bytes, src.template format<int>());
+    } else if constexpr (N == 96) {
+        cm_ptr_store<int, 32>((int*)base, offset_bytes, src.template select<64, 1>(0).template format<int>());
+        cm_ptr_store<int, 16>((int*)base, offset_bytes + 32 * sizeof(int), src.template select<32, 1>(64).template format<int>());
+    } else {
+        #pragma unroll
+        for (int i = 0; i < N / 16; i++) {
+            cm_ptr_store<int, 8>((int*)base, offset_bytes + i * 8 * sizeof(int), src.template select<16, 1>(16 * i).template format<int>());
+        }
+    }
+}
+
+template <int N>
+CM_INLINE void load_u8_vec(vector_ref<uchar, N> dst, const uchar* base [[type("svmptr_t")]], uint offset_bytes) {
+    if constexpr (N == 16 || N == 32 || N == 64 || N == 128) {
+        dst.template format<int>() = cm_ptr_load<int, N / 4>((int*)base, offset_bytes);
+    } else if constexpr (N == 96) {
+        dst.template select<64, 1>(0).template format<int>() = cm_ptr_load<int, 16>((int*)base, offset_bytes);
+        dst.template select<32, 1>(64).template format<int>() = cm_ptr_load<int, 8>((int*)base, offset_bytes + 16 * sizeof(int));
+    } else {
+        #pragma unroll
+        for (int i = 0; i < N / 16; i++) {
+            dst.template select<16, 1>(16 * i).template format<int>() = cm_ptr_load<int, 4>((int*)base, offset_bytes + i * 4 * sizeof(int));
+        }
+    }
+}
+
+template <int N>
+CM_INLINE void store_u8_vec(uchar* base [[type("svmptr_t")]], uint offset_bytes, vector_ref<uchar, N> src) {
+    if constexpr (N == 32 || N == 64 || N == 128 || N == 256) {
+        cm_ptr_store<int, N / 4>((int*)base, offset_bytes, src.template format<int>());
+    } else if constexpr (N == 96) {
+        cm_ptr_store<int, 16>((int*)base, offset_bytes, src.template select<64, 1>(0).template format<int>());
+        cm_ptr_store<int, 8>((int*)base, offset_bytes + 16 * sizeof(int), src.template select<32, 1>(64).template format<int>());
+    } else {
+        #pragma unroll
+        for (int i = 0; i < N / 16; i++) {
+            cm_ptr_store<int, 4>((int*)base, offset_bytes + i * 4 * sizeof(int), src.template select<16, 1>(16 * i).template format<int>());
+        }
+    }
+}
+
+#if KV_CACHE_COMPRESSION
+// Read one half scalar from cache (used for per-token scale/zp).
+CM_INLINE half read_half_scalar(const uchar* base [[type("svmptr_t")]], uint offset_bytes) {
+    vector<ushort, 1> tmp;
+    cm_svm_block_read(reinterpret_cast<svmptr_t>(base + offset_bytes), tmp);
+    return tmp.format<half>()[0];
+}
+
+CM_INLINE void write_half_scalar(uchar* base [[type("svmptr_t")]], uint offset_bytes, half value) {
+    vector<half, 1> tmp;
+    tmp[0] = value;
+    cm_svm_block_write(reinterpret_cast<svmptr_t>(base + offset_bytes), tmp.format<ushort>());
+}
+#endif
+
+// -------- Compute per-head base byte offset for compressed cache, or per-head element
+//          offset for non-compressed cache. The unit (byte vs half) matches the
+//          underlying pointer type, so callers can use it directly with load/store.
+//
+// For compressed mode the cache pointer is uint8_t* and the returned offset is a byte
+// offset; for non-compressed mode the pointer is half* and the offset is in halves.
+
+#if KV_CACHE_COMPRESSION == 0
+constexpr uint K_PER_HEAD_ELEMS = K_HEAD_SIZE * BLOCK_SIZE;
+constexpr uint V_PER_HEAD_ELEMS = V_HEAD_SIZE * BLOCK_SIZE;
+constexpr uint K_BLOCK_STRIDE_ELEMS = KV_HEADS_NUM * K_PER_HEAD_ELEMS;
+constexpr uint V_BLOCK_STRIDE_ELEMS = KV_HEADS_NUM * V_PER_HEAD_ELEMS;
+#elif KV_CACHE_COMPRESSION == 1
+constexpr uint K_PER_HEAD_BYTES = (K_HEAD_SIZE + 4) * BLOCK_SIZE;
+constexpr uint V_PER_HEAD_BYTES = (V_HEAD_SIZE + 4) * BLOCK_SIZE;
+constexpr uint K_BLOCK_STRIDE_BYTES = KV_HEADS_NUM * K_PER_HEAD_BYTES;
+constexpr uint V_BLOCK_STRIDE_BYTES = KV_HEADS_NUM * V_PER_HEAD_BYTES;
+constexpr uint K_DATA_BYTES = K_HEAD_SIZE * BLOCK_SIZE;
+constexpr uint V_DATA_BYTES = V_HEAD_SIZE * BLOCK_SIZE;
+#elif KV_CACHE_COMPRESSION == 2
+// Per-channel K: scales/zps live as (BLOCK_SIZE/SUB_BLOCK_SIZE) entries per channel.
+constexpr uint K_PER_HEAD_BYTES = K_HEAD_SIZE * (BLOCK_SIZE + BLOCK_SIZE / SUB_BLOCK_SIZE * 4);
+constexpr uint V_PER_HEAD_BYTES = (V_HEAD_SIZE + 4) * BLOCK_SIZE;
+constexpr uint K_BLOCK_STRIDE_BYTES = KV_HEADS_NUM * K_PER_HEAD_BYTES;
+constexpr uint V_BLOCK_STRIDE_BYTES = KV_HEADS_NUM * V_PER_HEAD_BYTES;
+constexpr uint K_DATA_BYTES = K_HEAD_SIZE * BLOCK_SIZE;
+constexpr uint V_DATA_BYTES = V_HEAD_SIZE * BLOCK_SIZE;
+constexpr uint NUM_SUB_BLOCKS = BLOCK_SIZE / SUB_BLOCK_SIZE;
+#endif
+
+// Per-token V: copy the token's full data row + scalar scale + scalar zp.
+#if KV_CACHE_COMPRESSION
+CM_INLINE void copy_value_slot(uchar* value_cache,
+                               uint head_base_src,
+                               uint head_base_dst,
+                               uint src_slot,
+                               uint dst_slot) {
+    // data
+    vector<uchar, V_HEAD_SIZE> data;
+    load_u8_vec<V_HEAD_SIZE>(data, value_cache, head_base_src + src_slot * V_HEAD_SIZE);
+    store_u8_vec<V_HEAD_SIZE>(value_cache, head_base_dst + dst_slot * V_HEAD_SIZE, data);
+
+    // per-token scale + zp (each: half)
+    const uint scale_src = head_base_src + V_DATA_BYTES + src_slot * (uint)sizeof(half);
+    const uint scale_dst = head_base_dst + V_DATA_BYTES + dst_slot * (uint)sizeof(half);
+    const uint zp_src    = head_base_src + V_DATA_BYTES + (BLOCK_SIZE + src_slot) * (uint)sizeof(half);
+    const uint zp_dst    = head_base_dst + V_DATA_BYTES + (BLOCK_SIZE + dst_slot) * (uint)sizeof(half);
+
+    write_half_scalar(value_cache, scale_dst, read_half_scalar(value_cache, scale_src));
+    write_half_scalar(value_cache, zp_dst,    read_half_scalar(value_cache, zp_src));
+}
+#endif
+
+#if KV_CACHE_COMPRESSION == 2
+// Per-channel K: re-quantize the dst sub-block after replacing the dst slot with the
+// dequantized src value. Keeps OCL/CM math semantics consistent: small-range guard,
+// CHAR range used for asymmetric int8.
+CM_INLINE void requantize_dst_subblock(uchar* key_cache,
+                                       uint head_base_src,
+                                       uint head_base_dst,
+                                       uint src_slot,
+                                       uint dst_slot) {
+    constexpr uint scales_off_base = K_DATA_BYTES;
+    constexpr uint zps_off_base = K_DATA_BYTES + NUM_SUB_BLOCKS * K_HEAD_SIZE * (uint)sizeof(half);
+
+    const uint src_sub = src_slot / SUB_BLOCK_SIZE;
+    const uint dst_sub = dst_slot / SUB_BLOCK_SIZE;
+    const uint dst_sub_first_slot = dst_sub * SUB_BLOCK_SIZE;
+
+    // Load src and dst sub_block scales/zps along the channel dimension.
+    vector<half, K_HEAD_SIZE> scale_src;
+    vector<half, K_HEAD_SIZE> zp_src;
+    vector<half, K_HEAD_SIZE> scale_dst;
+    vector<half, K_HEAD_SIZE> zp_dst;
+    load_half_vec<K_HEAD_SIZE>(scale_src, (const half*)key_cache, head_base_src + scales_off_base + src_sub * K_HEAD_SIZE * (uint)sizeof(half));
+    load_half_vec<K_HEAD_SIZE>(zp_src,    (const half*)key_cache, head_base_src + zps_off_base    + src_sub * K_HEAD_SIZE * (uint)sizeof(half));
+    load_half_vec<K_HEAD_SIZE>(scale_dst, (const half*)key_cache, head_base_dst + scales_off_base + dst_sub * K_HEAD_SIZE * (uint)sizeof(half));
+    load_half_vec<K_HEAD_SIZE>(zp_dst,    (const half*)key_cache, head_base_dst + zps_off_base    + dst_sub * K_HEAD_SIZE * (uint)sizeof(half));
+
+    // Dequant src slot -> val_src (per-channel).
+    vector<uchar, K_HEAD_SIZE> q_src_row;
+    load_u8_vec<K_HEAD_SIZE>(q_src_row, key_cache, head_base_src + src_slot * K_HEAD_SIZE);
+    vector<half, K_HEAD_SIZE> q_src_row_h = q_src_row;
+    vector<half, K_HEAD_SIZE> val_src = (q_src_row_h - zp_src) * scale_src;
+
+    // Dequant the SUB_BLOCK_SIZE rows of the dst sub-block, replacing the dst slot row.
+    matrix<half, SUB_BLOCK_SIZE, K_HEAD_SIZE> dequant_rows;
+    #pragma unroll
+    for (int i = 0; i < SUB_BLOCK_SIZE; ++i) {
+        const uint slot = dst_sub_first_slot + i;
+        if (slot == dst_slot) {
+            dequant_rows.row(i) = val_src;
+        } else {
+            vector<uchar, K_HEAD_SIZE> q_row;
+            load_u8_vec<K_HEAD_SIZE>(q_row, key_cache, head_base_dst + slot * K_HEAD_SIZE);
+            vector<half, K_HEAD_SIZE> q_row_h = q_row;
+            dequant_rows.row(i) = (q_row_h - zp_dst) * scale_dst;
+        }
+    }
+
+    // Recompute per-channel min/max across the SUB_BLOCK_SIZE rows.
+    vector<half, K_HEAD_SIZE> max_vals = dequant_rows.row(0);
+    vector<half, K_HEAD_SIZE> min_vals = dequant_rows.row(0);
+    #pragma unroll
+    for (int i = 1; i < SUB_BLOCK_SIZE; ++i) {
+        max_vals = cm_max<half>(max_vals, dequant_rows.row(i));
+        min_vals = cm_min<half>(min_vals, dequant_rows.row(i));
+    }
+
+    // Per-channel scale/zp computation mirroring CM update kernel's small-range guard.
+    vector<float, K_HEAD_SIZE> qrange = max_vals - min_vals;
+    vector<ushort, K_HEAD_SIZE> mask = (qrange == (half)0.0f);
+    vector<float, K_HEAD_SIZE> min_range = cm_abs<float>(max_vals) * 0.1f;
+    vector<float, K_HEAD_SIZE> adjust_val = cm_max<float>(min_range, 1.0f);
+    qrange.merge(qrange + adjust_val, qrange <= min_range);
+
+#ifdef CM_HAS_IEEE_DIV_SQRT
+    vector<float, K_HEAD_SIZE> scale_vals = cm_div_ieee(255.0f, qrange);
+#else
+    vector<float, K_HEAD_SIZE> scale_vals = 255.0f / qrange;
+#endif
+    scale_vals.merge(1.0f, mask);
+    vector<half, K_HEAD_SIZE> zp_vals = cm_mul<half>((0.0f - min_vals), scale_vals);
+
+    // Requantize and store all SUB_BLOCK_SIZE rows.
+    #pragma unroll
+    for (int i = 0; i < SUB_BLOCK_SIZE; ++i) {
+        vector<half, K_HEAD_SIZE> q = cm_mul<half>(dequant_rows.row(i), scale_vals) + zp_vals;
+        q = cm_min<half>(cm_max<half>(q, (half)0.0f), (half)255.0f);
+        vector<uchar, K_HEAD_SIZE> q_u8 = cm_rnde<uchar, K_HEAD_SIZE>(q);
+        store_u8_vec<K_HEAD_SIZE>(key_cache, head_base_dst + (dst_sub_first_slot + i) * K_HEAD_SIZE, q_u8);
+    }
+
+    // Store new scale/zp for the dst sub_block.
+#ifdef CM_HAS_IEEE_DIV_SQRT
+    vector<half, K_HEAD_SIZE> scale_out = cm_div_ieee(1.0f, scale_vals);
+#else
+    vector<half, K_HEAD_SIZE> scale_out = 1.0f / scale_vals;
+#endif
+    store_half_vec<K_HEAD_SIZE>((half*)key_cache, head_base_dst + scales_off_base + dst_sub * K_HEAD_SIZE * (uint)sizeof(half), scale_out);
+    store_half_vec<K_HEAD_SIZE>((half*)key_cache, head_base_dst + zps_off_base    + dst_sub * K_HEAD_SIZE * (uint)sizeof(half), zp_vals);
+}
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+#if KV_CACHE_COMPRESSION
+    uchar* key_cache [[type("svmptr_t")]],
+    uchar* value_cache [[type("svmptr_t")]],
+#else
+    half* key_cache [[type("svmptr_t")]],
+    half* value_cache [[type("svmptr_t")]],
+#endif
+    const int32_t* block_indices [[type("svmptr_t")]],
+    const int32_t* block_indices_begins [[type("svmptr_t")]],
+    const int32_t* block_update_indices [[type("svmptr_t")]],
+    const int32_t* block_update_indices_begins [[type("svmptr_t")]]) {
+    // Dispatch: GWS = (sequences_num, kv_heads_num, 1), LWS = (1, 1, 1).
+    // Per (seq, head) thread sequentially applies all (src, dst) slot pairs for that
+    // sequence. Sequential order is required because src and dst ranges may overlap.
+
+    const uint seq_idx = cm_group_id(0);
+    const uint head_idx = cm_group_id(1);
+
+    const uint block_indices_base = (uint)block_indices_begins[seq_idx];
+    const uint blocks_in_seq = (uint)block_indices_begins[seq_idx + 1] - block_indices_base;
+    const uint pos_begin = (uint)block_update_indices_begins[seq_idx];
+    const uint pos_end = (uint)block_update_indices_begins[seq_idx + 1];
+
+    for (uint pos = pos_begin; pos < pos_end; ++pos) {
+        const int src_id_s = block_update_indices[pos * 2 + 0];
+        const int dst_id_s = block_update_indices[pos * 2 + 1];
+        if (src_id_s < 0 || dst_id_s < 0)
+            continue;
+
+        const uint src_id = (uint)src_id_s;
+        const uint dst_id = (uint)dst_id_s;
+        const uint src_block_in_seq = src_id / BLOCK_SIZE;
+        const uint src_slot = src_id - src_block_in_seq * BLOCK_SIZE;
+        const uint dst_block_in_seq = dst_id / BLOCK_SIZE;
+        const uint dst_slot = dst_id - dst_block_in_seq * BLOCK_SIZE;
+        if (src_block_in_seq >= blocks_in_seq || dst_block_in_seq >= blocks_in_seq)
+            continue;
+
+        const uint src_block_id = (uint)block_indices[block_indices_base + src_block_in_seq];
+        const uint dst_block_id = (uint)block_indices[block_indices_base + dst_block_in_seq];
+
+#if KV_CACHE_COMPRESSION == 0
+        // ---- KEY (mode 0): half token-major copy.
+        {
+            const uint src_off = (src_block_id * KV_HEADS_NUM + head_idx) * K_PER_HEAD_ELEMS + src_slot * K_HEAD_SIZE;
+            const uint dst_off = (dst_block_id * KV_HEADS_NUM + head_idx) * K_PER_HEAD_ELEMS + dst_slot * K_HEAD_SIZE;
+            vector<half, K_HEAD_SIZE> tmp;
+            load_half_vec<K_HEAD_SIZE>(tmp, key_cache, src_off * (uint)sizeof(half));
+            store_half_vec<K_HEAD_SIZE>(key_cache, dst_off * (uint)sizeof(half), tmp);
+        }
+        // ---- VALUE (mode 0): half token-major copy.
+        {
+            const uint src_off = (src_block_id * KV_HEADS_NUM + head_idx) * V_PER_HEAD_ELEMS + src_slot * V_HEAD_SIZE;
+            const uint dst_off = (dst_block_id * KV_HEADS_NUM + head_idx) * V_PER_HEAD_ELEMS + dst_slot * V_HEAD_SIZE;
+            vector<half, V_HEAD_SIZE> tmp;
+            load_half_vec<V_HEAD_SIZE>(tmp, value_cache, src_off * (uint)sizeof(half));
+            store_half_vec<V_HEAD_SIZE>(value_cache, dst_off * (uint)sizeof(half), tmp);
+        }
+#elif KV_CACHE_COMPRESSION == 1
+        // ---- KEY (per-token int8): copy data row + per-token scale + per-token zp.
+        {
+            const uint head_base_src = src_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
+            const uint head_base_dst = dst_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
+
+            vector<uchar, K_HEAD_SIZE> data;
+            load_u8_vec<K_HEAD_SIZE>(data, key_cache, head_base_src + src_slot * K_HEAD_SIZE);
+            store_u8_vec<K_HEAD_SIZE>(key_cache, head_base_dst + dst_slot * K_HEAD_SIZE, data);
+
+            const uint scale_src = head_base_src + K_DATA_BYTES + src_slot * (uint)sizeof(half);
+            const uint scale_dst = head_base_dst + K_DATA_BYTES + dst_slot * (uint)sizeof(half);
+            const uint zp_src    = head_base_src + K_DATA_BYTES + (BLOCK_SIZE + src_slot) * (uint)sizeof(half);
+            const uint zp_dst    = head_base_dst + K_DATA_BYTES + (BLOCK_SIZE + dst_slot) * (uint)sizeof(half);
+
+            write_half_scalar(key_cache, scale_dst, read_half_scalar(key_cache, scale_src));
+            write_half_scalar(key_cache, zp_dst,    read_half_scalar(key_cache, zp_src));
+        }
+        // ---- VALUE (per-token int8): same shape as key for V.
+        {
+            const uint head_base_src = src_block_id * V_BLOCK_STRIDE_BYTES + head_idx * V_PER_HEAD_BYTES;
+            const uint head_base_dst = dst_block_id * V_BLOCK_STRIDE_BYTES + head_idx * V_PER_HEAD_BYTES;
+            copy_value_slot(value_cache, head_base_src, head_base_dst, src_slot, dst_slot);
+        }
+#elif KV_CACHE_COMPRESSION == 2
+        // ---- KEY (per-channel int8): dequantize src slot, requantize the dst sub-block.
+        {
+            const uint head_base_src = src_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
+            const uint head_base_dst = dst_block_id * K_BLOCK_STRIDE_BYTES + head_idx * K_PER_HEAD_BYTES;
+            requantize_dst_subblock(key_cache, head_base_src, head_base_dst, src_slot, dst_slot);
+        }
+        // ---- VALUE (per-token int8): identical to mode 1.
+        {
+            const uint head_base_src = src_block_id * V_BLOCK_STRIDE_BYTES + head_idx * V_PER_HEAD_BYTES;
+            const uint head_base_dst = dst_block_id * V_BLOCK_STRIDE_BYTES + head_idx * V_PER_HEAD_BYTES;
+            copy_value_slot(value_cache, head_base_src, head_base_dst, src_slot, dst_slot);
+        }
+#endif
+    }
+}
