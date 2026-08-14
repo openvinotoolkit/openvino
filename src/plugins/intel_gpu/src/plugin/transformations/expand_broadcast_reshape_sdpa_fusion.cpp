@@ -203,7 +203,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 auto concat_v_node = pattern_map.at(concat_v_expand_m).get_node_shared_ptr();
                 auto *reshape_v = concat_v_node->input_value(0).get_node();
                 return replace_sdpa_inputs(reshape_k, reshape_v);
-            } else if (pattern_map.count(broadcast_k_expand_m) > 0 && pattern_map.count(broadcast_v_expand_m) > 0) {
+            }
+
+            if (pattern_map.count(broadcast_k_expand_m) > 0 && pattern_map.count(broadcast_v_expand_m) > 0) {
                 auto *reshape_k = pattern_map.at(reshape_k_m).get_node_shared_ptr().get();
                 auto *reshape_v = pattern_map.at(reshape_v_m).get_node_shared_ptr().get();
                 return replace_sdpa_inputs(reshape_k, reshape_v);
