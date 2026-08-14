@@ -101,12 +101,56 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id constPrimID;
     auto data = op->get_data_ptr<char>();
 
+    static const bool gguf_memory_diagnostics = [] {
+        const auto* value = std::getenv("OV_GPU_GGUF_MEMORY_DIAGNOSTICS");
+        return value && std::atoi(value) != 0;
+    }();
+    static size_t diagnostic_constant_count = 0;
+    static size_t diagnostic_gguf_bytes = 0;
+    const auto& rt_info = op->get_rt_info();
+    const bool is_gguf_constant = rt_info.count("gguf_ext_source") != 0;
+
+    // --- GGUF stable-key cache (deduplicates across XML and direct-GGUF load paths) ---
+    // When a Constant carries gguf_ext_* rt-info, use (source, offset, size, shape, type)
+    // as the cache key instead of the raw data pointer.  This is necessary because XML
+    // deserialization and the GGUF reader may produce different mmap base addresses for
+    // the same physical bytes, so the pointer-keyed blobMemCache would always miss.
+    if (is_gguf_constant) {
+        const auto& gguf_source = rt_info.at("gguf_ext_source").as<std::string>();
+        const auto  gguf_offset = rt_info.at("gguf_ext_offset").as<uint64_t>();
+        const auto  gguf_size   = rt_info.at("gguf_ext_size").as<uint64_t>();
+        const auto  gguf_key    = std::make_tuple(gguf_source, gguf_offset, gguf_size,
+                                                   const_shape, op->get_output_element_type(0));
+        auto ggufIter = p.ggufBlobMemCache.find(gguf_key);
+        if (ggufIter != p.ggufBlobMemCache.end()) {
+            constPrimID = ggufIter->second;
+            if (gguf_memory_diagnostics) {
+                GPU_DEBUG_LOG << "[GGUF_MEM] cache_hit(stable) name=" << op->get_friendly_name()
+                              << " source=" << gguf_source
+                              << " offset=" << gguf_offset
+                              << " size=" << gguf_size
+                              << " prim=" << constPrimID << std::endl;
+            }
+            p.primitive_ids[initialconstPrimID] = constPrimID;
+            p.profiling_ids.push_back(initialconstPrimID);
+            return;
+        }
+    }
+
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
 
     auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
         constPrimID = bufIter->second;
+        if (gguf_memory_diagnostics && is_gguf_constant) {
+            GPU_DEBUG_LOG << "[GGUF_MEM] cache_hit(ptr) name=" << op->get_friendly_name()
+                          << " data=" << static_cast<const void*>(data)
+                          << " shape=" << const_shape
+                          << " type=" << op->get_output_element_type(0).get_type_name()
+                          << " bytes=" << constLayout.bytes_count()
+                          << " prim=" << constPrimID << std::endl;
+        }
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
@@ -128,6 +172,19 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
         GPU_DEBUG_LOG << "[" << initialconstPrimID << ": constant] layout: "
                         << constLayout.to_short_string() << ", mem_ptr(" << mem << ", " << mem->size() << " bytes)"<< std::endl;
+
+        if (gguf_memory_diagnostics && is_gguf_constant) {
+            ++diagnostic_constant_count;
+            diagnostic_gguf_bytes += constLayout.bytes_count();
+            GPU_DEBUG_LOG << "[GGUF_MEM] cache_miss index=" << diagnostic_constant_count
+                          << " name=" << op->get_friendly_name()
+                          << " data=" << static_cast<const void*>(data)
+                          << " shape=" << const_shape
+                          << " type=" << op->get_output_element_type(0).get_type_name()
+                          << " bytes=" << constLayout.bytes_count()
+                          << " cumulative_bytes=" << diagnostic_gguf_bytes
+                          << " gpu_mem=" << mem << std::endl;
+        }
 
         if (!partial_upload.enabled) {
             auto& stream = p.get_engine().get_service_stream();
@@ -169,6 +226,18 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled);
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
+
+        // Also register under the stable GGUF key so that a future load via a different
+        // path (e.g., XML vs. direct GGUF) can find and reuse this primitive.
+        if (is_gguf_constant) {
+            const auto& gguf_source = rt_info.at("gguf_ext_source").as<std::string>();
+            const auto  gguf_offset = rt_info.at("gguf_ext_offset").as<uint64_t>();
+            const auto  gguf_size   = rt_info.at("gguf_ext_size").as<uint64_t>();
+            const auto  gguf_key    = std::make_tuple(gguf_source, gguf_offset, gguf_size,
+                                                       const_shape, op->get_output_element_type(0));
+            p.ggufBlobMemCache[gguf_key] = initialconstPrimID;
+        }
+
         constPrimID = initialconstPrimID;
     }
 }

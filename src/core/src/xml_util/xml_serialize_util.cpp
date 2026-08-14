@@ -746,17 +746,25 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-            const auto size = a->get()->size();
-            size_t new_size = 0lu;
-            int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                m_data_is_temporary);
+            if (!m_gguf_ext_source.empty()) {
+                // GGUF external weight: reference the raw block bytes in the sibling GGUF file
+                // instead of copying them into the model .bin. `offset` is absolute within the GGUF.
+                m_xml_node.append_attribute("source").set_value(m_gguf_ext_source.c_str());
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(m_gguf_ext_offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(m_gguf_ext_size));
+            } else {
+                const auto size = a->get()->size();
+                size_t new_size = 0lu;
+                int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                    size,
+                                                                    new_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    m_data_is_temporary);
 
-            m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-            m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+            }
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& attrs = a->get();
@@ -1124,6 +1132,20 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                                         compress_to_fp16,
                                         output_element_type,
                                         modified_node.data_is_temporary());
+            // Forward GGUF external-weight reference (set by the GGUF frontend on the Constant's
+            // rt_info) so the Const `value` is serialized as a reference into the sibling GGUF file
+            // instead of being copied into the model .bin.
+            {
+                const auto& rt = node->get_rt_info();
+                const auto src_it = rt.find("gguf_ext_source");
+                const auto off_it = rt.find("gguf_ext_offset");
+                const auto sz_it = rt.find("gguf_ext_size");
+                if (src_it != rt.end() && off_it != rt.end() && sz_it != rt.end()) {
+                    visitor->set_gguf_external_weight(src_it->second.as<std::string>(),
+                                                      off_it->second.as<uint64_t>(),
+                                                      sz_it->second.as<uint64_t>());
+                }
+            }
             OPENVINO_ASSERT(visitor->append_node_attributes(*fixed_node.get_node()),
                             "Visitor API is not supported in ",
                             node);

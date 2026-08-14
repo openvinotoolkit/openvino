@@ -11,6 +11,7 @@
 #include "ov_ops/gather_compressed.hpp"
 
 #include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/gather_gguf.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -222,6 +223,27 @@ REGISTER_FACTORY_IMPL(v8, Gather);
 
 static void CreateGatherCompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GatherCompressed>& op) {
     validate_inputs_count(op, {4, 5});
+    // GGUF embedding path: `data` is an opaque gguf_* block constant. Decode the requested rows
+    // directly from the native GGUF bytes (no dense f16 materialization) via the gather_gguf
+    // primitive, keeping the weight in its compressed on-disk format.
+    if (ov::element::is_gguf_block(op->get_input_element_type(0))) {
+        auto inputs = p.GetInputInfo(op);
+        const std::string layerName = layer_type_name_ID(op);
+        const auto& data_pshape = op->get_input_partial_shape(0);
+        OPENVINO_ASSERT(data_pshape.rank().get_length() == 2 && data_pshape.is_static(),
+                        "[GPU] gather_gguf expects a static 2D [vocab, hidden] GGUF weight, got ",
+                        data_pshape);
+        const int64_t vocab = data_pshape[0].get_length();
+        const int64_t hidden = data_pshape[1].get_length();
+        auto prim = cldnn::gather_gguf(layerName,
+                                       inputs[0],
+                                       inputs[1],
+                                       op->get_input_element_type(0),
+                                       vocab,
+                                       hidden);
+        p.add_primitive(*op, prim);
+        return;
+    }
     CreateGatherOpBase<ov::op::internal::GatherCompressed>(p, op, op->get_batch_dims(), true, true);
 }
 

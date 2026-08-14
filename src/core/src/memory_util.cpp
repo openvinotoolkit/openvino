@@ -45,6 +45,12 @@ size_t get_bit_elements_count(const element::Type& type, const size_t memory_siz
 size_t get_memory_size(const element::Type& type, const size_t n) {
     if (n == 0) {
         return n;
+    } else if (element::is_gguf_block(type)) {
+        // GGUF block types pack a fixed number of logical elements into a fixed-size block of
+        // bytes. A buffer holding `n` logical elements needs ceil(n / block_elem_count) blocks.
+        const auto block_elems = type.block_elem_count();
+        const auto blocks = ceil_div(n, block_elems);
+        return blocks * type.block_byte_size();
     } else if (element::is_split_bit_type(type)) {
         return get_split_bit_memory_size(type, n);
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
@@ -55,7 +61,14 @@ size_t get_memory_size(const element::Type& type, const size_t n) {
 }
 
 std::optional<size_t> get_memory_size_safe(const element::Type& type, const size_t n) {
-    if (auto s = type.bitwidth(); s >= 8) {
+    if (element::is_gguf_block(type)) {
+        // Block geometry must be honored before the generic bitwidth path: several GGUF types
+        // report bitwidth >= 8 (e.g. Q8_0) and would otherwise be mis-sized.
+        const auto block_elems = type.block_elem_count();
+        size_t blocks = ceil_div(n, block_elems);
+        size_t bytes;
+        return mul_overflow<size_t>(blocks, type.block_byte_size(), bytes) ? std::nullopt : std::make_optional(bytes);
+    } else if (auto s = type.bitwidth(); s >= 8) {
         return mul_overflow<size_t>(s / 8, n, s) ? std::nullopt : std::make_optional(s);
     } else {
         return std::make_optional(ov::util::get_memory_size(type, n));
@@ -70,6 +83,9 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
 size_t get_elements_capacity(const element::Type& type, const size_t memory_size) {
     if (type.bitwidth() == 0) {
         return 0;
+    } else if (element::is_gguf_block(type)) {
+        const size_t blocks = memory_size / type.block_byte_size();
+        return blocks * type.block_elem_count();
     } else if (element::is_split_bit_type(type)) {
         return get_split_elements_count(type, memory_size);
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
