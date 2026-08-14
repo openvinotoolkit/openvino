@@ -25,9 +25,8 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 
-    return tensor;
+    return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
 }
 
 constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
