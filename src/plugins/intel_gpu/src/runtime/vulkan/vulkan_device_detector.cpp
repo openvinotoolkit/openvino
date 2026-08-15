@@ -33,20 +33,32 @@ std::optional<uint32_t> find_compute_queue_family(VkPhysicalDevice physical_devi
         vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &family_count, families.data());
     }
 
-    std::optional<uint32_t> fallback;
+    std::optional<uint32_t> selected;
     for (uint32_t index = 0; index < family_count; ++index) {
         const auto flags = families[index].queueFlags;
         if (families[index].queueCount == 0 || (flags & VK_QUEUE_COMPUTE_BIT) == 0) {
             continue;
         }
-        if ((flags & VK_QUEUE_GRAPHICS_BIT) == 0) {
-            return index;
+        if (!selected.has_value()) {
+            selected = index;
+            continue;
         }
-        if (!fallback.has_value()) {
-            fallback = index;
+
+        const auto& candidate = families[index];
+        const auto& current = families[*selected];
+        const auto candidate_granularity =
+            std::tie(candidate.minImageTransferGranularity.width, candidate.minImageTransferGranularity.height, candidate.minImageTransferGranularity.depth);
+        const auto current_granularity =
+            std::tie(current.minImageTransferGranularity.width, current.minImageTransferGranularity.height, current.minImageTransferGranularity.depth);
+        const bool better = candidate.queueCount > current.queueCount ||
+                            (candidate.queueCount == current.queueCount && candidate.timestampValidBits > current.timestampValidBits) ||
+                            (candidate.queueCount == current.queueCount && candidate.timestampValidBits == current.timestampValidBits &&
+                             candidate_granularity < current_granularity);
+        if (better) {
+            selected = index;
         }
     }
-    return fallback;
+    return selected;
 }
 
 bool is_supported_gpu(const VkPhysicalDeviceProperties& properties) {
