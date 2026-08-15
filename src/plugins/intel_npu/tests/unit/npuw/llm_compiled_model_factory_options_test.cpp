@@ -1002,4 +1002,39 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxP
     EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
 }
 
+// MoE models must keep the 2-model pipeline (prefill + generate) unless the user explicitly
+// opts into a shared LM head. The global default for NPUW_LLM_SHARED_HEAD is YES, so without
+// the MoE-specific override an unsupported 3-model pipeline (with a separate _lm_head model)
+// would be created silently. See issue #36913.
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelDefaultsToNoSharedHead) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+        build_moe_llm_model(),
+        {{"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.calls().size(), 2u);
+    EXPECT_EQ(recorder.find_suffix("_lm_head"), nullptr);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelRespectsExplicitSharedHead) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+        build_moe_llm_model(),
+        {{"NPUW_LLM_SHARED_HEAD", "YES"},
+         {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.calls().size(), 3u);
+    EXPECT_NE(recorder.find_suffix("_lm_head"), nullptr);
+}
+
 }  // namespace
