@@ -65,10 +65,10 @@ both decoder paths — so a new op or a graph fix benefits both at once.
 The frontend is fed by **two** `GgufDecoder` implementations, deliberately:
 
 1. **`GgufBuilderDecoder`** (`src/builder/`) — the *native* path. Loading a `.gguf` path
-   parses the container (`src/quant/gguf.cpp`), and `TransformerBuilder` (`src/builder/gguf_builder.cpp`)
-   builds a `GgufGraph` per-architecture (a flat, topologically-ordered node list in the GGML op
-   vocabulary), which `GgufBuilderDecoder` exposes. **No llama.cpp in the process.** This is the
-   default and the path GenAI uses.
+   parses the container (`src/quant/gguf.cpp`), and a `ModelBuilder` for the detected model family
+   (today `DecoderBuilder`, `src/builder/arch/decoder_builder.cpp`) builds a `GgufGraph` (a flat,
+   topologically-ordered node list in the GGML op vocabulary), which `GgufBuilderDecoder` exposes.
+   **No llama.cpp in the process.** This is the default and the path GenAI uses.
 
 2. **`GgmlOvDecoder`** (lives in llama.cpp's `ggml/src/ggml-openvino` backend, not in this repo) —
    wraps a live `ggml_cgraph` that llama.cpp already built. Used when OpenVINO is a *backend inside
@@ -379,7 +379,7 @@ llama.cpp. The rt_info path is the fast in-process handoff; the file path is the
 | `src/frontend.cpp` | FrontEnd: `.gguf` magic sniff + native load path; live-decoder path; extensions |
 | `src/translate_session.cpp` | graph walk, weight seeding, normalization passes (caller extensions then built-ins), tokenizer rt_info |
 | `src/op/*.cpp` | one op translator per GGML op |
-| `src/builder/` | native `.gguf` parser adapter + `TransformerBuilder` + `GgufBuilderDecoder` |
+| `src/builder/` | native `.gguf` graph builder + `GgufBuilderDecoder`; layered as `graph_emitter` (arch-agnostic node emission), `blocks/` (reusable fragments), `decoder_config` (architecture detection), `arch/decoder_builder` (topology), `arch_registry` / `model_kind` (what is accepted, and which family) |
 | `src/quant/` | GGUF container parser (`gguf.cpp`), dequant fill fns (`gguf_quants.cpp`), weight-node construction (`weights.cpp`) |
 | `src/pass/` | `LowerSetRowsStateless` (built-in), `MakeStateful` + `AdaptToGenAI` (caller-registered) |
 | `src/helper_ops/` | internal `SetRows` placeholder op |

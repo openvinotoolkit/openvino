@@ -246,7 +246,7 @@ Unavoidable for T3/T4/T5. Rules:
 ## 5. One architecture registry
 
 There are currently **three** independent lists of what works, and they can drift apart silently:
-`verified_archs()` / `experimental_archs()` in `gguf_builder.cpp`, the tables in
+`verified_archs()` / `experimental_archs()` in `builder/arch_registry.cpp`, the tables in
 [supported_models.md](supported_models.md), and the model list in genai's `test_cli_text_gguf.py`.
 
 Replace with one machine-readable registry in OpenVINO, consumed by everything else:

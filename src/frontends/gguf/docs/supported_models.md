@@ -47,13 +47,13 @@ that loads but emits garbage (e.g. `hunyuan`) is **not** counted as supported.
 ## Architectures accepted by the native `.gguf` builder
 
 Everything above is about the **llama.cpp cgraph** path. This section covers the *other*
-decoder — the native `.gguf` builder (`TransformerBuilder` in
-[`src/builder/gguf_builder.cpp`](../src/builder/gguf_builder.cpp)), which is what
+decoder — the native `.gguf` builder (`DecoderBuilder` in
+[`src/builder/arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp)), which is what
 OpenVINO GenAI uses. The two paths share all op
 translators but have separate architecture lists.
 
-The builder's accept-list is the union of two sets, both defined at the bottom of
-`gguf_builder.cpp`:
+The builder's accept-list is the union of two sets, both defined in
+[`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
 - **`verified_archs()`** — convert + compile + generation checked against a reference on a
   real checkpoint.

@@ -138,10 +138,17 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 // repacked weight/scale/bias data lives in one allocation (IR-frontend pattern).
 GGUFLoad get_gguf_data(const std::string& file);
 
-// Extract the architecture config (architecture, layer_num, head_num, head_size,
-// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base,
-// file_type) from parsed metadata.
-std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<std::string, GGUFMetaData>& metadata);
+// Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
+// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)
+// from parsed metadata.
+//
+// Every key it reads is prefixed with the LLM architecture name ("<arch>.block_count",
+// "<arch>.attention.head_count", ...), so it is only meaningful for a causal-decoder GGUF. Call
+// detect_model_kind() first: an mmproj file names its architecture "clip" and carries "clip.*"
+// keys instead, and would fail here on a missing block_count. A future non-decoder family gets its
+// own reader next to this one rather than extending it.
+std::map<std::string, GGUFMetaData> decoder_config_from_meta(
+    const std::unordered_map<std::string, GGUFMetaData>& metadata);
 
 // Reverse of the GGML dimension order (GGUF stores dims fastest-first).
 ov::Shape get_shape(const gguf_tensor& tensor);

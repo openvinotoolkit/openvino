@@ -41,7 +41,7 @@ def _kv_cache_head_count(compiled_model) -> int:
     """Number of KV heads, read from any cache_k_* input port's static heads dim.
 
     All per-layer KV caches use the same [1, ctx, n_head_kv, head_size] layout (see
-    src/frontends/gguf/src/builder/gguf_builder.cpp), so any one of them gives the count
+    src/frontends/gguf/src/builder/blocks/attention.cpp), so any one of them gives the count
     needed to size inp_kv_idx below. Falls back to 1 if the model has no KV cache at all
     (e.g. a purely recurrent / linear-attention stack).
     """

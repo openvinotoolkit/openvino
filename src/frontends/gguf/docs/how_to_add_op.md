@@ -12,7 +12,7 @@ converts but produces wrong numbers).
 
 Check that an op translator is actually what is missing:
 
-- **A new model family** normally needs only an entry in `supported_archs()` — see
+- **A new architecture** normally needs only an entry in `arch_registry.cpp` — see
   [adding_an_architecture.md](adding_an_architecture.md). Reach for a translator only when the graph
   genuinely contains a ggml op the table does not have.
 - **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the

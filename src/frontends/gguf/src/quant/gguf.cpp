@@ -748,7 +748,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
     return {metadata, arrays, qtype, mapped, quant_buf};
 }
 
-std::map<std::string, GGUFMetaData> config_from_meta(const std::unordered_map<std::string, GGUFMetaData>& metadata) {
+std::map<std::string, GGUFMetaData> decoder_config_from_meta(
+    const std::unordered_map<std::string, GGUFMetaData>& metadata) {
     std::map<std::string, GGUFMetaData> config;
     // The architecture key drives every other key lookup; fail with a clear message (not a bare
     // std::out_of_range / std::bad_variant_access) if the file carries no / a non-string one.
