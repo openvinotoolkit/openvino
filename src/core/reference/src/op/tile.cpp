@@ -27,7 +27,7 @@ void tile(const char* arg,
           const size_t elem_size,
           const std::vector<int64_t>& repeats) {
     if (std::any_of(repeats.begin(), repeats.end(), [](int64_t repeat) {
-            return repeat == 0;
+            return repeat <= 0;
         })) {
         return;
     }

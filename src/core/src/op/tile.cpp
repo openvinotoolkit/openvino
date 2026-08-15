@@ -4,6 +4,8 @@
 
 #include "openvino/op/tile.hpp"
 
+#include <algorithm>
+
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -55,6 +57,9 @@ bool Tile::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
     outputs[0].set_shape(output_shape);
     repeats.insert(repeats.begin(), output_shape.size() - repeats.size(), 1);
+    std::transform(repeats.begin(), repeats.end(), repeats.begin(), [](int64_t repeat) {
+        return std::max<int64_t>(0, repeat);
+    });
     reference::tile(static_cast<const char*>(d.data()),
                     static_cast<char*>(outputs[0].data()),
                     d.get_shape(),
