@@ -341,6 +341,20 @@ TEST_P(BlobSourceDifferentBlobs, CopyAfterEnd) {
     OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
 }
 
+TEST_P(BlobSourceDifferentBlobs, MoveCursorBeforeStartReferenceStart) {}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorAfterEndReferenceStart) {}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorBeforeStartReferenceCurrent) {}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorAfterEndReferenceCurrnet) {}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorBeforeStartReferenceEnd) {}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorAfterEndReferenceEnd) {}
+
+// interpret errors for stream; same tests as copy for tensor
+
 INSTANTIATE_TEST_SUITE_P(AllDataTypes,
                          BlobSourceDifferentBlobs,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
