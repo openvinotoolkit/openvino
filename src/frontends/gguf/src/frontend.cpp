@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "builders/builder.hpp"
 #include "gguf_reader.hpp"
 #include "input_model.hpp"
 #include "openvino/core/except.hpp"
@@ -177,8 +178,26 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 }
 
 std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
-    OPENVINO_THROW("[GGUF Frontend] Direct GGUF-to-model conversion is not supported. "
-                  "Use the gguf+xml path: load model.xml that references the .gguf file for weights.");
+    const auto gguf_model = std::dynamic_pointer_cast<InputModel>(model);
+    FRONT_END_GENERAL_CHECK(gguf_model != nullptr, "[GGUF Frontend] Unexpected input model type.");
+    const auto& reader = gguf_model->reader();
+    FRONT_END_GENERAL_CHECK(reader != nullptr, "[GGUF Frontend] Input model has no parsed GGUF reader.");
+
+    const std::string arch = reader->architecture();
+    FRONT_END_OP_CONVERSION_CHECK(arch == "qwen3" || arch == "qwen35" || arch == "qwen35moe",
+                                  "[GGUF Frontend] Architecture '",
+                                  arch,
+                                  "' is not supported in this release (qwen3 / qwen35 / qwen35moe only).");
+
+    std::shared_ptr<ov::Model> ov_model;
+    if (arch == "qwen35moe")
+        ov_model = build_qwen35moe_model(*reader);
+    else if (arch == "qwen35")
+        ov_model = build_qwen35_model(*reader);
+    else
+        ov_model = build_qwen3_model(*reader);
+    populate_rt_info(ov_model, *reader);
+    return ov_model;
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
