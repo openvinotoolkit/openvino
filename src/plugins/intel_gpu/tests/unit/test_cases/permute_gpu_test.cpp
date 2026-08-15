@@ -2379,8 +2379,9 @@ TEST_P(permute_f_y_axes_tile, combined) {
 //   * 4D plain bfyx layout only.
 //   * Order must be {0, 1, 3, 2}.
 //   * No dynamic shapes; pitches must equal logical dims.
-// X and Y need NOT be tile-aligned: when neither divides a supported tile size
-// (32/16) the kernel uses a WG_DIM tile with per-tile remainder handling.
+// X and Y need NOT be tile-aligned: when no supported tile size (32/16)
+// divides both X and Y, the kernel uses a WG_DIM tile with per-tile
+// remainder handling.
 // Sizes here use the test convention {B, F, Y, X}.
 class permute_xy_swap : public TiledPermuteTest {};
 

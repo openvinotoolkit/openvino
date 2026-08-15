@@ -153,8 +153,6 @@ bool PermuteKernel_xy_swap::Validate(const Params& p) const {
         params.outputs[0].PitchesDifferFromLogicalDims()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    // A WG_DIM tile with remainder handling covers any X/Y, so no divisibility
-    // requirement remains; PlanTile always yields a usable tile.
 
     return true;
 }

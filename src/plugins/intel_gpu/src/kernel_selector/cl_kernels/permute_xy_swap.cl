@@ -22,10 +22,11 @@
 //   TILE_SIZE      - tile edge length in elements
 //   WG_DIM         - WG size along each of X/Y (kept at 16 for SIMD8 occupancy)
 //   ELEMS_PER_DIM  - TILE_SIZE / WG_DIM
+//   REMAINDER      - 1 when ragged-edge bounds checks are needed, else 0
 //
 // Required WG size: (WG_DIM, WG_DIM, 1).
-// GWS: (ceil(INPUT0_SIZE_X, TILE_SIZE) / ELEMS_PER_DIM,
-//       ceil(INPUT0_SIZE_Y, TILE_SIZE) / ELEMS_PER_DIM, B*F).
+// GWS: (ceil(INPUT0_SIZE_X, TILE_SIZE) * WG_DIM,
+//       ceil(INPUT0_SIZE_Y, TILE_SIZE) * WG_DIM, B*F).
 // When REMAINDER is set, X/Y need not be multiples of TILE_SIZE and out-of-range
 // reads/writes are guarded. When REMAINDER is 0, TILE_SIZE is chosen so it
 // divides both X and Y (host-side tile selection).
