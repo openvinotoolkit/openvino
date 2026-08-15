@@ -13,7 +13,7 @@ bool LRNKernelBase::Validate(const Params& p) const {
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

@@ -517,6 +517,8 @@ void ZeroInitStructsHolder::setContextOptions(const uint32_t options) {
 }
 
 void ZeroInitStructsHolder::destroyContextLocked() {
+    _zero_mem_pool.clear();
+
     if (!_context.load()) {
         return;
     }

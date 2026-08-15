@@ -170,10 +170,10 @@ KernelsPriority PermuteKernel_bfzyx_to_bfyxz::GetKernelsPriority(const Params& p
 
     if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) && IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
         return FORCE_PRIORITY_1;
-    } else if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) || IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if (IsMultipleDefaultTileSize(newParams.inputs[0].Z().v) || IsMultipleDefaultTileSize(newParams.inputs[0].X().v)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

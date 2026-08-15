@@ -458,7 +458,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
+#ifdef _WIN32
     return is_shared();
+#else
+    return is_shared() && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {
@@ -482,7 +486,7 @@ bool RemoteTensorImpl::is_surface() const noexcept {
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     return engine->reinterpret_buffer(*m_memory_object, m_layout);
 }
 
@@ -495,7 +499,7 @@ void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();
     m_shape = m_layout.get_shape();
 
