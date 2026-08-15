@@ -32,6 +32,7 @@ struct jit_rotary_compile_params {
     size_t cos_sin_ndims = 0UL;
     bool interleave = false;
     bool mix_cos_sin = false;
+    bool is_ltx_video = false;
 };
 
 struct jit_rotary_call_args {
@@ -61,6 +62,8 @@ private:
     void generate() override;
     void rotary_half(size_t step);
     void rotary_interleave(size_t step);
+    void rotary_ltx_video(size_t step);
+    void deinterlace(const Vmm& src0, const Vmm& src1, const Vmm& tmp0, const Vmm& tmp1);
     void load(const Vmm& vmm_dst,
               const Xbyak::Reg64& reg_src,
               ov::element::Type src_prc,
