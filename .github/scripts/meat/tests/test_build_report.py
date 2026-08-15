@@ -18,8 +18,6 @@ import os
 import pathlib
 import re
 
-import pytest
-
 from conftest import SCRIPTS_DIR, run_script, write_json
 
 SCRIPT = SCRIPTS_DIR / "build_report.py"

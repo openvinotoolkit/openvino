@@ -150,16 +150,20 @@ def to_c_style(value: Any, is_shared: bool = False) -> Any:
             if np.lib.NumpyVersion(np.__version__) >= "2.0.0":
                 # https://numpy.org/devdocs/numpy_2_0_migration_guide.html
                 # #adapting-to-changes-in-the-copy-keyword
+                # For copied mode no copy is needed here: the data is later copied
+                # into the request's tensors by update_tensor() anyway. Avoiding the
+                # intermediate np.asarray(copy=True) removes one full copy+allocation
+                # per input on each infer() call (e.g. torch.Tensor inputs).
                 return (
                     to_c_style(np.asarray(value), is_shared)
                     if is_shared
-                    else np.asarray(value, copy=True)  # type: ignore
+                    else np.asarray(value)  # type: ignore
                 )
             else:
                 return (
                     to_c_style(np.array(value, copy=False), is_shared)
                     if is_shared
-                    else np.array(value, copy=True)
+                    else np.array(value)
                 )
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)

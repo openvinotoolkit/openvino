@@ -13,9 +13,6 @@ Missing files are silently skipped (not present ≠ failed).
 Exit 0 + "PASS" message means every present file is healthy.
 """
 
-import json
-import pathlib
-
 import pytest
 
 from conftest import SCRIPTS_DIR, run_script, write_json
@@ -25,9 +22,7 @@ SCRIPT = SCRIPTS_DIR / "check_subagent_results.py"
 RESULT_PATHS = [
     "agent-results/frontend/fe_result.json",
     "agent-results/core-opspec/core_opspec_result.json",
-    "agent-results/transformation/transformation_result.json",
-    "agent-results/cpu/cpu_result.json",
-    "agent-results/gpu/gpu_result.json",
+    "agent-results/transformation/transformation_result.json"
 ]
 
 

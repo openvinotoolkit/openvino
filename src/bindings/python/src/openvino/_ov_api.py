@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from pathlib import Path
 import traceback  # noqa: F811
 
+import numpy as np
 
 from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
@@ -22,6 +23,11 @@ from openvino.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
+
+# Outputs above this size (in bytes) are returned as zero-copy views of the
+# request's output tensors when `auto_share_outputs` is enabled. Smaller
+# outputs are copied, preserving the previous safe behavior.
+_AUTO_SHARE_OUTPUT_BYTES_THRESHOLD = 1 << 20
 
 
 class ModelMeta(type):
@@ -123,6 +129,7 @@ class InferRequest(_InferRequestWrapper):
         share_outputs: bool = False,
         *,
         decode_strings: bool = True,
+        auto_share_outputs: bool = False,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -195,15 +202,33 @@ class InferRequest(_InferRequestWrapper):
 
                                Default value: True
         :type decode_strings: bool, optional, keyword-only
+        :param auto_share_outputs: Enables automatic `share_outputs` mode for large outputs.
+
+                                   If set to `True` and `share_outputs` is `False`, outputs larger
+                                   than the internal threshold (1 MiB) are returned as zero-copy
+                                   views of the request's output tensors, while smaller outputs
+                                   are copied as usual.
+
+                                   Note: Use with extra care, shared data can be modified or lost
+                                   during runtime! See `share_outputs` for details.
+
+                                   Default value: False
+        :type auto_share_outputs: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
-        return OVDict(super().infer(_data_dispatch(
-            self,
-            inputs,
-            is_shared=share_inputs,
-        ), share_outputs=share_outputs, decode_strings=decode_strings))
+        data = _data_dispatch(self, inputs, is_shared=share_inputs)
+        if not share_outputs and auto_share_outputs and self._has_large_outputs():
+            results = super().infer(data, share_outputs=True, decode_strings=decode_strings)
+            for port, value in results.items():
+                if value.nbytes <= _AUTO_SHARE_OUTPUT_BYTES_THRESHOLD:
+                    results[port] = np.array(value)
+            return OVDict(results)
+        return OVDict(super().infer(data, share_outputs=share_outputs, decode_strings=decode_strings))
+
+    def _has_large_outputs(self) -> bool:
+        return any(t.byte_size > _AUTO_SHARE_OUTPUT_BYTES_THRESHOLD for t in self.output_tensors)
 
     def start_async(
         self,
@@ -380,6 +405,7 @@ class CompiledModel(CompiledModelBase):
         share_outputs: bool = False,
         *,
         decode_strings: bool = True,
+        auto_share_outputs: bool = False,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -460,6 +486,18 @@ class CompiledModel(CompiledModelBase):
 
                                Default value: True
         :type decode_strings: bool, optional, keyword-only
+        :param auto_share_outputs: Enables automatic `share_outputs` mode for large outputs.
+
+                                   If set to `True` and `share_outputs` is `False`, outputs larger
+                                   than the internal threshold (1 MiB) are returned as zero-copy
+                                   views of the request's output tensors, while smaller outputs
+                                   are copied as usual.
+
+                                   Note: Use with extra care, shared data can be modified or lost
+                                   during runtime! See `share_outputs` for details.
+
+                                   Default value: False
+        :type auto_share_outputs: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
@@ -471,6 +509,7 @@ class CompiledModel(CompiledModelBase):
             inputs,
             share_inputs=share_inputs,
             share_outputs=share_outputs,
+            auto_share_outputs=auto_share_outputs,
             decode_strings=decode_strings,
         )
 

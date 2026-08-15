@@ -20,7 +20,6 @@ CLASSIFICATION_MAP = {
     "missing_conversion_rule": "frontend",
     "frontend_error": "frontend",
     "ir_validation_error": "core_op",
-    "inference_runtime_error": "cpu_plugin",
     "accuracy_regression": "transformation",
 }
 

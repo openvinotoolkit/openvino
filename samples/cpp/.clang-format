@@ -4,7 +4,7 @@ UseTab: Never
 ColumnLimit: 120
 
 Language: Cpp
-Standard: c++17
+Standard: c++23
 
 AccessModifierOffset: -4
 AlignConsecutiveMacros: true

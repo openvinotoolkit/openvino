@@ -1,0 +1,53 @@
+#version 450
+// Native Vulkan kernel: MaxPool 2D (f32), NCHW.
+// binding 0: input, binding 1: output.
+// push constants: [0]=ih [1]=iw [2]=oh [3]=ow [4]=kh [5]=kw [6]=sh [7]=sw [8]=ph [9]=pw [10]=total_out [11]=N
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+
+layout(push_constant) uniform Params {
+    uint ih;
+    uint iw;
+    uint oh;
+    uint ow;
+    uint kh;
+    uint kw;
+    uint sh;
+    uint sw;
+    uint ph;
+    uint pw;
+    uint total_out;
+    uint N;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_out)
+        return;
+    // NCHW flat index: out [n][c][oh][ow]
+    uint ow_ = gid % params.ow;
+    uint oh_ = (gid / params.ow) % params.oh;
+    uint cn = gid / (params.ow * params.oh);
+    uint C = params.total_out / (params.ow * params.oh * params.N);
+    uint c = cn % C;
+    uint n = cn / C;
+
+    float best = -1e30;
+    uint iy0 = oh_ * params.sh;
+    uint ix0 = ow_ * params.sw;
+    for (uint ky = 0; ky < params.kh; ++ky) {
+        for (uint kx = 0; kx < params.kw; ++kx) {
+            int iy = int(iy0) + int(ky) - int(params.ph);
+            int ix = int(ix0) + int(kx) - int(params.pw);
+            if (iy < 0 || ix < 0 || iy >= int(params.ih) || ix >= int(params.iw))
+                continue;
+            float v = in0.data[n * C * params.ih * params.iw + c * params.ih * params.iw +
+                               uint(iy) * params.iw + uint(ix)];
+            best = max(best, v);
+        }
+    }
+    out0.data[gid] = best;
+}

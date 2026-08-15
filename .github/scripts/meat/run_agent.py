@@ -37,14 +37,14 @@ AGENTS = [
 _WARN = (
     "\n"
     "  ╔══════════════════════════════════════════════════════════════════╗\n"
-    "  ║  WARNING: AUTONOMOUS / UNATTENDED MODE                         ║\n"
-    "  ║                                                                ║\n"
-    "  ║  This script runs GitHub Copilot with --no-ask-user and        ║\n"
-    "  ║  --autopilot.  The agent will READ, CREATE, and MODIFY files   ║\n"
-    "  ║  in this repository WITHOUT asking for confirmation.           ║\n"
-    "  ║                                                                ║\n"
-    "  ║  Review agent-results/ after the run and apply patches with   ║\n"
-    "  ║  'git apply' — do NOT blindly commit generated changes.        ║\n"
+    "  ║  WARNING: AUTONOMOUS / UNATTENDED MODE                           ║\n"
+    "  ║                                                                  ║\n"
+    "  ║  This script runs GitHub Copilot with --no-ask-user and          ║\n"
+    "  ║  --autopilot.  The agent will READ, CREATE, and MODIFY files     ║\n"
+    "  ║  in this repository WITHOUT asking for confirmation.             ║\n"
+    "  ║                                                                  ║\n"
+    "  ║  Review agent-results/ after the run and apply patches with      ║\n"
+    "  ║  'git apply' — do NOT blindly commit generated changes.          ║\n"
     "  ╚══════════════════════════════════════════════════════════════════╝\n"
 )
 

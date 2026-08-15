@@ -12,12 +12,8 @@ This is the CLI entry point for all agents.  Critical safety properties:
   - No mutating side effect when args are invalid
 """
 
-import pathlib
-import sys
 import tempfile
 import os
-
-import pytest
 
 from conftest import SCRIPTS_DIR, run_script
 

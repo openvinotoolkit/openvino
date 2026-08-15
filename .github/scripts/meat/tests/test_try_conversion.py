@@ -17,11 +17,6 @@ Critical properties under test:
 """
 
 import json
-import os
-import pathlib
-import sys
-
-import pytest
 
 from conftest import SCRIPTS_DIR, run_script, write_json, make_fake_cmd, patched_env
 

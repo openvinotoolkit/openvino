@@ -8,17 +8,9 @@
 
 ov_option (ENABLE_PROXY "Proxy plugin for OpenVINO Runtime" ON)
 
-if(WIN32 AND AARCH64 AND NOT CMAKE_CL_64)
-    set(ENABLE_INTEL_CPU_DEFAULT OFF)
-else()
-    set(ENABLE_INTEL_CPU_DEFAULT ON)
-endif()
-
-ov_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_CPU_DEFAULT}
-    "RISCV64 OR X86 OR X86_64 OR AARCH64 OR ARM" OFF)
-
-ov_dependent_option (ENABLE_ARM_COMPUTE_CMAKE "Enable ARM Compute build via cmake" OFF "ENABLE_INTEL_CPU" OFF)
-
+# Legacy intel_cpu / intel_npu plugins are removed: the cross-platform
+# Vulkan core (src/plugins/vulkan_core) serves the "GPU"/"CPU"/"NPU" device
+# names from a single plugin (openvino_intel_gpu_plugin.dll).
 ov_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 ov_option (ENABLE_TESTS_PER_SOURCE "Create one test executable per source file" OFF)
 
@@ -59,16 +51,9 @@ endif()
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ON "ENABLE_INTEL_GPU" OFF)
 
-ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
-ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
-
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
-ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_GPU" OFF)
-ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
-
-ov_dependent_option (ENABLE_SNIPPETS_LIBXSMM_TPP "allow Snippets to use LIBXSMM Tensor Processing Primitives" OFF "ENABLE_INTEL_CPU AND (X86_64 OR AARCH64)" OFF)
 
 ## ITT tracing level: OFF | BASE | FULL
 # OFF  - no ITT backend linked; macros are no-ops
@@ -137,7 +122,6 @@ ov_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in Open
 ov_option (ENABLE_MULTI "Enables MULTI Device Plugin" ON)
 ov_option (ENABLE_AUTO "Enables AUTO Device Plugin" ON)
 ov_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
-ov_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 ov_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ov_dependent_option (ENABLE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF "BUILD_SHARED_LIBS" OFF)
@@ -166,8 +150,6 @@ ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" OFF)
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory
     set(ENABLE_JS_DEFAULT OFF)
-    # Some flags for building are failed on clang-cl win arm in snappy compression lib
-    set(ENABLE_SNAPPY_COMPRESSION_DEFAULT OFF)
 else()
     set(ENABLE_JS_DEFAULT ON)
     set(ENABLE_SNAPPY_COMPRESSION_DEFAULT ON)
@@ -180,7 +162,7 @@ ov_dependent_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\"
 
 if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems
-    # so, system TBB / pugixml / OpenCL can be tried for usage
+    # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
 else()
     set(ENABLE_SYSTEM_LIBS_DEFAULT OFF)
@@ -207,7 +189,7 @@ ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYS
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
-    "ENABLE_OV_TF_LITE_FRONTEND OR ENABLE_INTEL_NPU" OFF)
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 ov_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
@@ -219,7 +201,7 @@ ov_dependent_option (ENABLE_SYSTEM_SNAPPY "Enables use of system version of Snap
     "ENABLE_SNAPPY_COMPRESSION" OFF)
 # the option is turned off by default, because we are not sure that system version of ZE loader is fresh enough
 ov_dependent_option (ENABLE_SYSTEM_LEVEL_ZERO "Enables use of system version of Level Zero" OFF
-    "ENABLE_INTEL_NPU OR ENABLE_INTEL_GPU" OFF)
+    "ENABLE_INTEL_GPU" OFF)
 
 ov_dependent_option(ENABLE_JS "Enables JS API building" ${ENABLE_JS_DEFAULT} "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
@@ -233,7 +215,7 @@ else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
 
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "ZE"))
+if(ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "ZE")
     set(ENABLE_OV_ZERO_LOADER ON)
 else()
     set(ENABLE_OV_ZERO_LOADER OFF)

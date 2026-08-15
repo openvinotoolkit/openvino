@@ -9,8 +9,6 @@ import pathlib
 import sys
 import textwrap
 
-import pytest
-
 SCRIPTS_DIR = pathlib.Path(__file__).parent.parent
 
 

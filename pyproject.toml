@@ -8,25 +8,21 @@ authors = [
     { name = "OpenVINO Developers", email = "openvino@intel.com" },
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-requires-python = ">=3.10"
 
 dependencies = [
-    "numpy>=1.16.6,<2.6.0",
+    "requires-python",
+    "numpy",
     "openvino-telemetry>=2023.2.1",
 ]
 
 [build-system]
 requires = [
-    "setuptools>=77,<=83.0.0", 
-    "wheel<=0.47.0",
-    "cmake<=4.3.4", 
-    "patchelf<=0.17.2.4; sys_platform == 'linux' and platform_machine == 'x86_64'"
+    "setuptools", 
+    "wheel",
+    "cmake", 
+    "patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]
 build-backend = "setuptools.build_meta"
 

@@ -18,9 +18,7 @@ import sys
 SUBAGENT_RESULTS = [
     "agent-results/frontend/fe_result.json",
     "agent-results/core-opspec/core_opspec_result.json",
-    "agent-results/transformation/transformation_result.json",
-    "agent-results/cpu/cpu_result.json",
-    "agent-results/gpu/gpu_result.json",
+    "agent-results/transformation/transformation_result.json"
 ]
 
 failures = []

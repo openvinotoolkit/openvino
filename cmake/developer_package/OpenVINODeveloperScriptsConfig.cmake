@@ -180,7 +180,7 @@ else()
         set(OV_BUILD_POSTFIX ${OV_RELEASE_POSTFIX})
     endif()
 endif()
-add_definitions(-DOV_BUILD_POSTFIX=\"${OV_BUILD_POSTFIX}\")
+add_definitions(-DOV_BUILD_POSTFIX="${OV_BUILD_POSTFIX}")
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})

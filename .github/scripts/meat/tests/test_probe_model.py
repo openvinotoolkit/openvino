@@ -19,9 +19,6 @@ will naturally be exercised by integration runs; these unit tests guard
 against silent regressions in the script's own logic.
 """
 
-import pathlib
-import sys
-
 import pytest
 
 from conftest import SCRIPTS_DIR, run_script

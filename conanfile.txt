@@ -3,7 +3,6 @@ onetbb/[>=2021.2.1]
 pugixml/[>=1.10]
 protobuf/3.21.12
 ittapi/[>=3.23.0]
-opencl-icd-loader/[>=2023.04.17]
 rapidjson/[>=1.1.0]
 xbyak/[>=6.62]
 snappy/[>=1.1.7]

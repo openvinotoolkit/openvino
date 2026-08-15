@@ -52,9 +52,6 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# openvino main dependencies` \
         libtbb-dev \
         libpugixml-dev \
-        `# OpenCL for GPU` \
-        ocl-icd-opencl-dev \
-        opencl-headers \
         rapidjson-dev \
         `# GPU plugin extensions` \
         libva-dev \
@@ -133,8 +130,6 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
         libva-devel \
         `# For TF FE saved models` \
         snappy-devel \
-        `# OpenCL for GPU` \
-        ocl-icd-devel \
         opencl-headers \
         `# python API` \
         python3-pip \
@@ -171,10 +166,6 @@ elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
         libva-devel \
         `# For TF FE saved models` \
         snappy-devel \
-        `# OpenCL for GPU` \
-        ocl-icd-devel \
-        opencl-cpp-headers \
-        opencl-headers \
         `# python API` \
         python39-pip \
         python39-setuptools \
@@ -231,10 +222,6 @@ elif [ -f /etc/os-release ] && grep -q "void" /etc/os-release; then
         `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
-        `# OpenCL for GPU` \
-        ocl-icd-devel \
-        OpenCL-Headers \
-        OpenCL-CLHPP \
         rapidjson \
         `# GPU plugin dependency` \
         libva-devel \
@@ -273,8 +260,6 @@ elif [ -f /etc/os-release ] && grep -q '^ID=arch' /etc/os-release; then
         fdupes \
         tbb \
         pugixml \
-        ocl-icd \
-        opencl-headers \
         rapidjson \
         libva \
         snappy \
@@ -314,9 +299,6 @@ elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
         onetbb-dev \
         py3-tbb \
         pugixml-dev \
-        `# OpenCL for GPU` \
-        opencl-dev `#(includes opencl-headers)`\
-        rapidjson-dev \
         `# GPU plugin dependency` \
         libva-dev \
         `# For TF FE saved models` \

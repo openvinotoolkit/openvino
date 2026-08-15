@@ -13,8 +13,6 @@ Safe defaults:
 co_located_ops in state → printed to stdout (routing hint, non-fatal).
 """
 
-import json
-
 import pytest
 
 from conftest import SCRIPTS_DIR, run_script, write_json

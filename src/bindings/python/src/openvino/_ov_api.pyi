@@ -122,7 +122,7 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         multiple optimization transformations, then mapping to compute kernels.
         
     """
-    def __call__(self, inputs: typing.Any = None, share_inputs: bool = True, share_outputs: bool = False, *, decode_strings: bool = True) -> openvino.utils.data_helpers.wrappers.OVDict:
+    def __call__(self, inputs: typing.Any = None, share_inputs: bool = True, share_outputs: bool = False, *, decode_strings: bool = True, auto_share_outputs: bool = False) -> openvino.utils.data_helpers.wrappers.OVDict:
         """
         Callable infer wrapper for CompiledModel.
         
@@ -365,7 +365,7 @@ class InferRequest(openvino.utils.data_helpers.wrappers._InferRequestWrapper):
                 :rtype: openvino.CompiledModel
                 
         """
-    def infer(self, inputs: typing.Any = None, share_inputs: bool = False, share_outputs: bool = False, *, decode_strings: bool = True) -> openvino.utils.data_helpers.wrappers.OVDict:
+    def infer(self, inputs: typing.Any = None, share_inputs: bool = False, share_outputs: bool = False, *, decode_strings: bool = True, auto_share_outputs: bool = False) -> openvino.utils.data_helpers.wrappers.OVDict:
         """
         Infers specified input(s) in synchronous mode.
         

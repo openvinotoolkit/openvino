@@ -1,0 +1,58 @@
+#version 450
+// Native Vulkan kernel: Convolution 2D (f32), NCHW, dilation=1, pad ph/pw, stride sh/sw.
+// binding 0: input, binding 1: output, binding 2: weights (O,C,KH,KW), binding 3: bias (O).
+// push constants: [0]=ih [1]=iw [2]=oh [3]=ow [4]=ich [5]=kh [6]=kw [7]=och [8]=ph [9]=pw [10]=sh [11]=sw [12]=total_out [13]=N
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) buffer In0 { float data[]; } in0;
+layout(set = 0, binding = 1, std430) buffer Out0 { float data[]; } out0;
+layout(set = 0, binding = 2, std430) buffer W0 { float data[]; } w0;
+layout(set = 0, binding = 3, std430) buffer B0 { float data[]; } b0;
+
+layout(push_constant) uniform Params {
+    uint ih;
+    uint iw;
+    uint oh;
+    uint ow;
+    uint ich;
+    uint kh;
+    uint kw;
+    uint och;
+    uint ph;
+    uint pw;
+    uint sh;
+    uint sw;
+    uint total_out;
+    uint N;
+} params;
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= params.total_out)
+        return;
+    // NCHW out index: [n][oc][oh][ow]
+    uint ow_ = gid % params.ow;
+    uint oh_ = (gid / params.ow) % params.oh;
+    uint oc = (gid / (params.ow * params.oh)) % params.och;
+    uint n = gid / (params.ow * params.oh * params.och);
+
+    float acc = params.kh * params.kw > 0 ? b0.data[oc] : 0.0f;
+    uint iy0 = oh_ * params.sh;
+    uint ix0 = ow_ * params.sw;
+    for (uint ic = 0; ic < params.ich; ++ic) {
+        for (uint ky = 0; ky < params.kh; ++ky) {
+            for (uint kx = 0; kx < params.kw; ++kx) {
+                int iy = int(iy0) + int(ky) - int(params.ph);
+                int ix = int(ix0) + int(kx) - int(params.pw);
+                if (iy < 0 || ix < 0 || iy >= int(params.ih) || ix >= int(params.iw))
+                    continue;
+                float v = in0.data[n * params.ich * params.ih * params.iw + ic * params.ih * params.iw +
+                                  uint(iy) * params.iw + uint(ix)];
+                float w = w0.data[((oc * params.ich + ic) * params.kh + ky) * params.kw + kx];
+                acc += v * w;
+            }
+        }
+    }
+    out0.data[gid] = acc;
+}

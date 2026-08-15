@@ -17,11 +17,6 @@ CLI-level tests (subprocess):
 """
 
 import importlib.util
-import json
-import pathlib
-import sys
-
-import pytest
 
 from conftest import SCRIPTS_DIR, run_script, write_json
 
@@ -59,25 +54,25 @@ def _state(co_located_ops=None, error_context=""):
 
 class TestGetOpNames:
     def test_co_located_ops_used_when_present(self):
-        ops, slug, title = _mod.get_op_names(_state(co_located_ops=["aten::erfinv"]))
+        slug, title = _mod.get_op_names(_state(co_located_ops=["aten::erfinv"]))
         assert "erfinv" in slug
         assert "aten::erfinv" in title
 
     def test_multiple_co_located_ops_joined_in_slug(self):
-        ops, slug, title = _mod.get_op_names(
+        slug = _mod.get_op_names(
             _state(co_located_ops=["aten::erfinv", "aten::logit"])
         )
         assert "erfinv" in slug
         assert "logit" in slug
 
     def test_slug_is_lowercase_hyphenated(self):
-        ops, slug, title = _mod.get_op_names(_state(co_located_ops=["aten::MyCustomOp"]))
+        slug = _mod.get_op_names(_state(co_located_ops=["aten::MyCustomOp"]))
         assert slug == slug.lower()
         assert "::" not in slug
         assert "_" not in slug or "-" in slug  # colons replaced by hyphens
 
     def test_fallback_to_error_context_when_no_co_located_ops(self):
-        ops, slug, title = _mod.get_op_names(
+        ops = _mod.get_op_names(
             _state(error_context="missing_conversion_rule/aten::erfinv")
         )
         assert len(ops) == 1
@@ -85,7 +80,7 @@ class TestGetOpNames:
 
     def test_empty_state_returns_some_slug(self):
         """Must not crash on empty state — a slug is always returned."""
-        ops, slug, title = _mod.get_op_names({})
+        slug = _mod.get_op_names({})
         assert isinstance(slug, str)
         assert len(slug) > 0
 

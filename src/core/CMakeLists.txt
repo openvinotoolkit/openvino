@@ -1,150 +1,125 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
-
-# enable LTO globally for all libraries below
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-add_definitions(-DIN_OV_CORE_LIBRARY)
-
-set(OV_CORE_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(OV_CORE_DEV_API_PATH ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
-
-include(src/sources.cmake)
-include(include/public_headers.cmake)
-include(dev_api/dev_headers.cmake)
-
-add_subdirectory(reference)
-add_subdirectory(shape_inference)
-add_subdirectory(xml_util)
-
-set(MIXED_SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
-
-set_property(SOURCE ${MIXED_SRC}
-    APPEND PROPERTY INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
-        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/dev_api
-        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include)
-
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
-
+# The standalone Vulkan core (ov::core::vulkan::cross_platform).
 #
-# Create openvino_core_dev library
-#
+# The core is the single runtime for all devices (GPU/CPU/NPU) and platforms
+# (desktop Vulkan, MoltenVK, Vulkan SC). Step 5 of VULKAN_CROSS_PLATFORM.md is
+# complete: the intel_gpu / cldnn runtime interfaces were removed and the
+# backend defines its own minimal runtime types (vk_types.hpp) in the core's
+# namespace. There is no dependency on openvino::runtime::dev, openvino::itt,
+# oneDNN or any other legacy target.
 
-add_library(openvino_core_dev INTERFACE)
-add_library(openvino::core::dev ALIAS openvino_core_dev)
+# The core is written for C++23 (spans, ranges, consteval, ...): pin the
+# standard here so the requirement survives global CMake changes. MSVC targets
+# use -std:c++latest; non-MSVC compilers get cxx_std_23.
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-target_include_directories(openvino_core_dev INTERFACE
-    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
-
-target_include_directories(openvino_core_dev SYSTEM INTERFACE
-    $<BUILD_INTERFACE:$<$<TARGET_EXISTS:xbyak::xbyak>:$<TARGET_PROPERTY:xbyak::xbyak,INTERFACE_INCLUDE_DIRECTORIES>>>)
-
-target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
-
-set_target_properties(openvino_core_dev PROPERTIES EXPORT_NAME core::dev)
-ov_developer_package_export_targets(TARGET openvino::core::dev
-                                    INSTALL_INCLUDE_DIRECTORIES
-                                        "${OV_CORE_DEV_API_PATH}/"
-                                        "${OpenVINO_SOURCE_DIR}/src/common/transformations/include/"
-                                        "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include/")
-
-# Install interface libraries for case BUILD_SHARED_LIBS=OFF
-ov_install_static_lib(openvino_core_dev ${OV_CPACK_COMP_CORE})
-
-#
-# Create static or shared library depending on BUILD_SHARED_LIBS
-#
-
-# These source files include headers from openvino_transformations (via openvino::core::dev)
-# which are not in the default include paths for openvino_core_obj.
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp"
-    PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
-
-add_library(openvino_core_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-
-if(ENABLE_SYSTEM_PUGIXML)
-    # system pugixml has /usr/include as include directories
-    # we cannot use them as system ones, leads to compilation errors
-    set_target_properties(openvino_core_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+# Nothing defines GPU_RT_TYPE anymore (the legacy Vulkan-only runtime branch
+# inside intel_gpu selected it); default to VULKAN so the Vulkan engine path
+# stays active.
+if(NOT DEFINED GPU_RT_TYPE)
+    set(GPU_RT_TYPE "VULKAN")
 endif()
 
-target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API XBYAK_NO_OP_NAMES XBYAK64)
+set(TARGET_NAME "openvino_vulkan_core")
 
-ov_add_version_defines(src/version.cpp openvino_core_obj)
+file(GLOB LIBRARY_SOURCES_ALL
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.cpp"
+  )
 
-ov_set_threading_interface_for(openvino_core_obj)
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
 
-target_link_libraries(openvino_core_obj PRIVATE openvino::reference openvino::util
-                                         openvino::pugixml openvino::shape_inference openvino::core::dev)
+# Native SPIR-V kernels: every kernels/*.comp is compiled with
+# glslangValidator at build time and embedded into spirv_kernels.inc
+# (consumed by vk_kernel_builder.cpp via the builtin native kernel store).
+find_program(GLSLANG_VALIDATOR glslangValidator)
+if(NOT GLSLANG_VALIDATOR)
+    message(FATAL_ERROR "glslangValidator is required to build the native Vulkan kernels. "
+                        "Install the Vulkan SDK or add its bin to PATH and re-configure.")
+endif()
 
-ov_mark_target_as_cc(openvino_core_obj)
-
-# openvino_core is public API => need to mark this library as important for ABI free
-ov_abi_free_target(openvino_core_obj)
-
-ov_ncc_naming_style(FOR_TARGET openvino_core_obj
-                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
-ov_add_clang_format_target(openvino_core_clang FOR_SOURCES ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${DEV_HEADERS})
+set(VK_KERNELS_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/spirv")
+file(GLOB VK_KERNELS_COMP "${CMAKE_CURRENT_SOURCE_DIR}/kernels/*.comp")
+add_custom_command(
+    OUTPUT "${VK_KERNELS_GEN_DIR}/spirv_kernels.inc"
+    COMMAND "${CMAKE_COMMAND}"
+            -DGLSLANG="${GLSLANG_VALIDATOR}"
+            -DSRC="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
+            -DOUT="${VK_KERNELS_GEN_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/gen_spirv.cmake"
+    DEPENDS ${VK_KERNELS_COMP}
+    COMMENT "Compiling native Vulkan kernels to SPIR-V"
+)
+target_sources(${TARGET_NAME} PRIVATE "${VK_KERNELS_GEN_DIR}/spirv_kernels.inc")
+target_include_directories(${TARGET_NAME} PRIVATE "${VK_KERNELS_GEN_DIR}")
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(openvino_core_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # openvino_core is linked against openvino::reference, openvino::shape_inference static libraries
-    # which include openvino_core headers with dllimport attribute. Linker complains about it
-    # but no way to fix this: linking with no attribute defaults to dllexport and we have
-    # multiple defitions for openvino_core symbols.
-    #
-    # The possible way is to use object libraries for openvino::reference
-    # but it's not convinient since these libraries are exported from build tree
-    # and it's better to use them as static libraries in 3rd party projects
-    if(BUILD_SHARED_LIBS)
-        set(link_type PRIVATE)
-    else()
-        set(link_type PUBLIC)
+# The core is self-contained: the source root (for vk_* internal includes) and
+# the runtime/ ov-compat layer are the only include roots.
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+target_compile_options(${TARGET_NAME} PRIVATE
+  $<$<CONFIG:Release>:
+    $<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os
+    >
+  >
+  $<$<CXX_COMPILER_ID:GNU>:
+    $<$<VERSION_GREATER:$<CXX_COMPILER_VERSION>,6.0>:
+      -Wno-ignored-attributes
+    >
+  >)
+
+if(GPU_RT_TYPE STREQUAL "VULKAN")
+    find_package(Vulkan REQUIRED)
+
+    # Optional: embed clspv (OpenCL C -> SPIR-V compiler) into the plugin so that
+    # KernelFormat::SOURCE kernels can be compiled at runtime by the Vulkan backend.
+    # OV_GPU_VULKAN_CLSPV_PATH must point to a clspv build tree, OV_GPU_VULKAN_LLVM_PATH
+    # to the LLVM build tree clspv was built against.
+    set(OV_GPU_VULKAN_CLSPV_PATH "" CACHE PATH "Path to a clspv build tree (optional, enables OpenCL C -> SPIR-V compilation in the Vulkan runtime)")
+    set(OV_GPU_VULKAN_LLVM_PATH "" CACHE PATH "Path to the LLVM build tree used to build clspv (optional)")
+    if(OV_GPU_VULKAN_CLSPV_PATH)
+        target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_CLSPV)
+        set(CLSPV_STATIC_LIBS
+            "${OV_GPU_VULKAN_CLSPV_PATH}/lib/libclspv_core.a"
+            "${OV_GPU_VULKAN_CLSPV_PATH}/third_party/SPIRV-Tools/source/libSPIRV-Tools.a")
+        if(OV_GPU_VULKAN_LLVM_PATH)
+            file(GLOB LLVM_STATIC_LIBS "${OV_GPU_VULKAN_LLVM_PATH}/lib/lib*.a")
+            list(APPEND CLSPV_STATIC_LIBS ${LLVM_STATIC_LIBS})
+        endif()
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            # LLVM static libs have cyclic dependencies, resolve them with --start-group
+            target_link_options(${TARGET_NAME} PRIVATE "-Wl,--start-group")
+            foreach(clspv_lib IN LISTS CLSPV_STATIC_LIBS)
+                target_link_libraries(${TARGET_NAME} PRIVATE ${clspv_lib})
+            endforeach()
+            target_link_options(${TARGET_NAME} PRIVATE "-Wl,--end-group")
+        else()
+            target_link_libraries(${TARGET_NAME} PRIVATE ${CLSPV_STATIC_LIBS})
+        endif()
+        if(WIN32)
+            # System libraries required by LLVM Support on Windows
+            target_link_libraries(${TARGET_NAME} PRIVATE ole32 uuid ntdll advapi32 shell32 psapi imagehlp version ws2_32 userenv bcrypt)
+        endif()
     endif()
 
-    target_link_options(openvino_core_obj ${link_type} "/IGNORE:4217,4286")
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
 endif()
 
-# Defines macro in C++ to load backend plugin
-target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
-                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-ov_build_target_faster(openvino_core_obj
-    UNITY
-    PCH_HEADER "src/precomp.hpp"
-    PCH_EXCLUDE
-        "src/op/util/attr_types.cpp"
-        "src/runtime/tensor.cpp")
-# -----------------------------------------------------------------------------------------------
-# Installation logic...
-# -----------------------------------------------------------------------------------------------
+if((NOT ANDROID) AND (UNIX))
+    target_link_libraries(${TARGET_NAME} PRIVATE pthread)
+endif()
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION ${OV_CPACK_INCLUDEDIR}
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
-        FILES_MATCHING
-            PATTERN "*.hpp"
-            PATTERN "*.h")
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

@@ -70,7 +70,6 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
     set(${one_arg} TRUE)
   endif()
 
-
   if (NOT DEFINED ARCHIVE)
     SET(ARCHIVE "OFF")
   endif()

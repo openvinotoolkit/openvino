@@ -31,6 +31,7 @@ from tests.utils.helpers import (
     generate_concat_compiled_model_with_data,
     generate_add_compiled_model,
     generate_abs_compiled_model_with_data,
+    generate_relu_compiled_model,
 )
 
 
@@ -790,6 +791,41 @@ def test_infer_request_share_memory(device, share_inputs, share_outputs, is_posi
     else:
         assert not out_tensor_shares
         assert results[0].flags["OWNDATA"] is True
+
+
+@pytest.mark.parametrize("auto_share_outputs", [True, False])
+@pytest.mark.parametrize("share_outputs", [True, False])
+def test_infer_request_auto_share_outputs_large_output(device, auto_share_outputs, share_outputs):
+    # Output of a 1024x1024 f32 tensor is 4 MiB, above the auto-share threshold (1 MiB).
+    input_data = np.random.rand(1024, 1024).astype(np.float32)
+    compiled = generate_relu_compiled_model(device, [1024, 1024], np.float32)
+    request = compiled.create_infer_request()
+
+    results = request.infer(input_data, share_outputs=share_outputs, auto_share_outputs=auto_share_outputs)
+
+    assert np.array_equal(results[0], np.maximum(input_data, 0))
+
+    out_tensor_shares = np.shares_memory(request.get_output_tensor(0).data, results[0])
+    if share_outputs or (auto_share_outputs and not share_outputs):
+        assert out_tensor_shares
+        assert results[0].flags["OWNDATA"] is False
+    else:
+        assert not out_tensor_shares
+        assert results[0].flags["OWNDATA"] is True
+
+
+@pytest.mark.parametrize("auto_share_outputs", [True, False])
+def test_infer_request_auto_share_outputs_small_output(device, auto_share_outputs):
+    # Output of a 1x4 f32 tensor is 16 bytes, below the auto-share threshold (1 MiB).
+    compiled, request, _, input_data = generate_abs_compiled_model_with_data(device, Type.f32, np.float32)
+
+    results = request.infer(input_data, auto_share_outputs=auto_share_outputs)
+
+    assert np.array_equal(results[0], np.abs(input_data))
+
+    out_tensor_shares = np.shares_memory(request.get_output_tensor(0).data, results[0])
+    assert not out_tensor_shares
+    assert results[0].flags["OWNDATA"] is True
 
 
 def test_output_result_to_input():
