@@ -130,17 +130,23 @@ inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto num_heads = get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for Q");
+        }
+        case 1: {
+            const auto num_heads = get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for K");
+        }
+        case 2: {
+            const auto num_heads = get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_num_heads");
 }
 
 inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_idx) {
@@ -164,17 +170,23 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
         }
 
         switch (qkv_idx) {
-        case 0:
-            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(head_size, "head size for Q");
+        }
+        case 1: {
+            const auto head_size = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(head_size, "head size for K");
+        }
+        case 2: {
+            const auto head_size = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(head_size, "head size for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
@@ -1292,7 +1304,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     auto Q_num_heads_dim = micro_get_num_heads(params, 0);
     auto K_num_heads_dim = micro_get_num_heads(params, 1);
 
-    jit.make("REMAINDER_K", !k_full);
+    const bool may_have_mixed_k_boundary = config.is_paged_attention && !m_is_prefill && !m_is_gqa_single_token;
+    jit.make("REMAINDER_K", !k_full || may_have_mixed_k_boundary);
     jit.make("KV_GROUP_SIZE", Q_num_heads_dim / K_num_heads_dim);
 
     if (d_full) {
@@ -1537,9 +1550,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             }
 
             auto to_int32 = [](size_t value) {
-                if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
-                    return static_cast<int32_t>(-1);
-                }
+                OPENVINO_ASSERT(value <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "[GPU] SDPA micro scalar value exceeds int32 range");
                 return static_cast<int32_t>(value);
             };
 
