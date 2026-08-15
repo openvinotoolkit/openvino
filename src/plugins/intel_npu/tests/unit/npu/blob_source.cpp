@@ -68,9 +68,18 @@ inline std::string get_source_data_type_name(const BlobSourceDataType source_dat
 
 using testing::_;
 
-class BlobSourceDifferentBlobs : public testing::Test,
-                                 public testing::WithParamInterface<std::tuple<BlobContentType, BlobSourceDataType>> {
+class BlobSourceDifferentBlobs : public testing::TestWithParam<std::tuple<BlobContentType, BlobSourceDataType>> {
 public:
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<std::tuple<BlobContentType, BlobSourceDataType>>& obj) {
+        BlobContentType content_type;
+        BlobSourceDataType source_data_type;
+        std::tie(content_type, source_data_type) = GetParam();
+
+        return get_content_type_name(content_type) + "_" + get_source_data_type_name(source_data_type);
+    }
+
+protected:
     void SetUp() override {
         BlobContentType content_type;
         std::tie(content_type, source_data_type) = GetParam();
@@ -97,16 +106,6 @@ public:
         tensor = ov::Tensor(ov::element::Type_t::u8, ov::Shape({blob_content.size()}), blob_content.data());
     }
 
-    static std::string getTestCaseName(
-        const testing::TestParamInfo<std::tuple<BlobContentType, BlobSourceDataType>>& obj) {
-        BlobContentType content_type;
-        BlobSourceDataType source_data_type;
-        std::tie(content_type, source_data_type) = GetParam();
-
-        return get_content_type_name(content_type) + "_" + get_source_data_type_name(source_data_type);
-    }
-
-protected:
     BlobSource create_blob_source() {
         switch (source_data_type) {
         case BlobSourceDataType::STREAM: {
