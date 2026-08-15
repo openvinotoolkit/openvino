@@ -715,6 +715,37 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelKeepsHostRoutedStageIntegrati
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelDefaultsToNoSharedHead) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+        build_moe_llm_model(),
+        {{"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.calls().size(), 2u);
+    EXPECT_EQ(recorder.find_suffix("_lm_head"), nullptr);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, MoeModelRespectsExplicitSharedHead) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+        build_moe_llm_model(),
+        {{"NPUW_LLM_SHARED_HEAD", "YES"},
+         {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+         {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"}},
+        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_EQ(recorder.calls().size(), 3u);
+    EXPECT_NE(recorder.find_suffix("_lm_head"), nullptr);
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, CacheRopeEnabledRoundsTripThroughCompiledModel) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;

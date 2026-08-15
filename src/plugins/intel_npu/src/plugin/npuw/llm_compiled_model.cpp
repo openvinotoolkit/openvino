@@ -752,6 +752,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Auto-detect MoE model by scanning for router/expert nodes
     const bool is_moe = is_moe_model(model);
     if (is_moe) {
+        if (npuw_llm_props.find("NPUW_LLM_SHARED_HEAD") == npuw_llm_props.end()) {
+            m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+        }
         // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
         // HOST_ROUTED
         if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
