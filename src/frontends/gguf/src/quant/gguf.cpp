@@ -692,7 +692,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
             quant_offset += sb;
             // Both ingest paths must agree on the zero-point representation; see
             // gguf_zero_point_type in quant/weights.hpp for why it matters.
-            ov::Tensor zp(gguf_zero_point_type(name, static_cast<gguf_tensor_type>(ti.type)), scale_shape);
+            const auto zp_elem = gguf_zero_point_type(name, static_cast<gguf_tensor_type>(ti.type));
+            // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+            if (zp_elem == ov::element::u8 && ti.type == GGUF_TYPE_Q4_K) {
+                notify_lossy_weight_approximation(LossyWeightApproximation::IntegerZeroPoint);
+            }
+            ov::Tensor zp(zp_elem, scale_shape);
             quant_offset += zb;
 
             gguf_fill_asym(tensor, weights, scales, zp);

@@ -21,6 +21,25 @@ namespace ov::frontend::gguf {
 // paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
 ov::element::Type gguf_zero_point_type(const std::string& name, gguf_tensor_type qtype);
 
+// A lossy weight approximation the frontend deliberately makes, reported to the user once so a
+// later accuracy investigation starts from the right place.
+enum class LossyWeightApproximation {
+    // token_embd / output / Q6_K / Q5_K tensors requantized channel-wise to Q8_0_C.
+    Q8_0_C_Requant,
+    // Q4_K asymmetric weights expressed with an INTEGER (u8) zero-point, which forces each
+    // sub-block's min to a multiple of its scale.
+    IntegerZeroPoint,
+};
+
+// Warn -- ONCE per process and per approximation kind -- that weights are being converted with a
+// lossy approximation, so generated text may differ slightly from the original GGUF weights.
+//
+// Once per process rather than once per model: the message describes a fixed property of the
+// conversion strategy, not of one tensor or one file, and a model has thousands of affected
+// weights (every Q4_K matmul), so anything finer-grained would bury the log. Call it at the point
+// the approximation is actually PERFORMED, not where its parameters are queried.
+void notify_lossy_weight_approximation(LossyWeightApproximation kind);
+
 // Build the OpenVINO node for a GGUF weight with base name `base` (the tensor name without
 // the trailing ".weight", e.g. "blk.0.attn_q" or "token_embd"). Quantized weights become a
 // low-bitness compressed subgraph (u4/u8 weights + zero-point + f16 scale, Convert ->

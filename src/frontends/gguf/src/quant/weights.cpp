@@ -14,6 +14,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <iostream>
+#include <mutex>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -428,6 +430,39 @@ bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
 
 }  // namespace
 
+void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
+    // Written to std::cerr, NOT OPENVINO_WARN: the latter expands to a no-op unless the build sets
+    // ENABLE_OPENVINO_DEBUG (cmake/features.cmake defaults it OFF), so in every shipped build it
+    // reaches nobody -- and this notice exists precisely to reach the user. It is a deliberate,
+    // permanent, at-most-once-per-process diagnostic, not leftover tracing.
+    //
+    // One flag per kind, so a model that hits both approximations reports both -- but each at most
+    // once, however many thousands of weights are affected.
+    static std::once_flag requant_once;
+    static std::once_flag zero_point_once;
+
+    switch (kind) {
+    case LossyWeightApproximation::Q8_0_C_Requant:
+        std::call_once(requant_once, [] {
+            std::cerr << "[GGUF] accuracy notice: the token embedding / output / Q6_K / Q5_K weights are "
+                         "requantized channel-wise to Q8_0_C (one int8 scale per row). This is lossy, so results "
+                         "may differ slightly from the original GGUF weights. It reproduces the llama.cpp "
+                         "ggml-openvino backend's weight pipeline. Reported once per process."
+                      << std::endl;
+        });
+        break;
+    case LossyWeightApproximation::IntegerZeroPoint:
+        std::call_once(zero_point_once, [] {
+            std::cerr << "[GGUF] accuracy notice: Q4_K weights use an integer (u8) zero-point, which rounds each "
+                         "sub-block's minimum to a multiple of its scale. This is lossy, so results may differ "
+                         "slightly from the original GGUF weights. It keeps the dequantization foldable into an "
+                         "int8 MatMul, which is roughly twice as fast at prefill. Reported once per process."
+                      << std::endl;
+        });
+        break;
+    }
+}
+
 ov::element::Type gguf_zero_point_type(const std::string& name, gguf_tensor_type qtype) {
     // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
     // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K carries the matmul
@@ -657,6 +692,13 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // requant path (token_embd/output) also keeps f16 -- its dequant feeds channel-wise Q8_0_C.
     const bool requant = needs_q8_0_c_requant(name, qtype);
     const ov::element::Type zp_type = gguf_zero_point_type(name, qtype);
+    if (requant) {
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q8_0_C_Requant);
+    }
+    // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+    if (zp_type == ov::element::u8 && qtype == GGUF_TYPE_Q4_K) {
+        notify_lossy_weight_approximation(LossyWeightApproximation::IntegerZeroPoint);
+    }
 
     // K-quant requant sources: the fused dequant -> Q8_0_C streams from the raw bytes, so skip the
     // full-tensor gguf_fill_* extraction below (it would be discarded) and return before the switch.
