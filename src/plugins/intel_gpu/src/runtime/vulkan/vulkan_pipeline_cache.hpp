@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -36,7 +37,7 @@ struct vulkan_pipeline_state {
 
 class vulkan_pipeline_cache final {
 public:
-    explicit vulkan_pipeline_cache(VkDevice device);
+    vulkan_pipeline_cache(VkDevice device, VkPhysicalDevice physical_device);
     ~vulkan_pipeline_cache();
 
     vulkan_pipeline_cache(const vulkan_pipeline_cache&) = delete;
@@ -62,8 +63,12 @@ private:
         bool operator<(const pipeline_key& other) const;
     };
 
+    void save_persistent_cache() noexcept;
+
     VkDevice _device = VK_NULL_HANDLE;
     VkPipelineCache _driver_cache = VK_NULL_HANDLE;
+    std::filesystem::path _persistent_cache_path;
+    std::vector<uint8_t> _persistent_cache_header;
     std::mutex _mutex;
     std::map<shader_key, std::shared_ptr<vulkan_shader_state>> _shaders;
     std::map<pipeline_key, std::shared_ptr<vulkan_pipeline_state>> _pipelines;
@@ -75,6 +80,10 @@ private:
     uint64_t _pipeline_misses = 0;
     uint64_t _shader_creation_nanoseconds = 0;
     uint64_t _pipeline_creation_nanoseconds = 0;
+    uint64_t _persistent_cache_loaded_bytes = 0;
+    uint64_t _persistent_cache_saved_bytes = 0;
+    bool _persistent_cache_enabled = false;
+    bool _persistent_cache_rejected = false;
 };
 
 }  // namespace vulkan

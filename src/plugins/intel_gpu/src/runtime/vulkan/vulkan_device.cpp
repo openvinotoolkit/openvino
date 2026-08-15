@@ -287,7 +287,7 @@ void vulkan_device::initialize() {
     vkGetDeviceQueue(_device, _compute_queue_family, 0, &_compute_queue);
     OPENVINO_ASSERT(_compute_queue != VK_NULL_HANDLE, "[GPU][Vulkan] vkGetDeviceQueue returned a null compute queue");
     try {
-        _pipeline_cache = std::make_unique<vulkan_pipeline_cache>(_device);
+        _pipeline_cache = std::make_unique<vulkan_pipeline_cache>(_device, _physical_device);
     } catch (...) {
         vkDestroyDevice(_device, nullptr);
         _compute_queue = VK_NULL_HANDLE;
