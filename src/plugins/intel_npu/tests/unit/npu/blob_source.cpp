@@ -142,7 +142,218 @@ TEST_P(BlobSourceDifferentBlobs, CopyFirstByte) {
     ASSERT_EQ(cursor, copy_size);
 }
 
-INSTANTIATE_TEST_SUITE_P(UnitTest,
+TEST_P(BlobSourceDifferentBlobs, CopyAllBytes) {
+    BlobSource blob_source = create_blob_source();
+
+    std::string copied_payload(blob_content.size(), DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content);
+
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorToStartReferenceBeginning) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(0, std::ios::beg);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 0);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(0, 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorToLastByteReferenceBeginning) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(blob_content.size() - 1, std::ios::beg);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size() - 1);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(blob_content.size() - 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorToStartReferenceEnd) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(0);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor(), std::ios::end);
+    ASSERT_EQ(cursor, 0);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(0, 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorToLastByteReferenceEnd) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(blob_content.size() - 1, std::ios::end);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size() - 1);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(blob_content.size() - 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorTwiceForward) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(1, std::ios::cur);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 1);
+
+    blob_source.move_cursor(1, std::ios::cur);
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 2);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(2, 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 3);
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorTwiceBackwards) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(0, std::ios::end);
+    blob_source.move_cursor(-1, std::ios::cur);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size() - 1);
+
+    blob_source.move_cursor(-1, std::ios::cur);
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size() - 2);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(blob_content.size() - 2, 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, blob_content.size() - 1);
+}
+
+TEST_P(BlobSourceDifferentBlobs, MoveCursorSamePlaceReferenceCurrent) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(1, std::ios::beg);
+    blob_source.move_cursor(0, std::ios::cur);
+    size_t cursor = 0;
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 1);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    ASSERT_EQ(copied_payload, blob_content.substr(1, 1));
+
+    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    ASSERT_EQ(cursor, 2);
+}
+
+TEST_P(BlobSourceDifferentBlobs, GetRemainingSizeFromStart) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(blob_content.size() - 1);
+
+    size_t remaining_size = 0;
+    OV_ASSERT_NO_THROW(remaining_size = blob_source.get_remaining_size());
+    ASSERT_EQ(remaining_size, blob_content.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, GetRemainingSizeFromEnd) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(blob_content.size());
+
+    size_t remaining_size = 0;
+    OV_ASSERT_NO_THROW(remaining_size = blob_source.get_remaining_size());
+    ASSERT_EQ(remaining_size, 0);
+}
+
+TEST_P(BlobSourceDifferentBlobs, GetTotalSize) {
+    BlobSource blob_source = create_blob_source();
+
+    size_t size = 0;
+    OV_ASSERT_NO_THROW(size = blob_source.get_total_size());
+    ASSERT_EQ(size, blob_source.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, GetTotalSizeAfterCursorMove) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(blob_content.size());
+
+    size_t size = 0;
+    OV_ASSERT_NO_THROW(size = blob_source.get_total_size());
+    ASSERT_EQ(size, blob_source.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, GetTotalSizeAfterRead) {
+    BlobSource blob_source = create_blob_source();
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+
+    size_t size = 0;
+    OV_ASSERT_NO_THROW(size = blob_source.get_total_size());
+    ASSERT_EQ(size, blob_source.size());
+}
+
+TEST_P(BlobSourceDifferentBlobs, CopyTooMuch) {
+    BlobSource blob_source = create_blob_source();
+
+    std::string copied_payload(blob_content.size() + 1, DUMMY_BYTE);
+    OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
+}
+
+TEST_P(BlobSourceDifferentBlobs, CopyAfterEnd) {
+    BlobSource blob_source = create_blob_source();
+
+    blob_source.move_cursor(0, std::ios::end);
+
+    std::string copied_payload(1, DUMMY_BYTE);
+    OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
+}
+
+INSTANTIATE_TEST_SUITE_P(AllDataTypes,
+                         BlobSourceDifferentBlobs,
+                         testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
+                                          testing::ValuesIn(ALL_BLOB_SOURCE_DATA_TYPES)),
+                         BlobSourceDifferentBlobs::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(StreamDataType,
+                         BlobSourceDifferentBlobs,
+                         testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
+                                          testing::ValuesIn(ALL_BLOB_SOURCE_DATA_TYPES)),
+                         BlobSourceDifferentBlobs::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(TensorDataType,
                          BlobSourceDifferentBlobs,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
                                           testing::ValuesIn(ALL_BLOB_SOURCE_DATA_TYPES)),
