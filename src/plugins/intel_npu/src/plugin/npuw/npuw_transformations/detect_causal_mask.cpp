@@ -4,10 +4,15 @@
 
 #include "detect_causal_mask.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <queue>
+#include <regex>
+#include <string>
 #include <unordered_set>
+#include <vector>
 
+#include "../logging.hpp"
 #include "../util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
@@ -379,6 +384,56 @@ bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) 
     detector.run_on_model(model);
 
     return false;
+}
+
+void log_detected_masks(const std::shared_ptr<ov::Model>& model) {
+    // Best-effort: pull a transformer layer index out of the SDPA node's friendly
+    // name (HF/ONNX exports commonly retain the originating module's scope, e.g.
+    // "__module.model.layers.4.self_attn/aten::scaled_dot_product_attention").
+    // Falls back to topological position when no such index can be found (e.g. in
+    // standalone/synthetic test graphs).
+    static const std::regex layer_idx_re(R"([Ll]ayers?[._/]([0-9]+))");
+
+    struct Entry {
+        std::string name;
+        std::string type;
+        int64_t sort_key;
+    };
+    std::vector<Entry> entries;
+
+    int64_t position = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa)
+            continue;
+
+        std::string type;
+        const auto& rt_info = sdpa->get_rt_info();
+        const auto it = rt_info.find(NPUW_SDPA_MASK_RT_KEY);
+        if (it == rt_info.end()) {
+            type = "Unknown";
+        } else {
+            const auto encoded = it->second.as<int64_t>();
+            type = (encoded < 0) ? "Causal" : ("SlidingWindow(" + std::to_string(encoded) + ")");
+        }
+
+        const auto& name = sdpa->get_friendly_name();
+        std::smatch match;
+        int64_t sort_key = position;
+        if (std::regex_search(name, match, layer_idx_re) && match.size() > 1) {
+            sort_key = std::stoll(match[1].str());
+        }
+        entries.push_back({name, std::move(type), sort_key});
+        ++position;
+    }
+
+    std::stable_sort(entries.begin(), entries.end(), [](const Entry& lhs, const Entry& rhs) {
+        return lhs.sort_key < rhs.sort_key;
+    });
+    for (const auto& entry : entries) {
+        LOG_DEBUG("layer " << entry.sort_key << " (" << entry.name << "): " << entry.type);
+        std::cout << "layer " << entry.sort_key << " (" << entry.name << "): " << entry.type << std::endl;
+    }
 }
 
 }  // namespace ov::npuw

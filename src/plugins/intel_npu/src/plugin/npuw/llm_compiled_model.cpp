@@ -933,6 +933,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
     // decide whether the regular-tile mask-skipping optimization is safe for that layer.
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
+    ov::npuw::log_detected_masks(kvcache_model);
 
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
