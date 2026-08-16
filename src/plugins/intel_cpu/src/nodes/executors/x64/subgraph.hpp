@@ -29,7 +29,7 @@ public:
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
 
-#ifdef SNIPPETS_DEBUG_CAPS
+#if defined(SNIPPETS_DEBUG_CAPS) && (defined(__linux__) || defined(__APPLE__))
 protected:
     void segfault_detector() const override;
 
