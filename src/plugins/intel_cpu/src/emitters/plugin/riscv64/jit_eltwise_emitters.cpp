@@ -1784,6 +1784,11 @@ jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc);
 }
 
+jit_swish_emitter::jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     ov::element::Type exec_prc)
+    : jit_swish_emitter(host, 1.0F, host_isa, exec_prc) {}
+
 size_t jit_swish_emitter::get_inputs_num() const {
     return 1;
 }
