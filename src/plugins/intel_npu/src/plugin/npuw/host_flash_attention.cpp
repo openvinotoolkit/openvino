@@ -1108,29 +1108,48 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                     << ", block_kv=" << block_kv_dtype
                                                     << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
-    // Per-SDPA mask-skipping override
-    // AnnotatePerSDPAMaskType may have annotated this subgraph's Add(QK, mask) node
-    // with its individual mask type. For mixed SWA + global-attention models
-    // (e.g. Gemma-4 E2B/E4B), each ATTN subgraph decides independently:
+    // Per-SDPA mask-skipping decision
+    // DetectAttentionMask (run earlier, on the original SDPA node) may have annotated
+    // this subgraph's Add(QK, mask) node with its mask kind -- carried here via
+    // copy_runtime_info() during SDPA decomposition. Per NPUW_SDPA_MASK_RT_KEY's
+    // encoding:
     //
-    //   Causal: force enable_mask_skipping = true
-    //   SlidingWindow / no annotation: keep the global enable_mask_skipping unchanged
+    //   no annotation (Unknown) : mask skipping DISABLED -- we don't know the mask
+    //                             shape, so skipping it could silently change results.
+    //   value <  0 (Causal)     : mask skipping ENABLED unconditionally for non-final
+    //                             tiles (a causal mask never excludes anything a
+    //                             non-final regular tile would otherwise include).
+    //   value >= 0 (SlidingWindow, value = window_size)
+    //                           : mask skipping ENABLED only if the window already
+    //                             covers the whole context (window_size >= context_size),
+    //                             i.e. it behaves exactly like Causal; otherwise the
+    //                             window would truncate positions a regular tile must
+    //                             still respect, so skipping stays DISABLED.
     //
-    // SlidingWindow is not forced to false because the global flag already handles the
-    // window_size >= max_prompt_len case (wide SWA that covers the full context).
-    bool local_enable_mask_skipping = enable_mask_skipping;
-    if (pattern_nodes.add_node) {
+    // This per-SDPA decision replaces the enable_mask_skipping flag passed in from the
+    // caller: that flag now only acts as a master kill switch (NPUW_ATTN_HFA_MASK_SKIPPING
+    // config set to NO disables the optimization outright, regardless of mask kind).
+    bool local_enable_mask_skipping = false;
+    if (enable_mask_skipping && pattern_nodes.add_node) {
         const auto& rt_info = pattern_nodes.add_node->get_rt_info();
-        const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_TYPE_RT_KEY);
+        const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
         if (it != rt_info.end()) {
-            const auto per_sdpa_mask_type = static_cast<ov::npuw::MaskInfo::MaskType>(it->second.as<int>());
-            if (per_sdpa_mask_type == ov::npuw::MaskInfo::MaskType::Causal) {
+            const auto encoded = it->second.as<int64_t>();
+            if (encoded < 0) {
                 local_enable_mask_skipping = true;
                 LOG_DEBUG("Per-SDPA mask annotation: Causal → mask skipping ENABLED for this ATTN subgraph");
+            } else if (encoded >= static_cast<int64_t>(context_size)) {
+                local_enable_mask_skipping = true;
+                LOG_DEBUG("Per-SDPA mask annotation: SlidingWindow(window_size="
+                          << encoded << ") covers the full context (" << context_size
+                          << ") → mask skipping ENABLED for this ATTN subgraph");
             } else {
-                LOG_DEBUG("Per-SDPA mask annotation: SlidingWindow/Unknown → use global mask skipping setting ("
-                          << (enable_mask_skipping ? "YES" : "NO") << ") for this ATTN subgraph");
+                LOG_DEBUG("Per-SDPA mask annotation: SlidingWindow(window_size="
+                          << encoded << ") is narrower than the context (" << context_size
+                          << ") → mask skipping DISABLED for this ATTN subgraph");
             }
+        } else {
+            LOG_DEBUG("No per-SDPA mask annotation (Unknown) → mask skipping DISABLED for this ATTN subgraph");
         }
     }
     auto tile_model = create_hfa_tile_model(q_shape_static,

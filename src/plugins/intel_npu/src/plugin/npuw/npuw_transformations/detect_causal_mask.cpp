@@ -51,6 +51,119 @@ int64_t get_window_size(const std::shared_ptr<ov::Node>& node) {
     return vals.empty() ? 0 : std::llabs(vals.front());
 }
 
+// Writes `encoded_value` (see NPUW_SDPA_MASK_RT_KEY for the encoding) onto `sdpa`'s
+// rt_info. A node may only be annotated once: if it is already annotated with a
+// *different* value, that means two matchers produced genuinely contradictory
+// evidence for the same SDPA node (e.g. an is_causal=true node also fed an
+// explicit sliding-window mask) -- fail loudly instead of silently picking one.
+// Re-annotating with the *same* value (e.g. two causal matchers agreeing) is a
+// harmless no-op.
+void assign_mask_rt_info(const std::shared_ptr<ov::Node>& sdpa, int64_t encoded_value) {
+    auto& rt_info = sdpa->get_rt_info();
+    const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
+    if (it != rt_info.end()) {
+        const auto existing = it->second.as<int64_t>();
+        NPUW_ASSERT(existing == encoded_value && "NPUW: conflicting attention mask detection for the same SDPA node");
+        return;
+    }
+    rt_info[ov::npuw::NPUW_SDPA_MASK_RT_KEY] = encoded_value;
+}
+
+// Forward-propagates `encoded_value` onto every ScaledDotProductAttention node
+// that (transitively) consumes `mask_output`, by writing rt_info directly on the
+// SDPA node (see assign_mask_rt_info above). ScaledDotProductAttentionDecomposition::
+// decompose() later calls copy_runtime_info(node, get_new_nodes()), which carries
+// this rt_info onto the newly created Add(QK, mask) node for free -- so no
+// separate post-decomposition detection pass is required.
+void annotate_sdpa_consumers(const ov::Output<ov::Node>& mask_output, int64_t encoded_value) {
+    std::unordered_set<ov::Node*> visited;
+    std::queue<ov::Output<ov::Node>> to_visit;
+    to_visit.push(mask_output);
+
+    while (!to_visit.empty()) {
+        auto output = to_visit.front();
+        to_visit.pop();
+        for (const auto& input : output.get_target_inputs()) {
+            auto consumer = input.get_node()->shared_from_this();
+            if (!visited.insert(consumer.get()).second)
+                continue;
+            if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(consumer)) {
+                assign_mask_rt_info(sdpa, encoded_value);
+                continue;  // don't cross into the SDPA's own outputs
+            }
+            for (const auto& out : consumer->outputs())
+                to_visit.push(out);
+        }
+    }
+}
+
+bool is_boolean_combine_op(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v13::BitwiseAnd>(node) || ov::is_type<ov::op::v13::BitwiseOr>(node) ||
+           ov::is_type<ov::op::v1::LogicalAnd>(node);
+}
+
+// True when `node` is (or transitively nests, through boolean-combine ops) a
+// sliding-window bound check (a Greater comparison). Used to tell apart a
+// boolean-combine consumer that's a genuine SWA anchor -- owned by the SWA
+// matchers below -- from one that's just ANDing/ORing the causal comparison
+// with something unrelated (a `new_ones` identity constant, the padding
+// attention_mask, ...), which is still a plain causal mask in disguise. Real
+// exports commonly wrap even a "pure causal, no window" layer's mask in such an
+// identity/padding combine (see e.g. Gemma's non-sliding layers), so this needs
+// to be decided per boolean-combine node, not per matched causal comparison.
+bool contains_window_check(const std::shared_ptr<ov::Node>& node) {
+    if (ov::is_type<ov::op::v1::Greater>(node))
+        return true;
+    if (is_boolean_combine_op(node)) {
+        return contains_window_check(node->get_input_node_shared_ptr(0)) ||
+               contains_window_check(node->get_input_node_shared_ptr(1));
+    }
+    return false;
+}
+
+// Forward-propagates a Causal annotation from a matched causal comparison's
+// output, the same way annotate_sdpa_consumers() does, except when it reaches a
+// boolean-combine op (BitwiseAnd/BitwiseOr/LogicalAnd): in that case, only the
+// branch is skipped if the combine node's *other* operand (transitively)
+// contains a sliding-window bound check -- meaning this specific combine node
+// is a genuine SWA anchor that the SWA matchers already own. Any other
+// boolean-combine consumer (e.g. ANDing with a `new_ones` identity constant or
+// the padding attention_mask) is still just a plain causal mask, and traversal
+// continues through it.
+void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
+    std::unordered_set<ov::Node*> visited;
+    std::queue<ov::Output<ov::Node>> to_visit;
+    to_visit.push(mask_output);
+
+    while (!to_visit.empty()) {
+        auto output = to_visit.front();
+        to_visit.pop();
+        for (const auto& input : output.get_target_inputs()) {
+            auto consumer = input.get_node()->shared_from_this();
+            if (!visited.insert(consumer.get()).second)
+                continue;
+            if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(consumer)) {
+                assign_mask_rt_info(sdpa, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
+                continue;  // don't cross into the SDPA's own outputs
+            }
+            if (is_boolean_combine_op(consumer)) {
+                bool owned_by_swa = false;
+                for (size_t i = 0; i < consumer->get_input_size(); ++i) {
+                    if (consumer->input_value(i) != output &&
+                        contains_window_check(consumer->input_value(i).get_node_shared_ptr())) {
+                        owned_by_swa = true;
+                        break;
+                    }
+                }
+                if (owned_by_swa)
+                    continue;  // this branch belongs to a SWA matcher, don't propagate into it
+            }
+            for (const auto& out : consumer->outputs())
+                to_visit.push(out);
+        }
+    }
+}
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wattributes"
@@ -60,17 +173,22 @@ int64_t get_window_size(const std::shared_ptr<ov::Node>& node) {
 // Matches: ScaledDotProductAttention(is_causal=true)
 //
 // The case when causality is an SDPA attribute, not an explicit mask
-// subgraph.
+// subgraph. Anchored directly on the SDPA node itself (not reached via mask
+// traversal), so it can genuinely conflict with a SlidingWindow annotation
+// coming from an SWA matcher on the same node -- assign_mask_rt_info() will
+// assert in that case, since it means the model has contradictory evidence
+// (an explicit is_causal=true attribute together with an explicit
+// sliding-window mask feeding the same SDPA).
 // ============================================================================
 class SDPACausalMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::SDPACausalMatcher");
-    explicit SDPACausalMatcher(ov::npuw::MaskInfo& mask_info) {
+    SDPACausalMatcher() {
         auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>();
-        auto callback = [&mask_info](opp::Matcher& m) {
+        auto callback = [](opp::Matcher& m) {
             auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(m.get_match_root());
-            if (node && node->get_causal() && mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
-                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
+            if (node && node->get_causal())
+                assign_mask_rt_info(node, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
             return false;
         };
         register_matcher(std::make_shared<opp::Matcher>(sdpa, "DetectSDPACausal"), callback);
@@ -87,15 +205,20 @@ public:
 //   - MiniCPM  : Less(Range, Reshape(Add(Range, offset)))
 //   - Whisper  : Range -> Unsqueeze x3
 //
+// Uses annotate_causal_mask() rather than a blanket skip when the matched
+// comparison feeds a boolean-combine op: only branches that are genuine SWA
+// anchors (see contains_window_check above) are left for the SWA matchers to
+// own; other combine consumers (e.g. ANDing with a `new_ones` identity or the
+// padding attention_mask, as seen on Gemma's non-sliding layers) still get
+// annotated Causal.
 // ============================================================================
 class StandardCausalMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::StandardCausalMatcher");
-    explicit StandardCausalMatcher(ov::npuw::MaskInfo& mask_info) {
+    StandardCausalMatcher() {
         auto cmp = opp::wrap_type<ov::op::v1::LessEqual, ov::op::v1::Less>({make_range_chain(), make_range_chain()});
-        auto callback = [&mask_info](opp::Matcher& /*m*/) {
-            if (mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
-                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
+        auto callback = [](opp::Matcher& m) {
+            annotate_causal_mask(m.get_match_root()->output(0));
             return false;
         };
         register_matcher(std::make_shared<opp::Matcher>(cmp, "StandardCausal"), callback);
@@ -107,16 +230,17 @@ public:
 //
 // StandardCausalMatcher with extra Add: Add(cache_len, range_chain), with the range chain as the
 // Add's 2nd input.
+//
+// Same annotate_causal_mask() branch-level handling as StandardCausalMatcher above.
 // ============================================================================
 class Qwen3CausalMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::Qwen3CausalMatcher");
-    explicit Qwen3CausalMatcher(ov::npuw::MaskInfo& mask_info) {
+    Qwen3CausalMatcher() {
         auto add = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), make_range_chain()});
         auto cmp = opp::wrap_type<ov::op::v1::LessEqual, ov::op::v1::Less>({make_range_chain(), add});
-        auto callback = [&mask_info](opp::Matcher& /*m*/) {
-            if (mask_info.mask_type != ov::npuw::MaskInfo::MaskType::SlidingWindow)
-                mask_info = {ov::npuw::MaskInfo::MaskType::Causal, 0};
+        auto callback = [](opp::Matcher& m) {
+            annotate_causal_mask(m.get_match_root()->output(0));
             return false;
         };
         register_matcher(std::make_shared<opp::Matcher>(cmp, "Qwen3Causal"), callback);
@@ -136,7 +260,7 @@ public:
 class BitwiseAndSlidingMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::BitwiseAndSlidingMatcher");
-    explicit BitwiseAndSlidingMatcher(ov::npuw::MaskInfo& mask_info) {
+    BitwiseAndSlidingMatcher() {
         auto q_chain = make_range_chain();
         auto k_chain = make_range_chain();
         auto window_constant = opp::wrap_type<ov::op::v0::Constant>();
@@ -145,11 +269,12 @@ public:
         auto and_win = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), greater});
         auto causal = opp::wrap_type<ov::op::v1::LessEqual>({k_chain, q_chain});
         auto anchor = opp::wrap_type<ov::op::v13::BitwiseAnd>({and_win, causal});
-        auto callback = [&mask_info, window_constant](opp::Matcher& m) {
+        auto callback = [window_constant](opp::Matcher& m) {
             const int64_t window_size =
                 get_window_size(m.get_pattern_value_map().at(window_constant).get_node_shared_ptr());
-            if (window_size > 0)
-                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, window_size};
+            if (window_size > 0) {
+                annotate_sdpa_consumers(m.get_match_root()->output(0), window_size);
+            }
             return false;
         };
         register_matcher(std::make_shared<opp::Matcher>(anchor, "BitwiseAndSliding"), callback);
@@ -170,7 +295,7 @@ public:
 class OldPhi3SlidingMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::OldPhi3SlidingMatcher");
-    explicit OldPhi3SlidingMatcher(ov::npuw::MaskInfo& mask_info) {
+    OldPhi3SlidingMatcher() {
         auto k_constant = opp::wrap_type<ov::op::v0::Constant>();
         auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto k_range = opp::wrap_type<ov::op::v4::Range>({k_constant, gather, opp::any_input()});
@@ -184,10 +309,11 @@ public:
         auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({k_f32, q_add});
         auto anchor = opp::wrap_type<ov::op::v13::BitwiseOr>({sliding_mask, causal_mask});
 
-        auto callback = [=, &mask_info](opp::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             const int64_t w = get_window_size(m.get_pattern_value_map().at(q_constant).get_node_shared_ptr());
-            if (w > 0)
-                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, w};
+            if (w > 0) {
+                annotate_sdpa_consumers(m.get_match_root()->output(0), w);
+            }
             return false;
         };
 
@@ -206,7 +332,7 @@ public:
 class DefaultSWAMatcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::DefaultSWAMatcher");
-    explicit DefaultSWAMatcher(ov::npuw::MaskInfo& mask_info) {
+    DefaultSWAMatcher() {
         auto k_chain = make_range_chain();
         auto q_chain = make_range_chain();
         auto window_const = opp::wrap_type<ov::op::v0::Constant>();
@@ -214,10 +340,11 @@ public:
         auto subtract = opp::wrap_type<ov::op::v1::Subtract>({q_chain, window_const});
         auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({k_chain, subtract});
         auto anchor = opp::wrap_type<ov::op::v1::LogicalAnd>({causal_mask, sliding_mask});
-        auto callback = [=, &mask_info](opp::Matcher& m) {
+        auto callback = [=](opp::Matcher& m) {
             const int64_t w = get_window_size(m.get_pattern_value_map().at(window_const).get_node_shared_ptr());
-            if (w > 0)
-                mask_info = {ov::npuw::MaskInfo::MaskType::SlidingWindow, w};
+            if (w > 0) {
+                annotate_sdpa_consumers(m.get_match_root()->output(0), w);
+            }
             return false;
         };
         register_matcher(std::make_shared<opp::Matcher>(anchor, "DefaultSWA"), callback);
@@ -233,76 +360,24 @@ public:
 namespace ov::npuw {
 
 bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    m_mask_info = MaskInfo{};
-
+    // Every SDPA node starts unannotated (== Unknown, by absence of
+    // rt_info[NPUW_SDPA_MASK_RT_KEY]). Matchers below annotate individual nodes as
+    // they recognize Causal or SlidingWindow patterns feeding that node's mask
+    // input; a node that no matcher recognizes stays Unknown.
+    //
+    // ScaledDotProductAttentionDecomposition::decompose() later calls
+    // copy_runtime_info(node, get_new_nodes()), which propagates this rt_info onto
+    // the newly created Add(QK, mask) node, so HostFlashAttention::from() can read
+    // it directly off the Add node without any extra pass.
     ov::pass::GraphRewrite detector;
-    detector.add_matcher<BitwiseAndSlidingMatcher>(m_mask_info);
-    detector.add_matcher<OldPhi3SlidingMatcher>(m_mask_info);
-    detector.add_matcher<DefaultSWAMatcher>(m_mask_info);
-    detector.add_matcher<SDPACausalMatcher>(m_mask_info);
-    detector.add_matcher<StandardCausalMatcher>(m_mask_info);
-    detector.add_matcher<Qwen3CausalMatcher>(m_mask_info);
+    detector.add_matcher<BitwiseAndSlidingMatcher>();
+    detector.add_matcher<OldPhi3SlidingMatcher>();
+    detector.add_matcher<DefaultSWAMatcher>();
+    detector.add_matcher<SDPACausalMatcher>();
+    detector.add_matcher<StandardCausalMatcher>();
+    detector.add_matcher<Qwen3CausalMatcher>();
     detector.run_on_model(model);
 
-    return false;
-}
-
-// Traces the mask input of Add(QK, mask) backward using BFS.
-// Returns SlidingWindow if a Greater node appears directly inside a
-// BitwiseAnd / BitwiseOr / LogicalAnd (window-size check), Causal otherwise.
-static MaskInfo::MaskType detect_sdpa_mask_type_from_add(const std::shared_ptr<ov::Node>& add_node) {
-    if (!add_node || add_node->get_input_size() < 2) {
-        return MaskInfo::MaskType::Unknown;
-    }
-
-    // Trace mask input (input 1 of Add) backward using BFS.
-    // Look for SWA indicators: a BitwiseAnd / BitwiseOr / LogicalAnd that has
-    // a Greater node as a direct input (window-size check).
-    std::unordered_set<ov::Node*> visited;
-    std::queue<std::shared_ptr<ov::Node>> queue;
-    queue.push(add_node->get_input_node_shared_ptr(1));
-
-    while (!queue.empty()) {
-        auto node = queue.front();
-        queue.pop();
-        if (!node || !visited.insert(node.get()).second)
-            continue;
-
-        // SWA anchor: BitwiseAnd / BitwiseOr / LogicalAnd whose direct input is Greater
-        if (ov::is_type<ov::op::v13::BitwiseAnd>(node) || ov::is_type<ov::op::v13::BitwiseOr>(node) ||
-            ov::is_type<ov::op::v1::LogicalAnd>(node)) {
-            for (size_t i = 0; i < node->get_input_size(); ++i) {
-                if (ov::is_type<ov::op::v1::Greater>(node->get_input_node_shared_ptr(i))) {
-                    return MaskInfo::MaskType::SlidingWindow;
-                }
-            }
-        }
-
-        // Don't cross Parameters or Constants – they are leaf nodes.
-        if (ov::op::util::is_parameter(node) || ov::op::util::is_constant(node))
-            continue;
-
-        for (size_t i = 0; i < node->get_input_size(); ++i)
-            queue.push(node->get_input_node_shared_ptr(i));
-    }
-
-    // No SWA pattern found, treat as causal.
-    return MaskInfo::MaskType::Causal;
-}
-
-bool AnnotatePerSDPAMaskType::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    m_annotations.clear();
-
-    const auto all_patterns = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
-    m_annotations.reserve(all_patterns.size());
-
-    for (const auto& pattern : all_patterns) {
-        if (!pattern.add_node)
-            continue;
-        const auto mask_type = detect_sdpa_mask_type_from_add(pattern.add_node);
-        pattern.add_node->get_rt_info()[NPUW_SDPA_MASK_TYPE_RT_KEY] = static_cast<int>(mask_type);
-        m_annotations.push_back({pattern.add_node->get_friendly_name(), mask_type});
-    }
     return false;
 }
 
