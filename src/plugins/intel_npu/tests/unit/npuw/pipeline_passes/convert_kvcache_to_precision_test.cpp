@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <map>
 #include <cstring>
+#include <regex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -155,6 +156,23 @@ public:
     std::pair<uint32_t, uint32_t> kv_dims(const std::string& output_name) const {
         const auto& desc = m_testable_model->kvcache_desc();
         const auto is_value_tensor = output_name.find("value") != std::string::npos;
+        const auto is_quant_aux_tensor = output_name.find("/scale") != std::string::npos ||
+                                         output_name.find("/zp") != std::string::npos;
+        if (is_value_tensor && is_quant_aux_tensor) {
+            // Mirror the runtime shape-based detection: embedding is collapsed to 1 by DQ.
+            const auto input_name =
+                std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            auto detect = [&](bool v_trans) -> uint32_t {
+                if (m_kvcache_in_ports.count(input_name)) {
+                    const auto& sh =
+                        m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name))->get_shape();
+                    if (sh.size() == 4u && sh[3] == 1u && sh[2] > 1u) return 2u;
+                    if (sh.size() == 4u && sh[2] == 1u && sh[3] > 1u) return 3u;
+                }
+                return v_trans ? 3u : desc.dim;
+            };
+            return {detect(desc.v_tensors_transposed_pre), detect(desc.v_tensors_transposed_gen)};
+        }
         const auto kv_dim = [&](bool v_transposed) {
             return (is_value_tensor && v_transposed) ? 3u : desc.dim;
         };
@@ -725,6 +743,36 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheCopiesQuantizedAuxTensorsBy
         EXPECT_EQ(std::memcmp(src_host.data(), dst_host.data(), src_host.get_byte_size()), 0)
             << "copy_kvcache did not copy bytes for pair: " << pair.output_name << " -> " << pair.input_name;
     }
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheUsesSequenceDimensionForValueAuxRoi) {
+    RecordingFactory recorder;
+    auto compiled = create_testable_model(make_kv_precision_props(ov::element::i8), recorder);
+    ASSERT_NE(compiled, nullptr);
+    TestableLLMInferRequest request(compiled);
+    request.prepare_non_chunked_copy();
+
+    bool found_value_aux = false;
+    for (const auto& [output_name, output_port] : request.prefill_out_ports()) {
+        if (output_name.find("/present/value/scale") == std::string::npos &&
+            output_name.find("/present/value/zp") == std::string::npos) {
+            continue;
+        }
+
+        const auto& tensor = request.prefill_request()->get_tensor(output_port);
+        ASSERT_EQ(tensor->get_shape().size(), 4u);
+        ASSERT_EQ(tensor->get_shape()[2], 1u);
+        ASSERT_GE(tensor->get_shape()[3], compiled->kvcache_desc().max_prompt_size);
+
+        const auto [pre_kv_dim, gen_kv_dim] = request.kv_dims(output_name);
+        EXPECT_EQ(pre_kv_dim, 3u);
+        EXPECT_EQ(gen_kv_dim, 3u);
+        found_value_aux = true;
+        break;
+    }
+
+    ASSERT_TRUE(found_value_aux) << "No quantized value scale/zp output with [B,H,1,S] layout found";
+    ASSERT_NO_THROW(request.copy_kvcache());
 }
 
 // Chunked-prefill counterpart of the test above. Exercises the two-part chunked copy_kvcache()
