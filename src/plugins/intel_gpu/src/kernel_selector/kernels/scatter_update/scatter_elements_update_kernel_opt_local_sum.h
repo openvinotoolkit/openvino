@@ -55,21 +55,14 @@ public:
     CommonDispatchData SetDefault(const scatter_elements_update_params& params, bool is_second) const;
     KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    // `_ref` uses the base default (DONT_USE_IF_HAVE_SOMETHING_ELSE); without an
-    // explicit override here, equal-priority ordering between the two attached
-    // implementations would depend on kernel_selector's multiset insertion-order
-    // stability rather than a real, intentional preference. Matches GridSample's own
-    // opt-kernel precedent (FORCE_PRIORITY_8) for the same reason.
     KernelsPriority GetKernelsPriority(const Params& params) const override;
 
 protected:
     bool Validate(const Params& p) const override;
+    bool SkipKernelExecution(const scatter_elements_update_params& params, size_t kernel_id) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
-    // 4096 int32 slots = 16KB local memory -- comfortably under the ~64KB typical
-    // per-workgroup budget (leaves headroom for the driver's own allocations), while
-    // large enough to capture real spatial locality for typical optical-flow motion
-    // magnitudes. Not auto-tuned per-shape in this first version.
+    // 16KB local memory, comfortably under the ~64KB typical per-workgroup budget.
     static constexpr size_t kWindowSize = 4096;
 };
 }  // namespace kernel_selector

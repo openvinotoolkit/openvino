@@ -13,10 +13,8 @@ bool is_global_memory_case(const scatter_elements_update_params& params) {
     return (params.outputs[0].PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize);
 }
 
-// Mirrors scatter_elements_update_kernel_ref.cpp's file-local
-// GetScatterElementsUpdateChannelIndex -- duplicated rather than shared since that
-// function is file-static there and this kernel is deliberately independent of `_ref`
-// (see the header comment for why).
+// Mirrors _ref.cpp's file-local GetScatterElementsUpdateChannelIndex (duplicated, not
+// shared -- see the header comment for why).
 size_t GetChannelIndex(const scatter_elements_update_params& params) {
     const size_t input_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
@@ -39,19 +37,10 @@ size_t GetChannelIndex(const scatter_elements_update_params& params) {
 }
 }  // namespace
 
-KernelsPriority ScatterElementsUpdateKernelOptLocalSum::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_8;
-}
-
 ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
-    // Deliberately as broad as `_ref`'s own key (same supported dtypes/layouts) --
-    // this is only a cheap pre-filter checked before GetKernelsData()/Validate() ever
-    // run (see kernel_selector_base::GetAllImplementations); the real narrowing to
-    // this kernel's actual scope (SUM mode, dense scatter, static shapes, etc.) lives
-    // in Validate(), not here. Missing EnableDynamicShapesSupport() here specifically
-    // caused this kernel to be silently filtered out before Validate() ever ran, for
-    // every case tried -- confirmed via temporary debug logging in Validate() showing
-    // zero calls; fixed by matching `_ref`'s key exactly.
+    // As broad as `_ref`'s own key -- this is only a pre-filter checked before
+    // Validate() ever runs (see kernel_selector_base::GetAllImplementations); the real
+    // narrowing lives in Validate(), not here.
     ParamsKey k;
     const std::vector<Datatype> supportedTypes{Datatype::F16,
                                                Datatype::F32,
@@ -91,62 +80,10 @@ ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
     return k;
 }
 
-bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
-    if (p.GetType() != KernelType::SCATTER_ELEMENTS_UPDATE) {
-        return false;
-    }
-    const auto& params = static_cast<const scatter_elements_update_params&>(p);
-
-    // Scoped narrowly to the case this was designed and measured against -- never
-    // replaces `_ref`'s correctness for anything outside this, only opts in for it
-    // (this kernel is attached ahead of `_ref` in the selector; returning false here
-    // falls through to `_ref` unchanged).
-    if (params.mode != ScatterUpdateReduction::SUM) {
-        return false;
-    }
-    if (!params.use_init_val) {
-        return false;
-    }
-    if (params.is_shape_agnostic) {
-        return false;  // static shapes only for this first version
-    }
-    if (!is_global_memory_case(params)) {
-        return false;  // `_ref`'s own whole-output-fits-in-local-memory path already wins here
-    }
-    if (!params.fused_ops.empty()) {
-        return false;  // keep the first version simple; `_ref` still handles fused cases
-    }
-    const size_t rank = params.inputs[0].GetDims().size();
-    if (rank != 4 && rank != 5) {
-        return false;
-    }
-    // Dense-ish scatter: the updates tensor is at least as large as the output --
-    // covers both a 1:1 dense scatter and our real fused workload specifically (4
-    // bilinear-corner update sets concatenated onto one output, so updates is 4x the
-    // output there). Not a correctness requirement of the kernel itself (the
-    // local/global-fallback split is safe for any index pattern/ratio), just a scope
-    // guard against genuinely sparse scatters (a handful of indices into a huge
-    // output) where zeroing/flushing a whole window per workgroup would be wasted
-    // work for no real locality gain.
-    if (params.inputs[2].LogicalSize() < params.outputs[0].LogicalSize()) {
-        return false;
-    }
-    return true;
-}
-
-JitConstants ScatterElementsUpdateKernelOptLocalSum::GetJitConstants(
-    const scatter_elements_update_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetChannelIndex(params)));
-    jit.AddConstant(MakeJitConstant("WINDOW_SIZE", kWindowSize));
-    // Element budget of the internal fixed-point accumulator buffer (see GetKernelsData's
-    // matching `output.PhysicalSizeInBytes() * 2` byte-size allocation) -- the update
-    // stage's write-back loop bound-checks against this so a window that straddles the
-    // buffer's end can never write out of bounds, regardless of dtype-size rounding in
-    // that byte formula.
-    const size_t total_elements = (params.outputs[0].PhysicalSizeInBytes() * 2) / sizeof(int32_t);
-    jit.AddConstant(MakeJitConstant("OPT_LOCAL_ACC_TOTAL_ELEMENTS", total_elements));
-    return jit;
+KernelsPriority ScatterElementsUpdateKernelOptLocalSum::GetKernelsPriority(const Params& /*params*/) const {
+    // `_ref` uses the base default (DONT_USE_IF_HAVE_SOMETHING_ELSE); force priority so
+    // this kernel wins when both are eligible, matching GridSample's opt-kernel precedent.
+    return FORCE_PRIORITY_8;
 }
 
 CommonDispatchData ScatterElementsUpdateKernelOptLocalSum::SetDefault(const scatter_elements_update_params& params,
@@ -161,16 +98,9 @@ CommonDispatchData ScatterElementsUpdateKernelOptLocalSum::SetDefault(const scat
     const auto& scope = is_second ? indices : output;
     const auto rank = params.inputs[0].GetDims().size();
 
-    // Two genuinely different dispatch layouts, matching `_ref`'s own SetDefault
-    // exactly (mode is always SUM here, per Validate(), so `is_second` alone decides
-    // which one applies). The update stage (is_second=true) merges X*Y into gws[0] as
-    // ONE dispatch dimension -- the ITER==1 .cl body's `x = dim0 % INPUT2_SIZE_X; y =
-    // dim0 / INPUT2_SIZE_X;` decoding only makes sense against THIS merged layout.
-    // Using the non-merged (init/finalize) layout for the update stage too was a real
-    // bug in an earlier version of this kernel: it silently scrambled x/y/f/b (e.g. a
-    // dispatch shaped (X=1, Y=N) put every real thread index in what the update-stage
-    // decode treated as `f`, not `y`), confirmed via direct dispatch-dimension dumps
-    // showing all contributions landing on the same output element.
+    // Matches `_ref`'s own SetDefault: the update stage merges X*Y into gws[0] as one
+    // dispatch dimension, which the ITER==1 .cl body's `x = dim0 % INPUT2_SIZE_X; y =
+    // dim0 / INPUT2_SIZE_X;` decoding depends on. Init/finalize use the non-merged layout.
     if (is_second) {
         switch (rank) {
         case 4:
@@ -215,6 +145,65 @@ CommonDispatchData ScatterElementsUpdateKernelOptLocalSum::SetDefault(const scat
     return dispatchData;
 }
 
+JitConstants ScatterElementsUpdateKernelOptLocalSum::GetJitConstants(
+    const scatter_elements_update_params& params) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("WINDOW_SIZE", kWindowSize));
+    // Element budget of the internal accumulator buffer (matches GetKernelsData's
+    // `PhysicalSizeInBytes() * 2` allocation) -- bounds the write-back loop so a window
+    // straddling the buffer's end can't write out of bounds.
+    const size_t total_elements = (params.outputs[0].PhysicalSizeInBytes() * 2) / sizeof(int32_t);
+    jit.AddConstant(MakeJitConstant("OPT_LOCAL_ACC_TOTAL_ELEMENTS", total_elements));
+    return jit;
+}
+
+bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SCATTER_ELEMENTS_UPDATE) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    const auto& params = static_cast<const scatter_elements_update_params&>(p);
+
+    // Rejecting here falls through to `_ref` unchanged -- this kernel only opts in for
+    // its narrow scope, never replaces `_ref` for anything outside it.
+    if (params.mode != ScatterUpdateReduction::SUM) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    if (!params.use_init_val) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    if (params.is_shape_agnostic) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);  // static shapes only for this first version
+    }
+    if (!is_global_memory_case(params)) {
+        // `_ref`'s own whole-output-fits-in-local-memory path already wins here
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    if (!params.fused_ops.empty()) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);  // keep the first version simple; `_ref` still handles fused cases
+    }
+    const size_t rank = params.inputs[0].GetDims().size();
+    if (rank != 4 && rank != 5) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    // Dense-ish scatter only: sparse scatters (few indices into a huge output) would
+    // pay for zeroing/flushing a window with no locality benefit.
+    if (params.inputs[2].LogicalSize() < params.outputs[0].LogicalSize()) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+    return true;
+}
+
+bool ScatterElementsUpdateKernelOptLocalSum::SkipKernelExecution(const scatter_elements_update_params& params,
+                                                                 size_t kernel_id) const {
+    if (kernel_id == 0) {
+        if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
+            return false;
+        }
+    }
+    return KernelData::SkipKernelExecution(params);
+}
+
 void ScatterElementsUpdateKernelOptLocalSum::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
@@ -223,10 +212,10 @@ void ScatterElementsUpdateKernelOptLocalSum::GetUpdateDispatchDataFunc(KernelDat
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
             // is_second==true selects the "update" (ITER==1) dispatch shape (sized to
             // the indices/updates tensor, which for us equals the output size anyway).
-            auto dispatchData = this->SetDefault(prim_params, /*is_second=*/i == 1);
+            auto dispatchData = SetDefault(prim_params, /*is_second=*/i == 1);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = KernelData::SkipKernelExecution(prim_params, i);
+            kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
 
             if (i == 1) {
                 kd.kernels[i].params.local_memory_args.clear();
