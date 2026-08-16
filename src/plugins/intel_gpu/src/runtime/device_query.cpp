@@ -20,8 +20,6 @@
 #    include "vulkan/vulkan_device_detector.hpp"
 #endif
 
-#include <map>
-
 namespace cldnn {
 int device_query::device_id = -1;
 
@@ -51,15 +49,6 @@ device_query::device_query(engine_types engine_type,
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
         ocl::ocl_device_detector ocl_detector;
         _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
-#ifdef OV_GPU_WITH_ZE_RT
-        // If running with ZE runtime, convert found OCL devices to ZE devices
-        std::map<std::string, device::ptr> ze_devices;
-        for (auto& device : _available_devices) {
-            auto ze_device = ze::create_ze_device_from_ocl_device(device.second, initialize_devices);
-            ze_devices[device.first] = ze_device;
-        }
-        _available_devices = std::move(ze_devices);
-#endif
         break;
     }
 #endif

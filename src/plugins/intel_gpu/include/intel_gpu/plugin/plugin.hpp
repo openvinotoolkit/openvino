@@ -15,7 +15,7 @@ namespace ov::intel_gpu {
 
 class Plugin : public ov::IPlugin {
 private:
-    std::string m_default_device_id = "0";
+    std::string m_default_device_id;
     std::map<std::string, cldnn::device::ptr> m_device_map;
     std::map<std::string, ExecutionConfig> m_configs_map;
     ov::AnyMap m_compiled_model_runtime_properties;
@@ -35,6 +35,7 @@ private:
     void create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;
+    std::string resolve_device_id(const std::string& device_id) const;
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
     std::vector<ov::PropertyName> get_caching_properties() const;

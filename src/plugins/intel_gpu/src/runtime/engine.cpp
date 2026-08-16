@@ -300,6 +300,11 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     return ret;
 }
 
+std::shared_ptr<cldnn::engine> engine::create(const device::ptr device) {
+    OPENVINO_ASSERT(device != nullptr, "[GPU] Cannot create an engine for a null device");
+    return create(device->get_engine_type(), device->get_runtime_type(), device);
+}
+
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
     device_query query(engine_type, runtime_type, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();

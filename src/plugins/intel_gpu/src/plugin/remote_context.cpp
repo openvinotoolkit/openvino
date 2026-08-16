@@ -23,16 +23,18 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     return res.as<Type>();
 }
 
-ContextType get_default_context_type() {
-    #ifdef OV_GPU_DEFAULT_ZE_RT
-        return ContextType::ZE;
-    #elif defined(OV_GPU_DEFAULT_OCL_RT)
+ContextType get_context_type(cldnn::runtime_types runtime_type) {
+    switch (runtime_type) {
+    case cldnn::runtime_types::ocl:
+    case cldnn::runtime_types::sycl:
         return ContextType::OCL;
-    #elif defined(OV_GPU_DEFAULT_VULKAN_RT)
+    case cldnn::runtime_types::ze:
+        return ContextType::ZE;
+    case cldnn::runtime_types::vulkan:
         return ContextType::VULKAN;
-    #else
-        #error "The selected default GPU runtime does not yet define a public remote context type"
-    #endif
+    default:
+        OPENVINO_THROW("[GPU] Selected runtime does not define a public remote context type");
+    }
 }
 
 }  // namespace
@@ -41,7 +43,7 @@ RemoteContextImpl::RemoteContextImpl(const std::string& device_name, std::vector
     : m_device_name(device_name) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     m_device = devices.front();
-    m_type = get_default_context_type();
+    m_type = get_context_type(m_device->get_runtime_type());
     const auto &info = m_device->get_info();
     if (m_type == ContextType::ZE && info.supports_leo) {
         m_type = ContextType::OCL;
@@ -58,7 +60,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     gpu_handle_param context_id = nullptr;
     int ctx_device_id = 0;
     int target_tile_id = -1;
-    m_type = get_default_context_type();
+    m_type = get_context_type(cldnn::get_default_runtime_type());
 
     if (!params.empty()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
@@ -303,8 +305,7 @@ void RemoteContextImpl::initialize() {
         GPU_DEBUG_INFO << "Initialize RemoteContext for " << m_device_name << " (" << m_device->get_info().dev_name << ")" << std::endl;
 
         m_device->initialize();  // Initialize associated device before use
-        m_engine = cldnn::engine::create(
-            cldnn::get_default_engine_type(), cldnn::get_default_runtime_type(), m_device);
+        m_engine = cldnn::engine::create(m_device);
 
         init_properties();
 

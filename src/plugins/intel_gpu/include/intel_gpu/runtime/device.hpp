@@ -5,6 +5,7 @@
 #pragma once
 
 #include "device_info.hpp"
+#include "engine_configuration.hpp"
 #include "memory_caps.hpp"
 #include "layout.hpp"
 
@@ -22,6 +23,8 @@ public:
     using ptr = std::shared_ptr<device>;
     virtual const device_info& get_info() const = 0;
     virtual memory_capabilities get_mem_caps() const = 0;
+    virtual engine_types get_engine_type() const { return get_default_engine_type(); }
+    virtual runtime_types get_runtime_type() const { return get_default_runtime_type(); }
 
     virtual void initialize() = 0;
     virtual bool is_initialized() const = 0;

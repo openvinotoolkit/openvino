@@ -183,6 +183,9 @@ public:
     /// @param device specifies the device which the engine is created for
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
 
+    /// Creates the engine selected by the device identity.
+    static std::shared_ptr<cldnn::engine> create(const device::ptr device);
+
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported

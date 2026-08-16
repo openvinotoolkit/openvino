@@ -26,6 +26,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -77,7 +78,7 @@ void Plugin::register_primitives() const {
 std::string Plugin::get_device_id_from_config(const ov::AnyMap& config) const {
     std::string id;
     if (config.find(ov::device::id.name()) != config.end()) {
-        id = config.at(ov::device::id.name()).as<std::string>();
+        id = resolve_device_id(config.at(ov::device::id.name()).as<std::string>());
     }
     return id;
 }
@@ -85,9 +86,31 @@ std::string Plugin::get_device_id_from_config(const ov::AnyMap& config) const {
 std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     std::string id = m_default_device_id;
     if (config.find(ov::device::id.name()) != config.end()) {
-        id = config.at(ov::device::id.name()).as<std::string>();
+        id = resolve_device_id(config.at(ov::device::id.name()).as<std::string>());
     }
     return id;
+}
+
+std::string Plugin::resolve_device_id(const std::string& device_id) const {
+    if (device_id.empty()) {
+        return m_default_device_id;
+    }
+    if (m_device_map.count(device_id) != 0) {
+        return device_id;
+    }
+
+    // Preserve the legacy numeric ID as an alias for the selected default runtime.
+    cldnn::runtime_types parsed_runtime;
+    std::string backend_device_id;
+    if (!cldnn::runtime_backend_registry::parse_device_id(device_id, parsed_runtime, backend_device_id)) {
+        const auto tagged_id = cldnn::runtime_backend_registry::make_device_id(
+            cldnn::runtime_backend_registry::default_backend().runtime_type, device_id);
+        if (m_device_map.count(tagged_id) != 0) {
+            return tagged_id;
+        }
+    }
+
+    OPENVINO_THROW("[GPU] Unknown device ID: ", device_id);
 }
 
 bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) const {
@@ -246,8 +269,30 @@ Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
 
-    cldnn::device_query device_query;
-    m_device_map = device_query.get_available_devices();
+    for (const auto& backend : cldnn::runtime_backend_registry::compiled_backends()) {
+        try {
+            cldnn::device_query query(backend.engine_type, backend.runtime_type);
+            for (const auto& device : query.get_available_devices()) {
+                const auto tagged_id =
+                    cldnn::runtime_backend_registry::make_device_id(backend.runtime_type, device.first);
+                m_device_map.emplace(tagged_id, device.second);
+            }
+        } catch (const std::exception& error) {
+            GPU_DEBUG_LOG << "Device enumeration for runtime '" << backend.name << "' failed: " << error.what()
+                          << std::endl;
+        }
+    }
+
+    const auto& default_backend = cldnn::runtime_backend_registry::default_backend();
+    const auto default_prefix = std::string(default_backend.name) + "_";
+    const auto default_device = std::find_if(m_device_map.begin(), m_device_map.end(), [&default_prefix](const auto& item) {
+        return item.first.compare(0, default_prefix.size(), default_prefix) == 0;
+    });
+    if (default_device != m_device_map.end()) {
+        m_default_device_id = default_device->first;
+    } else if (!m_device_map.empty()) {
+        m_default_device_id = m_device_map.begin()->first;
+    }
 
     // Set default configs for each device
     for (const auto& device : m_device_map) {
@@ -309,9 +354,10 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
 
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();
-    OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
+    const auto resolved_device_id = resolve_device_id(device_id);
+    OPENVINO_ASSERT(contexts.count(resolved_device_id), "[GPU] Context was not initialized for ", device_id, " device");
 
-    auto context = contexts.at(device_id);
+    auto context = contexts.at(resolved_device_id);
     if (initialize)
         context->initialize();
 
@@ -322,7 +368,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) 
     std::string device_id = m_default_device_id;
 
     if (params.find(ov::device::id.name()) != params.end())
-        device_id = params.at(ov::device::id.name()).as<std::string>();
+        device_id = resolve_device_id(params.at(ov::device::id.name()).as<std::string>());
 
     return get_default_context(device_id);
 }
@@ -339,7 +385,7 @@ void Plugin::set_property(const ov::AnyMap &config) {
     };
 
     if (config.find(ov::internal::config_device_id.name()) != config.end()) {
-        std::string device_id = config.at(ov::internal::config_device_id.name()).as<std::string>();
+        std::string device_id = resolve_device_id(config.at(ov::internal::config_device_id.name()).as<std::string>());
         auto config_for_device = config;
         config_for_device.erase(ov::internal::config_device_id.name());
         update_config(m_configs_map.at(device_id), config_for_device);
@@ -561,7 +607,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
 
     std::string device_id = m_default_device_id;
     if (options.find(ov::device::id.name()) != options.end()) {
-        device_id = options.find(ov::device::id.name())->second.as<std::string>();
+        device_id = resolve_device_id(options.find(ov::device::id.name())->second.as<std::string>());
     }
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
@@ -602,7 +648,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_metric");
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
-    auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
+    auto iter = m_device_map.find(cldnn::runtime_backend_registry::make_device_id(
+        cldnn::runtime_backend_registry::default_backend().runtime_type,
+        std::to_string(cldnn::device_query::device_id)));
     if (iter == m_device_map.end())
         iter = m_device_map.find(device_id);
     if (iter == m_device_map.end())

@@ -1,0 +1,40 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
+
+#include <gtest/gtest.h>
+
+using namespace cldnn;
+
+TEST(runtime_backend_registry, default_backend_is_compiled_and_first) {
+    const auto& backends = runtime_backend_registry::compiled_backends();
+
+    ASSERT_FALSE(backends.empty());
+    EXPECT_EQ(backends.front().runtime_type, get_default_runtime_type());
+    EXPECT_EQ(runtime_backend_registry::default_backend().runtime_type, get_default_runtime_type());
+}
+
+TEST(runtime_backend_registry, tagged_device_identity_round_trips_for_every_backend) {
+    for (const auto& backend : runtime_backend_registry::compiled_backends()) {
+        const auto tagged_id = runtime_backend_registry::make_device_id(backend.runtime_type, "0.1");
+        runtime_types parsed_runtime = get_default_runtime_type();
+        std::string backend_device_id;
+
+        ASSERT_TRUE(runtime_backend_registry::parse_device_id(tagged_id, parsed_runtime, backend_device_id));
+        EXPECT_EQ(parsed_runtime, backend.runtime_type);
+        EXPECT_EQ(backend_device_id, "0.1");
+        EXPECT_EQ(tagged_id, std::string(backend.name) + "_0.1");
+    }
+}
+
+TEST(runtime_backend_registry, rejects_legacy_or_incomplete_tagged_identity) {
+    runtime_types runtime_type = get_default_runtime_type();
+    std::string backend_device_id;
+
+    EXPECT_FALSE(runtime_backend_registry::parse_device_id("0", runtime_type, backend_device_id));
+    EXPECT_FALSE(runtime_backend_registry::parse_device_id("vulkan_", runtime_type, backend_device_id));
+    EXPECT_FALSE(runtime_backend_registry::parse_device_id("_0", runtime_type, backend_device_id));
+    EXPECT_FALSE(runtime_backend_registry::parse_device_id("unknown_0", runtime_type, backend_device_id));
+}

@@ -43,6 +43,14 @@ public:
         return _mem_caps;
     }
 
+    engine_types get_engine_type() const override {
+        return engine_types::vulkan;
+    }
+
+    runtime_types get_runtime_type() const override {
+        return runtime_types::vulkan;
+    }
+
     void initialize() override;
     bool is_initialized() const override;
     bool is_same(const device::ptr other) override;
