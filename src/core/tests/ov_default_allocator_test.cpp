@@ -71,4 +71,10 @@ TEST_F(OVDefaultAllocatorTest, compareIfImplIsNull) {
     EXPECT_FALSE(a2 == a1);
     OV_EXPECT_THROW(std::ignore = (a1 == a2), ov::Exception, _);
 }
+
+TEST_F(OVDefaultAllocatorTest, throwsOnAllocationLargerThanOneTiB) {
+    ov::Allocator allocator;
+    constexpr size_t one_tib = size_t{1} << 40;
+    OV_EXPECT_THROW(std::ignore = allocator.allocate(one_tib + 1), ov::Exception, _);
+}
 }  // namespace ov::test
