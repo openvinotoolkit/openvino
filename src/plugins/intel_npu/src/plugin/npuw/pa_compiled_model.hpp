@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -43,6 +44,11 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     ov::SoPtr<ov::ICompiledModel> m_compiled_model;
+
+    // Pre-compiled semi-static token-size variants keyed by fixed token dim
+    // (1024, 128, 1); consumed by the chunked dispatcher landing in the next
+    // change of this series.
+    std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
 
     // KV cache block size as fixed by the device at compile time; 0 if the
     // compiled cache shape is still dynamic in that dimension. Consumed by
