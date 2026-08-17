@@ -27,7 +27,8 @@
 # 
 # The script expects the archive to contain:
 #     build_manifest.json file with build information about the prebuilt compiler.
-#         If the file is present, its content will be printed in cmake output.
+#         If the file is present, its content will be printed in cmake output and the npu_compiler_version
+#         value is written to runtime/npu_compiler_version.txt of the installation package.
 #     lib folder with the following libraries that will be copied to the output directory
 #     and included in the installation package:
 #         WINDOWS: openvino_intel_npu_compiler.dll, openvino_intel_npu_compiler_loader.dll, npu_interpreter_runtime.dll
@@ -41,6 +42,24 @@ function(print_build_manifest extracted_file)
     file(READ "${extracted_file}" FILE_CONTENT)
     string(REGEX REPLACE "[{}\"']" "" FILE_CONTENT "${FILE_CONTENT}")
     message(STATUS "build_manifest.json for npu plugin compiler:\n${FILE_CONTENT}")
+endfunction()
+
+# Extracts npu_compiler_version from build_manifest.json and stores it in a standalone text file,
+# so that the compiler version can be tracked in distribution archives without an API call
+function(write_compiler_version_file manifest_file version_file)
+    file(REMOVE "${version_file}")
+    if(NOT EXISTS "${manifest_file}")
+        message(WARNING "Build manifest file '${manifest_file}' not found. Skipping '${version_file}' generation.")
+        return()
+    endif()
+    file(READ "${manifest_file}" MANIFEST_CONTENT)
+    string(JSON COMPILER_VERSION ERROR_VARIABLE JSON_ERROR GET "${MANIFEST_CONTENT}" npu_compiler_version)
+    if(JSON_ERROR)
+        message(WARNING "Failed to read 'npu_compiler_version' from '${manifest_file}': ${JSON_ERROR}. Skipping '${version_file}' generation.")
+        return()
+    endif()
+    file(WRITE "${version_file}" "${COMPILER_VERSION}\n")
+    message(STATUS "Generated NPU compiler version file ${version_file} with version ${COMPILER_VERSION}")
 endfunction()
 
 if(ENABLE_INTEL_NPU_COMPILER)
@@ -116,7 +135,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
     if(NPU_PLUGIN_COMPILER)
         message(STATUS "Using prebuilt NPU Plugin Compiler libraries from ${NPU_PLUGIN_COMPILER}")
+
+        set(NPU_COMPILER_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/npu_compiler_version.txt")
         print_build_manifest("${NPU_PLUGIN_COMPILER}/build_manifest.json")
+        write_compiler_version_file("${NPU_PLUGIN_COMPILER}/build_manifest.json" "${NPU_COMPILER_VERSION_FILE}")
 
         set(PLUGIN_COMPILER_LIB_PATH "${NPU_PLUGIN_COMPILER}/lib")
         set(PLUGIN_COMPILER_PDB_PATH "${NPU_PLUGIN_COMPILER}/pdb")
@@ -145,6 +167,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
             install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
         endif()
         install(FILES ${PLUGIN_COMPILER_VM_RT_RENAMED_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        if(EXISTS "${NPU_COMPILER_VERSION_FILE}")
+            install(FILES ${NPU_COMPILER_VERSION_FILE} DESTINATION runtime COMPONENT ${NPU_PLUGIN_COMPONENT})
+        endif()
 
         if(WIN32)
             set(PLUGIN_COMPILER_PDB "${PLUGIN_COMPILER_PDB_PATH}/${PLUGIN_COMPILER_PDB_NAME}")
