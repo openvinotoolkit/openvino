@@ -231,6 +231,10 @@ bool starts_with_past_lincache(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// Matches the key half only (key_cache.N) -- the key cache carries the block
+// geometry the device fixes at compile time.
+bool is_pa_key_cache_name(const std::string& input_name);
+
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
 // replaced by N block parameters, so both param-node fields are vectors.
