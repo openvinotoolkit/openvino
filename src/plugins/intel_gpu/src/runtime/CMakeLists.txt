@@ -119,6 +119,13 @@ endif()
 
 ov_gpu_configure_runtime_target(${TARGET_NAME})
 
+# Object-library link dependencies do not propagate when their objects are
+# collected into this static archive. Keep the backend loader after the archive
+# on final link lines so linkers using --as-needed retain the runtime dependency.
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    target_link_libraries(${TARGET_NAME} PRIVATE Vulkan::Vulkan)
+endif()
+
 if(OV_GPU_WITH_SYCL)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
