@@ -36,6 +36,7 @@ CPU:
     - TF_FE
     - ONNX_FE
     - JAX_FE
+    - GGUF_FE
     - snippets
   build:
     - AUTO
