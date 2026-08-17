@@ -33,6 +33,12 @@ inline std::pair<uint64_t, uint64_t> tensorflow_philox_skip(std::pair<uint64_t, 
     return {new_n, new_op_seed};
 }
 
+// NaN < 0 is false, so a `< 0` check would let NaN into Hörmann and hang.
+inline void validate_poisson_rate(double rate) {
+    OPENVINO_ASSERT(!std::isnan(rate), "RandomPoisson: rates cannot be NaN");
+    OPENVINO_ASSERT(rate >= 0.0, "RandomPoisson: rates cannot be negative");
+}
+
 }  // namespace
 
 // Uniform Sampler to keep track of the state of the uniform distribution
@@ -183,8 +189,7 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
             // if lambda >= 10, use transformed rejection method, (Hoermann, 1993)use hoeran's algorithm
             T cur_ele = *(input_tensor + i);
             const double rate = static_cast<double>(cur_ele);
-            // NaN < 0 is false, so a `< 0` check would let NaN into Hörmann and hang.
-            OPENVINO_ASSERT(rate >= 0.0, "RandomPoisson: rates cannot be negative");
+            validate_poisson_rate(rate);
             if (rate == 0) {
                 *(output_tensor + i) = 0;
             } else if (rate < 10) {
@@ -205,8 +210,7 @@ std::pair<uint64_t, uint64_t> random_poisson(const T* input_tensor,  // rates te
     for (size_t i = 0; i < output_element_count; i++) {
         T cur_ele = *(input_tensor + i);
         const double rate = static_cast<double>(cur_ele);
-        // NaN < 0 is false, so a `< 0` check would let NaN into Hörmann and hang.
-        OPENVINO_ASSERT(rate >= 0.0, "RandomPoisson: rates cannot be negative");
+        validate_poisson_rate(rate);
         if (rate == 0) {
             *(output_tensor + i) = 0;
             continue;
