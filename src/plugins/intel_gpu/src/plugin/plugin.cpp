@@ -765,9 +765,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
             const auto& requirements = it->second.as<std::string>();
             if (!requirements.empty()) {
                 // Same compatibility policy as the import_model() guard (single source of truth).
-                return CompiledModel::is_runtime_requirements_compatible(requirements, device_info)
-                           ? ov::CompatibilityCheck::SUPPORTED
-                           : ov::CompatibilityCheck::UNSUPPORTED;
+                return CompiledModel::is_runtime_requirements_compatible(requirements, *device) ? ov::CompatibilityCheck::SUPPORTED
+                                                                                                : ov::CompatibilityCheck::UNSUPPORTED;
             }
         }
         return ov::CompatibilityCheck::NOT_APPLICABLE;

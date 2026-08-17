@@ -43,4 +43,13 @@ TEST(gpu_backend_capabilities, keeps_legacy_backends_on_compatibility_adapter) {
 
     EXPECT_TRUE(capabilities.legacy_device_info_adapter);
     EXPECT_EQ(capabilities.execution_tier, gpu_execution_tier::legacy);
+    EXPECT_EQ(capabilities.kernel_cache.artifact, gpu_cached_kernel_artifact::native_device_binary);
+}
+
+TEST(gpu_backend_capabilities, distinguishes_portable_cached_kernel_artifacts) {
+    gpu_backend_capabilities capabilities;
+    capabilities.kernel_cache.artifact = gpu_cached_kernel_artifact::spirv;
+
+    EXPECT_EQ(capabilities.kernel_cache.artifact, gpu_cached_kernel_artifact::spirv);
+    EXPECT_NE(capabilities.kernel_cache.artifact, gpu_cached_kernel_artifact::native_device_binary);
 }

@@ -65,6 +65,18 @@ struct gpu_operation_capabilities {
     bool direct_binary_power = false;
 };
 
+enum class gpu_cached_kernel_artifact : uint8_t {
+    native_device_binary,
+    spirv,
+};
+
+struct gpu_kernel_cache_capabilities {
+    static constexpr uint32_t current_artifact_schema_version = 1;
+
+    gpu_cached_kernel_artifact artifact = gpu_cached_kernel_artifact::native_device_binary;
+    uint32_t artifact_schema_version = current_artifact_schema_version;
+};
+
 enum class gpu_execution_tier : uint8_t {
     legacy,
     portable,
@@ -85,6 +97,7 @@ struct gpu_backend_capabilities {
     gpu_synchronization_capabilities synchronization;
     gpu_external_memory_capabilities external_memory;
     gpu_operation_capabilities operations;
+    gpu_kernel_cache_capabilities kernel_cache;
     gpu_layout_capabilities layouts;
     bool persistent_pipeline_cache = false;
     gpu_execution_tier execution_tier = gpu_execution_tier::legacy;

@@ -7,7 +7,10 @@
 #include <iostream>
 #include <sstream>
 
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -20,7 +23,11 @@ public:
     std::shared_ptr<ov::Model> model;
 
     void SetUp() override {
-        model = ov::test::utils::make_conv_pool_relu();
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 1, 30});
+        auto zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
+        auto add = std::make_shared<ov::op::v1::Add>(parameter, zero);
+        auto result = std::make_shared<ov::op::v0::Result>(add);
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
     }
 };
 
@@ -37,7 +44,30 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiled_model.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
+    EXPECT_EQ(requirements.find("meta=2.0"), 0);
+    EXPECT_NE(requirements.find(";runtime="), std::string::npos);
+    EXPECT_NE(requirements.find(";kernel_artifact="), std::string::npos);
+    EXPECT_NE(requirements.find(";artifact_schema="), std::string::npos);
     std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
+}
+
+// The compatibility property continues to accept the exact legacy v1 descriptor for the
+// selected device, while newly compiled models advertise the backend-tagged v2 schema.
+TEST_F(CompatibilityStringGPU, LegacyV1RequirementsRemainCompatible) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    const auto current = compiled_model.get_property(ov::runtime_requirements);
+
+    const auto runtime_pos = current.find(";runtime=");
+    const auto desc_pos = current.find(";desc=");
+    ASSERT_NE(runtime_pos, std::string::npos);
+    ASSERT_NE(desc_pos, std::string::npos);
+    const auto legacy =
+        std::string{"meta=1.0"} + current.substr(std::string{"meta=2.0"}.size(), runtime_pos - std::string{"meta=2.0"}.size()) + current.substr(desc_pos);
+
+    EXPECT_EQ(core.get_property(ov::test::utils::DEVICE_GPU, ov::compatibility_check, {{ov::runtime_requirements.name(), legacy}}),
+              ov::CompatibilityCheck::SUPPORTED);
 }
 
 // The plugin advertises compatibility_check among its supported properties.
@@ -136,6 +166,10 @@ TEST_F(CompatibilityStringGPU, DescriptorBlockIsMagicGuardedInBlob) {
     uint64_t magic = 0;
     std::memcpy(&magic, data.data() + sizeof(ov::CacheMode), sizeof(magic));
     ASSERT_EQ(magic, expected_magic);
+    uint32_t version = 0;
+    std::memcpy(&version, data.data() + sizeof(ov::CacheMode) + sizeof(expected_magic), sizeof(version));
+    constexpr uint32_t expected_descriptor_version = 2;
+    EXPECT_EQ(version, expected_descriptor_version);
     // The guard only works if the magic can never collide with a real input count.
     ASSERT_GT(magic, static_cast<uint64_t>(1) << 32) << "magic must dwarf any realistic input count";
 }

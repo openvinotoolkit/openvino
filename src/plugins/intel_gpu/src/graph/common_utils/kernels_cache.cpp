@@ -86,10 +86,23 @@ std::string reorder_options(const std::string& org_options) {
     return options;
 }
 
+cldnn::KernelFormat to_kernel_format(cldnn::gpu_cached_kernel_artifact artifact) {
+    switch (artifact) {
+    case cldnn::gpu_cached_kernel_artifact::native_device_binary:
+        return cldnn::KernelFormat::NATIVE_BIN;
+    case cldnn::gpu_cached_kernel_artifact::spirv:
+        return cldnn::KernelFormat::SPIRV;
+    }
+    OPENVINO_THROW("[GPU] Unsupported cached kernel artifact format");
+}
+
 }  // namespace
 
 namespace cldnn {
 std::mutex kernels_cache::_mutex;
+
+static_assert(kernel_artifact_serialization_info::current_version == gpu_kernel_cache_capabilities::current_artifact_schema_version,
+              "Kernel artifact and cache capability schemas must advance together");
 
 std::string kernels_cache::get_cache_path() const {
     auto path = ov::util::path_to_string(_config.get_cache_dir());
@@ -586,6 +599,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
     std::unordered_map<uint32_t, std::vector<unsigned char>> precompiled_kernels;
+    const auto cached_kernel_format = to_kernel_format(_device->get_backend_capabilities().kernel_cache.artifact);
 
     size_t num_cached_binaries;
     ib >> num_cached_binaries;
@@ -617,8 +631,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
             kernel_artifact artifact;
             artifact.payload = precompiled_kernel.second.data();
             artifact.payload_size = precompiled_kernel.second.size();
-            artifact.format = _device->get_runtime_type() == runtime_types::vulkan ? KernelFormat::SPIRV
-                                                                                   : KernelFormat::NATIVE_BIN;
+            artifact.format = cached_kernel_format;
             artifact.entry_point = artifact.format == KernelFormat::SPIRV ? "main" : "";
             artifact.stable_id = precompiled_kernel.first;
             artifact.backend_environment = _backend_environment;
