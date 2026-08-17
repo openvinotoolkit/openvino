@@ -42,6 +42,7 @@ enum gguf_tensor_type {
     GGUF_TYPE_F64 = 28,
     GGUF_TYPE_BF16 = 30,
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
+    GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
     GGUF_TYPE_COUNT,
 };
 
@@ -110,6 +111,10 @@ void gguf_fill_asym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& 
 
 // Fill pre-allocated f4e2m1 weights and f8e8m0 scales from an MXFP4 GGUF tensor.
 void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+
+// Fill pre-allocated u2 weights, f16 scales and zero-points from a Q2_0 (ternary) tensor.
+// The zero-point is the constant 1 for every block.
+void gguf_fill_q2_0(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
 
 // Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
 // requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8

@@ -708,7 +708,8 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     stream.seekg(-std::streampos(MAGIC_BYTES.size()) - sizeof(payloadSize), std::ios::end);
     stream.read(reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize));
 
-    OPENVINO_ASSERT(streamSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    // Subtraction form avoids integer overflow when payloadSize is near UINT64_MAX.
+    OPENVINO_ASSERT(payloadSize <= streamSize - MINIMUM_BLOB_SIZE, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
     stream.seekg(-stream.tellg() + currentStreamPos + payloadSize, std::ios::cur);
 
     uint32_t metaVersion;
@@ -741,7 +742,8 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     payloadSize = *reinterpret_cast<const decltype(payloadSize)*>(tensor.data<const char>() + blobSize -
                                                                   MAGIC_BYTES.size() - sizeof(payloadSize));
 
-    OPENVINO_ASSERT(blobSize >= MINIMUM_BLOB_SIZE + payloadSize, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
+    // Subtraction form avoids integer overflow when payloadSize is near UINT64_MAX.
+    OPENVINO_ASSERT(payloadSize <= blobSize - MINIMUM_BLOB_SIZE, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 
     uint32_t metaVersion;
     metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + payloadSize);
