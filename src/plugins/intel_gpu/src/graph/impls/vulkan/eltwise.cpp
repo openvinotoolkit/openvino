@@ -102,6 +102,7 @@
 #include "eltwise_fused_dense_restrict_spirv.hpp"
 #include "eltwise_fused_dense_spirv.hpp"
 #include "eltwise_fused_post_op_spirv.hpp"
+#include "eltwise_fusion_policy.hpp"
 #include "eltwise_scalar_constant_spirv.hpp"
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
@@ -120,6 +121,10 @@ namespace vulkan {
 namespace {
 
 namespace shader_abi = eltwise_shader_abi;
+
+const eltwise_fusion_policy registered_fusion_policy;
+const backend_fusion_policy_registration fusion_policy_registration{runtime_types::vulkan,
+                                                                    registered_fusion_policy};
 
 constexpr uint32_t max_rank = 8;
 constexpr uint32_t header_words = shader_abi::index(shader_abi::metadata_field::count);

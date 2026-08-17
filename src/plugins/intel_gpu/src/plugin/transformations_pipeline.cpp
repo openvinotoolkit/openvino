@@ -774,9 +774,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-        if (m_context->get_engine().runtime_type() == cldnn::runtime_types::vulkan) {
-            // Keep Divide intact because the Vulkan Eltwise implementation executes
-            // it directly and does not require the Power-based decomposition.
+        if (m_context->get_engine().get_device()->get_backend_capabilities().operations.direct_divide) {
+            // Keep Divide intact when the selected backend executes it directly
+            // and does not require the Power-based decomposition.
             pass_config->disable<ov::pass::ConvertDivide>();
         }
         manager.register_pass<ov::pass::CommonOptimizations>();

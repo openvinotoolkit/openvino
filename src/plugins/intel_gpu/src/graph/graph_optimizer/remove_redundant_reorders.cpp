@@ -23,7 +23,7 @@
 #include "group_normalization_inst.h"
 #include "mvn_inst.h"
 #include "rms_inst.h"
-#include "impls/vulkan/eltwise_shader_abi.hpp"
+#include "backend_fusion_policy.hpp"
 
 #include <vector>
 #include <list>
@@ -54,6 +54,7 @@ remove_redundant_reorders::remove_redundant_reorders(bool enable_reorder_fusing,
 
 void remove_redundant_reorders::run(program& p) {
     auto& lo = p.get_layout_optimizer();
+    const auto& fusion_policy = get_backend_fusion_policy(p.get_engine().runtime_type());
     auto update_implementation = [&](program_node& node) {
         if (!update_implementations)
             return;
@@ -464,15 +465,10 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            if (p.get_engine().runtime_type() == runtime_types::vulkan && input.is_type<eltwise>()) {
-                const auto& info = p.get_engine().get_device_info();
-                const auto subgroup_size = info.supported_simd_sizes.empty()
-                                               ? 0
-                                               : info.supported_simd_sizes.front();
-                if (!vulkan::eltwise_shader_abi::post_op_fusion_has_enough_work(
-                        output_layout.count(), info.max_work_group_size, subgroup_size)) {
-                    continue;
-                }
+            const auto backend_decision = fusion_policy.evaluate(
+                {fusion_kind::reorder_elimination, input, node});
+            if (backend_decision == fusion_decision::reject) {
+                continue;
             }
 
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))

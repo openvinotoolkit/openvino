@@ -60,6 +60,11 @@ struct gpu_external_memory_capabilities {
     bool metal_buffer = false;
 };
 
+struct gpu_operation_capabilities {
+    bool direct_divide = false;
+    bool direct_binary_power = false;
+};
+
 enum class gpu_execution_tier : uint8_t {
     legacy,
     portable,
@@ -79,6 +84,7 @@ struct gpu_backend_capabilities {
     bool local_memory = false;
     gpu_synchronization_capabilities synchronization;
     gpu_external_memory_capabilities external_memory;
+    gpu_operation_capabilities operations;
     gpu_layout_capabilities layouts;
     bool persistent_pipeline_cache = false;
     gpu_execution_tier execution_tier = gpu_execution_tier::legacy;

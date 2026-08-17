@@ -166,7 +166,8 @@ static void CreateLogicalXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 static void CreatePowerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Power>& op) {
     validate_inputs_count(op, {2});
     auto power_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (power_node && p.get_engine().runtime_type() != cldnn::runtime_types::vulkan) {
+    const auto& operation_capabilities = p.get_engine().get_device()->get_backend_capabilities().operations;
+    if (power_node && !operation_capabilities.direct_binary_power) {
         if (ov::shape_size(power_node->get_output_shape(0)) == 1 &&
             op->get_input_partial_shape(0).same_scheme(op->get_output_partial_shape(0))) {
             float pow;

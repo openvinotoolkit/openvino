@@ -45,7 +45,7 @@
 #include "group_normalization_inst.h"
 #include "lora_inst.h"
 #include "broadcast_inst.h"
-#include "impls/vulkan/eltwise_shader_abi.hpp"
+#include "backend_fusion_policy.hpp"
 #include <vector>
 #include <map>
 #include <list>
@@ -60,9 +60,8 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    // Vulkan consumes the common fused-operation metadata for the explicitly
-    // supported Eltwise-to-Eltwise case only.
-    if (p.get_engine().runtime_type() == runtime_types::vulkan) {
+    const auto& fusion_policy = get_backend_fusion_policy(p.get_engine().runtime_type());
+    if (fusion_policy.limits_program_to_simple_fusions()) {
         fuse_simple_primitives(p);
         return;
     }
@@ -537,7 +536,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
     auto& lo = p.get_layout_optimizer();
-    const bool is_vulkan_runtime = p.get_engine().runtime_type() == runtime_types::vulkan;
+    const auto& fusion_policy = get_backend_fusion_policy(p.get_engine().runtime_type());
 
     const auto supports_immad = p.get_engine().get_device_info().supports_immad;
     auto itr = p.get_processing_order().begin();
@@ -545,67 +544,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        const bool can_fuse_vulkan_output =
-            is_vulkan_runtime && node->is_output() &&
-            (node->is_type<eltwise>() || node->is_type<activation>() ||
-             node->is_type<quantize>() || node->is_type<reorder>());
-        if ((node->is_output() && !can_fuse_vulkan_output) || node->is_constant())
+        const bool can_fuse_output = node->is_output() && fusion_policy.can_consider_output(*node);
+        if ((node->is_output() && !can_fuse_output) || node->is_constant())
             continue;
-
-        const auto has_vulkan_dense_storage = [](const layout& tensor_layout) {
-            return !tensor_layout.is_dynamic() && !static_cast<bool>(tensor_layout.data_padding) &&
-                   tensor_layout.bytes_count() ==
-                       tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
-        };
-        const auto same_vulkan_dense_geometry = [&](const layout& input_layout,
-                                                    const layout& output_layout) {
-            return has_vulkan_dense_storage(input_layout) && has_vulkan_dense_storage(output_layout) &&
-                   input_layout.get_shape() == output_layout.get_shape() &&
-                   input_layout.format == output_layout.format &&
-                   input_layout.data_padding == output_layout.data_padding;
-        };
-        const auto vulkan_post_op_fusion_has_enough_work = [&](const layout& output_layout) {
-            const auto& info = p.get_engine().get_device_info();
-            const auto subgroup_size = info.supported_simd_sizes.empty()
-                                           ? 0
-                                           : info.supported_simd_sizes.front();
-            return vulkan::eltwise_shader_abi::post_op_fusion_has_enough_work(
-                output_layout.count(), info.max_work_group_size, subgroup_size);
-        };
-        const auto vulkan_eltwise_supports_terminal_post_op = [&](const program_node& input,
-                                                                 const layout& post_output_layout) {
-            if (!input.is_type<eltwise>() || input.is_output() || input.get_users().size() != 1 ||
-                input.has_fused_primitives() || input.get_dependencies().empty() ||
-                input.get_inputs_count() != 2) {
-                return false;
-            }
-            const auto& base_output_layout = input.get_output_layout();
-            if (!one_of(base_output_layout.data_type, {data_types::f16, data_types::f32}) ||
-                !same_vulkan_dense_geometry(base_output_layout, post_output_layout) ||
-                !vulkan_post_op_fusion_has_enough_work(post_output_layout)) {
-                return false;
-            }
-            return input.get_input_layout(0).identical(base_output_layout) &&
-                   input.get_input_layout(1).identical(base_output_layout);
-        };
-        const auto vulkan_supports_activation = [](activation_func function) {
-            return one_of(function,
-                          {activation_func::none,
-                           activation_func::relu,
-                           activation_func::relu_negative_slope,
-                           activation_func::clamp,
-                           activation_func::abs,
-                           activation_func::linear,
-                           activation_func::square,
-                           activation_func::sqrt,
-                           activation_func::negative,
-                           activation_func::floor,
-                           activation_func::ceil,
-                           activation_func::reciprocal,
-                           activation_func::hard_sigmoid,
-                           activation_func::hsigmoid,
-                           activation_func::hswish});
-        };
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
             auto in_layout = node.get_input_layout(0);
@@ -851,21 +792,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
-            if (is_vulkan_runtime) {
-                auto& input = activation_node.get_dependency(0);
-                const auto desc = activation_node.get_primitive();
-                if (activation_node.get_dependencies().size() != 1 ||
-                    desc->additional_params_input.is_valid() ||
-                    !vulkan_supports_activation(desc->activation_function) ||
-                    activation_node.get_output_layout().data_type != input.get_output_layout().data_type ||
-                    !vulkan_eltwise_supports_terminal_post_op(input,
-                                                               activation_node.get_output_layout())) {
-                    return;
+            auto& input = activation_node.get_dependency(0);
+            const auto backend_decision = fusion_policy.evaluate(
+                {fusion_kind::activation, input, activation_node});
+            if (backend_decision != fusion_decision::defer_to_common) {
+                if (backend_decision == fusion_decision::accept) {
+                    p.fuse_nodes(input,
+                                 activation_node,
+                                 &fusing_history,
+                                 fusion_policy.preserves_consumer_output(activation_node));
                 }
-                p.fuse_nodes(input,
-                             activation_node,
-                             &fusing_history,
-                             activation_node.is_output());
                 return;
             }
 
@@ -886,7 +822,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
-            auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
@@ -1013,24 +948,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
-            if (is_vulkan_runtime) {
-                auto& input = quantize_node.get_dependency(0);
-                const bool uses_output_range = quantize_node.get_per_tensor_output_range() &&
-                                               quantize_node.get_output_lo_val() <
-                                                   quantize_node.get_output_hi_val();
-                if (!quantize_node.get_scale_shift_opt() ||
-                    !quantize_node.has_per_tensor_values() ||
-                    (!uses_output_range && quantize_node.get_need_clamp()) ||
-                    !one_of(quantize_node.get_output_layout().data_type,
-                            {data_types::f16, data_types::f32, data_types::i8, data_types::u8}) ||
-                    !vulkan_eltwise_supports_terminal_post_op(input,
-                                                               quantize_node.get_output_layout())) {
-                    return;
+            auto& input = quantize_node.get_dependency(0);
+            const auto backend_decision = fusion_policy.evaluate(
+                {fusion_kind::quantize, input, quantize_node});
+            if (backend_decision != fusion_decision::defer_to_common) {
+                if (backend_decision == fusion_decision::accept) {
+                    p.fuse_nodes(input,
+                                 quantize_node,
+                                 &fusing_history,
+                                 fusion_policy.preserves_consumer_output(quantize_node));
                 }
-                p.fuse_nodes(input,
-                             quantize_node,
-                             &fusing_history,
-                             quantize_node.is_output());
                 return;
             }
 
@@ -1152,7 +1079,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 eltwise_mode::div
             };
 
-            if ((!is_vulkan_runtime && node.is_output()) || node.get_inputs_count() != 2 ||
+            if ((node.is_output() && !fusion_policy.can_consider_output(node)) || node.get_inputs_count() != 2 ||
                 std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
                 !prim->stride.empty())
                 return;
@@ -1162,61 +1089,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             std::vector<bool> can_fuse_parents = { false, false };
 
             for (size_t i = 0; i < parents.size(); i++) {
-                if (is_vulkan_runtime) {
-                    namespace vulkan_eltwise_abi = cldnn::vulkan::eltwise_shader_abi;
-                    const auto& fused_layout = parents[i].first->get_output_layout();
-                    const auto& peer_layout = parents[parents.size() - 1 - i].first->get_output_layout();
-                    const auto& output_layout = node.get_output_layout();
-                    const auto has_dense_storage = [](const layout& tensor_layout) {
-                        return !static_cast<bool>(tensor_layout.data_padding) &&
-                               tensor_layout.bytes_count() ==
-                                   tensor_layout.count() * data_type_traits::size_of(tensor_layout.data_type);
-                    };
-                    const auto is_numpy_broadcast_compatible = [](const layout& input_layout,
-                                                                  const layout& target_layout) {
-                        const auto input_shape = input_layout.get_shape();
-                        const auto target_shape = target_layout.get_shape();
-                        if (input_shape.size() > target_shape.size()) {
-                            return false;
-                        }
-                        const auto leading_dimensions = target_shape.size() - input_shape.size();
-                        for (size_t input_axis = 0; input_axis < input_shape.size(); ++input_axis) {
-                            const auto input_dimension = input_shape[input_axis];
-                            const auto target_dimension = target_shape[leading_dimensions + input_axis];
-                            if (input_dimension != 1 && input_dimension != target_dimension) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    };
-                    const bool layouts_are_static = !fused_layout.is_dynamic() &&
-                                                    !peer_layout.is_dynamic() &&
-                                                    !output_layout.is_dynamic();
-                    const bool peer_is_broadcast = layouts_are_static && !peer_layout.identical(output_layout);
-                    const bool peer_layout_supported =
-                        layouts_are_static &&
-                        (!peer_is_broadcast || (prim->broadcast_spec.m_type == ov::op::AutoBroadcastType::NUMPY &&
-                                                data_type_traits::size_of(output_layout.data_type) >=
-                                                    sizeof(uint32_t) &&
-                                                parents[i].first->get_fused_primitives().empty() &&
-                                                is_numpy_broadcast_compatible(peer_layout, output_layout)));
-                    bool packed_output_supported = false;
-                    if (!output_layout.is_dynamic()) {
-                        const auto scalar_size = data_type_traits::size_of(output_layout.data_type);
-                        const auto packed_width = scalar_size < sizeof(uint32_t) ? sizeof(uint32_t) / scalar_size : 1;
-                        packed_output_supported = scalar_size >= sizeof(uint32_t) ||
-                                                  (output_layout.count() % packed_width == 0 && output_layout.get_linear_offset() % packed_width == 0);
-                    }
-                    can_fuse_parents[i] =
-                        !parents[i].first->is_output() &&
-                        parents[i].first->is_type<eltwise>() &&
-                        parents[i].first->get_fused_primitives().size() <
-                            vulkan_eltwise_abi::value(vulkan_eltwise_abi::limit::max_fused_chain_length) &&
-                        parents[i].first->get_inputs_count() == 2 &&
-                        layouts_are_static && has_dense_storage(fused_layout) && has_dense_storage(peer_layout) &&
-                        has_dense_storage(output_layout) && packed_output_supported && peer_layout_supported &&
-                        parents[i].first->get_input_layout(0).identical(output_layout) && parents[i].first->get_input_layout(1).identical(output_layout) &&
-                        fused_layout.identical(output_layout);
+                const auto backend_decision = fusion_policy.evaluate(
+                    {fusion_kind::eltwise,
+                     *parents[i].first,
+                     node,
+                     parents[parents.size() - 1 - i].first});
+                if (backend_decision != fusion_decision::defer_to_common) {
+                    can_fuse_parents[i] = backend_decision == fusion_decision::accept;
                     continue;
                 }
 
@@ -1266,7 +1145,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto parent1 = parents[0];
             auto parent2 = parents[1];
 
-            if (!is_vulkan_runtime &&
+            if (!fusion_policy.controls(fusion_kind::eltwise) &&
                 parent1.first->get_output_layout().is_static() &&
                 parent2.first->get_output_layout().is_static()) {
                 auto p1_raw_size = parent1.first->get_output_layout().get_tensor().sizes();
@@ -1282,7 +1161,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                         can_fuse_parents[1] = false;
                     }
                 }
-            } else if (!is_vulkan_runtime) {
+            } else if (!fusion_policy.controls(fusion_kind::eltwise)) {
                 // In case of dynamic shapes we check that parent & peer shapes are compatible to allow merge
                 // This is required to avoid an issue when shape is partially defined and incorrectly propagated to further nodes
                 // which may ruin shape inference
@@ -1514,23 +1393,26 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 recalc_processing_order = true;
             }
 
-            p.fuse_nodes(*fused_node, node, &fusing_history, is_vulkan_runtime && node.is_output());
+            p.fuse_nodes(*fused_node,
+                         node,
+                         &fusing_history,
+                         fusion_policy.preserves_consumer_output(node));
         };
 
         auto fuse_reorder_f = [&](reorder_node& reorder_node) {
-            if (!is_vulkan_runtime || reorder_node.get_dependencies().size() != 1 ||
-                !reorder_node.is_type_conversion_only()) {
+            if (reorder_node.get_dependencies().size() != 1) {
                 return;
             }
             auto& input = reorder_node.get_dependency(0);
-            const auto& input_layout = input.get_output_layout();
-            const auto& output_layout = reorder_node.get_output_layout();
-            if (!one_of(input_layout.data_type, {data_types::f16, data_types::f32}) ||
-                !one_of(output_layout.data_type, {data_types::f16, data_types::f32}) ||
-                !vulkan_eltwise_supports_terminal_post_op(input, output_layout)) {
+            const auto backend_decision = fusion_policy.evaluate(
+                {fusion_kind::terminal_reorder, input, reorder_node});
+            if (backend_decision != fusion_decision::accept) {
                 return;
             }
-            p.fuse_nodes(input, reorder_node, &fusing_history, reorder_node.is_output());
+            p.fuse_nodes(input,
+                         reorder_node,
+                         &fusing_history,
+                         fusion_policy.preserves_consumer_output(reorder_node));
         };
 
         // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
