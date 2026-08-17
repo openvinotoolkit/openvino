@@ -77,7 +77,12 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
             return false;
         if (lhs_constant->get_shape() != rhs_constant->get_shape())
             return false;
-        if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
+        const auto byte_size = lhs_constant->get_byte_size();
+        if (byte_size != rhs_constant->get_byte_size())
+            return false;
+        const auto lhs_data = lhs_constant->get_data_ptr();
+        const auto rhs_data = rhs_constant->get_data_ptr();
+        if (byte_size > 0 && (!lhs_data || !rhs_data || memcmp(lhs_data, rhs_data, byte_size) != 0))
             return false;
     }
     return true;
