@@ -23,7 +23,7 @@ std::string reverse_inst::to_string(reverse_node const& node) {
     json_composite info;
     info.add("input id", node.input(0).id());
     info.add("axes id", node.input(1).id());
-    const auto mode = prim->mode == reverse_mode::index ? "index" : "mask";
+    const auto* const mode = prim->mode == reverse_mode::index ? "index" : "mask";
     info.add("mode", mode);
 
     auto node_info = node.desc_to_json();

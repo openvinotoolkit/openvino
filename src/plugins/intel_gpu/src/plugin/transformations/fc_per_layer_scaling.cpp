@@ -65,7 +65,7 @@ FullyConnectedPerLayerScaling::FullyConnectedPerLayerScaling(float scale_factor)
         auto scale_up = std::make_shared<ov::op::v1::Multiply>(fc, scale_up_const);
         scale_up->set_friendly_name(fc->get_friendly_name() + "_scale_up");
         ov::copy_runtime_info(fc, scale_up);
-        for (auto& in : target_inputs) {
+        for (const auto& in : target_inputs) {
             in.replace_source_output(scale_up);
         }
 
