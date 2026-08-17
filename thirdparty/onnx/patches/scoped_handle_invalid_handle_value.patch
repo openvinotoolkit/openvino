@@ -1,0 +1,34 @@
+diff --git a/onnx/common/scoped_resource.h b/onnx/common/scoped_resource.h
+index 525e4d6d8..a39f67265 100644
+--- a/onnx/common/scoped_resource.h
++++ b/onnx/common/scoped_resource.h
+@@ -56,7 +56,28 @@ class ScopedResource {
+ inline void close_handle(HANDLE h) {
+   CloseHandle(h);
+ }
+-using ScopedHandle = ScopedResource<INVALID_HANDLE_VALUE, close_handle>;
++
++class ScopedHandle {
++  HANDLE val_{INVALID_HANDLE_VALUE};
++
++ public:
++  explicit ScopedHandle(HANDLE h) : val_(h) {}
++  ~ScopedHandle() {
++    if (val_ != INVALID_HANDLE_VALUE) {
++      close_handle(val_);
++    }
++  }
++  HANDLE get() const {
++    return val_;
++  }
++  HANDLE release() {
++    HANDLE tmp = val_;
++    val_ = INVALID_HANDLE_VALUE;
++    return tmp;
++  }
++  ScopedHandle(const ScopedHandle&) = delete;
++  ScopedHandle& operator=(const ScopedHandle&) = delete;
++};
+ #endif
+
+ inline void close_fd(int fd) {
