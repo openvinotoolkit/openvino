@@ -9,6 +9,7 @@
 
 #include "npuw_transformations/decompose_gqa.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
@@ -25,6 +26,7 @@
 namespace {
 
 using ov::op::internal::GroupQueryAttention;
+using ov::op::internal::GroupQueryAttentionQuantType;
 using SDPA = ov::op::v13::ScaledDotProductAttention;
 
 constexpr int64_t NUM_HEADS = 4;
@@ -32,28 +34,11 @@ constexpr int64_t KV_NUM_HEADS = 2;
 constexpr int64_t HEAD_SIZE = 16;
 constexpr int64_t CAPACITY = 8;
 
-// Stand-in for an absent optional input: the ONNX frontend forwards trailing optional inputs verbatim and the
-// decomposition detects a missing one by node description ("NullNode"). Declared without OPENVINO_OP so no
-// RTTI/visibility attributes are applied (rejected under -Werror on some toolchains).
-class NullNode : public ov::op::Op {
-public:
-    static const ov::DiscreteTypeInfo& get_type_info_static() {
-        static const ov::DiscreteTypeInfo info{"NullNode", "test"};
-        return info;
-    }
-    const ov::DiscreteTypeInfo& get_type_info() const override {
-        return get_type_info_static();
-    }
-    std::string description() const override {
-        return "NullNode";
-    }
-    NullNode() {
-        set_output_size(1);
-    }
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override {
-        return std::make_shared<NullNode>();
-    }
-};
+// Absent optional input: per #36842 the ONNX frontend now inserts an empty Constant (shape {0}) in place of
+// a missing optional input; the decomposition detects it via ov::util::is_empty_constant_tensor.
+auto make_absent_input(ov::element::Type t = ov::element::f32) {
+    return ov::op::v0::Constant::create(t, ov::Shape{0}, {});
+}
 
 template <typename T>
 size_t count_of(const std::shared_ptr<ov::Model>& model) {
@@ -93,12 +78,12 @@ std::shared_ptr<ov::Model> make_gqa_model(int64_t seq_len,
     ov::ParameterVector params{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
     ov::OutputVector args{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
     // cos_cache (7) / sin_cache (8): absent (do_rotary = false).
-    args.push_back(std::make_shared<NullNode>());
-    args.push_back(std::make_shared<NullNode>());
+    args.push_back(make_absent_input());
+    args.push_back(make_absent_input());
     if (head_sink) {
         // position_ids (9) / attention_bias (10): absent; head_sink is input 11.
-        args.push_back(std::make_shared<NullNode>());
-        args.push_back(std::make_shared<NullNode>());
+        args.push_back(make_absent_input());
+        args.push_back(make_absent_input());
         auto sink = std::make_shared<ov::op::v0::Parameter>(f32, ov::Shape{size_t(NUM_HEADS)});
         params.push_back(sink);
         args.push_back(sink);
@@ -111,8 +96,8 @@ std::shared_ptr<ov::Model> make_gqa_model(int64_t seq_len,
                                                      /*do_rotary*/ false,
                                                      /*rotary_interleaved*/ false,
                                                      /*kv_cache_bit_width*/ 0,
-                                                     /*k_quant_type*/ "NONE",
-                                                     /*v_quant_type*/ "NONE",
+                                                     /*k_quant_type*/ GroupQueryAttentionQuantType::NONE,
+                                                     /*v_quant_type*/ GroupQueryAttentionQuantType::NONE,
                                                      local_window_size,
                                                      /*sliding_window_cache*/ false,
                                                      smooth_softmax);

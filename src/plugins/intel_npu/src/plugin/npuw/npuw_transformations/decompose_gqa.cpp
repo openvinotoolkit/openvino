@@ -241,12 +241,12 @@ public:
         // this with its sink input: a [1, num_heads, 1, 1] tensor included in the softmax then sliced out.
         // head_sink provides a per-head value; plain smooth_softmax uses 0.
         ov::Output<ov::Node> sink;
-        const bool has_head_sink = node->get_input_size() > 11 && !is_null(node->input_value(11));
+        const bool has_head_sink = has_input(ov::op::internal::GroupQueryAttentionInputs::HEAD_SINK);
         if (has_head_sink || smooth_softmax) {
             const auto sink_shape =
                 register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
             if (has_head_sink) {
-                auto head_sink = node->input_value(11);
+                auto head_sink = get_input(ov::op::internal::GroupQueryAttentionInputs::HEAD_SINK);
                 if (head_sink.get_element_type() != T) {
                     head_sink = register_new_node<v0::Convert>(head_sink, T);
                 }
