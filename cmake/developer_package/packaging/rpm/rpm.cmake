@@ -230,27 +230,25 @@ function(ov_rpm_add_rpmlint_suppression comp)
         message(FATAL_ERROR "RPM: Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
-    if(NOT DEFINED CPACK_RPM_PACKAGE_RELEASE)
-        message(FATAL_ERROR "CPACK_RPM_PACKAGE_RELEASE is not defined")
-    endif()
-    set(package_release "${CPACK_RPM_PACKAGE_RELEASE}")
-
-    # append rpm's native distribution release tag (e.g. .el8, .el9), so the computed
+    # resolve rpm's native distribution release tag (e.g. .el8, .el9) once, so the computed
     # rpmlint override file name matches the actual RPM file name produced by CPack
-    if(CPACK_RPM_PACKAGE_RELEASE_DIST)
-        if(NOT DEFINED OV_RPM_DIST_TAG)
-            find_program(rpm_PROGRAM NAMES rpm)
-            if(rpm_PROGRAM)
-                execute_process(COMMAND "${rpm_PROGRAM}" --eval "%{?dist}"
-                                 OUTPUT_VARIABLE rpm_dist_tag
-                                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-            else()
-                set(rpm_dist_tag "")
-            endif()
-            set(OV_RPM_DIST_TAG "${rpm_dist_tag}" CACHE INTERNAL "RPM distribution release tag (%{?dist})")
+    if(NOT DEFINED OV_RPM_DIST_TAG)
+        find_program(rpm_PROGRAM NAMES rpm)
+        if(rpm_PROGRAM)
+            execute_process(COMMAND "${rpm_PROGRAM}" --eval "%{?dist}"
+                             OUTPUT_VARIABLE rpm_dist_tag
+                             OUTPUT_STRIP_TRAILING_WHITESPACE)
+        else()
+            set(rpm_dist_tag "")
         endif()
-        set(package_release "${package_release}${OV_RPM_DIST_TAG}")
+        set(OV_RPM_DIST_TAG "${rpm_dist_tag}" CACHE INTERNAL "RPM distribution release tag (%{?dist})")
     endif()
+    set(package_release "${CPACK_RPM_PACKAGE_RELEASE}${OV_RPM_DIST_TAG}")
+
+    # some package names (e.g. python bindings) embed cpack_full_ver, which itself
+    # contains a literal '%{?dist}' macro to keep RPM dependencies consistent with the
+    # real package EVR; replace it here with the already resolved dist tag as well
+    string(REPLACE "%{?dist}" "${OV_RPM_DIST_TAG}" package_name "${package_name}")
 
     set(package_file_name "${package_name}-${CPACK_PACKAGE_VERSION}-${package_release}.${arch}.rpm")
     set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
