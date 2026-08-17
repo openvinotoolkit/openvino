@@ -479,10 +479,10 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
         auto scale1 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1024, 32});
         auto scale2 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{512, 32});
         auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
-        auto fc1 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight1, bias1, scale1, false);
+        auto fc1 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight1, bias1, scale1, ov::element::dynamic, false);
         fc1->set_friendly_name("fc1");
-        auto fc2 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight2, bias2, scale2, false);
-        auto fc3 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight3, bias3, scale3, false);
+        auto fc2 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight2, bias2, scale2, ov::element::dynamic, false);
+        auto fc3 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight3, bias3, scale3, ov::element::dynamic, false);
         auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
         auto reshape1 = std::make_shared<ov::op::v1::Reshape>(fc1, reshape_pattern, true);
         auto reshape2 = std::make_shared<ov::op::v1::Reshape>(fc2, reshape_pattern, true);
@@ -511,7 +511,7 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
         auto scale3 = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{128, 32});
         auto scales = ov::OutputVector{scale1, scale2, scale3};
         auto scale_fused = std::make_shared<ov::op::v0::Concat>(scales, 0);
-        auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias1, scale_fused, false);
+        auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weight_fused, bias1, scale_fused, ov::element::dynamic, false);
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {fc_fused->get_output_partial_shape(0).size() - 1});
         std::vector<int64_t> orig_n_sizes = {1024, 512, 128};
         auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
