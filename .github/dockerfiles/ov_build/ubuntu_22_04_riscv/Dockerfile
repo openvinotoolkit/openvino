@@ -53,6 +53,7 @@ RUN apt-get update && \
     ca-certificates \
     gpg-agent \
     tzdata \
+    procps \
     # parallel gzip
     pigz \
     # Python \
