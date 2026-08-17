@@ -70,7 +70,15 @@ if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime OpenCL::NewHeaders PRIVATE openvino::runtime::dev)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::runtime::dev)
+
+# oneDNN GPU kernel-selector adapters include the oneDNN OpenCL engine API.
+# Keep those headers private and conditional instead of exposing them through
+# backend-neutral kernel metadata or Vulkan-only builds.
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::NewHeaders)
+endif()
+
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)

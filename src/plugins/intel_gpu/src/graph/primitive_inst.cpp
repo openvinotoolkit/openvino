@@ -50,7 +50,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/multi_tensor_variable_state.hpp"
-#include "intel_gpu/plugin/sync_infer_request.hpp"
+#include "intel_gpu/plugin/output_memory_block.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"

@@ -42,8 +42,14 @@ set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor
                           openvino::itt
                           openvino::runtime::dev
                           openvino::runtime
-                          OpenCL::NewHeaders
 )
+
+# oneDNN GPU microkernel adapters expose the oneDNN OpenCL engine API from
+# kernel-selector headers. Restrict this include dependency to oneDNN builds;
+# backend-neutral graph metadata and Vulkan-only builds do not require it.
+if(ENABLE_ONEDNN_FOR_GPU)
+    list(APPEND COMMON_LINK_LIBRARIES OpenCL::NewHeaders)
+endif()
 
 if(OV_GPU_RUNTIME_ZE_ENABLED)
     # Onednn needs ZE headers
