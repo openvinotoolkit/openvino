@@ -436,6 +436,9 @@ void RemoteTensorImpl::allocate() {
         m_memory_object.reset();
     }
 
+    // Keep the physical allocation non-empty, but expose the tensor's original logical shape.
+    m_layout.set_partial_shape(m_shape);
+
     update_properties();
     update_strides();
 
