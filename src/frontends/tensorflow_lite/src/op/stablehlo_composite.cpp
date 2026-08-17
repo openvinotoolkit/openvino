@@ -6,6 +6,7 @@
 #include <string>
 
 #include "op_translation_utils.hpp"
+#include "utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
@@ -30,6 +31,8 @@ OutputVector translate_odml_rms_norm(const ov::frontend::tensorflow_lite::NodeCo
     FRONT_END_GENERAL_CHECK(inputs.size() == 2,
                             "STABLEHLO_COMPOSITE odml.rms_norm expects 2 inputs (data, gamma), got ",
                             inputs.size());
+
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
 
     const auto& data = inputs[0];
     const auto& gamma = inputs[1];
