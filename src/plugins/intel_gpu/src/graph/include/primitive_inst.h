@@ -25,6 +25,7 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "common_utils/kernels_cache.hpp"
+#include "internal_buffer_desc.hpp"
 
 // TODO: add generic interface for weights_reorder_params and get rid of this dependency
 #include "common_utils/kernel_selector_helper.h"
@@ -45,18 +46,6 @@ class typed_primitive_inst;
 
 class PrimitiveInstTestHelper;
 struct ImplementationManager;
-
-struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false, bool shareable = true)
-        : m_lockable(lockable), m_shareable(shareable), m_layout(l) {}
-    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false, bool shareable = true)
-        : BufferDescriptor(layout(shape, type, format::bfyx), lockable, shareable) {}
-    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false, bool shareable = true)
-        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable, shareable) {}
-    bool m_lockable = false;
-    bool m_shareable = true;  // Whether this buffer can be shared via memory pool across primitives
-    layout m_layout;
-};
 
 /*
     Base class for all implementations.
