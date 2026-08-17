@@ -6,6 +6,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/async_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_option_support_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/executor.hpp
@@ -18,6 +19,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_option_support_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
