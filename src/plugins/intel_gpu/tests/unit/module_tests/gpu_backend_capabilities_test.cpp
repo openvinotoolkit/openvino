@@ -33,9 +33,21 @@ TEST(gpu_backend_capabilities, exposes_backend_neutral_layout_classes) {
 
     EXPECT_TRUE(layouts.supports(gpu_layout_kind::dense_buffer));
     EXPECT_TRUE(layouts.supports(gpu_layout_kind::strided_buffer));
+    EXPECT_FALSE(layouts.supports(gpu_layout_kind::blocked_buffer));
     EXPECT_FALSE(layouts.supports(gpu_layout_kind::image));
     EXPECT_FALSE(layouts.supports(gpu_layout_kind::planar_image));
     EXPECT_EQ(layouts.max_tensor_rank, tested_tensor_rank_limit);
+}
+
+TEST(gpu_backend_capabilities, prevents_portable_backends_from_inheriting_blocked_layout_policy) {
+    gpu_backend_capabilities capabilities;
+    capabilities.legacy_device_info_adapter = false;
+    capabilities.layouts.dense_buffers = true;
+    capabilities.layouts.strided_buffers = true;
+
+    EXPECT_TRUE(capabilities.layouts.supports(gpu_layout_kind::dense_buffer));
+    EXPECT_TRUE(capabilities.layouts.supports(gpu_layout_kind::strided_buffer));
+    EXPECT_FALSE(capabilities.layouts.supports(gpu_layout_kind::blocked_buffer));
 }
 
 TEST(gpu_backend_capabilities, keeps_legacy_backends_on_compatibility_adapter) {

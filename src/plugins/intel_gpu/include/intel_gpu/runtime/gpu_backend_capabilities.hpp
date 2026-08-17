@@ -22,6 +22,7 @@ struct gpu_numeric_capability {
 enum class gpu_layout_kind : uint8_t {
     dense_buffer,
     strided_buffer,
+    blocked_buffer,
     image,
     planar_image,
 };
@@ -29,6 +30,7 @@ enum class gpu_layout_kind : uint8_t {
 struct gpu_layout_capabilities {
     bool dense_buffers = false;
     bool strided_buffers = false;
+    bool blocked_buffers = false;
     bool images = false;
     bool planar_images = false;
     uint32_t max_tensor_rank = 0;
@@ -39,6 +41,8 @@ struct gpu_layout_capabilities {
             return dense_buffers;
         case gpu_layout_kind::strided_buffer:
             return strided_buffers;
+        case gpu_layout_kind::blocked_buffer:
+            return blocked_buffers;
         case gpu_layout_kind::image:
             return images;
         case gpu_layout_kind::planar_image:

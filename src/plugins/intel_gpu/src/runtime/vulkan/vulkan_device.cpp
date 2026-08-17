@@ -160,7 +160,7 @@ void vulkan_device::initialize_info() {
     _backend_capabilities.local_memory = properties.limits.maxComputeSharedMemorySize > 0;
     _backend_capabilities.operations = {true, true};
     _backend_capabilities.kernel_cache.artifact = gpu_cached_kernel_artifact::spirv;
-    _backend_capabilities.layouts = {true, true, false, false, vulkan_tensor_rank_limit};
+    _backend_capabilities.layouts = {true, true, false, false, false, vulkan_tensor_rank_limit};
     _backend_capabilities.persistent_pipeline_cache = true;
 
     if (_info.supports_khr_subgroups) {
