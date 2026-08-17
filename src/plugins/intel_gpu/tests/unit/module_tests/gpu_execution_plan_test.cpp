@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -85,6 +86,11 @@ public:
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr>&) const override {
         return nullptr;
     }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::stream& get_onednn_stream() override {
+        throw std::runtime_error("oneDNN stream is not used by gpu_execution_plan tests");
+    }
+#endif
 
     std::vector<std::string> kernel_ids;
     std::vector<size_t> dependency_counts;
