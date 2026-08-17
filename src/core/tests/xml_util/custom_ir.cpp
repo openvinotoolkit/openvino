@@ -452,6 +452,52 @@ TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
     EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
 }
 
+/**
+ * @brief A Const layer's <data> node missing the mandatory "shape"/"element_type"
+ * attribute must be rejected, not silently leave the Constant's data buffer unset.
+ */
+TEST_F(CustomIRTest, missing_shape_attribute_throws) {
+    {
+        auto c = std::make_shared<Constant>(element::f32, Shape{5}, std::vector<float>(5, 1.0f));
+        auto input = std::make_shared<Parameter>(element::f32, Shape{5});
+        ov::serialize(std::make_shared<Model>(OutputVector{std::make_shared<Add>(input, c)}, ParameterVector{input}),
+                      m_out_xml_path,
+                      m_out_bin_path);
+    }
+
+    pugi::xml_document doc;
+    ASSERT_EQ(doc.load_file(m_out_xml_path.string().c_str()).status, pugi::status_ok);
+    for (auto& layer : doc.child("net").child("layers").children("layer")) {
+        if (std::string(layer.attribute("type").value()) == "Const") {
+            layer.child("data").remove_attribute("shape");
+        }
+    }
+    doc.save_file(m_out_xml_path.string().c_str());
+
+    EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
+}
+
+TEST_F(CustomIRTest, missing_element_type_attribute_throws) {
+    {
+        auto c = std::make_shared<Constant>(element::f32, Shape{5}, std::vector<float>(5, 1.0f));
+        auto input = std::make_shared<Parameter>(element::f32, Shape{5});
+        ov::serialize(std::make_shared<Model>(OutputVector{std::make_shared<Add>(input, c)}, ParameterVector{input}),
+                      m_out_xml_path,
+                      m_out_bin_path);
+    }
+
+    pugi::xml_document doc;
+    ASSERT_EQ(doc.load_file(m_out_xml_path.string().c_str()).status, pugi::status_ok);
+    for (auto& layer : doc.child("net").child("layers").children("layer")) {
+        if (std::string(layer.attribute("type").value()) == "Const") {
+            layer.child("data").remove_attribute("element_type");
+        }
+    }
+    doc.save_file(m_out_xml_path.string().c_str());
+
+    EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
+}
+
 TEST(StrToContainer, FloatVectorWithInfAndNan) {
     {
         std::vector<float> result;

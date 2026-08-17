@@ -2793,6 +2793,13 @@ TEST(constant, create_with_incorrect_buffer_size_or_shape_and_precision) {
     EXPECT_THROW(std::ignore = ov::op::v0::Constant(element::u8, Shape{10}, buffer), ov::Exception);
 }
 
+TEST(constant, default_constructed_get_byte_size) {
+    ov::op::v0::Constant c;
+    // A default-constructed Constant has no data buffer allocated yet (m_data == nullptr),
+    // get_byte_size() must not dereference it.
+    EXPECT_EQ(c.get_byte_size(), 0u);
+}
+
 TEST(constant, create_with_zero_dim_shape) {
     auto c = ov::op::v0::Constant(element::u8, Shape{10, 0});
 

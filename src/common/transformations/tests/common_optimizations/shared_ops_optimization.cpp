@@ -62,6 +62,12 @@ public:
     static Output<Node> make_reshape(const Output<Node>& out, const std::vector<int64_t>& order) {
         return std::make_shared<v1::Reshape>(out, v0::Constant::create(element::i64, Shape{order.size()}, order), true);
     }
+
+    static std::shared_ptr<v0::Constant> make_uninitialized_constant() {
+        auto c = std::make_shared<v0::Constant>();
+        c->validate_and_infer_types();
+        return c;
+    }
 };
 
 TEST_F(SharedTransformationTestsF, SharedSlice) {
@@ -649,6 +655,27 @@ TEST_F(SharedTransformationTestsF, SharedMultiply) {
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_0}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data_0, data_1});
+    }
+}
+
+TEST_F(SharedTransformationTestsF, SharedMultiplyWithDefaultConstructedConstants) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 3});
+
+        auto op_0 = std::make_shared<v1::Multiply>(data, make_uninitialized_constant());
+        auto op_1 = std::make_shared<v1::Multiply>(data, make_uninitialized_constant());
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_1}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
+    }
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, Shape{2, 3});
+
+        auto op_0 = std::make_shared<v1::Multiply>(data, make_uninitialized_constant());
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_0}, 0);
+        model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
     }
 }
 
