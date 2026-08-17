@@ -689,6 +689,8 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    // CustomNet_DynBatch is used to verify aggregation of N=1 tensors into one N=2 VM execution.
     if (selectedModelName != "CustomNet_DynBatch") {
         GTEST_SKIP() << "Only applies to the dynamic-batch model";
     }
