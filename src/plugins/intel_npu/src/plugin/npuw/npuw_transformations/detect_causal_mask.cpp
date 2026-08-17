@@ -169,6 +169,66 @@ void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
     }
 }
 
+// True when `node` is (or, through single-input passthrough ops like Unsqueeze/
+// Reshape/Convert/Broadcast, transitively wraps) a Gemma-4-12B-style decomposed
+// sliding-window bound check: GreaterEqual(Subtract(...), window_const). Plays
+// the same role as contains_window_check() above, but for the Select-based
+// mask family matched by TriuCausalMatcher/TriuSlidingMatcher below (Gemma-4-12B's
+// traced torch.triu()/masked_fill() decomposition uses GreaterEqual + Select
+// instead of LessEqual/Greater + BitwiseAnd).
+bool contains_triu_window_check(const std::shared_ptr<ov::Node>& node) {
+    if (auto ge = ov::as_type_ptr<ov::op::v1::GreaterEqual>(node)) {
+        return ov::is_type<ov::op::v1::Subtract>(ge->get_input_node_shared_ptr(0)) ||
+               ov::is_type<ov::op::v1::Subtract>(ge->get_input_node_shared_ptr(1));
+    }
+    if (ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
+        ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v3::Broadcast>(node)) {
+        return contains_triu_window_check(node->get_input_node_shared_ptr(0));
+    }
+    return false;
+}
+
+// Forward-propagates a Causal annotation from a matched Gemma-4-12B-style triu
+// causal Select's output (see TriuCausalMatcher below), the same way
+// annotate_causal_mask() does for the BitwiseAnd family above, except the
+// "combine op" here is a Select: real exports build the final per-layer mask by
+// repeatedly Select()-ing the plain causal mask against further conditions (a
+// sliding-window bound check, a user-supplied padding mask, ...). Traversal is
+// only skipped through a Select when our matched mask feeds one of its *data*
+// operands (then/else, not the condition) AND that Select's condition is a
+// genuine sliding-window bound check -- meaning TriuSlidingMatcher already owns
+// that branch. Any other Select consumer (e.g. combining with padding) is still
+// just a plain causal mask, and traversal continues through it.
+void annotate_triu_causal_mask(const ov::Output<ov::Node>& mask_output) {
+    std::unordered_set<ov::Node*> visited;
+    std::queue<ov::Output<ov::Node>> to_visit;
+    to_visit.push(mask_output);
+
+    while (!to_visit.empty()) {
+        auto output = to_visit.front();
+        to_visit.pop();
+        for (const auto& input : output.get_target_inputs()) {
+            auto consumer = input.get_node()->shared_from_this();
+            if (!visited.insert(consumer.get()).second)
+                continue;
+            if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(consumer)) {
+                assign_mask_rt_info(sdpa, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
+                continue;  // don't cross into the SDPA's own outputs
+            }
+            if (auto select = ov::as_type_ptr<ov::op::v1::Select>(consumer)) {
+                const bool feeds_data_operand =
+                    select->input_value(1) == output || select->input_value(2) == output;
+                if (feeds_data_operand &&
+                    contains_triu_window_check(select->input_value(0).get_node_shared_ptr())) {
+                    continue;  // this branch belongs to TriuSlidingMatcher, don't propagate into it
+                }
+            }
+            for (const auto& out : consumer->outputs())
+                to_visit.push(out);
+        }
+    }
+}
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wattributes"
@@ -356,6 +416,76 @@ public:
     }
 };
 
+// ============================================================================
+// Matches Gemma-4-12B's decomposed torch.triu(...)-style causal mask:
+//
+//   Select(GreaterEqual(row, col), any_input, any_input)
+//
+// Unlike every other causal matcher above (LessEqual/Less feeding a boolean
+// combine op), Gemma-4-12B's trace decomposes torch.triu()/masked_fill() into a
+// GreaterEqual boolean feeding a Select that directly picks between the
+// unmasked (0) and masked (-inf) float fill values -- there is no
+// BitwiseAnd/BitwiseOr/LogicalAnd anywhere in this family. Row/col operands are
+// left as any_input() rather than make_range_chain(), since this export's
+// Range/Unsqueeze/Add ordering doesn't match that chain's grammar.
+//
+// Uses annotate_triu_causal_mask() rather than a blanket skip when the matched
+// Select feeds another Select down the line: only branches whose condition is a
+// genuine sliding-window bound check (see contains_triu_window_check above) are
+// left for TriuSlidingMatcher below to own; other Select consumers (e.g.
+// combining with a user-supplied padding mask, as seen on Gemma-4-12B's global-
+// attention layers) still get annotated Causal.
+// ============================================================================
+class TriuCausalMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::TriuCausalMatcher");
+    TriuCausalMatcher() {
+        auto ge = opp::wrap_type<ov::op::v1::GreaterEqual>({opp::any_input(), opp::any_input()});
+        auto sel = opp::wrap_type<ov::op::v1::Select>({ge, opp::any_input(), opp::any_input()});
+        auto callback = [](opp::Matcher& m) {
+            annotate_triu_causal_mask(m.get_match_root()->output(0));
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(sel, "TriuCausal"), callback);
+    }
+};
+
+// ============================================================================
+// Matches Gemma-4-12B's decomposed sliding-window "beyond window" overwrite:
+//
+//   diff          = Subtract(row, col)
+//   beyond_window = GreaterEqual(diff, window_const)
+//   windowed      = Select(opt Unsqueeze x2(beyond_window), any_input, any_input)
+//
+// `windowed`'s data operands are the plain triu-causal mask matched by
+// TriuCausalMatcher above (as either its then or else operand -- Gemma-4-12B
+// puts it in the "else" slot, but that's not load-bearing here) and a fill
+// constant; this Select overwrites the causal mask with the fill value
+// wherever the key is further back than `window_const` positions. Anchored
+// (and annotated) independently of TriuCausalMatcher, same as
+// BitwiseAndSlidingMatcher/DefaultSWAMatcher above vs. the LessEqual family.
+// ============================================================================
+class TriuSlidingMatcher final : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::TriuSlidingMatcher");
+    TriuSlidingMatcher() {
+        auto diff = opp::wrap_type<ov::op::v1::Subtract>({opp::any_input(), opp::any_input()});
+        auto window_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto beyond_window = opp::wrap_type<ov::op::v1::GreaterEqual>({diff, window_const});
+        auto beyond_window_unsq1 = opp::optional<ov::op::v0::Unsqueeze>({beyond_window, opp::any_input()});
+        auto beyond_window_unsq2 = opp::optional<ov::op::v0::Unsqueeze>({beyond_window_unsq1, opp::any_input()});
+        auto windowed = opp::wrap_type<ov::op::v1::Select>({beyond_window_unsq2, opp::any_input(), opp::any_input()});
+        auto callback = [=](opp::Matcher& m) {
+            const int64_t w = get_window_size(m.get_pattern_value_map().at(window_const).get_node_shared_ptr());
+            if (w > 0) {
+                annotate_sdpa_consumers(m.get_match_root()->output(0), w);
+            }
+            return false;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(windowed, "TriuSliding"), callback);
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -378,9 +508,11 @@ bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) 
     detector.add_matcher<BitwiseAndSlidingMatcher>();
     detector.add_matcher<OldPhi3SlidingMatcher>();
     detector.add_matcher<DefaultSWAMatcher>();
+    detector.add_matcher<TriuSlidingMatcher>();
     detector.add_matcher<SDPACausalMatcher>();
     detector.add_matcher<StandardCausalMatcher>();
     detector.add_matcher<Qwen3CausalMatcher>();
+    detector.add_matcher<TriuCausalMatcher>();
     detector.run_on_model(model);
 
     return false;

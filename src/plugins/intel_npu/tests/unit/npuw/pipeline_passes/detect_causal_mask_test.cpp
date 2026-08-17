@@ -265,6 +265,73 @@ std::shared_ptr<ov::Model> build_gemma4_e2b_shared_causal(int64_t window) {
 }
 
 // ---------------------------------------------------------------------------
+// Faithful reproduction of Gemma-4-12B's decomposed torch.triu()/masked_fill()
+// mask subgraph, as seen in a real Gemma-4-12B export (openvino_language_model.xml):
+//
+//   row_pos, col_pos      = Range(...)-derived position indices
+//   causal_cond           = GreaterEqual(row_pos, col_pos)                  (aten::triu)
+//   causal_mask           = Select(causal_cond, zero_const, fill_const)
+//
+//   diff                  = Subtract(row_pos, col_pos)
+//   beyond_window         = GreaterEqual(diff, window_const)
+//   sliding_mask          = Select(Unsqueeze x2(beyond_window), fill_const, causal_mask)
+//
+//   attention_mask (global) = Select(padding_bool, fill_const, causal_mask)  (aten::masked_fill)
+//
+// causal_mask feeds *both* the sliding-window overwrite (one SDPA) and a plain
+// padding combine on another, independent SDPA (a global/full-attention layer)
+// -- the same "one causal expression feeds two structurally different
+// branches" shape as build_gemma4_e2b_shared_causal() above, but built from
+// GreaterEqual + Select instead of LessEqual + BitwiseAnd.
+// ---------------------------------------------------------------------------
+std::shared_ptr<ov::Model> build_gemma4_12b_triu_shared_causal(int64_t window) {
+    using namespace ov::op;
+    auto seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto amask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+
+    auto ids_shape = std::make_shared<v3::ShapeOf>(seq, ov::element::i64);
+    auto mask_shape = std::make_shared<v3::ShapeOf>(amask, ov::element::i64);
+    auto seq_len = std::make_shared<v8::Gather>(ids_shape, one, zero);
+    auto total = std::make_shared<v8::Gather>(mask_shape, one, zero);
+    auto past = std::make_shared<v1::Subtract>(total, seq_len);
+
+    auto col_range = std::make_shared<v4::Range>(zero, total, one, ov::element::i64);
+    auto col_pos = std::make_shared<v0::Unsqueeze>(col_range, zero);  // [1, -1]
+
+    auto row_range = std::make_shared<v4::Range>(past, total, one, ov::element::i64);
+    auto row_pos = std::make_shared<v0::Unsqueeze>(row_range, one);  // [-1, 1]
+
+    auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto fill = v0::Constant::create(ov::element::f32, ov::Shape{}, {-1e9f});
+
+    auto causal_cond = std::make_shared<v1::GreaterEqual>(row_pos, col_pos);
+    auto causal_mask = std::make_shared<v1::Select>(causal_cond, zero_f, fill);
+
+    auto window_const = v0::Constant::create(ov::element::i64, ov::Shape{}, {window});
+    auto diff = std::make_shared<v1::Subtract>(row_pos, col_pos);
+    auto beyond_window = std::make_shared<v1::GreaterEqual>(diff, window_const);
+    auto bw0 = std::make_shared<v0::Unsqueeze>(beyond_window, zero);
+    auto bw1 = std::make_shared<v0::Unsqueeze>(bw0, zero);
+    auto sliding_mask = std::make_shared<v1::Select>(bw1, fill, causal_mask);
+
+    auto pad_bool = std::make_shared<v0::Convert>(amask, ov::element::boolean);
+    auto global_mask = std::make_shared<v1::Select>(pad_bool, fill, causal_mask);
+
+    auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto k = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto v = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto sliding_sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, sliding_mask, false);
+    auto global_sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, global_mask, false);
+    auto sliding_result = std::make_shared<v0::Result>(sliding_sdpa->output(0));
+    auto global_result = std::make_shared<v0::Result>(global_sdpa->output(0));
+    return std::make_shared<ov::Model>(ov::ResultVector{sliding_result, global_result},
+                                       ov::ParameterVector{seq, amask, q, k, v});
+}
+
+// ---------------------------------------------------------------------------
 // Faithful reproduction of the MiniCPM causal-mask subgraph (uses aten::lt =>
 // Less instead of aten::le => LessEqual), as seen in real MiniCPM exports:
 //
@@ -362,6 +429,26 @@ TEST(DetectAttentionMaskTest, RealPattern_Gemma4E2BSharedCausal_BothBranchesDete
     ASSERT_EQ(all.size(), 2u);
     // Topological order between the two independent SDPA branches isn't
     // guaranteed, so check both are present regardless of position.
+    const auto sliding_count = std::count_if(all.begin(), all.end(), [](const DetectedMask& m) {
+        return m.type == DetectedMaskType::SlidingWindow && m.window_size == kWindow;
+    });
+    const auto causal_count = std::count(all.begin(), all.end(), DetectedMaskType::Causal);
+    EXPECT_EQ(sliding_count, 1);
+    EXPECT_EQ(causal_count, 1);
+}
+
+// Real pattern: Gemma-4-12B's decomposed torch.triu()/masked_fill() mask family
+// (GreaterEqual + Select, not LessEqual/Greater + BitwiseAnd), where a single
+// shared triu-causal Select feeds both a sliding-window overwrite (one SDPA)
+// and a plain padding combine on an independent global-attention SDPA (see
+// build_gemma4_12b_triu_shared_causal()). Mirrors
+// RealPattern_Gemma4E2BSharedCausal_BothBranchesDetected above, but for the
+// Select-based mask family matched by TriuCausalMatcher/TriuSlidingMatcher.
+TEST(DetectAttentionMaskTest, RealPattern_Gemma4_12B_TriuSharedCausal_BothBranchesDetected) {
+    auto model = build_gemma4_12b_triu_shared_causal(kWindow);
+    ASSERT_NE(model, nullptr);
+    const auto all = detect_all(model);
+    ASSERT_EQ(all.size(), 2u);
     const auto sliding_count = std::count_if(all.begin(), all.end(), [](const DetectedMask& m) {
         return m.type == DetectedMaskType::SlidingWindow && m.window_size == kWindow;
     });
