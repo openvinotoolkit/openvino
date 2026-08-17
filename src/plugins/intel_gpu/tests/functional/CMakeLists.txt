@@ -52,6 +52,15 @@ endif()
 if(libva_FOUND)
     target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
     target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva)
+
+    # VA surface interop tests need a VADisplay of their own. The DRM backend is the only one
+    # which works headless, so these tests are enabled only when libva-drm is available.
+    pkg_search_module(libva_drm QUIET IMPORTED_TARGET libva-drm)
+    if(libva_drm_FOUND AND EXISTS "${libva_INCLUDEDIR}/va/va.h")
+        target_include_directories(${TARGET_NAME} PRIVATE "${libva_INCLUDEDIR}/va")
+        target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA_DRM OV_GPU_USE_SYSTEM_LIBVA_HEADERS)
+        target_link_libraries(${TARGET_NAME} PRIVATE PkgConfig::libva_drm)
+    endif()
 endif()
 
 if(WIN32)
