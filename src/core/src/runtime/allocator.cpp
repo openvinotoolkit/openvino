@@ -8,15 +8,15 @@
 
 namespace ov {
 namespace {
-constexpr size_t max_supported_allocation_size = size_t{1} << 40;  // 1 TiB
+constexpr uint64_t max_supported_allocation_size = uint64_t{1} << 40;  // 1 TiB
 }  // namespace
 
 struct DefaultAllocator {
     void* allocate(const size_t bytes, const size_t alignment) {
-        OPENVINO_ASSERT(bytes <= max_supported_allocation_size,
+        OPENVINO_ASSERT(static_cast<uint64_t>(bytes) <= max_supported_allocation_size,
                         "Requested allocation size ",
                         bytes,
-                        " exceeds the maximum supported allocation size");
+                        " exceeds maximum supported allocation size");
         if (alignment == alignof(max_align_t)) {
             return ::operator new(bytes);
         } else {
