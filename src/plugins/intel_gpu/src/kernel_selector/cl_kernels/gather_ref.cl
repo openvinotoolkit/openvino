@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/int4_utils.cl"
+#include "include/batch_headers/int2_utils.cl"
 
 #ifdef INDEX_DIM
 inline uint FUNC(get_positive_index)(OPTIONAL_SHAPE_INFO_ARG int in)
@@ -94,6 +95,12 @@ KERNEL(gather_ref)(
             MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) val_unpacked = UNPACK_INT4x2(OUTPUT_TYPE, *((INT4_PACKED_TYPE*)&val_packed));
 
             OUTPUT_TYPE val_compressed = ((OUTPUT_TYPE*)(&val_unpacked))[dictionary_idx % 2];
+            val = (val_compressed - zp) * scale;
+        #elif COMPRESSED_WEIGHTS_UINT2
+            INPUT0_TYPE val_packed = dictionary[dictionary_idx / 4];
+            MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) val_unpacked = UNPACK_UINT2x4(OUTPUT_TYPE, *((UINT2_PACKED_TYPE*)&val_packed));
+
+            OUTPUT_TYPE val_compressed = ((OUTPUT_TYPE*)(&val_unpacked))[dictionary_idx % 4];
             val = (val_compressed - zp) * scale;
         #endif
     }

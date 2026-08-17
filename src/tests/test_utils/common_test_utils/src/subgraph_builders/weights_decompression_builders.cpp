@@ -583,6 +583,15 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
         original_data_shape.insert(original_data_shape.begin() + data_idx + 1, group_size);
     }
 
+    // u2 only holds 0..3; a wider range would silently wrap and the generated dictionary would no
+    // longer be the one the test case name advertises.
+    const auto max_quantized_value = [](const ov::element::Type& precision) {
+        if (precision == ov::element::u2) {
+            return 3;
+        }
+        return precision == ov::element::i4 ? 7 : 15;
+    };
+
     const bool floating_weights = data_precision.is_real();
     ov::Tensor weights_tensor;
     if (floating_weights) {
@@ -592,7 +601,7 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
                                                                                    1.f,
                                                                                    1);
     } else {
-        const auto up_to = data_precision == ov::element::i4 ? 7 : 15;
+        const auto up_to = max_quantized_value(data_precision);
         ov::test::utils::InputGenerateData generate_data(0, up_to);
         if (data_precision.is_signed())
             generate_data.start_from = -1;
@@ -632,7 +641,7 @@ std::shared_ptr<ov::Node> initGatherDecompressionSubgraph(const ov::Shape& data_
     if (decompression_subtract_type != DecompressionType::empty) {
         const bool scalar_zp = decompression_subtract_type == DecompressionType::scalar;
         auto shift_tensor_shape = scalar_zp ? ov::Shape{1} : scaleshift_const_shape;
-        const auto up_to = data_precision == ov::element::i4 ? 7 : 15;
+        const auto up_to = max_quantized_value(data_precision);
         auto shift_tensor = ov::test::utils::create_and_fill_tensor(data_precision,
                                                                     shift_tensor_shape,
                                                                     ov::test::utils::InputGenerateData(0, up_to));

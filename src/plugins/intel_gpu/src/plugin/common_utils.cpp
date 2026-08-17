@@ -192,7 +192,7 @@ bool is_supported(ov::element::Type_t et) {
         case ov::element::Type_t::i32: return true;
         case ov::element::Type_t::i64: return true; // converted to i32
         case ov::element::Type_t::u1: return true;
-        case ov::element::Type_t::u2: return false;
+        case ov::element::Type_t::u2: return true;
         case ov::element::Type_t::u3: return false;
         case ov::element::Type_t::u4: return true;
         case ov::element::Type_t::u6: return true;

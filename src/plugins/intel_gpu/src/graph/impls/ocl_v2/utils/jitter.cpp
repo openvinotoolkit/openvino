@@ -296,6 +296,11 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "0.5f";
         is_fp = false;
         break;
+    case ov::element::u2:
+        type = "uchar";
+        type_size = "0.25f";
+        is_fp = false;
+        break;
     case ov::element::bf16:
         type = "ushort";
         val_one = "(ushort) 1";
