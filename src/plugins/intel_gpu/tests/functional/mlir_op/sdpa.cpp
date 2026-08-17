@@ -370,7 +370,7 @@ const auto static_shape_params_3D = testing::Combine(testing::Values(ov::element
                                                   testing::ValuesIn({disable_transpose}),
                                                   testing::Values(false));  // has_sink
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic3D_GPU,
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic3D_GPU,
                          ScaledAttnLayerGPUMlirTest,
                          static_shape_params_3D,
                          ScaledAttnLayerGPUMlirTest::getTestCaseName);
@@ -425,7 +425,7 @@ const auto static_shape_params_4D = testing::Combine(testing::Values(ov::element
                                                   testing::ValuesIn({disable_transpose}),
                                                   testing::Values(false)); // has_sink
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic4D_GPU,
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnStatic4D_GPU,
                          ScaledAttnLayerGPUMlirTest,
                          static_shape_params_4D,
                          ScaledAttnLayerGPUMlirTest::getTestCaseName);
@@ -457,7 +457,7 @@ const auto dynamic_shape_params_4D = testing::Combine(testing::Values(ov::elemen
                                                   testing::ValuesIn({disable_transpose}),
                                                   testing::Values(false));  // has_sink
 
-INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic4D_GPU,
+INSTANTIATE_TEST_SUITE_P(mlir_ScaledAttnDynamic4D_GPU,
                          ScaledAttnLayerGPUMlirTest,
                          dynamic_shape_params_4D,
                          ScaledAttnLayerGPUMlirTest::getTestCaseName);

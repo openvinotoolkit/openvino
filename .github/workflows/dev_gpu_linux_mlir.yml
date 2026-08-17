@@ -397,7 +397,6 @@ jobs:
           export OV_GPU_ENABLE_MLIR=1
           func_tests="${INSTALL_TEST_DIR}/ov_gpu_func_tests"
           filter=$(printf '%s:' \
-            '*ScaledAttnLayerGPUMlirTest*' \
             'mlir_*' \
           )
           filter="${filter%:}"

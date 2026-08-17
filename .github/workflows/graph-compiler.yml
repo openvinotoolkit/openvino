@@ -62,7 +62,6 @@ jobs:
           filter=$(printf '%s:' \
             'MLIRExecution.SimpleMatmulf16' \
             'MLIRExecution.SDPABasic' \
-            '*ScaledAttnLayerGPUMlirTest*' \
             'mlir_*' \
           )
           tests=$("$func_tests" --gtest_list_tests --gtest_filter="${filter%:}" \
