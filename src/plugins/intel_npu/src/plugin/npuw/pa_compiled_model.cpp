@@ -4,15 +4,38 @@
 
 #include "pa_compiled_model.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "util.hpp"
+
+namespace {
+
+// The PA control tensors are small i32/i64 vectors -- widen to i64 for checks.
+std::vector<int64_t> as_i64_vec(const ov::SoPtr<ov::ITensor>& tensor) {
+    const auto n = tensor->get_size();
+    std::vector<int64_t> out(n);
+    if (tensor->get_element_type() == ov::element::i32) {
+        const auto* data = tensor->data<int32_t>();
+        std::copy_n(data, n, out.begin());
+    } else if (tensor->get_element_type() == ov::element::i64) {
+        const auto* data = tensor->data<int64_t>();
+        std::copy_n(data, n, out.begin());
+    } else {
+        OPENVINO_THROW("PA: unexpected element type ", tensor->get_element_type(), " for a control tensor");
+    }
+    return out;
+}
+
+}  // anonymous namespace
 
 ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& model,
                                            const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -56,6 +79,21 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     LOG_INFO("PA: compiling the dynamic PA model 1:1 on " << device);
     m_compiled_model = plugin->get_core()->compile_model(model, device, inner_config);
     OPENVINO_ASSERT(m_compiled_model != nullptr, "PACompiledModel requires a valid inner compiled model");
+
+    // The device fixes the KV cache geometry at compile time; remember the
+    // block size for validating block-table coverage per dispatch. Identical
+    // across layers by construction, so the first cache input answers it.
+    for (const auto& input : m_compiled_model->inputs()) {
+        if (ov::npuw::util::is_pa_key_cache_name(input.get_any_name())) {
+            const auto& shape = input.get_partial_shape();
+            // [num_blocks (dyn), kv_heads, block_size, head_size]
+            if (shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static()) {
+                m_block_size = static_cast<std::size_t>(shape[2].get_length());
+            }
+            break;
+        }
+    }
+    LOG_INFO("PA: KV block_size fixed by " << device << ": " << m_block_size);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::npuw::PACompiledModel::inputs() const {
@@ -106,16 +144,67 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::PACompiledModel::create_sync_in
     auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
     auto inner_request = m_compiled_model->create_infer_request();
     OPENVINO_ASSERT(inner_request != nullptr, "PACompiledModel requires a valid inner infer request");
-    return std::make_shared<PAInferRequest>(self, std::move(inner_request));
+    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_block_size);
 }
 
 ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
-                                         ov::SoPtr<ov::IAsyncInferRequest> inner_request)
+                                         ov::SoPtr<ov::IAsyncInferRequest> inner_request,
+                                         std::size_t block_size)
     : ov::ISyncInferRequest(compiled_model),
-      m_inner_request(std::move(inner_request)) {}
+      m_inner_request(std::move(inner_request)),
+      m_block_size(block_size) {
+    for (const auto& input : get_inputs()) {
+        m_inputs_by_name.emplace(input.get_any_name(), input);
+    }
+}
+
+ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
+    const auto get = [&](const char* name) {
+        auto it = m_inputs_by_name.find(name);
+        OPENVINO_ASSERT(it != m_inputs_by_name.end(), "PA model has no '", name, "' input");
+        return m_inner_request->get_tensor(it->second);
+    };
+
+    pa::Dispatch d;
+    d.past_lens = as_i64_vec(get("past_lens"));
+    d.subsequence_begins = as_i64_vec(get("subsequence_begins"));
+    const auto mcl_vec = as_i64_vec(get("max_context_len"));
+    OPENVINO_ASSERT(!mcl_vec.empty(), "PA dispatch: max_context_len is not set");
+    d.max_context_len = mcl_vec.front();
+
+    // input_ids is absent on embedding-input models (inputs_embeds);
+    // position_ids may be multi-dimensional (M-RoPE), so its token count is
+    // the last shape dim.
+    if (m_inputs_by_name.count("input_ids") > 0) {
+        d.input_ids_size = static_cast<int64_t>(get("input_ids")->get_size());
+    }
+    const auto& pos_shape = get("position_ids")->get_shape();
+    OPENVINO_ASSERT(!pos_shape.empty(), "PA dispatch: position_ids has no shape");
+    d.position_ids_token_count = static_cast<int64_t>(pos_shape.back());
+
+    // The shared block table. Cache-eviction models carry per-layer
+    // block_indices.<L> inputs instead; those dispatches run 1:1 and only the
+    // common controls are validated.
+    if (m_inputs_by_name.count("block_indices") > 0) {
+        d.has_block_table = true;
+        d.block_indices = as_i64_vec(get("block_indices"));
+        d.block_indices_begins = as_i64_vec(get("block_indices_begins"));
+    }
+    if (m_inputs_by_name.count("sampled_tokens_indices") > 0) {
+        d.has_sampled_tokens = true;
+        d.sampled_tokens_indices = as_i64_vec(get("sampled_tokens_indices"));
+    }
+    return d;
+}
 
 void ov::npuw::PAInferRequest::infer() {
+    const auto dispatch = parse_dispatch();
+    pa::validate_dispatch(dispatch, m_block_size, m_dispatch_idx);
+    LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
+                             << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
+                             << " sampled");
     m_inner_request->infer();
+    ++m_dispatch_idx;
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::PAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {

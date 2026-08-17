@@ -4,9 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <string>
+#include <unordered_map>
 
 #include "npuw/compiled_model.hpp"
+#include "pa_dispatch.hpp"
 
 namespace ov::npuw {
 
@@ -39,16 +43,23 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
     ov::SoPtr<ov::ICompiledModel> m_compiled_model;
+
+    // KV cache block size as fixed by the device at compile time; 0 if the
+    // compiled cache shape is still dynamic in that dimension. Consumed by
+    // the per-dispatch block-table validation.
+    std::size_t m_block_size = 0u;
 };
 
 // 1:1 forwarding request. The ports are shared with the inner request (see
-// PACompiledModel), so every call delegates without translation, and the
-// request holds no state of its own -- it provides exactly the guarantees of
-// using the inner request directly.
+// PACompiledModel), so every call delegates without translation. Each
+// dispatch is first validated against the PA control-tensor contract
+// (past_lens / subsequence_begins / block_indices(_begins) / max_context_len
+// / sampled_tokens_indices) and summarised at the Verbose log level.
 class PAInferRequest final : public ov::ISyncInferRequest {
 public:
     PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
-                   ov::SoPtr<ov::IAsyncInferRequest> inner_request);
+                   ov::SoPtr<ov::IAsyncInferRequest> inner_request,
+                   std::size_t block_size);
 
     void infer() override;
 
@@ -60,7 +71,17 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
+    // Copies one dispatch's control tensors out of the inner request.
+    pa::Dispatch parse_dispatch() const;
+
     ov::SoPtr<ov::IAsyncInferRequest> m_inner_request;
+
+    // Input ports by tensor name, for reading the control tensors.
+    std::unordered_map<std::string, ov::Output<const ov::Node>> m_inputs_by_name;
+    std::size_t m_block_size = 0u;
+    // Only infer() touches this, and the async layer serializes infer() per
+    // request, so no lock is needed.
+    std::size_t m_dispatch_idx = 0u;
 };
 
 }  // namespace ov::npuw
