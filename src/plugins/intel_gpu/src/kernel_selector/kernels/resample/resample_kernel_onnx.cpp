@@ -87,9 +87,8 @@ DeviceFeaturesKey ResampleKernelOnnx::get_required_device_features_key(const Par
 static size_t get_vec_size(const resample_params &params) {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 2;
-    } else {
-        return 1;
     }
+    return 1;
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_selector::resample_params& arg) const {

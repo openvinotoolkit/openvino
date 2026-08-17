@@ -184,7 +184,7 @@ KERNEL(eltwise)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+    OUTPUT_COMPUTE_TYPE out = DECODE_OUTPUT_COMPUTE_TYPE(FUSED_OPS_RESULT);
 #else
     #define out res
 #endif
