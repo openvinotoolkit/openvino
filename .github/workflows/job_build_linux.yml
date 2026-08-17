@@ -237,7 +237,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats

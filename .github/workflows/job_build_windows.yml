@@ -142,7 +142,7 @@ jobs:
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
+          python3 -m pip install certifi==2026.7.22 packaging==26.3
 
       #
       # Build
@@ -177,7 +177,7 @@ jobs:
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
