@@ -1340,9 +1340,9 @@ RoPEFusionCohere::RoPEFusionCohere() {
     //   x_rotate = stack([-x_odd, x_even], dim=-1).flatten(-2)
     // Output:  Add(x * cos, x_rotate * sin)   -- full rotation, no residual Concat
 
-    auto x = pattern::any_input(pattern::rank_equals(4));
-    auto cos_input = pattern::any_input(pattern::rank_equals(4));
-    auto sin_input = pattern::any_input(pattern::rank_equals(4));
+    auto x = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[?, ?, ?, head_size]"));
+    auto cos_input = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[?, ?, ?, head_size]"));
+    auto sin_input = pattern::any_input(pattern::rank_equals(4) && pattern::shape_matches("[?, ?, ?, head_size]"));
 
     auto x_odd = op_util::NewGenSlice(x, 1, INT_MAX, 2, 3);
     auto x_even = op_util::NewGenSlice(x, 0, INT_MAX, 2, 3);
