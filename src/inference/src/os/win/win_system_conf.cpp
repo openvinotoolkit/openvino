@@ -72,7 +72,6 @@ void parse_processor_info_win(const char* base_ptr,
     const std::vector<int> cpu_init_line(CPU_MAP_TABLE_SIZE, -1);
 
     constexpr int initial_core_type = -1;
-    constexpr int initial_numa_mask = -1;
     constexpr int group_with_1_core = 1;
     constexpr int group_with_2_cores = 2;
     constexpr int group_with_4_cores = 4;
@@ -88,7 +87,6 @@ void parse_processor_info_win(const char* base_ptr,
     int group_id = 0;
     int group_type = initial_core_type;
     int num_package = 0;
-    int cur_numa_mask = initial_numa_mask;
     int max_group_cnt = 0;
 
     _processors = 0;
@@ -134,7 +132,6 @@ void parse_processor_info_win(const char* base_ptr,
             MaskToList(info->Processor.GroupMask->Mask);
             if (num_package > 0) {
                 ++_sockets;
-                cur_numa_mask = initial_numa_mask;
                 if (_processors < 64) {
                     l3_set.clear();
                 } else {
