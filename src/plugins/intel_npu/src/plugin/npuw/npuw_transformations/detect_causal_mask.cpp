@@ -5,6 +5,7 @@
 #include "detect_causal_mask.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <functional>
 #include <queue>
@@ -445,12 +446,8 @@ public:
 // left as any_input() rather than make_range_chain(), since this export's
 // Range/Unsqueeze/Add ordering doesn't match that chain's grammar.
 //
-// Uses annotate_triu_causal_mask() rather than a blanket skip when the matched
-// Select feeds another Select down the line: only branches whose condition is a
-// genuine sliding-window bound check (see contains_triu_window_check above) are
-// left for TriuSlidingMatcher below to own; other Select consumers (e.g.
-// combining with a user-supplied padding mask, as seen on Gemma-4-12B's global-
-// attention layers) still get annotated Causal.
+// Uses annotate_triu_causal_mask() (see its own doc comment above) rather than a
+// blanket skip when the matched Select feeds another Select down the line.
 //
 // The GreaterEqual/Select shapes themselves are common enough (unlike e.g.
 // LessEqual/Less feeding a boolean-combine op) that this anchor alone is too
@@ -532,15 +529,10 @@ public:
 namespace ov::npuw {
 
 bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // Every SDPA node starts unannotated (== Unknown, by absence of
-    // rt_info[NPUW_SDPA_MASK_RT_KEY]). Matchers below annotate individual nodes as
-    // they recognize Causal or SlidingWindow patterns feeding that node's mask
-    // input; a node that no matcher recognizes stays Unknown.
-    //
-    // ScaledDotProductAttentionDecomposition::decompose() later calls
-    // copy_runtime_info(node, get_new_nodes()), which propagates this rt_info onto
-    // the newly created Add(QK, mask) node, so HostFlashAttention::from() can read
-    // it directly off the Add node without any extra pass.
+    // Matchers below annotate individual SDPA nodes as they recognize Causal or
+    // SlidingWindow patterns feeding that node's mask input (see
+    // NPUW_SDPA_MASK_RT_KEY in the header for the annotation/encoding contract); a
+    // node that no matcher recognizes stays Unknown.
     ov::pass::GraphRewrite detector;
     detector.add_matcher<BitwiseAndSlidingMatcher>();
     detector.add_matcher<OldPhi3SlidingMatcher>();
@@ -556,6 +548,10 @@ bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) 
 }
 
 void log_detected_masks(const std::shared_ptr<ov::Model>& model) {
+    if (ov::npuw::get_log_level() < ov::npuw::LogLevel::Debug) {
+        return;
+    }
+
     // Best-effort: pull a transformer layer index out of the SDPA node's friendly
     // name (HF/ONNX exports commonly retain the originating module's scope, e.g.
     // "__module.model.layers.4.self_attn/aten::scaled_dot_product_attention").
@@ -590,7 +586,12 @@ void log_detected_masks(const std::shared_ptr<ov::Model>& model) {
         std::smatch match;
         int64_t sort_key = position;
         if (std::regex_search(name, match, layer_idx_re) && match.size() > 1) {
-            sort_key = std::stoll(match[1].str());
+            const auto& digits = match[1].str();
+            int64_t parsed = 0;
+            const auto res = std::from_chars(digits.data(), digits.data() + digits.size(), parsed);
+            if (res.ec == std::errc{}) {
+                sort_key = parsed;
+            }
         }
         entries.push_back({name, std::move(type), sort_key});
         ++position;
@@ -601,7 +602,6 @@ void log_detected_masks(const std::shared_ptr<ov::Model>& model) {
     });
     for (const auto& entry : entries) {
         LOG_DEBUG("layer " << entry.sort_key << " (" << entry.name << "): " << entry.type);
-        std::cout << "layer " << entry.sort_key << " (" << entry.name << "): " << entry.type << std::endl;
     }
 }
 

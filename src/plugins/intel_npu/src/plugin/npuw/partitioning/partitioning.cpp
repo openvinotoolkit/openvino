@@ -2103,20 +2103,19 @@ void Partitioner::attention(const std::string& func_name) {
         // Safety check: HostFlashAttention::from() only inspects f._model -- a single
         // representative instance of this repeated "attn" function -- to decide whether
         // the compiled tile model can structurally drop the mask input (mask-skipping
-        // optimization). If different funcall instances sharing this same function have
-        // different actual mask types (e.g. mixed SWA + global attention, as in Gemma-4),
-        // that decision would be wrong for whichever instances don't match the
-        // representative: e.g. a Causal representative would silently strip the mask
-        // input needed by SlidingWindow instances -- a correctness bug, not just a missed
-        // optimization. Until per-funcall mask handling is implemented, disable the
-        // mask-skipping optimization entirely for this function instead of risking a
-        // silently broken compiled model -- this is always a safe fallback (it only
-        // forgoes an optimization), so it doesn't need to fail compilation.
+        // optimization). If funcall instances sharing this function actually have
+        // different mask types (e.g. mixed SWA + global attention, as in Gemma-4), that
+        // decision could be wrong for the non-representative instances -- e.g. a Causal
+        // representative would silently strip the mask a SlidingWindow instance needs, a
+        // correctness bug, not just a missed optimization. Until per-funcall mask
+        // handling exists, disable mask-skipping for the whole function instead: this
+        // only forgoes an optimization, so it's always safe and doesn't need to fail
+        // compilation.
+        //
         // NPUW_SDPA_MASK_RT_KEY encodes both mask kind and (for sliding window) window
-        // size in a single int64_t, so comparing the raw encoded values (instead of just
-        // the mask kind) is sufficient to also catch two SlidingWindow instances with
-        // different window sizes -- both would otherwise be treated as "the same kind"
-        // even though their mask-skipping safety differs.
+        // size in one int64_t, so comparing raw encoded values also catches two
+        // SlidingWindow instances with different window sizes -- otherwise they'd look
+        // like "the same kind" despite differing mask-skipping safety.
         std::optional<int64_t> common_mask_value;
         bool mask_skipping_safe = true;
         for (const auto& mdl : all_functions.at(func_name).mdls) {

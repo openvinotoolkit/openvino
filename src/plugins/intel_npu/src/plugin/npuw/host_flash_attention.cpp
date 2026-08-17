@@ -1109,26 +1109,25 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                     << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
-    // DetectAttentionMask (run earlier, on the original SDPA node) may have annotated
-    // this subgraph's Add(QK, mask) node with its mask kind -- carried here via
+    // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
+    // this subgraph's Add(QK, mask) node with its mask kind, carried here via
     // copy_runtime_info() during SDPA decomposition. Per NPUW_SDPA_MASK_RT_KEY's
-    // encoding:
+    // encoding, the mask-skipping decision is:
     //
-    //   no annotation (Unknown) : mask skipping DISABLED -- we don't know the mask
-    //                             shape, so skipping it could silently change results.
-    //   value <  0 (Causal)     : mask skipping ENABLED unconditionally for non-final
-    //                             tiles (a causal mask never excludes anything a
-    //                             non-final regular tile would otherwise include).
+    //   no annotation (Unknown) : DISABLED -- unknown mask shape, skipping it could
+    //                             silently change results.
+    //   value <  0 (Causal)     : ENABLED unconditionally for non-final tiles (a
+    //                             causal mask never excludes anything a non-final
+    //                             regular tile would otherwise include).
     //   value >= 0 (SlidingWindow, value = window_size)
-    //                           : mask skipping ENABLED only if the window already
-    //                             covers the whole context (window_size >= context_size),
-    //                             i.e. it behaves exactly like Causal; otherwise the
-    //                             window would truncate positions a regular tile must
-    //                             still respect, so skipping stays DISABLED.
+    //                           : ENABLED only if window_size >= context_size (then it
+    //                             behaves exactly like Causal); otherwise the window
+    //                             would truncate positions a regular tile must still
+    //                             respect, so it stays DISABLED.
     //
-    // This per-SDPA decision replaces the enable_mask_skipping flag passed in from the
-    // caller: that flag now only acts as a master kill switch (NPUW_ATTN_HFA_MASK_SKIPPING
-    // config set to NO disables the optimization outright, regardless of mask kind).
+    // This replaces the enable_mask_skipping flag passed in from the caller: that flag
+    // is now just a master kill switch (NPUW_ATTN_HFA_MASK_SKIPPING=NO disables the
+    // optimization outright, regardless of mask kind).
     bool local_enable_mask_skipping = false;
     if (enable_mask_skipping && pattern_nodes.add_node) {
         const auto& rt_info = pattern_nodes.add_node->get_rt_info();
