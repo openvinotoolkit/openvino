@@ -3,14 +3,7 @@
 //
 
 #include "kernels_cache.hpp"
-#include <regex>
-
-#ifdef ENABLE_CM_FOR_GPU
-#include "impls/cm/utils/kernels_db.hpp"
-#endif
-#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
-#    include "impls/ocl_v2/utils/kernels_db.hpp"
-#endif
+#include "kernel_cache_frontend.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
@@ -32,11 +25,8 @@
 #endif
 
 #include <cassert>
-#include <sstream>
 #include <fstream>
-#include <set>
 #include <string>
-#include <tuple>
 #include <memory>
 #include <utility>
 
@@ -65,25 +55,6 @@ std::string join_strings(const std::vector<std::string> &strings) {
         acc_str.append(str);
     }
     return acc_str;
-}
-
-std::string reorder_options(const std::string& org_options) {
-    std::stringstream ss(org_options);
-    std::set<std::string> sorted_options;
-
-    while (ss.good()) {
-        std::string word;
-        ss >> word;
-        sorted_options.insert(word);
-    }
-
-    std::string options;
-
-    for (const auto& o : sorted_options) {
-        options += o + " ";
-    }
-
-    return options;
 }
 
 cldnn::KernelFormat to_kernel_format(cldnn::gpu_cached_kernel_artifact artifact) {
@@ -127,157 +98,14 @@ bool kernels_cache::is_cache_enabled() const {
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
-    std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
-
-    for (const auto& k : kernels_source_code) {
-        auto& code = k.second;
-        bool dump_custom_program = code.dump_custom_program;
-
-        for (size_t kernel_part_idx = 0; kernel_part_idx < code.kernel_strings.size(); kernel_part_idx++) {
-            auto& kernel_string = code.kernel_strings[kernel_part_idx];
-            std::string full_code = kernel_string->jit + kernel_string->str + kernel_string->undefs;
-            std::string entry_point = kernel_string->entry_point;
-            std::string options = kernel_string->options;
-            bool batch_compilation = kernel_string->batch_compilation;
-            bool is_cm = kernel_string->language == kernel_language::CM;
-            bool is_spirv = kernel_string->language == kernel_language::SPIRV;
-
-            // Order matters for cm options
-            if (batch_compilation && !is_cm && !is_spirv) {
-                options = reorder_options(options);
-            }
-
-            std::string key = options;
-
-            if (!batch_compilation) {
-                key += " __PROGRAM__" + std::to_string(program_buckets.size());
-            }
-
-            if (dump_custom_program) {
-                key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
-            }
-            key += " __LANG__" + std::to_string(static_cast<size_t>(kernel_string->language));
-
-            auto& bucket_id = std::get<0>(program_buckets[key]);
-            auto& current_bucket = std::get<1>(program_buckets[key]);
-            if (current_bucket.empty()) { // new bucket
-                const auto& batch_id = 0;
-                // increase bucket id if and only if new bucket comes
-                bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
-            }
-
-            // Create new kernels batch when the limit is reached
-            // and current kernel's entry_point is duplicated in this kernels batch
-            if (current_bucket.back().kernels_counter >= _config.get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
-                const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers, kernel_string->language));
-            }
-
-            auto& current_batch = current_bucket.back();
-            current_batch.dump_custom_program = dump_custom_program;
-            current_batch.entry_point_to_id.emplace(entry_point, std::make_pair(code.params, kernel_part_idx));
-
-            current_batch.has_microkernels |= kernel_string->has_microkernels;
-
-            current_batch.source.push_back(std::move(full_code));
-            current_batch.kernels_counter++;
-        }
-    }
-
-    // Compute hash value for each batch
-    // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
-    // of the precompiled binaries or get_undef_jit calls
-    // Hash is computed for string that contains compilation options + driver version +
-    // full source code (jit + template + undef sections) of all kernels in the batches
-    for (auto& c : program_buckets) {
-        auto options = c.first;
-        auto& batches = std::get<1>(c.second);
-        for (auto& b : batches) {
-            auto find_and_remove_includes = [](const std::string& code, std::vector<std::string>& required_headers) {
-                std::regex include_regex(R"(#include\s+\"([^\"]+)\")");
-                std::string processed_kernel;
-                std::sregex_iterator it(code.begin(), code.end(), include_regex);
-                std::sregex_iterator end;
-
-                size_t last_pos = 0;
-                for (; it != end; ++it) {
-                    auto header_name = (*it)[1].str();
-                    header_name = header_name.substr(header_name.find_last_of("/") + 1);
-                    header_name = header_name.substr(0, header_name.find_last_of("."));
-                    required_headers.push_back(header_name);
-                    processed_kernel += code.substr(last_pos, it->position() - last_pos);
-                    last_pos = it->position() + it->length();
-                }
-                processed_kernel += code.substr(last_pos);
-                return processed_kernel;
-            };
-
-            auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
-                std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
-
-                prog.source.clear();
-                std::list<std::string> all_headers;
-                while (!sources_to_process.empty()) {
-                    std::vector<std::string> new_headers;
-                    auto source = sources_to_process.front();
-                    sources_to_process.pop_front();
-                    prog.source.insert(prog.source.begin(), find_and_remove_includes(source, new_headers));
-                    for (auto& header : new_headers) {
-                        if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
-                            all_headers.push_front(header);
-                            std::string_view header_code;
-#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
-#ifdef ENABLE_CM_FOR_GPU
-                            header_code = prog.language == kernel_language::OCLC_V2
-                                ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
-                                : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
-#else
-                            header_code = ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
-#endif
-#else
-                            OPENVINO_THROW("Source kernel headers are unavailable without a source runtime backend");
-#endif
-                            sources_to_process.push_back(std::string(header_code) + "\n");
-                        }
-                    }
-                }
-
-                if (prog.language == kernel_language::CM) {
-                    prog.source.insert(prog.source.begin(), "#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
-                }
-            };
-
-            if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
-                process_batch_includes(b);
-
-            std::string full_code = options + " " + _device->get_info().driver_version;
-            full_code += _device->get_info().dev_name;
-            for (auto& ss : b.source)
-                full_code += ss;
-
-            b.hash_value = std::hash<std::string>()(full_code);
-
-            std::string dump_sources_dir = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
-
-            // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
-            // Should be used with the IGC_ShaderDump option
-            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
-            if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
-                std::string current_dump_file_name = std::move(dump_sources_dir);
-                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
-                    current_dump_file_name += '/';
-
-                current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(b.bucket_id)
-                                        + "_part_" + std::to_string(b.batch_id) + "_" + std::to_string(b.hash_value) + ".cl";
-
-                b.options += " -g -s " + current_dump_file_name;
-            }
-
-            all_batches->push_back(b);
-        }
-    }
+    kernel_cache_frontend_context context;
+    context.max_kernels_per_batch = _config.get_max_kernels_per_batch();
+    context.program_id = _prog_id;
+    context.device_name = _device->get_info().dev_name;
+    context.driver_version = _device->get_info().driver_version;
+    context.dump_sources_path = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
+    context.batch_headers = &batch_headers;
+    kernel_cache_frontend::prepare(kernels_source_code, context, *all_batches);
 }
 
 kernels_cache::kernels_cache(engine& engine,

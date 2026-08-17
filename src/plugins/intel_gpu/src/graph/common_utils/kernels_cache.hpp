@@ -64,7 +64,6 @@ public:
         explicit batch_program(int32_t _bucket_id,
                                int32_t _batch_id,
                                std::string _options,
-                               const std::map<std::string, std::string>& batch_headers,
                                kernel_language _language)
             : bucket_id(_bucket_id),
               batch_id(_batch_id),
@@ -75,22 +74,7 @@ public:
               dump_custom_program(false),
               has_microkernels(false),
               entry_point_to_id({}),
-              language(_language) {
-            if (language == kernel_language::OCLC) {
-                static const std::vector<std::string> micro_kernel_include_names {
-                    "generic_vector_ops",
-                    "tile_ops",
-                    "sdpa_utils"
-                };
-                for (const auto& kv : batch_headers) {
-                    if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
-                        source.push_back(kv.second);
-                    } else {
-                        micro_headers.push_back(kv.second);
-                    }
-                }
-            }
-        }
+              language(_language) {}
     };
 
     using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<std::pair<kernel::ptr, size_t>>, impl_hasher>;
