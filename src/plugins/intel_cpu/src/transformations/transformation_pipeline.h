@@ -12,9 +12,17 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations/convert_precision.hpp"
 
 namespace ov::intel_cpu {
+
+class PreserveSelectiveSSMPrecision final : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("PreserveSelectiveSSMPrecision");
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
 
 class Transformations {
 public:
