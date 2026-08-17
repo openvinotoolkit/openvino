@@ -26,6 +26,7 @@ public:
     static const runtime_backend_descriptor& get(runtime_types runtime_type);
 
     static std::string make_device_id(runtime_types runtime_type, const std::string& backend_device_id);
+    static std::string make_public_device_id(runtime_types runtime_type, const std::string& backend_device_id);
     static bool parse_device_id(const std::string& device_id, runtime_types& runtime_type, std::string& backend_device_id);
 };
 

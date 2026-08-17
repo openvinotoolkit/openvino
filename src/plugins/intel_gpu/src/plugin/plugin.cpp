@@ -99,22 +99,21 @@ std::string Plugin::resolve_device_id(const std::string& device_id) const {
         return device_id;
     }
 
-    // Preserve the legacy numeric ID as an alias for the selected default runtime.
     cldnn::runtime_types parsed_runtime;
     std::string backend_device_id;
-    if (!cldnn::runtime_backend_registry::parse_device_id(device_id, parsed_runtime, backend_device_id)) {
-        const auto tagged_id = cldnn::runtime_backend_registry::make_device_id(
-            cldnn::runtime_backend_registry::default_backend().runtime_type, device_id);
-        if (m_device_map.count(tagged_id) != 0) {
-            return tagged_id;
+    if (cldnn::runtime_backend_registry::parse_device_id(device_id, parsed_runtime, backend_device_id)) {
+        // The default runtime keeps the legacy public ID, while an explicit
+        // runtime-tagged spelling remains a valid alias.
+        const auto public_id = cldnn::runtime_backend_registry::make_public_device_id(parsed_runtime, backend_device_id);
+        if (m_device_map.count(public_id) != 0) {
+            return public_id;
         }
-
+    } else {
         // If the configured default backend has no device, keep the legacy
         // numeric alias on the selected available fallback backend.
         cldnn::runtime_types selected_runtime;
         std::string selected_backend_device_id;
-        if (cldnn::runtime_backend_registry::parse_device_id(
-                m_default_device_id, selected_runtime, selected_backend_device_id) &&
+        if (cldnn::runtime_backend_registry::parse_device_id(m_default_device_id, selected_runtime, selected_backend_device_id) &&
             selected_backend_device_id == device_id) {
             return m_default_device_id;
         }
@@ -283,24 +282,18 @@ Plugin::Plugin() {
         try {
             cldnn::device_query query(backend.engine_type, backend.runtime_type);
             for (const auto& device : query.get_available_devices()) {
-                const auto tagged_id =
-                    cldnn::runtime_backend_registry::make_device_id(backend.runtime_type, device.first);
-                m_device_map.emplace(tagged_id, device.second);
+                const auto public_id = cldnn::runtime_backend_registry::make_public_device_id(backend.runtime_type, device.first);
+                m_device_map.emplace(public_id, device.second);
+                if (backend.runtime_type == cldnn::runtime_backend_registry::default_backend().runtime_type && m_default_device_id.empty()) {
+                    m_default_device_id = public_id;
+                }
             }
         } catch (const std::exception& error) {
-            GPU_DEBUG_LOG << "Device enumeration for runtime '" << backend.name << "' failed: " << error.what()
-                          << std::endl;
+            GPU_DEBUG_LOG << "Device enumeration for runtime '" << backend.name << "' failed: " << error.what() << std::endl;
         }
     }
 
-    const auto& default_backend = cldnn::runtime_backend_registry::default_backend();
-    const auto default_prefix = std::string(default_backend.name) + "_";
-    const auto default_device = std::find_if(m_device_map.begin(), m_device_map.end(), [&default_prefix](const auto& item) {
-        return item.first.compare(0, default_prefix.size(), default_prefix) == 0;
-    });
-    if (default_device != m_device_map.end()) {
-        m_default_device_id = default_device->first;
-    } else if (!m_device_map.empty()) {
+    if (m_default_device_id.empty() && !m_device_map.empty()) {
         m_default_device_id = m_device_map.begin()->first;
     }
 
@@ -658,9 +651,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_metric");
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
-    auto iter = m_device_map.find(cldnn::runtime_backend_registry::make_device_id(
-        cldnn::runtime_backend_registry::default_backend().runtime_type,
-        std::to_string(cldnn::device_query::device_id)));
+    auto iter = m_device_map.find(cldnn::runtime_backend_registry::make_public_device_id(cldnn::runtime_backend_registry::default_backend().runtime_type,
+                                                                                         std::to_string(cldnn::device_query::device_id)));
     if (iter == m_device_map.end())
         iter = m_device_map.find(device_id);
     if (iter == m_device_map.end())

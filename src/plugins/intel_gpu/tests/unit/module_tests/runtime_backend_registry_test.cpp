@@ -29,6 +29,18 @@ TEST(runtime_backend_registry, tagged_device_identity_round_trips_for_every_back
     }
 }
 
+TEST(runtime_backend_registry, public_identity_preserves_legacy_default_runtime_ids) {
+    const auto default_runtime = runtime_backend_registry::default_backend().runtime_type;
+    for (const auto& backend : runtime_backend_registry::compiled_backends()) {
+        const auto public_id = runtime_backend_registry::make_public_device_id(backend.runtime_type, "0.1");
+        if (backend.runtime_type == default_runtime) {
+            EXPECT_EQ(public_id, "0.1");
+        } else {
+            EXPECT_EQ(public_id, std::string(backend.name) + "_0.1");
+        }
+    }
+}
+
 TEST(runtime_backend_registry, rejects_legacy_or_incomplete_tagged_identity) {
     runtime_types runtime_type = get_default_runtime_type();
     std::string backend_device_id;
