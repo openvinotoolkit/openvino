@@ -75,8 +75,10 @@ RUN apt-get update && \
     # one version guaranteed to exist on both mirrors permanently.
     NCURSES_VERSION=$(apt-cache madison libtinfo6 | awk -F'|' '$3 ~ / jammy\/main / {gsub(/ /, "", $2); print $2; exit}') && \
     apt-get install --allow-downgrades \
+    libncurses6=${NCURSES_VERSION} \
     libncursesw6=${NCURSES_VERSION} \
     libtinfo6=${NCURSES_VERSION} \
+    libncurses6:riscv64=${NCURSES_VERSION} \
     libncursesw6:riscv64=${NCURSES_VERSION} \
     libtinfo6:riscv64=${NCURSES_VERSION} && \
     apt-get install \
