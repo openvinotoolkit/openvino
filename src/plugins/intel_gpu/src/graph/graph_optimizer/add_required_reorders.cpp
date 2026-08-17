@@ -52,8 +52,8 @@ void eliminate_pad_for_onednn_impl(program& p, program_node& node) {
             if (!input.is_in_data_flow() || input.is_constant())
                 continue;
 
-            auto& in_layout = input.get_output_layout(false, port);
-            auto& in_padding = in_layout.data_padding;
+            const auto& in_layout = input.get_output_layout(false, port);
+            const auto& in_padding = in_layout.data_padding;
             if (static_cast<bool>(in_padding)) {
                 bool spatial_padding = false;
                 for (size_t i = 0; i < in_layout.get_spatial_rank(); ++i) {
@@ -147,7 +147,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
 
     for (size_t i = 0; i < node.get_dependencies().size(); i++) {
         const auto& dep_with_port = node.get_dependency_with_port(i);
-        auto& dep = dep_with_port.first;
+        const auto& dep = dep_with_port.first;
 
         auto current_format = dep->get_output_layout(false, dep_with_port.second).format;
 
@@ -155,7 +155,7 @@ bool add_required_reorders::test_format(cldnn::program_node& node, format reques
             continue;
 
         if (dep->is_type<reorder>()) {
-            auto& port = dep_with_port.second;
+            const auto& port = dep_with_port.second;
             auto new_layout = dep->get_output_layout(false, port);
             new_layout.format = requested_format;
             dep->set_output_layout(new_layout, false, port);
@@ -171,8 +171,8 @@ void add_required_reorders::run(program& p) {
     bool optimize_data = p.get_config().get_optimize_data();
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
-        auto& usr = *usr_itr++;
-        if (usr->get_dependencies().size() == 0)
+        const auto& usr = *usr_itr++;
+        if (usr->get_dependencies().empty())
             continue;  // only nodes with dependencies
         if (usr->is_type<data>())
             continue;
@@ -229,7 +229,7 @@ void add_required_reorders::run(program& p) {
                 // Some kernels use blocked aligned subgroup reads for a vector of elements from dependency tensor
                 // In that case jitter checks that layout of input tensor from fused op is same as output layout or broadcast is possible
                 // The code below is intended to insert additional reorder node for const eltwise dependency to ensure jitter can process such fusion
-                if (!fused_op.is_type<eltwise>() && !(fused_op.is_type<activation>() && fused_op.total_num_deps == 2))
+                if (!fused_op.is_type<eltwise>() && (!fused_op.is_type<activation>() || fused_op.total_num_deps != 2))
                     continue;
 
                 if (!fused_op.has_outer_dep())
@@ -283,7 +283,7 @@ void add_required_reorders::run(program& p) {
 
         layout original_layout = usr->get_output_layout();
 
-        for (auto& node : usr->get_dependencies()) {
+        for (const auto& node : usr->get_dependencies()) {
             if (!node.first->is_in_data_flow() && !weights_data) {
                 if (cldnn::format::dimension(original_layout.format) == cldnn::format::dimension(node.first->get_output_layout().format)) {
                     /*
@@ -305,7 +305,7 @@ void add_required_reorders::run(program& p) {
         if (!correct_layout_selected) {
             std::vector<cldnn::format> preferred_layout_formats;
             size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
-            for (auto& node : usr->get_dependencies()) {
+            for (const auto& node : usr->get_dependencies()) {
                 if (format::is_weights_format(node.first->get_output_layout().format))
                     continue;
                 max_in_dims = std::max(cldnn::format::dimension(node.first->get_output_layout().format), max_in_dims);

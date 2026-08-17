@@ -227,6 +227,10 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 
+        if (transformation_callback(loop_node)) {
+            return false;
+        }
+
         auto perm_bhls_to_blhs = v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
         auto perm_bhl_to_blh = v0::Constant::create(ov::element::i64, {3}, {0, 2, 1});
         ov::Output<ov::Node> q_in = pattern_map.at(query);
@@ -442,7 +446,11 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src, c
                 auto updated_shape = std::make_shared<ov::op::v3::ScatterUpdate>(ref_shape, indices, updates, axis);
 
                 auto reshaped = std::make_shared<v1::Reshape>(src, updated_shape, false);
-                if (!reshaped->get_output_partial_shape(0).compatible(ref_ps)) {
+                // Verify that all dimensions except head count are compatible with the reference.
+                // The head count dim (second-to-last) is intentionally different in grouped-query graphs.
+                ov::PartialShape relaxed_ref = ref_ps;
+                relaxed_ref[ref_rank.get_length() - 2] = ov::Dimension::dynamic();
+                if (!reshaped->get_output_partial_shape(0).compatible(relaxed_ref)) {
                     return {};
                 }
 

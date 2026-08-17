@@ -22,7 +22,7 @@ void handle_reshape::run(program& p) {
     // Remove reshapes that don't change the layout of output
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
-        auto node = (*node_itr++);
+        auto* node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             auto& input_node = node.input();
             auto input_lay = input_node.get_output_layout();
@@ -50,12 +50,12 @@ void handle_reshape::run(program& p) {
     // permute+reshape+reshape in cldnn and can be simplified to permute+reshape.
     node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
-        auto& node = (*node_itr++);
+        const auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives() || node.is_dynamic())
                 return;
 
-            auto& out_node = node.get_users().front();
+            const auto& out_node = node.get_users().front();
 
             if (!out_node->is_type<reshape>())
                 return;
@@ -77,7 +77,7 @@ void handle_reshape::run(program& p) {
         if (node->is_type<reshape>()) {
             const auto& dep = node->get_dependency_with_port(0);
             auto& input_node = *dep.first;
-            auto& input_port = dep.second;
+            const auto& input_port = dep.second;
 
             if (input_node.is_type<reorder>())
                 continue;
@@ -93,7 +93,7 @@ void handle_reshape::run(program& p) {
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>() &&
-                    (*user).as<reorder>().get_primitive()->truncate == false)   // not to split conversion only reorder
+                    !(*user).as<reorder>().get_primitive()->truncate)   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
                 if (user->can_use(impl_types::onednn))
                     onednn_users.push_back(user);
@@ -172,7 +172,7 @@ void handle_reshape::run(program& p) {
                     }
                 }
 
-                if (reorder_reshape_nodes.size() == 0)
+                if (reorder_reshape_nodes.empty())
                     continue;
 
                 // add new reorder nodes to proper reshape node

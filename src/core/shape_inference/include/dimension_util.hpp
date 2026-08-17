@@ -6,7 +6,7 @@
 #include <cstdint>
 
 #include "openvino/core/dimension.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov {
 namespace util {

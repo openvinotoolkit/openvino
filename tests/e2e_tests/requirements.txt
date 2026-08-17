@@ -6,7 +6,7 @@
 # for common utils
 py-cpuinfo==9.0.0
 scipy>=1.5.4,<1.19
-opencv-python>=4.5; sys_platform != "darwin"
+opencv-python==5.0.0.93; sys_platform != "darwin"
 opencv-python==4.13.0.92; sys_platform == "darwin"
 unittest-xml-reporting==4.0.0
 lpips==0.1.4

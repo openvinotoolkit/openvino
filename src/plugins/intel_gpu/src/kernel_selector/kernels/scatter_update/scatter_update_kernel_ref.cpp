@@ -37,11 +37,15 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
@@ -184,12 +188,17 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     JitConstants jit = MakeBaseParamsJitConstants(params);
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
+    // Flag fp8 inputs so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
+    // (see scatter_update_ref.cl). INPUT0 = dictionary (first kernel), INPUT2 = updates (second).
+    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
+    jit.AddConstant(MakeJitConstant("INPUT2_IS_F8E4M3", params.inputs[2].GetDType() == Datatype::F8E4M3));
+
     const auto input2_has_padding = params.inputs[2].has_dynamic_pad() || params.inputs[2].PitchesDifferFromLogicalDims();
 
     // In case of padded input2 (updates), we also need non-planar indexing, because UPDATES_INDEX is calculated based on output sizes
-    const auto use_layout_aware_indexing = !(SimpleLayout(params.inputs[0].GetLayout()) &&
-                                             SimpleLayout(params.inputs[1].GetLayout()) &&
-                                             SimpleLayout(params.inputs[2].GetLayout())) || input2_has_padding;
+    const auto use_layout_aware_indexing = !SimpleLayout(params.inputs[0].GetLayout()) ||
+                                             !SimpleLayout(params.inputs[1].GetLayout()) ||
+                                             !SimpleLayout(params.inputs[2].GetLayout()) || input2_has_padding;
 
     if (use_layout_aware_indexing) {
         jit.AddConstant(MakeJitConstant("USE_LAYOUT_AWARE_INDEXING", "1"));
@@ -253,7 +262,7 @@ bool ScatterUpdateKernelRef::Validate(const Params& p) const {
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

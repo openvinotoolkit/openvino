@@ -4,6 +4,7 @@
 
 #include "openvino/core/any.hpp"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <string>

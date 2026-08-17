@@ -15,10 +15,32 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <mutex>
+#include <shared_mutex>
 
 namespace ov::intel_gpu {
 
 class CompiledModel;
+class Graph;
+
+/// @brief Thread-safe wrapper around VariableStateBase that acquires the graph mutex
+/// before delegating reset() calls. This ensures that reset_state() from one InferRequest
+/// does not race with infer() on a sibling InferRequest sharing the same CompiledModel.
+/// See: https://github.com/openvinotoolkit/openvino/issues/36458
+class ThreadSafeVariableStateWrapper : public ov::IVariableState {
+public:
+    ThreadSafeVariableStateWrapper(std::shared_ptr<ov::IVariableState> state,
+                                    std::shared_ptr<Graph> graph);
+
+    void reset() override;
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override;
+    ov::SoPtr<ov::ITensor> get_state() const override;
+
+private:
+    std::shared_ptr<ov::IVariableState> m_state;
+    std::shared_ptr<Graph> m_graph;
+};
+
 
 enum class TensorOwner : uint8_t {
     USER = 0,
@@ -37,6 +59,38 @@ struct TensorWrapper {
     std::shared_ptr<ov::ITensor> ptr;
     TensorOwner owner;
     size_t actual_size;
+};
+
+// Couples the lazily-allocated user-input map with its mutex so the map is reachable only
+// through a held lock: read() takes a shared lock (read-only view), write() an exclusive one.
+class GuardedMap {
+public:
+    using map_t = std::unordered_map<size_t, TensorWrapper>;
+
+    GuardedMap() = default;
+    GuardedMap(const GuardedMap&) = delete;
+
+    template <typename LockType, typename MapRef>
+    class Accessor {
+    public:
+        Accessor(LockType lock, MapRef map) : m_lock(std::move(lock)), m_map(map) {}
+        auto operator->() { return &m_map; }
+        MapRef operator*() { return m_map; }
+    private:
+        LockType m_lock;
+        MapRef m_map;
+    };
+
+    Accessor<std::shared_lock<std::shared_mutex>, const map_t&> read() const {
+        return { std::shared_lock<std::shared_mutex>(m_mutex), m_map};
+    }
+    Accessor<std::unique_lock<std::shared_mutex>, map_t&> write() {
+        return {std::unique_lock<std::shared_mutex>(m_mutex), m_map};
+    }
+
+private:
+    mutable std::shared_mutex m_mutex;
+    map_t m_map;
 };
 
 class SyncInferRequest : public ov::ISyncInferRequest {
@@ -69,7 +123,13 @@ public:
 private:
     void check_tensors() const override;
 
-    std::unordered_map<size_t, TensorWrapper> m_user_inputs;
+    // Materializes a deferred (lazy) input slot on first access. Const-safe; takes
+    // an exclusive lock on m_user_inputs.
+    void ensure_input_allocated(size_t input_idx) const;
+
+    // Mutable so the const lazy-alloc path (get_tensor) can take a write lock.
+    // Self-guarding: reachable only via read()/write(), which lock internally.
+    mutable GuardedMap m_user_inputs;
     std::unordered_map<size_t, TensorWrapper> m_user_outputs;
 
     std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
@@ -112,7 +172,7 @@ private:
     void allocate_inputs();
     void allocate_outputs();
     void allocate_states();
-    void allocate_input(const ov::Output<const ov::Node>& port, size_t input_idx);
+    void allocate_input(size_t input_idx, GuardedMap::map_t& user_inputs);
     void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
