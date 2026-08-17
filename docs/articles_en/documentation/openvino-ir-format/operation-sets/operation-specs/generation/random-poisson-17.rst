@@ -106,7 +106,8 @@ acceptance.
    output = [1, 2, 2, 2, 3, 8, 9, 11, 5]
 
 
-**Example 2.** Same seeds and alignment, Hörmann rates:
+**Example 2.** *RandomPoisson* with ``global_seed = 150``, ``op_seed = 69``,
+``alignment = PYTORCH``, input type ``f32`` (Hörmann rates):
 
 .. code-block:: cpp
    :force:
@@ -116,13 +117,13 @@ acceptance.
 
 
 **Example 3.** *RandomPoisson* with ``global_seed = 150``, ``op_seed = 77``,
-``alignment = TENSORFLOW``, input type ``f32`` (Knuth rates):
+``alignment = TENSORFLOW``, input type ``f32`` (mixed rates: zero, Knuth, and Hörmann):
 
 .. code-block:: cpp
    :force:
 
-   input  = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-   output = [1, 1, 1, 2, 9, 5, 3, 3, 8]
+   input  = [0, 5, 10, 15, 20, 25, 30, 35, 40]
+   output = [0, 4, 5, 12, 21, 20, 38, 39, 34]
 
 
 **Attributes**:
@@ -167,7 +168,7 @@ acceptance.
 
 * *T*: ``bf16``, ``f16``, ``f32``, or ``f64``.
 
-*Example 1: IR example.*
+*Example 1: 1D rates, PyTorch alignment, ``f32``.*
 
 .. code-block:: xml
    :force:
@@ -175,12 +176,71 @@ acceptance.
     <layer ... name="RandomPoisson" type="RandomPoisson">
         <data global_seed="150" op_seed="69" alignment="pytorch"/>
         <input>
-            <port id="0" precision="FP32">  <!-- rates, e.g. [1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+            <port id="0" precision="FP32">  <!-- rates: [1, 2, 3, 4, 5, 6, 7, 8, 9] -->
                 <dim>9</dim>
             </port>
         </input>
         <output>
-            <port id="1" precision="FP32" names="RandomPoisson:0">
+            <port id="1" precision="FP32" names="RandomPoisson:0">  <!-- [1, 2, 2, 2, 3, 8, 9, 11, 5] -->
+                <dim>9</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 2: 1D rates, TensorFlow alignment, ``f16``.*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... name="RandomPoisson" type="RandomPoisson">
+        <data global_seed="150" op_seed="77" alignment="tensorflow"/>
+        <input>
+            <port id="0" precision="FP16">  <!-- rates: [1, 2, 3, 4, 5, 6, 7, 8, 9] -->
+                <dim>9</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="FP16" names="RandomPoisson:0">  <!-- [1, 1, 1, 2, 9, 5, 3, 3, 8] -->
+                <dim>9</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 3: 2D rates, TensorFlow alignment (default). Output shape matches input.*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... name="RandomPoisson" type="RandomPoisson">
+        <data global_seed="150" op_seed="77" alignment="tensorflow"/>
+        <input>
+            <port id="0" precision="FP32">  <!-- rates: [[0, 5, 10], [15, 20, 25], [30, 35, 40]] -->
+                <dim>3</dim>
+                <dim>3</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="FP32" names="RandomPoisson:0">  <!-- [[0, 4, 5], [12, 21, 20], [38, 39, 34]] -->
+                <dim>3</dim>
+                <dim>3</dim>
+            </port>
+        </output>
+    </layer>
+
+*Example 4: 1D rates, PyTorch alignment, ``bf16``.*
+
+.. code-block:: xml
+   :force:
+
+    <layer ... name="RandomPoisson" type="RandomPoisson">
+        <data global_seed="150" op_seed="69" alignment="pytorch"/>
+        <input>
+            <port id="0" precision="BF16">  <!-- rates: [0, 5, 10, 15, 20, 25, 30, 35, 40] -->
+                <dim>9</dim>
+            </port>
+        </input>
+        <output>
+            <port id="1" precision="BF16" names="RandomPoisson:0">  <!-- [0, 6, 6, 11, 19, 15, 36, 33, 33] -->
                 <dim>9</dim>
             </port>
         </output>
