@@ -69,7 +69,9 @@ void RandomPoisson::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this,
                           input_element_type.is_dynamic() || validate::input_et(input_element_type),
-                          "Input tensor must be of type float, bf16, f16, f32, or f64. or dynamic.");
+                          "Input element type must be f16, bf16, f32, f64 or dynamic (got ",
+                          input_element_type,
+                          ").");
     NODE_VALIDATION_CHECK(this,
                           input_shape.rank().is_dynamic() || input_shape.rank().get_length() > 0,
                           "RandomPoisson: scalars (rank 0) are not supported.");
@@ -137,7 +139,10 @@ bool RandomPoisson::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     OV_OP_SCOPE(v17_RandomPoisson_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 1);
-    OPENVINO_ASSERT(inputs[0].get_element_type().is_real(), "Input tensor must be of type float, f16, f32, or f64.");
+    OPENVINO_ASSERT(validate::input_et(inputs[0].get_element_type()),
+                    "Input element type must be f16, bf16, f32 or f64 (got ",
+                    inputs[0].get_element_type(),
+                    ").");
     outputs[0].set_shape(inputs[0].get_shape());
     OPENVINO_ASSERT(inputs[0].get_shape() == outputs[0].get_shape());
     using namespace ov::element;
@@ -145,7 +150,7 @@ bool RandomPoisson::evaluate(TensorVector& outputs, const TensorVector& inputs) 
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(f32, f16, f64),
+                                      OV_PP_ET_LIST(f32, f16, bf16, f64),
                                       random_poisson::Evaluate,
                                       inputs[0].get_element_type(),
                                       this,

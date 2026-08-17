@@ -82,7 +82,7 @@ TEST(type_prop, random_poisson_invalid_integer_input) {
 
     OV_EXPECT_THROW(ignore = make_shared<op::v17::RandomPoisson>(input, 0, 0, op::PhiloxAlignment::PYTORCH),
                     NodeValidationFailure,
-                    HasSubstr("Input tensor must be of type float"));
+                    HasSubstr("Input element type must be f16, bf16, f32, f64 or dynamic"));
 }
 
 TEST(type_prop, random_poisson_invalid_scalar_input) {
