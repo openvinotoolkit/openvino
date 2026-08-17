@@ -110,7 +110,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel\|tencentos\|opencloudos" /etc/o
             `# check bash scripts for correctness` \
             ShellCheck
     else
-        yum install -y epol-release
+        yum install -y epel-release
     fi
     MAJOR_VERSION=${VERSION_ID%%.*}
     if [[ ( "$ID" == "rhel" || "$ID" == "rocky" ) && "$MAJOR_VERSION" -ge 10 ]]; then
