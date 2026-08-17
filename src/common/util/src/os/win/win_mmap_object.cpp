@@ -678,12 +678,12 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
 void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
     const bool writable = mode == MmapMode::READ_WRITE;
     auto fh = ::CreateFileW(path.c_str(),
-                            writable ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
-                            writable ? (FILE_SHARE_READ | FILE_SHARE_WRITE| FILE_SHARE_DELETE) : (FILE_SHARE_READ | FILE_SHARE_DELETE),
-                            nullptr,
-                            OPEN_EXISTING,
-                            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
-                            nullptr);
+        writable ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
+        writable ? (FILE_SHARE_READ | FILE_SHARE_WRITE| FILE_SHARE_DELETE) : (FILE_SHARE_READ | FILE_SHARE_DELETE),
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        nullptr);
     if (fh == INVALID_HANDLE_VALUE) {
         throw std::runtime_error{"Cannot open file: " + ov::util::path_to_string(path) +
                                  " error: " + std::to_string(::GetLastError())};
