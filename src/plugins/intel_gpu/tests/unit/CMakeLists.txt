@@ -73,6 +73,16 @@ if (NOT OV_GPU_RUNTIME_SYCL_ENABLED)
   endforeach()
 endif()
 
+file(GLOB_RECURSE SOURCES_WITH_VULKAN_RT
+  "${CMAKE_CURRENT_SOURCE_DIR}/module_tests/vulkan/*.cpp"
+  )
+
+if (NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
+    foreach (SOURCE_FILE IN LISTS SOURCES_WITH_VULKAN_RT)
+        list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+    endforeach()
+endif()
+
 if (NOT ENABLE_ONEDNN_FOR_GPU)
     set(EXCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn/")
     foreach (SOURCE_FILE IN LISTS SOURCES_MAIN)
@@ -122,6 +132,12 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/
                                                   ${TEST_COMMON_INCLUDE_DIR})
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    get_property(OV_GPU_VULKAN_GENERATED_INCLUDE_DIR GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR)
+    target_include_directories(${TARGET_NAME} PRIVATE "${OV_GPU_VULKAN_GENERATED_INCLUDE_DIR}")
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders)
+endif()
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)

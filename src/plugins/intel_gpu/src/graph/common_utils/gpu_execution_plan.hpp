@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "common_utils/gpu_kernel_lifecycle.hpp"
+#include "common_utils/gpu_local_memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 
@@ -29,6 +30,7 @@ struct gpu_dispatch_plan {
     size_t kernel_index = 0;
     gpu_dispatch_dependency_policy dependency = gpu_dispatch_dependency_policy::previous;
     bool skip_execution = false;
+    gpu_local_memory_contract local_memory;
 };
 
 /// A per-dispatch, non-owning descriptor paired with invocation-specific resources.
