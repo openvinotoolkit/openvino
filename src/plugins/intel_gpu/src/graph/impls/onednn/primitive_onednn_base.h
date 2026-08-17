@@ -15,7 +15,7 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 
-#include "impls/ocl/kernel_selector_helper.h"
+#include "common_utils/kernel_selector_helper.h"
 
 #include <vector>
 #include <utility>

@@ -43,6 +43,11 @@ memory::memory(engine* engine, const layout& layout, allocation_type type, std::
     : _engine(engine), _layout(layout), _bytes_count(_layout.bytes_count()), m_mem_tracker(mem_tracker), _type(type) {
 }
 
+shared_mem_params memory::get_internal_params() const {
+    OPENVINO_ASSERT(_engine != nullptr, "[GPU] Runtime-owned memory requires an engine");
+    return get_internal_params(_engine->runtime_type());
+}
+
 bool surfaces_lock::is_lock_needed(const shared_mem_type& mem_type) {
     return mem_type == shared_mem_type::shared_mem_vasurface ||
            mem_type == shared_mem_type::shared_mem_dxbuffer ||

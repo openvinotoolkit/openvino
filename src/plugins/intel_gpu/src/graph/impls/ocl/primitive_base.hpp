@@ -14,7 +14,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "primitive_inst.h"
-#include "kernel_selector_helper.h"
+#include "common_utils/kernel_selector_helper.h"
 #include "register.hpp"
 #include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"

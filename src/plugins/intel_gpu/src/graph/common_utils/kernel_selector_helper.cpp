@@ -45,7 +45,7 @@
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
-#include "impls/ocl/kernels_cache.hpp"
+#include "common_utils/kernels_cache.hpp"
 
 #include <string>
 #include <type_traits>

@@ -9,7 +9,7 @@
 
 #include <intel_gpu/primitives/vl_sdpa.hpp>
 #include "vl_sdpa_inst.h"
-#include "graph/impls/ocl/kernel_selector_helper.h"
+#include "graph/common_utils/kernel_selector_helper.h"
 
 #include "intel_gpu/runtime/engine.hpp"
 

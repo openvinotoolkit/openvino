@@ -8,7 +8,9 @@
 #ifdef ENABLE_CM_FOR_GPU
 #include "impls/cm/utils/kernels_db.hpp"
 #endif
-#include "impls/ocl_v2/utils/kernels_db.hpp"
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
+#    include "impls/ocl_v2/utils/kernels_db.hpp"
+#endif
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
@@ -212,13 +214,17 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                     for (auto& header : new_headers) {
                         if (std::find(all_headers.begin(), all_headers.end(), header) == all_headers.end()) {
                             all_headers.push_front(header);
-                            std::string_view header_code =
+                            std::string_view header_code;
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
 #ifdef ENABLE_CM_FOR_GPU
-                                prog.language == kernel_language::OCLC_V2
+                            header_code = prog.language == kernel_language::OCLC_V2
                                 ? ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header)
                                 : ov::intel_gpu::cm::SourcesDB::get_kernel_header(header);
 #else
-                                ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
+                            header_code = ov::intel_gpu::ocl::SourcesDB::get_kernel_header(header);
+#endif
+#else
+                            OPENVINO_THROW("Source kernel headers are unavailable without a source runtime backend");
 #endif
                             sources_to_process.push_back(std::string(header_code) + "\n");
                         }

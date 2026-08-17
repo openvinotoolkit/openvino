@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT OV_GPU_RUNTIME_OCL_ENABLED AND NOT OV_GPU_RUNTIME_ZE_ENABLED AND NOT OV_GPU_RUNTIME_SYCL_ENABLED)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_gpu_ocl_obj")
 
 ov_gpu_add_backend_target(
@@ -9,9 +13,3 @@ ov_gpu_add_backend_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
-
-if(OV_GPU_RUNTIME_SYCL_ENABLED)
-    # kernels_cache.cpp includes oneDNN headers that require SYCL backend support.
-    # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
-    add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES kernels_cache.cpp)
-endif()

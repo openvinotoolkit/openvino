@@ -108,6 +108,16 @@ std::string Plugin::resolve_device_id(const std::string& device_id) const {
         if (m_device_map.count(tagged_id) != 0) {
             return tagged_id;
         }
+
+        // If the configured default backend has no device, keep the legacy
+        // numeric alias on the selected available fallback backend.
+        cldnn::runtime_types selected_runtime;
+        std::string selected_backend_device_id;
+        if (cldnn::runtime_backend_registry::parse_device_id(
+                m_default_device_id, selected_runtime, selected_backend_device_id) &&
+            selected_backend_device_id == device_id) {
+            return m_default_device_id;
+        }
     }
 
     OPENVINO_THROW("[GPU] Unknown device ID: ", device_id);

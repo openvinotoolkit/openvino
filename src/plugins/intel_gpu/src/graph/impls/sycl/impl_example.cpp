@@ -12,7 +12,7 @@
 #include "primitive_sycl_base.h"
 #include "registry/implementation_map.hpp"
 
-#include "impls/ocl/kernel_selector_helper.h"
+#include "common_utils/kernel_selector_helper.h"
 
 #include "sycl/sycl.hpp"
 #include "sycl/ext/oneapi/experimental/builtins.hpp"

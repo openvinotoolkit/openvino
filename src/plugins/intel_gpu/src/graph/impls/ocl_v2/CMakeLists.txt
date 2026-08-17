@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT OV_GPU_RUNTIME_OCL_ENABLED AND NOT OV_GPU_RUNTIME_ZE_ENABLED AND NOT OV_GPU_RUNTIME_SYCL_ENABLED)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_gpu_ocl_v2_obj")
 
 # Path which points to root directory where code generated elements are created

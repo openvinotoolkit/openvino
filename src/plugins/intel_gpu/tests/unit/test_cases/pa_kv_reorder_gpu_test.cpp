@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "graph/impls/ocl/kernel_selector_helper.h"  // check_cm_jit_support
+#include "graph/common_utils/kernel_selector_helper.h"  // check_cm_jit_support
 #include "test_utils.h"
 
 using namespace cldnn;

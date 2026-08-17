@@ -5,7 +5,7 @@
 #include "test_utils.h"
 
 #include "intel_gpu/runtime/layout.hpp"
-#include "impls/ocl/kernel_selector_helper.h"
+#include "common_utils/kernel_selector_helper.h"
 
 using namespace cldnn;
 using namespace ::tests;

@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "eltwise_shader_abi.hpp"
-#include "impls/ocl/kernels_cache.hpp"
+#include "common_utils/kernels_cache.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"

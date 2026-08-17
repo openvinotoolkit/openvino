@@ -42,8 +42,6 @@
 #else
 #include <unistd.h>
 #include <climits>
-#include <link.h>
-#include <dlfcn.h>
 #endif
 
 

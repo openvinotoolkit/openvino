@@ -23,6 +23,71 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/adaptive_pooling.hpp"
+#include "intel_gpu/primitives/arg_max_min.hpp"
+#include "intel_gpu/primitives/assign.hpp"
+#include "intel_gpu/primitives/border.hpp"
+#include "intel_gpu/primitives/broadcast.hpp"
+#include "intel_gpu/primitives/bucketize.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/condition.hpp"
+#include "intel_gpu/primitives/convert_color.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/ctc_loss.hpp"
+#include "intel_gpu/primitives/custom_gpu_primitive.hpp"
+#include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/deconvolution.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/detection_output.hpp"
+#include "intel_gpu/primitives/dft.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/experimental_detectron_detection_output.hpp"
+#include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
+#include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/gather.hpp"
+#include "intel_gpu/primitives/gather_tree.hpp"
+#include "intel_gpu/primitives/gemm.hpp"
+#include "intel_gpu/primitives/generate_proposals.hpp"
+#include "intel_gpu/primitives/grid_sample.hpp"
+#include "intel_gpu/primitives/group_normalization.hpp"
+#include "intel_gpu/primitives/input_layout.hpp"
+#include "intel_gpu/primitives/loop.hpp"
+#include "intel_gpu/primitives/matrix_nms.hpp"
+#include "intel_gpu/primitives/multiclass_nms.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/mvn.hpp"
+#include "intel_gpu/primitives/non_max_suppression.hpp"
+#include "intel_gpu/primitives/non_zero.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/pooling.hpp"
+#include "intel_gpu/primitives/prior_box.hpp"
+#include "intel_gpu/primitives/proposal.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/read_value.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/primitives/region_yolo.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reorg_yolo.hpp"
+#include "intel_gpu/primitives/resample.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/reverse.hpp"
+#include "intel_gpu/primitives/rms.hpp"
+#include "intel_gpu/primitives/roi_align.hpp"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/roll.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "intel_gpu/primitives/scatter_elements_update.hpp"
+#include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/tile.hpp"
+#include "intel_gpu/primitives/unique.hpp"
+
 
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -87,10 +152,12 @@
 #include "intel_gpu/primitives/rnn.hpp"
 
 // TODO: Remove once we have interface for kernels cache
-#include "impls/ocl/kernels_cache.hpp"
+#include "common_utils/kernels_cache.hpp"
 
 // TODO: implement self-registration for impls
-#include "impls/ocl/register.hpp"
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
+#    include "impls/ocl/register.hpp"
+#endif
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
 
@@ -269,7 +336,9 @@ void program::init_primitives() {
     static bool is_initialized = false;
     if (!is_initialized) {
         common::register_implementations();
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT) || defined(OV_GPU_WITH_SYCL_RT)
         ocl::register_implementations();
+#endif
         cpu::register_implementations();
         is_initialized = true;
     }

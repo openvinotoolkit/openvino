@@ -122,6 +122,12 @@ add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    # Define the imported loader target at plugin scope so the runtime, graph,
+    # plugin, and tests can attach it only where their backend boundary needs it.
+    find_package(Vulkan 1.3 REQUIRED)
+endif()
+
 add_subdirectory(thirdparty)
 include(thirdparty/cmake/rapidjson.cmake)
 
