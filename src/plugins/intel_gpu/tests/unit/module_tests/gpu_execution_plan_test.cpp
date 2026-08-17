@@ -69,7 +69,8 @@ public:
         events.push_back(result);
         return result;
     }
-    event::ptr enqueue_marker(const std::vector<event::ptr>&, bool) override {
+    event::ptr enqueue_marker(const std::vector<event::ptr>&, bool is_output_event) override {
+        marker_output_event_requests.push_back(is_output_event);
         return std::make_shared<plan_test_event>();
     }
     void enqueue_barrier() override {}
@@ -95,6 +96,7 @@ public:
     std::vector<std::string> kernel_ids;
     std::vector<size_t> dependency_counts;
     std::vector<bool> output_event_requests;
+    std::vector<bool> marker_output_event_requests;
     std::vector<event::ptr> events;
 };
 
@@ -162,4 +164,20 @@ TEST(gpu_execution_plan, preserves_independent_dispatch_and_aggregate_policy) {
     ASSERT_NE(completion, nullptr);
     EXPECT_EQ(stream.dependency_counts, (std::vector<size_t>{1, 1}));
     EXPECT_EQ(stream.output_event_requests, (std::vector<bool>{true, true}));
+}
+
+TEST(gpu_execution_plan, returns_requested_kernel_completion_without_output_marker) {
+    auto lifecycle = make_lifecycle(1);
+    gpu_execution_plan plan(1, {true, true});
+    plan_test_stream stream;
+    kernel_arguments_desc descriptor;
+
+    const auto completion = plan.execute(stream, lifecycle, {}, true, [&](size_t) {
+        return gpu_dispatch_binding{&descriptor, {}};
+    });
+
+    ASSERT_EQ(stream.events.size(), 1);
+    EXPECT_EQ(completion, stream.events.front());
+    EXPECT_EQ(stream.output_event_requests, (std::vector<bool>{true}));
+    EXPECT_TRUE(stream.marker_output_event_requests.empty());
 }

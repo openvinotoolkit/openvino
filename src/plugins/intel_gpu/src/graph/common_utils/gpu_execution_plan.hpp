@@ -103,7 +103,7 @@ public:
 
         const auto last_dispatch = find_last_enabled_dispatch();
         if (_zero_size || last_dispatch == _dispatches.size()) {
-            return command_stream.aggregate_events(external_dependencies, external_dependencies.size() > 1, request_completion);
+            return command_stream.aggregate_events(external_dependencies, external_dependencies.size() > 1);
         }
 
         _event_scratch.clear();
@@ -136,9 +136,12 @@ public:
 
         if (_completion.aggregate_dispatch_events) {
             if (_event_scratch.empty()) {
-                return command_stream.aggregate_events(external_dependencies, external_dependencies.size() > 1, request_completion);
+                return command_stream.aggregate_events(external_dependencies, external_dependencies.size() > 1);
             }
-            return command_stream.aggregate_events(_event_scratch, _event_scratch.size() > 1, request_completion);
+            // Completion was already requested from each selected dispatch. Do not replace those
+            // backend events with an output marker: an in-order OCL stream may represent such a
+            // marker as an already-completed user event.
+            return command_stream.aggregate_events(_event_scratch, _event_scratch.size() > 1);
         }
         return previous_event;
     }
