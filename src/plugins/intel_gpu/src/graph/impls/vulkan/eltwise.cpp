@@ -106,7 +106,7 @@
 #include "eltwise_shader_abi.hpp"
 #include "eltwise_spirv.hpp"
 #include "eltwise_unary_spirv.hpp"
-#include "common_utils/kernels_cache.hpp"
+#include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "quantize_inst.h"
@@ -1842,21 +1842,18 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     }
 
     void init_kernels(const kernels_cache& cache, const kernel_impl_params& params) override {
-        _kernels = cache.get_kernels(params);
+        this->can_share_kernels = _kernels.initialize(cache, params);
         OPENVINO_ASSERT(_kernels.size() == _kernel_sources.size(), "[GPU][Vulkan] Eltwise compiled an unexpected number of SPIR-V kernels");
     }
 
     void init_by_cached_kernels(const kernels_cache& cache, std::vector<std::string>& cached_kernel_ids) override {
-        _kernels.clear();
-        for (const auto& id : cached_kernel_ids) {
-            _kernels.push_back(cache.get_kernel_from_cached_kernels(id));
-        }
+        this->can_share_kernels = _kernels.restore(cache, cached_kernel_ids);
         OPENVINO_ASSERT(_kernels.size() == 1 || (supports_restricted_output(_kernel_kind) && _kernels.size() == 2),
                         "[GPU][Vulkan] Cached Eltwise expects an alias-safe kernel and an optional restricted kernel");
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& cache) override {
-        return cache.get_cached_kernel_ids(_kernels);
+        return _kernels.get_cached_kernel_ids(cache);
     }
 
     std::vector<std::shared_ptr<kernel_string>> get_kernels_source() override {
@@ -1868,7 +1865,7 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+        return _kernels.copy_kernels();
     }
 
     std::vector<size_t> get_in_place_input_indices() const override {
@@ -1877,12 +1874,8 @@ struct eltwise_impl : typed_primitive_impl<eltwise> {
 
     void set_kernels(kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Eltwise expects one compiled kernel set");
-        const auto& entries = kernels.begin()->second;
-        OPENVINO_ASSERT(entries.size() == _kernel_sources.size(), "[GPU][Vulkan] Eltwise compiled an unexpected number of kernels");
-        _kernels.resize(entries.size());
-        for (const auto& entry : entries) {
-            _kernels.at(entry.second) = entry.first;
-        }
+        OPENVINO_ASSERT(kernels.begin()->second.size() == _kernel_sources.size(), "[GPU][Vulkan] Eltwise compiled an unexpected number of kernels");
+        _kernels.adopt_compiled(std::move(kernels));
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, eltwise_inst& instance) override {
@@ -2166,7 +2159,7 @@ private:
     uint32_t _elements_per_invocation = 0;
     uint32_t _fused_chain_length = 0;
     std::shared_ptr<local_size_tuning_state> _local_size_tuning;
-    std::vector<kernel::ptr> _kernels;
+    gpu_kernel_lifecycle _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
 };

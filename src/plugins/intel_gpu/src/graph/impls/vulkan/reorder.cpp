@@ -9,10 +9,11 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "eltwise_shader_abi.hpp"
-#include "common_utils/kernels_cache.hpp"
+#include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "openvino/core/except.hpp"
 #include "registry/implementation_map.hpp"
@@ -175,19 +176,16 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
     }
 
     void init_kernels(const kernels_cache& cache, const kernel_impl_params& params) override {
-        _kernels = cache.get_kernels(params);
+        this->can_share_kernels = _kernels.initialize(cache, params);
         OPENVINO_ASSERT(_kernels.size() == 1, "[GPU][Vulkan] Reorder conversion expects exactly one SPIR-V kernel");
     }
 
     void init_by_cached_kernels(const kernels_cache& cache, std::vector<std::string>& cached_kernel_ids) override {
-        _kernels.clear();
-        for (const auto& id : cached_kernel_ids) {
-            _kernels.push_back(cache.get_kernel_from_cached_kernels(id));
-        }
+        this->can_share_kernels = _kernels.restore(cache, cached_kernel_ids);
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& cache) override {
-        return cache.get_cached_kernel_ids(_kernels);
+        return _kernels.get_cached_kernel_ids(cache);
     }
 
     std::vector<std::shared_ptr<kernel_string>> get_kernels_source() override {
@@ -199,16 +197,11 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+        return _kernels.copy_kernels();
     }
 
     void set_kernels(kernels_cache::compiled_kernels kernels) override {
-        OPENVINO_ASSERT(kernels.size() == 1, "[GPU][Vulkan] Reorder conversion expects one compiled kernel set");
-        const auto& entries = kernels.begin()->second;
-        _kernels.resize(entries.size());
-        for (const auto& entry : entries) {
-            _kernels.at(entry.second) = entry.first;
-        }
+        _kernels.adopt_compiled(std::move(kernels));
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, reorder_inst& instance) override {
@@ -247,7 +240,7 @@ struct reorder_convert_impl : typed_primitive_impl<reorder> {
 
 private:
     std::shared_ptr<kernel_string> _kernel_source;
-    std::vector<kernel::ptr> _kernels;
+    gpu_kernel_lifecycle _kernels;
     std::array<uint32_t, metadata_words> _cached_metadata{};
     bool _metadata_initialized = false;
 };

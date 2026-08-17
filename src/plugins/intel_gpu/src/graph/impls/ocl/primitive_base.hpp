@@ -14,6 +14,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 #include "primitive_inst.h"
+#include "common_utils/gpu_kernel_lifecycle.hpp"
 #include "common_utils/kernel_selector_helper.h"
 #include "register.hpp"
 #include "registry/implementation_map.hpp"
@@ -51,7 +52,7 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
-    std::vector<kernel::ptr> _kernels;
+    gpu_kernel_lifecycle _kernels;
 
     mutable KernelDumpInfo kernel_dump_info;
 
@@ -61,10 +62,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
     , _kernels({}) {
-        _kernels.reserve(other._kernels.size());
-        for (size_t k = 0; k < other._kernels.size(); ++k) {
-            _kernels.emplace_back(other._kernels[k]->clone(other.can_share_kernels));
-        }
+        _kernels.clone_from(other._kernels, other.can_share_kernels);
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;
         this->m_manager = other.m_manager;
@@ -151,8 +149,7 @@ protected:
         }
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
-            auto compiled_kernels = kernels_cache.get_kernels(params);
-            _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
+            _kernels.initialize(kernels_cache, params);
             kernel_dump_info.set_batch_hash(std::to_string(kernels_cache.get_kernel_batch_hash(params)));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
@@ -162,17 +159,11 @@ protected:
         if (is_cpu()) {
             return;
         }
-        _kernels.clear();
-
-        _kernels.reserve(cached_kernel_ids.size());
-        for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
-        }
-        this->can_share_kernels = kernels_cache.get_kernels_reuse();
+        this->can_share_kernels = _kernels.restore(kernels_cache, cached_kernel_ids);
     }
 
     std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
-        return {kernels_cache.get_cached_kernel_ids(_kernels)};
+        return _kernels.get_cached_kernel_ids(kernels_cache);
     }
 
     template<typename ImplType, typename KernelParamsType>
@@ -186,7 +177,7 @@ protected:
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+        return _kernels.copy_kernels();
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
@@ -312,14 +303,7 @@ protected:
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         if (is_cpu())
             return;
-        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
-        auto& kernel_vec = kernels.begin()->second;
-        _kernels.clear();
-        _kernels.resize(kernel_vec.size());
-        for (auto& k : kernel_vec) {
-            auto sub_kernel_idx = k.second;
-            _kernels[sub_kernel_idx] = k.first;
-        }
+        _kernels.adopt_compiled(std::move(kernels));
     }
 
     // Regardless of the model's dynamism, the compile time graph will rely on the skip_execution mechanism to determine which kernels will be executed
