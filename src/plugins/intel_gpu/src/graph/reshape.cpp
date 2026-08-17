@@ -348,3 +348,5 @@ void reshape_inst::update_output_memory() {
 }
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reshape)
