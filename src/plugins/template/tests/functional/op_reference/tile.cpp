@@ -123,6 +123,10 @@ std::vector<TileParams> generateParamsNegativeRepeats() {
                    reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-1}),
                    reference_tests::Tensor(ET, {0}, std::vector<T>{}),
                    "tile_1d_to_1d_with_negative_repeats"),
+        TileParams(reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+                   reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+                   reference_tests::Tensor(ET, {4, 0}, std::vector<T>{}),
+                   "tile_2d_mixed_sign_repeats_with_negative_axis"),
     };
     return params;
 }
