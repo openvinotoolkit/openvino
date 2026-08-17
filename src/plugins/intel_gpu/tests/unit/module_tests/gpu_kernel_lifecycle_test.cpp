@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_utils/gpu_kernel_lifecycle.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "common_utils/gpu_kernel_lifecycle.hpp"
 
 using namespace cldnn;
 

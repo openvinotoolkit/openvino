@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/kernel_builder.hpp"
-
 #include <gtest/gtest.h>
 
 #include <array>
+
+#include "intel_gpu/runtime/kernel_builder.hpp"
 
 using namespace cldnn;
 
@@ -36,10 +36,7 @@ public:
 }  // namespace
 
 TEST(kernel_artifact, formats_have_distinct_semantics) {
-    constexpr std::array formats{KernelFormat::SOURCE,
-                                 KernelFormat::NATIVE_BIN,
-                                 KernelFormat::SPIRV,
-                                 KernelFormat::DRIVER_PIPELINE_CACHE};
+    constexpr std::array formats{KernelFormat::SOURCE, KernelFormat::NATIVE_BIN, KernelFormat::SPIRV, KernelFormat::DRIVER_PIPELINE_CACHE};
 
     for (size_t lhs = 0; lhs < formats.size(); ++lhs) {
         for (size_t rhs = lhs + 1; rhs < formats.size(); ++rhs) {

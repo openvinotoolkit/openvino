@@ -4,10 +4,10 @@
 
 #include "intel_gpu/runtime/runtime_backend_registry.hpp"
 
-#include "openvino/core/except.hpp"
-
 #include <algorithm>
 #include <iterator>
+
+#include "openvino/core/except.hpp"
 
 namespace cldnn {
 namespace {
@@ -66,20 +66,15 @@ const runtime_backend_descriptor& runtime_backend_registry::get(runtime_types ru
     const auto it = std::find_if(backends.begin(), backends.end(), [runtime_type](const auto& backend) {
         return backend.runtime_type == runtime_type;
     });
-    OPENVINO_ASSERT(it != backends.end(),
-                    "[GPU] Requested runtime is not compiled into the plugin: ",
-                    runtime_name(runtime_type));
+    OPENVINO_ASSERT(it != backends.end(), "[GPU] Requested runtime is not compiled into the plugin: ", runtime_name(runtime_type));
     return *it;
 }
 
-std::string runtime_backend_registry::make_device_id(runtime_types runtime_type,
-                                                     const std::string& backend_device_id) {
+std::string runtime_backend_registry::make_device_id(runtime_types runtime_type, const std::string& backend_device_id) {
     return std::string(runtime_name(runtime_type)) + "_" + backend_device_id;
 }
 
-bool runtime_backend_registry::parse_device_id(const std::string& device_id,
-                                               runtime_types& runtime_type,
-                                               std::string& backend_device_id) {
+bool runtime_backend_registry::parse_device_id(const std::string& device_id, runtime_types& runtime_type, std::string& backend_device_id) {
     const auto separator = device_id.find('_');
     if (separator == std::string::npos || separator == 0 || separator + 1 == device_id.size()) {
         return false;

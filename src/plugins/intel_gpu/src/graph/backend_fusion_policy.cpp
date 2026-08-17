@@ -22,9 +22,7 @@ auto& registered_policies() {
 
 void register_backend_fusion_policy(runtime_types runtime, const backend_fusion_policy& policy) {
     auto& registered = registered_policies()[runtime];
-    OPENVINO_ASSERT(registered == nullptr || registered == &policy,
-                    "[GPU] A fusion policy is already registered for runtime ",
-                    runtime);
+    OPENVINO_ASSERT(registered == nullptr || registered == &policy, "[GPU] A fusion policy is already registered for runtime ", runtime);
     registered = &policy;
 }
 
