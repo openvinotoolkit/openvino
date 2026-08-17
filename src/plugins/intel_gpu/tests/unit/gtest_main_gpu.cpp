@@ -61,6 +61,7 @@ GTEST_API_ int main(int argc, char** argv) {
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
     auto retcode = RUN_ALL_TESTS();
+    tests::release_test_runtime();
     delete[] new_argv;
     return retcode;
 }

@@ -61,6 +61,9 @@ private:
     }
 
     static bool has_enough_work(const program_node& node, const layout& output_layout) {
+        if (output_layout.is_dynamic()) {
+            return false;
+        }
         const auto& info = node.get_program().get_engine().get_device_info();
         const auto subgroup_size = info.supported_simd_sizes.empty() ? 0 : info.supported_simd_sizes.front();
         return eltwise_shader_abi::post_op_fusion_has_enough_work(output_layout.count(), info.max_work_group_size, subgroup_size);
@@ -197,6 +200,13 @@ private:
     static fusion_decision evaluate_reorder_elimination(const program_node& producer, const program_node& consumer) {
         if (!producer.is_type<eltwise>()) {
             return fusion_decision::defer_to_common;
+        }
+        if (producer.get_output_layout().data_type != consumer.get_output_layout().data_type) {
+            return supports_terminal_post_op(producer, consumer.get_output_layout()) ? fusion_decision::accept
+                                                                                     : fusion_decision::reject;
+        }
+        if (consumer.get_output_layout().is_dynamic()) {
+            return fusion_decision::accept;
         }
         return has_enough_work(producer, consumer.get_output_layout()) ? fusion_decision::accept : fusion_decision::reject;
     }

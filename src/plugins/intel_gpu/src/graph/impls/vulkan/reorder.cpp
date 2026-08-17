@@ -261,9 +261,18 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);
     if (!is_supported_data_type(input_layout.data_type) || !is_supported_data_type(output_layout.data_type) ||
-        !is_copy_compatible_format(input_layout.format) || !is_copy_compatible_format(output_layout.format) || input_layout.is_dynamic() ||
-        output_layout.is_dynamic() || static_cast<bool>(input_layout.data_padding) || static_cast<bool>(output_layout.data_padding) ||
-        input_layout.get_linear_offset() != 0 || output_layout.get_linear_offset() != 0 || input_layout.count() != output_layout.count()) {
+        !is_copy_compatible_format(input_layout.format) || !is_copy_compatible_format(output_layout.format) ||
+        static_cast<bool>(input_layout.data_padding) || static_cast<bool>(output_layout.data_padding)) {
+        return false;
+    }
+
+    if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
+        return input_layout.is_dynamic() && output_layout.is_dynamic() &&
+               input_layout.get_partial_shape().same_scheme(output_layout.get_partial_shape());
+    }
+
+    if (input_layout.get_linear_offset() != 0 || output_layout.get_linear_offset() != 0 ||
+        input_layout.count() != output_layout.count()) {
         return false;
     }
 

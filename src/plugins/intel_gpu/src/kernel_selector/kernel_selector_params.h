@@ -407,8 +407,8 @@ struct EngineInfo {
     gpu_arch arch = gpu_arch::unknown;
     uint32_t maxThreadsPerExecutionUnit = 0;
     uint32_t maxThreadsPerDevice = 0;
-    uint64_t maxWorkGroupSize = 0;
-    uint64_t maxLocalMemSize = 0;
+    size_t maxWorkGroupSize = 0;
+    size_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
     std::string deviceId;
