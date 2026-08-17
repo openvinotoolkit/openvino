@@ -22,7 +22,7 @@ std::vector<layout> eye_inst::calc_output_layouts(eye_node const& /*node*/, cons
     const auto& input_layout = impl_param.get_input_layout();
     TensorsContainer const_data(&impl_param.get_stream());
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
     for (size_t i = 0; i < 4; i++) {
         if (memory_deps.count(i) > 0)
             const_data.emplace(i, memory_deps.at(i));

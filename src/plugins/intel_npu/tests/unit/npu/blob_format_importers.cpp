@@ -71,6 +71,21 @@ TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
 }
 
 /**
+ * @brief A non-raw tensor with 1..(MAGIC_BYTES.size()-1) bytes must be rejected without reading OOB.
+ * The unsigned subtraction get_byte_size() - MAGIC_BYTES.size() underflows otherwise.
+ */
+TEST_F(BlobFormatImportersTest, FactoryTensorSmallerThanMagicFails) {
+    ASSERT_GT(MAGIC_BYTES.size(), 1u);
+    for (size_t sz = 1; sz < MAGIC_BYTES.size(); ++sz) {
+        const std::string blob(sz, '\x00');
+        const ov::Tensor input_tensor(ov::element::Type_t::u8,
+                                      ov::Shape({blob.size()}),
+                                      const_cast<char*>(blob.data()));
+        OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
+    }
+}
+
+/**
  * @brief Non-raw blobs must contain the magic bytes
  */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
