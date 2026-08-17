@@ -14,6 +14,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/binarize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_elementwise_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_matmul_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/broadcast_transition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/change_placeholder_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/clamp_fusion.cpp

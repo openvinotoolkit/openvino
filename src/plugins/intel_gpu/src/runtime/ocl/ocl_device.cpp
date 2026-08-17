@@ -135,8 +135,7 @@ int driver_dev_id() {
 
     if (result.empty())
         return 0;
-    else
-        return result.back();
+    return result.back();
 }
 
 device_type get_device_type(const cl::Device& device) {
@@ -161,15 +160,13 @@ gfx_version parse_version(cl_uint gmdid) {
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
         return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
-    } else {
-        // Old format
+    }  // Old format
         cl_uint ver = gmdid;
         uint16_t major = ver >> 16;
         uint8_t minor = (ver >> 8) & 0xFF;
         uint8_t revision = ver & 0xFF;
 
         return {major, minor, revision};
-    }
 }
 
 bool get_imad_support(const cl::Device& device) {
@@ -450,7 +447,7 @@ ocl_device::ocl_device(const ocl_device::ptr other, bool initialize_ctx)
 }
 
 bool ocl_device::is_same(const device::ptr other) {
-    auto casted = downcast<ocl_device>(other.get());
+    auto* casted = downcast<ocl_device>(other.get());
     if (!casted)
         return false;
 
@@ -479,7 +476,7 @@ void ocl_device::initialize() {
     for (auto& device : device_map) {
         if (this->is_same(device.second)) {
             OPENVINO_ASSERT(!found, "[GPU] Multiple matching devices found for ", this->get_info().dev_name, ". Only one matching device is expected");
-            if (auto casted = downcast<ocl_device>(device.second.get())) {
+            if (auto* casted = downcast<ocl_device>(device.second.get())) {
                 auto& casted_device = casted->get_device();
                 if (casted->get_context().get() == nullptr) {
                     casted->set_context(cl::Context(casted_device));

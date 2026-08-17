@@ -240,7 +240,7 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
     // So the output index of the dependency is not processed
     std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        auto prevOp = op->get_input_node_ptr(i);
+        auto* prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
@@ -293,7 +293,7 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_type_name = op.get_type_name();
 
     if (this->m_config.get_enable_weightless()) {
-        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+        if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             auto rt_info = op.get_rt_info();
 
             auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
