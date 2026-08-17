@@ -25,7 +25,8 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
 
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
                                          const std::vector<int>& dims);
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
+// Takes the Output rather than the node so a producer with several outputs keeps the right port.
+std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
 
 OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix);
 

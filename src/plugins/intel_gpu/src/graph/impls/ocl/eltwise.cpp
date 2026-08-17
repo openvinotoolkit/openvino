@@ -167,6 +167,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto dyn_types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i8,
         data_types::u8,
         data_types::i16,
@@ -194,6 +195,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
     implementation_map<eltwise>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<eltwise>::create<eltwise_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
+        std::make_tuple(data_types::bf16, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),
         std::make_tuple(data_types::i16, format::yxfb),
@@ -204,6 +206,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::bf16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u16, format::bfyx),
@@ -214,6 +217,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
+        std::make_tuple(data_types::bf16, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
         std::make_tuple(data_types::u8, format::byxf),
         std::make_tuple(data_types::i16, format::byxf),
@@ -223,12 +227,14 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::i64, format::byxf),
 
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::bf16, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
 
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::bf16, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i16, format::bfzyx),
@@ -239,6 +245,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::bf16, format::bfwzyx),
         std::make_tuple(data_types::i8, format::bfwzyx),
         std::make_tuple(data_types::u8, format::bfwzyx),
         std::make_tuple(data_types::i16, format::bfwzyx),
@@ -249,6 +256,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfuwzyx),
         std::make_tuple(data_types::f16, format::bfuwzyx),
+        std::make_tuple(data_types::bf16, format::bfuwzyx),
         std::make_tuple(data_types::i8, format::bfuwzyx),
         std::make_tuple(data_types::u8, format::bfuwzyx),
         std::make_tuple(data_types::i16, format::bfuwzyx),
@@ -259,6 +267,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfvuwzyx),
         std::make_tuple(data_types::f16, format::bfvuwzyx),
+        std::make_tuple(data_types::bf16, format::bfvuwzyx),
         std::make_tuple(data_types::i8, format::bfvuwzyx),
         std::make_tuple(data_types::u8, format::bfvuwzyx),
         std::make_tuple(data_types::i16, format::bfvuwzyx),
@@ -269,6 +278,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::bf16, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
         std::make_tuple(data_types::i32, format::b_fs_zyx_fsv16),
@@ -276,52 +286,63 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv16_fsv16),
         std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv16_fsv16),
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv16_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv32),
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv16_fsv32),
         std::make_tuple(data_types::i64, format::bs_fs_zyx_bsv16_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv16_fsv16),
 
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv2),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv2),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv2),
+        std::make_tuple(data_types::bf16, format::b_fs_zyx_fsv2),
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv2),
 
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv8_fsv2),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv8_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv8_fsv2),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv8_fsv2),
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv8_fsv2),
 
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv16_fsv2),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv16_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv16_fsv2),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv16_fsv2),
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv2),
 
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+        std::make_tuple(data_types::bf16, format::b_fs_yx_fsv4),
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
 
         std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::bf16, format::b_fs_yx_fsv32),
 
         std::make_tuple(data_types::i8, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::u8, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
         std::make_tuple(data_types::f16, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::bf16, format::b_fs_zyx_fsv32),
 
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+        std::make_tuple(data_types::bf16, format::fs_b_yx_fsv32),
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv32),
@@ -329,6 +350,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv32_fsv16),
@@ -336,6 +358,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv16_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv32),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv16_fsv32),
@@ -343,6 +366,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv4),
@@ -350,6 +374,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv4),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv4),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv4),
@@ -357,6 +382,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv8_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv8_fsv2),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv8_fsv2),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv8_fsv2),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv8_fsv2),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv8_fsv2),
@@ -364,6 +390,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::bf16, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
         std::make_tuple(data_types::i32, format::bs_fs_yx_bsv4_fsv2),
@@ -371,6 +398,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv32),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv32_fsv32),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv32),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv32),
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv32_fsv32),
@@ -378,6 +406,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::f16, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::bf16, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::i8, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_zyx_bsv32_fsv16),
         std::make_tuple(data_types::i32, format::bs_fs_zyx_bsv32_fsv16),
