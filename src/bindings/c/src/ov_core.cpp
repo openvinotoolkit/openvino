@@ -297,9 +297,9 @@ ov_status_e ov_core_import_model(const ov_core_t* core,
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        mem_istream model_stream(content, content_size);
+        const ov::Tensor model_blob(ov::element::u8, ov::Shape{content_size}, content);
         std::unique_ptr<ov_compiled_model_t> _compiled_model(new ov_compiled_model_t);
-        auto object = core->object->import_model(model_stream, device_name);
+        auto object = core->object->import_model(model_blob, device_name);
         _compiled_model->object = std::make_shared<ov::CompiledModel>(std::move(object));
         *compiled_model = _compiled_model.release();
     }

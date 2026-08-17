@@ -471,9 +471,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
-    // Memory mapped by the plugin is released together with this tensor, so the cached memory object
-    // (created with CL_MEM_USE_HOST_PTR) would outlive the host pointer it wraps.
+#ifdef _WIN32
     return is_shared() && !m_mapped_memory;
+#else
+    return is_shared() && && !m_mapped_memory && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {

@@ -18,18 +18,24 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -819,6 +825,113 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
     auto nonzero = context.mark_node(std::make_shared<v3::NonZero>(mask));
     auto masked_id = context.mark_node(std::make_shared<v1::Transpose>(nonzero, input_order));
     return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
+}
+
+std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeContext& context,
+                                                                 const Output<Node>& query,
+                                                                 const Output<Node>& key,
+                                                                 const Output<Node>& value,
+                                                                 const Output<Node>& embed_dim,
+                                                                 const Output<Node>& num_heads,
+                                                                 const Output<Node>& qkv_weight,
+                                                                 const Output<Node>& qkv_bias,
+                                                                 const Output<Node>& proj_weight,
+                                                                 const Output<Node>& proj_bias,
+                                                                 const Output<Node>& attn_mask,
+                                                                 int64_t mask_type,
+                                                                 bool need_weights,
+                                                                 bool average_weights) {
+    const auto neg_one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    const auto zero_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    const auto one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    const auto two_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2}));
+    const auto three_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {3}));
+
+    const auto embed_dim_i64 = context.mark_node(std::make_shared<v0::Convert>(embed_dim, element::i64));
+    const auto num_heads_i64 = context.mark_node(std::make_shared<v0::Convert>(num_heads, element::i64));
+    const auto embed_dim_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(embed_dim_i64, zero_1d));
+    const auto heads_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(num_heads_i64, zero_1d));
+    const auto embed_dim_2x = context.mark_node(std::make_shared<v1::Multiply>(embed_dim_1d, two_1d));
+    const auto embed_dim_3x = context.mark_node(std::make_shared<v1::Multiply>(embed_dim_1d, three_1d));
+
+    // Zeros keep the batch and the sequence dimensions of the input, so no ShapeOf is needed.
+    const auto to_heads_shape =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{zero_1d, zero_1d, heads_1d, neg_one_1d}, 0));
+    const auto from_heads_shape =
+        context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, -1}));
+    const auto heads_perm =
+        context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3}));
+
+    // Slices the packed projection, applies it and splits the result into heads:
+    // [batch, sequence, embed_dim] -> [batch, heads, sequence, embed_dim / heads]
+    const auto project = [&](const Output<Node>& x, const Output<Node>& begin, const Output<Node>& end) {
+        const auto weight = context.mark_node(std::make_shared<v8::Slice>(qkv_weight, begin, end, one_1d, zero_1d));
+        const auto bias = context.mark_node(std::make_shared<v8::Slice>(qkv_bias, begin, end, one_1d, zero_1d));
+        Output<Node> res = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
+        res = context.mark_node(std::make_shared<v1::Add>(res, bias));
+        res = context.mark_node(std::make_shared<v1::Reshape>(res, to_heads_shape, true));
+        return context.mark_node(std::make_shared<v1::Transpose>(res, heads_perm));
+    };
+
+    const auto q = project(query, zero_1d, embed_dim_1d);
+    const auto k = project(key, embed_dim_1d, embed_dim_2x);
+    const auto v = project(value, embed_dim_2x, embed_dim_3x);
+
+    Output<Node> mask = attn_mask;
+    if (mask.get_node_shared_ptr() && mask_type == 1) {
+        // Key padding mask of shape [batch, sequence] has to be made broadcastable to the attention
+        // weights shape [batch, heads, sequence, sequence].
+        const auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {1, 2}));
+        mask = context.mark_node(std::make_shared<v0::Unsqueeze>(mask, axes));
+    }
+    const bool mask_is_boolean = mask.get_node_shared_ptr() && mask.get_element_type() == element::boolean;
+    if (mask.get_node_shared_ptr() && !mask_is_boolean) {
+        // Any non-boolean mask is additive and has to share the element type with the attention weights.
+        mask = context.mark_node(std::make_shared<v1::ConvertLike>(mask, q));
+    }
+
+    Output<Node> attention;
+    Output<Node> weights;
+    if (need_weights) {
+        // ScaledDotProductAttention does not expose the attention weights, so it is decomposed here.
+        const auto head_dim = context.mark_node(std::make_shared<v1::Divide>(embed_dim_i64, num_heads_i64, true));
+        const auto scale_one = context.mark_node(std::make_shared<v1::ConvertLike>(one_1d, q));
+        const auto scale_dim = context.mark_node(std::make_shared<v1::ConvertLike>(head_dim, q));
+        const auto scale_dim_sqrt = context.mark_node(std::make_shared<v0::Sqrt>(scale_dim));
+        const auto scale = context.mark_node(std::make_shared<v1::Divide>(scale_one, scale_dim_sqrt));
+
+        const auto qk = context.mark_node(std::make_shared<v0::MatMul>(q, k, false, true));
+        weights = context.mark_node(std::make_shared<v1::Multiply>(qk, scale));
+        if (mask_is_boolean) {
+            const auto minus_inf = context.mark_node(
+                v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
+            const auto minus_inf_conv = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, weights));
+            weights = context.mark_node(std::make_shared<v1::Select>(mask, minus_inf_conv, weights));
+        } else if (mask.get_node_shared_ptr()) {
+            weights = context.mark_node(std::make_shared<v1::Add>(weights, mask));
+        }
+        weights = context.mark_node(std::make_shared<v8::Softmax>(weights, -1));
+        attention = context.mark_node(std::make_shared<v0::MatMul>(weights, v));
+        if (average_weights) {
+            weights = context.mark_node(std::make_shared<v1::ReduceMean>(weights, one_1d, false));
+        }
+    } else {
+        OutputVector sdpa_inputs{q, k, v};
+        if (mask.get_node_shared_ptr()) {
+            // A boolean mask marks the positions to exclude in PyTorch and the positions to keep in
+            // ScaledDotProductAttention.
+            sdpa_inputs.push_back(mask_is_boolean ? context.mark_node(std::make_shared<v1::LogicalNot>(mask)) : mask);
+        }
+        // The default ScaledDotProductAttention scale is 1 / sqrt(embed_dim / heads), same as PyTorch uses.
+        attention = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(sdpa_inputs, false));
+    }
+
+    // [batch, heads, sequence, embed_dim / heads] -> [batch, sequence, embed_dim]
+    Output<Node> res = context.mark_node(std::make_shared<v1::Transpose>(attention, heads_perm));
+    res = context.mark_node(std::make_shared<v1::Reshape>(res, from_heads_shape, true));
+    res = context.mark_node(std::make_shared<v0::MatMul>(res, proj_weight, false, true));
+    res = context.mark_node(std::make_shared<v1::Add>(res, proj_bias));
+    return {res, weights};
 }
 
 OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
