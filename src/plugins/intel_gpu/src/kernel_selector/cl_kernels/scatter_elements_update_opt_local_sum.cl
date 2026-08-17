@@ -98,7 +98,13 @@ inline float FUNC(from_int)(int acc)
     }
     #define ATOMIC_ADD_OP(addr, val, scope) CAS_ADD(addr, val, scope)
 #else
-    #define ATOMIC_ADD_OP(addr, val, scope) atomic_fetch_add(addr, val)
+    // `scope` is honoured and the ordering is relaxed deliberately. This kernel performs a
+    // pure accumulation: only the atomicity of each add is required, not ordering against
+    // other memory operations. The ordering that is required comes from the barriers, which
+    // sequence the local staging window against its flush, and from the kernel boundary
+    // between the accumulate and finalize stages.
+    #define ATOMIC_ADD_OP(addr, val, scope) \
+        atomic_fetch_add_explicit(addr, val, memory_order_relaxed, scope)
 #endif
 
 inline void FUNC(atomic_add_local)(volatile __local int *ptr, int val)
