@@ -5,6 +5,7 @@
 #include "openvino/op/swish.hpp"
 
 #include "core/operator_set.hpp"
+#include "openvino/op/convert.hpp"
 #include "utils/reshape.hpp"
 
 using namespace ov::op;
@@ -23,9 +24,15 @@ ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
 
     // A second input is accepted for backward compatibility with the legacy OpenVINO Swish,
     // which passes beta as an input instead of the standard "alpha" attribute.
-    const auto alpha = inputs.size() > 1
-                           ? ov::frontend::onnx::reshape::interpret_as_scalar(inputs.at(1))
-                           : node.get_attribute_as_constant<float>("alpha", 1.0f, data.get_element_type());
+    ov::Output<ov::Node> alpha;
+    if (inputs.size() > 1) {
+        alpha = ov::frontend::onnx::reshape::interpret_as_scalar(inputs.at(1));
+        if (alpha.get_element_type() != data.get_element_type()) {
+            alpha = std::make_shared<v0::Convert>(alpha, data.get_element_type());
+        }
+    } else {
+        alpha = node.get_attribute_as_constant<float>("alpha", 1.0f, data.get_element_type());
+    }
 
     return {std::make_shared<v4::Swish>(data, alpha)};
 }
