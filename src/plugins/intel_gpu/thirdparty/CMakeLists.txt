@@ -185,6 +185,22 @@ if(ENABLE_ONEDNN_FOR_GPU)
             EXCLUDE_FROM_ALL ON
         )
 
+        if(WIN32
+           AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+           AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
+                OR OV_COMPILER_IS_CLANG_CL))
+            ExternalProject_Add_Step(onednn_gpu_build patch-clang-cl-stack-protector
+                COMMAND ${CMAKE_COMMAND}
+                    -D "BUILD_DIR=${ONEDNN_BUILD_DIR}"
+                    -D "OLD_FLAG=-fstack-protector-all"
+                    -D "NEW_FLAG=/GS"
+                    -P "${OpenVINO_SOURCE_DIR}/src/plugins/thirdparty/cmake/replace_generated_flag.cmake"
+                COMMENT "Replace unsupported clang-cl stack protector flag in generated oneDNN GPU build files"
+                DEPENDEES configure
+                DEPENDERS build
+            )
+        endif()
+
         if(WIN32 AND NOT BUILD_SHARED_LIBS)
             ExternalProject_Add_Step(onednn_gpu_build post-build
                 COMMAND ${CMAKE_COMMAND}

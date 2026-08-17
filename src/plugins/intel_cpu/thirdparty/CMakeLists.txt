@@ -148,26 +148,26 @@ function(ov_add_onednn)
         set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
     endif()
 
-    # oneDNN treats clang-cl as Clang in its MSVC generator path and adds
-    # Unix-style frame-pointer flags (-fno-omit-frame-pointer and
-    # -mno-omit-leaf-frame-pointer). clang-cl ignores these flags and reports
-    # noisy -Wunknown-argument warnings, while oneDNN's MSVC branch avoids them.
-    # Temporarily expose clang-cl as MSVC only while configuring oneDNN, then
-    # restore the real compiler IDs immediately after add_subdirectory.
-    if(OV_COMPILER_IS_CLANG_CL)
-        set(OV_ONEDNN_C_COMPILER_ID ${CMAKE_C_COMPILER_ID})
-        set(OV_ONEDNN_CXX_COMPILER_ID ${CMAKE_CXX_COMPILER_ID})
-        set(CMAKE_C_COMPILER_ID MSVC)
-        set(CMAKE_CXX_COMPILER_ID MSVC)
-    endif()
-
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
-    if(DEFINED OV_ONEDNN_CXX_COMPILER_ID)
-        set(CMAKE_C_COMPILER_ID ${OV_ONEDNN_C_COMPILER_ID})
-        set(CMAKE_CXX_COMPILER_ID ${OV_ONEDNN_CXX_COMPILER_ID})
-        unset(OV_ONEDNN_C_COMPILER_ID)
-        unset(OV_ONEDNN_CXX_COMPILER_ID)
+    if(WIN32
+       AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+       AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
+            OR OV_COMPILER_IS_CLANG_CL))
+        add_custom_target(onednn_patch_clang_cl_frame_pointer_flags
+            COMMAND ${CMAKE_COMMAND}
+                -D "BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}/onednn"
+                -D "OLD_FLAG=-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
+                -D "NEW_FLAG=/Oy-"
+                -P "${OpenVINO_SOURCE_DIR}/src/plugins/thirdparty/cmake/replace_generated_flag.cmake"
+            COMMENT "Replace unsupported clang-cl frame-pointer flags in generated oneDNN build files"
+        )
+
+        foreach(onednn_target IN ITEMS dnnl dnnl_common dnnl_cpu dnnl_cpu_x64)
+            if(TARGET ${onednn_target})
+                add_dependencies(${onednn_target} onednn_patch_clang_cl_frame_pointer_flags)
+            endif()
+        endforeach()
     endif()
 
     # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
