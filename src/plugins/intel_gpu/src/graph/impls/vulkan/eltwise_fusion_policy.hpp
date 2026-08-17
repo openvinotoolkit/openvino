@@ -201,6 +201,10 @@ private:
         if (!producer.is_type<eltwise>()) {
             return fusion_decision::defer_to_common;
         }
+        if (producer.get_output_layout().data_type != consumer.get_output_layout().data_type) {
+            return supports_terminal_post_op(producer, consumer.get_output_layout()) ? fusion_decision::accept
+                                                                                     : fusion_decision::reject;
+        }
         if (consumer.get_output_layout().is_dynamic()) {
             return fusion_decision::accept;
         }
