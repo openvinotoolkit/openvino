@@ -98,6 +98,7 @@ public:
 private:
     static std::mutex _mutex;
     const device::ptr _device;
+    const std::string _backend_environment;
     std::shared_ptr<kernel_builder> _builder;
     std::shared_ptr<ov::threading::ITaskExecutor> _task_executor;
     ExecutionConfig _config;

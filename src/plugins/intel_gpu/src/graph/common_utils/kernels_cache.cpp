@@ -273,6 +273,7 @@ kernels_cache::kernels_cache(engine& engine,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
                              const std::map<std::string, std::string>& batch_headers)
     : _device(engine.get_device())
+    , _backend_environment(_device->get_info().dev_name + ":" + _device->get_info().driver_version)
     , _builder(engine.create_kernel_builder())
     , _task_executor(task_executor)
     , _config(config)
@@ -322,12 +323,37 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         precompiled = ov::util::load_binary(ov::util::make_path(cached_bin_name));
     }
     std::vector<kernel::ptr> kernels;
+    const auto source_format = batch.language == kernel_language::SPIRV ? KernelFormat::SPIRV
+                                                                       : KernelFormat::SOURCE;
+    const auto cached_format = batch.language == kernel_language::SPIRV ? KernelFormat::SPIRV
+                                                                       : KernelFormat::NATIVE_BIN;
+    const auto entry_point = batch.entry_point_to_id.size() == 1 ? batch.entry_point_to_id.begin()->first
+                                                                 : std::string{};
+    const auto make_artifact = [&](const void* payload,
+                                   size_t payload_size,
+                                   KernelFormat format,
+                                   const std::string& build_options) {
+        kernel_artifact artifact;
+        artifact.payload = payload;
+        artifact.payload_size = payload_size;
+        artifact.format = format;
+        artifact.entry_point = entry_point;
+        artifact.build_options = build_options;
+        artifact.stable_id = batch.hash_value;
+        artifact.backend_environment = _backend_environment;
+        artifact.serialization.portable = format == KernelFormat::SOURCE || format == KernelFormat::SPIRV;
+        return artifact;
+    };
     if (!precompiled.empty()) {
-        _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
+        const auto artifact = make_artifact(precompiled.data(), precompiled.size(), cached_format, "");
+        _builder->build_kernels(artifact, kernels);
     } else {
         auto combined_source = join_strings(batch.source);
-        const auto source_format = batch.language == kernel_language::SPIRV ? KernelFormat::NATIVE_BIN : KernelFormat::SOURCE;
-        _builder->build_kernels(combined_source.data(), combined_source.size(), source_format, batch.options, kernels);
+        const auto artifact = make_artifact(combined_source.data(),
+                                            combined_source.size(),
+                                            source_format,
+                                            batch.options);
+        _builder->build_kernels(artifact, kernels);
         OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");
         OPENVINO_ASSERT(kernels.size() == batch.kernels_counter, "[GPU] Number of compiled kernels is different than kernel batch size");
         if (dump_sources && dump_file.good()) {
@@ -344,7 +370,8 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             kernels.clear();
             // Update binary and rebuild kernel
             gemmstone::microkernel::fuse(binary, combined_source.c_str());
-            _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
+            const auto native_artifact = make_artifact(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "");
+            _builder->build_kernels(native_artifact, kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
 #endif  // ENABLE_ONEDNN_FOR_GPU
@@ -587,7 +614,16 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 
         for (auto& precompiled_kernel : precompiled_kernels) {
             std::vector<kernel::ptr> kernels;
-            _builder->build_kernels(precompiled_kernel.second.data(), precompiled_kernel.second.size(), KernelFormat::NATIVE_BIN, "", kernels);
+            kernel_artifact artifact;
+            artifact.payload = precompiled_kernel.second.data();
+            artifact.payload_size = precompiled_kernel.second.size();
+            artifact.format = _device->get_runtime_type() == runtime_types::vulkan ? KernelFormat::SPIRV
+                                                                                   : KernelFormat::NATIVE_BIN;
+            artifact.entry_point = artifact.format == KernelFormat::SPIRV ? "main" : "";
+            artifact.stable_id = precompiled_kernel.first;
+            artifact.backend_environment = _backend_environment;
+            artifact.serialization.portable = artifact.format == KernelFormat::SPIRV;
+            _builder->build_kernels(artifact, kernels);
             for (auto& k : kernels) {
                 const auto& entry_point = k->get_id();
                 std::string cached_kernel_id = entry_point + "@" + std::to_string(precompiled_kernel.first);
