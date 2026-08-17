@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
@@ -52,36 +53,17 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
-                                       const intel_npu::ICompilerAdapter* compiler,
+                                       ov::intel_npu::CompilerType compilerType,
+                                       intel_npu::CompilerOptionSupportHelper& optionSupportHelper,
                                        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                        const intel_npu::Logger& logger) {
     using namespace intel_npu;
-    OPENVINO_ASSERT(compiler != nullptr, "Compiler must be present to filter properties by compiler support");
-
-    const auto& supportedOptions = compiler->get_supported_options();
-    logger.debug("Compiler supported options list (%zu): ", supportedOptions.size());
-    for (const auto& str : supportedOptions) {
-        logger.debug("    %s ", str.c_str());
-    }
 
     config.walkEnables([&](const std::string& key) {
-        bool isEnabled = false;
         // Special case for some both configs. Don't need compiler for these Both properties.
         // Runtime (plugin-only) options are always enabled
         if (config.getOpt(key).mode() != OptionMode::RunTime && !isSpecialBothProperty(key)) {
-            if (std::find(supportedOptions.begin(), supportedOptions.end(), key) != supportedOptions.end()) {
-                isEnabled = true;
-            } else {
-                // Not found in the supported options list.
-                if (compiler != nullptr) {
-                    // Checking if it is a private option?
-                    isEnabled = compiler->is_option_supported(key);
-                } else {
-                    // Not in the list and not a private option = disabling
-                    isEnabled = false;
-                }
-            }
-
+            bool isEnabled = optionSupportHelper.isOptionSupported(compilerType, key, std::nullopt);
             if (!isEnabled) {
                 logger.debug("Config option %s not supported! Requirements not met.", key.c_str());
             } else {
@@ -96,7 +78,7 @@ void filterPropertiesByCompilerSupport(intel_npu::FilteredConfig& config,
     // Special cases
     // NPU_TURBO which might not be supported by compiler, but driver will still use it
     // if it exists in config = driver supports it
-    // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
+    // if compiler->is_option_supported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
     if (backend && backend->isCommandQueueExtSupported()) {
         config.enable(ov::intel_npu::turbo.name(), true);
@@ -148,7 +130,8 @@ std::vector<std::string> getAvailableDevicesNames(const ov::SoPtr<intel_npu::IEn
     return backend == nullptr ? std::vector<std::string>() : backend->getDeviceNames();
 }
 
-bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
+bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                   intel_npu::CompilerOptionSupportHelper& optionSupportHelper) {
     using namespace intel_npu;
 
     if (!backend || !backend->getDevice()) {
@@ -160,19 +143,19 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
         return true;
     }
 
-    // Fallback to plugin compiler if the driver does not expose compatibility check API.
-    CompilerAdapterFactory compilerFactory;
-    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+    // Fallback to plugin compiler support check routed through the option support helper.
     try {
-        auto tempCompiler = compilerFactory.getCompiler(backend, compilerType, std::string_view{});
-        return tempCompiler->is_option_supported(ov::compatibility_check.name());
+        return optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                     ov::compatibility_check.name(),
+                                                     std::nullopt);
     } catch (...) {
         return false;
     }
 }
 
 ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                                       const ov::AnyMap& arguments) {
+                                                       const ov::AnyMap& arguments,
+                                                       intel_npu::CompilerOptionSupportHelper& optionSupportHelper) {
     using namespace intel_npu;
 
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
@@ -209,15 +192,12 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
         return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    // fallback on compiler in plugin if driver does not support compatibility check
-    CompilerAdapterFactory factory;
-    auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+    // Fallback routed through the option support helper.
     try {
-        auto compiler = factory.getCompiler(backend, compilerType, std::string_view{});
-
-        auto result =
-            compiler->is_option_supported(ov::compatibility_check.name(), std::make_optional(compatibilityDescriptor));
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+        const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                                     ov::compatibility_check.name(),
+                                                                     std::make_optional(compatibilityDescriptor));
+        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
     } catch (...) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
@@ -229,9 +209,11 @@ namespace intel_npu {
 
 PluginPropertyManager::PluginPropertyManager(const FilteredConfig& config,
                                              const ov::SoPtr<IEngineBackend>& backend,
+                                             const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                                              Logger& logger)
     : _config(config),
       _backend(backend),
+      _compilerOptionSupportHelper(optionSupportHelper),
       _logger(logger) {
     registerProperties();
 }
@@ -241,6 +223,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
           std::lock_guard<std::mutex> lock(other._mutex);
           return CopyState{other._config,
                            other._backend,
+                           other._compilerOptionSupportHelper,
                            other._logger,
                            other._currentlyUsedCompiler,
                            other._compilerForCompatibilityCheck,
@@ -253,6 +236,7 @@ PluginPropertyManager::PluginPropertyManager(const PluginPropertyManager& other)
 PluginPropertyManager::PluginPropertyManager(CopyState&& state)
     : _config(std::move(state.config)),
       _backend(std::move(state.backend)),
+      _compilerOptionSupportHelper(std::move(state.optionSupportHelper)),
       _logger(state.logger),
       _currentlyUsedCompiler(state.currentlyUsedCompiler),
       _compilerForCompatibilityCheck(state._compilerForCompatibilityCheck),
@@ -477,13 +461,14 @@ void PluginPropertyManager::registerProperties() const {
     });
     // clang-format on
 
-    try_register_property_with_custom_function_and_args(_properties,
-                                                        ov::compatibility_check.name(),
-                                                        _compatibilityCheckFiltered && _compatibilityCheckSupported,
-                                                        true,
-                                                        [this](const Config&, const ov::AnyMap& arguments) {
-                                                            return validateCompatibilityDescriptor(_backend, arguments);
-                                                        });
+    try_register_property_with_custom_function_and_args(
+        _properties,
+        ov::compatibility_check.name(),
+        _compatibilityCheckFiltered && _compatibilityCheckSupported,
+        true,
+        [this](const Config&, const ov::AnyMap& arguments) {
+            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+        });
 
     for (auto& property : _properties) {
         if (property.second.isPublic) {
@@ -497,7 +482,7 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const 
         return;
     }
 
-    _compatibilityCheckSupported = isCompatibilityCheckSupported(_backend);
+    _compatibilityCheckSupported = isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
     _compatibilityCheckFiltered = true;
 
     const auto compatibilityCheckName = std::string(ov::compatibility_check.name());
@@ -505,13 +490,14 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const 
     // Keep only one descriptor for this property and update it after the one-time probe.
     _properties.erase(compatibilityCheckName);
 
-    try_register_property_with_custom_function_and_args(_properties,
-                                                        compatibilityCheckName,
-                                                        _compatibilityCheckSupported,
-                                                        true,
-                                                        [this](const Config&, const ov::AnyMap& arguments) {
-                                                            return validateCompatibilityDescriptor(_backend, arguments);
-                                                        });
+    try_register_property_with_custom_function_and_args(
+        _properties,
+        compatibilityCheckName,
+        _compatibilityCheckSupported,
+        true,
+        [this](const Config&, const ov::AnyMap& arguments) {
+            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+        });
 
     // Update supported_properties incrementally for compatibility_check only.
     _supportedProperties.erase(
@@ -590,13 +576,16 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
 
         // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
-        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        compiler = factory.getCompiler(_backend,
+                                       compilerType,
+                                       compilationPlatform,
+                                       _compilerOptionSupportHelper->getOptionSupportCache());
 
         if (!(_compilerConfigsFilteredByCompiler && compilerType == _currentlyUsedCompiler &&
               compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -611,16 +600,20 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     for (auto&& value : properties) {
         if (_properties.find(value.first) == _properties.end()) {
             // property doesn't exist - checking as internal now
-            if (compiler != nullptr) {
-                if (compiler->is_option_supported(value.first)) {
-                    // if compiler reports it supported > registering as internal
-                    _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
-                } else {
-                    OPENVINO_THROW("Unsupported configuration key: ", value.first);
-                }
-            } else {
+            bool isSupported = false;
+            try {
+                isSupported =
+                    _compilerOptionSupportHelper->isOptionSupported(_currentlyUsedCompiler, value.first, std::nullopt);
+            } catch (...) {
+                // ignore any exceptions from the compiler and treat the property as unsupported
+                isSupported = false;
+            }
+            if (!isSupported) {
                 OPENVINO_THROW("Unsupported configuration key: ", value.first);
             }
+
+            // if compiler reports it supported > registering as internal
+            _config.addOrUpdateInternal(value.first, value.second.as<std::string>());
         } else {
             if (_properties[value.first].mutability == ov::PropertyMutability::RO) {
                 OPENVINO_THROW("READ-ONLY configuration key: ", value.first);
@@ -635,7 +628,6 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
     if (!cfgs_to_set.empty()) {
         _config.update(cfgs_to_set);
     }
-
     if (!special_cfgs_to_set.empty()) {
         _config.updateAny(special_cfgs_to_set);
     }
@@ -692,7 +684,10 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
         // Create a compiler to get the type and fetch version and supported options if needed
         CompilerAdapterFactory factory;
         try {
-            compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+            compiler = factory.getCompiler(_backend,
+                                           compilerType,
+                                           compilationPlatform,
+                                           _compilerOptionSupportHelper->getOptionSupportCache());
         } catch (const std::exception& ex) {
             if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
                 OPENVINO_THROW("Failed to create compiler for getting property ", name, " with error: ", ex.what());
@@ -708,7 +703,7 @@ ov::Any PluginPropertyManager::getProperty(const std::string& name, const ov::An
                                      compilationPlatform == _currentlyUsedPlatform)) {
             // In case properties are not initialized or the compiler/platform was changed since last call -
             // filter out options again
-            filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+            filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
 
             // reset properties for the new options
             registerProperties();
@@ -788,7 +783,10 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     // Create a compiler to get the type and fetch version and supported options if needed
     CompilerAdapterFactory factory;
     try {
-        compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+        compiler = factory.getCompiler(_backend,
+                                       compilerType,
+                                       compilationPlatform,
+                                       _compilerOptionSupportHelper->getOptionSupportCache());
     } catch (const std::exception& ex) {
         if (_config.hasOpt(name) && _config.getOpt(name).mode() == OptionMode::CompileTime) {
             return false;
@@ -804,7 +802,7 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
                                  compilationPlatform == _currentlyUsedPlatform)) {
         // In case properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(_config, compiler.get(), _backend, _logger);
+        filterPropertiesByCompilerSupport(_config, compilerType, *_compilerOptionSupportHelper, _backend, _logger);
 
         // reset properties for the new options
         registerProperties();
@@ -872,8 +870,7 @@ FilteredConfig PluginPropertyManager::getConfigWithCompilerPropertiesDisabled(co
     return std::move(updatedConfig);
 }
 
-FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties,
-                                                                   const ICompilerAdapter* compiler) const {
+FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::AnyMap& properties) const {
     auto [updatedConfig, compilerConfigsFilteredByCompiler, currentlyUsedCompiler, currentlyUsedPlatform, logger] =
         [&]() {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -893,24 +890,25 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
 
     std::optional<ov::intel_npu::CompilerType> propertiesCompilerType = std::nullopt;
     std::optional<std::string> propertiesPlatform = std::nullopt;
-    if (compilerConfigsFilteredByCompiler) {
-        auto compilerType = pluginProperties.find(ov::intel_npu::compiler_type.name());
-        if (compilerType != pluginProperties.end()) {
-            propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
-        }
+    auto compilerType = pluginProperties.find(ov::intel_npu::compiler_type.name());
+    if (compilerType != pluginProperties.end()) {
+        propertiesCompilerType = compilerType->second.as<ov::intel_npu::CompilerType>();
     }
     auto platform = pluginProperties.find(ov::intel_npu::platform.name());
     if (platform != pluginProperties.end()) {
         propertiesPlatform = platform->second.as<std::string>();
     }
 
-    // filter out unsupported options
-    if (!(compilerConfigsFilteredByCompiler &&
-          propertiesCompilerType.value_or(currentlyUsedCompiler) == currentlyUsedCompiler &&
+    const auto effectiveCompilerType = propertiesCompilerType.value_or(currentlyUsedCompiler);
+    if (!(compilerConfigsFilteredByCompiler && effectiveCompilerType == currentlyUsedCompiler &&
           propertiesPlatform.value_or(currentlyUsedPlatform) == currentlyUsedPlatform)) {
         // In case the compiler properties are not initialized or the compiler/platform was changed since last call -
         // filter out options again
-        filterPropertiesByCompilerSupport(updatedConfig, compiler, _backend, logger);
+        filterPropertiesByCompilerSupport(updatedConfig,
+                                          effectiveCompilerType,
+                                          *_compilerOptionSupportHelper,
+                                          _backend,
+                                          logger);
     }
 
     const std::map<std::string, std::string> rawConfig = any_copy(pluginProperties);
@@ -919,7 +917,14 @@ FilteredConfig PluginPropertyManager::getConfigForSpecificCompiler(const ov::Any
     for (const auto& [key, value] : rawConfig) {
         if (!updatedConfig.hasOpt(key)) {
             // not a known config key
-            if (!compiler->is_option_supported(key)) {
+            bool isSupported = false;
+            try {
+                isSupported = _compilerOptionSupportHelper->isOptionSupported(effectiveCompilerType, key, std::nullopt);
+            } catch (...) {
+                // ignore any exceptions from the compiler and treat the property as unsupported
+                isSupported = false;
+            }
+            if (!isSupported) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
             }
             updatedConfig.addOrUpdateInternal(key, value);
