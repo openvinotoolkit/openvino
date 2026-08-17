@@ -124,6 +124,7 @@ enum impl_desc_type : int64_t {
     jit_sve512 = jit | sve512,
 
     gemm_kleidiai = gemm | kleidiai,
+    winograd_kleidiai = winograd | kleidiai,
 
     jit_gv = jit | gv
 };
