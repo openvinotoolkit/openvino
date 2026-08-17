@@ -140,6 +140,8 @@ macro(ov_rpm_specific_settings)
     set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
     # need to update this version once we rebuild the same package with additional fixes
     set(CPACK_RPM_PACKAGE_RELEASE "1")
+    # append distribution-specific release tag (e.g. .el8, .el9) using rpm's native %{?dist} macro
+    set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
     # enable this if someday we change the version scheme
     # set(CPACK_RPM_PACKAGE_EPOCH "2")
 
@@ -228,7 +230,29 @@ function(ov_rpm_add_rpmlint_suppression comp)
         message(FATAL_ERROR "RPM: Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
-    set(package_file_name "${package_name}-${CPACK_PACKAGE_VERSION}-1.${arch}.rpm")
+    if(NOT DEFINED CPACK_RPM_PACKAGE_RELEASE)
+        message(FATAL_ERROR "CPACK_RPM_PACKAGE_RELEASE is not defined")
+    endif()
+    set(package_release "${CPACK_RPM_PACKAGE_RELEASE}")
+
+    # append rpm's native distribution release tag (e.g. .el8, .el9), so the computed
+    # rpmlint override file name matches the actual RPM file name produced by CPack
+    if(CPACK_RPM_PACKAGE_RELEASE_DIST)
+        if(NOT DEFINED OV_RPM_DIST_TAG)
+            find_program(rpm_PROGRAM NAMES rpm)
+            if(rpm_PROGRAM)
+                execute_process(COMMAND "${rpm_PROGRAM}" --eval "%{?dist}"
+                                 OUTPUT_VARIABLE rpm_dist_tag
+                                 OUTPUT_STRIP_TRAILING_WHITESPACE)
+            else()
+                set(rpm_dist_tag "")
+            endif()
+            set(OV_RPM_DIST_TAG "${rpm_dist_tag}" CACHE INTERNAL "RPM distribution release tag (%{?dist})")
+        endif()
+        set(package_release "${package_release}${OV_RPM_DIST_TAG}")
+    endif()
+
+    set(package_file_name "${package_name}-${CPACK_PACKAGE_VERSION}-${package_release}.${arch}.rpm")
     set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
     file(REMOVE ${rpmlint_override_file})
     file(WRITE ${rpmlint_override_file} ${content})
