@@ -2171,6 +2171,11 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
     if (node.get_program().get_engine().runtime_type() != runtime_types::vulkan) {
         return false;
     }
+    const auto& layout_capabilities =
+        node.get_program().get_engine().get_device()->get_backend_capabilities().layouts;
+    if (!layout_capabilities.supports(gpu_layout_kind::strided_buffer)) {
+        return false;
+    }
 
     const auto& desc = node.as<eltwise>().get_primitive();
     const auto expected_inputs = is_unary_mode(desc->mode) ? 1U : 2U;
@@ -2191,7 +2196,8 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
 
     for (size_t index = 0; index < expected_inputs; ++index) {
         const auto& input_layout = node.get_input_layout(index);
-        if (!is_supported_data_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) || input_layout.get_rank() > max_rank) {
+        if (!is_supported_data_type(input_layout.data_type) || !is_supported_format(input_layout.format.value) ||
+            input_layout.get_rank() > max_rank || input_layout.get_rank() > layout_capabilities.max_tensor_rank) {
             return false;
         }
         if (is_bitwise_mode(desc->mode) && !is_integer_data_type(input_layout.data_type)) {
@@ -2202,7 +2208,8 @@ bool EltwiseImplementationManager::validate_impl(const program_node& node) const
         }
     }
     const auto& output_layout = node.get_output_layout(0);
-    return is_supported_data_type(output_layout.data_type) && is_supported_format(output_layout.format.value) && output_layout.get_rank() <= max_rank;
+    return is_supported_data_type(output_layout.data_type) && is_supported_format(output_layout.format.value) &&
+           output_layout.get_rank() <= max_rank && output_layout.get_rank() <= layout_capabilities.max_tensor_rank;
 }
 
 std::unique_ptr<primitive_impl> EltwiseImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {

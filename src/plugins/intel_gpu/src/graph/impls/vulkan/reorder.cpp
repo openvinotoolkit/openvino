@@ -252,6 +252,11 @@ bool ReorderImplementationManager::validate_impl(const program_node& node) const
     if (node.get_program().get_engine().runtime_type() != runtime_types::vulkan) {
         return false;
     }
+    const auto& layout_capabilities =
+        node.get_program().get_engine().get_device()->get_backend_capabilities().layouts;
+    if (!layout_capabilities.supports(gpu_layout_kind::dense_buffer)) {
+        return false;
+    }
 
     const auto& input_layout = node.get_input_layout(0);
     const auto& output_layout = node.get_output_layout(0);

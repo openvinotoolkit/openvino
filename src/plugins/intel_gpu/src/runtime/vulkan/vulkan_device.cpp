@@ -28,6 +28,7 @@ constexpr const char* external_memory_ahb_extension_name = "VK_ANDROID_external_
 constexpr const char* external_memory_metal_extension_name = "VK_EXT_external_memory_metal";
 #endif
 constexpr const char* queue_family_foreign_extension_name = "VK_EXT_queue_family_foreign";
+constexpr uint32_t vulkan_tensor_rank_limit = 8;
 
 void check_vk_result(VkResult result, const char* operation) {
     OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] ", operation, " failed with VkResult ", static_cast<int>(result));
@@ -147,6 +148,19 @@ void vulkan_device::initialize_info() {
     _info.supports_counter_based_events = false;
     _info.supports_leo = false;
 
+    _backend_capabilities.legacy_device_info_adapter = false;
+    _backend_capabilities.fp16 = {true, gpu_arithmetic_support::emulated};
+    _backend_capabilities.fp32 = {true, gpu_arithmetic_support::native};
+    _backend_capabilities.fp64 = {features.shaderFloat64 == VK_TRUE,
+                                  features.shaderFloat64 == VK_TRUE ? gpu_arithmetic_support::native
+                                                                   : gpu_arithmetic_support::unavailable};
+    _backend_capabilities.subgroup_operations = _info.supports_khr_subgroups;
+    _backend_capabilities.subgroup_size = subgroup_properties.subgroupSize;
+    _backend_capabilities.specialization_constants = true;
+    _backend_capabilities.local_memory = properties.limits.maxComputeSharedMemorySize > 0;
+    _backend_capabilities.layouts = {true, true, false, false, vulkan_tensor_rank_limit};
+    _backend_capabilities.persistent_pipeline_cache = true;
+
     if (_info.supports_khr_subgroups) {
         _info.supported_simd_sizes = {subgroup_properties.subgroupSize};
     }
@@ -213,6 +227,7 @@ void vulkan_device::initialize() {
     };
 
     if (enable_external_import(external_memory_host_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT)) {
+        _backend_capabilities.external_memory.host_pointer = true;
         VkPhysicalDeviceExternalMemoryHostPropertiesEXT host_properties{};
         host_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
         VkPhysicalDeviceProperties2 properties{};
@@ -225,14 +240,17 @@ void vulkan_device::initialize() {
     const bool queue_family_foreign_available = has_extension(extensions, queue_family_foreign_extension_name);
     const bool dma_buf_enabled = queue_family_foreign_available && has_extension(extensions, external_memory_fd_extension_name) &&
                                  enable_external_import(external_memory_dma_buf_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
+    _backend_capabilities.external_memory.dma_buf = dma_buf_enabled;
     if (dma_buf_enabled) {
         enabled_extensions.push_back(external_memory_fd_extension_name);
     }
 
     const bool ahb_enabled = queue_family_foreign_available &&
                              enable_external_import(external_memory_ahb_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID);
+    _backend_capabilities.external_memory.android_hardware_buffer = ahb_enabled;
 #if defined(__APPLE__)
-    enable_external_import(external_memory_metal_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT);
+    _backend_capabilities.external_memory.metal_buffer =
+        enable_external_import(external_memory_metal_extension_name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLBUFFER_BIT_EXT);
 #endif
 
     if (dma_buf_enabled || ahb_enabled) {
@@ -262,6 +280,11 @@ void vulkan_device::initialize() {
                     "[GPU][Vulkan] The common Eltwise byte-address ABI requires storageBuffer8BitAccess");
     OPENVINO_ASSERT(available_synchronization2.synchronization2 == VK_TRUE, "[GPU][Vulkan] Exact buffer hazard tracking requires Vulkan 1.3 synchronization2");
     OPENVINO_ASSERT(available_timeline.timelineSemaphore == VK_TRUE, "[GPU][Vulkan] Asynchronous batch completion requires Vulkan timeline semaphores");
+
+    _backend_capabilities.int8 = {true, gpu_arithmetic_support::emulated};
+    _backend_capabilities.synchronization.synchronization2 = true;
+    _backend_capabilities.synchronization.timeline_semaphores = true;
+    _backend_capabilities.execution_tier = gpu_execution_tier::optimized;
 
     VkPhysicalDevice8BitStorageFeatures enabled_storage8{};
     enabled_storage8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES;
