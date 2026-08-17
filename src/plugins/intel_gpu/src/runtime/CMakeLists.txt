@@ -74,6 +74,9 @@ function(ov_gpu_configure_runtime_target TARGET)
     target_link_libraries(${TARGET} PRIVATE
         openvino::itt
         openvino::runtime::dev)
+    if(ENABLE_ONEDNN_FOR_GPU)
+        ov_target_link_libraries_as_system(${TARGET} PUBLIC onednn_gpu_tgt)
+    endif()
     ov_set_threading_interface_for(${TARGET})
     ov_gpu_set_runtime_definitions_for(${TARGET})
     set_target_properties(${TARGET} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
@@ -129,10 +132,6 @@ endif()
 if(OV_GPU_WITH_SYCL)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
-endif()
-
-if(ENABLE_ONEDNN_FOR_GPU)
-  ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
 endif()
 
 if(WIN32)
