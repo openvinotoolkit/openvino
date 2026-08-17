@@ -103,9 +103,6 @@ jobs:
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
-      - name: Set SSL_CERT_FILE for model downloading
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: TensorFlow Models Tests - NPU compile-only (convert_model)
         if: fromJSON(inputs.affected-components).TF_FE.test
         shell: cmd
@@ -181,14 +178,14 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-      
+
       # Group C: aliked + detectron2 share compatible deps (installed together).
       # Disabled, re-enable: E-229647
       - name: Install PyTorch tests requirements (group C - aliked/detectron2)
         if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
-      
+
       # Disabled, re-enable: E-229647
       - name: PyTorch Models Tests -  NPU compile only (group C)
         if: false

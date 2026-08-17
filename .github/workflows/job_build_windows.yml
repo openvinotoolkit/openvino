@@ -136,9 +136,6 @@ jobs:
           # For running Paddle frontend unit tests
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
-          # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
-
       #
       # Build
       #
@@ -166,9 +163,6 @@ jobs:
         if: ${{ inputs.build-variant == 'vs2026' }}
         with:
           toolset: "14.50" # v2026
-
-      - name: Set SSL_CERT_FILE for model downloading for unit tests
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: CMake configure
         env:
