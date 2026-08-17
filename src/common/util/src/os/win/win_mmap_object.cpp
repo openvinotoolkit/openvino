@@ -275,10 +275,11 @@ public:
     }
 
 #if defined(__clang__)
-    // Clang rejects certain casts in constexpr evaluation (INVALID_HANDLE_VALUE
-    // may expand to a non-constexpr expression). Keep both overloads
-    // non-constexpr under clang so the member call does not resolve to a
-    // non-constexpr helper from a constexpr function.
+    // On Windows, INVALID_HANDLE_VALUE expands to ((HANDLE)(LONG_PTR)-1), which
+    // relies on an integer-to-pointer cast. clang/clang-cl does not treat that
+    // expression as a valid constexpr pointer value, so a constexpr valid()
+    // overload would try to call a non-constexpr helper and fail. Keep both
+    // overloads non-constexpr under clang-based Windows builds.
     bool valid() const {
         return valid(m_handle);
     }

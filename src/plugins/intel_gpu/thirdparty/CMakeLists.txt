@@ -112,6 +112,19 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}")
         endif()
 
+        # oneDNN GPU uses the non-standard helper variable CMAKE_BASE_NAME to
+        # distinguish clang-cl from other Clang drivers in platform/OpenMP logic.
+        # Pass it into the external configure step so generated Visual Studio
+        # projects pick the clang-cl-specific branches up front.
+        if(WIN32
+           AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+           AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
+                OR OV_COMPILER_IS_CLANG_CL)
+           AND NOT DEFINED CMAKE_BASE_NAME)
+            get_filename_component(onednn_gpu_cmake_base_name "${CMAKE_CXX_COMPILER}" NAME)
+            list(APPEND cmake_extra_args "-DCMAKE_BASE_NAME=${onednn_gpu_cmake_base_name}")
+        endif()
+
         # propogate OpenCL if explicitly specified
         if(OpenCL_LIBRARY)
             list(APPEND cmake_extra_args "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}")
@@ -184,6 +197,26 @@ if(ENABLE_ONEDNN_FOR_GPU)
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
+
+        if(WIN32
+           AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+           AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
+                OR OV_COMPILER_IS_CLANG_CL))
+            # Keep this patch step for now: oneDNN GPU's SDL.cmake still emits
+            # -fstack-protector-all for Windows Clang without a clang-cl-specific
+            # branch, so CMAKE_BASE_NAME alone does not yet make configure output
+            # fully MSVC-flag clean.
+            ExternalProject_Add_Step(onednn_gpu_build patch-clang-cl-stack-protector
+                COMMAND ${CMAKE_COMMAND}
+                    -D "BUILD_DIR=${ONEDNN_BUILD_DIR}"
+                    -D "OLD_FLAG=-fstack-protector-all"
+                    -D "NEW_FLAG=/GS"
+                    -P "${OpenVINO_SOURCE_DIR}/src/plugins/thirdparty/cmake/replace_generated_flag.cmake"
+                COMMENT "Replace unsupported clang-cl stack protector flag in generated oneDNN GPU build files"
+                DEPENDEES configure
+                DEPENDERS build
+            )
+        endif()
 
         if(WIN32 AND NOT BUILD_SHARED_LIBS)
             ExternalProject_Add_Step(onednn_gpu_build post-build
