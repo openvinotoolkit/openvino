@@ -24,13 +24,13 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
 
 namespace ov::test {
 namespace {
@@ -51,11 +51,11 @@ std::shared_ptr<ov::Model> build_looped_ssm(int32_t num_heads,
                                             int32_t num_groups,
                                             int32_t head_dim,
                                             int32_t state_size,
-                                            ov::element::Type dtype = ov::element::f32,
                                             bool with_post_loop = false,
                                             bool break_body = false) {
     using namespace ov::op;
 
+    const auto dtype = ov::element::f32;
     const int32_t heads_per_group = num_heads / num_groups;
 
     ov::PartialShape dt_shape{-1, -1, num_heads};
@@ -186,61 +186,61 @@ std::shared_ptr<ov::Model> build_looped_ssm(int32_t num_heads,
                                        ov::ParameterVector{dt, B, x, C, h0});
 }
 
-size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const std::string& type_name) {
-    size_t count = 0;
-    for (const auto& node : model->get_ops()) {
-        if (node->get_type_name() == type_name) {
-            ++count;
-        }
-    }
-    return count;
+std::shared_ptr<ov::Model> build_fused_ssm(int32_t num_heads,
+                                           int32_t num_groups,
+                                           int32_t head_dim,
+                                           int32_t state_size) {
+    using namespace ov::op;
+
+    const auto dtype = ov::element::f32;
+    ov::PartialShape dt_shape{-1, -1, num_heads};
+    ov::PartialShape B_shape{-1, -1, num_groups, state_size};
+    ov::PartialShape x_shape{-1, -1, num_heads, head_dim};
+    ov::PartialShape C_shape{-1, -1, num_groups, state_size};
+    ov::PartialShape state_shape{-1, num_heads, head_dim, state_size};
+
+    auto dt = std::make_shared<v0::Parameter>(dtype, dt_shape);
+    auto B = std::make_shared<v0::Parameter>(dtype, B_shape);
+    auto x = std::make_shared<v0::Parameter>(dtype, x_shape);
+    auto C = std::make_shared<v0::Parameter>(dtype, C_shape);
+    auto h0 = std::make_shared<v0::Parameter>(dtype, state_shape);
+    auto A = v0::Constant::create(dtype, {static_cast<size_t>(num_heads)}, std::vector<float>(num_heads, -0.5f));
+
+    auto ssm = std::make_shared<ov::op::internal::SelectiveSSM>(ov::OutputVector{A, dt, B, x, C, h0});
+
+    return std::make_shared<ov::Model>(ov::OutputVector{ssm->output(0), ssm->output(1)},
+                                       ov::ParameterVector{dt, B, x, C, h0});
 }
 
 }  // namespace
 
-TEST(TransformationTests, SSMFusion_FuseLoop) {
-    auto model = build_looped_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, SSMFusion_FuseLoop) {
+    model = build_looped_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
+    model_ref = build_fused_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
     manager.register_pass<ov::pass::SSMFusion>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
 }
 
-TEST(TransformationTests, SSMFusion_FuseLoopWithPostLoopReshape) {
-    auto model = build_looped_ssm(/*num_heads=*/4,
-                                  /*num_groups=*/2,
-                                  /*head_dim=*/8,
-                                  /*state_size=*/16,
-                                  ov::element::f32,
-                                  /*with_post_loop=*/true);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, SSMFusion_FuseLoopWithPostLoopReshape) {
+    model = build_looped_ssm(/*num_heads=*/4,
+                             /*num_groups=*/2,
+                             /*head_dim=*/8,
+                             /*state_size=*/16,
+                             /*with_post_loop=*/true);
+    model_ref = build_fused_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
     manager.register_pass<ov::pass::SSMFusion>();
-    manager.run_passes(model);
-
-    EXPECT_EQ(count_ops_of_type(model, "Loop"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 1u);
+    // Removing the post-loop reshape reconnects the original Result to a different producer,
+    // so its friendly name differs from the reference.
+    disable_result_friendly_names_check();
 }
 
-TEST(TransformationTests, SSMFusion_DoesNotFuseOnBrokenBody) {
-    auto model = build_looped_ssm(/*num_heads=*/4,
-                                  /*num_groups=*/2,
-                                  /*head_dim=*/8,
-                                  /*state_size=*/16,
-                                  ov::element::f32,
-                                  /*with_post_loop=*/false,
-                                  /*break_body=*/true);
-
-    ov::pass::Manager manager;
+TEST_F(TransformationTestsF, SSMFusion_DoesNotFuseOnBrokenBody) {
+    model = build_looped_ssm(/*num_heads=*/4,
+                             /*num_groups=*/2,
+                             /*head_dim=*/8,
+                             /*state_size=*/16,
+                             /*with_post_loop=*/false,
+                             /*break_body=*/true);
     manager.register_pass<ov::pass::SSMFusion>();
-    manager.run_passes(model);
-
-    // Body does not match the SSM recurrence, so the Loop must be preserved.
-    EXPECT_EQ(count_ops_of_type(model, "SelectiveSSM"), 0u);
-    EXPECT_EQ(count_ops_of_type(model, "Loop"), 1u);
 }
 
 }  // namespace ov::test

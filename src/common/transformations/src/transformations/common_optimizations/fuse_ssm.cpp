@@ -225,7 +225,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
         auto selective_ssm = std::make_shared<ov::op::internal::SelectiveSSM>(inputs);
         selective_ssm->set_friendly_name(loop_node->get_friendly_name());
 
-        ov::copy_runtime_info(loop_node, selective_ssm);
+        ov::copy_runtime_info(m.get_matched_nodes(), selective_ssm);
         ov::replace_node(loop_node, selective_ssm);
         return true;
     };
