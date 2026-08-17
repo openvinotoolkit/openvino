@@ -299,11 +299,6 @@ struct OptionBase {
         return ov::PropertyMutability::RW;
     }
 
-    /// Overload this for options conditioned by compiler version
-    static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 23);
-    }
-
     static bool isValueSupported(std::string_view val) {
         try {
             (void)ActualOpt::parse(val);
@@ -377,7 +372,6 @@ struct OptionConcept final {
     OptionMode (*mode)() = nullptr;
     bool (*isPublic)() = nullptr;
     ov::PropertyMutability (*mutability)() = nullptr;
-    uint32_t (*compilerSupportVersion)() = nullptr;
     bool (*isValueSupportedImpl)(std::string_view val) =
         nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
                   // "makeOptionModel"
@@ -426,7 +420,6 @@ OptionConcept makeOptionModel(
             &Opt::mode,
             &Opt::isPublic,
             &Opt::mutability,
-            &Opt::compilerSupportVersion,
             &Opt::isValueSupported,
             &validateAndParseFromString<Opt>,
             &validateAndParseFromAny<Opt>,
