@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -17,6 +18,8 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -52,6 +55,8 @@ public:
 
     // Returns true if the graph is executed through the VM runtime (dynamic graph), false otherwise.
     virtual bool is_dynamic() const;
+
+    virtual BlobType get_blob_type() const;
 
     virtual void update_network_name(std::string_view name);
 

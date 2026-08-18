@@ -18,6 +18,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/flux2_compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/orc/schema_npuw.hpp"
@@ -81,7 +82,9 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
             stream.clear();
             stream.seekg(stream_start_pos);
 
-            if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+            if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
+                return ov::npuw::Flux2CompiledModel::import_model(stream, pluginSO, properties);
+            } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
                 return ov::npuw::GQACompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
                 // Properties are required for ov::weights_path
@@ -274,7 +277,9 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _propertiesManager = std::make_unique<PluginPropertyManager>(config, _backend, _logger);
+    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory());
+    _propertiesManager =
+        std::make_unique<PluginPropertyManager>(config, _backend, _compilerOptionSupportHelper, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
@@ -339,7 +344,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    auto compiler = factory.getCompiler(_backend,
+                                        compilerType,
+                                        compilationPlatform,
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -347,7 +355,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
     localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
@@ -557,9 +565,9 @@ bool Plugin::should_import_raw_blob(const ov::AnyMap& properties) const {
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
-    _logger.debug("Importing a compiled model from the given stream");
-
     update_log_level(properties);
+
+    _logger.debug("Importing a compiled model from the given stream");
 
     if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
         _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
@@ -597,9 +605,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
-    _logger.debug("Importing a compiled model from the given tensor");
-
     update_log_level(properties);
+
+    _logger.debug("Importing a compiled model from the given tensor");
 
     // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{compiledBlob.data(), compiledBlob.get_byte_size()};
@@ -704,14 +712,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
 
     CompilerAdapterFactory factory;
-    auto compiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
+    auto compiler = factory.getCompiler(_backend,
+                                        compilerType,
+                                        compilationPlatform,
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties, compiler.get());
+    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model->clone(), localConfig);
