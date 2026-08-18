@@ -183,10 +183,18 @@ void ZeroDynamicInferRequest::infer_async() {
     // shares the pipeline-owned VM execution context with execution.
     prepare_inputs();
 
-    // Predict output shapes and validate user output tensors; prepare_outputs() then allocates and resizes the
-    // Level Zero output buffers to the predicted shapes.
-    predict_output_shapes(_predictedShapes);
-    check_tensor_and_predicted_shapes(_predictedShapes);
+    const bool requiresOutputShapePrediction =
+        std::any_of(_metadata.outputs.begin(), _metadata.outputs.end(), [](const IODescriptor& output) {
+            // Compiler metadata may contain static allocation maxima for dynamic IR outputs.
+            return !output.shapeFromIRModel.has_value() || output.shapeFromIRModel->is_dynamic();
+        });
+    // Only outputs known to be static in IR metadata can skip the optional VM output_shape entrypoint.
+    if (requiresOutputShapePrediction) {
+        // Predict dynamic output shapes and validate user output tensors; prepare_outputs() then resizes the Level
+        // Zero output buffers to the predicted shapes.
+        predict_output_shapes(_predictedShapes);
+        check_tensor_and_predicted_shapes(_predictedShapes);
+    }
     prepare_outputs();
 
     OV_ITT_TASK_NEXT(ZERO_INFER, "push");

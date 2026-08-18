@@ -447,7 +447,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 !intel_npu::batch_helpers::checkModelDynamicDims(model),
                 "Dynamic shape tensors are not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
 
-            OPENVINO_ASSERT(successfullyDebatched || !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
+            OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched ||
+                                !localConfig.isAvailable(ov::intel_npu::batch_mode.name()) ||
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
         }
