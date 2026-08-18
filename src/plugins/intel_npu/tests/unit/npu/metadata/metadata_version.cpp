@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "metadata.hpp"
 #include "metadata_wrappers.hpp"
@@ -17,6 +19,8 @@ namespace {
 
 // Compiler payload size + magic bytes
 constexpr size_t FOOTER_SIZE = sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
+// Metadata version + compiler payload size + magic bytes
+constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + FOOTER_SIZE;
 constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
 
@@ -50,6 +54,19 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
     stream.read(tensor.data<char>(), tensor.get_byte_size());
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+}
+
+TEST_F(MetadataUnitTests, writeAndReadBlobTypes) {
+    for (const BlobType blobType : {BlobType::ELF, BlobType::LLVM, BlobType::BYTECODE}) {
+        std::stringstream stream;
+        MetadataTest(0, CURRENT_OPENVINO_VERSION, std::nullopt, std::nullopt,
+                     std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, blobType)
+            .write(stream);
+
+        auto storedMeta = read_metadata_from(stream);
+        ASSERT_NE(storedMeta, nullptr);
+        ASSERT_EQ(storedMeta->get_blob_type(), std::make_optional(blobType));
+    }
 }
 
 TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
@@ -417,6 +434,33 @@ TEST_F(MetadataUnitTests, compilerPayloadSizeExceedsBlobLimit) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blob.size()});
     std::memcpy(tensor.data<char>(), blob.data(), blob.size());
     OV_EXPECT_THROW(read_metadata_from(tensor), ov::Exception, _);
+}
+
+/**
+ * @brief CWE-190: payloadSize near UINT64_MAX wraps MINIMUM_BLOB_SIZE + payloadSize to a small value,
+ * bypassing the additive check and causing an OOB read at tensor.data() + payloadSize.
+ * The subtraction-form guard must reject this before any dereference.
+ */
+TEST_F(MetadataUnitTests, payloadSizeIntegerOverflowIsRejected) {
+    const size_t blobSize = MINIMUM_BLOB_SIZE + 16;
+    std::string blob(blobSize, '\0');
+
+    std::memcpy(&blob[blobSize - MAGIC_BYTES.size()], MAGIC_BYTES.data(), MAGIC_BYTES.size());
+
+    // Chosen so MINIMUM_BLOB_SIZE + payloadSize == 0 (mod 2^64): the additive check wraps to 0.
+    const uint64_t payloadSize = std::numeric_limits<uint64_t>::max() - MINIMUM_BLOB_SIZE + 1;
+    std::memcpy(&blob[blobSize - MAGIC_BYTES.size() - sizeof(payloadSize)], &payloadSize, sizeof(payloadSize));
+
+    std::stringstream malformedStream(blob);
+    OV_EXPECT_THROW(read_metadata_from(malformedStream),
+                    ov::Exception,
+                    testing::HasSubstr("compiler payload parsed from the blob"));
+
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
+    std::memcpy(tensor.data<char>(), blob.data(), blobSize);
+    OV_EXPECT_THROW(read_metadata_from(tensor),
+                    ov::Exception,
+                    testing::HasSubstr("compiler payload parsed from the blob"));
 }
 
 /**

@@ -38,16 +38,17 @@ public:
 // The priority return by this function impacts the order of devices reported by GPU plugin and devices enumeration
 // Lower priority value means lower device ID
 // Current behavior is: Intel iGPU < Intel dGPU < any other GPU
-// Order of Intel dGPUs is undefined and depends on the OCL impl
-// Order of other vendor GPUs is undefined and depends on the OCL impl
+// Devices with the equal priority keep the order they were enumerated in.
+// The OCL runtime moves the Intel platform to the beginning of the platform list.
+// Order of the devices reported by the same platform is undefined and depends on the OCL impl
 inline size_t get_device_priority(const cldnn::device_info& info) {
     if (info.vendor_id == cldnn::INTEL_VENDOR_ID && info.dev_type == cldnn::device_type::integrated_gpu) {
         return 0;
-    } else if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
-        return 1;
-    } else {
-        return std::numeric_limits<size_t>::max();
     }
+    if (info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+        return 1;
+    }
+    return std::numeric_limits<size_t>::max();
 }
 
 inline std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list) {
