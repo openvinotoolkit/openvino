@@ -40,9 +40,8 @@ const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights
     return it->second;
 }
 
-// Copy rows [r0, r1) out of a 2D tensor. Rows are block-independent in every GGUF quant layout
-// (a full row's worth of blocks is contiguous), so a fused attn_qkv weight can be split into
-// q/k/v by a plain byte-range row copy without touching the quant blocks.
+// Copy rows [r0, r1) out of a 2D tensor. Rows are block-independent in every GGUF quant layout,
+// so a fused attn_qkv weight can be split by a plain row copy without touching the quant blocks.
 ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
     const auto& s = t.get_shape();
     OPENVINO_ASSERT(s.size() == 2 && r1 <= s[0] && r0 <= r1, "[GGUF] bad row slice");
@@ -54,11 +53,8 @@ ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
 }
 
 // Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
-// [0, take) into the result. qwen35's attn_q interleaves query and gate per head as
-// [q_h0 | gate_h0 | q_h1 | gate_h1 | ...], so the query is gather(block=2*head_dim,
-// take=head_dim, offset=0) and the gate the same with offset=head_dim. Like slice_rows this
-// works on raw row bytes, which is safe for the packed types because a quantization block
-// never spans two rows.
+// [offset, offset + take) into the result. Used to de-interleave qwen35's attn_q, which packs
+// query and gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...].
 ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, size_t offset) {
     const auto& s = t.get_shape();
     OPENVINO_ASSERT(s.size() == 2 && block > 0 && offset + take <= block && s[0] % block == 0,
@@ -74,8 +70,7 @@ ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, s
     return out;
 }
 
-
-// all leading dims separate rather than flattening: the trailing Reshape must be
+// Keep all leading dims separate rather than flattening: the trailing Reshape must be
 // (orig_rank+1)D -> orig_rank for the CompressedWeightsBlock matcher to fire.
 ov::Shape grouped_weight_shape(const ov::Shape& orig, size_t num_groups, size_t group_size) {
     ov::Shape s(orig.begin(), orig.end() - 1);

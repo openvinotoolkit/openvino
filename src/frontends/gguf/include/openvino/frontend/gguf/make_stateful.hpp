@@ -13,25 +13,22 @@
 
 namespace ov::frontend::gguf::pass {
 
-
-
 class GGUF_FRONTEND_API MakeStateful : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("gguf::MakeStateful");
 
     /// \param skip_caches Friendly names of cache Parameters to leave stateless. A sliding-window
     ///        cache is evicted from the front rather than only appended to, so an append-grown
-    ///        Variable would not reproduce it; such caches keep the stateless form.
-    /// \param append_axis Cache axis the new rows are appended along (the token axis). -1 infers it
-    ///        as the cache Parameter's single dynamic axis, which is how a graph that does not
-    ///        preallocate the cache states its token axis. Pass an explicit axis for a fully static
-    ///        (preallocated) cache, where there is nothing to infer from.
-    /// \param beam_idx_name Name of the beam-reorder input, which this pass ADDS to the model (it
-    ///        belongs to the state, so no decoder declares it; see the note above). The past cache is
-    ///        gathered by it along the batch axis before the append Concat. With batch 1 /
-    ///        beam_idx [0] that Gather is an identity, but emitting it is what lets CPU's
-    ///        stateful_sdpa_fusion match, and it is what makes beam search work. A model that
-    ///        already carries a Parameter of this name has it reused instead.
+    ///        Variable would not reproduce it.
+    /// \param append_axis Cache axis the new rows are appended along (the token axis). -1 infers
+    ///        it as the cache Parameter's single dynamic axis. Pass an explicit axis for a fully
+    ///        static (preallocated) cache, where there is nothing to infer from.
+    /// \param beam_idx_name Name of the beam-reorder input, which this pass ADDS to the model (no
+    ///        decoder declares it, since it indexes OpenVINO state that ggml has no counterpart
+    ///        for). The past cache is gathered by it along the batch axis before the append
+    ///        Concat; with batch 1 that Gather is an identity, but emitting it is what lets CPU's
+    ///        stateful_sdpa_fusion match and makes beam search work. A model that already carries
+    ///        a Parameter of this name has it reused instead.
     explicit MakeStateful(std::set<std::string> skip_caches = {},
                           int64_t append_axis = -1,
                           std::string beam_idx_name = "beam_idx")

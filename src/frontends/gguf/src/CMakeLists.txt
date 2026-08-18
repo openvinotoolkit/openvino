@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# The GGUF frontend converts GGUF models to OpenVINO. It installs the library + headers alongside
-# the other frontends (LINKABLE_FRONTEND, no SKIP_INSTALL) so a direct linker -- the llama.cpp
-# ggml-openvino backend -- can link openvino::frontend::gguf and feed it a live GgufDecoder.
+# LINKABLE_FRONTEND (no SKIP_INSTALL): installs the library + headers alongside the other
+# frontends so a direct linker -- the llama.cpp ggml-openvino backend -- can link
+# openvino::frontend::gguf and feed it a live GgufDecoder.
 ov_add_frontend(NAME gguf
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to convert GGUF models"

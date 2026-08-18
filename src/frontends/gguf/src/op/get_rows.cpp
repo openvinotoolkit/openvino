@@ -29,18 +29,14 @@ OutputVector translate_get_rows(const NodeContext& context) {
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
 
-    // MoE gating-weight gather: data = probs [1,1,T,E], indices = selected experts
-    // [1,1,T,K]; pick, per token, the probs of its K selected experts -> [1,1,T,K].
-    // This is a per-row (GatherElements) gather over the expert axis, distinct from the
-    // embedding-style row gather below.
+    // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
+    // [1,1,T,K]; per-row (GatherElements) gather over the expert axis picks each token's K
+    // selected-expert probs -> [1,1,T,K], distinct from the embedding-style row gather below.
     if (op_case == 10) {
-        // probs [1,1,T,E], selected [1,1,T,K] -> per-row gather over the last (expert)
-        // axis -> [1,1,T,K], then reshape to [1,T,K,1] for the broadcast-multiply with
-        // experts [1,T,K,n_embd]. Use an explicit [1,-1,K,1] reshape (K is static; T is
-        // dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin implements as a
-        // Reshape internally and mis-infers the static pattern when T=1 at graph-build time.
-        // K is static (n_expert_used); read from the declared output shape [1,T,K,1].
-        // Use PartialShape index to avoid .to_shape() throwing when T is dynamic.
+        // Reshape to [1,T,K,1] for the broadcast-multiply with experts [1,T,K,n_embd]. Use an
+        // explicit [1,-1,K,1] reshape (K is static, read via PartialShape to avoid .to_shape()
+        // throwing when T is dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin
+        // implements as a Reshape internally and mis-infers the static pattern when T=1.
         const int64_t K = context.get_output_shape()[2].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
         auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]

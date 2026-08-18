@@ -46,16 +46,14 @@ OutputVector translate_reshape(const NodeContext& context) {
     auto output_shape = context.get_output_shape().to_shape();
     std::shared_ptr<ov::Node> new_shape_node;
     if (op_case == 1) {
-        // [B, 1, T, n_head*head_size] -> [B, T, n_head, head_size]: split the last dim into heads and
-        // flatten whatever leads it into dim 1. Same shape in both stateful and non-stateful paths;
-        // the 3D form was causing RoPE broadcasting to T×T when the trailing dimensions are 1 (MQA,
-        // n_head_kv=1).
+        // [B, 1, T, n_head*head_size] -> [B, T, n_head, head_size]: split the last dim into heads
+        // and flatten whatever leads it into dim 1. The 3D form was causing RoPE broadcasting to
+        // T×T when the trailing dimensions are 1 (MQA, n_head_kv=1).
         //
-        // The leading dim is COPIED from the input via special_zero rather than written as
-        // output_shape[0] (a literal 1). That is what makes the attention block layout-polymorphic:
-        // ov::pass::SDPAToPagedAttention moves the token count into dim 0 by rewriting input_ids, and
-        // a literal here would discard that and leave PA deriving [1, T*H*S] operands where the
-        // plugin wants [T, H*S]. With the 0 the same constant serves both:
+        // The leading dim is COPIED from the input via special_zero rather than a literal 1, so
+        // the attention block stays layout-polymorphic: ov::pass::SDPAToPagedAttention moves the
+        // token count into dim 0, and a literal here would discard that. With the 0 the same
+        // constant serves both:
         //   SDPA inference: in [1, 1, T, H*S]  -> [1, T, H, S]
         //   PagedAttention: in [T, 1, 1, H*S]  -> [T, 1, H, S]  (identical buffer, tokens in dim 0)
         new_shape_node = ov::op::v0::Constant::create(
@@ -66,17 +64,14 @@ OutputVector translate_reshape(const NodeContext& context) {
             {std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, /*special_zero=*/true)},
             context.get_name());
     } else if (op_case == 2) {
-        // Merge the heads back after attention. Like op_case 1, the leading dim is copied from the input
-        // (special_zero) rather than pinned to output_shape[0], so the token axis stays wherever the
-        // active attention backend put it.
+        // Merge the heads back after attention. Like op_case 1, the leading dim is copied
+        // (special_zero) so the token axis stays wherever the active attention backend put it.
         //
-        // The rank stays 4 because the very next op is the residual Add against the layer input and OV
-        // broadcasts elementwise operands from the RIGHT: every activation in the graph is rank 4 (ggml's
-        // own convention), so mixing in a rank-3 result would right-align and silently form a
-        // token x token outer product once the token count is not on the axis one happens to expect.
+        // Rank stays 4 because the next op is the residual Add against the layer input, and OV
+        // broadcasts elementwise operands from the right: every activation is rank 4 (ggml's own
+        // convention), so a rank-3 result would right-align and silently form a token x token
+        // outer product once the token count is not on the expected axis.
         //   in [1, T, H, S] -> [1, 1, T, H*S]
-        // The last dim is the static n_head*head_size and the -1 absorbs the remaining axis, so the
-        // following MatMul against [n_embd, n_embd] is unaffected.
         new_shape_node = ov::op::v0::Constant::create(
             ov::element::i64,
             {4},
@@ -99,14 +94,6 @@ OutputVector translate_reshape(const NodeContext& context) {
     } else if (op_case == 5) {
         std::vector<int64_t> shape_vec = {1, 1, -1, (int64_t)context.get_output_shape().to_shape()[3]};
         new_shape_node = ov::op::v0::Constant::create(ov::element::i64, {4}, shape_vec);
-
-        // // Alternative
-        // auto token_len = context.get_input("token_len");
-        // auto emb_size =
-        //     ov::op::v0::Constant::create(ov::element::i64, {1}, {(int64_t)
-        //     context.get_output_shape().to_shape()[3]});
-        // auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        // new_shape_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{one, one, token_len, emb_size}, 0);
 
     } else if (op_case == 6) {
         // The output layout rearranges dims relative to the input (e.g. qwen3-next q/k_conv_predelta:

@@ -35,9 +35,9 @@ public:
     ///   ggml op name given by `get_op_type()`.  The converter receives an
     ///   `ov::frontend::gguf::NodeContext` and returns an `ov::OutputVector`.
     /// - `ov::frontend::DecoderTransformationExtension` — registers a normalization pass, run
-    ///   AHEAD of the frontend's built-in lowerings. This is how the execution mode is chosen: the
-    ///   frontend always converts to a stateless graph, and a caller that wants an OpenVINO KV
-    ///   cache registers `ov::frontend::gguf::pass::MakeStateful` (or its own variant) here.
+    ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
+    ///   registers `ov::frontend::gguf::pass::MakeStateful` (or its own variant) here; without one
+    ///   the frontend converts to a stateless graph.
     /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is
     ///   recursively registered.

@@ -42,13 +42,12 @@ OutputVector translate_permute(const NodeContext& context) {
 
         ov::Output<Node> reshaped;
         if (context.has_input("n_seq_active")) {
-            // Reshape shape inference can only use a pattern whose value bounds are known, and
-            // `n_seq_active` is a Parameter, so it has none. Building the whole pattern with a single
-            // Concat therefore discards the statically known n_heads/head_size as well, and Q reaches
-            // SDPA with a dynamic head size, which makes the GPU plugin decompose SDPA into
-            // Gemm+SoftMax. Splitting the reshape keeps the head layout in an all-constant pattern, so
-            // it survives shape inference. Both reshapes are metadata-only, so this costs no extra
-            // data movement.
+            // n_seq_active is a Parameter, so a Reshape pattern built from it has no known value
+            // bounds; folding it into a single Concat with n_heads/head_size would make the whole
+            // pattern dynamic, reaching SDPA with a dynamic head size and forcing the GPU plugin to
+            // decompose SDPA into Gemm+SoftMax. Splitting into two reshapes keeps the head layout
+            // in an all-constant pattern that survives shape inference; both are metadata-only, so
+            // this costs no extra data movement.
             auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
             auto seq_pattern =
                 std::make_shared<ov::op::v0::Concat>(ov::OutputVector{context.get_input("n_seq_active"), neg_one}, 0);

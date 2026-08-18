@@ -45,20 +45,17 @@ struct RopeConfig {
 
 // Decoder interface consumed by the gguf frontend translators.
 //
-// Following the established OpenVINO frontend pattern (cf. the PyTorch TorchDecoder + InputModel),
-// the translators see a GgufDecoder as a NODE decoder: visit_subgraph hands the visitor a fresh
-// decoder bound to a single node, and every per-node accessor (get_attribute, get_input_*,
-// get_output_*) refers to that node -- no node index is threaded through. The MODEL-level
-// questions (the graph's Parameter inputs, its output names, the shared RoPE config, and node
-// iteration) are asked through ov::frontend::gguf::InputModel, not by treating a decoder instance
-// as a "model decoder". The InputModel forwards those to the model-scope accessors below; a
-// concrete decoder answers them when queried before visit_subgraph binds it to a node.
+// Like the PyTorch TorchDecoder + InputModel, GgufDecoder is a NODE decoder: visit_subgraph hands
+// the visitor a fresh decoder bound to a single node, and every per-node accessor refers to that
+// node. MODEL-level questions (Parameter inputs, output names, RoPE config, node iteration) go
+// through ov::frontend::gguf::InputModel, which forwards them to the model-scope accessors below;
+// a concrete decoder answers those before visit_subgraph binds it to a node.
 //
 // This is a typed, ggml-free interface: operation parameters are exposed through
 // get_attribute(name) / get_input_view_element_offset / get_output_shape / RopeConfig rather than
-// raw ggml `op_params` int32 arrays. A concrete decoder (e.g. the llama.cpp cgraph decoder, or the
-// native .gguf builder decoder) only has to translate ggml's layout into these typed accessors --
-// the op translators never touch ggml memory.
+// raw ggml `op_params` int32 arrays, so a concrete decoder (e.g. the llama.cpp cgraph decoder, or
+// the native .gguf builder decoder) only has to translate ggml's layout into these typed
+// accessors -- the op translators never touch ggml memory.
 class GGUF_FRONTEND_API GgufDecoder : public DecoderBase {
 public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
@@ -114,21 +111,20 @@ public:
 
     // ── Optional model scope ───────────────────────────────────────────────────────────────────
     //
-    // The accessors below are how a decoder OPTIONALLY enriches the graph; each has a
-    // do-nothing default so a decoder only implements what it actually knows. That is what lets
-    // two very different decoders satisfy one interface: the native .gguf builder answers all of
-    // them, while the llama.cpp cgraph decoder (which is handed an already-built ggml graph and no
-    // GGUF metadata) answers none and is not forced to write empty stubs.
+    // These accessors let a decoder OPTIONALLY enrich the graph; each has a do-nothing default so
+    // a decoder only implements what it actually knows. The native .gguf builder answers all of
+    // them, while the llama.cpp cgraph decoder (already-built ggml graph, no GGUF metadata)
+    // answers none.
     //
-    // Note what is NOT here: nothing describes the execution mode. There is no is_stateful /
-    // is_static, because a decoder describes ggml OPERATIONS, not a deployment. Conversion always
-    // yields a stateless graph; a caller that wants an OpenVINO KV cache registers
+    // Note what is NOT here: nothing describes the execution mode (no is_stateful / is_static). A
+    // decoder describes ggml OPERATIONS, not a deployment; conversion always yields a stateless
+    // graph, and a caller that wants an OpenVINO KV cache registers
     // ov::frontend::gguf::pass::MakeStateful as a DecoderTransformationExtension.
 
-    // Auxiliary model-scope inputs (position IDs, KV-cache lengths, attention masks). A decoder that
-    // folds these into get_model_inputs() leaves this empty. Note that beam_idx is not among them:
-    // it is a beam-search index into an OpenVINO state, which ggml has no counterpart for, so
-    // MakeStateful creates it rather than any decoder declaring it.
+    // Auxiliary model-scope inputs (position IDs, KV-cache lengths, attention masks). A decoder
+    // that folds these into get_model_inputs() leaves this empty. beam_idx is not among them: it
+    // is a beam-search index into an OpenVINO state with no ggml counterpart, so MakeStateful
+    // creates it instead of any decoder declaring it.
     virtual const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_extra_inputs() const {
         return empty_node_map();
     }
@@ -139,13 +135,12 @@ public:
     //     no RoPE, or per_op == true);
     //   - at node scope, the ROPE translator reads the same key for the op's own config.
     //
-    // NOTE: weights are surfaced as GGML_OP_NONE leaves, by every decoder -- there is no separate
+    // NOTE: weights are surfaced as GGML_OP_NONE leaves by every decoder -- there is no separate
     // weight accessor. A decoder marks such a leaf either with the raw ggml bytes
-    // (get_attribute<ov::Tensor>("data") + get_attribute<std::string>("quant_type") +
-    // get_output_shape(), the llama.cpp cgraph path) or with already-extracted weight/scales/zp
-    // tensors (get_attribute<bool>("gguf_weight") + "gguf.blob.<sub>" + "gguf_qtype", the native
-    // .gguf builder path). translate_weight accepts both payloads and builds the same compressed
-    // decompression subgraph from either.
+    // (get_attribute<ov::Tensor>("data") + "quant_type" + get_output_shape(), the llama.cpp
+    // cgraph path) or with already-extracted weight/scales/zp tensors (get_attribute<bool>(
+    // "gguf_weight") + "gguf.blob.<sub>" + "gguf_qtype", the native .gguf builder path).
+    // translate_weight accepts both and builds the same compressed decompression subgraph.
 
 protected:
     // Shared empty map backing the optional accessors above, which return by const reference.

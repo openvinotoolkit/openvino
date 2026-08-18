@@ -135,10 +135,10 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
     std::shared_ptr<GgufDecoder> gguf_model_decoder = gguf_model->get_model_decoder();
 
-    // An auxiliary input Parameter whose only consumer may be created by a later normalization pass,
-    // after the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
-    // consumer at translate time. A pass that ends up not consuming one leaves it as a dangling
-    // input, which later constant folding removes.
+    // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
+    // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
+    // consumer at translate time; a pass that ends up not consuming one leaves it dangling, which
+    // later constant folding removes.
     std::set<ov::Node*> deferred_use_params;
 
     for (const auto& it : gguf_model_decoder->get_model_inputs()) {

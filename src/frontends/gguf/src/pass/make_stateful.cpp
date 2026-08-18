@@ -73,15 +73,12 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
 }  // namespace
 
 bool MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // beam_idx reorders the past cache along the batch axis for beam search. With batch 1 /
-    // beam_idx [0] the Gather is an identity, but emitting it is what lets CPU's
-    // stateful_sdpa_fusion match.
-    //
-    // It belongs to the STATE, so this pass owns it: it is a beam-search index into an OpenVINO
-    // cache, which ggml has no equivalent of, so no decoder should declare it -- a decoder that did
-    // would give the stateless graph an input with no consumer, and the two decoders different
-    // stateless IO. Created here, next to its only consumer (the Gather below). A model that
-    // already has one (a caller that declared it, or a second run of this pass) keeps it.
+    // beam_idx reorders the past cache along the batch axis for beam search (identity at batch 1 /
+    // beam_idx [0], but emitting it is what lets CPU's stateful_sdpa_fusion match). It belongs to
+    // the STATE, so this pass owns it: it indexes an OpenVINO cache that ggml has no equivalent
+    // of, so no decoder should declare it. Created here, next to its only consumer (the Gather
+    // below); a model that already has one (a caller that declared it, or a second run of this
+    // pass) keeps it.
     auto beam_idx = find_param(model, m_beam_idx_name);
     const bool created_beam_idx = beam_idx == nullptr;
     if (created_beam_idx) {
@@ -157,8 +154,7 @@ bool MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // a [1, tokens, n_head_kv, head_size] cache receives [1, 1, tokens, n_head_kv*head_size]. So
         // re-split them against the cache layout before the Concat: the token axis is -1, the axes
         // after it take the cache's static dims, and the axes before it are copied from the incoming
-        // data (special_zero's 0) rather than pinned to literals, which is what keeps this valid in
-        // the token-major layout ov::pass::SDPAToPagedAttention establishes.
+        // data (special_zero's 0) to stay valid under either token-axis layout.
         std::vector<int64_t> split_pattern;
         for (int64_t i = 0; i < ps.rank().get_length(); ++i) {
             split_pattern.push_back(i < axis ? 0 : (i == axis ? -1 : ps[i].get_length()));

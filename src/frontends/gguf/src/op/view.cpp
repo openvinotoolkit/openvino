@@ -59,10 +59,9 @@ void place_dynamic_token_axis(std::vector<int64_t> & tgt, const ov::PartialShape
 
 // Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
 // into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
-// views the same way. Case 104 is the only VIEW case that is builder-only, and not for numbering
-// reasons: it takes a second (shape-reference) input the cgraph path does not supply, so it has a
-// different arity than the shared cases. See its comment below, and docs/frontend_design.md for the
-// other two builder-only cases in the frontend.
+// views the same way. Case 104 is builder-only: it takes a second (shape-reference) input the
+// cgraph path does not supply, so it has a different arity than the shared cases. See its comment
+// below, and docs/frontend_design.md for the other two builder-only cases in the frontend.
 OutputVector translate_view(const NodeContext & context) {
     num_inputs_check(context, 1, 2);
 
@@ -230,15 +229,14 @@ OutputVector translate_view(const NodeContext & context) {
         auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
         ov::Output<ov::Node> sliced = std::make_shared<ov::op::v8::Slice>(input, start, stop, step, axes);
 
-        // The slice comes out with the token count on the axis the per-layer tensor happens to keep it
-        // on (dim 1 here), because per_layer_embd is stored layer-major so the layer index can be
-        // sliced off axis 0. Every consumer, though, is an elementwise op against the layer's own
-        // activation, and OV broadcasts elementwise operands positionally -- so the two operands must
-        // agree on WHICH leading axis holds the tokens. That is not a fixed choice: it is [1, T, ..]
-        // under plain SDPA inference and [T, 1, ..] once ov::pass::SDPAToPagedAttention moves the token
-        // count into dim 0. Both hold the same T*D values contiguously, so when the builder supplies
-        // the activation as a second (shape-reference) input, reinterpret the slice into that operand's
-        // leading dims. Without this the multiply below broadcasts to a T x T outer product under PA.
+        // The slice keeps the token count on the axis per_layer_embd stores it on (dim 1, since
+        // it is layer-major). But every consumer is an elementwise op against the layer's own
+        // activation, and OV broadcasts positionally, so both operands must agree which leading
+        // axis holds the tokens: [1, T, ..] under plain SDPA, [T, 1, ..] once
+        // ov::pass::SDPAToPagedAttention moves the token count into dim 0. Both hold the same T*D
+        // values contiguously, so when the builder supplies the activation as a second
+        // (shape-reference) input, reinterpret the slice into that operand's leading dims --
+        // otherwise the multiply below broadcasts to a T x T outer product under PA.
         if (context.get_input_size() > 1) {
             const auto& ref = context.get_input(1);
             const auto ref_rank = ref.get_partial_shape().rank();

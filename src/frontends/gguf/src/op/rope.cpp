@@ -160,28 +160,24 @@ OutputVector translate_rope(const NodeContext& context) {
 
         // Build the canonical NEOX RoPE via the shared decomposition helper, which emits the exact
         // split-halves + Multiply(-1)+Add + Concat pattern that ov::pass::RoPEFusion (specifically
-        // the RoPEFusionGPTOSS matcher) folds into the fused ov::op::internal::RoPE primitive on
-        // CPU/GPU.
+        // RoPEFusionGPTOSS) folds into the fused ov::op::internal::RoPE primitive on CPU/GPU.
         //
-        // That matcher only fires when the rotated tensor is laid out as [B, H, L, S] and the
-        // cos/sin caches are [?, 1, ?, head/2]. Our tensors are ggml-natural: data is [B, L, H, S]
-        // and cos/sin are [B, L, 1, head/2]. So we transpose every operand into the canonical
-        // [B, H, L, S] layout (heads on axis 1), run the decomposition there, and transpose the
-        // result back to the gguf layout. The math is unchanged; the wrapping Transposes are sunk /
-        // cancelled against the adjacent PERMUTE during TransposeSinking.
+        // That matcher only fires when the rotated tensor is [B, H, L, S] and cos/sin are
+        // [?, 1, ?, head/2]. Our tensors are ggml-natural: data is [B, L, H, S], cos/sin are
+        // [B, L, 1, head/2]. So transpose every operand into [B, H, L, S] (heads on axis 1), run
+        // the decomposition there, and transpose the result back. The math is unchanged; the
+        // wrapping Transposes are sunk / cancelled against the adjacent PERMUTE during
+        // TransposeSinking.
         const int64_t n_head_rope = static_cast<int64_t>(output_shape[2]);
         const int64_t head_size_rope = static_cast<int64_t>(output_shape[3]);
         const auto perm_bhls = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
 
-        // The DATA reaches this op in inconsistent shapes depending on the layer's upstream rank:
-        // rank-3 [B, L, H*S] (e.g. n_head_kv=1 layers fed by a rank-3 producer), or rank-4 that may
-        // be [B, L, H, S] OR [B, 1, L, S]. A single fixed Transpose cannot normalize all of these.
-        // Instead, always Reshape the data to the canonical ggml-natural [B, L, H, S] using the op's
-        // output_shape (element order is preserved, so this correctly reinterprets every incoming
-        // layout), then Transpose {0,2,1,3}. The leading dim is copied through (special_zero) instead
-        // of written as a literal 1, so a token-major activation ([L,1,H,S], the layout
-        // ov::pass::SDPAToPagedAttention establishes) keeps its tokens in dim 0 here; cos/sin below
-        // broadcast against either arrangement.
+        // Data reaches this op in inconsistent shapes depending on the layer's upstream rank:
+        // rank-3 [B, L, H*S], or rank-4 that may be [B, L, H, S] or [B, 1, L, S]. A single fixed
+        // Transpose cannot normalize all of these, so always Reshape to the canonical
+        // [B, L, H, S] using output_shape (element order is preserved) before transposing. The
+        // leading dim is copied through (special_zero) so a token-major activation
+        // (ov::pass::SDPAToPagedAttention's layout) keeps its tokens in dim 0.
         auto data_to_bhls = [&](ov::Output<ov::Node> x) -> ov::Output<ov::Node> {
             auto shape4d = ov::op::v0::Constant::create(ov::element::i64,
                                                         {4},

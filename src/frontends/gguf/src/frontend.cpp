@@ -4,7 +4,6 @@
 
 #include "openvino/frontend/gguf/frontend.hpp"
 
-
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/core/so_extension.hpp"
@@ -23,10 +22,10 @@ namespace gguf {
 // ggml-openvino backend -- through the op translators below.
 //
 // Discoverability: "gguf" is in manager.cpp's is_hidden_frontend list, so it is not advertised by
-// available_front_ends() and not auto-selected by load_by_model -- core.read_model(".gguf") does
-// not resolve to it. It is still reachable explicitly, either by direct linkage (what GenAI and
-// the llama.cpp backend do) or by name via load_by_framework("gguf"). supported_impl below stays
-// implemented, so enabling core.read_model later is just dropping the name from that list.
+// available_front_ends() and not auto-selected by load_by_model (core.read_model(".gguf") does
+// not resolve to it). It is still reachable explicitly, by direct linkage or by name via
+// load_by_framework("gguf"). supported_impl below stays implemented, so enabling core.read_model
+// later is just dropping the name from that list.
 //
 // Driving the frontend directly needs no follow-up pass: normalization runs inside convert(), and
 // the only step read_model adds, update_v10_model(), fires solely for legacy IR v10.
