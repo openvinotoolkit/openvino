@@ -26,11 +26,12 @@ The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For
 Device Naming Convention
 #######################################
 
-* Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}`` (only Intel® GPU devices are considered).
-* If the system has an integrated GPU, its ``id`` is always 0 (``GPU.0``).
-* The order of other GPUs is not predefined and depends on the GPU driver.
+* Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}`` (both Intel® and non-Intel GPUs are considered).
+* The order of GPUs is predefined: integrated Intel® GPUs first, followed by discrete Intel® GPUs, and then non-Intel® GPUs. The order of non-Intel® GPUs is not guaranteed.
+* A physical GPU exposed through multiple OpenCL® runtime platforms may appear as more than one device entry. When the same GPU is exposed by both the Intel® and another OpenCL® platform, the Intel®-platform entry is enumerated first. The order of non-Intel® OpenCL® platforms is not guaranteed.
+* If the system has an integrated Intel® GPU, its ``id`` is always 0 (``GPU.0``).
+* If the system does not have an integrated Intel® GPU, devices are enumerated, starting from 0.
 * The ``GPU`` is an alias for ``GPU.0``.
-* If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
 For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
