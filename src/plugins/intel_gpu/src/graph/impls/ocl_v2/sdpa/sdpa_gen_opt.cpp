@@ -33,10 +33,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
 
     // For bf16 inputs, use f32 as the compute type to avoid ushort arithmetic;
-    // for f16/f32, compute type matches output type.
+    // for non-bf16 inputs, compute type matches output type.
     auto input_dt = params.get_input_layout(0).data_type;
-    auto accumulator_type = (input_dt == ov::element::bf16) ? ov::element::f32 : ov::element::Type(params.output_layouts[0].data_type);
-    jit.add(make_type_jit_constants("ACCUMULATOR", accumulator_type));
+    auto compute_type = (input_dt == ov::element::bf16) ? ov::element::f32 : ov::element::Type(params.output_layouts[0].data_type);
+    jit.add(make_type_jit_constants("COMPUTE", compute_type));
     constexpr size_t subgroup_size = 16;
     jit.make("SUBGROUP_SIZE", subgroup_size);
 

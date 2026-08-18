@@ -34,7 +34,7 @@ protected:
         jit.add(make_tensors_jit_constants(params));
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-        jit.add(make_type_jit_constants("ACCUMULATOR", get_accumulator_type(params)));
+        jit.add(make_type_jit_constants("COMPUTE", get_accumulator_type(params)));
 
         size_t data_inputs_num = get_data_inputs_num(*desc);
         if (sdpa_has_runtime_attn_mask_input(params)) {

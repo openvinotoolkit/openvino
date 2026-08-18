@@ -5,31 +5,57 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/bf16_utils.cl"
 
-// For bf16 inputs, raw storage is ushort; TO_ACCUMULATOR_TYPE would do integer-to-float.
-// Use bit-reinterpretation helpers instead.
-#if INPUT0_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
-    #define INPUT0_TO_ACC(val) _convert_as_bfloat16_float(val)
+// For bf16 the raw storage is ushort and requires bit-reinterpretation (not a numeric convert)
+// to obtain a usable float value. For all other types the input type is already numerically
+// usable, so we keep the original variable type and use an identity load. This preserves the
+// pre-bf16 codegen for fp16/fp32 paths (no unintended promotion to the accumulator type).
+//
+// INPUTi_IS_FP is false for bf16 in the ocl_v2 jitter (see make_type_jit_constants), so the
+// pair (TYPE_SIZE == 2 && !IS_FP) uniquely identifies bf16 without matching fp16.
+
+#if INPUT0_TYPE_SIZE == 2 && !INPUT0_IS_FP
+    #define INPUT0_COMPUTE_T   COMPUTE_TYPE
+    #define LOAD_INPUT0(v)     _convert_as_bfloat16_float(v)
 #else
-    #define INPUT0_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+    #define INPUT0_COMPUTE_T   INPUT0_TYPE
+    #define LOAD_INPUT0(v)     (v)
 #endif
 
-#if INPUT1_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
-    #define INPUT1_TO_ACC(val) _convert_as_bfloat16_float(val)
+#if INPUT1_TYPE_SIZE == 2 && !INPUT1_IS_FP
+    #define INPUT1_COMPUTE_T   COMPUTE_TYPE
+    #define LOAD_INPUT1(v)     _convert_as_bfloat16_float(v)
 #else
-    #define INPUT1_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+    #define INPUT1_COMPUTE_T   INPUT1_TYPE
+    #define LOAD_INPUT1(v)     (v)
 #endif
 
-#if INPUT2_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
-    #define INPUT2_TO_ACC(val) _convert_as_bfloat16_float(val)
+#if INPUT2_TYPE_SIZE == 2 && !INPUT2_IS_FP
+    #define INPUT2_COMPUTE_T   COMPUTE_TYPE
+    #define LOAD_INPUT2(v)     _convert_as_bfloat16_float(v)
 #else
-    #define INPUT2_TO_ACC(val) TO_ACCUMULATOR_TYPE(val)
+    #define INPUT2_COMPUTE_T   INPUT2_TYPE
+    #define LOAD_INPUT2(v)     (v)
 #endif
 
-// tmp_buf and output use OUTPUT_TYPE which is bf16/ushort for bf16 models
-#if OUTPUT_TYPE_SIZE == 2 && ACCUMULATOR_TYPE_SIZE == 4
-    #define ACC_TO_OUTPUT(val) _convert_bfloat16_as_ushort(val)
+// Output store: for bf16 we bit-reinterpret the float accumulator into a ushort payload; for
+// other output types the standard numeric conversion is correct. OUTPUT_COMPUTE_T is the type
+// used to hold in-flight values that will eventually be stored to `output` (mirrors the
+// INPUTi_COMPUTE_T pattern above). TO_OUTPUT_COMPUTE_T() is the corresponding numeric convert
+// for scalar/literal values populating an OUTPUT_COMPUTE_T variable.
+#if OUTPUT_TYPE_SIZE == 2 && !OUTPUT_IS_FP
+    #define OUTPUT_COMPUTE_T          COMPUTE_TYPE
+    #define TO_OUTPUT_COMPUTE_T(v)    convert_float(v)
+    #define STORE_OUTPUT(v)           _convert_bfloat16_as_ushort(v)
+    #define OUTPUT_COMPUTE_VAL_ZERO   COMPUTE_VAL_ZERO
+    #define OUTPUT_COMPUTE_VAL_ONE    COMPUTE_VAL_ONE
+    #define OUTPUT_COMPUTE_VAL_MIN    COMPUTE_VAL_MIN
 #else
-    #define ACC_TO_OUTPUT(val) TO_OUTPUT_TYPE(val)
+    #define OUTPUT_COMPUTE_T          OUTPUT_TYPE
+    #define TO_OUTPUT_COMPUTE_T(v)    TO_OUTPUT_TYPE(v)
+    #define STORE_OUTPUT(v)           TO_OUTPUT_TYPE(v)
+    #define OUTPUT_COMPUTE_VAL_ZERO   OUTPUT_VAL_ZERO
+    #define OUTPUT_COMPUTE_VAL_ONE    OUTPUT_VAL_ONE
+    #define OUTPUT_COMPUTE_VAL_MIN    OUTPUT_VAL_MIN
 #endif
 
 // query_input   [batch, heads_num, q_len, head_size]
@@ -183,7 +209,7 @@ KERNEL(sdpa_ref)(
 #ifdef BEAM_TABLE_TYPE
     const __global BEAM_TABLE_TYPE* beam_table,
 #endif
-    __global ACCUMULATOR_TYPE* tmp_buf
+    __global OUTPUT_COMPUTE_T* tmp_buf
 )
 {
     const uint batch_idx = get_global_id(0);
@@ -193,18 +219,18 @@ KERNEL(sdpa_ref)(
     const uint head_size_idx = get_global_id(2);
 
 #if HAS_SCALE_INPUT
-    const ACCUMULATOR_TYPE scale_val = TO_ACCUMULATOR_TYPE(*scale);
+    const OUTPUT_COMPUTE_T scale_val = *scale;
 #elif defined(STATIC_SCALE_VALUE)
-    const ACCUMULATOR_TYPE scale_val = TO_ACCUMULATOR_TYPE(STATIC_SCALE_VALUE);
+    const OUTPUT_COMPUTE_T scale_val = TO_OUTPUT_COMPUTE_T(STATIC_SCALE_VALUE);
 #else
-    const ACCUMULATOR_TYPE scale_val = ACCUMULATOR_VAL_ONE / sqrt(TO_ACCUMULATOR_TYPE(INPUT1_SIZE_X));
+    const OUTPUT_COMPUTE_T scale_val = OUTPUT_COMPUTE_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_T(INPUT1_SIZE_X));
 #endif
 
     // Process 1*seq_len elements (Gemm1 + SoftMax) using a single work item, saving results to tmp_buf and
     // reusing them between all work items within a single workgroup for Gemm2 calculations.
     if (get_local_id(2) == 0) {
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
-            ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
+            OUTPUT_COMPUTE_T acc = OUTPUT_COMPUTE_VAL_ZERO;
             for (uint h = 0; h < HEAD_SIZE /* head_size */; h++) {
                 uint query_offset = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b0, b1, 0, 0, target_seq_idx, h);
 #ifdef BEAM_TABLE_TYPE
@@ -215,9 +241,9 @@ KERNEL(sdpa_ref)(
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, h);
 
 #if APPLY_SCALE_TO_QUERY
-                ACCUMULATOR_TYPE q_val = INPUT0_TO_ACC(query_input[query_offset]) * scale_val;
+                INPUT0_COMPUTE_T q_val = LOAD_INPUT0(query_input[query_offset]) * scale_val;
 #else
-                ACCUMULATOR_TYPE q_val = INPUT0_TO_ACC(query_input[query_offset]);
+                INPUT0_COMPUTE_T q_val = LOAD_INPUT0(query_input[query_offset]);
 #endif
 
                 INPUT1_TYPE k_val_packed = key_input[key_offset];
@@ -235,7 +261,7 @@ KERNEL(sdpa_ref)(
                 KEY_COMPRESSION_SCALE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
 
 #else
-                ACCUMULATOR_TYPE k_val = INPUT1_TO_ACC(k_val_packed);
+                INPUT1_COMPUTE_T k_val = LOAD_INPUT1(k_val_packed);
 #endif
                 acc += q_val * k_val;
             }
@@ -250,63 +276,63 @@ KERNEL(sdpa_ref)(
             tmp_buf[tmp_buf_offset] = acc;
         }
 
-        ACCUMULATOR_TYPE qk_max = ACCUMULATOR_VAL_MIN;
+        COMPUTE_TYPE qk_max = COMPUTE_VAL_MIN;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 #if IS_CAUSAL
-            ACCUMULATOR_TYPE attn_mask_val = s > target_seq_idx ? ACCUMULATOR_VAL_MIN : ACCUMULATOR_VAL_ZERO;
+            OUTPUT_COMPUTE_T attn_mask_val = s > target_seq_idx ? OUTPUT_COMPUTE_VAL_MIN : OUTPUT_COMPUTE_VAL_ZERO;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
-            ACCUMULATOR_TYPE attn_mask_val = INPUT0_TO_ACC(attn_mask[attn_mask_offset]);
+            OUTPUT_COMPUTE_T attn_mask_val = LOAD_INPUT3(attn_mask[attn_mask_offset]);
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
-            ACCUMULATOR_TYPE attn_mask_val = TO_ACCUMULATOR_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
+            OUTPUT_COMPUTE_T attn_mask_val = TO_OUTPUT_COMPUTE_T(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else
-            ACCUMULATOR_TYPE attn_mask_val = ACCUMULATOR_VAL_ZERO;
+            OUTPUT_COMPUTE_T attn_mask_val = OUTPUT_COMPUTE_VAL_ZERO;
 #endif
 
-            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset] + attn_mask_val;
+            OUTPUT_COMPUTE_T qk_val = tmp_buf[tmp_buf_offset] + attn_mask_val;
             tmp_buf[tmp_buf_offset] = qk_val;
 
-            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, qk_val);
+            qk_max = COMPUTE_MAX_FUNC(qk_max, qk_val);
             #ifdef HAS_SINK_INPUT
-            qk_max = ACCUMULATOR_MAX_FUNC(qk_max, TO_ACCUMULATOR_TYPE(sink_ptr[b1]));
+            qk_max = COMPUTE_MAX_FUNC(qk_max, TO_COMPUTE_TYPE(sink_ptr[b1]));
             #endif
         }
 
-        ACCUMULATOR_TYPE exp_sum = ACCUMULATOR_VAL_ZERO;
+        COMPUTE_TYPE exp_sum = COMPUTE_VAL_ZERO;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            ACCUMULATOR_TYPE val = native_exp(qk_val - qk_max);
+            COMPUTE_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            COMPUTE_TYPE val = native_exp(qk_val - qk_max);
             exp_sum += val;
 
             tmp_buf[tmp_buf_offset] = val;
         }
         #ifdef HAS_SINK_INPUT
-        ACCUMULATOR_TYPE val = native_exp(TO_ACCUMULATOR_TYPE(sink_ptr[b1] - qk_max));
+        COMPUTE_TYPE val = native_exp(TO_COMPUTE_TYPE(sink_ptr[b1] - qk_max));
         exp_sum += val;
         #endif
 
-        const ACCUMULATOR_TYPE inv_sum = ACCUMULATOR_VAL_ONE / exp_sum;
+        const COMPUTE_TYPE inv_sum = COMPUTE_VAL_ONE / exp_sum;
         for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
             uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                                   target_seq_idx * (SOURCE_SEQ_LEN) + s;
 
-            ACCUMULATOR_TYPE qk_val = tmp_buf[tmp_buf_offset];
-            ACCUMULATOR_TYPE val = qk_val * inv_sum;
+            COMPUTE_TYPE qk_val = tmp_buf[tmp_buf_offset];
+            COMPUTE_TYPE val = qk_val * inv_sum;
             tmp_buf[tmp_buf_offset] = val;
         }
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 
-    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
+    OUTPUT_COMPUTE_T acc = OUTPUT_COMPUTE_VAL_ZERO;
     for (uint s = 0; s < SOURCE_SEQ_LEN /* seq_len */; s++) {
         uint tmp_buf_offset = b0 * (NUM_HEADS * TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
                               b1 * (TARGET_SEQ_LEN * SOURCE_SEQ_LEN) +
@@ -333,12 +359,12 @@ KERNEL(sdpa_ref)(
 #endif
         VALUE_COMPRESSION_SCALE_TYPE value = ((value_packed - comp_zp) * comp_scale);
 #else
-        ACCUMULATOR_TYPE value = INPUT2_TO_ACC(value_packed);
+        INPUT2_COMPUTE_T value = LOAD_INPUT2(value_packed);
 #endif
 
         acc += tmp_buf[tmp_buf_offset] * value;
     }
 
     uint output_offset = OUTPUT_GET_INDEX(b0, b1, target_seq_idx, head_size_idx);
-    output[output_offset] = ACC_TO_OUTPUT(acc);
+    output[output_offset] = STORE_OUTPUT(acc);
 }
