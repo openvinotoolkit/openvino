@@ -97,11 +97,13 @@ public:
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
     auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         quantize("quantize", input_info("softmax"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
@@ -225,11 +227,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize_fusing_through, reshape) {
     auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reshape("reshape", input_info("softmax"), get_reshape_shape(p)),
         quantize("quantize", input_info("reshape"), input_info("in_lo"), input_info("in_hi"),
@@ -244,11 +248,13 @@ TEST_P(softmax_quantize_fusing_through, reshape) {
 TEST_P(softmax_quantize_fusing_through, reorder) {
     auto p = GetParam();
     auto reorder_layout = layout{ p.data_type, p.input_format, get_reshape_shape(p), padding{} };
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reorder("reorder", input_info("softmax"), reorder_layout),
         quantize("quantize", input_info("reorder"), input_info("in_lo"), input_info("in_hi"),
@@ -263,11 +269,13 @@ TEST_P(softmax_quantize_fusing_through, reorder) {
 TEST_P(softmax_quantize_fusing_through, chain) {
     auto p = GetParam();
     auto reorder_layout = layout{ p.data_type, p.input_format, get_reshape_shape(p), padding{} };
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reshape("reshape_first", input_info("softmax"), get_reshape_shape(p)),
         reorder("reorder", input_info("reshape_first"), reorder_layout),
