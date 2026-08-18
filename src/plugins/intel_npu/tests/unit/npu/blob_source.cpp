@@ -138,7 +138,7 @@ using BlobSourceDifferentBlobsNonContiguous = BlobSourceDifferentBlobs;
 using BlobSourceDifferentBlobsContiguous = BlobSourceDifferentBlobs;
 
 /**
- * @brief
+ * @brief The first byte from the blob source can be coppied correctly
  */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyFirstByte) {
     BlobSource blob_source = create_blob_source();
@@ -153,6 +153,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyFirstByte) {
     ASSERT_EQ(cursor, copy_size);
 }
 
+/**
+ * @brief All bytes from the blob source can be coppied correctly
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyAllBytes) {
     BlobSource blob_source = create_blob_source();
 
@@ -165,6 +168,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyAllBytes) {
     ASSERT_EQ(cursor, blob_content.size());
 }
 
+/**
+ * @brief The read cursor can be moved to the beginning of the source when using the start as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceBeginning) {
     BlobSource blob_source = create_blob_source();
 
@@ -181,6 +187,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceBeginning) {
     ASSERT_EQ(cursor, copied_payload.size());
 }
 
+/**
+ * @brief The read cursor can be moved to the last byte of the source when using the start as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
     BlobSource blob_source = create_blob_source();
 
@@ -197,6 +206,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
     ASSERT_EQ(cursor, blob_content.size());
 }
 
+/**
+ * @brief The read cursor can be moved to the begining of the source when using the end as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
@@ -213,6 +225,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
     ASSERT_EQ(cursor, copied_payload.size());
 }
 
+/**
+ * @brief The read cursor can be moved to the last byte of the source when using the end as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
@@ -229,6 +244,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceEnd) {
     ASSERT_EQ(cursor, blob_content.size());
 }
 
+/**
+ * @brief The read cursor can be moved twice forward when using the current position as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceForward) {
     BlobSource blob_source = create_blob_source();
 
@@ -249,6 +267,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceForward) {
     ASSERT_EQ(cursor, 3);
 }
 
+/**
+ * @brief The read cursor can be moved twice backwards when using the current position as reference
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceBackwards) {
     BlobSource blob_source = create_blob_source();
 
@@ -270,6 +291,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceBackwards) {
     ASSERT_EQ(cursor, blob_content.size() - 1);
 }
 
+/**
+ * @brief The read cursor will stay in the previous spot when moved by 0 bytes
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorSamePlaceReferenceCurrent) {
     BlobSource blob_source = create_blob_source();
 
@@ -287,6 +311,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorSamePlaceReferenceCurrent) {
     ASSERT_EQ(cursor, 2);
 }
 
+/**
+ * @brief The remaining size should be equal to the size of the source when the cursor is at origin
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromStart) {
     BlobSource blob_source = create_blob_source();
 
@@ -295,6 +322,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromStart) {
     ASSERT_EQ(remaining_size, blob_content.size());
 }
 
+/**
+ * @brief No remaining bytes should be reported is the cursor is at the end of the source
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromEnd) {
     BlobSource blob_source = create_blob_source();
 
@@ -305,6 +335,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromEnd) {
     ASSERT_EQ(remaining_size, 0);
 }
 
+/**
+ * @brief The total size of the blob source is the same as the size of the underlying buffer
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSize) {
     BlobSource blob_source = create_blob_source();
 
@@ -313,6 +346,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSize) {
     ASSERT_EQ(size, blob_content.size());
 }
 
+/**
+ * @brief The total size of the blob source is not affected by the position of the cursor
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterCursorMove) {
     BlobSource blob_source = create_blob_source();
 
@@ -323,6 +359,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterCursorMove) {
     ASSERT_EQ(size, blob_content.size());
 }
 
+/**
+ * @brief The total size of the source should not be influenced by previous "read" operations
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterRead) {
     BlobSource blob_source = create_blob_source();
 
@@ -334,6 +373,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterRead) {
     ASSERT_EQ(size, blob_content.size());
 }
 
+/**
+ * @brief Requesting to copy more bytes than available should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyTooMuch) {
     BlobSource blob_source = create_blob_source();
 
@@ -341,6 +383,9 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyTooMuch) {
     OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
 }
 
+/**
+ * @brief Requesting to copy beyond the end limit should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyAfterEnd) {
     BlobSource blob_source = create_blob_source();
 
@@ -350,56 +395,96 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyAfterEnd) {
     OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor before the start of the source should fail; the reference used for moving the cursor is the
+ * beginning of the source.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceStart) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(-1, std::ios::beg), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor after the end of the source should fail; the reference used for moving the cursor is the
+ * beginning of the source.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceStart) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(blob_content.size() + 1, std::ios::beg), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor before the start of the source should fail; the reference used for moving the cursor is the
+ * current cursor position.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceCurrent) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(-1, std::ios::cur), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor after the end of the source should fail; the reference used for moving the cursor is the
+ * current cursor position.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrnet) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(blob_content.size() + 1, std::ios::cur), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor before the start of the source should fail; the reference used for moving the cursor is the
+ * end of the source.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(-(blob_content.size() + 1), std::ios::end), ov::Exception, _);
 }
 
+/**
+ * @brief Moving the cursor after the end of the source should fail; the reference used for moving the cursor is the
+ * end of the source.
+ */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceEnd) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.move_cursor(1, std::ios::end), ov::Exception, _);
 }
 
+/**
+ * @brief Cannot extract data without copying if the underlying buffer is not contiguous.
+ */
 TEST_P(BlobSourceDifferentBlobsNonContiguous, InterpretFails) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.interpret_from_source(0), ov::Exception, _);
 }
 
+/**
+ * @brief Cannot extract RoI tensors without copying if the underlying buffer is not contiguous.
+ */
 TEST_P(BlobSourceDifferentBlobsNonContiguous, GetROITensorFails) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(0), ov::Exception, _);
 }
 
+/**
+ * @brief If the underlying buffer is not contiguous, then the "is_contiguous" call should return "false"
+ */
 TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguous) {
     BlobSource blob_source = create_blob_source();
     ASSERT_FALSE(blob_source.is_contiguous());
 }
 
+/**
+ * @brief If the underlying buffer is not contiguous, then the "is_contiguous_and_cursor_page_aligned" call should
+ * return "false"
+ */
 TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguousAndPageAligned) {
     BlobSource blob_source = create_blob_source();
     ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
+/**
+ * @brief Extract the first byte without copying
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByte) {
     BlobSource blob_source = create_blob_source();
 
@@ -415,6 +500,9 @@ TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByte) {
     ASSERT_EQ(cursor, interpret_size);
 }
 
+/**
+ * @brief Extract all bytes without copying
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, InterpretAllBytes) {
     BlobSource blob_source = create_blob_source();
 
@@ -430,6 +518,9 @@ TEST_P(BlobSourceDifferentBlobsContiguous, InterpretAllBytes) {
     ASSERT_EQ(cursor, blob_content.size());
 }
 
+/**
+ * @brief The move the read cursor and then extract one byte without copying
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
     blob_source.move_cursor(1);
@@ -447,17 +538,26 @@ TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByteAfterMove) {
     ASSERT_EQ(cursor, interpret_size + 1);
 }
 
+/**
+ * @brief Attempting to extract more bytes than available without copying should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, InterpretTooMuch) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.interpret_from_source(blob_content.size() + 1), ov::Exception, _);
 }
 
+/**
+ * @brief Attempting to extract data (without copying) beyond the end limit should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, InterpretAfterEnd) {
     BlobSource blob_source = create_blob_source();
     blob_source.move_cursor(0, std::ios::end);
     OV_EXPECT_THROW(blob_source.interpret_from_source(1), ov::Exception, _);
 }
 
+/**
+ * @brief Extract an roi tensor containing only the first byte of the source
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByte) {
     BlobSource blob_source = create_blob_source();
 
@@ -465,6 +565,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByte) {
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
 
+    ASSERT_EQ(roi_tensor.get_byte_size() == tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), 1), 0);
 
     size_t cursor = 0;
@@ -472,12 +573,16 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByte) {
     ASSERT_EQ(cursor, tensor_size);
 }
 
+/**
+ * @brief Extract an roi tensor containing the whole source
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAllBytes) {
     BlobSource blob_source = create_blob_source();
 
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(blob_content.size()));
 
+    ASSERT_EQ(roi_tensor.get_byte_size() == blob_content.size());
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), blob_content.size()), 0);
 
     size_t cursor = 0;
@@ -485,6 +590,9 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAllBytes) {
     ASSERT_EQ(cursor, blob_content.size());
 }
 
+/**
+ * @brief Extract an roi tensor containing only one byte of the source after moving the cursor
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
     blob_source.move_cursor(1);
@@ -493,6 +601,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
 
+    ASSERT_EQ(roi_tensor.get_byte_size() == tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data() + 1, 1), 0);
 
     size_t cursor = 0;
@@ -500,23 +609,54 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
     ASSERT_EQ(cursor, tensor_size + 1);
 }
 
+/**
+ * @brief Attempting to extract an roi tensor that is bigger than the available bytes should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorTooMuch) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(blob_content.size() + 1), ov::Exception, _);
 }
 
+/**
+ * @brief Attempting to extract an roi tensor beyond the end limit of the source should yield an exception
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAfterEnd) {
     BlobSource blob_source = create_blob_source();
     blob_source.move_cursor(0, std::ios::end);
     OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(1), ov::Exception, _);
 }
 
+/**
+ * @brief "is_contiguous" should return true if the underlying buffer is contiguous
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguous) {
     BlobSource blob_source = create_blob_source();
     ASSERT_TRUE(blob_source.is_contiguous());
 }
 
+/**
+ * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
+ * was not moved and the origin is page aligned
+ */
 TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAligned) {
+    BlobSource blob_source = create_blob_source(true);
+    ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
+}
+
+/**
+ * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
+ * was not moved and the origin is page aligned
+ */
+TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAlignedAfterMove) {
+    BlobSource blob_source = create_blob_source(true);
+    ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
+}
+
+/**
+ * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
+ * was not moved and the origin is page aligned
+ */
+TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAlignedAfterMove) {
     BlobSource blob_source = create_blob_source(true);
     ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
