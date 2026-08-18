@@ -45,7 +45,7 @@ struct deconvolution_params : public weight_bias_params {
 class DeconvolutionKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
-    virtual ~DeconvolutionKernelBase() {}
+    ~DeconvolutionKernelBase() override = default;
 
     using DispatchData = CommonDispatchData;
 
@@ -57,8 +57,7 @@ protected:
     virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {
         if (params.inputs[0].Dimentions() == 4)
             return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
-        else
-            return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
+        return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     bool Validate(const Params& p) const override;
 

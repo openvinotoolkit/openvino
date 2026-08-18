@@ -139,7 +139,9 @@ static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& 
                     " != dst: ",
                     dst->get_element_type(),
                     ")");
-    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8, "[GPU] Unsupported element type for copying: ", src->get_element_type());
+    // Sub-byte types require contiguous (non-ROI) copies
+    OPENVINO_ASSERT(src->get_element_type().bitwidth() >= 8 || roi_shape.empty(),
+                    "[GPU] ROI copy is not supported for sub-byte element type: ", src->get_element_type());
 
     // If it's a simple copy_to/copy_from call, then change dst shape
     if (roi_shape.empty()) {
@@ -219,6 +221,22 @@ void RemoteTensorImpl::copy_to(const std::shared_ptr<ov::ITensor>& dst,
     auto dst_remote_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(dst);
     auto shape = roi_shape.empty() ? get_shape() : roi_shape;
 
+    // Sub-byte types use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (dst_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, dst_remote_tensor->get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<ov::IRemoteTensor>(dst), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, nullptr, dst->data());
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
+
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (dst_remote_tensor != nullptr) {
         GPU_DEBUG_TRACE_DETAIL << "Copying from RemoteTensor (" << get_memory()->get_allocation_type() << ") to RemoteTensor ("
@@ -252,6 +270,22 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
     auto& stream = m_context->get_engine().get_service_stream();
     auto src_remote_tensor = std::dynamic_pointer_cast<const RemoteTensorImpl>(src);
+
+    // Sub-byte types use flat contiguous copy
+    if (m_element_type.bitwidth() < 8) {
+        const auto byte_size = get_byte_size();
+        if (src_remote_tensor != nullptr) {
+            auto src_mem = MemWrapper(stream, src_remote_tensor->get_memory(), nullptr);
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        } else {
+            OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
+            auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
+            auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
+            src_mem.copy_to(dst_mem, src_offset, dst_offset, byte_size);
+        }
+        return;
+    }
 
     ov::Strides roi_strides = calculate_strides(shape, m_element_type);
     if (src_remote_tensor != nullptr) {
@@ -428,7 +462,11 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
+#ifdef _WIN32
     return is_shared();
+#else
+    return is_shared() && m_mem_type != TensorType::BT_SURF_SHARED;
+#endif
 }
 
 void RemoteTensorImpl::update_hash() {
@@ -452,7 +490,7 @@ bool RemoteTensorImpl::is_surface() const noexcept {
 }
 
 cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     return engine->reinterpret_buffer(*m_memory_object, m_layout);
 }
 
@@ -465,7 +503,7 @@ void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
-    auto engine = m_memory_object->get_engine();
+    auto* engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();
     m_shape = m_layout.get_shape();
 

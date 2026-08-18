@@ -11,7 +11,7 @@ namespace kernel_selector {
 class FullyConnectedBlockKernelBase : public FullyConnectedKernelBase {
 public:
     using FullyConnectedKernelBase::FullyConnectedKernelBase;
-    virtual ~FullyConnectedBlockKernelBase() {}
+    ~FullyConnectedBlockKernelBase() override = default;
 
 protected:
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
@@ -27,8 +27,7 @@ protected:
         auto out_elements_count_per_batch = params.outputs[0].LogicalSize() / batchSize;
         if (out_elements_count_per_batch % 16 == 0)
             return 2;
-        else
-            return 1;
+        return 1;
     }
 };
 }  // namespace kernel_selector

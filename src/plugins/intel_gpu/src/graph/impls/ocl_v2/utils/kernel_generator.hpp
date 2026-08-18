@@ -25,7 +25,7 @@ public:
     KernelGenerator(KernelGenerator&&) = delete;
     KernelGenerator& operator=(const KernelGenerator&) = delete;
     KernelGenerator& operator=(KernelGenerator&&) = delete;
-    virtual ~KernelGenerator() = default;
+    ~KernelGenerator() override = default;
 
     [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override;
 
