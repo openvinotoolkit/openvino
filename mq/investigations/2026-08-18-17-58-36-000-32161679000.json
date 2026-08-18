@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-17-58-36-000-32161679000",
+  "timestamp": "2026-08-18T17:58:36Z",
+  "run_id": "32161679000",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32161679000",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37176",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37176",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "Debian Packages job fails - unable to connect to azure.archive.ubuntu.com:80",
+  "signature": "unable to connect to azure archive ubuntu com 80|Network",
+  "signature_hash": "a3d456bd40bd9f42",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get cannot fetch packages - Unable to connect to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/libx/libxext/libxext6_1.3.4-1build2_amd64.deb  Unable to connect to azure.archive.ubuntu.com:80: [IP: 52.250.76.244 80]",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/b/binutils/binutils_2.42-4ubuntu2.10_amd64.deb  Unable to connect to azure.archive.ubuntu.com:80: [IP: 52.250.76.244 80]"
+  ],
+  "root_cause": "The GitHub Actions runner could not reach the Ubuntu Azure mirror (azure.archive.ubuntu.com:80) during apt-get install in the Debian Packages job. This is a transient network connectivity issue on the CI runner infrastructure, unrelated to any code changes in the PR. The PR only adds an ONNX Swish-24 operation translator and documentation updates.",
+  "reproduction_steps": "N/A - infrastructure network issue not reproducible locally",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job or re-add the PR to the merge queue",
+    "If the issue persists, investigate Azure runner network connectivity to ubuntu mirrors"
+  ],
+  "prevention_strategies": "Consider retry logic in debian package installation scripts or use alternative Ubuntu mirrors as fallback.",
+  "historical_context": "Network connectivity failures to azure.archive.ubuntu.com are a known transient issue on GitHub-hosted runners."
+}
