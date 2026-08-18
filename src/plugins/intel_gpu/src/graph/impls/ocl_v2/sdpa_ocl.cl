@@ -77,6 +77,18 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  define MASK_IS_FULL_2D  (MASK_KIND == 2)
 #endif
 
+// Bidirectional attention over image-token groups (gemma-4 and friends). token_type_ids[t] == 1
+// marks an "image" token; a maximal contiguous run of them is a group whose members attend to each
+// other in BOTH directions, on top of the usual causal + sliding-window region.
+//
+// HAS_TOKEN_TYPE_IDS declares the kernel parameter and is set by the host only for paged-attention
+// PREFILL with a token_type_ids input. USE_BIDIR_MASK is the no-rebuild bisection toggle
+// (SDPA_OCL_BIDIR=0) and is deliberately a SEPARATE macro: it elides the logic but leaves the
+// parameter declared, so the env knob can never desync get_arguments_desc() from the signature.
+// The IS_PAGED_ATTENTION / IS_PREFILL terms are redundant with the host gate and kept only so the
+// scope of the feature is readable from the .cl alone.
+#define BIDIR_MASK (HAS_TOKEN_TYPE_IDS && USE_BIDIR_MASK && IS_PAGED_ATTENTION && IS_PREFILL)
+
 // Row pitch of a K / V cache page's DATA region, in elements of the cache dtype. That is HEAD_SIZE
 // for f16 and i8 -- so those paths preprocess to exactly what they were and the host does not jit
 // these at all -- but a u4 page packs two values per byte while its layout dtype is u8, so the pitch
@@ -330,6 +342,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
+#if HAS_TOKEN_TYPE_IDS
+        const __global int* token_type_ids,
+#endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
 #else
@@ -465,6 +480,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #else
         const uint base_block_index = block_indices_begins[gws_mapping];
+    #endif
+    #if HAS_TOKEN_TYPE_IDS
+        // token_type_ids is [B_token]: one entry per token of the FLATTENED batch, exactly like the
+        // Q rows above, so it needs the same subsequence bump. Every index derived from it below is
+        // then subsequence-relative, matching q / k / wg_j0. NOTE: sdpa_micro.cl and sdpa_opt.cl
+        // omit this bump and index the flattened buffer with subsequence-relative positions, which
+        // only agrees for a single subsequence starting at token 0.
+        token_type_ids += subsequence_begin;
     #endif
 #else
     Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
@@ -691,9 +714,40 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // per-tile inner loop.
     // The non-causal case keeps the full range, and the bound is a no-op there.
 #if IS_CAUSAL
-    const int causal_k = min(k, query_position_offset + (int)wg_j0 + kq_wg_tile_queries);
+    int causal_k = min(k, query_position_offset + (int)wg_j0 + kq_wg_tile_queries);
 #else
     const int causal_k = k;
+#endif
+
+#if IS_CAUSAL && BIDIR_MASK
+    // An image group is bidirectional, so a query inside one also needs the FUTURE keys of its own
+    // group -- which the causal bound above cuts away. Extend it to the end of the group that
+    // overlaps this workgroup's query range. Scanning only the workgroup's LAST query is sufficient:
+    // a group is contiguous, so any query whose group runs past wg_j0 + kq_wg_tile_queries contains
+    // wg_q_end in that same group and therefore has the same group end.
+    // Counterpart of sdpa_micro.cl's bidir_causal_k, but the scan is subgroup-cooperative
+    // (SUBGROUP_SIZE positions per step) instead of a lane-0 serial walk. Everything here is
+    // subgroup-uniform -- wg_q_end, k and the reduction result -- so the loop trip count and the
+    // break are uniform and sub_group_reduce_min() is reached by every lane.
+    {
+        const int wg_q_end = min((int)wg_j0 + kq_wg_tile_queries, k) - 1;
+        if (wg_q_end >= 0 && token_type_ids[wg_q_end] == 1) {
+            int group_end = wg_q_end + 1;
+            while (group_end < k) {
+                const int chunk_end = min(k, group_end + SUBGROUP_SIZE);  // exclusive
+                const int idx = group_end + (int)lane;
+                const bool ends_group = (idx < chunk_end) && (token_type_ids[idx] != 1);
+                const int first = sub_group_reduce_min(ends_group ? idx : INT_MAX);
+                if (first != INT_MAX) {
+                    group_end = first;
+                    break;
+                }
+                group_end = chunk_end;
+            }
+            // group_end <= k: the loop only ever assigns an index below k or the clamped chunk end.
+            causal_k = max(causal_k, group_end);
+        }
+    }
 #endif
 
     // Sliding-window lower bound, the mirror of causal_k and the counterpart of sdpa_micro's
@@ -705,10 +759,68 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // loop keeps its kq_wg_tile_keys stride and key_base stays tile-aligned (the 2D block reads
     // and the S_slm indexing both assume that).
 #if IS_CAUSAL && SLIDING_WINDOW_SIZE
-    const int window_k_begin = max(0, query_position_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    int window_k_begin = max(0, query_position_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #if BIDIR_MASK
+    // Mirror of the causal_k extension at the bottom end: a query inside an image group also needs
+    // the group's PAST keys even when the sliding window has already dropped them. Extend the window
+    // start back to the beginning of the group straddling it. Same sufficiency argument -- if a query
+    // at or above wg_j0 has a group starting below window_k_begin, then window_k_begin lies inside
+    // that (contiguous) group, so scanning from window_k_begin finds the right start.
+    if (window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
+        int group_begin = window_k_begin;
+        while (group_begin > 0) {
+            const int chunk_begin = max(0, group_begin - SUBGROUP_SIZE);
+            const int idx = chunk_begin + (int)lane;
+            const bool ends_group = (idx < group_begin) && (token_type_ids[idx] != 1);
+            const int last = sub_group_reduce_max(ends_group ? idx : -1);
+            if (last >= 0) {
+                group_begin = last + 1;
+                break;
+            }
+            group_begin = chunk_begin;
+        }
+        window_k_begin = group_begin;
+    }
+    #endif
     const int window_k0_begin = (window_k_begin / kq_wg_tile_keys) * kq_wg_tile_keys;
 #else
     const int window_k0_begin = 0;
+#endif
+
+#if IS_CAUSAL && BIDIR_MASK
+    // Per-query image-group bounds [begin, end), the ONLY state the mask loop needs to un-mask a
+    // bidirectional pair. The allowed key set of a query is
+    //     (causal n sliding-window)  u  (the query's own image group)
+    // -- see the reference in openvino/reference/paged_attention.hpp -- so the group membership of
+    // the KEY never has to be looked up: every position in [begin, end) is in the query's group by
+    // construction. sdpa_micro instead re-derives it per (query, key) pair with an O(|q - k|) scan
+    // over token_type_ids inside its mask loop; here the loop below runs ONCE per workgroup, keeps
+    // 2 * kq_query_blocks ints in registers, and leaves the hot loop with two integer compares.
+    //
+    // Both scans are clamped to the key loop's own window, which is exact rather than approximate:
+    // keys below window_k0_begin are never visited by the k0 loop, and keys at or above causal_k
+    // already read as -INFINITY through k_mask, so widening either bound cannot change a score. The
+    // two extensions above make the clamps no-ops for real inputs anyway; they are the safety net.
+    // An empty range (0, 0) is the "not an image token" encoding -- no key satisfies it.
+    int bidir_group_begin[kq_query_blocks];
+    int bidir_group_end[kq_query_blocks];
+    #pragma unroll
+    for (int qb = 0; qb < kq_query_blocks; ++qb) {
+        // Same expression the mask loop below uses for `query`, so the per-lane mapping cannot drift.
+        const int query = (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE + (int)lane;
+        int group_begin = 0;
+        int group_end = 0;
+        if (query < q && token_type_ids[query] == 1) {
+            group_begin = query;
+            while (group_begin > window_k0_begin && token_type_ids[group_begin - 1] == 1)
+                --group_begin;
+            group_end = query + 1;
+            while (group_end < causal_k && token_type_ids[group_end] == 1)
+                ++group_end;
+        }
+        bidir_group_begin[qb] = group_begin;
+        bidir_group_end[qb] = group_end;
+    }
 #endif
 
     for (int k0 = window_k0_begin; k0 < causal_k; k0 += kq_wg_tile_keys) {
@@ -1425,6 +1537,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         if (key > query_position || key <= query_position - SLIDING_WINDOW_SIZE) {
     #else
                         if (key > query_position) {
+    #endif
+    #if IS_CAUSAL && BIDIR_MASK
+                            // ...unless the key is inside this query's own image group, which is
+                            // bidirectional. Only reachable when the base predicate above already
+                            // masked, so this can only ever un-mask -- which is also why the
+                            // causal_block_clear skip stays sound: it proves the block is wholly
+                            // INSIDE the causal+window region, where there is nothing to un-mask.
+                            if (key < bidir_group_begin[qb] || key >= bidir_group_end[qb])
     #endif
                             s = -INFINITY;
                         }
