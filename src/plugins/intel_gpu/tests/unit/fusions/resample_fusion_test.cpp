@@ -335,6 +335,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::Values
 class resample_eltwise_fusing_through : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_eltwise_fusing_through, reshape) {
     auto p = GetParam();
+    // bf16 compute requires XMX support (Xe-HPG+)
+    if (p.data_type == data_types::bf16 && !get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP();
     auto reshape_shape = p.out_shape;
     reshape_shape.feature[0] *= reshape_shape.spatial[0];
     reshape_shape.spatial[0] = 1;

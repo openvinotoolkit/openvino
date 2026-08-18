@@ -139,7 +139,7 @@ KERNEL(border_gpu_ref)(
 
 #ifdef BORDER_TYPE_CONSTANT
     #ifdef BORDER_VALUE_TYPE
-    INPUT0_TYPE in_val = TO_INPUT0_TYPE(DECODE_BORDER_VALUE_COMPUTE_TYPE(border_value_param[0]));
+    INPUT0_TYPE in_val = TO_INPUT0_TYPE(border_value_param[0]);
     #else
     INPUT0_TYPE in_val = TO_INPUT0_TYPE(BORDER_VALUE);
     #endif
