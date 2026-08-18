@@ -671,19 +671,19 @@ TEST_P(BlobSourceDifferentBlobsContiguous, FalseIsContiguousAndPageAlignedAfterM
     ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
-INSTANTIATE_TEST_SUITE_P(UnitTest,
+INSTANTIATE_TEST_SUITE_P(UnitTests,
                          BlobSourceDifferentBlobsCommon,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
                                           testing::ValuesIn(ALL_BLOB_SOURCE_DATA_TYPES)),
                          BlobSourceDifferentBlobsCommon::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(UnitTest,
+INSTANTIATE_TEST_SUITE_P(UnitTests,
                          BlobSourceDifferentBlobsNonContiguous,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
                                           testing::Values(BlobSourceDataType::STREAM)),
                          BlobSourceDifferentBlobsCommon::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(UnitTest,
+INSTANTIATE_TEST_SUITE_P(UnitTests,
                          BlobSourceDifferentBlobsContiguous,
                          testing::Combine(testing::ValuesIn(ALL_BLOB_CONTENT_TYPES),
                                           testing::Values(BlobSourceDataType::TENSOR)),

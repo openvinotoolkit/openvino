@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -144,6 +145,26 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
 }
 
 /**
+ * @brief The factory can successfully create importers if the blob source is contiguous and page aligned
+ */
+TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForPageAlignedTensor) {
+    const std::string blob = build_blob_format_v1_with_magic();
+
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), customAllocator);
+    std::memcpy(input_tensor.data(), blob.data(), blob.size());
+    BlobSource tensor_source(input_tensor);
+
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, config));
+
+    tensor_source.move_cursor(0, std::ios::beg);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, config));
+
+    tensor_source.move_cursor(0, std::ios::beg);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, create_simple_model(), config));
+}
+
+/**
  * @brief A dummy model cannot be created before the graph
  */
 TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
@@ -154,5 +175,3 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }
-
-// TODO page aligned tensor/stream test
