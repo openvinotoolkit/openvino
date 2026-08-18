@@ -331,7 +331,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(localProperties);
     localConfig.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler->get_version())}});
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
@@ -619,6 +619,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     }
 
     auto npuPluginProperties = properties;
+    npuPluginProperties.erase(ov::intel_npu::compiler_type.name());
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
@@ -629,7 +630,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
     _backend->updateInfo(npuPluginProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(npuPluginProperties);
 
     try {
         std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
@@ -658,6 +659,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     std::istream stream{&buffer};
 
     auto npuPluginProperties = properties;
+    npuPluginProperties.erase(ov::intel_npu::compiler_type.name());
     // NPUW properties from npuPluginProperties will be erased if import_model_npuw returns nullptr
     if (auto compiledModel = import_model_npuw(stream, npuPluginProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
@@ -668,7 +670,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
     _backend->updateInfo(npuPluginProperties);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    FilteredConfig localConfig = _propertiesManager->getConfigWithCompilerPropertiesDisabled(npuPluginProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(npuPluginProperties);
 
     try {
         std::unique_ptr<IBlobFormatImporter> blobFormatImporter =
@@ -766,7 +768,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
         localProperties[ov::intel_npu::platform.name()] = compilationPlatform;
     }
 
-    FilteredConfig localConfig = _propertiesManager->getConfigForSpecificCompiler(localProperties);
+    FilteredConfig localConfig = _propertiesManager->deriveConfigForProperties(localProperties);
     ov::SupportedOpsMap supportedOpsMap;
     try {
         supportedOpsMap = compiler->query(model->clone(), localConfig);
