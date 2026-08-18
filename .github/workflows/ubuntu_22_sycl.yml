@@ -6,8 +6,13 @@ on:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
-  # pull_request:
-  # merge_group:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  merge_group:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -93,31 +98,20 @@ jobs:
       build-debian-packages: false
       build-contrib: false
       build-rpm-packages: false
+      build-additional-python-packages: false
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -DENABLE_NCC_STYLE=OFF
-            -DENABLE_TESTS=OFF
-            -DENABLE_INTEL_GPU=ON
-            -DENABLE_INTEL_NPU=OFF
-            -DENABLE_HETERO=OFF
-            -DENABLE_MULTI=OFF
-            -DENABLE_AUTO=OFF
-            -DENABLE_AUTO_BATCH=OFF
-            -DENABLE_PROXY=OFF
-            -DENABLE_TEMPLATE=OFF
-            -DENABLE_OV_JAX_FRONTEND=OFF
-            -DENABLE_OV_PADDLE_FRONTEND=OFF
-            -DENABLE_OV_TF_LITE_FRONTEND=OFF
-            -DENABLE_SAMPLES=OFF
-            -DENABLE_PLUGINS_XML=ON
-            -DENABLE_WHEEL=ON
-            -DENABLE_ONEDNN_FOR_GPU=ON
-            -DGPU_RT_TYPE=SYCL
-            -DINTEL_GPU_TARGET_OCL_VERSION=120
+            -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DENABLE_ONEDNN_FOR_GPU=ON
+            -DGPU_RT_TYPE=SYCL
+            -DENABLE_SYSTEM_FLATBUFFERS=OFF
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_22.04_sycl
