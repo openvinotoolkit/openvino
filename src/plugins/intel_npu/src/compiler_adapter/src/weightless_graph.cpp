@@ -269,21 +269,13 @@ WeightlessGraph::WeightlessGraph(
             std::move(mainBlob),
             config,
             /* compatibilityDescriptor = */ std::nullopt,
-            blobIsPersistent,
-            /* calledFromWeightlessGraph = */ true),
+            blobIsPersistent),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
       _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
     _wgLogger.info("The current compiled model is a weightless one");
-
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _wgLogger.info("Graph initialize is deferred from the \"WeightlessGraph\" constructor");
-        return;
-    }
-
-    initialize(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {

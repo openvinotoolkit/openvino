@@ -43,6 +43,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
     _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
 
+    // Immediate-init path: when weights load is not deferred, initialize the graph now.
+    // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
+    if (_propertiesManager->getConfig().get<CREATE_EXECUTOR>() &&
+        !_propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
+        OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
+        _graph->initialize(_propertiesManager->getConfig());
+    }
+
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
 }
 
