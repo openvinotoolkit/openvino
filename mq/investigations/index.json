@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 157,
+  "total": 158,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1540,6 +1540,15 @@
       "title": "Windows Debug build fails: CMake cannot download oneapi-tbb dependency (HTTP error)",
       "category": "Network",
       "signature_hash": "2a69e2049aca6b9b",
+      "pr_number": "37221"
+    },
+    {
+      "investigation_id": "2026-08-18-12-26-00-000-32134197721",
+      "run_id": "32134197721",
+      "timestamp": "2026-08-18T12:26:00Z",
+      "title": "Build-riscv64 fails downloading node-api-headers due to HTTP 502 from GitHub CDN",
+      "category": "Network",
+      "signature_hash": "204f6134e10bd5d3",
       "pr_number": "37221"
     }
   ]

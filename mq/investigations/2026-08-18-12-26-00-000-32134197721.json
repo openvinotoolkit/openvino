@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-12-26-00-000-32134197721",
+  "timestamp": "2026-08-18T12:26:00Z",
+  "run_id": "32134197721",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32134197721",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "37221",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37221",
+  "author": "akashchi",
+  "category": "Network",
+  "title": "Build-riscv64 fails downloading node-api-headers due to HTTP 502 from GitHub CDN",
+  "signature": "downloading node-api-headers failed HTTP response code said error 502|Network",
+  "signature_hash": "204f6134e10bd5d3",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-riscv64 / Build",
+      "conclusion": "failure",
+      "symptom": "CMake FetchContent failed to download node-api-headers v1.9.0 from GitHub CDN with HTTP 502"
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Overall status failure due to Build-riscv64 failure"
+    }
+  ],
+  "key_errors": [
+    "error: downloading 'https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.9.0.tar.gz' failed\n  status_code: 22\n  status_string: \"HTTP response code said error\"\n  The requested URL returned error: 502",
+    "CMake Error: Build step for node-api-headers failed: 2\nCall Stack: src/bindings/js/node/CMakeLists.txt:39 (FetchContent_MakeAvailable)",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "CMake FetchContent attempted to download node-api-headers v1.9.0 tarball from codeload.github.com during the riscv64 build configuration step. GitHub's CDN (codeload.github.com) returned an HTTP 502 Bad Gateway error, causing the download to fail and the entire build to abort. This is a transient external service outage unrelated to the PR code changes.",
+  "reproduction_steps": "N/A - transient GitHub CDN 502 error, not reproducible on demand.",
+  "recommended_actions": [
+    "Re-run the failed Build-riscv64 job (the error is transient; retry should succeed).",
+    "If failures persist, check GitHub CDN status at https://www.githubstatus.com/"
+  ],
+  "prevention_strategies": "Consider caching the node-api-headers tarball as a GitHub Actions cache artifact or vendoring it in the repository to avoid runtime downloads that can fail due to CDN instability.",
+  "historical_context": "This is the first recorded occurrence of this specific pattern (node-api-headers HTTP 502). Similar network download failures during CMake FetchContent have been seen in other patterns in this database."
+}

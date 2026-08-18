@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "downloading node-api-headers failed HTTP response code said error 502|Network",
+  "signature_hash": "204f6134e10bd5d3",
+  "title": "Build-riscv64 fails downloading node-api-headers due to HTTP 502 from GitHub CDN",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-18T12:26:00Z",
+  "last_seen": "2026-08-18T12:26:00Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32134197721"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37221"],
+  "recent_timestamps": ["2026-08-18T12:26:00Z"],
+  "rerun_search_string": "downloading node-api-headers failed HTTP response code said error"
+}
