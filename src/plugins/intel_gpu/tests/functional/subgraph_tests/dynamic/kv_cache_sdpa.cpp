@@ -47,13 +47,15 @@ public:
 #endif
         auto core = ov::test::utils::PluginCache::get().core();
 
-        ov::AnyMap properties = {ov::hint::inference_precision(ov::element::f16),
+        // Match inference and KV-cache precision to the model element type so that bf16
+        // parameters actually exercise the bf16 execution path.
+        ov::AnyMap properties = {ov::hint::inference_precision(p.model_element_type),
                                  ov::intel_gpu::hint::enable_sdpa_optimization(true)};
 
         if (p.compressed) {
             properties.emplace(ov::hint::kv_cache_precision(ov::element::i8));
         } else {
-            properties.emplace(ov::hint::kv_cache_precision(ov::element::f16));
+            properties.emplace(ov::hint::kv_cache_precision(p.model_element_type));
         }
 
         const size_t n_heads = 16;
@@ -408,6 +410,15 @@ std::vector<Params> get_test_params() {
 
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+
+    // BF16 + compressed KV coverage: exercises KV_TO_SOFTMAX_ACC path (numeric convert of
+    // already-dequantized key/value into softmax accumulator) for both non-causal and
+    // causal masks, and both single-batch and beam-search (batch > 1) shapes.
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal,  compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
+    p.push_back({with_rearrange, with_mask, !with_scale, causal,  compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
     return p;
 }

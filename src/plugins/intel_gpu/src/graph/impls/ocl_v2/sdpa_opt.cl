@@ -127,47 +127,15 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #define OUTPUT_BLOCK_READ(ptr, offset) BLOCK_READN(OUTPUT_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
 
-// COMPUTE_TYPE: used for all intermediate arithmetic.
-// For bf16, OUTPUT_TYPE is ushort (no native math), so we compute in ACCUMULATOR_TYPE (float).
-// For f16/f32, ACCUMULATOR_TYPE == OUTPUT_TYPE, so this is a no-op.
-#define COMPUTE_TYPE ACCUMULATOR_TYPE
-#define COMPUTE_VAL_ZERO ACCUMULATOR_VAL_ZERO
-#define COMPUTE_VAL_ONE ACCUMULATOR_VAL_ONE
-#define TO_COMPUTE_TYPE(v) TO_ACCUMULATOR_TYPE(v)
-#define COMPUTE_VECTOR(size) MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, size)
+// COMPUTE_TYPE (JIT-provided): used for all intermediate arithmetic.
+// For bf16 inputs, OUTPUT_TYPE is ushort (no native math), so COMPUTE_TYPE is f32.
+// For non-bf16 inputs, COMPUTE_TYPE == OUTPUT_TYPE, so this is a no-op vs the pre-bf16 kernel.
+#define COMPUTE_VECTOR(size) MAKE_VECTOR_TYPE(COMPUTE_TYPE, size)
 #if defined(INPUT0_IS_FP) && INPUT0_IS_FP
 #define INPUT_TO_COMPUTE(v) TO_COMPUTE_TYPE(v)
-#define INPUT_TO_SOFTMAX_ACC(v) TO_SOFTMAX_ACCUMULATOR_TYPE(v)
-#else
-#define INPUT_TO_COMPUTE(v) _convert_as_bfloat16_float(v)
-#define INPUT_TO_SOFTMAX_ACC(v) _convert_as_bfloat16_float(v)
-#endif
-
-// Macro to convert INPUT0_TYPE raw values to COMPUTE_TYPE (handles bf16 ushort -> float)
-#if defined(INPUT0_IS_FP) && INPUT0_IS_FP
-#define INPUT_TO_COMPUTE(v) TO_COMPUTE_TYPE(v)
-#define INPUT_TO_SOFTMAX_ACC(v) TO_SOFTMAX_ACCUMULATOR_TYPE(v)
 #else
 // bf16 is stored as ushort; need bit-level reinterpretation, not integer cast
 #define INPUT_TO_COMPUTE(v) _convert_as_bfloat16_float(v)
-#define INPUT_TO_SOFTMAX_ACC(v) _convert_as_bfloat16_float(v)
-#endif
-
-// Vectorized conversion macros for BF16 (uses utilities from #37112)
-#if !defined(INPUT0_IS_FP) || !INPUT0_IS_FP
-    // For BF16, use vectorized conversion from bf16_utils.cl
-    #define INPUT_TO_SOFTMAX_ACC_VEC(v, size) CONVERT_AS_BFLOAT16_FLOAT(v, size)
-    #define INPUT_TO_COMPUTE_VEC(v, size) CONVERT_AS_BFLOAT16_FLOAT(v, size)
-#else
-    // For FP16/FP32, just use type conversion (already float)
-    #define INPUT_TO_SOFTMAX_ACC_VEC(v, size) CAT(convert_float, size)(v)
-    #define INPUT_TO_COMPUTE_VEC(v, size) CAT(convert_float, size)(v)
-#endif
-
-#if defined(INPUT0_IS_FP) && INPUT0_IS_FP
-#define native_exp(v) native_exp(v)
-#else
-#define native_exp(v) exp(v)
 #endif
 
 #if IS_INT4_COMPRESSED
@@ -378,8 +346,8 @@ KERNEL(sdpa_opt)(
                         uint query_offset = seq_idx * K_HEAD_SIZE + head_idx_index;
                         COMPUTE_TYPE q_val0 = query_local[query_offset + 2 * sglid];
                         COMPUTE_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
-                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), INPUT_TO_SOFTMAX_ACC(key_val0), acc[seq_idx]);
-                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), INPUT_TO_SOFTMAX_ACC(key_val1), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val1), acc[seq_idx]);
                     }
                     #undef KEY_BLOCK_READ_1
                 }
@@ -402,8 +370,8 @@ KERNEL(sdpa_opt)(
                         uint query_offset = seq_idx * K_HEAD_SIZE + head_idx_index;
                         COMPUTE_TYPE q_val0 = query_local[query_offset + 2 * sglid];
                         COMPUTE_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
-                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), INPUT_TO_SOFTMAX_ACC(key_val0), acc[seq_idx]);
-                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), INPUT_TO_SOFTMAX_ACC(key_val1), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val1), acc[seq_idx]);
                     }
                     #undef KEY_BLOCK_READ_1
                 }
@@ -440,17 +408,9 @@ KERNEL(sdpa_opt)(
                             query_vals_reg[i] = query_local[query_offset + i * SUBGROUP_SIZE];
                         }
 
-                        // Vectorized conversion for BF16 optimization (#37112)
-#if !IS_KV_COMPRESSED
-                        MAKE_VECTOR_TYPE(SOFTMAX_ACCUMULATOR_TYPE, KEY_BLOCK_SIZE) key_vals_converted = INPUT_TO_SOFTMAX_ACC_VEC(key_vals, KEY_BLOCK_SIZE);
                         unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), key_vals_converted[i], acc[seq_idx]);
+                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), TO_SOFTMAX_ACCUMULATOR_TYPE(key_vals[i]), acc[seq_idx]);
                         }
-#else
-                        unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), INPUT_TO_SOFTMAX_ACC(key_vals[i]), acc[seq_idx]);
-                        }
-#endif
 
                         query_offset += K_HEAD_SIZE;
                     }
@@ -480,17 +440,9 @@ KERNEL(sdpa_opt)(
                             query_vals_reg[i] = query_local[query_offset + i * SUBGROUP_SIZE];
                         }
 
-                        // Vectorized conversion for BF16 optimization (#37112)
-#if !IS_KV_COMPRESSED
-                        MAKE_VECTOR_TYPE(SOFTMAX_ACCUMULATOR_TYPE, KEY_BLOCK_SIZE) key_vals_converted = INPUT_TO_SOFTMAX_ACC_VEC(key_vals, KEY_BLOCK_SIZE);
                         unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), key_vals_converted[i], acc[seq_idx]);
+                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), TO_SOFTMAX_ACCUMULATOR_TYPE(key_vals[i]), acc[seq_idx]);
                         }
-#else
-                        unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), INPUT_TO_SOFTMAX_ACC(key_vals[i]), acc[seq_idx]);
-                        }
-#endif
 
                         query_offset += K_HEAD_SIZE;
                     }
@@ -520,17 +472,9 @@ KERNEL(sdpa_opt)(
                             query_vals_reg[i] = query_local[query_offset + i * SUBGROUP_SIZE];
                         }
 
-                        // Vectorized conversion for BF16 optimization (#37112)
-#if !IS_KV_COMPRESSED
-                        MAKE_VECTOR_TYPE(SOFTMAX_ACCUMULATOR_TYPE, KEY_BLOCK_SIZE) key_vals_converted = INPUT_TO_SOFTMAX_ACC_VEC(key_vals, KEY_BLOCK_SIZE);
                         unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), key_vals_converted[i], acc[seq_idx]);
+                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), TO_SOFTMAX_ACCUMULATOR_TYPE(key_vals[i]), acc[seq_idx]);
                         }
-#else
-                        unroll_for(uint i = 0; i < KEY_BLOCK_SIZE; i++) {
-                            acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg[i]), INPUT_TO_SOFTMAX_ACC(key_vals[i]), acc[seq_idx]);
-                        }
-#endif
 
                         query_offset += K_HEAD_SIZE;
                     }
@@ -560,7 +504,7 @@ KERNEL(sdpa_opt)(
                             query_vals_reg = query_local[query_offset + i * SUBGROUP_SIZE];
                         }
 
-                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg), INPUT_TO_SOFTMAX_ACC(key_vals), acc[seq_idx]);
+                        acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(query_vals_reg), TO_SOFTMAX_ACCUMULATOR_TYPE(key_vals), acc[seq_idx]);
                         query_offset += K_HEAD_SIZE;
                     }
                 }
@@ -588,13 +532,13 @@ KERNEL(sdpa_opt)(
                         // Apply attention mask
 #if IS_CAUSAL
                         if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
-                            qk_val[seq_idx] += ACCUMULATOR_VAL_MIN;
+                            qk_val[seq_idx] += COMPUTE_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
                         COMPUTE_TYPE mask_val = INPUT_TO_COMPUTE(attn_mask[attn_mask_offset]);
 #ifdef CLAMP_ATTN_MASK_INPUT
                         // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
-                        mask_val = ACCUMULATOR_MAX_FUNC(mask_val, ACCUMULATOR_VAL_MIN);
+                        mask_val = COMPUTE_MAX_FUNC(mask_val, COMPUTE_VAL_MIN);
 #endif
                         qk_val[seq_idx] += mask_val;
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
@@ -2005,10 +1949,10 @@ KERNEL(sdpa_opt)(
                         qk_acc[i] += alibi_slopes[num_heads_dim] * alibi_val;
 #endif
 
-                        qk_acc[i] = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(qk_acc[i], ACCUMULATOR_VAL_MIN), ACCUMULATOR_VAL_MAX);
+                        qk_acc[i] = COMPUTE_MIN_FUNC(COMPUTE_MAX_FUNC(qk_acc[i], COMPUTE_VAL_MIN), COMPUTE_VAL_MAX);
 #if IS_CAUSAL
                     } else {
-                        qk_acc[i] = ACCUMULATOR_VAL_MIN;
+                        qk_acc[i] = COMPUTE_VAL_MIN;
                     }
 #endif  // IS_CAUSAL
                     qk_max = SOFTMAX_ACCUMULATOR_MAX_FUNC(qk_max, TO_SOFTMAX_ACCUMULATOR_TYPE(qk_acc[i]));
