@@ -1071,6 +1071,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v8::RandomUnif
     return std::make_shared<ov::Model>(results, params, "RandomUniformGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::RandomPoisson> &node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3})};
+    auto Node = std::make_shared<ov::op::v17::RandomPoisson>(params.at(0), 150, 10);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node)};
+    return std::make_shared<ov::Model>(results, params, "RandomPoissonGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v0::Range> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape()),
