@@ -7,8 +7,6 @@
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-
 #include "set_device_name.hpp"
 
 int main(int argc, char *argv[]) {
@@ -74,7 +72,6 @@ int main(int argc, char *argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
     auto retcode = RUN_ALL_TESTS();
-    ov::test::utils::PluginCache::get().reset();
 
     return retcode;
 }
