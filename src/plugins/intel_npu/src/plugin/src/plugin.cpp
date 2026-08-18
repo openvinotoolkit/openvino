@@ -136,11 +136,9 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     // Initialize (note: it will reset registered options)
     options.reset();
 
-#define REGISTER_OPTION(OPT_TYPE)                                                                              \
-    do {                                                                                                       \
-        options.add<OPT_TYPE>();                                                                               \
-        const bool _enabled = OPT_TYPE::mode() == OptionMode::RunTime || OPT_TYPE::mode() == OptionMode::Both; \
-        config.enable(OPT_TYPE::key(), _enabled);                                                              \
+#define REGISTER_OPTION(OPT_TYPE) \
+    do {                          \
+        options.add<OPT_TYPE>();  \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -212,18 +210,6 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
         using Opt = typename decltype(tag)::type;
         REGISTER_OPTION(Opt);
     });
-
-    // Special cases
-    // Disable turbo in case driver is not present or it does not support the extension.
-    config.enable(ov::intel_npu::turbo.name(), backend != nullptr && backend->isCommandQueueExtSupported());
-    // Align config enabled/disabled state with the properties manager support.
-    // Disable workload type in case driver is not present or it does not support the extension.
-    config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
-    // Disable max tiles in case we don't have a device.
-    config.enable(ov::intel_npu::max_tiles.name(), backend != nullptr && backend->getDevice() != nullptr);
-    // Disable idle memory pruning in case driver is not present or it does not support the extension.
-    config.enable(ov::intel_npu::disable_idle_memory_prunning.name(),
-                  backend != nullptr && backend->isContextExtSupported());
 
     if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
         auto device = backend->getDevice();
@@ -411,7 +397,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool shouldHandleBatching = false;
     bool successfullyDebatched = false;
 
-    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name())) {
+    const bool isBatchModeSupported = [&]() {
+        try {
+            return _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::batch_mode.name());
+        } catch (...) {
+            return false;
+        }
+    }();
+
+    if (isBatchModeSupported) {
         // Set default batch mode if not configured
         if (!localConfig.has(ov::intel_npu::batch_mode.name())) {
             updateBatchMode(ov::intel_npu::BatchMode::AUTO);
@@ -437,10 +431,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         shouldHandleBatching = !useDynamicGraphForDynamicModel && model->get_variables().empty();
     }
 
+    const std::optional<ov::intel_npu::BatchMode> batchMode =
+        isBatchModeSupported ? std::make_optional(localConfig.get<BATCH_MODE>()) : std::nullopt;
+
     if (shouldHandleBatching) {
         // Process batching
         std::tie(batchedModel, successfullyDebatched) =
-            intel_npu::batch_helpers::handlePluginBatching(model, localConfig, updateBatchMode, originalBatch, _logger);
+            intel_npu::batch_helpers::handlePluginBatching(model, updateBatchMode, batchMode, originalBatch, _logger);
     }
 
     if (localConfig.has(ov::intel_npu::enable_strides_for.name())) {
@@ -478,7 +475,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    if (localConfig.isAvailable(ov::enable_weightless.name()) && !localConfig.get<CACHE_DIR>().empty()) {
+    const bool isWeightlessSupported = [&]() {
+        try {
+            return _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::enable_weightless.name());
+        } catch (...) {
+            return false;
+        }
+    }();
+
+    if (isWeightlessSupported && !localConfig.get<CACHE_DIR>().empty()) {
         // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
         // size of the binary object
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
