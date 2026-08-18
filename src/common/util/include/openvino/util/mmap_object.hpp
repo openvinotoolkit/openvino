@@ -22,6 +22,11 @@ namespace ov {
 
 namespace util {
 int64_t get_system_page_size();
+
+/**
+ * @brief Alignment required for a memory mapping offset: allocation granularity on Windows, page size elsewhere.
+ */
+size_t get_system_alloc_granularity();
 }  // namespace util
 
 /**

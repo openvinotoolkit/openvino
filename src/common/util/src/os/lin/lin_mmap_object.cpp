@@ -30,6 +30,10 @@ int64_t get_system_page_size() {
     return page_size;
 }
 
+size_t get_system_alloc_granularity() {
+    return static_cast<size_t>(get_system_page_size());
+}
+
 /**
  * @brief Creates a memory region for mmap operations.
  *

@@ -15,13 +15,6 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include <memory>
 
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    include <windows.h>
-#endif
-
 namespace ov::intel_gpu {
 
 namespace {
@@ -32,17 +25,6 @@ Type extract_object(const ov::AnyMap& params, const ov::Property<Type>& p) {
     OPENVINO_ASSERT(itrHandle != params.end(), "[GPU] No parameter ", p.name(), " found in parameters map");
     ov::Any res = itrHandle->second;
     return res.as<Type>();
-}
-
-// Alignment required for a memory mapping offset: allocation granularity on Windows, page size elsewhere.
-size_t get_mmap_offset_alignment() {
-#ifdef _WIN32
-    SYSTEM_INFO sys_info;
-    GetSystemInfo(&sys_info);
-    return static_cast<size_t>(sys_info.dwAllocationGranularity);
-#else
-    return static_cast<size_t>(ov::util::get_system_page_size());
-#endif
 }
 
 ContextType get_default_context_type() {
@@ -212,7 +194,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
             return { reuse_memory_from_cpu_va(type, shape, VirtualAddressMemory{mem, size}, tensor_type), nullptr };
         } else if (ov::intel_gpu::SharedMemType::MMAPED_FILE == mem_type) {
             const auto fd = extract_object(params, ov::intel_gpu::file_descriptor);
-                return { reuse_memory_from_file(type, shape, fd.path, fd.offset, fd.access), nullptr };
+            return { reuse_memory_from_file(type, shape, fd.path, fd.offset, fd.access), nullptr };
         } else if (ov::intel_gpu::SharedMemType::OCL_IMAGE2D == mem_type) {
             tensor_type = TensorType::BT_IMG_SHARED;
             mem = extract_object(params, ov::intel_gpu::mem_handle);
@@ -305,7 +287,7 @@ std::shared_ptr<ov::IRemoteTensor> RemoteContextImpl::reuse_memory_from_file(con
     const auto byte_size = ov::util::get_memory_size_safe(type, shape);
     OPENVINO_ASSERT(byte_size, "[GPU] Cannot calculate memory size for element type ", type, " and shape ", shape);
 
-    const auto alignment = get_mmap_offset_alignment();
+    const auto alignment = ov::util::get_system_alloc_granularity();
     OPENVINO_ASSERT(alignment != 0 && offset % alignment == 0,
                     "[GPU] Offset ",
                     offset,
