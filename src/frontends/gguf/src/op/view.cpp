@@ -199,7 +199,13 @@ OutputVector translate_view(const NodeContext & context) {
             result = std::make_shared<ov::op::v1::Reshape>(
                 result, ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt), false);
         }
-        return {result};
+        // A view that neither restores rank, slices nor reshapes is a pass-through: the value is
+        // still the producer's output, so renaming it here would rename a node owned by another
+        // ggml tensor (and the suffix compounds, since the helper appends).
+        if (result == context.get_input(0)) {
+            return {result};
+        }
+        return rename_outputs_with_suffix({result}, context.get_name());
     }
     return {context.get_input(0)};
 }

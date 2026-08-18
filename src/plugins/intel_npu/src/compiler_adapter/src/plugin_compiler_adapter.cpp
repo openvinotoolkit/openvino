@@ -11,6 +11,7 @@
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -27,9 +28,16 @@
 
 namespace intel_npu {
 
+namespace {
+constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+}
+
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                             const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
+      _optionSupportCache(optionSupportCache),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
@@ -310,24 +318,35 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
     while (suppstream >> option) {
         compilerOpts.push_back(option);
     }
+
+    if (_optionSupportCache) {
+        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
+    }
     return compilerOpts;
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    const bool hasValue = optValue.has_value();
-    const std::string value = hasValue ? optValue.value() : "";
-    if (_compiler->is_option_supported(optname, optValue)) {
-        _logger.debug("Option %s is supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return true;
-    } else {
-        _logger.debug("Option %s is not supported `%s` by VCLCompilerImpl",
-                      optname.c_str(),
-                      hasValue ? value.c_str() : "null");
-        return false;
+    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
+    if (optionSupportCache) {
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
+        if (cachedSupport.has_value()) {
+            return cachedSupport.value();
+        }
     }
+
+    const bool supported = _compiler->is_option_supported(optname, optValue);
+    if (optionSupportCache) {
+        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
+    }
+
+    const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";
+    _logger.debug("Option %s %s `%s` by VCLCompilerImpl",
+                  optname.c_str(),
+                  supported ? "is supported" : "is not supported",
+                  valueForLog);
+
+    return supported;
 }
 
 }  // namespace intel_npu
