@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-11-41-46-000-32131585279",
+  "timestamp": "2026-08-18T11:41:46Z",
+  "run_id": "32131585279",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32131585279",
+  "workflow_name": "Android",
+  "pr_number": "37401",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37401",
+  "author": "sbutnari",
+  "category": "Code Issue",
+  "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
+  "signature": "target of type MODULE LIBRARY may not be linked into another target in ov generate plugins hpp|Code Issue",
+  "signature_hash": "9ff022172665aa06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: MODULE_LIBRARY plugins cannot be linked into another target in ov_generate_plugins_hpp"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status failure due to Build arm64 failure"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/plugins/plugins.cmake:275 (target_link_libraries):\n  Target \"openvino_intel_gpu_plugin\" of type MODULE_LIBRARY may not be linked into\n  another target.\n  Call Stack:\n    cmake/developer_package/plugins/plugins.cmake:325 (ov_target_link_plugins)\n    cmake/extra_modules.cmake:186 (ov_generate_plugins_hpp)\n    CMakeLists.txt:196 (include)"
+  ],
+  "root_cause": "The Android CMake build fails because plugins (e.g., openvino_intel_gpu_plugin) are built as MODULE_LIBRARY targets, but ov_generate_plugins_hpp/ov_target_link_plugins in cmake/developer_package/plugins/plugins.cmake:275 attempts to link them into another target, which CMake forbids. This is a pre-existing infrastructure/configuration bug in the Android build unrelated to PR #37401 (which only changes src/plugins/intel_npu/tests/driver_version.json). The pattern has been recurring since 2026-08-08. The run is on attempt 2, meaning an automated re-run was already triggered.",
+  "reproduction_steps": "Build OpenVINO for Android ARM64 with ENABLE_INTEL_GPU=ON and ENABLE_INTEL_CPU=ON targeting the arm64-v8a ABI; the CMake configure step will fail with the MODULE_LIBRARY link error.",
+  "recommended_actions": [
+    "Check whether the fix for the MODULE_LIBRARY plugin link issue has been merged; see related investigation records from 2026-08-08 through 2026-08-10.",
+    "If not fixed, the Android arm64 build is blocked by this pre-existing CMake configuration issue unrelated to PR changes.",
+    "PR #37401 (NPU driver version update) can be merged once the underlying Android build issue is resolved."
+  ],
+  "prevention_strategies": "Fix the ov_generate_plugins_hpp/ov_target_link_plugins CMake logic in cmake/developer_package/plugins/plugins.cmake to not link MODULE_LIBRARY targets; or adjust the Android build to use SHARED_LIBRARY for plugin targets.",
+  "historical_context": "This exact error has been recorded 18 times since 2026-08-08 across multiple PRs. It is a known pre-existing bug in the Android CMake configuration, not caused by individual PRs."
+}
