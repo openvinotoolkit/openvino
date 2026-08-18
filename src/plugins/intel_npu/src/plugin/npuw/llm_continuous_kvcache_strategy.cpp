@@ -168,8 +168,6 @@ struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
     // Used when the source is the prefill request itself.
     uint32_t past_tokens = 0u;
     uint32_t present_tokens = 0u;
-    // Staging buffers for the alias-safe repack, one per KV input that needs it.
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> temps;
 };
 
 // The KV sequence axes for a src/dst tensor pair, mirroring copy_kvcache(): with
@@ -202,7 +200,6 @@ std::pair<uint32_t, uint32_t> detect_kv_seq_dims(const ov::SoPtr<ov::ITensor>& s
 
 std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continued_prefill(uint32_t keep,
                                                                                            uint32_t delta_len) {
-    namespace uu = ov::npuw::util;
     const auto& compiled = m_req.m_npuw_llm_compiled_model;
     const auto& kvcache_desc = compiled->m_kvcache_desc;
 
@@ -223,8 +220,7 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
     plan->source_is_generate = m_req.m_generate_initialized;
 
     if (plan->source_is_generate) {
-        // Validate every layer before touching any of them and pre-allocate the staging
-        // buffers where the generate and prefill views share backing memory.
+        // Validate every layer before touching any of them.
         for (const auto& name : m_req.m_kvcache_past_names) {
             OPENVINO_ASSERT(m_req.m_kvcache_in_ports.count(name) && m_req.m_prefill_in_ports.count(name),
                             "Continued prefill: KV input ",
@@ -246,16 +242,6 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                             "Continued prefill: KV extent of ",
                             name,
                             " cannot cover the granted keep.");
-
-            // Shared backing memory is an aliasing hazard, not layout compatibility.
-            // Identical bytes are addressed with different per-head strides whenever the
-            // sequence extents differ, so the repack must stage through a temporary.
-            const bool aliased = src->data() == dst->data();
-            const bool same_layout = aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
-            if (aliased && !same_layout) {
-                auto src_slice = uu::make_tensor_slice(src, src_dim, 0u, keep);
-                plan->temps[name] = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
-            }
         }
     } else {
         // The prompt-phase finish case. The prefill past inputs hold everything except
@@ -285,7 +271,6 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
     if (plan.source_is_generate) {
         LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
         // Every tensor is independent, so repack them in parallel like copy_kvcache does.
-        // The plan's temp map is only read here.
         ov::parallel_for(m_req.m_kvcache_past_names.size(), [&](size_t idx) {
             const auto& name = m_req.m_kvcache_past_names[idx];
             auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(name));
@@ -307,10 +292,16 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
 
             auto src_slice = uu::make_tensor_slice(src, src_dim, 0u, keep);
             auto dst_slice = uu::make_tensor_slice(dst, dst_dim, 0u, keep);
-            auto temp_it = plan.temps.find(name);
-            if (temp_it != plan.temps.end()) {
-                src_slice->copy_to(temp_it->second._ptr);
-                uu::copy_tensor_by_dim(temp_it->second, dst_slice, src_dim, dst_dim);
+            if (aliased) {
+                // Shared backing memory is an aliasing hazard, not layout compatibility.
+                // Identical bytes are addressed with different per-head strides whenever
+                // the sequence extents differ, so the repack stages through a temporary.
+                // The temporary lives inside the loop body, so only the tensors in
+                // flight hold staging memory at any moment rather than the whole
+                // preserved prefix at once.
+                auto temp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+                src_slice->copy_to(temp._ptr);
+                uu::copy_tensor_by_dim(temp, dst_slice, src_dim, dst_dim);
             } else {
                 uu::copy_tensor_by_dim(src_slice, dst_slice, src_dim, dst_dim);
             }
