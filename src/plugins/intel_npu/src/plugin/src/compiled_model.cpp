@@ -48,9 +48,9 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
-    if (_propertiesManager->getConfig().get<CREATE_EXECUTOR>() &&
-        !_propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
-        _graph->initialize(_propertiesManager->getConfig());
+    const FilteredConfig& modelConfig = _propertiesManager->getConfig();
+    if (modelConfig.get<CREATE_EXECUTOR>() && !modelConfig.get<DEFER_WEIGHTS_LOAD>()) {
+        _graph->initialize(modelConfig);
     } else {
         _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
     }
