@@ -74,6 +74,8 @@ const char* type_name(uint32_t type) {
         return "Q5_K";
     case GGUF_TYPE_Q6_K:
         return "Q6_K";
+    case GGUF_TYPE_Q2_0:
+        return "Q2_0";
     default:
         return "";
     }
@@ -115,6 +117,8 @@ constexpr float kTolRequant = 1.5e-2f;  // channel-wise Q8_0_C requant round-off
 // (matching the original ggml-openvino backend). The integer zp rounds min to a multiple of
 // scale, so the dequant diverges from ggml's faithful to_float by up to ~0.045 per weight.
 constexpr float kTolIntZp = 5e-2f;
+// Q2_0: (code - 1) * d on both sides and the zero-point of 1 is exact, so hold it to bit-equality.
+constexpr float kTolExact = 0.0f;
 
 }  // namespace
 
@@ -178,7 +182,8 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
                                            DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolIntZp},
                                            DeqCase{"q5_k", GGUF_TYPE_Q5_K, kTolRequant},
-                                           DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant}),
+                                           DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant},
+                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });

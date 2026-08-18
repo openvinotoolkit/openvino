@@ -1061,21 +1061,21 @@ public:
 
     void allocateHost(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_host(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_host(properties, size, 0, &error);
         _check_error(size, ptr, error, "Host");
         _allocate(ptr);
     }
 
     void allocateShared(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_shared(properties, size, 0, &error);
         _check_error(size, ptr, error, "Shared");
         _allocate(ptr);
     }
 
     void allocateDevice(size_t size, const cl_mem_properties_intel* properties = nullptr) {
         cl_int error = CL_SUCCESS;
-        auto ptr = _usmHelper.allocate_device(properties, size, 0, &error);
+        auto* ptr = _usmHelper.allocate_device(properties, size, 0, &error);
         _check_error(size, ptr, error, "Device");
         _allocate(ptr);
     }
@@ -1103,8 +1103,7 @@ private:
             sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;
             if (ptr == nullptr)
                 throw std::runtime_error(sout.str());
-            else
-                detail::errHandler(error, sout.str().c_str());
+            detail::errHandler(error, sout.str().c_str());
         }
     }
 };
