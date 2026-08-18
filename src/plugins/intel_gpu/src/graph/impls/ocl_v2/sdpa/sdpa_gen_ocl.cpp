@@ -127,8 +127,16 @@ inline bool block2d_layout_ok(const layout& l, size_t row_bytes) {
 // The % 64 tier is kept as the "no fixup needed" fast path so every already-enabled config keeps
 // byte-identical codegen. For f16 this widens head_size % 32 == 0 to head_size % 8 == 0
 // (40/48/56/72/80/88/104/112/120/...); for i8 row_bytes == head_size, so % 64 widens to % 16.
-inline bool block2d_surface_fixup_ok(size_t row_bytes) {
+// The width+pitch half of the block2d rules, shared by the two tiers that do not require a
+// 64-byte-aligned base by construction. Kept as one primitive so the two callers below cannot drift
+// apart, but deliberately exposed under two names: they are the SAME test for DIFFERENT reasons, and
+// each name carries its own base-alignment argument.
+inline bool block2d_width_pitch_ok(size_t row_bytes) {
     return row_bytes >= 64 && (row_bytes % 16) == 0;
+}
+
+inline bool block2d_surface_fixup_ok(size_t row_bytes) {
+    return block2d_width_pitch_ok(row_bytes);
 }
 
 // block2d_surface_fixup_ok() plus the no-padding precondition.
@@ -140,6 +148,33 @@ inline bool block2d_surface_fixup_ok(size_t row_bytes) {
 // also widen a pre-existing hazard.
 inline bool block2d_layout_fixup_ok(const layout& l, size_t row_bytes) {
     return block2d_surface_fixup_ok(row_bytes) && !l.data_padding && !l.data_padding.is_dynamic();
+}
+
+// Paged-attention CACHE PAGE surfaces, where the base rule needs no fixup at all and the old % 64
+// test was pure over-restriction.
+//
+// A page is a self-contained [block_size, head_size] tile, so unlike the plain-SDPA tensors:
+//   - width == pitch == row_bytes (there is no outer head/seq stride to worry about), and
+//   - the base is always a WHOLE number of pages, so base alignment follows from the page STRIDE,
+//     which the pitch rule already pins down. Verified per layout -- in each case the pitch rule's
+//     divisibility is exactly what makes the stride a multiple of 64:
+//       f16 K/V page   stride 32*h        ; pitch rule => h % 8 == 0 => h even   => 32h  % 64 == 0
+//       i8 BY_TOKEN    stride 16*(h + 4)  ; pitch rule => h % 16 == 0            => 256n + 64
+//       i8 BY_CHANNEL K stride 20*h       ; pitch rule => h % 16 == 0            => 320n, 320 % 64 == 0
+//       u4 K           stride 12*h        ; pitch rule => h % 32 == 0            => 384n, 384 % 64 == 0
+//       u4 V           stride 16*(Align(h/2,16) + 4) ; Align is already % 16     => 256k + 64
+// (The u4 V pitch is Align(h/2, 16), which is a multiple of 16 by construction, so for that one
+// surface the rule degenerates to the >= 64 minimum.)
+//
+// Widening effect: f16 pages go from head_size % 32 == 0 to % 8 == 0 (adds 40/48/56/72/80/88/104/
+// 112/120) and i8 pages from % 64 to % 16 (adds 80/112/144/176/208/240). Each of those previously
+// fell back to a per-lane scalar gather.
+//
+// NOT used for u4, even though the alignment proof above covers it -- see the comment at
+// v_pa_2d_i8: the u4 1D whole-page read is gated on that flag being OFF, so relaxing it would
+// displace a measured-faster path on head sizes nobody can benchmark.
+inline bool block2d_page_ok(size_t row_bytes) {
+    return block2d_width_pitch_ok(row_bytes);
 }
 
 // Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
@@ -740,15 +775,16 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // [PAGED_ATTENTION_BLOCK_SIZE, v_head_size] row-major f16 tile, so the kernel points the
     // surface at the page and uses a v_head_size row pitch -- NOT ldv, which for the cache layout
     // spans a whole page. That means the block2d rule has to be checked against the page pitch:
-    //   width = pitch = v_head_size * 2 bytes  =>  needs (v_head_size * 2) % 64 == 0 and >= 64,
-    // and the page base is a multiple of PAGED_ATTENTION_BLOCK_SIZE * v_head_size * 2, which is
-    // 64B-aligned whenever the pitch rule holds. This flag is the f16 one; the i8 cache has the same
-    // page geometry but needs a dequant, so it gets its own flag (USE_2D_BLOCK_IO_V_PA_I8) below.
+    //   width = pitch = v_head_size * 2 bytes  =>  needs (v_head_size * 2) % 16 == 0 and >= 64,
+    // and the page base is a multiple of PAGED_ATTENTION_BLOCK_SIZE * v_head_size * 2 == 32 *
+    // v_head_size, which the pitch rule already forces to be 64B-aligned (see block2d_page_ok) -- so
+    // this needs no kernel-side base fixup. This flag is the f16 one; the i8 cache has the same page
+    // geometry but needs a dequant, so it gets its own flag (USE_2D_BLOCK_IO_V_PA_I8) below.
     int v_pa_2d = 0;
     if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed &&
         !data_type_traits::is_i8_u8(V.data_type) && !data_type_traits::is_i4_u4(V.data_type)) {
         const auto v_page_pitch = v_head_size * ov::element::Type(V.data_type).size();
-        v_pa_2d = block2d_surface_ok(v_page_pitch);
+        v_pa_2d = block2d_page_ok(v_page_pitch);
     }
     // Bisection toggle, same role as SDPA_OCL_KV_2D: =0 restores the scalar gather so a wrong
     // result can be attributed to the block read rather than to the S*V indexing.
@@ -844,7 +880,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     }
     // i8 V cache via the 8-bit VNNI-transform block read. The V page is already token-major with a
     // v_head_size row pitch (see above), so for an i8 cache that pitch is v_head_size BYTES and the
-    // block2d rule reduces to v_head_size % 64 == 0 -- head 128 qualifies. Same builtin and same
+    // block2d rule reduces to v_head_size % 16 == 0 and >= 64 -- 64/80/96/112/128/... The page base
+    // is 16 * (v_head_size + 4) == 256n + 64 under that rule, so it is 64B-aligned with no fixup.
+    // Same builtin and same
     // dequant shape as the plain-SDPA USE_2D_BLOCK_IO_V_I8 path; only the surface origin (the page)
     // and the scale/zp source (inside the page instead of separate tensors) differ.
     // The builtin has a hard 32-row minimum on Xe2 (no _8b_16r variant exists -- probed), while a
@@ -856,11 +894,19 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // ADJUSTED_V_HEAD_SIZE is v_head_size + 4 in both quant modes, so the V page geometry, its comp
     // offset and this gate are all identical for the two -- pa_cache_dequant_ok, not pa_i8_by_token.
     // A compressed cache's layout dtype is one byte wide, so pa_v_row_elems IS the pitch in bytes --
-    // v_head_size for i8, Align(v_head_size/2, 16) for u4. The rule therefore loosens slightly for u4
-    // (head 112 -> 64 bytes qualifies) even though it needs twice the head size for K.
+    // v_head_size for i8, Align(v_head_size/2, 16) for u4. For u4 that Align makes the pitch a
+    // multiple of 16 by construction, so the rule degenerates to the >= 64 minimum alone
+    // (Align(h/2,16) >= 64, i.e. v_head_size >= 98).
+    // u4 deliberately stays on the STRICT % 64 rule. Not caution about the alignment -- that proof
+    // holds for u4 too (16 * (Align(h/2,16) + 4) == 256k + 64) -- but because USE_1D_BLOCK_IO_V_PA_U4
+    // below is gated on `!v_pa_2d_i8`. Relaxing here would silently DISPLACE the u4 whole-page 1D
+    // read, which was a measured 3.92x win on gpt-oss-20b and was chosen precisely because block2d
+    // could not reach those pages. Head 64 is unaffected either way (row = 32 bytes, under the 64 B
+    // minimum), so relaxing u4 would only change head sizes with no model to measure -- trading a
+    // known-good path for an unmeasured one. Revisit only with a u4 model at head >= 128.
     int v_pa_2d_i8 = 0;
     if (pa_cache_dequant_ok && !m_is_prefill) {
-        v_pa_2d_i8 = block2d_surface_ok(pa_v_row_elems);
+        v_pa_2d_i8 = pa_u4_by_channel_tm ? block2d_surface_ok(pa_v_row_elems) : block2d_page_ok(pa_v_row_elems);
     }
     // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather + dequant, which
     // is what attributes a wrong result to the block read rather than to the dequant math.
@@ -891,7 +937,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (pa_k_token_major && !config.is_kv_compressed && !data_type_traits::is_i8_u8(K.data_type) &&
         !data_type_traits::is_i4_u4(K.data_type)) {
         const auto k_page_pitch = k_head_size * ov::element::Type(K.data_type).size();
-        k_pa_2d = block2d_surface_ok(k_page_pitch);
+        k_pa_2d = block2d_page_ok(k_page_pitch);
     }
     // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather.
     if (const char* env = std::getenv("SDPA_OCL_K_PA_2D"))
@@ -899,16 +945,20 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("USE_2D_BLOCK_IO_K_PA", k_pa_2d);
     // Same, for an i8 cache in either quant mode: a token-major page's data region is a
     // [block_size, k_head_size] i8 tile, so the pitch is k_head_size BYTES and the block2d rule
-    // reduces to k_head_size % 64 == 0 -- head 64/128/256 qualify, head 32/48/80/96 fall back to the
-    // scalar gather (which PA_K_TOKEN_STRIDE now addresses correctly). Uses the 8-bit VNNI-transform
-    // read, exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
+    // reduces to k_head_size % 16 == 0 and >= 64 -- 64/80/96/112/128/...; only head 32/48 still fall
+    // back to the scalar gather (which PA_K_TOKEN_STRIDE addresses correctly). Uses the 8-bit
+    // VNNI-transform read, exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
     // The page BASE alignment also holds for BY_CHANNEL: the stride is k_head_size * (block_size + 4)
-    // = 20 * k_head_size bytes, a multiple of 64 whenever k_head_size % 16 == 0, which the % 64 pitch
-    // rule already implies. For u4 the stride is 12 * k_head_size and the pitch k_head_size / 2, so
-    // the rule tightens to k_head_size % 128 == 0 (head 128/256) and the base stays 64B-aligned.
+    // = 20 * k_head_size bytes, a multiple of 64 whenever k_head_size % 16 == 0 -- which is now
+    // exactly the pitch rule, so it is still implied and needs no fixup. For u4 the stride is
+    // 12 * k_head_size and the pitch k_head_size / 2, so the rule is k_head_size % 32 == 0 and
+    // k_head_size >= 128 (head 128/160/192/224/256) and the base stays 64B-aligned: 12 * 32n = 384n
+    // and 384 % 64 == 0.
+    // As for V above, u4 stays on the strict % 64 rule so USE_1D_BLOCK_IO_K_PA_U4 (gated on
+    // `!k_pa_2d_i8`) keeps winning the pages it was written for.
     int k_pa_2d_i8 = 0;
     if (pa_k_token_major && pa_cache_dequant_ok) {
-        k_pa_2d_i8 = block2d_surface_ok(pa_k_row_elems);
+        k_pa_2d_i8 = pa_u4_by_channel_tm ? block2d_surface_ok(pa_k_row_elems) : block2d_page_ok(pa_k_row_elems);
     }
     // Bisection toggle: =0 restores the scalar gather + dequant, which is what attributes a wrong
     // result to the block read rather than to the dequant math or the page addressing.
