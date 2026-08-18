@@ -36,7 +36,7 @@ public:
     ///   `ov::frontend::gguf::NodeContext` and returns an `ov::OutputVector`.
     /// - `ov::frontend::DecoderTransformationExtension` — registers a normalization pass, run
     ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
-    ///   registers `ov::frontend::gguf::pass::MakeStateful` (or its own variant) here; without one
+    ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
     ///   the frontend converts to a stateless graph.
     /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is

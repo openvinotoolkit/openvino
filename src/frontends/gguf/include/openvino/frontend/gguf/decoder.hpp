@@ -119,11 +119,11 @@ public:
     // Note what is NOT here: nothing describes the execution mode (no is_stateful / is_static). A
     // decoder describes ggml OPERATIONS, not a deployment; conversion always yields a stateless
     // graph, and a caller that wants an OpenVINO KV cache registers
-    // ov::frontend::gguf::pass::MakeStateful as a DecoderTransformationExtension.
+    // ov::frontend::gguf::pass::GGUFMakeStateful as a DecoderTransformationExtension.
 
     // Auxiliary model-scope inputs (position IDs, KV-cache lengths, attention masks). A decoder
     // that folds these into get_model_inputs() leaves this empty. beam_idx is not among them: it
-    // is a beam-search index into an OpenVINO state with no ggml counterpart, so MakeStateful
+    // is a beam-search index into an OpenVINO state with no ggml counterpart, so GGUFMakeStateful
     // creates it instead of any decoder declaring it.
     virtual const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_extra_inputs() const {
         return empty_node_map();

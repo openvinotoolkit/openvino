@@ -14,7 +14,7 @@
 //   frontend's built-in lowerings. This is how the EXECUTION MODE is chosen: conversion always
 //   yields a stateless graph (KV caches as Parameter/Result pairs written by a SetRows
 //   placeholder), and a caller that wants an OpenVINO KV cache registers
-//   ov::frontend::gguf::pass::MakeStateful here, which consumes those SetRows ops before the
+//   ov::frontend::gguf::pass::GGUFMakeStateful here, which consumes those SetRows ops before the
 //   default stateless lowering ever sees them.
 
 #include <algorithm>
@@ -121,7 +121,7 @@ namespace {
 
 // One GGML_OP_SET_ROWS writing `data` rows at `idx` into the `cache` input -- the shape of a KV
 // cache write, in the layout the native .gguf builder emits: [1, tokens, n_head_kv, head_size],
-// whose one dynamic axis (1, the token axis) is what MakeStateful infers the append axis from.
+// whose one dynamic axis (1, the token axis) is what GGUFMakeStateful infers the append axis from.
 SingleOpBuilder kv_cache_write_builder() {
     return SingleOpBuilder()
         .op("GGML_OP_SET_ROWS")
@@ -166,13 +166,13 @@ TEST(GGUFExtensions, NoExtensionYieldsStatelessCache) {
     }
 }
 
-// Registering MakeStateful as a DecoderTransformationExtension swaps the execution mode: the same
+// Registering GGUFMakeStateful as a DecoderTransformationExtension swaps the execution mode: the same
 // conversion now yields an OpenVINO state. The cache Parameter/Result pair is gone, replaced by a
 // Variable with a ReadValue/Concat/Assign, and no ScatterUpdate is emitted -- the extension ran
 // ahead of the built-in stateless lowering and consumed the SetRows first.
-TEST(GGUFExtensions, MakeStatefulExtensionYieldsStatefulCache) {
+TEST(GGUFExtensions, GGUFMakeStatefulExtensionYieldsStatefulCache) {
     auto model = kv_cache_write_builder().build_with_extensions(
-        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::MakeStateful())});
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful())});
 
     ASSERT_EQ(model->get_variables().size(), 1);
     EXPECT_EQ(model->get_sinks().size(), 1);
@@ -209,9 +209,9 @@ TEST(GGUFExtensions, MakeStatefulExtensionYieldsStatefulCache) {
 // skip_caches leaves a named cache stateless while other caches are converted. A sliding-window
 // cache needs this: it is evicted from the front, not only appended to, so an append-grown Variable
 // would not reproduce it.
-TEST(GGUFExtensions, MakeStatefulSkipsNamedCache) {
+TEST(GGUFExtensions, GGUFMakeStatefulSkipsNamedCache) {
     auto model = kv_cache_write_builder().build_with_extensions(
-        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::MakeStateful({"cache"}))});
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful({"cache"}))});
 
     // The only cache was skipped, so the pass made no change and the built-in stateless lowering
     // handled the SetRows -- an identical result to registering no extension at all.
@@ -327,10 +327,10 @@ TEST(GGUFExtensions, StatelessIoIsExactlyTheDecoderInputs) {
 
 // And making the model stateful adds exactly one input, beam_idx, on top of that contract -- so the
 // stateful IO is a function of the pass, not of which decoder produced the stateless graph.
-TEST(GGUFExtensions, MakeStatefulAddsOnlyBeamIdx) {
+TEST(GGUFExtensions, GGUFMakeStatefulAddsOnlyBeamIdx) {
     auto stateless = input_names(kv_cache_write_builder().build());
     auto stateful = input_names(kv_cache_write_builder().build_with_extensions(
-        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::MakeStateful())}));
+        {std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful())}));
 
     // The cache Parameter became a Variable, and beam_idx appeared.
     stateless.erase("cache");

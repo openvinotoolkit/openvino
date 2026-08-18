@@ -271,7 +271,7 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
 
     // Caller-registered transformation extensions run first, which is what makes execution mode a
     // caller concern rather than a frontend one: an extension that lowers SetRows itself -- e.g.
-    // ov::frontend::gguf::pass::MakeStateful, or a backend's own variant -- consumes the KV-cache
+    // ov::frontend::gguf::pass::GGUFMakeStateful, or a backend's own variant -- consumes the KV-cache
     // SetRows ops here, and the built-in stateless lowering below then only fires on the ops left
     // untouched (MoE routing writes and the like). With no extension registered, the stateless
     // lowering handles every SetRows op, so a plain convert() yields the stateless model.

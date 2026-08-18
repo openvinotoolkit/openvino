@@ -13,9 +13,9 @@
 
 namespace ov::frontend::gguf::pass {
 
-class GGUF_FRONTEND_API MakeStateful : public ov::pass::ModelPass {
+class GGUF_FRONTEND_API GGUFMakeStateful : public ov::pass::ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("gguf::MakeStateful");
+    OPENVINO_MODEL_PASS_RTTI("gguf::GGUFMakeStateful");
 
     /// \param skip_caches Friendly names of cache Parameters to leave stateless. A sliding-window
     ///        cache is evicted from the front rather than only appended to, so an append-grown
@@ -29,9 +29,9 @@ public:
     ///        Concat; with batch 1 that Gather is an identity, but emitting it is what lets CPU's
     ///        stateful_sdpa_fusion match and makes beam search work. A model that already carries
     ///        a Parameter of this name has it reused instead.
-    explicit MakeStateful(std::set<std::string> skip_caches = {},
-                          int64_t append_axis = -1,
-                          std::string beam_idx_name = "beam_idx")
+    explicit GGUFMakeStateful(std::set<std::string> skip_caches = {},
+                              int64_t append_axis = -1,
+                              std::string beam_idx_name = "beam_idx")
         : m_skip_caches(std::move(skip_caches)),
           m_append_axis(append_axis),
           m_beam_idx_name(std::move(beam_idx_name)) {}
