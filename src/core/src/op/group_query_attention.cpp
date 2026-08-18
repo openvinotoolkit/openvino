@@ -129,26 +129,7 @@ void GroupQueryAttention::validate_and_infer_types() {
             return;
         }
 
-        const auto& pshape = get_input_partial_shape(pos);
-        const auto& rank = pshape.rank();
-        const bool rank_ok =
-            rank.is_dynamic() || allowed_ranks.size() == 0 || ov::util::is_rank_compatible_any_of(rank, allowed_ranks);
-        NODE_VALIDATION_CHECK(this,
-                              rank_ok,
-                              "GroupQueryAttention expects ",
-                              input_name(input),
-                              " rank to be one of the allowed values, got shape ",
-                              pshape);
-
-        const auto& type = get_input_element_type(pos);
-        const bool type_ok = type.is_dynamic() || allowed_types.size() == 0 ||
-                             std::find(allowed_types.begin(), allowed_types.end(), type) != allowed_types.end();
-        NODE_VALIDATION_CHECK(this,
-                              type_ok,
-                              "GroupQueryAttention expects ",
-                              input_name(input),
-                              " element type to be one of the allowed values, got ",
-                              type);
+        ov::util::validate_input_rank_and_type(this, pos, input_name(input), allowed_ranks, allowed_types);
     };
 
     const auto integral_types = []() {
