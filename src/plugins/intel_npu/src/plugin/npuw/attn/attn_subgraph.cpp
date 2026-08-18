@@ -1202,21 +1202,23 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str = ss.str();
                 stream & model_str;
             }
-        } else if (num_models > 0) {
+        } else {
             mutable_pyramid->_compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                mutable_pyramid->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
-            }
-            if (submodel_ctx->compiled_model) {
-                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+            if (num_models > 0) {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                for (size_t i = 0; i < num_models - 1; ++i) {
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_pyramid->_compiled_models[i] =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+                if (submodel_ctx->compiled_model) {
+                    mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                    LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+                }
             }
             mutable_pyramid->validate_port_indices();
         }

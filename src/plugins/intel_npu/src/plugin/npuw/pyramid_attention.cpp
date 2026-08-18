@@ -859,6 +859,44 @@ void PyramidAttentionBlock::validate_port_indices() const {
                        _compiled_models.size(),
                        ")");
     }
+
+    if (past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata mismatch: key indices count (",
+                       past_key_block_global_param_indices.size(),
+                       ") does not match value indices count (",
+                       past_value_block_global_param_indices.size(),
+                       ")");
+    }
+
+    if (!_compiled_models.empty()) {
+        const auto main_model_idx = _compiled_models.size() - 1;
+        if (!_compiled_models[main_model_idx]) {
+            OPENVINO_THROW("NPU NPUW: main compiled model at index ",
+                           main_model_idx,
+                           " is null while validating pyramid attention block metadata");
+        }
+
+        const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+        for (const auto global_idx : past_key_block_global_param_indices) {
+            if (global_idx >= main_inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention key block global param idx (",
+                               global_idx,
+                               ") out of bounds for main compiled model with ",
+                               main_inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto global_idx : past_value_block_global_param_indices) {
+            if (global_idx >= main_inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention value block global param idx (",
+                               global_idx,
+                               ") out of bounds for main compiled model with ",
+                               main_inputs_size,
+                               " inputs");
+            }
+        }
+    }
+
     for (size_t i = 0; i < _compiled_models.size(); ++i) {
         if (!_compiled_models[i]) {
             continue;

@@ -1007,6 +1007,54 @@ TEST(PyramidAttentionTest, MalformedSerializedPyramidStateIsRejectedOnDeserializ
     }
 }
 
+TEST(PyramidAttentionTest, ZeroModelPyramidStateIsRejectedOnDeserialize) {
+    using ContigInfo = ov::npuw::compiled::PyramidAttentionContiguousInfo;
+
+    // Craft a malformed serialized state directly so we test only deserialize-time
+    // validation (num_models == 0 with non-empty attention metadata).
+    ov::npuw::compiled::PyramidAttentionContiguous src;
+    src.query_size = 1;
+    src.full_context_size = 64;
+    src._context_lengths = {64};
+    ContigInfo info;
+    info.mask_idx = 0;
+    src._attention_infos = {info};
+
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto stream = ov::npuw::s11n::Stream::writer(ss);
+
+        std::optional<ov::npuw::compiled::Attention> dynamic;
+        stream & dynamic;
+
+        bool has_pyramid = true;
+        stream & has_pyramid;
+        uint8_t tag = 0u;
+        stream & tag;
+        ov::npuw::orc::serialize(stream, src);
+
+        size_t num_models = 0;
+        stream & num_models;
+
+        std::optional<ov::npuw::compiled::HostFlashAttention> hfa;
+        stream & hfa;
+    }
+
+    ss.seekg(0);
+    ov::npuw::v1::subgraphs::Context restored_context;
+    {
+        auto stream = ov::npuw::s11n::Stream::reader(ss);
+        try {
+            ov::npuw::attn::serialize_compiled_state(restored_context, stream, nullptr);
+            FAIL() << "Pyramid metadata with num_models == 0 must be rejected during deserialization";
+        } catch (const ov::Exception& ex) {
+            const std::string msg = ex.what();
+            EXPECT_NE(msg.find("pyramid attention info count"), std::string::npos)
+                << "Expected validate_port_indices info-count mismatch, got: " << msg;
+        }
+    }
+}
+
 TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
     using ContigInfo = ov::npuw::compiled::PyramidAttentionContiguousInfo;
     using BlockInfo = ov::npuw::compiled::PyramidAttentionBlockInfo;
@@ -1043,6 +1091,64 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
         info.mask_idx = 0xFF;
         src._attention_infos = {info};
         expect_invalid_port_indices_rejected(src, 1u, {4}, "block mask idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0, 1};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block global key/value length mismatch");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {7};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block key global idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {7};
+        BlockInfo info;
+        info.mask_idx = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block value global idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx = 0;
+        src._attention_infos = {info};
+
+        auto pyramid = import_pyramid_from_stream(src, 1u);
+        ASSERT_NE(pyramid, nullptr);
+
+        // Keep model count aligned with _attention_infos, but make the main model null.
+        pyramid->_compiled_models = {ov::SoPtr<ov::ICompiledModel>{}};
+        EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
     }
 
     {
