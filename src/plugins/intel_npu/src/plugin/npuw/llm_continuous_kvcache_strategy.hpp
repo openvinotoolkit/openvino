@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "llm_kvcache_strategy.hpp"
 
 namespace ov {
@@ -40,6 +43,17 @@ public:
     // model's past KV layout so the chunked prefill can resume from `keep`.
     std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) override;
     void apply_continued_prefill(ContinuedPrefillPlan& plan) override;
+
+private:
+    // Static per-tensor naming facts, derived once in on_initialize() so the
+    // continuation paths do not rebuild them on every call: the matching
+    // "present" output name and whether the tensor is a V cache.
+    struct KVPairNames {
+        std::string past;
+        std::string present;
+        bool is_value = false;
+    };
+    std::vector<KVPairNames> m_kv_pairs;
 };
 
 }  // namespace npuw
