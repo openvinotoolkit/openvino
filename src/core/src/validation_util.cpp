@@ -277,11 +277,11 @@ bool is_rank_compatible_any_of(const Rank& r, std::initializer_list<Rank> others
     });
 }
 
-void ov::util::validate_input_rank_and_type(const Node* node,
-                                            size_t input_idx,
-                                            std::string_view input_name,
-                                            std::initializer_list<Rank> allowed_ranks,
-                                            const std::vector<element::Type>& allowed_types) {
+void validate_input_rank_and_type(const Node* node,
+                                  size_t input_idx,
+                                  std::string_view input_name,
+                                  std::initializer_list<Rank> allowed_ranks,
+                                  const std::vector<element::Type>& allowed_types) {
     const auto& rank = node->get_input_partial_shape(input_idx).rank();
     const auto& type = node->get_input_element_type(input_idx);
 
