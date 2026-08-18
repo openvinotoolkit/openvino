@@ -40,7 +40,7 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
     const int64_t rank = ps.rank().get_length();
     if (requested >= 0) {
         OPENVINO_ASSERT(requested < rank,
-                        "[gguf] MakeStateful: append axis ",
+                        "[GGUF] MakeStateful: append axis ",
                         requested,
                         " is out of range for cache '",
                         cache_name,
@@ -52,7 +52,7 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
     for (int64_t i = 0; i < rank; ++i) {
         if (ps[i].is_dynamic()) {
             OPENVINO_ASSERT(axis < 0,
-                            "[gguf] MakeStateful: cache '",
+                            "[GGUF] MakeStateful: cache '",
                             cache_name,
                             "' has shape ",
                             ps,
@@ -62,7 +62,7 @@ int64_t resolve_append_axis(const ov::PartialShape& ps, const std::string& cache
         }
     }
     OPENVINO_ASSERT(axis >= 0,
-                    "[gguf] MakeStateful: cache '",
+                    "[GGUF] MakeStateful: cache '",
                     cache_name,
                     "' has the fully static shape ",
                     ps,
@@ -116,7 +116,7 @@ bool MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         const auto& ps = cache_param->get_partial_shape();
         const auto et = cache_param->get_element_type();
         OPENVINO_ASSERT(ps.rank().is_static(),
-                        "[gguf] MakeStateful requires a static cache rank, got ",
+                        "[GGUF] MakeStateful requires a static cache rank, got ",
                         ps,
                         " for '",
                         cache_name,
@@ -137,7 +137,7 @@ bool MakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 continue;
             }
             OPENVINO_ASSERT(ps[i].is_static(),
-                            "[gguf] MakeStateful requires static non-token cache dims, got ",
+                            "[GGUF] MakeStateful requires static non-token cache dims, got ",
                             ps,
                             " for '",
                             cache_name,

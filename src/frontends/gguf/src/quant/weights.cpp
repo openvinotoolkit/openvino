@@ -665,7 +665,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         ov::Tensor rq_scales(ov::element::f16, ov::Shape{rows, 1});
         bool ok = requantize_q8_0_channelwise_faithful(tensor, rows, cols, qtype, rq_weights.data<int8_t>(),
                                                        rq_scales.data<ov::float16>());
-        OPENVINO_ASSERT(ok, "[ggml] faithful K-quant requant failed for ", base);
+        OPENVINO_ASSERT(ok, "[GGUF] faithful K-quant requant failed for ", base);
         return build_q8_0_c_node(rq_weights, rq_scales, rows, cols);
     }
 
