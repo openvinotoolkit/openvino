@@ -49,6 +49,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
         !_propertiesManager->getConfig().get<DEFER_WEIGHTS_LOAD>()) {
         OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
         _graph->initialize(_propertiesManager->getConfig());
+    } else {
+        _logger.info("Graph initialize is deferred; weights will be loaded on the first infer request creation.");
     }
 
     OV_ITT_TASK_SKIP(COMPILED_MODEL);
