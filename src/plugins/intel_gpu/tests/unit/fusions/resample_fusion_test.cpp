@@ -98,12 +98,18 @@ public:
 class resample_quantize : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize, basic) {
     auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    auto quant_per_ch = get_per_channel_layout(p);
+    if (p.default_type == data_types::bf16) {
+        quant_layout.data_type = data_types::f32;
+        quant_per_ch.data_type = data_types::f32;
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_per_ch, min_random, 0)),
+        data("in_hi", get_mem(quant_per_ch, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
         quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
@@ -695,12 +701,18 @@ class resample_bicubic_pillow_axes_quantize : public ResampleAxesPrimitiveFusing
 TEST_P(resample_bicubic_pillow_axes_quantize, basic_i8) {
     auto p = GetParam();
     auto sizes = get_sizes_for_axes(p);
+    auto quant_layout = get_single_element_layout(p);
+    auto quant_per_ch = get_per_channel_layout(p);
+    if (p.default_type == data_types::bf16) {
+        quant_layout.data_type = data_types::f32;
+        quant_per_ch.data_type = data_types::f32;
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_per_ch, min_random, 0)),
+        data("in_hi", get_mem(quant_per_ch, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
                  p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
         quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
@@ -715,12 +727,18 @@ TEST_P(resample_bicubic_pillow_axes_quantize, basic_i8) {
 TEST_P(resample_bicubic_pillow_axes_quantize, basic_u8) {
     auto p = GetParam();
     auto sizes = get_sizes_for_axes(p);
+    auto quant_layout = get_single_element_layout(p);
+    auto quant_per_ch = get_per_channel_layout(p);
+    if (p.default_type == data_types::bf16) {
+        quant_layout.data_type = data_types::f32;
+        quant_per_ch.data_type = data_types::f32;
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), 0)),
-        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        data("in_lo", get_mem(quant_per_ch, min_random, 0)),
+        data("in_hi", get_mem(quant_per_ch, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, 0)),
+        data("out_hi", get_mem(quant_layout, 255)),
         resample("resample_prim", input_info("input"), sizes, {}, p.axes, {}, {}, 0, -0.75f,
                  p.type, resample::InterpolateOp::ShapeCalcMode::SIZES),
         quantize("quantize", input_info("resample_prim"), input_info("in_lo"), input_info("in_hi"),
