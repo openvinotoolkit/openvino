@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-16-46-02-000-32152867988",
+  "timestamp": "2026-08-18T16:46:02Z",
+  "run_id": "32152867988",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32152867988",
+  "workflow_name": "Debian Packages",
+  "pr_number": "37485",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37485",
+  "author": "p-wysocki",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails: cannot connect to azure.archive.ubuntu.com:80 - connection timed out"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Dependent job failed"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/b/build-essential/build-essential_12.10ubuntu1_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The Azure Ubuntu package mirror (azure.archive.ubuntu.com) was temporarily unreachable from the GitHub Actions runner. Multiple apt-get fetch attempts for packages including build-essential, python3-dev, python3-pip, and others all failed with connection timeout or connection refused errors. This is a transient network infrastructure issue unrelated to the PR change, which only touches src/bindings/python/src/pyopenvino/core/async_infer_queue.cpp.",
+  "reproduction_steps": "N/A - transient network infrastructure issue",
+  "recommended_actions": [
+    "Re-queue the PR to trigger a new merge-queue run",
+    "Monitor if azure.archive.ubuntu.com recovers (same failure seen ~18 minutes earlier in run 32152602590)",
+    "Consider adding --fix-missing or retry logic to apt-get install steps"
+  ],
+  "prevention_strategies": "Add retry logic (apt-get install with --fix-missing or a loop) in CI workflows that install Debian packages. Consider caching installed packages or using alternative mirrors.",
+  "historical_context": "Same failure seen in run 32152602590 (18 minutes earlier), affecting PR #37401. This is the second occurrence of this pattern today (2026-08-18)."
+}

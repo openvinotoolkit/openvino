@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 161,
+  "total": 162,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1581,6 +1581,15 @@
       "category": "Network",
       "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "37401"
+    },
+    {
+      "investigation_id": "2026-08-18-16-46-02-000-32152867988",
+      "run_id": "32152867988",
+      "timestamp": "2026-08-18T16:46:02Z",
+      "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
+      "category": "Network",
+      "signature_hash": "7d2e2ff59d37c6b4",
+      "pr_number": "37485"
     }
   ]
 }
