@@ -19,13 +19,8 @@ void FilteredConfig::update(const ConfigMap& options) {
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
-
-        if (isAvailable(p.first)) {
-            const auto opt = _desc->get(p.first);
-            _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
-        } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
-        }
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
     }
 }
 
@@ -34,13 +29,8 @@ void FilteredConfig::updateAny(const ov::AnyMap& options) {
 
     for (const auto& p : options) {
         log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
-
-        if (isAvailable(p.first)) {
-            const auto opt = _desc->get(p.first);
-            _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
-        } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
-        }
+        const auto opt = _desc->get(p.first);
+        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
     }
 }
 

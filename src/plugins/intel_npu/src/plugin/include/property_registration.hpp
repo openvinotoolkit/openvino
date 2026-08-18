@@ -23,13 +23,6 @@ struct PropertyDescriptor final {
 };
 
 using PropertyMap = std::map<std::string, PropertyDescriptor>;
-
-inline void ensure_option_exists_in_config(const FilteredConfig& config, const std::string& propertyName) {
-    if (!config.hasOpt(propertyName)) {
-        OPENVINO_THROW("Property '", propertyName, "' is not backed by a registered config option");
-    }
-}
-
 /**
  * @brief Register a simple property backed directly by a config option.
  *
@@ -38,39 +31,16 @@ inline void ensure_option_exists_in_config(const FilteredConfig& config, const s
  * config.isAvailable(propertyName).
  */
 template <typename OptionType>
-inline void register_property(const FilteredConfig& config, PropertyMap& properties, const std::string& propertyName) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
-    properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.isAvailable(propertyName);
-                                          }),
-                                          std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
-                                              return config.get<OptionType>();
-                                          })});
-}
-
-/**
- * @brief Register a config-backed property with explicit public/private visibility.
- *
- * Use this when the callback is the standard config.get<OptionType>() but the visibility (public/private) must be
- * provided by the caller rather than taken from the option descriptor. The property is always registered, while
- * support is gated at query time via config.isAvailable(propertyName).
- */
-template <typename OptionType>
-inline void register_property_with_custom_visibility(const FilteredConfig& config,
-                                                     PropertyMap& properties,
-                                                     const std::string& propertyName,
-                                                     bool isPublic) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
+inline void register_property(const FilteredConfig& config,
+                              PropertyMap& properties,
+                              bool isPublic,
+                              ov::PropertyMutability mutability) {
+    const auto propertyName = std::string(OptionType::key());
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
-                                          option.mutability(),
+                                          mutability,
                                           std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.isAvailable(propertyName);
+                                              return config.hasOpt(propertyName);
                                           }),
                                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
                                               return config.get<OptionType>();
@@ -83,18 +53,18 @@ inline void register_property_with_custom_visibility(const FilteredConfig& confi
  * Use this when a custom getter function is required. Visibility and mutability are taken from the option descriptor.
  * The property is available only if the underlying config option is available.
  */
-template <typename Getter>
+template <typename OptionType, typename Getter>
 inline void register_property_with_custom_function(const FilteredConfig& config,
                                                    PropertyMap& properties,
-                                                   const std::string& propertyName,
+                                                   bool isPublic,
+                                                   ov::PropertyMutability mutability,
                                                    Getter&& getter) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
+    const auto propertyName = std::string(OptionType::key());
     properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
+                       PropertyDescriptor{isPublic,
+                                          mutability,
                                           std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.isAvailable(propertyName);
+                                              return config.hasOpt(propertyName);
                                           }),
                                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
@@ -108,13 +78,13 @@ inline void register_property_with_custom_function(const FilteredConfig& config,
 template <typename OptionType, typename IsSupportedFn>
 inline void register_property_with_support(const FilteredConfig& config,
                                            PropertyMap& properties,
-                                           const std::string& propertyName,
+                                           bool isPublic,
+                                           ov::PropertyMutability mutability,
                                            IsSupportedFn&& isSupported) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
+    const auto propertyName = std::string(OptionType::key());
     properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
+                       PropertyDescriptor{isPublic,
+                                          mutability,
                                           std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
                                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
                                               return config.get<OptionType>();
@@ -127,65 +97,19 @@ inline void register_property_with_support(const FilteredConfig& config,
  * Registers a property that is always added to the descriptor but gated by an `isSupported` condition at runtime and a
  * custom getter function is required.
  */
-template <typename IsSupportedFn, typename Getter>
+template <typename OptionType, typename IsSupportedFn, typename Getter>
 inline void register_property_with_support_and_custom_function(const FilteredConfig& config,
                                                                PropertyMap& properties,
-                                                               const std::string& propertyName,
+                                                               bool isPublic,
+                                                               ov::PropertyMutability mutability,
                                                                IsSupportedFn&& isSupported,
                                                                Getter&& getter) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
+    const auto propertyName = std::string(OptionType::key());
     properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
+                       PropertyDescriptor{isPublic,
+                                          mutability,
                                           std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
                                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
-}
-
-/**
- * @brief Register a property backed directly by the current config as read-only.
- *
- * The property is read-only. Getter is config.get<OptionType>(). Runtime support is checked via
- * config.isAvailable(propertyName).
- */
-template <typename OptionType>
-inline void register_property_as_read_only(const FilteredConfig& config,
-                                           PropertyMap& properties,
-                                           const std::string& propertyName) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
-    properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          ov::PropertyMutability::RO,
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.isAvailable(propertyName);
-                                          }),
-                                          std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
-                                              return config.get<OptionType>();
-                                          })});
-}
-
-/**
- * @brief Register a config-backed property with support check for value presence.
- *
- * Default option values are not materialized into the config, so this form advertises a property only when the user or
- * upper layer actually set it. The property is read-only.
- */
-template <typename OptionType>
-inline void register_property_as_read_only_mark_supported_if_set(const FilteredConfig& config,
-                                                                 PropertyMap& properties,
-                                                                 const std::string& propertyName) {
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
-    properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          ov::PropertyMutability::RO,
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return (config.isAvailable(propertyName) && config.has(propertyName));
-                                          }),
-                                          std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
-                                              return config.get<OptionType>();
-                                          })});
 }
 
 /**
@@ -196,13 +120,11 @@ inline void register_property_as_read_only_mark_supported_if_set(const FilteredC
 template <typename OptionType>
 inline void register_npuw_property(const FilteredConfig& config, PropertyMap& properties) {
     const auto propertyName = std::string(OptionType::key());
-    ensure_option_exists_in_config(config, propertyName);
-    const auto& option = config.getOpt(propertyName);
     properties.emplace(propertyName,
-                       PropertyDescriptor{option.isPublic(),
-                                          option.mutability(),
+                       PropertyDescriptor{false,  // NPUW options are not public
+                                          ov::PropertyMutability::RW,
                                           std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.isAvailable(propertyName);
+                                              return config.hasOpt(propertyName);
                                           }),
                                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
                                               return config.get<OptionType>();
@@ -234,10 +156,11 @@ template <typename GetterOrValue>
 inline void register_property_with_custom_function(PropertyMap& properties,
                                                    const std::string& propertyName,
                                                    bool isPublic,
+                                                   ov::PropertyMutability mutability,
                                                    GetterOrValue&& getterOrValue) {
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
-                                          ov::PropertyMutability::RO,
+                                          mutability,
                                           std::function<bool()>([]() {
                                               return true;
                                           }),
@@ -254,12 +177,13 @@ inline void register_property_with_custom_function(PropertyMap& properties,
 template <typename IsSupportedFn, typename Getter>
 inline void register_property_with_support_and_custom_function(PropertyMap& properties,
                                                                const std::string& propertyName,
-                                                               IsSupportedFn&& isSupported,
                                                                bool isPublic,
+                                                               ov::PropertyMutability mutability,
+                                                               IsSupportedFn&& isSupported,
                                                                Getter&& getter) {
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
-                                          ov::PropertyMutability::RO,
+                                          mutability,
                                           std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
                                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
@@ -274,12 +198,13 @@ inline void register_property_with_support_and_custom_function(PropertyMap& prop
 template <typename IsSupportedFn, typename Getter>
 inline void register_property_with_support_custom_function_and_args(PropertyMap& properties,
                                                                     const std::string& propertyName,
-                                                                    IsSupportedFn&& isSupported,
                                                                     bool isPublic,
+                                                                    ov::PropertyMutability mutability,
+                                                                    IsSupportedFn&& isSupported,
                                                                     Getter&& getter) {
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
-                                          ov::PropertyMutability::RO,
+                                          mutability,
                                           std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
                                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }

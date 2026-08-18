@@ -235,7 +235,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
     FilteredConfig updatedConfig = config;
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
@@ -383,7 +383,7 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
                                                     false,
                                                     true);
     FilteredConfig updatedConfig = config;
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
@@ -509,7 +509,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
                                                     maxOpsetVersion,
                                                     config.get<MODEL_SERIALIZER_VERSION>(),
                                                     isOptionValueSupportedByCompiler);
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
