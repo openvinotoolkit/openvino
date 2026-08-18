@@ -4,6 +4,8 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include <pybind11/stl.h>
+
 #include <limits>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -396,15 +398,11 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
     wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
-    // perf_curve_table registers explicit overloads instead of wrap_property_RW. The py::dict form is registered
-    // before the std::map form so dict inputs go through py_object_to_perf_curve_table, which applies the same
-    // key/value type checks as Core.set_property({"PERF_CURVE_TABLE": ...}) instead of pybind's lossy STL
-    // conversion. AUTO-side semantic constraints (device whitelist, ranges, non-empty curves) are enforced later
-    // by PerfCurveTableValidator when the property is set on the plugin.
+    // perf_curve_table: explicit overloads (name/dict/string/map forms) instead of wrap_property_RW.
     m_intel_auto.def("perf_curve_table", []() {
         return ov::intel_auto::perf_curve_table.name();
     });
-    m_intel_auto.def("perf_curve_table", [](const py::dict& value) {
+    m_intel_auto.def("perf_curve_table", [](const std::map<std::string, py::object>& value) {
         return ov::intel_auto::perf_curve_table(Common::utils::py_object_to_perf_curve_table(value));
     });
     // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.

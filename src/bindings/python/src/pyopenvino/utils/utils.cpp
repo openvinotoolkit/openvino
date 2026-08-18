@@ -304,31 +304,17 @@ py::object from_ov_any(const ov::Any& any) {
     }
 }
 
-// Converts a Python dict[str, dict[int, float]] into PerfCurveTable, performing only the Python-type
-// conversions the C++ types require (str device keys, integer utilization keys with bool rejection,
-// float scores with bool rejection, and rejecting negative keys the unsigned map key cannot represent).
-// Value semantics (device whitelist, utilization range, finite non-negative scores, non-empty curves)
-// are owned by PerfCurveTableValidator and enforced when the property is set on the plugin.
-ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const py::object& py_obj) {
-    OPENVINO_ASSERT(py::isinstance<py::dict>(py_obj),
-                    "The value type of ",
-                    ov::intel_auto::perf_curve_table.name(),
-                    " should be dict[str, dict[int, float]]");
+// Convert a Python dict to PerfCurveTable while validating the inner curve types.
+ov::intel_auto::PerfCurveTable py_object_to_perf_curve_table(const std::map<std::string, py::object>& py_obj) {
     ov::intel_auto::PerfCurveTable perf_curve_table;
-    for (const auto& item : py::cast<py::dict>(py_obj)) {
-        if (!py::isinstance<py::str>(item.first)) {
-            OPENVINO_THROW("The key type of ",
-                           ov::intel_auto::perf_curve_table.name(),
-                           " should be dict[str, dict[int, float]] with string keys");
-        }
-        if (!py::isinstance<py::dict>(item.second)) {
+    for (const auto& [device_key, curve_value] : py_obj) {
+        if (!py::isinstance<py::dict>(curve_value)) {
             OPENVINO_THROW("The value type of ",
                            ov::intel_auto::perf_curve_table.name(),
                            " should be dict[str, dict[int, float]] with dict values");
         }
-        const auto device_key = py::str(item.first).cast<std::string>();
         std::map<unsigned, float> curve;
-        for (const auto& curve_item : py::cast<py::dict>(item.second)) {
+        for (const auto& curve_item : py::cast<py::dict>(curve_value)) {
             if (!py::isinstance<py::int_>(curve_item.first) || py::isinstance<py::bool_>(curve_item.first)) {
                 OPENVINO_THROW("The key type of ",
                                ov::intel_auto::perf_curve_table.name(),
@@ -442,7 +428,8 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             properties_to_cpp[property.first] = thresholds;
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
-            properties_to_cpp[property.first] = py_object_to_perf_curve_table(property.second);
+            properties_to_cpp[property.first] =
+                py_object_to_perf_curve_table(property.second.cast<std::map<std::string, py::object>>());
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

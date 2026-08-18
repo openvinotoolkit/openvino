@@ -723,6 +723,19 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     const auto& perf_curve_table = selection_policy.perf_curve_table;
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
+    if (!perf_curve_table.empty()) {
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %zu device curves", perf_curve_table.size());
+        for (const auto& [device_key, curve] : perf_curve_table) {
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %zu points", device_key.c_str(), curve.size());
+            for (const auto& [utilization, score] : curve) {
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%f",
+                              device_key.c_str(),
+                              utilization,
+                              score);
+            }
+        }
+    }
+
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
     // save the last device first
@@ -893,10 +906,15 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         const auto device_key = resolve_device_key(device.device_name);
         if (device_key.logical_key.empty()) {
             // GPU whose integrated/discrete type is unavailable: leave unscored.
+            LOG_DEBUG_TAG("[%s] No logical device key resolved for perf_curve_table lookup; treat as no-score",
+                          device.device_name.c_str());
             continue;
         }
         const auto curve_it = perf_curve_table.find(device_key.logical_key);
         if (curve_it == perf_curve_table.end()) {
+            LOG_DEBUG_TAG("[%s] No perf_curve_table entry for key %s; treat as no-score",
+                          device.device_name.c_str(),
+                          device_key.logical_key.c_str());
             continue;  // no curve entry for this device -> unscored
         }
         const auto utilization = get_device_utilization(device.device_name, device_key.device_type);
@@ -906,6 +924,11 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         }
         try {
             scores[i] = interpolate_perf_score(curve_it->second, utilization.value());
+            LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%f, performance_score=%f",
+                          device.device_name.c_str(),
+                          device_key.logical_key.c_str(),
+                          utilization.value(),
+                          scores[i].value());
         } catch (const ov::Exception& ex) {
             LOG_DEBUG_TAG("[%s] perf_curve_table score computation failed: %s. Treat as no-score",
                           device.device_name.c_str(),
