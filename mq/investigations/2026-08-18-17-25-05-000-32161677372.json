@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-17-25-05-000-32161677372",
+  "timestamp": "2026-08-18T17:25:05Z",
+  "run_id": "32161677372",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32161677372",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37485",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37485",
+  "author": "p-wysocki",
+  "category": "Flaky Test",
+  "title": "smoke_FC_2D/MatMulLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "signature": "primType is unexpected undef Expected acl|Flaky Test",
+  "signature_hash": "7c36e50cffda3cd7",
+  "confidence": "High",
+  "failed_jobs": [
+    "CPU functional tests / CPU functional tests"
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\n  Expected: true\nprimType is unexpected : undef_f32 Expected : acl_f32\n[  FAILED  ] smoke_FC_2D/MatMulLayerCPUTest.CompareWithRefs/FullyConnected_IS=[..100...12]_[1.120]_TS=((20.1)_(14.1)_(20.1)_(14.1))_((1.120)_(1.120)_(1.120)_(1.120))_transpose_a=1_transpose_b=1_secondaryInputType=CONSTANT_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPUconfig=()_primitive=acl"
+  ],
+  "root_cause": "A single CPU functional test smoke_FC_2D/MatMulLayerCPUTest.CompareWithRefs failed on ARM64 because the ACL (Arm Compute Library) primitive was not selected at execution time (got undef_f32 instead of acl_f32). This is a known intermittent timing/scheduling issue on ARM64 runners where the CPU plugin may occasionally fall back to a different execution path than expected by the test. 59725 other tests passed. This is the second run attempt (run_attempt=2), indicating a prior retry was attempted.",
+  "recommended_actions": [
+    "Re-run the failed job - this is a known flaky test on ARM64 runners",
+    "If recurrent, investigate ACL primitive selection determinism in MatMulLayerCPUTest on ARM64"
+  ]
+}

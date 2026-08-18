@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "primType is unexpected undef Expected acl|Flaky Test",
+  "signature_hash": "7c36e50cffda3cd7",
+  "title": "smoke_FC_2D/MatMulLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-18T17:25:05Z",
+  "last_seen": "2026-08-18T17:25:05Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32161677372"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37485"
+  ],
+  "recent_timestamps": [
+    "2026-08-18T17:25:05Z"
+  ],
+  "rerun_search_string": "primType is unexpected"
+}
