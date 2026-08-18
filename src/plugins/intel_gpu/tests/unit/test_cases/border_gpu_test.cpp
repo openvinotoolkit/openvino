@@ -1716,8 +1716,8 @@ public:
                             {input_info("input"), input_info("pads_begin"), input_info("pads_end")},
                             cldnn::border::PAD_NON_CONST_INPUT::BEGIN |
                             cldnn::border::PAD_NON_CONST_INPUT::END,
-                            ov::CoordinateDiff{},
-                            ov::CoordinateDiff{},
+                            std::vector<int64_t>{},
+                            std::vector<int64_t>{},
                             mode,
                             pad_value,
                             true));
@@ -1956,8 +1956,8 @@ TEST(border_gpu, 3d_input) {
                         border("border",
                                {input_info("border_input"), input_info("begin"), input_info("end")},
                                cldnn::border::PAD_NON_CONST_INPUT::BEGIN | cldnn::border::PAD_NON_CONST_INPUT::END,
-                               ov::CoordinateDiff{},
-                               ov::CoordinateDiff{},
+                               std::vector<int64_t>{},
+                               std::vector<int64_t>{},
                                pad_mode,
                                pad_value,
                                allow_negative_pads),
@@ -1976,8 +1976,8 @@ TEST(border_gpu, 3d_input) {
     base_topology.add(border("border",
                              {input_info("input"), input_info("begin"), input_info("end")},
                              cldnn::border::PAD_NON_CONST_INPUT::BEGIN | cldnn::border::PAD_NON_CONST_INPUT::END,
-                             ov::CoordinateDiff{},
-                             ov::CoordinateDiff{},
+                             std::vector<int64_t>{},
+                             std::vector<int64_t>{},
                              pad_mode,
                              pad_value,
                              allow_negative_pads));
