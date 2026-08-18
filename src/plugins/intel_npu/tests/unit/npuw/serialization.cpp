@@ -13,6 +13,7 @@
 
 #include "attention.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
 #include "host_flash_attention.hpp"
 #include "intel_npu/config/config.hpp"
@@ -32,7 +33,85 @@
 
 using ov::test::npuw::ModelBuilder;
 
+namespace ov {
+namespace npuw {
+namespace tests {
+struct CompiledModelTestAccess {
+    static void deserialize_compiled_model_desc(std::stringstream& input,
+                                                const ov::npuw::s11n::WeightsContext& ctx) {
+        auto reader = ov::npuw::s11n::Stream::reader(input);
+        ov::npuw::CompiledModel::CompiledModelDesc imported_desc;
+        imported_desc.serialize(reader, ctx);
+    }
+};
+}  // namespace tests
+}  // namespace npuw
+}  // namespace ov
+
 namespace {
+
+constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
+
+std::string make_blob_with_oob_cpu_closure_id(bool is_weightless) {
+    using namespace ov::npuw::s11n;
+
+    WeightsContext ctx(is_weightless, {});
+
+    ov::Tensor cpu_tensor(ov::element::u8, ov::Shape{1u});
+    cpu_tensor.data<uint8_t>()[0] = 0x7F;
+
+    std::stringstream serialized(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(serialized);
+
+    std::optional<std::size_t> replaced_by = std::size_t{0};
+    std::size_t param_base = 0u;
+    bool forced_to_fcall = false;
+    int64_t minus_one = -1;
+    std::optional<ov::npuw::compiled::Spatial> spatial;
+    writer & replaced_by & param_base & forced_to_fcall & minus_one & minus_one & minus_one & minus_one & minus_one &
+        minus_one & minus_one & minus_one & spatial;
+
+    std::vector<bool> is_remote{false};
+    std::vector<int64_t> closure_uid{-1};
+    writer & is_remote & closure_uid;
+
+    std::vector<ov::Tensor> scales;
+    std::vector<ov::Tensor> zerops;
+    if (is_weightless) {
+        serialize_weightless(writer, scales, ctx);
+        serialize_weightless(writer, zerops, ctx);
+    } else {
+        writer & scales & zerops;
+    }
+
+    std::size_t closure_size = 1u;
+    writer & closure_size;
+    const auto ids_vector_offset = static_cast<std::size_t>(serialized.tellp());
+
+    std::vector<std::size_t> cpu_closure_ids{0u};
+    writer & cpu_closure_ids;
+    if (is_weightless) {
+        std::vector<ov::Tensor> cpu_closures{cpu_tensor};
+        serialize_weightless(writer, cpu_closures, ctx);
+
+        std::size_t empty_non_cpu_tensors_ids_size = 0u;
+        std::size_t empty_non_cpu_tensors_size = 0u;
+        writer & empty_non_cpu_tensors_ids_size & empty_non_cpu_tensors_size;
+    } else {
+        transfer_tensor(writer, cpu_tensor);
+    }
+
+    std::string blob = serialized.str();
+    const std::size_t vector_header_size = sizeof(std::size_t);
+    const std::size_t vector_first_value_offset = ids_vector_offset + vector_header_size;
+    if (blob.size() < vector_first_value_offset + sizeof(std::size_t)) {
+        OPENVINO_THROW("Unable to patch serialized cpu_closure_ids: blob is shorter than expected");
+    }
+
+    const std::size_t oob_index = closure_size;
+    std::memcpy(blob.data() + vector_first_value_offset, &oob_index, sizeof(oob_index));
+    return blob;
+}
 
 void expect_tensors_equal(const ov::Tensor& expected, const ov::Tensor& actual) {
     ASSERT_EQ(static_cast<bool>(expected), static_cast<bool>(actual));
@@ -1071,6 +1150,32 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
+    using namespace ov::npuw::s11n;
+
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    WeightsContext ctx(false, const_to_offset);
+    const auto malformed_blob = make_blob_with_oob_cpu_closure_id(false);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedOobIndexMessage);
+}
+
+TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightless) {
+    using namespace ov::npuw::s11n;
+
+    std::unordered_map<const void*, std::size_t> const_to_offset;
+    WeightsContext ctx(true, const_to_offset);
+    const auto malformed_blob = make_blob_with_oob_cpu_closure_id(true);
+
+    std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
+                                  ov::Exception,
+                                  kExpectedOobIndexMessage);
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on
