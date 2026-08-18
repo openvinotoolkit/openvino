@@ -37,8 +37,8 @@ GLUFusion::GLUFusion() {
 
     // VariadicSplit(X, axis, split_lengths) = Xw, Xv
     auto axis_const_m = pattern::wrap_type<v0::Constant>();
-    auto split_lengths_const_m = pattern::wrap_type<v0::Constant>();
-    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_const_m});
+    auto split_lengths_m = pattern::any_input();
+    auto variadic_split_m = pattern::wrap_type<v1::VariadicSplit>({data_m, axis_const_m, split_lengths_m});
     variadic_split_m->set_output_size(2);
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
@@ -54,7 +54,6 @@ GLUFusion::GLUFusion() {
         OPENVINO_ASSERT(pattern_map.count(mul_m));
         OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
-        OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
         auto mul = ov::as_type_ptr<v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
         if (!mul || transformation_callback(mul))
@@ -101,12 +100,20 @@ GLUFusion::GLUFusion() {
             return false;
         auto axis_value = axis->cast_vector<int64_t>()[0];
 
-        auto split_lengths = ov::as_type_ptr<v0::Constant>(pattern_map.at(split_lengths_const_m).get_node_shared_ptr());
-        auto split_lengths_value = split_lengths->cast_vector<int64_t>()[0];
+        // Check for exact half-split along last dim, supporting both static and dynamic split_lengths.
+        const auto& out0_ps = variadic_split->get_output_partial_shape(0);
+        const auto& out1_ps = variadic_split->get_output_partial_shape(1);
+        if (!out0_ps.rank().is_static() || !out1_ps.rank().is_static())
+            return false;
+        const auto& out0_last = out0_ps[out0_ps.rank().get_length() - 1];
+        const auto& out1_last = out1_ps[out1_ps.rank().get_length() - 1];
+        if (!out0_last.is_static() || !out1_last.is_static())
+            return false;
         // Allow only case that exactly splits in half along the last dimension
         auto split_length = variadic_split_in_ps[last_dim].get_length() / 2;
-        if (split_lengths_value != split_length)
+        if (out0_last.get_length() != split_length || out1_last.get_length() != split_length)
             return false;
+        auto split_lengths_value = out0_last.get_length();
 
         const auto& data = pattern_map.at(data_m);
         auto output_type = m.get_match_root()->get_output_element_type(0);
