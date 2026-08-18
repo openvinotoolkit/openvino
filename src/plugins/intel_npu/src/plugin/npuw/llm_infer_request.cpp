@@ -1030,7 +1030,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
             // Update history size for dynamic context:
             // dynamic attention selector needs history size to determin the past KV shape and attention mask shape
-            m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
+            // The base request is absent when a test factory builds plain sub-requests.
+            if (m_prefill_base_request) {
+                m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
+            }
 
             // Gemma4 E2B/E4B: copy the current chunk of per_layer_inputs right-aligned on seq_len dim.
             // Source shape: [1, input_prompt_len, num_layers, proj_dim]
