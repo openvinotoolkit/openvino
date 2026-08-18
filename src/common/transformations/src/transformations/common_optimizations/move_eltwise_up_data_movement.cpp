@@ -5,7 +5,9 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
+#include <optional>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -187,6 +189,11 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
             return false;
         }
 
+        auto binary_eltwise = ov::as_type_ptr<op_util::BinaryElementwiseArithmetic>(eltwise);
+        if (!binary_eltwise || binary_eltwise->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY) {
+            return false;
+        }
+
         const size_t const_idx = ov::is_type<v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
         const size_t data_flow_idx = (const_idx + 1) % 2;
 
@@ -202,16 +209,58 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
 
         auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
         const auto& parent_in_pshape = parent->get_input_partial_shape(0);
-        auto parent_in_channel_dim =
-            parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
-        auto parent_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
-        if (parent_in_channel_dim.is_dynamic() || parent_in_channel_dim != channel_val ||
-            parent_out_channel_dim.is_dynamic() || parent_out_channel_dim != channel_val)
+        const auto& parent_out_pshape = parent->get_output_partial_shape(0);
+        if (parent_in_pshape.is_dynamic() || parent_out_pshape.is_dynamic())
             return false;
 
-        auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
+        const size_t in_rank = parent_in_pshape.size();
+        const size_t out_rank = parent_out_pshape.size();
+        const size_t const_rank = const_shape.size();
+        if (const_rank > out_rank)
+            return false;
 
-        new_shape[channel_idx] = const_shape[channel_idx];
+        // The constant is right-aligned against the data flow shape by NumPy broadcasting, so its
+        // non-unit axis sits at this position in the parent's output space.
+        const size_t output_channel_idx = out_rank - const_rank + channel_idx;
+        if (static_cast<size_t>(parent_out_pshape[output_channel_idx].get_length()) != channel_val)
+            return false;
+
+        const auto trailing_stride = [](const ov::PartialShape& pshape, size_t axis) -> std::optional<int64_t> {
+            int64_t stride = 1;
+            for (size_t i = axis + 1; i < pshape.size(); ++i) {
+                const int64_t dim = pshape[i].get_length();
+                if (dim != 0 && stride > std::numeric_limits<int64_t>::max() / dim)
+                    return std::nullopt;
+                stride *= dim;
+            }
+            return stride;
+        };
+
+        const auto output_stride = trailing_stride(parent_out_pshape, output_channel_idx);
+        if (!output_stride.has_value())
+            return false;
+
+        // Reshape/Squeeze/Unsqueeze preserve element order, so the output axis corresponds to the
+        // input axis that has both the same extent and the same trailing stride. Anything ambiguous
+        // is rejected rather than guessed: matching on extent alone picks the wrong axis whenever
+        // two axes happen to share a size.
+        size_t input_channel_idx = in_rank;
+        for (size_t i = 0; i < in_rank; ++i) {
+            if (static_cast<size_t>(parent_in_pshape[i].get_length()) != channel_val)
+                continue;
+            const auto input_stride = trailing_stride(parent_in_pshape, i);
+            if (!input_stride.has_value() || input_stride != output_stride)
+                continue;
+            if (input_channel_idx != in_rank)
+                return false;
+            input_channel_idx = i;
+        }
+        if (input_channel_idx == in_rank)
+            return false;
+
+        auto new_shape = ov::Shape(in_rank, 1);
+
+        new_shape[input_channel_idx] = channel_val;
         auto old_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
         auto new_const = std::make_shared<v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
