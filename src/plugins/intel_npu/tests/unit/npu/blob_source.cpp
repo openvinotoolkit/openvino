@@ -565,7 +565,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByte) {
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
 
-    ASSERT_EQ(roi_tensor.get_byte_size() == tensor_size);
+    ASSERT_EQ(roi_tensor.get_byte_size(), tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), 1), 0);
 
     size_t cursor = 0;
@@ -582,7 +582,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAllBytes) {
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(blob_content.size()));
 
-    ASSERT_EQ(roi_tensor.get_byte_size() == blob_content.size());
+    ASSERT_EQ(roi_tensor.get_byte_size(), blob_content.size());
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), blob_content.size()), 0);
 
     size_t cursor = 0;
@@ -601,7 +601,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
     ov::Tensor roi_tensor;
     OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
 
-    ASSERT_EQ(roi_tensor.get_byte_size() == tensor_size);
+    ASSERT_EQ(roi_tensor.get_byte_size(), tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data() + 1, 1), 0);
 
     size_t cursor = 0;
@@ -643,22 +643,32 @@ TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAligned) {
     ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
+using BlobSourcePageAlignment = testing::Test;
+
 /**
- * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
- * was not moved and the origin is page aligned
+ * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous and the
+ * cursor was moved to a page aligned position
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAlignedAfterMove) {
-    BlobSource blob_source = create_blob_source(true);
+TEST_F(BlobSourcePageAlignment, TrueIsContiguousAndPageAlignedAfterMove) {
+    std::vector<uint8_t> blob_content(utils::STANDARD_PAGE_SIZE);
+
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    ov::Tensor tensor = ov::Tensor(ov::element::u8, ov::Shape{utils::STANDARD_PAGE_SIZE}, customAllocator);
+    std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
+
+    BlobSource blob_source = BlobSource(tensor);
+    blob_source.move_cursor(utils::STANDARD_PAGE_SIZE);
     ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
 /**
- * @brief "is_contiguous_and_cursor_page_aligned" should return true if the underlying buffer is contiguous, the cursor
- * was not moved and the origin is page aligned
+ * @brief "is_contiguous_and_cursor_page_aligned" should return false if the underlying buffer is contiguous and the
+ * cursor was moved to a position that is not page aligned
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, TrueIsContiguousAndPageAlignedAfterMove) {
+TEST_P(BlobSourceDifferentBlobsContiguous, FalseIsContiguousAndPageAlignedAfterMove) {
     BlobSource blob_source = create_blob_source(true);
-    ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
+    blob_source.move_cursor(1);
+    ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTest,
