@@ -32,6 +32,7 @@ namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
+constexpr std::string_view WEIGHTS_ONNX_EXTENSION = ".data_proxy";
 constexpr std::string_view ONNX_EXTENSION = ".onnx";
 
 constexpr std::string_view CONSTANT_OVERFLOW_MESSAGE = "Overflow while computing byte size for constant: ";
@@ -136,12 +137,12 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> extract_consta
         if (ext == ONNX_EXTENSION) {
             const auto model = core->read_model(weightsPath, weightsPath, {});
             return get_all_constants_in_topological_order(model);
-        } else if (ext == WEIGHTS_IR_EXTENSION) {
+        } else if (ext == WEIGHTS_IR_EXTENSION || ext == WEIGHTS_ONNX_EXTENSION) {
             return get_all_constants_memory_mapped(weightsPath, initNetworkMetadata);
         } else {
             OPENVINO_THROW("Invalid path to the weights: ",
                            weightsPath,
-                           ". A \".bin\" or \".onnx\" extension was expected.");
+                           ". A \".bin\", \".data_proxy\" or \".onnx\" extension was expected.");
         }
     }
 
