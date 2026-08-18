@@ -1307,21 +1307,23 @@ private:
     }
 
     void recycle(slot& slot, bool reset_transient_command = true) {
-        if (slot.submission == nullptr) {
-            return;
+        if (slot.submission != nullptr) {
+            slot.submission->wait();
+            if (slot.submission->uses_fence()) {
+                slot.fence = slot.submission->release_fence();
+                check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
+            }
+            slot.submission.reset();
+            slot.retained_memories.clear();
+            slot.retained_allocations.clear();
+            slot.retained_transfer_lifetimes.clear();
+            slot.retained_kernels.clear();
+            slot.recorded_dispatches = 0;
         }
 
-        slot.submission->wait();
-        if (slot.submission->uses_fence()) {
-            slot.fence = slot.submission->release_fence();
-            check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
-        }
-        slot.submission.reset();
-        slot.retained_memories.clear();
-        slot.retained_allocations.clear();
-        slot.retained_transfer_lifetimes.clear();
-        slot.retained_kernels.clear();
-        slot.recorded_dispatches = 0;
+        // A generation recycle can release the submission while deliberately leaving its
+        // transient command buffer pending for a pool reset. If tuning switches to individual
+        // reset before that pool reset, the slot still has to be reset even without a submission.
         if (reset_transient_command && slot.transient_command_buffer_submitted) {
             check_vk_result(vkResetCommandBuffer(slot.command_buffer, 0), "vkResetCommandBuffer");
             ++command_buffer_resets;
