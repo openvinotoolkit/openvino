@@ -6,6 +6,8 @@
 
 #include <cstddef>
 
+#include "openvino/core/core_visibility.hpp"
+
 namespace ov {
 namespace runtime {
 
@@ -14,7 +16,7 @@ namespace runtime {
  * @param src  A pointer to the input data
  * @param size The length of the input data in bytes
  */
-size_t compute_hash(const void* src, size_t size);
+OPENVINO_API size_t compute_hash(const void* src, size_t size);
 
 }  // namespace runtime
 }  // namespace ov
