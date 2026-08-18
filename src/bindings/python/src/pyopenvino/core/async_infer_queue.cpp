@@ -42,10 +42,14 @@ public:
     }
 
     ~AsyncInferQueue() {
-        // Release the GIL before destroying requests. m_requests.clear() triggers a C++ destructor chain that
-        // eventually joins plugin executor threads (via CoreImpl dtor).
-        py::gil_scoped_release release;
-        m_requests.clear();
+        try {
+            // Release the GIL before destroying requests. m_requests.clear() triggers a C++ destructor chain that
+            // eventually joins plugin executor threads (via CoreImpl dtor).
+            py::gil_scoped_release release;
+            m_requests.clear();
+        } catch (const std::exception&) {
+            // Destructors must not throw (would std::terminate); teardown-time callback errors aren't actionable.
+        }
     }
 
     bool _is_ready() {
