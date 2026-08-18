@@ -6,7 +6,6 @@
 #include <string>
 
 #include "op_translation_utils.hpp"
-#include "utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/decompositions/rms_norm.hpp"
@@ -15,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
