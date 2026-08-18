@@ -41,7 +41,7 @@ inline uint32_t read_u32(const void* p) noexcept {
 // Validates the SPIR-V module header: non-null pointer, at least the 5-word
 // header (magic, version, generator, bound, schema) present, and correct magic.
 bool is_spirv(const void* data, size_t bytes) {
-    if (!data || bytes < 5 * sizeof(uint32_t))
+    if (!data || bytes < 5 * sizeof(uint32_t) || bytes % sizeof(uint32_t) != 0)
         return false;
     return read_u32(data) == SPIRV_MAGIC;
 }
@@ -66,8 +66,9 @@ std::vector<std::string> extract_spirv_kernel_names(const void* data, size_t byt
         // An instruction must contain at least the opcode word and must not
         // extend past the end of the module.  (word_count - i) is safe from
         // underflow because the loop guard ensures i < word_count.
-        if (instr_words == 0 || instr_words > word_count - i)
-            break;  // malformed
+        if (instr_words == 0 || instr_words > word_count - i) {
+            OPENVINO_THROW("[GPU] extract_spirv_kernel_names: malformed SPIR-V instruction at word offset ", i);
+        }
 
         // OpEntryPoint layout:
         //   word 0: opcode | wordcount   (already consumed above)
