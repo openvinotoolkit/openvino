@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-18-18-11-903-32161677361",
+  "timestamp": "2026-08-18T18:18:11Z",
+  "run_id": "32161677361",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32161677361",
+  "workflow_name": "Debian Packages",
+  "pr_number": "37485",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37485",
+  "author": "p-wysocki",
+  "category": "Network",
+  "title": "Debian Packages job fails — apt-get cannot connect to azure.archive.ubuntu.com",
+  "signature": "unable to connect to azure.archive.ubuntu.com|Network",
+  "signature_hash": "98edf6d4fbc865bd",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails: Unable to connect to azure.archive.ubuntu.com:80"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/... Unable to connect to azure.archive.ubuntu.com:80: [IP: 40.81.13.82 80]",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The GitHub Actions runner lost connectivity to azure.archive.ubuntu.com (Ubuntu package mirror) mid-job. Multiple .deb packages across different pool paths all failed with 'Unable to connect' at the same IP (40.81.13.82:80), indicating a transient network outage on the Azure runner or the Ubuntu mirror endpoint. The PR itself (Python binding fix in async_infer_queue.cpp) is entirely unrelated to the Debian packaging job.",
+  "reproduction_steps": "N/A — transient network failure on CI runner, not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job to retry after the network issue clears.",
+    "If recurrent, consider adding --retry or --fix-missing fallback to apt-get install commands."
+  ],
+  "prevention_strategies": "Add apt-get retry logic (e.g., apt-get install -y --fix-missing or a retry wrapper) to handle transient mirror unavailability.",
+  "historical_context": "Network failures fetching from azure.archive.ubuntu.com are a known transient infrastructure issue on Azure-hosted GitHub Actions runners."
+}

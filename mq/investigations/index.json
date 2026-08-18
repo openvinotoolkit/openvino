@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 165,
+  "total": 166,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1621,6 +1621,15 @@
       "category": "Network",
       "signature_hash": "a3d456bd40bd9f42",
       "pr_number": "37176"
+    },
+    {
+      "investigation_id": "2026-08-18-18-18-11-903-32161677361",
+      "run_id": "32161677361",
+      "timestamp": "2026-08-18T18:18:11Z",
+      "title": "Debian Packages job fails \u2014 apt-get cannot connect to azure.archive.ubuntu.com",
+      "category": "Network",
+      "signature_hash": "98edf6d4fbc865bd",
+      "pr_number": "37485"
     }
   ]
 }

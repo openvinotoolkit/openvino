@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "unable to connect to azure.archive.ubuntu.com|Network",
+  "signature_hash": "98edf6d4fbc865bd",
+  "title": "Debian Packages job fails — apt-get cannot connect to azure.archive.ubuntu.com",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-18T18:18:11Z",
+  "last_seen": "2026-08-18T18:18:11Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32161677361"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37485"],
+  "recent_timestamps": ["2026-08-18T18:18:11Z"],
+  "rerun_search_string": "Unable to connect to azure.archive.ubuntu.com"
+}
