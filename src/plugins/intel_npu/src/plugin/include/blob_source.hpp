@@ -39,8 +39,8 @@ public:
      * @brief Extracts data from the blob source without copying it.
      * @details The returned address is the position where the data cursor currently points at. Before returning, the
      * cursor is also advanced by "size" bytes.
-     * @throws ov::Exception if the underlying type is "std::istream". The "stream" type does not support extracting
-     * data without copying since the underlying buffer is not guaranteed to be contiguous.
+     * @throws ov::Exception if the underlying type does not have a guaranteed contiguous buffer (e.g. "std::istream").
+     * @note "BlobSource::is_contiguous" can be used to determine if this function can be called safely.
      *
      * @param size The data cursor will be advanced by this amount.
      * @return The blob content location where the data cursor currently points to (prior to advancing the cursor).
@@ -51,8 +51,8 @@ public:
      * @brief Extracts a region-of-interest tensor from the blob source without copying it.
      * @details The tensor is a view towards the content of the blob, delimited by [data cursor:data cursor + size).
      * Before returning, the cursor is also advanced by "size" bytes.
-     * @throws ov::Exception if the underlying type is "std::istream". The "stream" type does not support extracting
-     * data without copying since the underlying buffer is not guaranteed to be contiguous.
+     * @throws ov::Exception if the underlying type does not have a guaranteed contiguous buffer (e.g. "std::istream").
+     * @note "BlobSource::is_contiguous" can be used to determine if this function can be called safely.
      *
      * @param size The data cursor will be advanced by this amount.
      * @return A region-of-interest tensor as a view towards the content of the blob, delimited by [data cursor:data
@@ -83,6 +83,12 @@ public:
      * @return The remaining size of the blob, starting from the current position of the data cursor
      */
     size_t get_remaining_size() const;
+
+    /**
+     * @return true The blob is contiguous (the "tensor" scenario).
+     * @return false Otherwise (the "stream" scenario)
+     */
+    bool is_contiguous() const;
 
     /**
      * @return true The blob is contiguous (the "tensor" scenario) and the current position of the data cursor is page

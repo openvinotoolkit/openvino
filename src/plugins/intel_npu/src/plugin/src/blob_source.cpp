@@ -64,9 +64,9 @@ void BlobSource::copy_from_source(void* destination, const size_t size) {
 
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+        OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
         stream->get().read(reinterpret_cast<char*>(destination), size);
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+        OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
         return;
     }
 
@@ -112,9 +112,9 @@ ov::Tensor BlobSource::get_roi_tensor_from_source(const size_t size) {
 void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir reference) {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+        OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
         stream->get().seekg(std::streamoff(offset), reference);
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+        OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
         return;
     }
 
@@ -148,7 +148,7 @@ void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir 
 size_t BlobSource::get_cursor() const {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
-        OPENVINO_ASSERT(stream, STREAM_BAD_STATUS_MESSAGE);
+        OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
 
         return static_cast<size_t>(stream->get().tellg());
     }
@@ -167,12 +167,19 @@ size_t BlobSource::get_remaining_size() const {
     return m_size - cursor;
 }
 
+bool BlobSource::is_contiguous() const {
+    if (std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
+        // The buffer behind the stream is not guaranteed to be contiguous
+        return false;
+    }
+    return true;
+}
+
 bool BlobSource::is_contiguous_and_cursor_page_aligned() const {
     if (std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
         // The buffer behind the stream is not guaranteed to be contiguous
         return false;
     }
-
     return get_cursor() % utils::STANDARD_PAGE_SIZE == 0;
 }
 
