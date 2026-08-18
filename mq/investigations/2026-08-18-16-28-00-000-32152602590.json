@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-16-28-00-000-32152602590",
+  "timestamp": "2026-08-18T16:28:00Z",
+  "run_id": "32152602590",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32152602590",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37401",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37401",
+  "author": "sbutnari",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update failed: Could not connect to azure.archive.ubuntu.com:80, connection timed out"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out\nW: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/dists/noble/InRelease  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out\nE: Package 'gnupg' has no installation candidate\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The runner lost network connectivity to azure.archive.ubuntu.com during apt-get update in the Debian Packages job. The host 52.250.76.244 was unreachable after multiple retries spanning ~4 minutes, indicating a transient Azure network outage or runner infrastructure issue. This is unrelated to the PR change (which only modifies src/plugins/intel_npu/tests/driver_version.json).",
+  "reproduction_steps": "N/A - transient network failure on Azure runner infrastructure",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job or re-add the PR to the merge queue",
+    "If the failure persists, investigate Azure networking issues in the runner region"
+  ],
+  "prevention_strategies": "Add apt-get retry logic or fallback mirrors for Ubuntu package repositories in Debian packaging CI jobs.",
+  "historical_context": "No prior identical pattern found in the database. Network-related apt-get failures have been seen before (e.g., RISCV64 Docker build libpython3-dev, though that was a dependency issue)."
+}
