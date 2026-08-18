@@ -51,6 +51,18 @@ struct sdpa_ocl_config_t {
     }
 };
 
+// Whether this kernel takes the token_type_ids input (bidirectional image-token attention). Shared
+// by get_jit_constants() and get_arguments_desc() so the declared parameter and the bound argument
+// can never disagree. Paged attention only, and PREFILL only: in MIXED/GENERATE token_type_ids
+// covers just the new tokens while keys span [0, past_len + new), so the index spaces differ and
+// PagedAttentionOptImpl::can_use_micro_sdpa_for() keeps those stages off this kernel entirely.
+bool sdpa_ocl_has_token_type_ids(const kernel_impl_params& params, bool is_prefill) {
+    if (!is_prefill || !params.is_type<paged_attention>()) {
+        return false;
+    }
+    return params.typed_desc<paged_attention>()->has_token_type_ids;
+}
+
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
     case gpu_arch::gen9:
@@ -1151,6 +1163,18 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         jit.make("MASK_KIND", -1);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         jit.make("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window);
+        if (sdpa_ocl_has_token_type_ids(params, m_is_prefill)) {
+            // Declares the token_type_ids parameter; must stay in lockstep with
+            // get_arguments_desc(), hence the shared predicate.
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+            // Bisection toggle for the bidirectional mask logic only -- it does NOT gate the
+            // parameter, so flipping it can never desync the argument list from the signature.
+            // Same pattern as BLOCK_SKIP_CAUSAL / USE_DKS_ACTIVE above.
+            int use_bidir_mask = 1;
+            if (const char* env = std::getenv("SDPA_OCL_BIDIR"))
+                use_bidir_mask = std::atoi(env);
+            jit.make("USE_BIDIR_MASK", use_bidir_mask);
+        }
     }
 
     if (config.has_const_scale_val) {
@@ -1392,6 +1416,10 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
             args.push_back(
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+        }
+
+        if (sdpa_ocl_has_token_type_ids(params, m_is_prefill)) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping

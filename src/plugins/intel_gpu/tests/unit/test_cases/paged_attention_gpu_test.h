@@ -946,7 +946,16 @@ struct PagedAttentionManager {
         if (!token_type_ids.empty()) {
             return get_memory_from_vec(token_type_ids);
         }
-        std::vector<int> default_token_type_ids = {0};
+        // has_token_type_ids promises a [B_token] input -- one entry per query token -- and any
+        // kernel honouring the flag indexes it over the whole subsequence. A one-element dummy would
+        // therefore be read out of bounds, which matters because has_token_type_ids is also set
+        // without a real buffer by the force_flashattn_v2 sink cases. All-zero means "every token is
+        // text", i.e. a plain causal mask, so this stays a no-op for those tests.
+        size_t total_tokens = 0;
+        for (const auto& subsequence_desc : subsequence_descs) {
+            total_tokens += static_cast<size_t>(subsequence_desc.num_tokens);
+        }
+        std::vector<int> default_token_type_ids(std::max<size_t>(total_tokens, 1), 0);
         return get_memory_from_vec(default_token_type_ids);
     }
 
