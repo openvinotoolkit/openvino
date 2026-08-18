@@ -1283,10 +1283,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     LOG_WARN("SplitKVCacheIntoBlocks had no effect: " << tag);
                     all_transformed = false;
                 }
-                return pass;
             };
 
-            auto prefill_pass = apply_block_kv_transform(prefill_model, "prefill");
+            apply_block_kv_transform(prefill_model, "prefill");
 
             for (size_t i = 0; i < generate_model_variants.size(); ++i) {
                 apply_block_kv_transform(generate_model_variants[i], "generate_" + std::to_string(i));

@@ -111,19 +111,15 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
 
     LOG_DEBUG("Migrating " << num_stored << " KV tokens to new generate variant.");
 
+    const auto& kv_seq_dims = kvcache_desc.kv_seq_dims;
     for (const auto& name : m_req.m_kvcache_past_names) {
         auto src = old_req->get_tensor(old_in_ports.at(name));
         auto dst = new_req->get_tensor(new_in_ports.at(name));
 
-        // Use the "present" name to distinguish key vs value — same pattern as
-        // update_kvcache_for. Direct find("value") on the input name is unreliable
-        // because "past_key_values.N.key" contains "value" via "key_values".
-        const auto present_name =
-            std::regex_replace(name, std::regex(ov::npuw::LLMInferRequest::layer_names::past_key_values), "present");
-        const uint32_t kv_dim =
-            (present_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_gen)
-                ? 3u
-                : kvcache_desc.dim;
+        // Look up per-parameter seq dim from compile-time analysis.
+        auto it = kv_seq_dims.find(name);
+        OPENVINO_ASSERT(it != kv_seq_dims.end(), "KV seq dim not found for parameter: ", name);
+        const uint32_t kv_dim = it->second;
 
         auto src_slice = uu::make_tensor_slice(src, kv_dim, 0u, num_stored);
         auto dst_slice = uu::make_tensor_slice(dst, kv_dim, 0u, num_stored);
