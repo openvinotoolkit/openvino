@@ -285,16 +285,15 @@ void validate_input_rank_and_type(const Node* node,
     const auto& rank = node->get_input_partial_shape(input_idx).rank();
     const auto& type = node->get_input_element_type(input_idx);
 
-    NODE_VALIDATION_CHECK(
-        node,
-        rank.is_dynamic() || allowed_ranks.size() == 0 || is_rank_compatible_any_of(rank, allowed_ranks),
-        "Rank of `",
-        input_name,
-        "` input should be in [dynamic, ",
-        ov::util::join(allowed_ranks),
-        "] list, but it is ",
-        rank,
-        ".");
+    NODE_VALIDATION_CHECK(node,
+                          rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank, allowed_ranks),
+                          "Rank of `",
+                          input_name,
+                          "` input should be in [dynamic, ",
+                          ov::util::join(allowed_ranks),
+                          "] list, but it is ",
+                          rank,
+                          ".");
 
     NODE_VALIDATION_CHECK(node,
                           type.is_dynamic() || allowed_types.empty() ||
