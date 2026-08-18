@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "no failure logs available run already on attempt 2|Infrastructure",
+  "signature_hash": "41808fced1b1a6a4",
+  "title": "Linux (Ubuntu 24.04) merge-queue run failed on attempt 1, no failure logs available on attempt 2",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-18T16:57:47Z",
+  "last_seen": "2026-08-18T16:57:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32155670598"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37468"
+  ],
+  "recent_timestamps": [
+    "2026-08-18T16:57:47Z"
+  ],
+  "rerun_search_string": null
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 162,
+  "total": 163,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1590,6 +1590,17 @@
       "category": "Network",
       "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "37485"
+    },
+    {
+      "investigation_id": "2026-08-18-16-57-47-000-32155670598",
+      "run_id": "32155670598",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32155670598",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-08-18T16:57:47Z",
+      "title": "Linux (Ubuntu 24.04) merge-queue run failed on attempt 1, no failure logs available on attempt 2",
+      "category": "Infrastructure",
+      "signature_hash": "41808fced1b1a6a4",
+      "pr_number": "37468"
     }
   ]
 }

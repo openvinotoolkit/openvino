@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-16-57-47-000-32155670598",
+  "timestamp": "2026-08-18T16:57:47Z",
+  "run_id": "32155670598",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32155670598",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37468",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37468",
+  "author": "bumbosiepsak",
+  "category": "Infrastructure",
+  "title": "Linux (Ubuntu 24.04) merge-queue run failed on attempt 1, no failure logs available on attempt 2",
+  "signature": "no failure logs available run already on attempt 2|Infrastructure",
+  "signature_hash": "41808fced1b1a6a4",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "Unknown (logs unavailable)",
+      "conclusion": "failure",
+      "symptom": "Attempt 1 failed; attempt 2 is in progress with all visible jobs passing. Original failure logs were not captured before re-run."
+    }
+  ],
+  "key_errors": [],
+  "root_cause": "The workflow run was reported as failed (attempt 1) but by the time CI Doctor investigated, the run was already on attempt 2 with no failed jobs. The pre-downloaded failure logs and job metadata are empty, indicating the failure logs from attempt 1 were unavailable. This pattern is consistent with a transient infrastructure issue (e.g., runner startup failure, resource exhaustion, or network timeout) that resolved on re-run.",
+  "reproduction_steps": "N/A",
+  "recommended_actions": [
+    "Monitor attempt 2 result - if it passes, the failure was transient.",
+    "If attempt 2 also fails, re-investigate with fresh logs from that attempt."
+  ],
+  "prevention_strategies": "No specific prevention possible without root cause. GitHub Actions runner transient failures are expected occasionally.",
+  "historical_context": "This is a known pattern where CI Doctor is triggered by attempt 1 failure but logs are unavailable by investigation time."
+}
