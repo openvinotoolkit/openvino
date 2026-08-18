@@ -14,6 +14,7 @@
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -1556,7 +1557,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
+        bool empty_constant = ov::util::is_empty_constant_tensor(proto_node);
+
         bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            if (empty_constant) {
+                return ov::util::is_empty_constant_tensor(other_node);
+            }
             return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                    values_are_the_same(proto_node, other_node);
         });
@@ -2092,7 +2098,9 @@ void Partitioner::attention(const std::string& func_name) {
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
         f._host_flash_attention =
-            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
+            ov::npuw::function::HostFlashAttention::from(f._model,
+                                                         cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
+                                                         cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;

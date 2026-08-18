@@ -29,7 +29,6 @@ from tests import (
     xfail_issue_47323,
     xfail_issue_48052,
     xfail_issue_52463,
-    xfail_issue_63033,
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
@@ -275,11 +274,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_loop13_seq_cpu",
         "OnnxBackendNodeModelTest.test_sequence_insert_at_back_cpu",
         "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
-    ),
-    (
-        xfail_issue_63033,
-        "OnnxBackendNodeModelTest.test_batchnorm_epsilon_training_mode_cpu",
-        "OnnxBackendNodeModelTest.test_batchnorm_example_training_mode_cpu",
     ),
     (
         xfail_issue_63043,

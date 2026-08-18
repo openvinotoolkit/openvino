@@ -83,9 +83,8 @@ public:
 
     /**
      * @brief Returns the compiler supported options list
-     * @return false if the API is not supported, true otherwise
      */
-    bool get_supported_options(std::vector<char>& options) const;
+    void get_supported_options(std::vector<char>& options) const;
 
     /**
      * @brief Checks whether the given option and value are supported by the compiler

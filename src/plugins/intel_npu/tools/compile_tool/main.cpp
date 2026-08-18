@@ -18,6 +18,7 @@
 
 #include <openvino/core/op_extension.hpp>
 #include <openvino/op/group_query_attention.hpp>
+#include <ov_ops/dynamic_quantize.hpp>
 #include <ov_ops/rms.hpp>
 #include <ov_ops/rotary_positional_embeddings.hpp>
 
@@ -475,6 +476,7 @@ int main(int argc, char* argv[]) {
             std::make_shared<ov::OpExtension<ov::op::internal::RMS>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::GroupQueryAttention>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::DynamicQuantize>>(),
             std::make_shared<ov::OpExtension<ov::intel_npu::op::FlashAttentionTile>>()});
 
         std::cout << "Reading model" << std::endl;
