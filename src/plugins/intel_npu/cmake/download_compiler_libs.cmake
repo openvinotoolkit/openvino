@@ -27,7 +27,8 @@
 # 
 # The script expects the archive to contain:
 #     build_manifest.json file with build information about the prebuilt compiler.
-#         If the file is present, its content will be printed in cmake output.
+#         If the file is present, its content will be printed in cmake output and the npu_compiler_version
+#         value is written to runtime/npu_compiler_version.txt of the installation package.
 #     lib folder with the following libraries that will be copied to the output directory
 #     and included in the installation package:
 #         WINDOWS: openvino_intel_npu_compiler.dll, openvino_intel_npu_compiler_loader.dll, npu_interpreter_runtime.dll
@@ -43,16 +44,34 @@ function(print_build_manifest extracted_file)
     message(STATUS "build_manifest.json for npu plugin compiler:\n${FILE_CONTENT}")
 endfunction()
 
+# Extracts npu_compiler_version from build_manifest.json and stores it in a standalone text file,
+# so that the compiler version can be tracked in distribution archives without an API call
+function(write_compiler_version_file manifest_file version_file)
+    file(REMOVE "${version_file}")
+    if(NOT EXISTS "${manifest_file}")
+        message(WARNING "Build manifest file '${manifest_file}' not found. Skipping '${version_file}' generation.")
+        return()
+    endif()
+    file(READ "${manifest_file}" MANIFEST_CONTENT)
+    string(JSON COMPILER_VERSION ERROR_VARIABLE JSON_ERROR GET "${MANIFEST_CONTENT}" npu_compiler_version)
+    if(JSON_ERROR)
+        message(WARNING "Failed to read 'npu_compiler_version' from '${manifest_file}': ${JSON_ERROR}. Skipping '${version_file}' generation.")
+        return()
+    endif()
+    file(WRITE "${version_file}" "${COMPILER_VERSION}\n")
+    message(STATUS "Generated NPU compiler version file ${version_file} with version ${COMPILER_VERSION}")
+endfunction()
+
 if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
     set(PLUGIN_COMPILER_VERSION_MAJOR 8)
-    set(PLUGIN_COMPILER_VERSION_MINOR 2)
+    set(PLUGIN_COMPILER_VERSION_MINOR 3)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA bd011ec)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 90f015809d902fb4b5bb8aa725c65dbf4a83a7aa1db4832cf1667df3d38a1fca)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM d2507d9f028c53af10970844bf209d7acd6ace37497af5dfe0ac216c0a5ae34e)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM c7f46e083836fe00faa26e26e1785542a128c02c0dfa96680fae54d7d1ea4b83)
+    set(PLUGIN_COMPILER_COMMIT_SHA 09b997f)
+    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM fc7354b0c188f705791ca7bb06b1760651d4f97cb882ef4a936467887ab42aac)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM f20366bb3fb9a6832588a1eac1c28e5fb3227bc121747f416c55b11235d82513)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 04fd74c2f4ef2cda2307459c9a10e7cc631cb024332b8e49ab7184ce87d603a2)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
@@ -116,7 +135,10 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
     if(NPU_PLUGIN_COMPILER)
         message(STATUS "Using prebuilt NPU Plugin Compiler libraries from ${NPU_PLUGIN_COMPILER}")
+
+        set(NPU_COMPILER_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/npu_compiler_version.txt")
         print_build_manifest("${NPU_PLUGIN_COMPILER}/build_manifest.json")
+        write_compiler_version_file("${NPU_PLUGIN_COMPILER}/build_manifest.json" "${NPU_COMPILER_VERSION_FILE}")
 
         set(PLUGIN_COMPILER_LIB_PATH "${NPU_PLUGIN_COMPILER}/lib")
         set(PLUGIN_COMPILER_PDB_PATH "${NPU_PLUGIN_COMPILER}/pdb")
@@ -140,7 +162,15 @@ if(ENABLE_INTEL_NPU_COMPILER)
 
         install(FILES ${PLUGIN_COMPILER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
         install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+        if(ENABLE_TESTS)
+            install(FILES ${PLUGIN_COMPILER_LIB} DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+            install(FILES ${PLUGIN_COMPILER_LOADER_LIB} DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        endif()
         install(FILES ${PLUGIN_COMPILER_VM_RT_RENAMED_LIB} DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
+        if(EXISTS "${NPU_COMPILER_VERSION_FILE}")
+            install(FILES ${NPU_COMPILER_VERSION_FILE} DESTINATION runtime COMPONENT ${NPU_PLUGIN_COMPONENT})
+        endif()
 
         if(WIN32)
             set(PLUGIN_COMPILER_PDB "${PLUGIN_COMPILER_PDB_PATH}/${PLUGIN_COMPILER_PDB_NAME}")

@@ -51,9 +51,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return true;
             if (ov::as_type_ptr<ov::op::v0::Convert>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
                 return true;
-            if (ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0)))
-                return true;
-            return false;
+            return ov::as_type_ptr<ov::op::v1::Transpose>(node) && ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(0));
         };
         auto is_placeholder = [](const std::shared_ptr<ov::Node> node) {
             return ov::as_type_ptr<op::Placeholder>(node);
@@ -240,7 +238,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         }
 
         std::shared_ptr<ov::Node> fused_zps;
-        if (zp_nodes.size() > 0) {
+        if (!zp_nodes.empty()) {
             // scalar zp
             auto zp_shape = zp_nodes[0]->get_output_shape(0);
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
@@ -349,7 +347,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 can_be_merged = false;
                 break;
             }
-            auto target_node = output.get_target_inputs().begin()->get_node();
+            auto* target_node = output.get_target_inputs().begin()->get_node();
             if (!ov::is_type<ov::op::v1::Multiply>(target_node)) {
                 can_be_merged = false;
                 break;
@@ -380,7 +378,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
             ov::NodeVector fused_mul_nodes;
             output_split->input(0).replace_source_output(new_mul);
             for (auto& output : output_split->outputs()) {
-                auto target_node = output.get_target_inputs().begin()->get_node();
+                auto* target_node = output.get_target_inputs().begin()->get_node();
                 fused_mul_nodes.push_back(target_node->shared_from_this());
                 ov::replace_output_update_name(target_node->output(0), output);
             }

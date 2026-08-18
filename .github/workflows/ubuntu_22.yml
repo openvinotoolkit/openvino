@@ -138,6 +138,7 @@ jobs:
             -DENABLE_TESTS=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
@@ -530,6 +531,7 @@ jobs:
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
