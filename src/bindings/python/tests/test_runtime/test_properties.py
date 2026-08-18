@@ -639,8 +639,12 @@ def test_properties_perf_curve_table():
     with pytest.raises(RuntimeError):
         intel_auto.perf_curve_table({"CPU": {0: "high"}})
 
-    with pytest.raises(RuntimeError):
+    # The outer dict[str, ...] shape is validated by pybind11 itself, so a non-string
+    # outer key fails argument dispatch with TypeError rather than reaching the custom
+    # converter's RuntimeError, consistent with devices_utilization_threshold above.
+    with pytest.raises(TypeError) as e:
         intel_auto.perf_curve_table({23: {0: 1.0}})
+    assert "incompatible function arguments" in str(e.value)
 
     with pytest.raises(RuntimeError):
         intel_auto.perf_curve_table({"CPU": {True: 1.0}})
