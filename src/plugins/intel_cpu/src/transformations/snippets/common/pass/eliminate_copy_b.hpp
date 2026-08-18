@@ -6,8 +6,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <set>
-#include <utility>
 
 #include "emitters/snippets/input_repacker.hpp"
 #include "openvino/core/model.hpp"
@@ -30,22 +28,14 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 protected:
-    EliminateCopyB(ov::intel_cpu::InputRepackerMap& input_repackers,
-                   bool runtime_repacking_supported,
-                   std::set<size_t> compile_time_repacking_idxs)
-        : m_input_repackers(input_repackers),
-          m_runtime_repacking_supported(runtime_repacking_supported),
-          m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
+    explicit EliminateCopyB(ov::intel_cpu::InputRepackerMap& input_repackers) : m_input_repackers(input_repackers) {}
 
 private:
     [[nodiscard]] virtual std::shared_ptr<ov::Node> get_copy_b_pattern(
         const std::shared_ptr<ov::Node>& input) const = 0;
     [[nodiscard]] virtual bool is_supported_copy_b(const std::shared_ptr<ov::Node>& node) const = 0;
-    [[nodiscard]] bool should_extract(size_t param_idx) const;
 
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
-    bool m_runtime_repacking_supported = false;
-    std::set<size_t> m_compile_time_repacking_idxs;
 };
 
 }  // namespace ov::intel_cpu::pass

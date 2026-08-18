@@ -397,6 +397,8 @@ void ZeroInitStructsMock::destroyContextForInstance(std::shared_ptr<ZeroInitStru
 }
 
 void ZeroInitStructsMock::destroyContextLocked() {
+    _zero_mem_pool.clear();
+
     if (!_context.load()) {
         return;
     }

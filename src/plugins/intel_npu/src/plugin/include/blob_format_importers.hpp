@@ -107,6 +107,8 @@ private:
      */
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
 
+    virtual std::optional<BlobType> extract_blob_type() const = 0;
+
     /**
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
