@@ -47,8 +47,7 @@ public:
             // eventually joins plugin executor threads (via CoreImpl dtor).
             py::gil_scoped_release release;
             m_requests.clear();
-        } catch (const std::exception&) {
-            // Destructors must not throw (would std::terminate); teardown-time callback errors aren't actionable.
+        } catch (...) {
         }
     }
 
