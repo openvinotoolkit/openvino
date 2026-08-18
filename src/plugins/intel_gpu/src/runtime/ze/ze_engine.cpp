@@ -14,8 +14,6 @@
 #include "ze_device.hpp"
 #include "ze_kernel.hpp"
 #include "ze_resource_interop.hpp"
-#include "ocl/ocl_wrapper.hpp"
-
 #include <exception>
 #include <vector>
 #include <memory>
