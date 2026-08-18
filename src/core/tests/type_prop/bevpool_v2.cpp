@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
@@ -175,6 +177,54 @@ TEST_F(TypePropBevPoolV2Test, idx_must_be_integral) {
                                                                        default_bound()),
                     NodeValidationFailure,
                     HasSubstr("Input 2 (idx) must be an i32, i64, u32 or u64 tensor"));
+}
+
+TEST_F(TypePropBevPoolV2Test, d_bound_must_define_at_least_one_depth_bin) {
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
+    const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
+    const auto idx = std::make_shared<Parameter>(element::i32, PartialShape{6});
+    const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});
+
+    // A range shorter than a single step yields depth_bins == 0, which the CPU and OpenCL
+    // implementations would use as a divisor.
+    const auto degenerate_d_bound = op::v15::Bound{1.f, 1.f, 0.5f};
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       degenerate_d_bound),
+                    NodeValidationFailure,
+                    HasSubstr("d_bound must be finite and define at least one depth bin"));
+}
+
+TEST_F(TypePropBevPoolV2Test, d_bound_must_be_finite) {
+    const auto cf = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 5, 4});
+    const auto dw = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 3, 5});
+    const auto idx = std::make_shared<Parameter>(element::i32, PartialShape{6});
+    const auto itv = std::make_shared<Parameter>(element::i32, PartialShape{6});
+
+    const auto infinite_d_bound = op::v15::Bound{0.f, std::numeric_limits<float>::infinity(), 0.5f};
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::BevPoolV2>(OutputVector{cf, dw, idx, itv},
+                                                                       4,
+                                                                       2,
+                                                                       5,
+                                                                       3,
+                                                                       7,
+                                                                       6,
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       default_bound(),
+                                                                       infinite_d_bound),
+                    NodeValidationFailure,
+                    HasSubstr("d_bound must be finite and define at least one depth bin"));
 }
 
 }  // namespace test

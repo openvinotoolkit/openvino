@@ -14,7 +14,8 @@ namespace test {
 
 using BevPoolV2Params = std::tuple<std::vector<InputShape>,
                                    ov::element::Type,  // feature type (cf, dw)
-                                   ov::element::Type,  // index type (idx, itv)
+                                   ov::element::Type,  // index type (idx)
+                                   ov::element::Type,  // interval type (itv)
                                    ov::test::TargetDevice>;
 
 class BevPoolV2LayerTest : public testing::WithParamInterface<BevPoolV2Params>,
@@ -24,6 +25,7 @@ public:
 
     using TGenData =
         testing::internal::CartesianProductHolder<testing::internal::ParamGenerator<std::vector<ov::test::InputShape>>,
+                                                  testing::internal::ParamGenerator<ov::element::Type>,
                                                   testing::internal::ParamGenerator<ov::element::Type>,
                                                   testing::internal::ParamGenerator<ov::element::Type>,
                                                   testing::internal::ValueArray<const char*>>;

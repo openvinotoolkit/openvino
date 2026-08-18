@@ -104,14 +104,14 @@ void BevPoolV2::initSupportedPrimitiveDescriptors() {
                          ref_any);
 }
 
-template <typename T, typename IdxT>
+template <typename T, typename IdxT, typename ItvT>
 void BevPoolV2::executeImpl() {
     const auto& cpu_parallel = context->getCpuParallel();
 
     const auto* cf_data = getSrcDataAtPortAs<const T>(CF_IDX);
     const auto* dw_data = getSrcDataAtPortAs<const T>(DW_IDX);
     const auto* idx_data = getSrcDataAtPortAs<const IdxT>(IDX_IDX);
-    const auto* itv_data = getSrcDataAtPortAs<const IdxT>(ITV_IDX);
+    const auto* itv_data = getSrcDataAtPortAs<const ItvT>(ITV_IDX);
     auto* out_data = getDstDataAtPortAs<T>(0);
 
     const auto itv_len = static_cast<int64_t>(getSrcMemoryAtPort(ITV_IDX)->getShape().getElementsCount());
@@ -163,21 +163,31 @@ void BevPoolV2::executeImpl() {
     });
 }
 
+template <typename T, typename IdxT>
+void BevPoolV2::dispatchIntervalType(const ov::element::Type& itv_prc) {
+    if (itv_prc == ov::element::i64) {
+        executeImpl<T, IdxT, int64_t>();
+    } else {
+        executeImpl<T, IdxT, int32_t>();
+    }
+}
+
 void BevPoolV2::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto cf_prc = getSrcMemoryAtPort(CF_IDX)->getDesc().getPrecision();
     const auto idx_prc = getSrcMemoryAtPort(IDX_IDX)->getDesc().getPrecision();
+    const auto itv_prc = getSrcMemoryAtPort(ITV_IDX)->getDesc().getPrecision();
 
     if (cf_prc == ov::element::f16) {
         if (idx_prc == ov::element::i64) {
-            executeImpl<ov::float16, int64_t>();
+            dispatchIntervalType<ov::float16, int64_t>(itv_prc);
         } else {
-            executeImpl<ov::float16, int32_t>();
+            dispatchIntervalType<ov::float16, int32_t>(itv_prc);
         }
     } else {
         if (idx_prc == ov::element::i64) {
-            executeImpl<float, int64_t>();
+            dispatchIntervalType<float, int64_t>(itv_prc);
         } else {
-            executeImpl<float, int32_t>();
+            dispatchIntervalType<float, int32_t>(itv_prc);
         }
     }
 }

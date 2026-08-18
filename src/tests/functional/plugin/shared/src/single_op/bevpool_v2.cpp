@@ -13,7 +13,7 @@ namespace test {
 
 std::string BevPoolV2LayerTest::getTestCaseName(const testing::TestParamInfo<BevPoolV2Params>& obj) {
     std::ostringstream result;
-    const auto& [input_shapes, feature_type, index_type, dev] = obj.param;
+    const auto& [input_shapes, feature_type, index_type, interval_type, dev] = obj.param;
 
     for (size_t s = 0; s < input_shapes.size(); ++s) {
         const auto& shape_item = input_shapes[s];
@@ -25,12 +25,13 @@ std::string BevPoolV2LayerTest::getTestCaseName(const testing::TestParamInfo<Bev
 
     result << "FeatureType=" << feature_type << "_";
     result << "IndexType=" << index_type << "_";
+    result << "IntervalType=" << interval_type << "_";
     result << "Device=" << dev;
     return result.str();
 }
 
 void BevPoolV2LayerTest::SetUp() {
-    const auto& [input_shapes, feature_type, index_type, dev] = this->GetParam();
+    const auto& [input_shapes, feature_type, index_type, interval_type, dev] = this->GetParam();
     targetDevice = dev;
     const bool large_accumulation_case = !input_shapes[2].second.empty() && !input_shapes[2].second.front().empty() &&
                                          input_shapes[2].second.front()[0] >= 300000;
@@ -57,7 +58,7 @@ void BevPoolV2LayerTest::SetUp() {
     const auto cf = std::make_shared<ov::op::v0::Parameter>(feature_type, inputDynamicShapes[0]);
     const auto dw = std::make_shared<ov::op::v0::Parameter>(feature_type, inputDynamicShapes[1]);
     const auto idx = std::make_shared<ov::op::v0::Parameter>(index_type, inputDynamicShapes[2]);
-    const auto itv = std::make_shared<ov::op::v0::Parameter>(index_type, inputDynamicShapes[3]);
+    const auto itv = std::make_shared<ov::op::v0::Parameter>(interval_type, inputDynamicShapes[3]);
 
     const uint32_t input_channels = static_cast<uint32_t>(cf_ref_shape[3]);
     const uint32_t output_channels = std::min(input_channels, (cf_ref_shape[1] >= 54) ? 64u : 2u);
@@ -93,6 +94,7 @@ void BevPoolV2LayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
 
     const auto cf_type = func_inputs[0].get_element_type();
     const auto idx_type = func_inputs[2].get_element_type();
+    const auto itv_type = func_inputs[3].get_element_type();
 
     ov::test::utils::InputGenerateData feature_data;
     feature_data.start_from = 1;
@@ -132,24 +134,26 @@ void BevPoolV2LayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
     }
 
     ov::Tensor idx_tensor(idx_type, targetInputStaticShapes[2]);
-    ov::Tensor itv_tensor(idx_type, targetInputStaticShapes[3]);
+    ov::Tensor itv_tensor(itv_type, targetInputStaticShapes[3]);
 
     if (idx_type == ov::element::i32) {
         auto* p_idx = idx_tensor.data<int32_t>();
         for (size_t i = 0; i < m; ++i) {
             p_idx[i] = static_cast<int32_t>(idx_values[i]);
         }
-
-        auto* p_itv = itv_tensor.data<int32_t>();
-        for (size_t i = 0; i < itv_values.size(); ++i) {
-            p_itv[i] = static_cast<int32_t>(itv_values[i]);
-        }
     } else {
         auto* p_idx = idx_tensor.data<int64_t>();
         for (size_t i = 0; i < m; ++i) {
             p_idx[i] = idx_values[i];
         }
+    }
 
+    if (itv_type == ov::element::i32) {
+        auto* p_itv = itv_tensor.data<int32_t>();
+        for (size_t i = 0; i < itv_values.size(); ++i) {
+            p_itv[i] = static_cast<int32_t>(itv_values[i]);
+        }
+    } else {
         auto* p_itv = itv_tensor.data<int64_t>();
         for (size_t i = 0; i < itv_values.size(); ++i) {
             p_itv[i] = itv_values[i];
@@ -197,6 +201,7 @@ const BevPoolV2LayerTest::TGenData BevPoolV2LayerTest::GetTestDataForDevice(cons
 
     auto data = ::testing::Combine(::testing::ValuesIn(input_shapes),
                                    ::testing::ValuesIn(feature_types),
+                                   ::testing::ValuesIn(index_types),
                                    ::testing::ValuesIn(index_types),
                                    ::testing::Values(deviceName));
     return data;

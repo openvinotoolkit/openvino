@@ -38,6 +38,7 @@ protected:
 
         const auto inputs_count = params.input_layouts.size();
         const auto input1_length = params.get_input_layout(1).count();
+        const auto input2_length = params.get_input_layout(2).count();
         const auto input3_length = params.get_input_layout(3).count();
 
         jit.add(make_jit_constant("INPUTS_COUNT", inputs_count));
@@ -51,6 +52,7 @@ protected:
         jit.add(make_jit_constant("D_BOUND_MAX", desc->d_bound.max));
         jit.add(make_jit_constant("D_BOUND_STEP", desc->d_bound.step));
         jit.add(make_jit_constant("INPUT1_LENGTH", input1_length));
+        jit.add(make_jit_constant("INPUT2_LENGTH", input2_length));
         jit.add(make_jit_constant("INPUT3_LENGTH", input3_length));
 
         return jit;
@@ -93,6 +95,7 @@ protected:
 
         const auto inputs_count = params.input_layouts.size();
         const auto input1_length = params.get_input_layout(1).count();
+        const auto input2_length = params.get_input_layout(2).count();
         const auto input3_length = params.get_input_layout(3).count();
 
         jit.add(make_jit_constant("INPUTS_COUNT", inputs_count));
@@ -106,6 +109,7 @@ protected:
         jit.add(make_jit_constant("D_BOUND_MAX", desc->d_bound.max));
         jit.add(make_jit_constant("D_BOUND_STEP", desc->d_bound.step));
         jit.add(make_jit_constant("INPUT1_LENGTH", input1_length));
+        jit.add(make_jit_constant("INPUT2_LENGTH", input2_length));
         jit.add(make_jit_constant("INPUT3_LENGTH", input3_length));
         jit.add(make_jit_constant("BLOCK_SIZE", BlockSize));
 

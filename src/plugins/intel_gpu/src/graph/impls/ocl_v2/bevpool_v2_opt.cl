@@ -26,6 +26,10 @@ KERNEL(bevpool_v2_opt)(OPTIONAL_SHAPE_INFO_ARG
     const long interval_end = (long)itv[interval_base + 1];
     const long bev_linear = (long)itv[interval_base + 2];
 
+    // itv holds runtime data: reject intervals that would read outside of the idx tensor.
+    if (interval_start < 0 || interval_end < interval_start || interval_end > (long)INPUT2_LENGTH)
+        return;
+
     const uint depth_bins = (uint)((D_BOUND_MAX - D_BOUND_MIN) / D_BOUND_STEP);
     const uint feature_area = IMAGE_WIDTH * IMAGE_HEIGHT;
     const uint depth_span = depth_bins * feature_area;

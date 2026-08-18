@@ -11,6 +11,7 @@
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/bevpool_v2.hpp"
 
 namespace ov::intel_cpu::node {
@@ -34,8 +35,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    template <typename T, typename IdxT>
+    template <typename T, typename IdxT, typename ItvT>
     void executeImpl();
+
+    template <typename T, typename IdxT>
+    void dispatchIntervalType(const ov::element::Type& itv_prc);
 
     uint32_t m_input_channels = 0;
     uint32_t m_output_channels = 0;

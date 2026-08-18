@@ -172,9 +172,14 @@ void BevPoolV2::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           m_z_bound.max >= m_z_bound.min,
                           "z_bound_max must be greater than or equal to z_bound_min.");
+    // The depth range drives depth_bins = (max - min) / step, which is used as a divisor by the
+    // CPU and OpenCL implementations. Require a finite range that spans at least one full bin so
+    // that depth_bins can never be zero at inference time.
     NODE_VALIDATION_CHECK(this,
-                          m_d_bound.max >= m_d_bound.min,
-                          "d_bound_max must be greater than or equal to d_bound_min.");
+                          std::isfinite(m_d_bound.min) && std::isfinite(m_d_bound.max) &&
+                              std::isfinite(m_d_bound.step) && std::isfinite(m_d_bound.max - m_d_bound.min) &&
+                              (m_d_bound.max - m_d_bound.min) >= m_d_bound.step,
+                          "d_bound must be finite and define at least one depth bin.");
 
     const auto cf_et = get_input_element_type(0);
     const auto dw_et = get_input_element_type(1);
