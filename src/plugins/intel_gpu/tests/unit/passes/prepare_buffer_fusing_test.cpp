@@ -1014,6 +1014,52 @@ TEST(prepare_buffer_fusing, do_runtime_in_place_crop_skips_non_propagatable_resh
     ASSERT_FALSE(crop_inst->can_be_optimized());
 }
 
+TEST(prepare_buffer_fusing, in_place_crop_axis1_rank_reducing_to_1d_not_optimized) {
+    auto& engine = get_test_engine();
+
+    constexpr int64_t rows = 8;
+    const auto input_layout_dynamic = layout{ov::PartialShape{-1, 4}, data_types::f32, format::bfyx};
+    auto input_memory = engine.allocate_memory({{rows, 4}, data_types::f32, format::bfyx});
+    auto axis_memory = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto split_lengths_memory = engine.allocate_memory({{4}, data_types::i64, format::bfyx});
+    auto scale_memory = engine.allocate_memory({{1}, data_types::f32, format::bfyx});
+
+    set_values<float>(input_memory, std::vector<float>(rows * 4, 1.0f));
+    set_values<int64_t>(axis_memory, {1});
+    set_values<int64_t>(split_lengths_memory, {1, 1, 1, 1});
+    set_values<float>(scale_memory, {1.0f});
+
+    topology topology(
+        input_layout("input", input_layout_dynamic),
+        data("axis", axis_memory),
+        data("split_lengths", split_lengths_memory),
+        data("scale", scale_memory),
+        crop("bbox_coordinate", {input_info("input"), input_info("axis"), input_info("split_lengths")},
+             tensor(1),
+             tensor(0),
+             crop_ngraph_op_mode::variadic_split,
+             0,
+             1),
+        reshape("bbox_coordinate_1d",
+                input_info("bbox_coordinate"),
+                false,
+                {-1},
+                ov::PartialShape{-1},
+                reshape::reshape_mode::base),
+        eltwise("bbox_coordinate_scale", {input_info("bbox_coordinate_1d"), input_info("scale")}, eltwise_mode::prod),
+        reorder("output", input_info("bbox_coordinate_scale"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_memory);
+    network.execute();
+
+    ASSERT_FALSE(network.get_primitive("bbox_coordinate")->can_be_optimized());
+}
+
 TEST(prepare_buffer_fusing, in_place_crop_dynamic_reshape_unsqueeze) {
     auto& engine = get_test_engine();
 
