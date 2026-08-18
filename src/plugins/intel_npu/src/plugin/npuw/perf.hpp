@@ -152,6 +152,8 @@ public:
           total(m.total),
           name(std::move(m.name)),
           enabled(m.enabled) {}
+    Metric(const Metric&) = delete;
+    Metric& operator=(const Metric&) = delete;
 
     explicit Metric(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
@@ -295,6 +297,8 @@ private:
 public:
     Counter() = default;
     Counter(Counter&& c) : total(c.total), calls(c.calls), name(std::move(c.name)), enabled(c.enabled) {}
+    Counter(const Counter&) = delete;
+    Counter& operator=(const Counter&) = delete;
 
     explicit Counter(const std::string& named, bool active = false) : name(named), enabled(active) {}
 
@@ -455,6 +459,15 @@ struct RealProfile : public IProfile {
     struct Snapshot {
         std::size_t index = 0u;
         std::map<std::string, M> metrics;
+
+        // Metrics are move-only, so the implicit copy ctor is ill-formed. It is still
+        // *declared*, which is enough for MSVC's vector reallocation to pick the copy
+        // path over the (non-noexcept) map move and then fail to instantiate it.
+        Snapshot() = default;
+        Snapshot(Snapshot&&) = default;
+        Snapshot& operator=(Snapshot&&) = default;
+        Snapshot(const Snapshot&) = delete;
+        Snapshot& operator=(const Snapshot&) = delete;
     };
 
     std::map<std::string, M> metrics;
