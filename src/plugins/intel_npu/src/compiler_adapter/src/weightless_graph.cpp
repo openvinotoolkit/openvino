@@ -274,9 +274,7 @@ WeightlessGraph::WeightlessGraph(
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
       _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
-      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {
-    _wgLogger.info("The current compiled model is a weightless one");
-}
+      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {}
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {

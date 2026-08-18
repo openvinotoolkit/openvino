@@ -48,6 +48,10 @@ public:
      */
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
+    GraphKind get_kind() const override {
+        return GraphKind::Weightless;
+    }
+
     /**
      * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
      * In addition to this, the init schedules are run and the result of this is set as inputs to the main
