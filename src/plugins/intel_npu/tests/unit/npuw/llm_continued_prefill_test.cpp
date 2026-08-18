@@ -351,13 +351,13 @@ protected:
 
     uint32_t generate_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = present_name_of(past_name).find("value") != std::string::npos;
+        const bool is_value = ov::npuw::util::isPastValueParam(past_name);
         return (is_value && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
     }
 
     uint32_t prefill_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
-        const bool is_value = present_name_of(past_name).find("value") != std::string::npos;
+        const bool is_value = ov::npuw::util::isPastValueParam(past_name);
         return (is_value && desc.v_tensors_transposed_pre) ? 3u : desc.dim;
     }
 

@@ -6,7 +6,6 @@
 
 #include <regex>
 #include <unordered_map>
-#include <utility>
 
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
@@ -25,15 +24,13 @@ namespace npuw {
 // Steps 2–3 are only applicable when chunk prefill is enabled.
 void LLMContinuousKVCacheStrategy::on_initialize() {
     // Derive the static per-tensor naming facts once. The present name mirrors
-    // update_kvcache_for(); a direct find("value") on the past name would be
-    // unreliable because "past_key_values.N.key" contains "value" via
-    // "key_values".
+    // the replacement update_kvcache_for() performs on every call.
     m_kv_pairs.clear();
     m_kv_pairs.reserve(m_req.m_kvcache_past_names.size());
     for (const auto& name : m_req.m_kvcache_past_names) {
         const auto present_name =
             std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
-        m_kv_pairs.push_back({name, present_name, present_name.find("value") != std::string::npos});
+        m_kv_pairs.push_back({name, present_name, ov::npuw::util::isPastValueParam(name)});
     }
 
     // Step 1: share past KV buffers across generate variants.
@@ -160,12 +157,6 @@ void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_l
 
 namespace {
 
-// Plan for continuing a prefill on the contiguous buffer. The live KV prefix can sit
-// in two places. If generation ran, the generate model's past inputs hold the whole
-// history in the generate layout and must be repacked into the prefill layout. If the
-// request finished straight from the prompt logits, the decode loop never executed,
-// so the prefix is split between the prefill past inputs and the last chunk still
-// sitting in the prefill present outputs.
 // Per-tensor repack geometry, analyzed at plan time so apply_continued_prefill()
 // only moves bytes.
 struct RepackEntry {
@@ -175,6 +166,12 @@ struct RepackEntry {
     bool same_layout = false;
 };
 
+// Plan for continuing a prefill on the contiguous buffer. The live KV prefix can sit
+// in two places. If generation ran, the generate model's past inputs hold the whole
+// history in the generate layout and must be repacked into the prefill layout. If the
+// request finished straight from the prompt logits, the decode loop never executed,
+// so the prefix is split between the prefill past inputs and the last chunk still
+// sitting in the prefill present outputs.
 struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
     uint32_t keep = 0u;
     bool source_is_generate = false;
@@ -185,35 +182,23 @@ struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
     std::vector<RepackEntry> entries;
 };
 
-// The KV sequence axes for a src/dst tensor pair, mirroring copy_kvcache(). The
-// global V-transposition flags cannot be trusted per tensor: in heterogeneous
-// attention models the optimizing matcher can leave some layers' V tensors
-// untransposed (a single-KV-head full-attention layer between sliding-window
-// layers, for instance), so the shapes are compared instead. When only the
-// sequence extents differ, the single differing dimension is the sequence axis
-// of both tensors; a transposed pair differs in two dimensions and falls back
-// to the flag-derived dims. Once a compile-time per-layer sequence-axis map is
-// available this detection can become a lookup.
-std::pair<uint32_t, uint32_t> detect_kv_seq_dims(const ov::SoPtr<ov::ITensor>& src,
-                                                 const ov::SoPtr<ov::ITensor>& dst,
-                                                 uint32_t flag_src_dim,
-                                                 uint32_t flag_dst_dim) {
-    const auto& src_shape = src->get_shape();
-    const auto& dst_shape = dst->get_shape();
-    if (src_shape.size() == dst_shape.size()) {
-        uint32_t diff_count = 0u;
-        uint32_t diff_dim = 0u;
-        for (uint32_t d = 0; d < src_shape.size(); ++d) {
-            if (src_shape[d] != dst_shape[d]) {
-                ++diff_count;
-                diff_dim = d;
-            }
-        }
-        if (diff_count == 1u) {
-            return {diff_dim, diff_dim};
-        }
-    }
-    return {flag_src_dim, flag_dst_dim};
+// The complete repack geometry for one src/dst tensor pair. The sequence axes
+// come from the same global V-transposition flags every other KV movement path
+// uses; a per-layer sequence-axis map can replace them for heterogeneous
+// attention models once one is available at compile time. Aliasing means the
+// two views share backing memory; identical layouts on shared memory need no
+// copy at all, while different layouts on shared memory must stage through a
+// temporary.
+RepackEntry make_repack_entry(const ov::SoPtr<ov::ITensor>& src,
+                              const ov::SoPtr<ov::ITensor>& dst,
+                              uint32_t src_dim,
+                              uint32_t dst_dim) {
+    RepackEntry entry;
+    entry.src_dim = src_dim;
+    entry.dst_dim = dst_dim;
+    entry.aliased = src->data() == dst->data();
+    entry.same_layout = entry.aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
+    return entry;
 }
 
 }  // anonymous namespace
@@ -257,21 +242,13 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                             "Continued prefill: element type mismatch for ",
                             pair.past);
 
-            const uint32_t flag_src_dim =
-                (pair.is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
-            const uint32_t flag_dst_dim =
-                (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
-            const auto [src_dim, dst_dim] = detect_kv_seq_dims(src, dst, flag_src_dim, flag_dst_dim);
-            OPENVINO_ASSERT(src->get_shape()[src_dim] >= keep && dst->get_shape()[dst_dim] >= keep,
+            const uint32_t src_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
+            const uint32_t dst_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            const auto entry = make_repack_entry(src, dst, src_dim, dst_dim);
+            OPENVINO_ASSERT(src->get_shape()[entry.src_dim] >= keep && dst->get_shape()[entry.dst_dim] >= keep,
                             "Continued prefill: KV extent of ",
                             pair.past,
                             " cannot cover the granted keep.");
-
-            RepackEntry entry;
-            entry.src_dim = src_dim;
-            entry.dst_dim = dst_dim;
-            entry.aliased = src->data() == dst->data();
-            entry.same_layout = entry.aliased && src->get_shape() == dst->get_shape() && src_dim == dst_dim;
             plan->entries.push_back(entry);
         }
     } else {
@@ -288,13 +265,8 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                             pair.past);
             auto present = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(pair.present));
             auto past = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
-            const uint32_t flag_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
-            const auto [src_dim, dst_dim] = detect_kv_seq_dims(present, past, flag_dim, flag_dim);
-
-            RepackEntry entry;
-            entry.src_dim = src_dim;
-            entry.dst_dim = dst_dim;
-            plan->entries.push_back(entry);
+            const uint32_t kv_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+            plan->entries.push_back(make_repack_entry(present, past, kv_dim, kv_dim));
         }
     }
     return plan;
