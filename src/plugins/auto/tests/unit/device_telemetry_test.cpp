@@ -75,3 +75,34 @@ TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
     ASSERT_NO_THROW(utilization = client.utilization("UNKNOWN_DEVICE"));
     EXPECT_FALSE(utilization.has_value());
 }
+
+#ifdef OV_AUTO_ENABLE_IPF
+TEST(DeviceMonitorTest, parse_utilization_uses_gpu_fallback_for_igpu) {
+    const std::string aiselector_json = R"({
+        "Performance": {
+            "GPUUtilization": 4.63
+        },
+        "Status": "Online"
+    })";
+
+    const auto utilization = device_monitor::parse_utilization_from_aiselector_json_for_test(aiselector_json,
+                                                                                              "GPU",
+                                                                                              "integrated");
+    ASSERT_TRUE(utilization.has_value());
+    EXPECT_FLOAT_EQ(utilization.value(), 4.63f);
+}
+
+TEST(DeviceMonitorTest, parse_utilization_returns_nullopt_when_igpu_keys_missing) {
+    const std::string aiselector_json = R"({
+        "Performance": {
+            "CPUUtilization": 20.83
+        },
+        "Status": "Online"
+    })";
+
+    const auto utilization = device_monitor::parse_utilization_from_aiselector_json_for_test(aiselector_json,
+                                                                                              "GPU",
+                                                                                              "integrated");
+    EXPECT_FALSE(utilization.has_value());
+}
+#endif

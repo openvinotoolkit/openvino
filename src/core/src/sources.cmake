@@ -188,6 +188,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/prelu.cpp
@@ -230,6 +231,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/search_sorted.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/segment_max.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/select.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/selu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/shape_of.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/shuffle_channels.cpp
