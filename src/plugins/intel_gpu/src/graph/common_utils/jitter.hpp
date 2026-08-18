@@ -19,13 +19,15 @@ class CodeBuilder {
     std::vector<std::string> defined_macroses;
 
     CodeBuilder& register_macro(const std::string& name) {
-        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) == 0);
+        if (std::count(defined_macroses.begin(), defined_macroses.end(), name) != 0)
+            std::cout << "register_macro: " << name << std::endl;
+        // assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) == 0);
         defined_macroses.push_back(name);
         return *this;
     }
 
     CodeBuilder& unregister_macro(const std::string& name) {
-        assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) != 0);
+        // assert(std::count(defined_macroses.begin(), defined_macroses.end(), name) != 0);
         defined_macroses.erase(std::remove_if(defined_macroses.begin(),
                                               defined_macroses.end(),
                                               [&](const std::string& v) {

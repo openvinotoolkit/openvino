@@ -125,8 +125,11 @@ TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    EXPECT_TRUE(dump_info.get_entries().find("sdpa_micro") != std::string::npos)
-        << "Expected micro SDPA kernel for PREFILL with token_type_ids, got: " << dump_info.get_entries();
+    // Either DPAS prefill generator is acceptable: which one runs is picked by TEST_USE_SDPA_OCL
+    // (sdpa_ocl by default, sdpa_micro when it is 0) and both implement the bidirectional mask.
+    const auto entries = dump_info.get_entries();
+    EXPECT_TRUE(entries.find("sdpa_ocl") != std::string::npos || entries.find("sdpa_micro") != std::string::npos)
+        << "Expected a DPAS SDPA kernel for PREFILL with token_type_ids, got: " << entries;
 
     // Compare micro SDPA output against golden data
     cldnn::memory::ptr output_data_mem = result.outputs.at("output_data").get_memory();
