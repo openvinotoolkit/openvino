@@ -42,8 +42,8 @@ std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::Shape
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(node), dims);
+std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
+    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix) {
@@ -201,15 +201,30 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // If the VIEW also reshape the result, `slice_len` should be provided
     auto input = context.get_input(input_index);
     int64_t split_addr = context.get_input_view_element_offset(input_index);
-    if (slice_len == 0) {
-        slice_len = static_cast<int>(context.get_input(input_index).get_partial_shape()[3].get_length());
-    }
-    int64_t slice_end = split_addr + slice_len;
 
     auto begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {split_addr});
-    auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {slice_end});
     auto stride = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+
+    ov::Output<ov::Node> end;
+    const auto& dim3 = input.get_partial_shape()[3];
+    if (slice_len == 0 && dim3.is_dynamic()) {
+        // The view's lowest axis is dynamic (e.g. qwen3-next's s_copy recurrent-state slot reorder,
+        // whose active-sequence count is only known at runtime), so its length cannot be read at
+        // convert time. Derive the slice end at runtime: end = split_addr + shape_of(input)[3].
+        auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+        auto idx = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+        auto gather_axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto dim = std::make_shared<ov::op::v8::Gather>(shape, idx, gather_axis);
+        auto split = ov::op::v0::Constant::create(ov::element::i64, {1}, {split_addr});
+        end = std::make_shared<ov::op::v1::Add>(dim, split);
+    } else {
+        if (slice_len == 0) {
+            slice_len = static_cast<int>(dim3.get_length());
+        }
+        end = ov::op::v0::Constant::create(ov::element::i64, {1}, {split_addr + slice_len});
+    }
+
     auto sliced = std::make_shared<ov::op::v8::Slice>(input, begin, end, stride, axes);
     return sliced;
 }

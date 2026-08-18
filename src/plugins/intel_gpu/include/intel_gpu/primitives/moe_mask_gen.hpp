@@ -57,7 +57,7 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
-        if (auto rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
+        if (const auto* rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
             return num_total_experts == rhs_casted->num_total_experts &&
                    num_experts_per_token == rhs_casted->num_experts_per_token &&
                    onednn_grouped_gemm_used == rhs_casted->onednn_grouped_gemm_used;
@@ -119,9 +119,7 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
-            return false;
-        return true;
+        return compare_common_params(rhs);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -133,4 +131,4 @@ struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     }
 };
 
-}
+}  // namespace cldnn

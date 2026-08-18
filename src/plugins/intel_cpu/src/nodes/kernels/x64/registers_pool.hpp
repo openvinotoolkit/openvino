@@ -89,6 +89,11 @@ public:
             lhs.ensureValid();
             return lhs.operator Xbyak::RegExp() + rhs;
         }
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+        friend Xbyak::RegExp operator+(const Reg& lhs, T rhs) {
+            lhs.ensureValid();
+            return lhs.operator Xbyak::RegExp() + rhs;
+        }
         void release() {
             if (auto pool = regPool.lock()) {
                 pool->returnToPool(reg);

@@ -25,7 +25,7 @@ static bool should_skip_execution(const dynamic_quantize_node& node, const layou
         return false;
 
     // Do not skip dynamic quantization if any user node is not fully connected.(such as SDPA)
-    for (auto& user : node.get_users()) {
+    for (const auto& user : node.get_users()) {
         if (!user->is_type<fully_connected>())
             return false;
     }

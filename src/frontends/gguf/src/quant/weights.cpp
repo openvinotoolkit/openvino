@@ -12,7 +12,6 @@
 
 #include <cctype>
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -363,7 +362,7 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
             for (size_t c = 0; c < cols; ++c)
                 emit(r, c, static_cast<float>(q[r * cols + c]));
     } else if (et == ov::element::u2) {
-        // Q2_K: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
+        // Q2_K / Q2_0: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
         const auto* bytes = static_cast<const uint8_t*>(weight.data());
         const size_t per_row_bytes = cols / 4;
         for (size_t r = 0; r < rows; ++r)
@@ -392,11 +391,6 @@ std::vector<float> dequant_extracted_to_f32(const std::unordered_map<std::string
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, gguf_tensor_type qtype) {
-    // The env var does not change during a conversion; read it once.
-    static const bool no_requant = std::getenv("GGUF_FE_NO_REQUANT") != nullptr;
-    if (no_requant) {
-        return false;  // diagnostic: faithful dequant only
-    }
     if (name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0) {
         return true;
     }
@@ -426,6 +420,7 @@ std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
         node = make_int4(base, weights);
         break;
     case GGUF_TYPE_Q2_K:
+    case GGUF_TYPE_Q2_0:
         node = make_int2(base, weights);
         break;
     case GGUF_TYPE_Q5_K:
@@ -474,7 +469,8 @@ gguf_tensor_type gguf_type_from_name(const std::string& quant_type) {
                                                                             {"Q5_K", GGUF_TYPE_Q5_K},
                                                                             {"Q6_K", GGUF_TYPE_Q6_K},
                                                                             {"Q8_K", GGUF_TYPE_Q8_K},
-                                                                            {"MXFP4", GGUF_TYPE_MXFP4}};
+                                                                            {"MXFP4", GGUF_TYPE_MXFP4},
+                                                                            {"Q2_0", GGUF_TYPE_Q2_0}};
     // Accept ggml's lowercase type names ("q4_0", "q6_K", "f16", ...) as well as the
     // canonical uppercase form by upper-casing the prefix before the "_K"/"_0" suffix.
     std::string key = quant_type;
@@ -532,12 +528,13 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // zp is an INTEGER (u8) low-precision constant; a fractional f16 zp leaves a standalone
     // dequant MatMul (~2x slower prefill). Q4_K is the asymmetric type that appears as MatMul
     // weights in modern models (Q4_K_M = Q4_K + symmetric Q6_K), so it uses integer zp to match
-    // the original ggml-openvino backend. The legacy Q4_1/Q5_1/Q2_K types keep a faithful f16 zp:
+    // the original ggml-openvino backend; Q2_0's zp is the exact integer 1, so it does too.
+    // The legacy Q4_1/Q5_1/Q2_K types keep a faithful f16 zp:
     // they are not perf-critical here, and their zp = -min/scale can fall outside u8 range. The
     // requant path (token_embd/output) also keeps f16 -- its dequant feeds channel-wise Q8_0_C.
     const bool requant = needs_q8_0_c_requant(name, qtype);
     const ov::element::Type zp_type =
-        (!requant && qtype == GGUF_TYPE_Q4_K) ? ov::element::u8 : ov::element::f16;
+        (!requant && (qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q2_0)) ? ov::element::u8 : ov::element::f16;
 
     // K-quant requant sources: the fused dequant -> Q8_0_C streams from the raw bytes, so skip the
     // full-tensor gguf_fill_* extraction below (it would be discarded) and return before the switch.
@@ -622,6 +619,17 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         w[base + ".zp"] = zp;
         break;
     }
+    case GGUF_TYPE_Q2_0: {
+        // Ternary: u2 weights + f16 scales + a zero-point that is the constant 1 (group 64).
+        ov::Tensor weights(ov::element::u2, ov::Shape{rows, cols});
+        ov::Tensor scales(ov::element::f16, ov::Shape{rows, sub_blocks_per_row(64)});
+        ov::Tensor zp(zp_type, ov::Shape{rows, sub_blocks_per_row(64)});
+        gguf_fill_q2_0(tensor, weights, scales, zp);
+        w[base + ".weight"] = weights;
+        w[base + ".scales"] = scales;
+        w[base + ".zp"] = zp;
+        break;
+    }
     default:
         OPENVINO_THROW("[ggml] unsupported weight quant type: ", quant_type);
     }
@@ -629,7 +637,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // Non-K requant sources (e.g. an F16 / Q4_0 / Q8_0 token_embd or output): the K-quant fast path
     // above already handled Q4_K/Q5_K/Q6_K, so here reproduce the backend's channel-wise Q8_0_C by
     // dequantizing to f32 from the extracted tensors, then re-quantizing.
-    if (requant) {  // computed above; reuse rather than re-running getenv + name scans
+    if (requant) {
         auto f32 = dequant_extracted_to_f32(w, base, rows, cols);
         return requantize_q8_0_channelwise(f32, rows, cols);
     }
