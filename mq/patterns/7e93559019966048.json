@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "downloading node api headers failed http response code 502|Network",
+  "signature_hash": "7e93559019966048",
+  "title": "Build-gpu / Build fails downloading node-api-headers due to HTTP 502 from github.com",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-18T16:02:00Z",
+  "last_seen": "2026-08-18T16:02:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32154561012"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37176"
+  ],
+  "recent_timestamps": [
+    "2026-08-18T16:02:00Z"
+  ],
+  "rerun_search_string": "The requested URL returned error: 502"
+}

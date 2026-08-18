@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-16-02-00-000-32154561012",
+  "timestamp": "2026-08-18T16:02:00Z",
+  "run_id": "32154561012",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32154561012",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "37176",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37176",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "Build-gpu / Build fails downloading node-api-headers due to HTTP 502 from github.com",
+  "signature": "downloading node api headers failed http response code 502|Network",
+  "signature_hash": "7e93559019966048",
+  "confidence": "High",
+  "failed_jobs": [
+    "Build-gpu / Build",
+    "ci/gha_overall_status_clang_tidy"
+  ],
+  "key_errors": [
+    "error: downloading 'https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.9.0.tar.gz' failed",
+    "The requested URL returned error: 502",
+    "Build step for node-api-headers failed: 1"
+  ],
+  "root_cause": "CMake FetchContent attempted to download node-api-headers v1.9.0 from github.com during the GPU build configure step. The download failed with HTTP 502 Bad Gateway from codeload.github.com (x-github-edge-region: westus2). This is a transient network/infrastructure failure on GitHub's CDN. The ci/gha_overall_status_clang_tidy job then failed as a downstream consequence of the build failure.",
+  "reproduction_steps": "N/A - transient network issue, not reproducible on demand",
+  "recommended_actions": [
+    "Re-run the failed Build-gpu / Build job - the failure is transient",
+    "If recurring, consider caching node-api-headers in the Docker image or using a mirror"
+  ],
+  "prevention_strategies": "Pre-cache third-party dependencies in the build container to avoid FetchContent network downloads at CI time. Add retry logic to CMake FetchContent downloads for transient network failures.",
+  "historical_context": "This is the first recorded occurrence of this exact failure pattern in the MQ database."
+}
