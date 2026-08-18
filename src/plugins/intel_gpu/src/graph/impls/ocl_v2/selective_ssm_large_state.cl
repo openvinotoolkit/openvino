@@ -12,6 +12,15 @@
 #else
 #    define SSM_TO_FLOAT(v) _convert_as_bfloat16_float(v)
 #endif
+#define SSM_STATE_ITERATION_TYPE size_t
+#define SSM_DT_INDEX(token) GET_DATA_INDEX(INPUT1, b, token, h, 0)
+#define SSM_B_INDEX(token, state_element) GET_DATA_INDEX(INPUT2, b, token, g, state_element)
+#define SSM_C_INDEX(token, state_element) GET_DATA_INDEX(INPUT4, b, token, g, state_element)
+#define SSM_X_INDEX(token, p) GET_DATA_INDEX(INPUT3, b, token, h, p)
+#define SSM_OUTPUT_INDEX(token, p) GET_DATA_INDEX(OUTPUT, b, token, h, p)
+#define SSM_STATE_INDEX(p_offset, state_element)                                                                             \
+    (((b * num_heads + h) * head_dim + p_base + (size_t)(p_offset)) * state_size + (state_element))
+#define SSM_STATE_AT(state_index) state_scratch[state_index]
 
 KERNEL(selective_ssm_large_state)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -78,75 +87,9 @@ KERNEL(selective_ssm_large_state)(
     }
 
     for (size_t t = 0; t < seq_len; ++t) {
-        const float dt_value = SSM_TO_FLOAT(dt[GET_DATA_INDEX(INPUT1, b, t, h, 0)]);
-        const float dA = exp(A_value * dt_value);
-        float input_scales[SSM_MAX_HEAD_DIM_BLOCK];
-        float partial[SSM_MAX_HEAD_DIM_BLOCK];
-
-        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-            const size_t p = p_base + (size_t)p_offset;
-            input_scales[p_offset] = SSM_TO_FLOAT(x[GET_DATA_INDEX(INPUT3, b, t, h, p)]) * dt_value;
-            partial[p_offset] = 0.0f;
-        }
-
-        for (size_t step = 0; step < state_iterations; ++step) {
-            const size_t state_element = step * lws + lane;
-            if (state_element >= state_size)
-                break;
-            const float b_value = SSM_TO_FLOAT(B[GET_DATA_INDEX(INPUT2, b, t, g, state_element)]);
-            const float c_value = SSM_TO_FLOAT(C[GET_DATA_INDEX(INPUT4, b, t, g, state_element)]);
-            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                const size_t p = p_base + (size_t)p_offset;
-                const size_t scratch_idx = ((b * num_heads + h) * head_dim + p) * state_size + state_element;
-                const float new_state = fma(state_scratch[scratch_idx], dA, input_scales[p_offset] * b_value);
-                state_scratch[scratch_idx] = new_state;
-                partial[p_offset] = fma(new_state, c_value, partial[p_offset]);
-            }
-        }
-
-        if (use_subgroup_reduction) {
-            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                const float subgroup_sum = sub_group_reduce_add(partial[p_offset]);
-                if (subgroup_lane == 0)
-                    reduction[(size_t)p_offset * lws + subgroup_id] = subgroup_sum;
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-
-            if (subgroup_id == 0) {
-                for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                    float total = subgroup_lane < subgroup_count
-                                      ? reduction[(size_t)p_offset * lws + subgroup_lane]
-                                      : 0.0f;
-                    total = sub_group_reduce_add(total);
-                    const size_t p = p_base + (size_t)p_offset;
-                    if (subgroup_lane == 0)
-                        output[GET_DATA_INDEX(OUTPUT, b, t, h, p)] = TO_OUTPUT_TYPE(total);
-                }
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-        } else {
-            for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset)
-                reduction[(size_t)p_offset * lws + lane] = partial[p_offset];
-            barrier(CLK_LOCAL_MEM_FENCE);
-
-            for (uint offset = lws / 2; offset > 0; offset /= 2) {
-                if (lane < offset) {
-                    for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                        const size_t reduction_idx = (size_t)p_offset * lws + lane;
-                        reduction[reduction_idx] += reduction[reduction_idx + offset];
-                    }
-                }
-                barrier(CLK_LOCAL_MEM_FENCE);
-            }
-
-            if (lane == 0) {
-                for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                    const size_t p = p_base + (size_t)p_offset;
-                    output[GET_DATA_INDEX(OUTPUT, b, t, h, p)] = TO_OUTPUT_TYPE(reduction[(size_t)p_offset * lws]);
-                }
-            }
-            barrier(CLK_LOCAL_MEM_FENCE);
-        }
+#define SSM_TOKEN_INDEX t
+#include "selective_ssm_recurrence.cl"
+#undef SSM_TOKEN_INDEX
     }
 
     for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
@@ -164,3 +107,11 @@ KERNEL(selective_ssm_large_state)(
 
 #undef SSM_MAX_HEAD_DIM_BLOCK
 #undef SSM_TO_FLOAT
+#undef SSM_STATE_ITERATION_TYPE
+#undef SSM_DT_INDEX
+#undef SSM_B_INDEX
+#undef SSM_C_INDEX
+#undef SSM_X_INDEX
+#undef SSM_OUTPUT_INDEX
+#undef SSM_STATE_INDEX
+#undef SSM_STATE_AT

@@ -10,26 +10,17 @@
 
 #include "intel_gpu/primitives/paged_selective_ssm.hpp"
 #include "primitive_ocl_base.hpp"
+#include "selective_ssm_utils.hpp"
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
+
+using cldnn::BufferDescriptor;
+using cldnn::paged_selective_ssm;
+using cldnn::primitive_impl;
+using cldnn::program_node;
+
 namespace {
-
-constexpr size_t max_head_dim_block = 4;
-
-size_t get_lws(const size_t state_size, const device_info& info) {
-    const size_t limit = std::min<size_t>(32, info.max_work_group_size);
-    const size_t target = std::min(std::max<size_t>(state_size, 1), limit);
-    size_t lws = 1;
-    while (lws * 2 <= target)
-        lws *= 2;
-    return lws;
-}
-
-bool requires_global_state(const size_t state_size, const size_t lws, const device_info& info) {
-    const size_t local_capacity = info.max_local_mem_size / sizeof(float);
-    return state_size > std::numeric_limits<uint32_t>::max() || state_size > local_capacity || lws > local_capacity - state_size;
-}
 
 size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
     size_t elements = 1;
@@ -39,29 +30,6 @@ size_t get_scratch_elements(const std::array<size_t, 4>& dimensions) {
         elements *= dimension;
     }
     return std::max<size_t>(elements, 1);
-}
-
-size_t get_head_dim_block(const size_t head_dim, const size_t state_size, const size_t lws, const device_info& info) {
-    const size_t local_capacity = info.max_local_mem_size / sizeof(float);
-    const size_t state_and_reduction = state_size + lws;
-    size_t block = std::min(std::max<size_t>(head_dim, 1), max_head_dim_block);
-    while (block > 1 && state_and_reduction > local_capacity / block)
-        --block;
-    return block;
-}
-
-void set_dispatch_scalars(KernelData& kd, const size_t block, const device_info& info) {
-    kd.params.scalars.clear();
-    scalar_desc block_desc;
-    block_desc.t = scalar_desc::Types::INT32;
-    block_desc.v.s32 = static_cast<int32_t>(block);
-    kd.params.scalars.push_back(block_desc);
-
-    const bool use_subgroup_reduction = info.dev_type == device_type::integrated_gpu || info.gfx_ver.major >= 20;
-    scalar_desc reduction_desc;
-    reduction_desc.t = scalar_desc::Types::UINT32;
-    reduction_desc.v.u32 = use_subgroup_reduction ? 1 : 0;
-    kd.params.scalars.push_back(reduction_desc);
 }
 
 class PagedSelectiveSSMOptGenerator : public KernelGenerator {
@@ -89,7 +57,7 @@ protected:
             if (params.is_dynamic()) {
                 wgs.global = {1, 1, 1};
                 wgs.local = {1, 1, 1};
-                set_dispatch_scalars(kd, 1, params.get_device_info());
+                selective_ssm_utils::set_dispatch_scalars(kd, 1, params.get_device_info());
                 kd.params.local_memory_args = {2 * sizeof(float)};
                 return;
             }
@@ -101,21 +69,21 @@ protected:
             const size_t num_heads = x_shape[1].get_length();
             const size_t head_dim = x_shape[2].get_length();
             const size_t state_size = B_shape[2].get_length();
-            const size_t lws = get_lws(state_size, params.get_device_info());
-            if (requires_global_state(state_size, lws, params.get_device_info())) {
+            const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
+            if (selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info())) {
                 wgs.global = {1, 1, 1};
                 wgs.local = {1, 1, 1};
-                set_dispatch_scalars(kd, 1, params.get_device_info());
+                selective_ssm_utils::set_dispatch_scalars(kd, 1, params.get_device_info());
                 kd.params.local_memory_args = {sizeof(float)};
                 return;
             }
-            const size_t head_dim_block = get_head_dim_block(head_dim, state_size, lws, params.get_device_info());
-            const size_t head_dim_groups = head_dim / head_dim_block + static_cast<size_t>(head_dim % head_dim_block != 0);
+            const size_t head_dim_block = selective_ssm_utils::get_head_dim_block(head_dim, state_size, lws, params.get_device_info());
+            const size_t head_dim_groups = selective_ssm_utils::get_head_dim_groups(head_dim, head_dim_block);
             const size_t local_bytes = head_dim_block * (state_size + lws) * sizeof(float);
 
             wgs.global = {std::max<size_t>(head_dim_groups, 1) * lws, std::max<size_t>(num_heads, 1), std::max<size_t>(sequences, 1)};
             wgs.local = {lws, 1, 1};
-            set_dispatch_scalars(kd, head_dim_block, params.get_device_info());
+            selective_ssm_utils::set_dispatch_scalars(kd, head_dim_block, params.get_device_info());
             kd.params.local_memory_args = {local_bytes};
         }};
     }
@@ -147,7 +115,7 @@ protected:
             if (params.is_dynamic()) {
                 wgs.global = {1, 1, 1};
                 wgs.local = {1, 1, 1};
-                set_dispatch_scalars(kd, 1, params.get_device_info());
+                selective_ssm_utils::set_dispatch_scalars(kd, 1, params.get_device_info());
                 kd.params.local_memory_args = {sizeof(float)};
                 return;
             }
@@ -159,13 +127,13 @@ protected:
             const size_t num_heads = x_shape[1].get_length();
             const size_t head_dim = x_shape[2].get_length();
             const size_t state_size = B_shape[2].get_length();
-            const size_t lws = get_lws(state_size, params.get_device_info());
-            const size_t head_dim_block = std::min(std::max<size_t>(head_dim, 1), max_head_dim_block);
-            const size_t head_dim_groups = head_dim / head_dim_block + static_cast<size_t>(head_dim % head_dim_block != 0);
+            const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
+            const size_t head_dim_block = std::min(std::max<size_t>(head_dim, 1), selective_ssm_utils::max_head_dim_block);
+            const size_t head_dim_groups = selective_ssm_utils::get_head_dim_groups(head_dim, head_dim_block);
 
             wgs.global = {std::max<size_t>(head_dim_groups, 1) * lws, std::max<size_t>(num_heads, 1), std::max<size_t>(sequences, 1)};
             wgs.local = {lws, 1, 1};
-            set_dispatch_scalars(kd, head_dim_block, params.get_device_info());
+            selective_ssm_utils::set_dispatch_scalars(kd, head_dim_block, params.get_device_info());
             kd.params.local_memory_args = {head_dim_block * lws * sizeof(float)};
         }};
     }
@@ -195,8 +163,8 @@ public:
         const auto& seq_shape = params.get_input_layout(6).get_partial_shape();
         if (B_shape.is_static() && x_shape.is_static() && seq_shape.is_static()) {
             const size_t state_size = B_shape[2].get_length();
-            const size_t lws = get_lws(state_size, params.get_device_info());
-            if (requires_global_state(state_size, lws, params.get_device_info())) {
+            const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
+            if (selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info())) {
                 const size_t sequences = seq_shape[0].get_length() > 0 ? seq_shape[0].get_length() - 1 : 0;
                 const size_t num_heads = x_shape[1].get_length();
                 const size_t head_dim = x_shape[2].get_length();
@@ -211,8 +179,8 @@ public:
         if (!B_shape.is_static())
             return {0};
         const size_t state_size = B_shape[2].get_length();
-        const size_t lws = get_lws(state_size, params.get_device_info());
-        return {requires_global_state(state_size, lws, params.get_device_info()) ? 1ul : 0ul};
+        const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
+        return {selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info()) ? 1ul : 0ul};
     }
 };
 

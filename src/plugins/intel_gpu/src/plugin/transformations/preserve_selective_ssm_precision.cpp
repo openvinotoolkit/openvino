@@ -17,8 +17,7 @@ bool PreserveSelectiveSSMPrecision::run_on_model(const std::shared_ptr<ov::Model
         }
 
         ov::disable_conversion(node, ov::element::dynamic, ov::element::dynamic);
-        const size_t input_count = ov::is_type<ov::op::internal::PagedSelectiveSSM>(node) ? 11 : 6;
-        for (size_t input = 0; input < input_count; ++input) {
+        for (size_t input = 0; input < node->get_input_size(); ++input) {
             ov::disable_conversion(node->get_input_node_shared_ptr(input), ov::element::dynamic, ov::element::dynamic);
         }
     }

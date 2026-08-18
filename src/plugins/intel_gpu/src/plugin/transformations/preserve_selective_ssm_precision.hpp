@@ -8,6 +8,8 @@
 
 namespace ov::intel_gpu {
 
+// Prevents generic precision conversion from changing SelectiveSSM and PagedSelectiveSSM
+// operations or any of their inputs, preserving the precision required by the GPU kernels.
 class PreserveSelectiveSSMPrecision final : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("PreserveSelectiveSSMPrecision");

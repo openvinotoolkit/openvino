@@ -12,19 +12,18 @@
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
-using namespace cldnn;  // TODO: Remove once namespaces are aligned
-
 namespace ov::intel_gpu::ocl {
 
-struct PagedSelectiveSSMOpt : public ImplementationManager {
+struct PagedSelectiveSSMOpt : public cldnn::ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_selective_ssm::opt")
-    explicit PagedSelectiveSSMOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+    explicit PagedSelectiveSSMOpt(cldnn::shape_types shape_type, cldnn::ValidateFunc vf = nullptr)
+        : cldnn::ImplementationManager(cldnn::impl_types::ocl, shape_type, std::move(vf)) {}
 
-    [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
+    [[nodiscard]] std::unique_ptr<cldnn::primitive_impl> create_impl(const cldnn::program_node& node, const RuntimeParams& params) const override;
 
-    [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        assert(node.is_type<paged_selective_ssm>());
-        static constexpr std::array supported_fmts = {format::bfyx};
+    [[nodiscard]] bool validate_impl(const cldnn::program_node& node) const override {
+        assert(node.is_type<cldnn::paged_selective_ssm>());
+        static constexpr std::array supported_fmts = {cldnn::format::bfyx};
         static constexpr std::array supported_real_types = {ov::element::f16, ov::element::f32, ov::element::bf16};
         static constexpr std::array supported_index_types = {ov::element::i32, ov::element::i64};
 
@@ -32,17 +31,17 @@ struct PagedSelectiveSSMOpt : public ImplementationManager {
         ov::element::Type index_type = ov::element::dynamic;
         for (size_t i = 0; i < node.get_dependencies().size(); i++) {
             const auto& in_layout = node.get_input_layout(i);
-            if (!one_of(in_layout.format, supported_fmts))
+            if (!cldnn::one_of(in_layout.format, supported_fmts))
                 return false;
-            if (i <= paged_selective_ssm::RECURRENT_STATE_TABLE) {
-                if (!one_of(in_layout.data_type, supported_real_types))
+            if (i <= cldnn::paged_selective_ssm::RECURRENT_STATE_TABLE) {
+                if (!cldnn::one_of(in_layout.data_type, supported_real_types))
                     return false;
                 if (real_type.is_dynamic())
                     real_type = in_layout.data_type;
                 else if (real_type != in_layout.data_type)
                     return false;
             } else {
-                if (!one_of(in_layout.data_type, supported_index_types))
+                if (!cldnn::one_of(in_layout.data_type, supported_index_types))
                     return false;
                 if (index_type.is_dynamic())
                     index_type = in_layout.data_type;
@@ -52,7 +51,7 @@ struct PagedSelectiveSSMOpt : public ImplementationManager {
         }
 
         const auto& out_layout = node.get_output_layout(0);
-        return one_of(out_layout.format, supported_fmts) && out_layout.data_type == real_type;
+        return cldnn::one_of(out_layout.format, supported_fmts) && out_layout.data_type == real_type;
     }
 };
 
