@@ -7,6 +7,7 @@
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+
 #include "set_device_name.hpp"
 
 int main(int argc, char *argv[]) {
