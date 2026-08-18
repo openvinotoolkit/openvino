@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if defined(OV_GPU_WITH_OCL_RT) && !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
+#if !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
 
 #include <algorithm>
 #include <string>
