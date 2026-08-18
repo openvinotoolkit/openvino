@@ -55,11 +55,8 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_MUL", op::translate_1to1_match_2_inputs<v1::Multiply>},
         {"GGML_OP_MUL_MAT", op::translate_mulmat},
         {"GGML_OP_MUL_MAT_ID", op::translate_mul_mat_id},
-        // Weights reach the frontend as GGML_OP_NONE leaves, from both ingest paths: the llama.cpp
-        // cgraph decoder marks one with the raw ggml bytes ("data"), the native .gguf builder with
-        // the tensors its parser already extracted ("gguf_weight"). translate_weight accepts either
-        // payload and builds the same compressed subgraph. A GGML_OP_NONE leaf with neither marker
-        // is a model input, resolved to a Parameter before the walk (see TranslateSession).
+        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one (see translate_weight);
+        // otherwise it is a model input, resolved to a Parameter before the walk.
         {"GGML_OP_NONE", op::translate_weight},
         {"GGML_OP_NORM", op::translate_norm},
         {"GGML_OP_PAD", op::translate_pad},

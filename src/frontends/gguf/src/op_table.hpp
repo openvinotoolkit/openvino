@@ -83,7 +83,6 @@ GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_ssm_conv);
 GGUF_OP_CONVERTER(translate_gated_delta_net);
 
-// A GGML_OP_NONE leaf carrying a "data" attribute -> dequantized weight node (cgraph path).
 GGUF_OP_CONVERTER(translate_weight);
 
 }  // namespace op
