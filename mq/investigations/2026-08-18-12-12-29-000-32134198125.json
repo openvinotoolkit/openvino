@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-18-12-12-29-000-32134198125",
+  "timestamp": "2026-08-18T12:12:29Z",
+  "run_id": "32134198125",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32134198125",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "pr_number": "37221",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37221",
+  "author": "akashchi",
+  "category": "Network",
+  "title": "Windows Debug build fails: CMake cannot download oneapi-tbb dependency (HTTP error)",
+  "signature": "file DOWNLOAD cannot compute hash on failed download status HTTP response code said error|Network",
+  "signature_hash": "2a69e2049aca6b9b",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure failed: file DOWNLOAD cannot compute hash on failed download for oneapi-tbb-2021.13.3-vs2022-win.zip (HTTP status code 22)"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/download/download.cmake:9 (file):\n  file DOWNLOAD cannot compute hash on failed download\n    status: [22;\"HTTP response code said error\"]\n\nCMake Error at cmake/developer_package/download/download_and_check.cmake:53 (message):\n  fatal error: downloading\n  'https://storage.openvinotoolkit.org/dependencies/thirdparty/windows/oneapi-tbb-2021.13.3-vs2022-win.zip'\n  failed\n    status_code: 22\n-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "During CMake configure on the Windows Debug runner, the build system attempted to download the oneapi-tbb-2021.13.3-vs2022-win.zip archive from storage.openvinotoolkit.org. The download failed with HTTP status code 22 (which curl maps to an HTTP response error, typically a 4xx or 5xx). This is a transient network/external storage service availability issue unrelated to the PR changes (which only modify GHA workflow YAML files and a CMakeLists.txt in samples). The second run attempt (run_attempt=2) is currently in progress.",
+  "reproduction_steps": "N/A - transient network failure; not reproducible outside CI on demand.",
+  "recommended_actions": [
+    "Re-run the failed jobs or re-add the PR to the merge queue once storage.openvinotoolkit.org is accessible.",
+    "Monitor storage.openvinotoolkit.org for availability; if persistently unavailable, check with the infrastructure team.",
+    "Consider caching TBB dependency on the Windows runners to avoid repeated downloads."
+  ],
+  "prevention_strategies": "Cache the oneapi-tbb dependency on Windows CI runners, or use a local mirror with automatic fallback. Add retry logic in the CMake download scripts to handle transient HTTP failures.",
+  "historical_context": "Similar transient network download failures have been observed previously, including SSL certificate errors and ECONNREFUSED patterns. This is the first recorded failure specifically for the TBB dependency download from storage.openvinotoolkit.org."
+}

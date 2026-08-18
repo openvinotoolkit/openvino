@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "file DOWNLOAD cannot compute hash on failed download status HTTP response code said error|Network",
+  "signature_hash": "2a69e2049aca6b9b",
+  "title": "Windows Debug build fails: CMake cannot download oneapi-tbb dependency (HTTP error)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-18T12:12:29Z",
+  "last_seen": "2026-08-18T12:12:29Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32134198125"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37221"],
+  "recent_timestamps": ["2026-08-18T12:12:29Z"],
+  "rerun_search_string": "HTTP response code said error"
+}
