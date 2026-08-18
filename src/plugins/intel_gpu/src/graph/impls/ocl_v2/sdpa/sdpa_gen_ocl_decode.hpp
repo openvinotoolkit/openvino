@@ -29,15 +29,17 @@ public:
     [[nodiscard]] static bool supported(const RuntimeParams& params);
 
     // Subgroups per workgroup; each one owns SEQ_LEN_PARTITION_SIZE / SG_PER_WG keys of the
-    // partition. Env-overridable (SDPA_OCL_DECODE_SG_PER_WG) for tuning.
-    [[nodiscard]] static size_t get_sg_per_wg();
+    // partition, and one subgroup is one thread -- so this is the kernel's thread-level parallelism
+    // per Xe core, which is what it was short of. Depends on the V head size; see the definition.
+    // Env-overridable (SDPA_OCL_DECODE_SG_PER_WG) for tuning.
+    [[nodiscard]] static size_t get_sg_per_wg(size_t v_head_size);
 
     // q-heads per workgroup (the DPAS M). All heads of a kv group share the same K/V pages, so this
-    // is how many times a page read is amortized -- the reason decode is not bandwidth-starved.
-    // Power of two <= 8 (DPAS repeat count), <= kv_group_size, and further capped so the slm_out
-    // reduction fits the local memory arena. Env-overridable (SDPA_OCL_DECODE_M) for tuning.
+    // is how many times a page read is amortized. Power of two <= 8 (DPAS repeat count),
+    // <= kv_group_size, capped so the live register set does not spill, and capped again so the
+    // slm_out reduction fits the local memory arena. Env-overridable (SDPA_OCL_DECODE_M) for tuning.
     // Both the jit constants and the dispatch need it, hence static and pure.
-    [[nodiscard]] static size_t get_q_per_wg(size_t kv_group_size, size_t v_head_size, size_t max_local_mem_size);
+    [[nodiscard]] static size_t get_q_per_wg(const RuntimeParams& params);
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override;
