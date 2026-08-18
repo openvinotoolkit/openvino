@@ -14,6 +14,8 @@
 #include "ze_device.hpp"
 #include "ze_kernel.hpp"
 #include "ze_resource_interop.hpp"
+#include "ocl/ocl_wrapper.hpp"
+
 #include <exception>
 #include <vector>
 #include <memory>
@@ -148,9 +150,9 @@ memory::ptr ze_engine::reinterpret_handle(const layout& new_layout, shared_mem_p
         auto imported_image = ze_import_image(ocl_image);
         return std::make_shared<ze::gpu_image2d>(this, new_layout, imported_image, nullptr);
     } else if (params.mem_type == shared_mem_type::shared_mem_vasurface) {
-        OPENVINO_NOT_IMPLEMENTED;
+        return std::make_shared<ze::gpu_media_buffer>(this, new_layout, params);
     } else if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
-        OPENVINO_NOT_IMPLEMENTED;
+        return std::make_shared<ze::gpu_dx_buffer>(this, new_layout, params);
     } else {
         OPENVINO_THROW("[GPU] Unsupported shared memory type: ", params.mem_type);
     }

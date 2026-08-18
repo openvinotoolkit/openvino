@@ -41,23 +41,10 @@ ze_command_list_resource ze_import_command_list(cl_command_queue ocl_command_que
 /// @return Level Zero USM resource extracted from OpenCL memory object handle.
 ze_usm_resource ze_import_usm(cl_mem ocl_buffer, ze_context_resource context);
 
-/// @brief Import Level Zero USM (Unified Shared Memory) resource from DirectX buffer.
-/// @param dx_buffer DirectX buffer handle.
-/// @param context Level Zero context resource.
-/// @param device Level Zero device resource.
-/// @return Level Zero USM resource extracted from DirectX buffer handle.
-ze_usm_resource ze_import_usm_from_dx_buffer(void* dx_buffer, ze_context_resource context, ze_device_resource device);
-
 /// @brief Import Level Zero image resource from OpenCL image object.
 /// @param ocl_image OpenCL image object handle.
 /// @return Level Zero image resource extracted from OpenCL image object handle.
 ze_image_resource ze_import_image(cl_mem ocl_image);
-
-/// @brief Import Level Zero image resource from VA-API surface.
-/// @param va_surface VA-API surface handle.
-/// @param device Level Zero device resource.
-/// @return Level Zero image resource extracted from VA-API surface handle.
-ze_image_resource ze_import_image_from_va_surface(void* va_surface, ze_device_resource device);
 
 /// @brief Exports Level Zero device to OpenCL device. Does nothing if resource already has OpenCL handle.
 /// @param device Device resource to export and attach OpenCL handle to.

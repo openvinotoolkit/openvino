@@ -94,13 +94,13 @@ private:
 };
 
 struct gpu_media_buffer : public gpu_image2d {
-    using dx_texture_t = void*;
+    using d3d11_texture_t = void*;
     using va_surface_t = uint32_t;
     gpu_media_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params);
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
 private:
     void* _device;
-    std::variant<dx_texture_t, va_surface_t> _surface;
+    std::variant<d3d11_texture_t, va_surface_t> _surface;
     uint32_t _plane;
 };
 

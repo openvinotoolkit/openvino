@@ -23,8 +23,6 @@ enum class ocl_resource_type : uint8_t {
     context,
     command_queue,
     mem_object,
-    va_surface,
-    dx_buffer,
 };
 
 /// @brief Provides information about specific OpenCL resource
@@ -80,29 +78,6 @@ struct ocl_resource_info<ocl_resource_type::mem_object> {
     struct deleter_t {
         void operator()(handle_t handle) const noexcept {
             OV_OCL_WARN(clReleaseMemObject(handle));
-        }
-    };
-};
-template <>
-struct ocl_resource_info<ocl_resource_type::va_surface> {
-    static constexpr ocl_resource_type resource = ocl_resource_type::va_surface;
-    using handle_t = void*;
-    struct deleter_t {
-        void operator()(handle_t handle) const noexcept {
-            // VA surfaces should only be imported thus we should never need to delete it
-            OPENVINO_THROW("[GPU] Attempted to delete VA surface handle, which is not supported");
-        }
-    };
-};
-
-template <>
-struct ocl_resource_info<ocl_resource_type::dx_buffer> {
-    static constexpr ocl_resource_type resource = ocl_resource_type::dx_buffer;
-    using handle_t = void*;
-    struct deleter_t {
-        void operator()(handle_t handle) const noexcept {
-            // DX buffers should only be imported thus we should never need to delete it
-            OPENVINO_THROW("[GPU] Attempted to delete DX buffer handle, which is not supported");
         }
     };
 };
@@ -191,12 +166,12 @@ struct ze_ocl_owner<ze_resource_type::command_list> : public ze_ocl_owner_impl<z
     using ze_ocl_owner_impl<ze_resource_type::command_list, ocl_resource_type::command_queue>::ze_ocl_owner_impl;
 };
 template <>
-struct ze_ocl_owner<ze_resource_type::usm_memory> : public ze_ocl_owner_impl<ze_resource_type::usm_memory, ocl_resource_type::mem_object, ocl_resource_type::dx_buffer> {
-    using ze_ocl_owner_impl<ze_resource_type::usm_memory, ocl_resource_type::mem_object, ocl_resource_type::dx_buffer>::ze_ocl_owner_impl;
+struct ze_ocl_owner<ze_resource_type::usm_memory> : public ze_ocl_owner_impl<ze_resource_type::usm_memory, ocl_resource_type::mem_object> {
+    using ze_ocl_owner_impl<ze_resource_type::usm_memory, ocl_resource_type::mem_object>::ze_ocl_owner_impl;
 };
 template <>
-struct ze_ocl_owner<ze_resource_type::image> : public ze_ocl_owner_impl<ze_resource_type::image, ocl_resource_type::mem_object, ocl_resource_type::va_surface> {
-    using ze_ocl_owner_impl<ze_resource_type::image, ocl_resource_type::mem_object, ocl_resource_type::va_surface>::ze_ocl_owner_impl;
+struct ze_ocl_owner<ze_resource_type::image> : public ze_ocl_owner_impl<ze_resource_type::image, ocl_resource_type::mem_object> {
+    using ze_ocl_owner_impl<ze_resource_type::image, ocl_resource_type::mem_object>::ze_ocl_owner_impl;
 };
 
 }  // namespace ze
