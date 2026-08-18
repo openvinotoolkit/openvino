@@ -78,6 +78,49 @@ size_t get_sv_dim_sgs(size_t sg_per_wg, size_t v_tiles) {
     return d;
 }
 
+// Live registers per work-item at a given M, in GRF. SIMD16 on a 64-byte register, so one half per
+// lane is half a GRF and one float (or one dword) is a whole one. Only the arrays that stay live
+// across the KQ loop are counted -- they are what the compiler has to spill.
+//
+// Calibrated against measured SPILL= on gemma-4 (u4 BY_CHANNEL) over M in {1,2,4,8} x SG_PER_WG in
+// {8,16}, head 512 and 256. It tracks spill VOLUME monotonically (head 512 / s8 scores
+// 136/164/220/332 against measured 0/6400/15936/34432 bytes), but it cannot resolve differences
+// under ~15 GRF: (s8, M=1) scores 136 and does not spill, while (s16, M=2) scores 126 and spills
+// 640. So this is a coarse gate, not a predictor, and grf_budget below is set to bracket the
+// MEASURED optimum rather than to sit at the true 128.
+size_t live_grf_estimate(size_t m,
+                         size_t sg_per_wg,
+                         size_t k_head_size,
+                         bool compressed,
+                         bool by_channel,
+                         size_t k_tiles_per_read) {
+    const size_t k_tiles = k_head_size / dpas_k;
+    const size_t key_groups = (pa_seq_len_partition_size / sg_per_wg) / subgroup_size;
+
+    size_t grf = m * k_tiles / 2;  // q_reg[M][K_TILES], half
+    if (by_channel) {
+        grf += key_groups * k_tiles;  // k_sc + k_zp, [KEY_GROUPS][K_TILES] half each
+        grf += key_groups * m;        // k_corr[KEY_GROUPS][M], float
+    } else if (compressed) {
+        grf += key_groups;  // k_sc + k_zp, [KEY_GROUPS] half each
+        grf += m;           // q_sum[M], float
+    }
+    grf += key_groups * m;             // s[KEY_GROUPS], M floats each
+    grf += 5 * m;                      // m_sg, m_wg, l_sg, l_wg, inv_l
+    grf += m;                          // the S*V accumulator, one head-dim tile live at a time
+    grf += 8 + 8 * k_tiles_per_read;   // kt (uint8) and kb[K_TILES_PER_READ] (int8 each)
+    grf += m * k_tiles_per_read / 2;   // a[K_TILES_PER_READ], short M each
+    grf += 2 * key_groups;             // k_page_off[KEY_GROUPS], 64-bit
+    return grf;
+}
+
+// The gate for live_grf_estimate. Below the 128-GRF file, because the estimate omits the
+// compiler's own temporaries and address arithmetic. Chosen to bracket what was measured on
+// gemma-4: head 512 at s16 wants M=1 (scores 100) and rejects M=2 (126, spills 640 and is 34%
+// slower), while head 256 at s16 wants M=2 (94). Any threshold in [94, 126) reproduces both;
+// 112 sits in the middle. head 128 / M=4 (llama, the tuned case) scores 104 and is unaffected.
+constexpr size_t grf_budget = 112;
+
 // Local memory the kernel will declare for a given M. slm_p dominates now that S*V is head-dim
 // split; the output staging term disappears entirely whenever one subgroup per head-dim tile can
 // cover all the keys by itself (v_tiles >= sg_per_wg, which includes the head-128 target).
@@ -92,7 +135,11 @@ size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t v_head_size) {
 
 }  // namespace
 
-size_t SDPAOclDecodeGenerator::get_q_per_wg(size_t kv_group_size, size_t v_head_size, size_t max_local_mem_size) {
+size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+    const size_t sg_per_wg = get_sg_per_wg(desc->v_head_size);
+
     // q-heads per workgroup: they all attend the SAME K/V pages, so one page read serves M of them.
     // Capped at 8 because M is the DPAS repeat count and the ISA encodes only 1/2/4/8; rounded DOWN
     // to a power of two for the same reason (pa_opt's HEADS_PER_WI can be 3, ours cannot).
@@ -101,10 +148,38 @@ size_t SDPAOclDecodeGenerator::get_q_per_wg(size_t kv_group_size, size_t v_head_
         m &= m - 1;  // clear the lowest set bit until only the top one is left
     }
 
-    // Tuning override, ignored unless it is a legal M for this shape.
+    // Tuning override, ignored unless it is a legal M for this shape. It deliberately BYPASSES the
+    // register cap below -- the point of the override is to reach configurations the heuristic
+    // rejects, so clamping it would make the baseline unreproducible for bisection. The SLM clamp
+    // still applies to it, because that one is a build-failure guard rather than a preference.
     const auto requested = static_cast<size_t>(env_flag("SDPA_OCL_DECODE_M", 0));
-    if (requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested <= kv_group_size) {
+    const bool forced =
+        requested >= 1 && requested <= 8 && (requested & (requested - 1)) == 0 && requested <= kv_group_size;
+    if (forced) {
         m = requested;
+    } else {
+        // Amortization is worth nothing if the kernel spills. Every array that survives the KQ loop
+        // scales with M -- q_reg alone is M * K_HEAD_SIZE / 32 GRF, which at head 512 and M=8 is the
+        // entire 128-GRF file -- and the measured cost is brutal: on gemma-4's head-512 layers, M=8
+        // spilled 34432 bytes and ran 3.14x slower than pa_sdpa_opt, while M=1 spilled nothing and
+        // ran 0.60x. The response was monotone in M at every SG_PER_WG tested, and "largest M that
+        // does not spill" reproduced the measured optimum on both of that model's shapes.
+        //
+        // These four have to agree with what get_jit_constants derives; they are a heuristic input,
+        // so a drift costs a suboptimal M rather than a wrong result.
+        const bool is_kv_u4 = is_u4_cache(params);
+        const bool compressed =
+            is_kv_u4 || params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type == ov::element::i8;
+        const bool by_channel = compressed && desc->is_key_by_channel;
+        const bool k_2d = env_flag("SDPA_OCL_DECODE_K_2D",
+                                   block2d_page_ok(k_row_bytes_for(params, desc->k_head_size)) ? 1 : 0) != 0;
+        const size_t k_tiles_per_read = (is_kv_u4 && k_2d) ? 4 : ((compressed && k_2d) ? 2 : 1);
+
+        while (m > 1 &&
+               live_grf_estimate(m, sg_per_wg, desc->k_head_size, compressed, by_channel, k_tiles_per_read) >
+                   grf_budget) {
+            m /= 2;
+        }
     }
 
     // Everything the kernel stages in local memory scales with M, so M has to give way rather than
@@ -112,27 +187,43 @@ size_t SDPAOclDecodeGenerator::get_q_per_wg(size_t kv_group_size, size_t v_head_
     // costs traffic. Half the arena is the budget so occupancy does not collapse either. Since S*V
     // became head-dim split this almost never binds (2.3 KB at M=4 / head 128), but it still guards
     // the extremes.
-    const size_t sg = get_sg_per_wg();
-    const size_t budget = max_local_mem_size / 2;
-    while (m > 1 && slm_bytes_for(m, sg, v_head_size) > budget) {
+    const size_t budget = params.get_device_info().max_local_mem_size / 2;
+    while (m > 1 && slm_bytes_for(m, sg_per_wg, desc->v_head_size) > budget) {
         m /= 2;
     }
     return m;
 }
 
-size_t SDPAOclDecodeGenerator::get_sg_per_wg() {
-    // 8 subgroups x 32 keys each covers the 256-key partition. Must divide
-    // pa_seq_len_partition_size / subgroup_size so every subgroup gets whole cache pages, and must
-    // not exceed subgroup_size because the cross-subgroup combine reduces one value per subgroup
-    // across the lanes of a single subgroup.
-    static const size_t value = []() -> size_t {
-        const auto requested = static_cast<size_t>(env_flag("SDPA_OCL_DECODE_SG_PER_WG", 8));
-        const auto key_groups = pa_seq_len_partition_size / subgroup_size;
-        if (requested == 0 || requested > subgroup_size || key_groups % requested != 0) {
-            return 8;
-        }
-        return requested;
-    }();
+size_t SDPAOclDecodeGenerator::get_sg_per_wg(size_t v_head_size) {
+    // One subgroup is one thread, so this IS the workgroup's thread count -- and thread-level
+    // parallelism is what this kernel was short of. At 8 it puts a quarter of pa_sdpa_opt's threads
+    // on an Xe core (its LWS is 512 work items = 32 SIMD16 threads against our 8), which is why it
+    // stayed flat across partition counts while pa_sdpa_opt scaled: too few threads to hide memory
+    // latency, so extra workgroups were absorbed for free. Measured on gemma-4 at M=1, against 8:
+    // 16 was 2.07x faster at head 512 and 1.26x at head 256, and 4 was 2.2x SLOWER. Monotone and
+    // steep in both directions.
+    //
+    // 16 only pays when there are at least that many V head-dim tiles. S*V gives each subgroup its
+    // own tile, and once SG_PER_WG exceeds V_TILES the surplus subgroups must split the KEY axis
+    // instead (SV_KEY_SGS > 1), which switches on the slm_out staging and its extra barrier. That is
+    // why an earlier sweep found 16 neutral-or-worse at head 128 (V_TILES 8) while it is a large win
+    // at head 256 and 512 (V_TILES 16 and 32) -- both results hold once the tile count is in view.
+    // Nothing below head 256 changes behaviour.
+    //
+    // Must divide pa_seq_len_partition_size / subgroup_size so every subgroup gets whole cache
+    // pages, and must not exceed subgroup_size because the cross-subgroup combine reduces one value
+    // per subgroup across the lanes of a single subgroup.
+    const size_t v_tiles = v_head_size / subgroup_size;
+    size_t value = (v_tiles >= 16) ? 16 : 8;
+
+    // Tuning override. 0 (or absent) means "not requested"; an illegal value falls back to 8.
+    if (const auto requested = static_cast<size_t>(env_flag("SDPA_OCL_DECODE_SG_PER_WG", 0)); requested != 0) {
+        value = requested;
+    }
+    const auto key_groups = pa_seq_len_partition_size / subgroup_size;
+    if (value > subgroup_size || key_groups % value != 0) {
+        return 8;
+    }
     return value;
 }
 
@@ -238,15 +329,16 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     const auto desc = params.typed_desc<paged_attention>();
 
     jit.make("SUBGROUP_SIZE", subgroup_size);
-    jit.make("SG_PER_WG", get_sg_per_wg());
+    const size_t sg_per_wg = get_sg_per_wg(desc->v_head_size);
+    jit.make("SG_PER_WG", sg_per_wg);
     jit.make("SEQ_LEN_PARTITION_SIZE", pa_seq_len_partition_size);
     jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention::block_size);
 
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    const size_t q_per_wg = get_q_per_wg(kv_group_size, desc->v_head_size, params.get_device_info().max_local_mem_size);
+    const size_t q_per_wg = get_q_per_wg(params);
     jit.make("Q_PER_WG", q_per_wg);
     jit.make("HEAD_ITERS", ceil_div(kv_group_size, q_per_wg));
-    jit.make("SV_DIM_SGS", get_sv_dim_sgs(get_sg_per_wg(), desc->v_head_size / subgroup_size));
+    jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / subgroup_size));
 
     // 2D block prefetch distance, in loop iterations. A block read needs a destination register, so
     // at 128 GRF only a couple of the sixteen K/V tiles fit in flight; a prefetch needs none. This
@@ -396,13 +488,12 @@ DispatchDataFunc SDPAOclDecodeGenerator::get_dispatch_data_func() const {
 
         // One query token per sequence in GENERATE, so dim 0 of the query is the sequence count.
         const size_t total_tokens = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
-        const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg();
+        const size_t sg_per_wg = SDPAOclDecodeGenerator::get_sg_per_wg(desc->v_head_size);
 
         // The head axis is head GROUPS, not heads: one workgroup covers Q_PER_WG q-heads of a kv
         // head, so it shrinks by that factor (same shape as pa_gqa_single_token's gqa_heads_num).
         const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-        const size_t q_per_wg =
-            SDPAOclDecodeGenerator::get_q_per_wg(kv_group_size, desc->v_head_size, params.get_device_info().max_local_mem_size);
+        const size_t q_per_wg = SDPAOclDecodeGenerator::get_q_per_wg(params);
         const size_t head_groups = desc->kv_heads_num * ceil_div(kv_group_size, q_per_wg);
 
         // Dim 2 must be the partition so that the kernel's get_num_groups(2) equals the
