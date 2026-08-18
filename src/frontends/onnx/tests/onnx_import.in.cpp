@@ -9098,3 +9098,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_alpha) {
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_beta_input) {
+    auto model = convert_model("swish_opset24_beta.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{3}, {-0.5f, 0.0f, 0.5f});
+    test_case.add_expected_output<float>(Shape{3}, {-0.2036667f, 0.0f, 0.2963333f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}

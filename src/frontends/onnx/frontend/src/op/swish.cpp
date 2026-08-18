@@ -5,6 +5,7 @@
 #include "openvino/op/swish.hpp"
 
 #include "core/operator_set.hpp"
+#include "exceptions.hpp"
 #include "openvino/op/convert.hpp"
 #include "utils/reshape.hpp"
 
@@ -26,6 +27,9 @@ ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
     // which passes beta as an input instead of the standard "alpha" attribute.
     ov::Output<ov::Node> alpha;
     if (inputs.size() > 1) {
+        CHECK_VALID_NODE(node,
+                         !node.has_attribute("alpha"),
+                         "Swish expects either an 'alpha' attribute or a beta input, but not both.");
         alpha = ov::frontend::onnx::reshape::interpret_as_scalar(inputs.at(1));
         if (alpha.get_element_type() != data.get_element_type()) {
             alpha = std::make_shared<v0::Convert>(alpha, data.get_element_type());
