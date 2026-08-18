@@ -77,6 +77,10 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     }
 }
 
+bool FilteredConfig::hasInternal(std::string_view key) const {
+    return _internal_compiler_configs.count(std::string(key)) != 0;
+}
+
 std::string FilteredConfig::getInternal(std::string key) const {
     if (_internal_compiler_configs.count(key) == 0) {
         OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));

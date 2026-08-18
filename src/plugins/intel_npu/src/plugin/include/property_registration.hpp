@@ -18,7 +18,7 @@ namespace intel_npu {
 struct PropertyDescriptor final {
     bool isPublic;
     ov::PropertyMutability mutability;
-    std::function<bool()> isSupported;
+    std::function<bool(const ov::AnyMap&)> isSupported;
     std::function<ov::Any(const ov::AnyMap&)> get;
 };
 
@@ -39,9 +39,10 @@ inline void register_property(const FilteredConfig& config,
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
                                           mutability,
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.hasOpt(propertyName);
-                                          }),
+                                          std::function<bool(const ov::AnyMap&)>(
+                                              [propertyName = std::string(propertyName), &config](const ov::AnyMap&) {
+                                                  return config.hasOpt(propertyName);
+                                              }),
                                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
                                               return config.get<OptionType>();
                                           })});
@@ -63,9 +64,10 @@ inline void register_property_with_custom_function(const FilteredConfig& config,
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
                                           mutability,
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.hasOpt(propertyName);
-                                          }),
+                                          std::function<bool(const ov::AnyMap&)>(
+                                              [propertyName = std::string(propertyName), &config](const ov::AnyMap&) {
+                                                  return config.hasOpt(propertyName);
+                                              }),
                                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
 
@@ -82,13 +84,14 @@ inline void register_property_with_support(const FilteredConfig& config,
                                            ov::PropertyMutability mutability,
                                            IsSupportedFn&& isSupported) {
     const auto propertyName = std::string(OptionType::key());
-    properties.emplace(propertyName,
-                       PropertyDescriptor{isPublic,
-                                          mutability,
-                                          std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
-                                          std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
-                                              return config.get<OptionType>();
-                                          })});
+    properties.emplace(
+        propertyName,
+        PropertyDescriptor{isPublic,
+                           mutability,
+                           std::function<bool(const ov::AnyMap&)>(std::forward<IsSupportedFn>(isSupported)),
+                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
+                               return config.get<OptionType>();
+                           })});
 }
 
 /**
@@ -105,11 +108,12 @@ inline void register_property_with_support_and_custom_function(const FilteredCon
                                                                IsSupportedFn&& isSupported,
                                                                Getter&& getter) {
     const auto propertyName = std::string(OptionType::key());
-    properties.emplace(propertyName,
-                       PropertyDescriptor{isPublic,
-                                          mutability,
-                                          std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
-                                          std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
+    properties.emplace(
+        propertyName,
+        PropertyDescriptor{isPublic,
+                           mutability,
+                           std::function<bool(const ov::AnyMap&)>(std::forward<IsSupportedFn>(isSupported)),
+                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
 
 /**
@@ -123,9 +127,10 @@ inline void register_npuw_property(const FilteredConfig& config, PropertyMap& pr
     properties.emplace(propertyName,
                        PropertyDescriptor{false,  // NPUW options are not public
                                           ov::PropertyMutability::RW,
-                                          std::function<bool()>([propertyName = std::string(propertyName), &config]() {
-                                              return config.hasOpt(propertyName);
-                                          }),
+                                          std::function<bool(const ov::AnyMap&)>(
+                                              [propertyName = std::string(propertyName), &config](const ov::AnyMap&) {
+                                                  return config.hasOpt(propertyName);
+                                              }),
                                           std::function<ov::Any(const ov::AnyMap&)>([&config](const ov::AnyMap&) {
                                               return config.get<OptionType>();
                                           })});
@@ -161,7 +166,7 @@ inline void register_property_with_custom_function(PropertyMap& properties,
     properties.emplace(propertyName,
                        PropertyDescriptor{isPublic,
                                           mutability,
-                                          std::function<bool()>([]() {
+                                          std::function<bool(const ov::AnyMap&)>([](const ov::AnyMap&) {
                                               return true;
                                           }),
                                           std::function<ov::Any(const ov::AnyMap&)>(
@@ -181,11 +186,12 @@ inline void register_property_with_support_and_custom_function(PropertyMap& prop
                                                                ov::PropertyMutability mutability,
                                                                IsSupportedFn&& isSupported,
                                                                Getter&& getter) {
-    properties.emplace(propertyName,
-                       PropertyDescriptor{isPublic,
-                                          mutability,
-                                          std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
-                                          std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
+    properties.emplace(
+        propertyName,
+        PropertyDescriptor{isPublic,
+                           mutability,
+                           std::function<bool(const ov::AnyMap&)>(std::forward<IsSupportedFn>(isSupported)),
+                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
 
 /**
@@ -202,11 +208,12 @@ inline void register_property_with_support_custom_function_and_args(PropertyMap&
                                                                     ov::PropertyMutability mutability,
                                                                     IsSupportedFn&& isSupported,
                                                                     Getter&& getter) {
-    properties.emplace(propertyName,
-                       PropertyDescriptor{isPublic,
-                                          mutability,
-                                          std::function<bool()>(std::forward<IsSupportedFn>(isSupported)),
-                                          std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
+    properties.emplace(
+        propertyName,
+        PropertyDescriptor{isPublic,
+                           mutability,
+                           std::function<bool(const ov::AnyMap&)>(std::forward<IsSupportedFn>(isSupported)),
+                           std::function<ov::Any(const ov::AnyMap&)>(std::forward<Getter>(getter))});
 }
 
 }  // namespace intel_npu
