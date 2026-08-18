@@ -87,7 +87,6 @@ public:
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         options->add<OPT_TYPE>();                             \
-        npu_config.enable(std::move(o_name), false);          \
     } while (0)
         REGISTER_OPTION(LOG_LEVEL);
         REGISTER_OPTION(COMPILE_LOG_LEVEL);
@@ -152,22 +151,6 @@ public:
             using Opt = typename decltype(tag)::type;
             REGISTER_OPTION(Opt);
         });
-
-        npu_config.enableRuntimeOptions();
-
-        // Special cases - options with OptionMode::Both must be enabled for the plugin even if the compiler does not
-        // support them, because they may be used by the plugin itself or by the driver.
-        // We still check compiler support to decide whether these options should be removed from the config string.
-
-        // NPU_TURBO might be supported by the driver
-        if (backend && backend->isCommandQueueExtSupported()) {
-            npu_config.enable(ov::intel_npu::turbo.name(), true);
-        }
-
-        // LOG_LEVEL, PERFORMANCE_HINT and PERF_COUNT are needed by runtime options
-        npu_config.enable(ov::log::level.name(), true);
-        npu_config.enable(ov::hint::performance_mode.name(), true);
-        npu_config.enable(ov::enable_profiling.name(), true);
 
         if (npu_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
             auto device = backend->getDevice();
@@ -350,7 +333,7 @@ TEST_P(CompatibilityCheckTests, ExpectTurboPropertyAndCompatibilityCheckAreSuppo
     }
 }
 
-TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsNotSupported) {
+TEST_P(CompatibilityCheckTests, ExpectCompilerPropertyIsNotSupported) {
     std::string logs;
     std::mutex logs_mutex;
     bool isSupported = true;

@@ -235,10 +235,10 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::optional<ov::Dimension> originalBatch = std::nullopt;
         auto [batchedModel, successfullyDebatched] = intel_npu::batch_helpers::handlePluginBatching(
             ov_model,
-            *npu_config,
             [&](ov::intel_npu::BatchMode mode) {
                 npu_config->update({{::intel_npu::BATCH_MODE::key().data(), ::intel_npu::BATCH_MODE::toString(mode)}});
             },
+            std::make_optional(npu_config->get<::intel_npu::BATCH_MODE>()),
             originalBatch,
             ::intel_npu::Logger::global());
         OPENVINO_ASSERT(successfullyDebatched, "Couldn't debatch test model!");

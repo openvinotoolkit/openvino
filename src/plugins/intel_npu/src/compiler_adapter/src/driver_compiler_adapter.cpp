@@ -108,7 +108,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
     FilteredConfig updatedConfig = config;
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
@@ -182,7 +182,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
     FilteredConfig updatedConfig = config;
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }
@@ -284,7 +284,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
                                                     isOptionValueSupportedByCompiler);
 
     FilteredConfig updatedConfig = config;
-    if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
+    if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),
                                MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion)}});
     }

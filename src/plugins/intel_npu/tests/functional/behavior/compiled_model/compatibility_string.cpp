@@ -560,16 +560,17 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertie
         ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
                   std::string::npos);
     }
+}
 
-    TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
-        // Empty descriptor means that there are no runtime requirements
-        // No E2E test reaches this branch because compilation never produces an empty descriptor
-        ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
-        OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
-                                                      ov::compatibility_check,
-                                                      std::make_pair(ov::runtime_requirements.name(), "")));
-        ASSERT_EQ(result, ov::CompatibilityCheck::NOT_APPLICABLE);
-    }
+TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
+    // Empty descriptor means that there are no runtime requirements
+    // No E2E test reaches this branch because compilation never produces an empty descriptor
+    ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
+    OV_ASSERT_NO_THROW(result = core.get_property(deviceName,
+                                                  ov::compatibility_check,
+                                                  std::make_pair(ov::runtime_requirements.name(), "")));
+    ASSERT_EQ(result, ov::CompatibilityCheck::NOT_APPLICABLE);
+}
 
 }  // namespace ov::test::behavior
 

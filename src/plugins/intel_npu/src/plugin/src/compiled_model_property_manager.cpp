@@ -128,70 +128,75 @@ void CompiledModelPropertyManager::registerProperties() {
     _properties.clear();
 
     // clang-format off
-    register_property<MODEL_PRIORITY>(_config, _properties, ov::hint::model_priority.name());
-    register_property<WORKLOAD_TYPE>(_config, _properties, ov::workload_type.name());
+    register_property<MODEL_PRIORITY>(_config, _properties, true, ov::PropertyMutability::RW);
+    register_property<WORKLOAD_TYPE>(_config, _properties, true, ov::PropertyMutability::RW); // TODO
+
+    register_property<CACHE_MODE>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<COMPILATION_NUM_THREADS>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<EXECUTION_MODE_HINT>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<INFERENCE_PRECISION_HINT>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<LOADED_FROM_CACHE>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<LOG_LEVEL>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<PERFORMANCE_HINT>(_config, _properties, true, ov::PropertyMutability::RO);
+    register_property<PERFORMANCE_HINT_NUM_REQUESTS>(_config, _properties, true, ov::PropertyMutability::RO);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    register_property_as_read_only<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
+    register_property<ENABLE_CPU_PINNING>(_config, _properties, false, ov::PropertyMutability::RO);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    register_property_as_read_only<LOG_LEVEL>(_config, _properties, ov::log::level.name());
-    register_property_as_read_only<LOADED_FROM_CACHE>(_config, _properties, ov::loaded_from_cache.name());
-    register_property_as_read_only<PERFORMANCE_HINT>(_config, _properties, ov::hint::performance_mode.name());
-    register_property_as_read_only<EXECUTION_MODE_HINT>(_config, _properties, ov::hint::execution_mode.name());
-    register_property_as_read_only<PERFORMANCE_HINT_NUM_REQUESTS>(_config, _properties, ov::hint::num_requests.name());
-    register_property_as_read_only<COMPILATION_NUM_THREADS>(_config, _properties, ov::compilation_num_threads.name());
-    register_property_as_read_only<INFERENCE_PRECISION_HINT>(_config, _properties, ov::hint::inference_precision.name());
-    register_property_as_read_only<CACHE_MODE>(_config, _properties, ov::cache_mode.name());
 
-    register_property_as_read_only_mark_supported_if_set<NUM_STREAMS>(_config, _properties, ov::num_streams.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILER_TYPE>(_config, _properties, ov::intel_npu::compiler_type.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILER_VERSION>(_config, _properties, ov::intel_npu::compiler_version.name());
-    register_property_as_read_only_mark_supported_if_set<WEIGHTS_PATH>(_config, _properties, ov::weights_path.name());
-    register_property_as_read_only_mark_supported_if_set<CACHE_DIR>(_config, _properties, ov::cache_dir.name());
-    register_property_as_read_only_mark_supported_if_set<PERF_COUNT>(_config, _properties, ov::enable_profiling.name());
-    register_property_as_read_only_mark_supported_if_set<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type.name());
-    register_property_as_read_only_mark_supported_if_set<TURBO>(_config, _properties, ov::intel_npu::turbo.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILATION_MODE_PARAMS>(_config, _properties, ov::intel_npu::compilation_mode_params.name());
-    register_property_as_read_only_mark_supported_if_set<DMA_ENGINES>(_config, _properties, ov::intel_npu::dma_engines.name());
-    register_property_as_read_only_mark_supported_if_set<TILES>(_config, _properties, ov::intel_npu::tiles.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILATION_MODE>(_config, _properties, ov::intel_npu::compilation_mode.name());
-    register_property_as_read_only_mark_supported_if_set<PLATFORM>(_config, _properties, ov::intel_npu::platform.name());
-    register_property_as_read_only_mark_supported_if_set<DYNAMIC_SHAPE_TO_STATIC>(_config, _properties, ov::intel_npu::dynamic_shape_to_static.name());
-    register_property_as_read_only_mark_supported_if_set<BACKEND_COMPILATION_PARAMS>(_config, _properties, ov::intel_npu::backend_compilation_params.name());
-    register_property_as_read_only_mark_supported_if_set<BYPASS_UMD_CACHING>(_config, _properties, ov::intel_npu::bypass_umd_caching.name());
-    register_property_as_read_only_mark_supported_if_set<DEFER_WEIGHTS_LOAD>(_config, _properties, ov::intel_npu::defer_weights_load.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILER_DYNAMIC_QUANTIZATION>(_config, _properties, ov::intel_npu::compiler_dynamic_quantization.name());
-    register_property_as_read_only_mark_supported_if_set<QDQ_OPTIMIZATION>(_config, _properties, ov::intel_npu::qdq_optimization.name());
-    register_property_as_read_only_mark_supported_if_set<QDQ_OPTIMIZATION_AGGRESSIVE>(_config, _properties, ov::intel_npu::qdq_optimization_aggressive.name());
-    register_property_as_read_only_mark_supported_if_set<DISABLE_VERSION_CHECK>(_config, _properties, ov::intel_npu::disable_version_check.name());
-    register_property_as_read_only_mark_supported_if_set<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob.name());
-    register_property_as_read_only_mark_supported_if_set<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob.name());
-    register_property_as_read_only_mark_supported_if_set<BATCH_COMPILER_MODE_SETTINGS>(_config, _properties, ov::intel_npu::batch_compiler_mode_settings.name());
-    register_property_as_read_only_mark_supported_if_set<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, ov::intel_npu::run_inferences_sequentially.name());
-    register_property_as_read_only_mark_supported_if_set<ENABLE_WEIGHTLESS>(_config, _properties, ov::enable_weightless.name());
-    register_property_as_read_only_mark_supported_if_set<SEPARATE_WEIGHTS_VERSION>(_config, _properties, ov::intel_npu::separate_weights_version.name());
-    register_property_as_read_only_mark_supported_if_set<ENABLE_STRIDES_FOR>(_config, _properties, ov::intel_npu::enable_strides_for.name());
-    register_property_as_read_only_mark_supported_if_set<BATCH_MODE>(_config, _properties, ov::intel_npu::batch_mode.name());
-    register_property_as_read_only_mark_supported_if_set<SHARED_COMMON_QUEUE>(_config, _properties, ov::intel_npu::shared_common_queue.name());
-    register_property_as_read_only_mark_supported_if_set<COMPILE_LOG_LEVEL>(_config, _properties, ov::intel_npu::compile_log_level.name());
+    const auto hasPropertyValue = [this](std::string_view property_name) {
+        return _config.hasOpt(property_name) && _config.has(std::string(property_name));
+    };
+    register_property_with_support<BYPASS_UMD_CACHING>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(BYPASS_UMD_CACHING::key()); });
+    register_property_with_support<CACHE_DIR>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(CACHE_DIR::key()); });
+    register_property_with_support<COMPILATION_MODE_PARAMS>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILATION_MODE_PARAMS::key()); });
+    register_property_with_support<COMPILER_DYNAMIC_QUANTIZATION>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILER_DYNAMIC_QUANTIZATION::key()); });
+    register_property_with_support<COMPILER_TYPE>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILER_TYPE::key()); });
+    register_property_with_support<COMPILER_VERSION>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILER_VERSION::key()); });
+    register_property_with_support<DEFER_WEIGHTS_LOAD>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(DEFER_WEIGHTS_LOAD::key()); });
+    register_property_with_support<ENABLE_STRIDES_FOR>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(ENABLE_STRIDES_FOR::key()); });
+    register_property_with_support<NUM_STREAMS>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(NUM_STREAMS::key()); });
+    register_property_with_support<PERF_COUNT>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(PERF_COUNT::key()); });
+    register_property_with_support<PLATFORM>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(PLATFORM::key()); });
+    register_property_with_support<QDQ_OPTIMIZATION>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(QDQ_OPTIMIZATION::key()); });
+    register_property_with_support<QDQ_OPTIMIZATION_AGGRESSIVE>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(QDQ_OPTIMIZATION_AGGRESSIVE::key()); });
+    register_property_with_support<RUN_INFERENCES_SEQUENTIALLY>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(RUN_INFERENCES_SEQUENTIALLY::key()); });
+    register_property_with_support<TILES>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(TILES::key()); });
+    register_property_with_support<TURBO>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(TURBO::key()); });
+    register_property_with_support<WEIGHTS_PATH>(_config, _properties, true, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(WEIGHTS_PATH::key()); });
 
-    register_property_with_custom_function(_config, _properties, ov::cache_encryption_callbacks.name(), [](const ov::AnyMap&) {
+    register_property_with_support<BACKEND_COMPILATION_PARAMS>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(BACKEND_COMPILATION_PARAMS::key()); });
+    register_property_with_support<BATCH_COMPILER_MODE_SETTINGS>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(BATCH_COMPILER_MODE_SETTINGS::key()); });
+    register_property_with_support<BATCH_MODE>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(BATCH_MODE::key()); });
+    register_property_with_support<COMPILATION_MODE>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILATION_MODE::key()); });
+    register_property_with_support<COMPILE_LOG_LEVEL>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(COMPILE_LOG_LEVEL::key()); });
+    register_property_with_support<DISABLE_VERSION_CHECK>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(DISABLE_VERSION_CHECK::key()); });
+    register_property_with_support<DMA_ENGINES>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(DMA_ENGINES::key()); });
+    register_property_with_support<DYNAMIC_SHAPE_TO_STATIC>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(DYNAMIC_SHAPE_TO_STATIC::key()); });
+    register_property_with_support<ENABLE_WEIGHTLESS>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(ENABLE_WEIGHTLESS::key()); });
+    register_property_with_support<EXPORT_RAW_BLOB>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(EXPORT_RAW_BLOB::key()); });
+    register_property_with_support<IMPORT_RAW_BLOB>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(IMPORT_RAW_BLOB::key()); });
+    register_property_with_support<PROFILING_TYPE>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(PROFILING_TYPE::key()); });
+    register_property_with_support<SEPARATE_WEIGHTS_VERSION>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(SEPARATE_WEIGHTS_VERSION::key()); });
+    register_property_with_support<SHARED_COMMON_QUEUE>(_config, _properties, false, ov::PropertyMutability::RO, [hasPropertyValue] { return hasPropertyValue(SHARED_COMMON_QUEUE::key()); });
+
+    register_property_with_custom_function<CACHE_ENCRYPTION_CALLBACKS>(_config, _properties, true, ov::PropertyMutability::WO, [](const ov::AnyMap&) {
         return ov::EncryptionCallbacks{nullptr, nullptr};
     });
-    register_property_with_custom_function(_properties, ov::hint::model.name(), true, [](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::hint::model.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
         return std::shared_ptr<const ov::Model>(nullptr);
     });
-    register_property_with_custom_function(_properties, ov::model_name.name(), true, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::model_name.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return ov::Any(_graph->get_metadata().name);
     });
-    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::optimal_number_of_infer_requests.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
         return ov::Any(utils::getOptimalNumberOfInferRequestsInParallel(_config.get<PLATFORM>(), _config.get<PERFORMANCE_HINT>()));
     });
-    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, [](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::execution_devices.name(), true, ov::PropertyMutability::RO, [](const ov::AnyMap&) {
         return ov::Any(std::vector<std::string>{"NPU"});
     });
-    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, [this](const ov::AnyMap&) {
+    register_property_with_custom_function(_properties, ov::supported_properties.name(), true, ov::PropertyMutability::RO, [this](const ov::AnyMap&) {
         std::vector<ov::PropertyName> supportedProperties;
         for (const auto& property : _properties) {
             if (property.second.isPublic && property.second.isSupported()) {
@@ -206,10 +211,11 @@ void CompiledModelPropertyManager::registerProperties() {
     register_property_with_support_and_custom_function(
         _properties,
         ov::runtime_requirements.name(),
+        true,
+        ov::PropertyMutability::RO,
         [hasRuntimeRequirementsSupport]() {  // support predicate
             return hasRuntimeRequirementsSupport;
         },
-        true,
         [this](const ov::AnyMap&) {  // value getter
             return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
         });
