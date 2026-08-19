@@ -157,7 +157,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyFirstByte) {
 }
 
 /**
- * @brief All bytes from the blob source can be coppied correctly
+ * @brief All bytes from the blob source can be copied correctly
  */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyAllBytes) {
     BlobSource blob_source = create_blob_source();
@@ -429,7 +429,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceCurrent) {
  * @brief Moving the cursor after the end of the source should fail; the reference used for moving the cursor is the
  * current cursor position.
  */
-TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrnet) {
+TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrent) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.seekg(blob_content.size() + 1, std::ios::cur), ov::Exception, _);
 }
@@ -521,7 +521,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewAllBytes) {
 }
 
 /**
- * @brief The move the read cursor and then extract one byte without copying
+ * @brief Move the read cursor and then extract one byte without copying
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
