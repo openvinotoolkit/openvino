@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-05-25-56-000-32212108817",
+  "timestamp": "2026-08-19T05:25:56Z",
+  "run_id": "32212108817",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32212108817",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37435",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37435",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    "Debian Packages / Debian Packages"
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/j/javascript-common/javascript-common_11%2bnmu1_all.deb  Could not connect to azure.archive.ubuntu.com:80 (52.161.185.214), connection timed out",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/e/expat/libexpat1-dev_2.4.7-1ubuntu0.7_amd64.deb  Unable to connect to azure.archive.ubuntu.com:http:",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The Debian Packages job failed because the GitHub Actions runner could not reach azure.archive.ubuntu.com during apt-get package installation. Multiple package downloads timed out or returned connection-refused errors. This is a transient network infrastructure issue affecting the Azure-hosted Ubuntu package mirror, unrelated to any code changes in the PR.",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job - the network issue is transient and a retry is likely to succeed.",
+    "If recurring, consider adding retry logic to apt-get commands in the Debian packages job workflow.",
+    "Monitor azure.archive.ubuntu.com availability - if persistent, report to GitHub Actions infrastructure team."
+  ],
+  "reproduction_steps": "N/A - transient network failure, not reproducible locally.",
+  "prevention_strategies": [
+    "Add retry logic to apt-get commands in the Debian packages CI job.",
+    "Consider using a local/cached mirror for critical packages."
+  ],
+  "historical_context": "This pattern (signature_hash 7d2e2ff59d37c6b4) has now been seen 3 times. First seen 2026-08-18T16:28:00Z. All occurrences caused by azure.archive.ubuntu.com unreachability."
+}
