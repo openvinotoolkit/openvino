@@ -256,6 +256,10 @@ private:
         return std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return std::nullopt;
+    }
+
     /**
      * @brief The compiler main schedule, that is also the whole blob received to be imported.
      */
@@ -383,6 +387,10 @@ private:
                    : std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return m_metadata->get_blob_type();
+    }
+
     /**
      * @brief Registers the compiler version inside the configuration attribute if the version is found within the
      * metadata.
@@ -457,7 +465,8 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             m_config,
                             std::move(weights_source),
                             init_schedules,
-                            extract_compiler_compatibility_descriptor());
+                            extract_compiler_compatibility_descriptor(),
+                            extract_blob_type());
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
@@ -537,10 +546,14 @@ std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob
         return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
-    size_t magic_bytes_size = MAGIC_BYTES.size();
-    std::string_view blob_magic_bytes(
-        npu_formatted_blob.data<const char>() + npu_formatted_blob.get_byte_size() - magic_bytes_size,
-        magic_bytes_size);
+    const size_t input_size = npu_formatted_blob.get_byte_size();
+    OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
+
+    const size_t magic_bytes_size = MAGIC_BYTES.size();
+    OPENVINO_ASSERT(input_size >= magic_bytes_size, BLOB_SIZE_SMALLER_THAN_MAGIC);
+
+    std::string_view blob_magic_bytes(npu_formatted_blob.data<const char>() + input_size - magic_bytes_size,
+                                      magic_bytes_size);
 
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 

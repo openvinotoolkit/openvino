@@ -50,11 +50,11 @@ static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& para
     auto gs = params.group_sizes.back();
     if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    } else if (gs > simd * 2) {
-        return DynQuanMode::LARGE_GS;
-    } else {
-        return DynQuanMode::SMALL_GS;
     }
+    if (gs > simd * 2) {
+        return DynQuanMode::LARGE_GS;
+    }
+    return DynQuanMode::SMALL_GS;
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {

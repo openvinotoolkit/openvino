@@ -71,7 +71,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
         ob << _kernels_data.size();
-        for (auto& kd : _kernels_data) {
+        for (const auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
             ob << kd.internalBuffers;
             ob << kd.kernels;
@@ -152,7 +152,7 @@ protected:
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         std::vector<BufferDescriptor> internal_buffers;
-        for (auto& kd : _kernels_data) {
+        for (const auto& kd : _kernels_data) {
             if (kd.internalBuffers.empty())
                 continue;
 

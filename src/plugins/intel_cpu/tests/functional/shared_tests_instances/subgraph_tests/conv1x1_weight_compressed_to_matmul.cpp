@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "subgraph_tests/conv1x1_weight_compressed_to_matmul.hpp"
 
 namespace {
@@ -12,6 +13,16 @@ using ov::test::Conv1x1WeightCompressedToMatmulTest;
 using ov::test::InputShape;
 
 const std::vector<ov::element::Type> weights_precisions = {ov::element::i4, ov::element::i8};
+
+// On ARM the compressed-weights path is only numerically correct through KleidiAI, which requires
+// disabling dynamic activation quantization (same convention as smoke_MatMulCompressedWeights_Kleidiai
+// and smoke_GroupedMatMul_Compressed). Platforms without the required ISA are skipped in
+// skip_tests_config.cpp, mirroring how the Kleidiai suite is gated.
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+const ov::AnyMap config = {ov::hint::dynamic_quantization_group_size(UINT64_MAX)};
+#else
+const ov::AnyMap config = {};
+#endif
 
 const Conv1x1ExpectedOpCounts op_counts_1x1{{"Convolution", 0}, {"FullyConnected", 1}, {"Transpose", 0}, {"Reshape", 1}};
 
@@ -26,6 +37,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1x1),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
@@ -40,6 +52,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1x1),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
@@ -56,6 +69,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::element::f32),
                        ::testing::ValuesIn(weights_precisions),
                        ::testing::Values(op_counts_1xW),
+                       ::testing::Values(config),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     Conv1x1WeightCompressedToMatmulTest::getTestCaseName);
 
