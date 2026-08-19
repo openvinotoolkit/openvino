@@ -136,7 +136,7 @@ because the operation itself genuinely differs rather than for numbering reasons
 
 | case | op | why |
 | --- | --- | --- |
-| 100 | `FLASH_ATTN_EXT` | The builder keeps q/k/v ggml-natural so the order is Concat -> GQA tile -> one Transpose -> SDPA, which is what the CPU plugin's `stateful_sdpa_fusion` matches; permuting first blocks the fuse into `ScaledDotProductAttentionWithKVCache`. A deliberately *better* graph, not an equivalent one. |
+| 100 | `FLASH_ATTN_EXT` | The builder keeps q/k/v ggml-natural so the order is Concat -> GQA tile -> one Transpose -> SDPA, matching the shape plugins' stateful-SDPA fusion passes look for (e.g. the CPU plugin's `stateful_sdpa_fusion` into `ScaledDotProductAttentionWithKVCache`); permuting first blocks that fuse on any plugin that has one. A deliberately *better* graph, not an equivalent one. |
 | 104 | `VIEW` | Takes a second (shape-reference) input the cgraph path does not supply, so it has a different arity than the shared cases. |
 | 10 | `GET_ROWS` | llama.cpp reshapes `probs` before the MoE gating gather, so the cgraph decoder sees a different input shape that the generic path already handles. |
 
@@ -146,9 +146,12 @@ than a bespoke attribute) or emitting the same node *count* ggml does instead of
 
 ## Memory model
 
-Understanding where memory goes matters for large models (MoE especially).
+Understanding where memory goes matters for large models (MoE especially). Load/convert is
+plugin-independent; compile and inference depend on how the target plugin handles the compressed
+weight subgraph the frontend emits, so those numbers are plugin-specific — measured here on CPU,
+which is the only plugin verified so far.
 
-**Load / convert:**
+**Load / convert (plugin-independent):**
 - The GGUF file is memory-mapped (`ov::load_mmap_object`); non-quantized tensors are zero-copy views
   into the mmap. Quantized tensors are *repacked* once into a single `AlignedBuffer` (u4/u8 weights
   + f16 scales + integer zero-points in OpenVINO's compressed layout) and wrapped as `Constant`s
@@ -157,25 +160,30 @@ Understanding where memory goes matters for large models (MoE especially).
 - Because the graph keeps weights *compressed*, conversion memory is roughly the file size, not
   the dequantized (f32) model size.
 
-**Compile / `compile_model`:**
-- Weights stay compressed through compilation. Dense models fold the decompression into
-  `FullyConnected`; MoE experts fold into `GatherMatmulCompressed`. Measured: OLMoE compile peak
-  ≈ 8.7 GB (vs a ~53 GB blow-up if the expert decompression is *not* kept compressed).
-- **Critical dependency for MoE:** the CPU plugin must recognize the expert decompression chain so
-  it is not expanded to f32. Two changes make this work and both are required:
-  `SnippetsMarkSkipped` must skip the `GatherMatmul` weight chain, and `is_decompression_multiply`
-  must accept `GatherMatmul` consumers. Without them, `ConstantFolding` expands u4/u8 experts to
-  f32 (the 53 GB case). See the `[CPU]` commits.
+**Compile / `compile_model` (plugin-dependent — CPU measured):**
+- Weights stay compressed through compilation only if the target plugin recognizes the compressed
+  weight subgraph rather than constant-folding it to f32; on the CPU plugin dense models fold the
+  decompression into `FullyConnected` and MoE experts fold into `GatherMatmulCompressed`. Measured:
+  OLMoE compile peak ≈ 8.7 GB on CPU (vs a ~53 GB blow-up if the expert decompression is *not* kept
+  compressed).
+- A plugin that does not recognize the chain will constant-fold u4/u8 experts to f32 (the 53 GB
+  case above). On CPU this is handled by `SnippetsMarkSkipped` skipping the `GatherMatmul` weight
+  chain and `is_decompression_multiply` accepting `GatherMatmul` consumers. A related, narrower
+  gap on CPU — `u2` experts (Q2_K) falling off the compressed path entirely — is fixed by the CPU
+  plugin's `WidenGatherMatmulWeights` pass; see [`supported_models.md`](supported_models.md) "MoE
+  expert weights and the compressed-weights type gate".
 - KV cache precision: the stateful KV cache is f16 (set in `translate_session`); leaving it at the
   CPU default of u8 causes NaNs in some decode paths.
 
-**Inference:** the compressed weights are decompressed on the fly by the plugin (dense: fused into
-the FC kernel; MoE: `GatherMatmulCompressed`). No persistent f32 weight copy.
+**Inference:** on a plugin that keeps weights compressed through compile, they are decompressed on
+the fly (CPU: dense fused into the FC kernel, MoE via `GatherMatmulCompressed`) with no persistent
+f32 weight copy.
 
 **Rule of thumb:** peak host memory ≈ `max(file_size_for_read, compressed_graph + plugin_scratch)`,
-NOT the dequantized model size — *provided* the CPU decompression-recognition changes above are in
-place. If a future change makes a model's weights expand to f32 at compile, that is the regression
-to look for (compile peak jumping toward the dequantized size).
+NOT the dequantized model size — *provided* the target plugin recognizes the compressed weight
+subgraph (as CPU does above). If a future change makes a model's weights expand to f32 at compile
+on a given plugin, that is the regression to look for (compile peak jumping toward the dequantized
+size).
 
 ## Statefulness & the attention backends
 
@@ -226,8 +234,8 @@ gguf-native IO (`inp_tokens`/`inp_pos`/`self_kq_mask`/...) into GenAI's contract
 optimum-intel export. The two concerns are separate passes precisely because they are independent:
 cache form vs IO contract.
 
-Either way the stateful graph is shaped so the CPU plugin's `stateful_sdpa_fusion` folds attention
-into `ScaledDotProductAttentionWithKVCache`.
+Either way the stateful graph is shaped so that plugins with a stateful-SDPA fusion pass (e.g. the
+CPU plugin's `stateful_sdpa_fusion`) fold attention into `ScaledDotProductAttentionWithKVCache`.
 
 The result is valid under **both** attention backends: plain stateful SDPA inference, and
 `ov::pass::SDPAToPagedAttention` (the transform GenAI's ContinuousBatching adapter applies for
@@ -318,52 +326,17 @@ llama.cpp to obtain a tokenizer.
 ### How the tokenizer is constructed (consumer side)
 
 The frontend only *exports* the metadata; turning it into a runnable tokenizer is the consumer's
-job. This is described here because it defines the contract the frontend must satisfy (which keys,
-which value types). The reference consumer is OpenVINO GenAI
-(`src/cpp/src/gguf_utils/gguf_tokenizer.cpp`); the tokenizer is itself built as a pair of
-**`ov::Model`s** (tokenizer + detokenizer) out of nodes from the **`openvino_tokenizers`** runtime
-library — there is no bespoke tokenizer engine and, again, no llama.cpp.
+job, described here only because it defines the contract the frontend must satisfy. The reference
+consumer is OpenVINO GenAI (`src/cpp/src/gguf_utils/gguf_tokenizer.cpp`): it builds a
+tokenizer/detokenizer pair of **`ov::Model`s** out of `openvino_tokenizers` ops (dispatched on the
+GGUF `tokenizer.ggml.model` key — SentencePiece for `llama`/`plamo2`, byte-level BPE for
+`gpt2`/`gemma4`) so tokenization runs on an OpenVINO device like any other model, with no bespoke
+tokenizer engine and no llama.cpp.
 
-Flow (native path): conversion attaches the rt_info, then
-`create_tokenizer_from_model(model)`:
-
-1. **Fetch** `model->get_rt_info()[gguf_tokenizer_metadata_key()]`, cast to
-   `GGUFTokenizerMetadata`, and read its `.config` `AnyMap`. If the key is absent (model not from
-   the frontend, or metadata stripped by serialization) it asserts — see the serialization caveat
-   below.
-2. **Normalize** the `AnyMap` into the same `map<string, GGUFMetaData>` that the from-file path
-   (`tokenizer_config_from_meta`) produces, so a single builder serves both. (`tokenizer_config_from_rt_info`.)
-3. **Build the two models** (`build_tokenizer_models`), loading `openvino_tokenizers`' factory
-   entry point `create_tokenizer_node` at runtime (`get_symbol(..., "create_tokenizer_node")`).
-
-The tokenizer `ov::Model` is assembled from these `openvino_tokenizers` operations (a `string`
-`Parameter` in, token-id tensor out):
-
-- `StringTensorUnpack` — unpack the input string tensor into (begins, ends, chars).
-- `RegexNormalization` — text normalization, e.g. gemma4's SPM whitespace→metaspace (`U+2581 ▁`).
-- `SpecialTokensSplit` — split out special tokens; the special-token set is derived from the GGUF
-  `tokens` + `token_type` keys (entries whose type is CONTROL/USER_DEFINED via `is_special_token`).
-- `RegexSplit` — the pre-tokenizer regex (BPE families).
-- The core tokenizer node, dispatched on the GGUF `tokenizer.ggml.model` key:
-  - `model == "llama"` (SPM/`plamo2`): `parse_spm_config` → **`SentencepieceTokenizer`**, fed the
-    `tokens` + `scores` + `token_type` arrays.
-  - `model == "gpt2"` / `"gemma4"` (byte-level BPE): `parse_bbpe_config` → **`BPETokenizer`**, fed
-    the `tokens` vocab + `merges`.
-- `RaggedToDense` — produce the dense `input_ids` output.
-
-The detokenizer `ov::Model` is the inverse: **`VocabDecoder`** + `RegexNormalization` +
-`StringTensorPack` for BPE, or **`SentencepieceDetokenizer`** for the llama/SPM family.
-
-The GGUF metadata keys the builder relies on (so the frontend must preserve them verbatim):
+The GGUF metadata keys the frontend must preserve verbatim, because that consumer relies on them:
 `model`, `tokens`, `merges`, `scores`, `token_type`, `pre` (pre-tokenizer id), the special-token
 ids (`bos_token_id`/`eos_token_id`/`unknown_token_id`/`padding_token_id`), `add_bos_token` /
-`add_space_prefix` flags, and `chat_template` (the chat template is carried through for GenAI to
-apply; GenAI additionally patches a few known-malformed templates, e.g. qwen2.5, in
-`patch_gguf_chat_template`).
-
-The resulting tokenizer/detokenizer `ov::Model`s are what `ov::genai::Tokenizer` wraps and compiles
-like any other model — so tokenization runs on an OpenVINO device, consistent with the inference
-model.
+`add_space_prefix` flags, and `chat_template`.
 
 **Serialization caveat.** Because `GGUFTokenizerMetadata` is non-serializable, it exists only on the
 in-memory model straight out of the frontend. A model that was serialized to IR and reloaded has no
@@ -393,4 +366,7 @@ llama.cpp. The rt_info path is the fast in-process handoff; the file path is the
   model, per architecture) is the recommended cheap regression gate for any builder change — it
   proves the produced graph is unchanged. Accuracy is validated opt-in against llama.cpp (WWB-style)
   and by comparing greedy tokens on the same prompt.
+
+See [testing_architecture.md](testing_architecture.md) for the full tier breakdown and what each
+one can/cannot prove.
 </content>

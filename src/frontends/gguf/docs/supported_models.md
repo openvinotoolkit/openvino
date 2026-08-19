@@ -162,61 +162,28 @@ i.e. real conversion defects, plus `gemma`, which throws instead of converting c
 those (`hunyuan-dense`, `qwen3moe`, `gemma2`, `gemma`) are in `verified_archs()`, so that set is
 currently **optimistic** and should be re-validated before it is relied on.
 
-`qwen35` was validated the same way muse-glimmer was, feeding llama.cpp's own token ids and
-comparing greedy output. On Qwen3.5-0.8B-Q8_0 and on Ternary-Bonsai-27B-Q2_g64 the frontend
-reproduces llama.cpp **token for token** (`" Paris.\nThe capital of France is Paris. ..."` and
-`" Paris. Paris is the largest city in France. Paris is the most popular"` respectively). Final
-logits agree to 1.0% on the 0.8B (sum -771776 vs -779763) and 0.12% on Bonsai (-812702 vs
--813701); the 0.8B figure is in line with the *verified* `qwen3` arch measured through the same
-harness, so it is dequant/driver noise rather than an arch defect.
-
 **`qwen35` is greedy / batch-1 only.** The recurrent conv and delta states are a single
-static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx`
-the way it reorders a KV cache. Beam search or batch > 1 therefore **fails at inference** with a
-shape mismatch on the conv window's `Concat` -- it does not silently mix state across beams, so
-no wrong output can be produced. Prefix caching and PagedAttention are unavailable for the same
-reason: a recurrent state cannot be re-derived from a cached prefix, and cannot be paged.
+static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx` the
+way it reorders a KV cache. Beam search or batch > 1 therefore **fails at inference** with a shape
+mismatch on the conv window's `Concat` — it does not silently mix state across beams, so no wrong
+output can be produced. Prefix caching and PagedAttention are unavailable for the same reason: a
+recurrent state cannot be re-derived from a cached prefix, and cannot be paged. Verified
+token-for-token against llama.cpp on two real checkpoints (Qwen3.5-0.8B Q8_0, Ternary-Bonsai-27B
+Q2_g64), with final-logits agreement within 1.0% / 0.12% of llama.cpp — in line with the noise
+already present on the *verified* `qwen3` arch through the same harness.
 
-What "verified" rests on for this arch, since a hybrid stack is easy to get subtly wrong:
+A packaging gotcha worth knowing: **`Ternary-Bonsai-27B-Q2_0.gguf` is not upstream `Q2_0`** — it
+does not load in llama.cpp either. It's packed **g128** (one f16 scale per 128 weights) while
+`GGML_TYPE_Q2_0` is **g64** (18 bytes per 64 weights); use `Ternary-Bonsai-27B-Q2_g64.gguf`
+instead. The frontend rejects the mispacked file safely (`data runs past EOF`) rather than
+dequantizing garbage.
 
-* Token-exact greedy agreement with llama.cpp on **two real checkpoints** of different size and
-  quantization (Qwen3.5-0.8B Q8_0, Ternary-Bonsai-27B Q2_g64), through GenAI's own harness.
-* A **five-prompt** raw-completion sweep on the 0.8B. Three match llama.cpp exactly; two diverge
-  mid-continuation. Both divergences are near-ties, and the *already verified* `qwen3` arch
-  diverges on the same prompts in the same way ("20 years old" vs "22 years old"), so this is the
-  frontend's numerical baseline rather than a qwen35 defect.
-* A **prefill-vs-decode consistency** check (generate N tokens, then re-prefill each own-output
-  prefix and compare the next token). `qwen35` scores 1 mismatch in 16 -- identical to `qwen3`
-  (1/16) at the identical position. `llama` scores 0/16. The GDN recurrence is computed chunk-wise
-  during prefill and step-wise during decode, which are mathematically equal but not bit-equal, so
-  a near-tie can flip; llama.cpp has the same two code paths.
-* Final logits within 1.0% (0.8B) and 0.12% (Bonsai) of llama.cpp on the sum over the vocabulary.
-
-A caveat on the Bonsai artifacts: **`Ternary-Bonsai-27B-Q2_0.gguf` is not upstream `Q2_0`.**
-It does not load in llama.cpp either (`tensor 'output_norm.weight' has offset 337715200,
-expected 357580800`; the ratio 0.94444 is exactly `(34/128)/(18/64)`). The file is packed
-**g128** -- one f16 scale per 128 weights, 2.125 bits/weight -- while `GGML_TYPE_Q2_0` is
-**g64**, 18 bytes per 64 weights, 2.25 bits/weight. The model card says as much, calling the
-deployed format "Q2_0_g128" and publishing a separate group-64 pack "matching the 64-value-group
-Q2_0 packing in llama.cpp". Use `Ternary-Bonsai-27B-Q2_g64.gguf`; the g128 pack needs PrismML's
-fork. The frontend rejects it safely (`tensor 'blk.63.ffn_up.weight' data runs past EOF`) rather
-than dequantizing garbage.
-
-`muse-glimmer` needs a footnote of its own, because it is the one arch whose row was decided
-by the *tokenizer*, not the graph. Fed llama.cpp's own token ids, the converted graph
-reproduces llama.cpp token-for-token: for `<|begin_of_text|>The capital of France is` all 32
-greedy tokens are identical, and the final logits agree to within the frontend's ordinary
-dequantization noise (sum -821515 vs -824015, 0.3%, *tighter* than the `qwen3` Q4_0 control
-at 0.17% on values ~3x smaller). Through GenAI it initially looked degenerate, because
-GenAI's GGUF tokenizer honored `tokenizer.ggml.add_bos_token` only on the SentencePiece
-(`tokenizer.ggml.model = llama`) path; on the BPE (`gpt2`) path it built no CombineSegments
-node, so the leading BOS was silently dropped. Muse Glimmer is `gpt2` + `add_bos_token = true`
-and is BOS-sensitive, so it looped on `The capital of France is`. Without the BOS the
-converted graph picks `" The"` at that position (top-8 `589=12.42 5422=10.97 1573=10.69`);
-with it, `" It"` (`1573=17.34`), which is what llama.cpp emits. The gap was arch-independent
-(`llama3` and `mistral3` lost their BOS the same way) and lived in GenAI, not in this
-frontend; it is fixed in `gguf_tokenizer.cpp` by emitting BOS/EOS as a CombineSegments
-segment on every tokenizer path.
+`muse-glimmer`'s row was decided by the *tokenizer*, not the graph: the converted graph reproduces
+llama.cpp token-for-token, but GenAI's GGUF tokenizer builder only honored
+`tokenizer.ggml.add_bos_token` on the SentencePiece path, silently dropping the leading BOS on the
+BPE (`gpt2`) path that this (BOS-sensitive) model uses. Same gap affected `llama3`/`mistral3` the
+same way; fixed in `gguf_tokenizer.cpp` by emitting BOS/EOS as a `CombineSegments` segment on every
+tokenizer path.
 
 ### Measured performance and memory (OpenVINO GenAI, CPU)
 
@@ -259,34 +226,15 @@ genuinely requires RAM (see [`frontend_design.md`](frontend_design.md) on the me
 Numbers from architectures marked degenerate above still describe real compute cost (the
 graph runs, it is just numerically wrong), so they are kept for completeness.
 
-The two `qwen35` rows come from the same `gguf_arch_check` harness as every other row: GenAI
-runs this architecture now that `MakeStateful` also rewrites the recurrent conv/delta states and
-`AdaptToGenAI` expands `position_ids` into M-RoPE's four sections. Both reproduce llama.cpp
-token-for-token; see the numerical notes below.
-
-Against llama.cpp on the same host, `qwen35` decodes at **0.74x** (41.4 vs 56.1 tok/s) -- the
-usual SDPA-path ratio -- while prefill is not directly comparable here because the two harnesses
-use different prompt lengths (95 vs 5 tokens); on the matched 5-token prompt the frontend
-prefills 1.10x faster (191.4 vs 174.5 tok/s). Bonsai inverts the decode picture dramatically:
-**6.5x faster** (3.75 vs 0.58 tok/s). That is not an OpenVINO win so much
-as an upstream gap -- ggml ships no x86 SIMD kernel for `Q2_0`, so `ggml_vec_dot_q2_0_q8_0`
-falls back to the generic scalar reference, while the frontend lowers Q2_0 into the ordinary
-u2 compressed-weights MatMul the CPU plugin already optimizes. (PrismML's own fork ships
-tuned CUDA/Metal kernels; this comparison is upstream-CPU vs OpenVINO-CPU.) Memory is the
-other side of that trade: llama.cpp mmaps the weights and peaks at 7.5 GiB for Bonsai, the
-frontend materializes decompression constants and peaks at 22.7 GiB (3.1x the file).
-
-`muse-glimmer` is the largest checkpoint in the table (30B, 15.5 GiB) and is memory-bandwidth
-bound at 2.66 tok/s decode; llama.cpp on the same file and host does 3.46 tok/s, so the
-frontend lands at **0.77x llama.cpp**, in line with the 0.51-0.64x SDPA ratios measured on
-the smaller models below. Peak anon is 2.4x the file, better than the 3-4x typical elsewhere,
-because Q4_0 stays 4-bit and only the Q6_K tensors are requantized to Q8_0_C.
-
-One outlier remains: `gpt-oss` peaks at **124 GiB from an 11.5 GiB file (11x)**, versus a
-typical 3-4x elsewhere. On a smaller-RAM host it would OOM. The cause is the compressed-weights
-type gate on the MoE expert matmul described below — for gpt-oss the expert type is MXFP4
-(`f4e2m1`), which the frontend dequantizes on-graph in `MUL_MAT_ID` rather than routing through
-`GatherMatmul` at all, so the plugin-side widening does not reach it.
+Notable outliers: Bonsai (`qwen35`, Q2_g64) decodes **6.5x faster** than llama.cpp (3.75 vs
+0.58 tok/s) — not an OpenVINO win, but an upstream gap: ggml ships no x86 SIMD kernel for
+`Q2_0`, so it falls back to a scalar reference, while the frontend lowers Q2_0 into the ordinary
+u2 compressed-weights MatMul the CPU plugin already optimizes; the trade-off is memory (llama.cpp
+mmaps and peaks at 7.5 GiB, the frontend materializes decompression constants and peaks at
+22.7 GiB). `gpt-oss` is the opposite kind of outlier: it peaks at **124 GiB from an 11.5 GiB
+file (11x)**, versus a typical 3-4x elsewhere, because its MoE expert type (MXFP4) is dequantized
+on-graph in `MUL_MAT_ID` rather than routed through `GatherMatmul` — the plugin-side widening
+described below does not reach it, and on a smaller-RAM host this would OOM.
 
 ### Measuring performance correctly
 
@@ -395,10 +343,11 @@ all, which the SDPA-only graph could not do.
 what the SDPA path already measured, so PA neither introduces nor closes that gap — see
 [`frontend_design.md`](frontend_design.md) on the memory model for the RSS side.
 
-### MoE expert weights and the compressed-weights type gate
+### MoE expert weights and the compressed-weights type gate (CPU plugin specific)
 
-Worth knowing when picking a quantization for a MoE model, though the handling is entirely
-plugin-side. MoE expert weights do not go through `FullyConnected`: `MUL_MAT_ID` lowers to the
+Worth knowing when picking a quantization for a MoE model on the **CPU plugin**; this is entirely
+plugin-side behavior; the frontend itself emits the same compressed weight nodes regardless of
+target device. MoE expert weights do not go through `FullyConnected`: `MUL_MAT_ID` lowers to the
 CPU plugin's `GatherMatmul` (equally, to `GroupedMatMul` on the public-op side — on CPU
 `ConvertGroupedMatMulToGatherMatmul` rewrites it into the same node *before* the compression
 pass, so the two are indistinguishable here). That node accepts a **narrower set of compressed
@@ -418,8 +367,9 @@ Q2_K is the case this affects: its weights map to `u2`. The CPU plugin's
 `WidenGatherMatmulWeights` pass handles it by re-emitting *expert* weight constants as `u4`
 (lossless — raw Q2_K values are `[0..3]`, which fit a nibble) at 2x the weight bytes, which is
 much cheaper than falling off the compressed path. Dense `u2` weights are left alone. This is a
-plugin-side workaround for a missing `u2` expert-matmul executor and needs nothing from the
-frontend, which emits plain `u2` either way. Measured on Q2_K models, peak anonymous memory:
+CPU-plugin-side workaround for a missing `u2` expert-matmul executor and needs nothing from the
+frontend, which emits plain `u2` on every device. Measured on Q2_K models on CPU, peak anonymous
+memory:
 
 | Model | file MiB | before | after |
 |---|---|---|---|
