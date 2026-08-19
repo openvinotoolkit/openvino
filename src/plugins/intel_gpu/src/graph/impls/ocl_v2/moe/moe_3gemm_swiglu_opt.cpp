@@ -351,6 +351,47 @@ protected:
     }
 };
 
+// moe_scatter POC ENV
+inline bool moe_scatter_row_lut_enabled() {
+    static const bool enabled = std::getenv("OV_GPU_MOE_SCATTER_ROW_LUT") != nullptr;
+    return enabled;
+}
+
+class MoE3GemmSwigluPrefillScatterReduceRowLut : public KernelGenerator {
+public:
+    MoE3GemmSwigluPrefillScatterReduceRowLut() : KernelGenerator("moe_scatter_reduction_row_lut", "prefill_scatter_reduce") {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+        auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+
+        auto hidden_size = desc->_config.hidden_size;
+        auto [local_threads_count, batches_per_thread, unaligned_elements] = calc_thread_count(const_cast<RuntimeParams&>(params), 4, hidden_size);
+
+        jit.make("OPTIONAL_SHAPE_INFO_ARG", "");
+        jit.make("ACTIVE_EXPERTS", desc->_config.top_k);
+        jit.make("HIDDEN_SIZE", hidden_size);
+        jit.make("VEC_BLK_SIZE", 4);
+        jit.make("BATCHES_PER_THREAD", batches_per_thread);
+
+        jit.make("INPUT0_TYPE", "half");  // mlp_down output
+        jit.make("INPUT1_TYPE", "half");  // experts router weights
+        jit.make("INPUT2_TYPE", "int");   // gathered row index per (token, top_k)
+        jit.make("OUTPUT_TYPE", "half");
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        return {};
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {}};
+    }
+};
+
 class MoE3GemmSwigluScatter : public KernelGenerator {
 public:
     MoE3GemmSwigluScatter() : KernelGenerator("moe_3gemm_swiglu_fuse", "index_add") {}
@@ -584,6 +625,7 @@ public:
     Stage::Ptr grouped_gemm_prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_scatter_reduce = make_stage<MoE3GemmSwigluPrefillScatterReduce>(/*use_grouped_gemm=*/true);
+    Stage::Ptr prefill_scatter_reduce_row_lut = make_stage<MoE3GemmSwigluPrefillScatterReduceRowLut>();
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -642,6 +684,7 @@ public:
         memory::ptr input_routing_weights;
         memory::ptr input_router_topk_idx;
         memory::ptr _expert_index_buffer;
+        memory::ptr _row_lut_buffer;
     };
 
     std::vector<std::vector<dnnl_weights>> _dnnl_weights;
@@ -1025,6 +1068,8 @@ public:
             add_stage(grouped_gemm_prefill_gather, params);
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(grouped_gemm_prefill_scatter_reduce, params);
+            if (moe_scatter_row_lut_enabled())
+                add_stage(prefill_scatter_reduce_row_lut, params);
         }
     }
 
@@ -2358,6 +2403,37 @@ public:
 
         int total_gathered_tokens = static_cast<int>(token_num) * max_topk;
 
+        // Inverse of tokens_per_expert: the gathered row that holds the (token, k)-th expert output.
+        // Experts own contiguous row ranges and tokens are appended in increasing token order, so
+        // the row is base(expert) + (running count of tokens already assigned to that expert).
+        if (moe_scatter_row_lut_enabled()) {
+            std::vector<int32_t> row_lut_cpu(static_cast<size_t>(total_gathered_tokens), -1);
+            std::vector<int32_t> expert_row_base(num_grouped_experts, -1);
+            std::vector<int32_t> expert_row_count(num_grouped_experts, 0);
+            int32_t base = 0;
+            for (int i = 0; i < num_actually_used_experts; ++i) {
+                expert_row_base[experts_id_cpu[i]] = base;
+                base += tokens_lens_per_expert_cpu[i];
+            }
+            {
+                cldnn::mem_lock<int32_t, mem_lock_type::read> ids(batch_mem_ptr, stream);
+                for (int i = 0; i < total_gathered_tokens; ++i) {
+                    const int32_t e = ids[i];
+                    if (e >= 0 && e < num_grouped_experts && expert_row_base[e] >= 0)
+                        row_lut_cpu[i] = expert_row_base[e] + expert_row_count[e]++;
+                }
+            }
+
+            auto& engine = instance.get_network().get_engine();
+            const size_t row_lut_bytes = row_lut_cpu.size() * sizeof(int32_t);
+            if (!scratch._row_lut_buffer || scratch._row_lut_buffer->size() < row_lut_bytes) {
+                auto layout =
+                    cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(row_lut_bytes)}, ov::element::i8, cldnn::format::bfyx);
+                scratch._row_lut_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+            }
+            scratch._row_lut_buffer->copy_from(stream, row_lut_cpu.data(), 0, 0, row_lut_bytes, true);
+        }
+
         // Compute actual max tokens assigned to any single expert.
         int max_tokens_per_expert = 0;
         if (num_actually_used_experts > 0) {
@@ -2517,21 +2593,32 @@ public:
             auto [local_threads_count, batches_per_thread, _unused] =
                 calc_thread_count(const_cast<RuntimeParams&>(*instance.get_impl_params()), 4, _hidden_size);
 
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *grouped_gemm_prefill_scatter_reduce,
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
-                                       batch_mem_ptr,
-                                       routing_mem_ptr,
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
-                                       intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]},
-                                      {final_hidden_states_mem_ptr},
-                                      {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
-                                      {local_threads_count, 1, 1},
-                                      true /*needs_completion_event*/);
+            if (moe_scatter_row_lut_enabled() && scratch._row_lut_buffer) {
+                ret_event = execute_stage({ret_event},
+                                          instance,
+                                          *prefill_scatter_reduce_row_lut,
+                                          {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT], routing_mem_ptr, scratch._row_lut_buffer},
+                                          {final_hidden_states_mem_ptr},
+                                          {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
+                                          {local_threads_count, 1, 1},
+                                          true /*needs_completion_event*/);
+            } else {
+                ret_event = execute_stage({ret_event},
+                                          instance,
+                                          *grouped_gemm_prefill_scatter_reduce,
+                                          {intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
+                                           batch_mem_ptr,
+                                           routing_mem_ptr,
+                                           intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT],
+                                           intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_START_OFFSET_PER_EXPERT],
+                                           intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_LEN_PER_ACTIVATED_EXPERT],
+                                           intermediates_memories[MOE_INTERNAL_BUFFER_ACTIVATED_EXPERT_IDS],
+                                           intermediates_memories[MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM]},
+                                          {final_hidden_states_mem_ptr},
+                                          {static_cast<size_t>(token_num) * local_threads_count, 1, 1},
+                                          {local_threads_count, 1, 1},
+                                          true /*needs_completion_event*/);
+            }
         }
 
         return ret_event;
