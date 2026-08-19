@@ -364,12 +364,6 @@ jobs:
           #  ONNX tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_onnx
 
-          # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi
-
-      - name: Set SSL_CERT_FILE for model downloading for unit tests
-        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
-
       - name: Install Python Layer tests dependencies
         run: python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
