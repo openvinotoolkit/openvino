@@ -260,6 +260,9 @@ struct activation_impl : public typed_primitive_impl<activation> {
         case data_types::f16:
             execute_activation<data_types::f16>(op, instance, activation_function, additional_params);
             break;
+        case data_types::bf16:
+            execute_activation<data_types::bf16>(op, instance, activation_function, additional_params);
+            break;
         case data_types::i64:
             execute_activation<data_types::i64>(op, instance, activation_function, additional_params);
             break;
@@ -309,6 +312,7 @@ attach_activation_impl::attach_activation_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i32,
         data_types::i64,
         data_types::i8,

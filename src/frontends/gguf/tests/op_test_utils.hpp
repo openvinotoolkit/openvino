@@ -16,18 +16,18 @@
 
 #pragma once
 
-#include <cnpy.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "cnpy.h"
 #include "common_test_utils/file_utils.hpp"
+#include "gtest/gtest.h"
 #include "op_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -49,6 +49,16 @@
 namespace ov_gguf_test {
 
 using namespace ov::frontend::gguf;
+
+// Set of ggml op types that some test in this binary has actually converted.  Every
+// SingleOpDecoder construction records its op type here, so the record is a by-product of the tests
+// running rather than a hand-maintained list that can drift.  Checked against op_table.cpp by the
+// coverage gate in test_op_coverage.cpp, which therefore fails when a new op is registered without
+// a test.  Populated at run time, so the gate has to run last -- see that file for how.
+inline std::set<std::string>& converted_op_types() {
+    static std::set<std::string> ops;
+    return ops;
+}
 
 // Description of one tensor (graph input or op output) in the single-op model.
 struct TensorDesc {
@@ -72,6 +82,7 @@ public:
           m_inputs(std::move(inputs)),
           m_output(std::move(output)),
           m_attributes(std::move(attributes)) {
+        converted_op_types().insert(m_op_type);
         for (const auto& in : m_inputs) {
             m_input_names.push_back(in.name);
             auto p = std::make_shared<ov::op::v0::Parameter>(in.type, in.shape);
@@ -127,6 +138,10 @@ public:
     std::vector<std::string> get_model_output_names() const override {
         return {m_output.name};
     }
+
+    // The optional model-scope accessors (get_model_extra_inputs, get_tokenizer_config) both
+    // default to empty on GgufDecoder, which is exactly right for a single-op test decoder: no
+    // auxiliary inputs and no tokenizer metadata. So neither is overridden here.
 
 private:
     const TensorDesc& find_input(const std::string& name) const {
