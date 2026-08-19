@@ -38,8 +38,10 @@ ze_usm_resource import_dx_buffer(ze_engine* engine, shared_mem_params params) {
         auto ctx = engine->get_context();
         auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
         // TODO: make sure that handle is still valid when BufferDX goes out of scope.
-        cl::BufferDX buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, params.mem);
-        return ze_import_buffer(buffer.get());
+        cl::BufferDX buffer(cl_ctx_handle, CL_MEM_READ_WRITE, params.mem);
+        // For directx we should take ownership
+        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "Retain failed");
+        return ze_import_usm(buffer.get(), ctx);
     #endif
 }
 
@@ -48,7 +50,49 @@ ze_image_resource import_media_buffer(ze_engine* engine, shared_mem_params param
     auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
     // TODO: make sure that image handle is still valid when imageVA goes out of scope.
     cl::ImageVA image(cl_ctx_handle, CL_MEM_READ_WRITE, params.surface, params.plane);
+    // For directx we should take ownership
+    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "Retain failed");
     return ze_import_image(image.get());
+}
+
+ze_usm_resource import_os_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    auto ctx = engine->get_context();
+    auto device = engine->get_device();
+    const void *extension_desc = nullptr;
+#ifdef _WIN32
+    ze_external_memory_import_win32_handle_t import_win32 = {
+        ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
+        nullptr,
+        ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
+        external_handle,
+        nullptr,
+    };
+    extension_desc = &import_win32;
+#elif defined(__linux__)
+    ze_external_memory_import_fd_t import_fd = {
+        ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
+        nullptr,
+        ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
+        external_handle,
+    };
+    extension_desc = &import_fd;
+#else
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#endif
+
+    ze_device_mem_alloc_desc_t dev_desc = {
+        ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
+        extension_desc,
+        0,
+        0,
+    };
+    ov_ze_usm_handle usm_handle;
+    usm_handle.context = ctx.handle();
+    usm_handle.ptr = nullptr;
+    size_t size = layout.bytes_count();
+    size = size > 0 ? size : 1;
+    OV_ZE_EXPECT(ze::zeMemAllocDevice(usm_handle.context, &dev_desc, size, 0, device.handle(), &usm_handle.ptr));
+    return ze_usm_resource(usm_handle);
 }
 
 bool check_allocation_range(ze_context_handle_t ctx, void *ptr, size_t expected_size) {
@@ -883,5 +927,8 @@ shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) c
 #endif
     return params;
 }
+gpu_buffer_from_handle::gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle)
+    : gpu_usm(engine, layout, import_os_handle(engine, layout, external_handle), allocation_type::cl_mem, nullptr) {}
+
 }  // namespace ze
 }  // namespace cldnn

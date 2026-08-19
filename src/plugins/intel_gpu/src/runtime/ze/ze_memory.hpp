@@ -104,5 +104,9 @@ private:
     uint32_t _plane;
 };
 
+struct gpu_buffer_from_handle : public gpu_usm {
+    gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle);
+};
+
 }  // namespace ze
 }  // namespace cldnn

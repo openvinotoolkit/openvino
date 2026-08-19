@@ -127,6 +127,9 @@ device::ptr create_ze_device_from_ocl_device(device::ptr ocl_device, bool initia
         return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_resource{}, initialize);
     }
     auto ze_context_res = ze_import_context(context);
+    // What if context will be destroyed with original device?
+    // Detect such case and call retain
+    OPENVINO_ASSERT(clRetainContext(context) == CL_SUCCESS, "Retain failed");
     return std::make_shared<ze_device>(ze_driver_res, ze_device_res, ze_context_res, initialize);
 }
 

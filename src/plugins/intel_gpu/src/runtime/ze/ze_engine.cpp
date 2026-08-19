@@ -99,7 +99,7 @@ memory::ptr ze_engine::allocate_memory(const layout& layout, allocation_type typ
 }
 
 memory::ptr ze_engine::import_buffer(const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
-    OPENVINO_NOT_IMPLEMENTED;
+    return std::make_shared<gpu_buffer_from_handle>(this, layout, external_handle);
 }
 
 memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
