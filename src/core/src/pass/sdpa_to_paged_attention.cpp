@@ -151,7 +151,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
-    manager.register_pass<SSMFusion>();
+    manager.register_pass<SelectiveSSMFusion>();
     manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<AttentionMaskShapeReplacer>(input_ids_node);
