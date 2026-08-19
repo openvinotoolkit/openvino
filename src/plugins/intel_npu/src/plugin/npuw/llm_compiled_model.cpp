@@ -469,6 +469,38 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
+// Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
+// Gemma4 26B A4B (MoE) also has this input, but dangling (proj_dim==0, unconsumed).
+bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        if (input_name.find("per_layer_inputs") == std::string::npos) {
+            continue;
+        }
+        const auto& partial_shape = input.get_partial_shape();
+        if (partial_shape.size() != 4u) {
+            continue;
+        }
+        const auto& proj_dim = partial_shape[3];
+        if (proj_dim.is_static() && proj_dim.get_length() == 0) {
+            // Dangling PLE (e.g. Gemma4 26B A4B MoE) - not a real per-layer input.
+            LOG_DEBUG("Found per_layer_inputs parameter with proj_dim==0 (dangling PLE, MoE model), skipping - "
+                      << input_name);
+            continue;
+        }
+        if (input.get_target_inputs().empty()) {
+            // Not actually consumed anywhere in the graph.
+            LOG_DEBUG("Found per_layer_inputs parameter with no consumers, skipping - " << input_name);
+            continue;
+        }
+        LOG_INFO("Detected cross-group KV sharing model (Gemma-4 E2B/E4B): "
+                 "found consumed per_layer_inputs parameter with nonzero PLE dim - "
+                 << input_name);
+        return true;
+    }
+    return false;
+}
+
 // Detect if the model is a Mixture-of-Experts (MoE) architecture
 // by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
@@ -1139,6 +1171,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa || prefill_attn_dyn)) {
         prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
         merge_config_with(prefill_config, dyn_attn_opts);
+        // Gemma-4 E2B/E4B: the SWA<->Global boundary subgraphs (FFN tail + Global Q-proj
+        // prefix) appear in two structurally distinct variants depending on the K/V source
+        // of the preceding SWA layer:
+        //   Variant A (L3->L4, L8->L9, L13->L14): SWA layer uses its own group K/V  -> 3 instances
+        //   Variant B (L18->L19, L23->L24, L28->L29, L33->L34): SWA layer uses L13
+        //             borrowed K/V (cloned by DuplicateSharedKVConcat)              -> 4 instances
+        // Both variants fall below the default keep_blocks=5 threshold and remain as
+        // separate FCE compile units.  Lower to 3 so both are folded into REP and
+        // reused across their respective instances.
+        if (has_per_layer_inputs(prefill_model)) {
+            prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
+        }
     }
 
     if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {
