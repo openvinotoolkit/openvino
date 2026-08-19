@@ -1372,6 +1372,13 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    validate_import_routing_tables(compiled);
+
+    compiled->implement_properties();
+    return compiled;
+}
+
+void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled) {
     const auto num_submodels = compiled->m_compiled_submodels.size();
 
     const auto ensure_submodel_index =
@@ -1493,9 +1500,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second);
         ++routing_idx;
     }
-
-    compiled->implement_properties();
-    return compiled;
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
