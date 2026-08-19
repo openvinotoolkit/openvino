@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-08-39-29-000-32227108575",
+  "timestamp": "2026-08-19T08:39:29Z",
+  "run_id": "32227108575",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32227108575",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37108",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37108",
+  "author": "ShaojieZhuIntel",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update fails with connection timed out to azure.archive.ubuntu.com"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\n  Could not connect to azure.archive.ubuntu.com:80 (X.X.X.X), connection timed out"
+  ],
+  "root_cause": "The GitHub Actions runner hosting the Debian Packages job could not reach azure.archive.ubuntu.com on port 80 during apt-get update. This is a transient network connectivity issue on the Azure-hosted runner infrastructure, not related to the PR changes. The run was automatically retried (attempt 2) and is currently progressing successfully.",
+  "reproduction_steps": "N/A - infrastructure/network issue not reproducible outside CI",
+  "recommended_actions": [
+    "No code change needed - the failure is a transient network issue",
+    "If the pattern persists, consider adding retry logic to apt-get update in the Debian Packages workflow"
+  ],
+  "prevention_strategies": "Consider adding apt-get retry logic (e.g., --retry flag or looping) in the Debian Packages job steps. The azure.archive.ubuntu.com mirror experiences intermittent unreachability from GitHub Actions runners.",
+  "historical_context": "This is the 5th occurrence of this pattern (signature 7d2e2ff59d37c6b4). Previous occurrences on 2026-08-18 and 2026-08-19, all resolved by retry. See runs: 32152602590, 32152867988, 32212108817, 32222069742."
+}
