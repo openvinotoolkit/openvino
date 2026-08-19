@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-16-25-29-000-32266833204",
+  "timestamp": "2026-08-19T16:25:29Z",
+  "run_id": "32266833204",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32266833204",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37360",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37360",
+  "author": "dependabot[bot]",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests / 6010 - TensorFlow compile-only convert_model step fails on Windows runner",
+  "signature": "tf models tests npu compile only convert model step failed|Flaky Test",
+  "signature_hash": "2abe56c58c994e45",
+  "confidence": "High",
+  "failed_jobs": ["NPU Models Tests / 6010"],
+  "key_errors": [
+    "Step 'TensorFlow Models Tests - NPU compile-only (convert_model)' failed (15:47:57Z - 15:51:40Z UTC)",
+    "Same step passed on NPU 4000, 5020, 5010, 3720 runners",
+    "PR only changes pyproject.toml (patchelf version bump) - unrelated to TF tests",
+    "Run attempt 2 - already re-tried once"
+  ],
+  "root_cause": "The TensorFlow Models Tests - NPU compile-only (convert_model) step failed only on NPU 6010 runner while the identical step passed on all other NPU platforms (4000, 5020, 5010, 3720). The PR under test (dependabot patchelf version bump in pyproject.toml) has no relationship to TF model tests or NPU execution. The full log for the TF step (15:47-15:51 UTC) is not accessible via tail-based log retrieval; however, the isolated platform-specific failure on a second run attempt strongly indicates a flaky test or runner infrastructure issue on the NPU 6010 Windows runner.",
+  "reproduction_steps": "N/A - intermittent NPU runner-specific failure",
+  "recommended_actions": [
+    "Re-run the failed job on NPU 6010",
+    "If failure recurs, investigate NPU 6010 runner health",
+    "Check if TF model used in convert_model test has known issues with NPU 6010"
+  ],
+  "prevention_strategies": "Add retry logic for NPU model hub tests or mark NPU 6010 TF tests as allowed-to-fail if consistently flaky",
+  "historical_context": "No prior matching pattern found for TF convert_model NPU 6010 failure. Other NPU platform variants passed the same step."
+}

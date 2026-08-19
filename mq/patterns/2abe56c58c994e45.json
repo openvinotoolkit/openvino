@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "tf models tests npu compile only convert model step failed|Flaky Test",
+  "signature_hash": "2abe56c58c994e45",
+  "title": "NPU Models Tests / 6010 - TensorFlow compile-only convert_model step fails on Windows runner",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-19T16:25:29Z",
+  "last_seen": "2026-08-19T16:25:29Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32266833204"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37360"
+  ],
+  "recent_timestamps": [
+    "2026-08-19T16:25:29Z"
+  ],
+  "rerun_search_string": null
+}
