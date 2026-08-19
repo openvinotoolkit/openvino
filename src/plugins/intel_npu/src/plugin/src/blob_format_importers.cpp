@@ -20,6 +20,16 @@ namespace {
 
 using namespace intel_npu;
 
+ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+
+    return tensor;
+}
+
 constexpr std::string_view HANDLER_FACTOR_LOGGER_NAME = "blob_format_importer_factory";
 constexpr std::string_view RAW_BLOB_HANDLER_LOGGER_NAME = "RawBlobImporter";
 constexpr std::string_view BLOB_V1_HADNLER_LOGGER_NAME = "BlobFormatV1Importer";
@@ -34,16 +44,6 @@ constexpr std::string_view EMPTY_COMPILER_PAYLOAD_MESSAGE =
 constexpr std::string_view DECRYPTING_PAYLOAD_MESSAGE = "Decrypting the compiler payload";
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
-
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
-    return tensor;
-}
 
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
@@ -256,6 +256,10 @@ private:
         return std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return std::nullopt;
+    }
+
     /**
      * @brief The compiler main schedule, that is also the whole blob received to be imported.
      */
@@ -383,6 +387,10 @@ private:
                    : std::nullopt;
     }
 
+    std::optional<BlobType> extract_blob_type() const override {
+        return m_metadata->get_blob_type();
+    }
+
     /**
      * @brief Registers the compiler version inside the configuration attribute if the version is found within the
      * metadata.
@@ -457,7 +465,8 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             m_config,
                             std::move(weights_source),
                             init_schedules,
-                            extract_compiler_compatibility_descriptor());
+                            extract_compiler_compatibility_descriptor(),
+                            extract_blob_type());
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
@@ -537,10 +546,14 @@ std::unique_ptr<IBlobFormatImporter> create(const ov::Tensor& npu_formatted_blob
         return std::make_unique<RawBlobImporter>(npu_formatted_blob, original_model, config);
     }
 
-    size_t magic_bytes_size = MAGIC_BYTES.size();
-    std::string_view blob_magic_bytes(
-        npu_formatted_blob.data<const char>() + npu_formatted_blob.get_byte_size() - magic_bytes_size,
-        magic_bytes_size);
+    const size_t input_size = npu_formatted_blob.get_byte_size();
+    OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
+
+    const size_t magic_bytes_size = MAGIC_BYTES.size();
+    OPENVINO_ASSERT(input_size >= magic_bytes_size, BLOB_SIZE_SMALLER_THAN_MAGIC);
+
+    std::string_view blob_magic_bytes(npu_formatted_blob.data<const char>() + input_size - magic_bytes_size,
+                                      magic_bytes_size);
 
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
 

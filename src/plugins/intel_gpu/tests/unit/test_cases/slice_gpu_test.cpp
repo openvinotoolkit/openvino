@@ -413,4 +413,57 @@ TEST(slice_gpu_f8e4m3, bfyx) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << "i=" << i;
 }
 
+// Standalone test for bf16, as values in typed tests are too big for bf16
+TEST(slice_gpu_bf16, bfyx_positive_step) {
+    auto& engine = get_test_engine();
+
+    // Input shape {1, 1, 4, 8} -> 32 elements holding values 0..31.
+    const ov::PartialShape input_shape{ 1, 1, 4, 8 };
+    const size_t input_size = ov::shape_size(input_shape.get_shape());
+    std::vector<ov::bfloat16> input_data(input_size);
+    for (size_t i = 0; i < input_size; ++i)
+        input_data[i] = static_cast<ov::bfloat16>(static_cast<float>(i));
+
+    auto input = engine.allocate_memory({ input_shape, data_types::bf16, format::bfyx });
+    set_values(input, input_data);
+
+    // Slice y in [1, 3) step 1 and x in [2, 7) step 2 (axes 2 and 3).
+    auto start = engine.allocate_memory({ ov::PartialShape{ 2 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(start, { 1, 2 });
+    auto stop = engine.allocate_memory({ ov::PartialShape{ 2 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(stop, { 3, 7 });
+    auto step = engine.allocate_memory({ ov::PartialShape{ 2 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(step, { 1, 2 });
+    auto axes = engine.allocate_memory({ ov::PartialShape{ 2 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(axes, { 2, 3 });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice", { input_info("input"), input_info("start"),
+                                  input_info("stop"), input_info("step"), input_info("axes") }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "slice");
+
+    auto output = outputs.at("slice").get_memory();
+    cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    // value(y, x) = y * 8 + x for y in {1, 2}, x in {2, 4, 6}.
+    const std::vector<float> expected = { 10, 12, 14, 18, 20, 22 };
+    ASSERT_EQ(output_ptr.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        ASSERT_TRUE(are_equal(expected[i], static_cast<float>(output_ptr[i]), 2e-3));
+}
+
 }  // anonymous namespace
