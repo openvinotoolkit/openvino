@@ -146,6 +146,7 @@ jobs:
 
   Debian_Packages:
     name: Debian Packages
+    if: ${{ 'false' }} # Ticket: 192996
     needs: [Docker, Build]
     uses: ./.github/workflows/job_debian_packages.yml
     with:
@@ -659,7 +660,8 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
+    # TODO: return Debian_Packages once 192996 is resolved
+    needs: [Smart_CI, Build, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
             CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}

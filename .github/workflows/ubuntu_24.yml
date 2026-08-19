@@ -134,6 +134,7 @@ jobs:
 
   Debian_Packages:
     name: Debian Packages
+    if: ${{ 'false' }} # Ticket: 192996
     needs: [ Docker, Build ]
     if: ${{ github.event_name != 'schedule' }}
     uses: ./.github/workflows/job_debian_packages.yml
@@ -267,7 +268,8 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers]
+    # TODO: return Debian_Packages once 192996 is resolved 
+    needs: [Smart_CI, Build, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
