@@ -94,8 +94,10 @@ std::string attention(GraphEmitter& e,
                       ps({1, 1, T, head_size_l * n_head_kv_l}),
                       f32);
 
-    // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias).
-    if (cfg.has_qkv_bias && !cfg.has_fused_qkv) {
+    // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
+    // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
+    // register_fused_qkv above).
+    if (cfg.has_qkv_bias) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
         k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
         v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");

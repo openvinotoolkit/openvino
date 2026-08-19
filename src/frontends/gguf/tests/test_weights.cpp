@@ -15,6 +15,7 @@
 #include <cstring>
 
 #include "op_test_utils.hpp"
+#include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
 
@@ -214,4 +215,34 @@ TEST(GGUFWeightUnsupported, Mxfp4TwoDimIsNotAStoredWeight) {
             .attr<std::string>("quant_type", "MXFP4")
             .build();
     });
+}
+
+// Regression for a fused-QKV bias (e.g. phi-3's blk.N.attn_qkv.bias) being silently dropped:
+// register_fused_qkv split the fused weight into q/k/v parts but never touched a fused bias, so
+// attention()'s add_bias calls (gated on !has_fused_qkv) never ran for these archs, and the
+// bias never made it into the graph. split_fused_qkv_bias must slice the fused bias into
+// exactly the q/k/v parts the weight split uses (n_q, n_k, n_v rows in that order).
+TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
+    constexpr size_t n_q = 4, n_k = 2, n_v = 2;
+    ov::Tensor bias(ov::element::f32, ov::Shape{n_q + n_k + n_v});
+    auto* data = bias.data<float>();
+    for (size_t i = 0; i < n_q + n_k + n_v; ++i) {
+        data[i] = static_cast<float>(i);
+    }
+    std::unordered_map<std::string, ov::Tensor> weights{{"blk.0.attn_qkv.bias", bias}};
+
+    auto parts = ov::frontend::gguf::split_fused_qkv_bias("blk.0.attn_qkv", weights, n_q, n_k, n_v);
+
+    ASSERT_EQ(parts[0].get_shape(), ov::Shape{n_q});
+    ASSERT_EQ(parts[1].get_shape(), ov::Shape{n_k});
+    ASSERT_EQ(parts[2].get_shape(), ov::Shape{n_v});
+    for (size_t i = 0; i < n_q; ++i) {
+        EXPECT_FLOAT_EQ(parts[0].data<float>()[i], static_cast<float>(i));
+    }
+    for (size_t i = 0; i < n_k; ++i) {
+        EXPECT_FLOAT_EQ(parts[1].data<float>()[i], static_cast<float>(n_q + i));
+    }
+    for (size_t i = 0; i < n_v; ++i) {
+        EXPECT_FLOAT_EQ(parts[2].data<float>()[i], static_cast<float>(n_q + n_k + i));
+    }
 }

@@ -54,6 +54,17 @@ ov::Tensor slice_rows(const ov::Tensor& t, size_t r0, size_t r1) {
     return out;
 }
 
+// Copy elements [r0, r1) out of a 1D tensor. Used for a fused attn_qkv.bias, which -- unlike the
+// weight -- is a plain unquantized array, so a byte-range copy is exact regardless of dtype.
+ov::Tensor slice_1d(const ov::Tensor& t, size_t r0, size_t r1) {
+    const auto& s = t.get_shape();
+    OPENVINO_ASSERT(s.size() == 1 && r1 <= s[0] && r0 <= r1, "[GGUF] bad 1D slice");
+    ov::Tensor out(t.get_element_type(), ov::Shape{r1 - r0});
+    const size_t elem_bytes = t.get_byte_size() / s[0];
+    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * elem_bytes, (r1 - r0) * elem_bytes);
+    return out;
+}
+
 // Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
 // [offset, offset + take) into the result. Used to de-interleave qwen35's attn_q, which packs
 // query and gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...].
@@ -597,6 +608,18 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(
         }
     }
     return out;
+}
+
+std::array<ov::Tensor, 3> split_fused_qkv_bias(const std::string& base,
+                                               const std::unordered_map<std::string, ov::Tensor>& weights,
+                                               size_t n_q,
+                                               size_t n_k,
+                                               size_t n_v) {
+    const ov::Tensor& b = get(weights, base + ".bias");
+    const auto& s = b.get_shape();
+    OPENVINO_ASSERT(s.size() == 1, "[GGUF] fused qkv bias for ", base, " is not 1D");
+    OPENVINO_ASSERT(n_q + n_k + n_v == s[0], "[GGUF] fused qkv bias row mismatch for ", base);
+    return {slice_1d(b, 0, n_q), slice_1d(b, n_q, n_q + n_k), slice_1d(b, n_q + n_k, s[0])};
 }
 
 // qwen35: attn_q packs the query and the attention output gate interleaved per head, as

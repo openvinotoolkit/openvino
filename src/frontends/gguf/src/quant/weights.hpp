@@ -92,6 +92,15 @@ std::array<FusedQkvPart, 3> split_fused_qkv_extracted(
     size_t n_k,
     size_t n_v);
 
+// Row-slice a fused `<base>.bias` (plain, unquantized 1D tensor) into q/k/v parts, using the
+// same row ranges as split_fused_qkv_extracted. Callers only invoke this when `<base>.bias`
+// is present -- not every fused-QKV arch has one.
+std::array<ov::Tensor, 3> split_fused_qkv_bias(const std::string& base,
+                                               const std::unordered_map<std::string, ov::Tensor>& weights,
+                                               size_t n_q,
+                                               size_t n_k,
+                                               size_t n_v);
+
 // De-interleave a qwen35 `<base>` attn_q weight, which packs the query and the attention output
 // gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...], into two plain projections.
 // Returns {query, gate}, keyed "<base>.q.*" and "<base>.gate.*".

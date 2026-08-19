@@ -536,8 +536,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
         OPENVINO_ASSERT(tr.bytes_per_block != 0, "[load_gguf] tensor '", ti.name, "' has unsupported type ", ti.type);
         tensor.bsize = (nelem / tr.items_per_block) * tr.bytes_per_block;
 
+        // Subtraction-based bounds checks: ti.offset comes straight from the file, so a crafted
+        // value must not be allowed to wrap either addition below back into a valid-looking range.
+        OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
+        OPENVINO_ASSERT(ti.offset <= fsize - data_off, "[load_gguf] tensor '", ti.name, "' offset runs past EOF");
         uint64_t abs_off = data_off + ti.offset;
-        OPENVINO_ASSERT(abs_off + tensor.bsize <= fsize, "[load_gguf] tensor '", ti.name, "' data runs past EOF");
+        OPENVINO_ASSERT(tensor.bsize <= fsize - abs_off, "[load_gguf] tensor '", ti.name, "' data runs past EOF");
         tensor.weights_data = base + abs_off;
 
         const std::string& name = ti.name;

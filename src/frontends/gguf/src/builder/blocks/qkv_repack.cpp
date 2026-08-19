@@ -42,6 +42,17 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
         const std::string base = p + "attn_" + std::string(1, "qkv"[i]);  // blk.N.attn_q etc.
         e.emit_weight_op(names[i], rekey(parts[i].extracted, base), parts[i].qtype, ps({1, 1, rows[i], cfg.n_embd}));
     }
+
+    // Some fused-QKV archs (e.g. phi-3) also carry a single attn_qkv.bias; split it into
+    // attn_{q,k,v}.bias the same way so attention()'s plain add_bias lookup finds them. Not every
+    // fused-QKV arch has a bias, so only split when the fused tensor is actually present.
+    if (e.weights().count(p + "attn_qkv.bias")) {
+        auto bias_parts = split_fused_qkv_bias(p + "attn_qkv", e.weights(), n_q, n_kv, n_kv);
+        const std::array<std::string, 3> bias_names = {p + "attn_q.bias", p + "attn_k.bias", p + "attn_v.bias"};
+        for (size_t i = 0; i < 3; ++i) {
+            e.weights()[bias_names[i]] = bias_parts[i];
+        }
+    }
 }
 
 void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il) {
