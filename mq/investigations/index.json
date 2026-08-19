@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 170,
+  "total": 171,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1666,6 +1666,17 @@
       "category": "Network",
       "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "37396"
+    },
+    {
+      "investigation_id": "2026-08-19-09-39-02-000-32232052826",
+      "run_id": "32232052826",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32232052826",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-08-19T09:39:02Z",
+      "title": "Debian Packages job fails - apt cannot reach azure.archive.ubuntu.com (network timeout)",
+      "category": "Network",
+      "signature_hash": "7d2e2ff59d37c6b4",
+      "pr_number": "37248"
     }
   ]
 }

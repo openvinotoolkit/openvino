@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-09-39-02-000-32232052826",
+  "timestamp": "2026-08-19T09:39:02Z",
+  "run_id": "32232052826",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32232052826",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37248",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37248",
+  "author": "Akihiro-Tabuchi",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt cannot reach azure.archive.ubuntu.com (network timeout)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update fails with connection timeout to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The apt-get update step in the Debian Packages job failed to reach azure.archive.ubuntu.com (IP 52.250.76.244) on port 80. All four Ubuntu mirror InRelease endpoints (noble, noble-updates, noble-backports, noble-security) returned connection timeouts after multiple retries over ~4 minutes. This is a transient network/infrastructure failure on the Azure-hosted GitHub Actions runner - the Azure Ubuntu package mirror was unreachable from the runner at the time of the job, causing package index updates to fail and subsequently preventing installation of gnupg, wget, ca-certificates, and lsb-release.",
+  "reproduction_steps": "N/A - infrastructure/network issue not reproducible outside CI",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job - the network issue is transient",
+    "If the failure recurs, investigate Azure CDN/mirror outage status",
+    "Consider adding retry logic to apt-get update in the Debian Packages workflow"
+  ],
+  "prevention_strategies": "Add retry logic (e.g., apt-get update with retries or use a fallback mirror) in the Debian Packages job to handle transient Azure mirror outages.",
+  "historical_context": "This is an Azure runner network timeout to the Ubuntu package mirror - a known transient infrastructure issue that can affect any Ubuntu-based CI job."
+}
