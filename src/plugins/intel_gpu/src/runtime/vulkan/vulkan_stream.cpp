@@ -222,6 +222,7 @@ struct vulkan_stream::resource_state {
 
     struct slot {
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        VkQueryPool profiling_query_pool = VK_NULL_HANDLE;
         VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
         VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
         uint32_t descriptor_capacity = 0;
@@ -238,7 +239,7 @@ struct vulkan_stream::resource_state {
         bool transient_command_buffer_submitted = false;
     };
 
-    explicit resource_state(const vulkan_engine& engine)
+    explicit resource_state(const vulkan_engine& engine, bool enable_profiling = false)
         : device(engine.get_device_handle()),
           queue(engine.get_compute_queue()),
           queue_mutex(engine.get_queue_mutex()),
@@ -246,7 +247,24 @@ struct vulkan_stream::resource_state {
           max_work_group_invocations(engine.get_device_info().max_work_group_size),
           subgroup_size(engine.get_device_info().supported_simd_sizes.empty() ? 0 : engine.get_device_info().supported_simd_sizes.front()),
           completion_timeline(std::make_shared<vulkan_timeline_state>(device)),
+          profiling_enabled(enable_profiling),
           diagnostics_enabled(stream_diagnostics_enabled()) {
+        if (profiling_enabled) {
+            VkPhysicalDeviceProperties properties{};
+            vkGetPhysicalDeviceProperties(engine.get_physical_device(), &properties);
+            OPENVINO_ASSERT(properties.limits.timestampComputeAndGraphics == VK_TRUE && properties.limits.timestampPeriod > 0.0f,
+                            "[GPU][Vulkan] The selected device does not support compute timestamp profiling");
+            timestamp_period_ns = properties.limits.timestampPeriod;
+
+            uint32_t queue_family_count = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(engine.get_physical_device(), &queue_family_count, nullptr);
+            std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+            vkGetPhysicalDeviceQueueFamilyProperties(engine.get_physical_device(), &queue_family_count, queue_families.data());
+            OPENVINO_ASSERT(
+                engine.get_compute_queue_family() < queue_families.size() && queue_families[engine.get_compute_queue_family()].timestampValidBits > 0,
+                "[GPU][Vulkan] The selected compute queue does not expose valid timestamp bits");
+            timestamp_valid_bits = queue_families[engine.get_compute_queue_family()].timestampValidBits;
+        }
         VkCommandPoolCreateInfo command_pool_info{};
         command_pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         command_pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -263,6 +281,9 @@ struct vulkan_stream::resource_state {
             recycle(slot);
             if (slot.fence != VK_NULL_HANDLE) {
                 vkDestroyFence(device, slot.fence, nullptr);
+            }
+            if (slot.profiling_query_pool != VK_NULL_HANDLE) {
+                vkDestroyQueryPool(device, slot.profiling_query_pool, nullptr);
             }
             if (slot.descriptor_pool != VK_NULL_HANDLE) {
                 vkDestroyDescriptorPool(device, slot.descriptor_pool, nullptr);
@@ -329,14 +350,14 @@ struct vulkan_stream::resource_state {
         active_batch_limit = selected_limit;
         if (!inference_in_progress) {
             inference_in_progress = true;
-            inference_uses_direct_recording = select_direct_recording_for_inference();
+            inference_uses_direct_recording = profiling_enabled || select_direct_recording_for_inference();
             inference_all_batches_cache_hits = !inference_uses_direct_recording;
             inference_all_batches_replayable = !inference_uses_direct_recording;
             inference_uses_generation_pool_reset = select_generation_pool_reset_for_inference();
             inference_uses_timeline_completion = select_timeline_completion_for_inference();
-            inference_tunes_command_reuse = !command_reuse_decided;
-            inference_tunes_pool_reset = command_reuse_decided && !pool_reset_decided;
-            inference_tunes_completion = command_reuse_decided && pool_reset_decided && !completion_tuning_decided;
+            inference_tunes_command_reuse = !profiling_enabled && !command_reuse_decided;
+            inference_tunes_pool_reset = !profiling_enabled && command_reuse_decided && !pool_reset_decided;
+            inference_tunes_completion = !profiling_enabled && command_reuse_decided && pool_reset_decided && !completion_tuning_decided;
             if (inference_tunes_command_reuse || inference_tunes_pool_reset || inference_tunes_completion) {
                 inference_started = std::chrono::steady_clock::now();
             }
@@ -348,6 +369,7 @@ struct vulkan_stream::resource_state {
             begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
             begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer");
+            begin_profiling(slot);
         }
         current_dispatches.clear();
         current_sequence_barriers.clear();
@@ -502,6 +524,7 @@ struct vulkan_stream::resource_state {
         bool cache_hit = false;
         bool sequence_replayable = false;
         if (active_direct_recording) {
+            end_profiling(slot);
             check_vk_result(vkEndCommandBuffer(slot.command_buffer), "vkEndCommandBuffer");
             slot.transient_command_buffer_submitted = true;
             command_buffer = slot.command_buffer;
@@ -658,6 +681,9 @@ struct vulkan_stream::resource_state {
     uint64_t next_completion_value = 1;
     std::vector<slot> slots;
     size_t next_slot = 0;
+    bool profiling_enabled = false;
+    float timestamp_period_ns = 0.0f;
+    uint32_t timestamp_valid_bits = 0;
     bool diagnostics_enabled = false;
     uint64_t descriptor_allocations = 0;
     uint64_t descriptor_updates = 0;
@@ -1224,6 +1250,14 @@ private:
             fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             check_vk_result(vkCreateFence(device, &fence_info, nullptr, &slot.fence), "vkCreateFence");
 
+            if (profiling_enabled) {
+                VkQueryPoolCreateInfo query_pool_info{};
+                query_pool_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+                query_pool_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+                query_pool_info.queryCount = 2;
+                check_vk_result(vkCreateQueryPool(device, &query_pool_info, nullptr, &slot.profiling_query_pool), "vkCreateQueryPool(timestamp)");
+            }
+
             if (mutable_descriptor_required) {
                 ensure_descriptor_pool(slot, descriptor_count);
             }
@@ -1245,10 +1279,11 @@ private:
 
     std::shared_ptr<vulkan_submission_state> mark_submitted(slot& slot, uint64_t completion_value, bool used_timeline) {
         OPENVINO_ASSERT(slot.submission == nullptr && (used_timeline == (completion_value != 0)), "[GPU][Vulkan] Submission resources are already in use");
+        const vulkan_profiling_query profiling{slot.profiling_query_pool, timestamp_period_ns, timestamp_valid_bits};
         if (used_timeline) {
-            slot.submission = std::make_shared<vulkan_submission_state>(completion_timeline, queue, stream_id, completion_value);
+            slot.submission = std::make_shared<vulkan_submission_state>(completion_timeline, queue, stream_id, completion_value, profiling);
         } else {
-            slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence, stream_id);
+            slot.submission = std::make_shared<vulkan_submission_state>(device, queue, slot.fence, stream_id, profiling);
             slot.fence = VK_NULL_HANDLE;
         }
         const auto pending_submissions = std::count_if(slots.begin(), slots.end(), [](const auto& candidate) {
@@ -1309,6 +1344,7 @@ private:
     void recycle(slot& slot, bool reset_transient_command = true) {
         if (slot.submission != nullptr) {
             slot.submission->wait();
+            slot.submission->capture_profiling();
             if (slot.submission->uses_fence()) {
                 slot.fence = slot.submission->release_fence();
                 check_vk_result(vkResetFences(device, 1, &slot.fence), "vkResetFences");
@@ -1397,6 +1433,22 @@ private:
     bool external_dependency_pending = false;
     std::weak_ptr<vulkan_submission_state> latest_submission;
 
+    void begin_profiling(const slot& slot) const {
+        if (!profiling_enabled) {
+            return;
+        }
+        OPENVINO_ASSERT(slot.profiling_query_pool != VK_NULL_HANDLE, "[GPU][Vulkan] Profiling-enabled command buffer has no timestamp query pool");
+        vkCmdResetQueryPool(slot.command_buffer, slot.profiling_query_pool, 0, 2);
+        vkCmdWriteTimestamp2(slot.command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, slot.profiling_query_pool, 0);
+    }
+
+    void end_profiling(const slot& slot) const {
+        if (!profiling_enabled) {
+            return;
+        }
+        vkCmdWriteTimestamp2(slot.command_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, slot.profiling_query_pool, 1);
+    }
+
     slot& begin_transfer(const prepared_arguments& prepared) {
         flush();
         auto& slot = acquire(0, false);
@@ -1412,6 +1464,7 @@ private:
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         check_vk_result(vkBeginCommandBuffer(slot.command_buffer, &begin_info), "vkBeginCommandBuffer(transfer)");
+        begin_profiling(slot);
         record_buffer_hazards(slot, prepared, VK_PIPELINE_STAGE_2_TRANSFER_BIT);
         record_synchronization(slot.command_buffer, current_external_dependency_barrier, hazard_barrier_scratch.data(), hazard_barrier_scratch.size());
         return slot;
@@ -1426,7 +1479,7 @@ vulkan_stream::vulkan_stream(const vulkan_engine& engine)
 vulkan_stream::vulkan_stream(const vulkan_engine& engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config)),
       _engine(engine),
-      _resources(std::make_unique<resource_state>(engine)) {}
+      _resources(std::make_unique<resource_state>(engine, config.get_enable_profiling())) {}
 
 vulkan_stream::~vulkan_stream() = default;
 
@@ -1527,8 +1580,10 @@ void vulkan_stream::enqueue_barrier() {
 }
 
 event::ptr vulkan_stream::group_events(const std::vector<event::ptr>& dependencies) {
-    wait_for_events(dependencies);
-    return create_user_event(true);
+    if (dependencies.size() == 1) {
+        return dependencies.front();
+    }
+    return std::make_shared<vulkan_events>(dependencies);
 }
 
 void vulkan_stream::wait_for_events(const std::vector<event::ptr>& events) {

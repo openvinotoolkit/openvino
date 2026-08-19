@@ -44,7 +44,9 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     constexpr uint64_t local_memory_bytes = local_size * sizeof(float);
 
     auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
-    auto command_stream = target_engine->create_stream(get_test_default_config(*target_engine));
+    auto profiling_config = get_test_default_config(*target_engine);
+    profiling_config.set_property(ov::enable_profiling(true));
+    auto command_stream = target_engine->create_stream(profiling_config);
     const layout buffer_layout(ov::PartialShape{element_count}, ov::element::f32, format::bfyx);
     auto input = target_engine->allocate_memory(buffer_layout);
     auto intermediate = target_engine->allocate_memory(buffer_layout);
@@ -60,7 +62,7 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_local_spirv, sizeof(foundation_stage_local_spirv)));
     lifecycle.emplace_back(build_spirv_kernel(*target_engine, foundation_stage_output_spirv, sizeof(foundation_stage_output_spirv)));
 
-    gpu_execution_plan plan(2, {true, false});
+    gpu_execution_plan plan(2, {true, true});
     plan[0].local_memory.add({local_memory_bytes, sizeof(float), gpu_local_memory_mapping::specialization_constant, 1, false});
 
     kernel_arguments_desc local_stage;
@@ -92,6 +94,12 @@ TEST(vulkan_execution_plan, two_stage_dispatch_uses_internal_and_local_memory) {
     });
     ASSERT_NE(completion, nullptr);
     completion->wait();
+
+    const auto profiling = completion->get_profiling_info();
+    ASSERT_EQ(profiling.size(), 1);
+    EXPECT_EQ(profiling.front().stage, instrumentation::profiling_stage::executing);
+    EXPECT_TRUE(profiling.front().is_valid_start);
+    EXPECT_GT(profiling.front().value->value(), std::chrono::nanoseconds::zero());
 
     std::vector<float> actual(element_count);
     output->copy_to(*command_stream, actual.data(), true);

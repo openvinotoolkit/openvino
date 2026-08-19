@@ -4,6 +4,11 @@
 
 #include "vulkan_event.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <limits>
+#include <map>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -59,26 +64,36 @@ bool vulkan_timeline_state::is_complete(uint64_t value) {
     return completed_value >= value;
 }
 
-vulkan_submission_state::vulkan_submission_state(std::shared_ptr<vulkan_timeline_state> timeline, VkQueue queue, uint64_t stream_id, uint64_t completion_value)
+vulkan_submission_state::vulkan_submission_state(std::shared_ptr<vulkan_timeline_state> timeline,
+                                                 VkQueue queue,
+                                                 uint64_t stream_id,
+                                                 uint64_t completion_value,
+                                                 vulkan_profiling_query profiling)
     : _timeline(std::move(timeline)),
       _queue(queue),
       _stream_id(stream_id),
-      _completion_value(completion_value) {
+      _completion_value(completion_value),
+      _profiling(profiling) {
     OPENVINO_ASSERT(_timeline != nullptr && _queue != VK_NULL_HANDLE && _stream_id != 0 && _completion_value != 0,
                     "[GPU][Vulkan] A device submission requires valid Vulkan handles");
 }
 
-vulkan_submission_state::vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id)
+vulkan_submission_state::vulkan_submission_state(VkDevice device, VkQueue queue, VkFence fence, uint64_t stream_id, vulkan_profiling_query profiling)
     : _device(device),
       _queue(queue),
       _fence(fence),
-      _stream_id(stream_id) {
+      _stream_id(stream_id),
+      _profiling(profiling) {
     OPENVINO_ASSERT(_device != VK_NULL_HANDLE && _queue != VK_NULL_HANDLE && _fence != VK_NULL_HANDLE && _stream_id != 0,
                     "[GPU][Vulkan] A fence submission requires valid Vulkan handles");
 }
 
 void vulkan_submission_state::wait() {
     std::lock_guard<std::mutex> lock(_mutex);
+    wait_locked();
+}
+
+void vulkan_submission_state::wait_locked() {
     if (_completed) {
         return;
     }
@@ -90,6 +105,43 @@ void vulkan_submission_state::wait() {
         OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkWaitForFences failed with VkResult ", static_cast<int>(result));
     }
     _completed = true;
+}
+
+void vulkan_submission_state::capture_profiling() {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_profiling_captured || !_profiling) {
+        return;
+    }
+
+    wait_locked();
+    std::array<uint64_t, 2> timestamps{};
+    const auto result = vkGetQueryPoolResults(_timeline != nullptr ? _timeline->device() : _device,
+                                              _profiling.pool,
+                                              0,
+                                              static_cast<uint32_t>(timestamps.size()),
+                                              sizeof(timestamps),
+                                              timestamps.data(),
+                                              sizeof(timestamps.front()),
+                                              VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    OPENVINO_ASSERT(result == VK_SUCCESS, "[GPU][Vulkan] vkGetQueryPoolResults(timestamp) failed with VkResult ", static_cast<int>(result));
+
+    const auto valid_mask = _profiling.timestamp_valid_bits == 64 ? std::numeric_limits<uint64_t>::max() : (uint64_t{1} << _profiling.timestamp_valid_bits) - 1;
+    const auto start_ticks = timestamps[0] & valid_mask;
+    const auto duration_ticks = (timestamps[1] - timestamps[0]) & valid_mask;
+    const auto to_nanoseconds = [this](uint64_t ticks) {
+        const auto nanoseconds = static_cast<long double>(ticks) * _profiling.timestamp_period_ns;
+        OPENVINO_ASSERT(nanoseconds <= static_cast<long double>(std::numeric_limits<int64_t>::max()),
+                        "[GPU][Vulkan] Profiling timestamp exceeds the OpenVINO duration range");
+        return std::chrono::nanoseconds(static_cast<int64_t>(std::llround(nanoseconds)));
+    };
+    _profiling_period = vulkan_profiling_period{to_nanoseconds(start_ticks), to_nanoseconds(duration_ticks)};
+    _profiling_captured = true;
+}
+
+std::optional<vulkan_profiling_period> vulkan_submission_state::get_profiling_period() {
+    capture_profiling();
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _profiling_period;
 }
 
 bool vulkan_submission_state::is_complete() {
@@ -185,6 +237,82 @@ bool vulkan_event::is_set_impl() {
 
     std::lock_guard<std::mutex> lock(_mutex);
     return _signaled;
+}
+
+bool vulkan_event::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+    if (_submission == nullptr) {
+        return true;
+    }
+
+    const auto profiling = _submission->get_profiling_period();
+    if (!profiling.has_value()) {
+        return true;
+    }
+
+    auto period = std::make_shared<instrumentation::profiling_period_basic>(profiling->duration);
+    info.push_back({instrumentation::profiling_stage::executing, period, profiling->start, true});
+    return true;
+}
+
+vulkan_events::vulkan_events(std::vector<event::ptr> events) : _events(std::move(events)) {}
+
+void vulkan_events::wait_impl() {
+    for (const auto& event : _events) {
+        if (event != nullptr) {
+            event->wait();
+        }
+    }
+}
+
+void vulkan_events::set_impl() {
+    wait_impl();
+}
+
+bool vulkan_events::is_set_impl() {
+    return std::all_of(_events.begin(), _events.end(), [](const auto& event) {
+        return event == nullptr || event->is_set();
+    });
+}
+
+bool vulkan_events::get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) {
+    using interval = std::pair<std::chrono::nanoseconds, std::chrono::nanoseconds>;
+    std::map<instrumentation::profiling_stage, std::vector<interval>> intervals_by_stage;
+
+    for (const auto& event : _events) {
+        if (event == nullptr) {
+            continue;
+        }
+        for (const auto& current : event->get_profiling_info()) {
+            if (!current.is_valid_start) {
+                continue;
+            }
+            intervals_by_stage[current.stage].emplace_back(current.start, current.start + current.value->value());
+        }
+    }
+
+    for (auto& [stage, intervals] : intervals_by_stage) {
+        if (intervals.empty()) {
+            continue;
+        }
+        std::sort(intervals.begin(), intervals.end());
+        std::vector<interval> merged;
+        merged.reserve(intervals.size());
+        for (const auto& current : intervals) {
+            if (merged.empty() || merged.back().second < current.first) {
+                merged.push_back(current);
+            } else {
+                merged.back().second = std::max(merged.back().second, current.second);
+            }
+        }
+
+        auto duration = std::chrono::nanoseconds::zero();
+        for (const auto& current : merged) {
+            duration += current.second - current.first;
+        }
+        auto period = std::make_shared<instrumentation::profiling_period_basic>(duration);
+        info.push_back({stage, period, merged.front().first, true});
+    }
+    return true;
 }
 
 }  // namespace vulkan
