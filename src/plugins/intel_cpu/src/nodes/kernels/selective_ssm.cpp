@@ -148,70 +148,39 @@ inline void copy_convert(DstT* dst, const SrcT* src, size_t count) {
     }
 }
 
-template <bool StoreState = true, typename StateOutT, typename StateInT, typename ProjectionT>
-inline float update_state_and_reduce(StateOutT* state,
-                                     const StateInT* input_state,
-                                     const ProjectionT* B,
-                                     const ProjectionT* C,
-                                     float decay,
-                                     float input_scale,
-                                     size_t state_size) {
-    // The recurrence update and C reduction deliberately share one state-memory pass. Splitting these operations
-    // into an update loop followed by the common dot-product helper costs another full state read and measurably
-    // regresses both prefill and decode at model dimensions.
-    float result0 = 0.F;
-    float result1 = 0.F;
-    float result2 = 0.F;
-    float result3 = 0.F;
-    size_t n = 0;
-    for (; n + 4 <= state_size; n += 4) {
-        const float updated_state0 = load(input_state + n) * decay + input_scale * load(B + n);
-        const float updated_state1 = load(input_state + n + 1) * decay + input_scale * load(B + n + 1);
-        const float updated_state2 = load(input_state + n + 2) * decay + input_scale * load(B + n + 2);
-        const float updated_state3 = load(input_state + n + 3) * decay + input_scale * load(B + n + 3);
-        if constexpr (StoreState) {
-            store(state + n, updated_state0);
-            store(state + n + 1, updated_state1);
-            store(state + n + 2, updated_state2);
-            store(state + n + 3, updated_state3);
-        }
-        result0 += updated_state0 * load(C + n);
-        result1 += updated_state1 * load(C + n + 1);
-        result2 += updated_state2 * load(C + n + 2);
-        result3 += updated_state3 * load(C + n + 3);
-    }
-    float result = (result0 + result1) + (result2 + result3);
-    for (; n < state_size; ++n) {
-        const float updated_state = load(input_state + n) * decay + input_scale * load(B + n);
-        if constexpr (StoreState) {
-            store(state + n, updated_state);
-        }
-        result += updated_state * load(C + n);
-    }
-    return result;
-}
+template <size_t SliceCount, bool StoreState = true, typename StateOutT, typename StateInT, typename ProjectionT>
+inline std::pair<float, float> update_state_group_and_reduce(StateOutT* first_state,
+                                                             StateOutT* second_state,
+                                                             const StateInT* first_input_state,
+                                                             const StateInT* second_input_state,
+                                                             const ProjectionT* B,
+                                                             const ProjectionT* C,
+                                                             float decay,
+                                                             float first_input_scale,
+                                                             float second_input_scale,
+                                                             size_t state_size) {
+    static_assert(SliceCount == 1 || SliceCount == 2, "Only the paired path and its single-slice tail are supported");
 
-template <bool StoreState = true, typename StateOutT, typename StateInT, typename ProjectionT>
-inline std::pair<float, float> update_state_pair_and_reduce(StateOutT* state0,
-                                                            StateOutT* state1,
-                                                            const StateInT* input_state0,
-                                                            const StateInT* input_state1,
-                                                            const ProjectionT* B,
-                                                            const ProjectionT* C,
-                                                            float decay,
-                                                            float input_scale0,
-                                                            float input_scale1,
-                                                            size_t state_size) {
-    float result00 = 0.F;
-    float result01 = 0.F;
-    float result02 = 0.F;
-    float result03 = 0.F;
-    float result10 = 0.F;
-    float result11 = 0.F;
-    float result12 = 0.F;
-    float result13 = 0.F;
+    // For every contiguous p-slice, compute the recurrence and its C reduction in one state-memory pass:
+    //   state[p, n] = state[p, n] * decay + (x[p] * delta) * B[n]
+    //   output[p]   = sum_n(state[p, n] * C[n])
+    // SliceCount is known at compile time: two slices share each B/C load in the main path, while one slice handles
+    // an odd tail through the same implementation. The second pointers and scale are unused for that tail.
+
+    // Four independent sums break the reduction dependency chain. The explicit four-way unroll is a portable C++
+    // code-generation aid, not an ISA-specific vector width; specialized executors own explicit SIMD implementations.
+    float first_sum0 = 0.F;
+    float first_sum1 = 0.F;
+    float first_sum2 = 0.F;
+    float first_sum3 = 0.F;
+    float second_sum0 = 0.F;
+    float second_sum1 = 0.F;
+    float second_sum2 = 0.F;
+    float second_sum3 = 0.F;
+
+    constexpr size_t reduction_unroll = 4;
     size_t n = 0;
-    for (; n + 4 <= state_size; n += 4) {
+    for (; n + reduction_unroll <= state_size; n += reduction_unroll) {
         const float b0 = load(B + n);
         const float b1 = load(B + n + 1);
         const float b2 = load(B + n + 2);
@@ -220,48 +189,71 @@ inline std::pair<float, float> update_state_pair_and_reduce(StateOutT* state0,
         const float c1 = load(C + n + 1);
         const float c2 = load(C + n + 2);
         const float c3 = load(C + n + 3);
-        const float updated00 = load(input_state0 + n) * decay + input_scale0 * b0;
-        const float updated01 = load(input_state0 + n + 1) * decay + input_scale0 * b1;
-        const float updated02 = load(input_state0 + n + 2) * decay + input_scale0 * b2;
-        const float updated03 = load(input_state0 + n + 3) * decay + input_scale0 * b3;
-        const float updated10 = load(input_state1 + n) * decay + input_scale1 * b0;
-        const float updated11 = load(input_state1 + n + 1) * decay + input_scale1 * b1;
-        const float updated12 = load(input_state1 + n + 2) * decay + input_scale1 * b2;
-        const float updated13 = load(input_state1 + n + 3) * decay + input_scale1 * b3;
-        if constexpr (StoreState) {
-            store(state0 + n, updated00);
-            store(state0 + n + 1, updated01);
-            store(state0 + n + 2, updated02);
-            store(state0 + n + 3, updated03);
-            store(state1 + n, updated10);
-            store(state1 + n + 1, updated11);
-            store(state1 + n + 2, updated12);
-            store(state1 + n + 3, updated13);
+
+        const float first_updated0 = load(first_input_state + n) * decay + first_input_scale * b0;
+        const float first_updated1 = load(first_input_state + n + 1) * decay + first_input_scale * b1;
+        const float first_updated2 = load(first_input_state + n + 2) * decay + first_input_scale * b2;
+        const float first_updated3 = load(first_input_state + n + 3) * decay + first_input_scale * b3;
+        float second_updated0 = 0.F;
+        float second_updated1 = 0.F;
+        float second_updated2 = 0.F;
+        float second_updated3 = 0.F;
+        if constexpr (SliceCount == 2) {
+            second_updated0 = load(second_input_state + n) * decay + second_input_scale * b0;
+            second_updated1 = load(second_input_state + n + 1) * decay + second_input_scale * b1;
+            second_updated2 = load(second_input_state + n + 2) * decay + second_input_scale * b2;
+            second_updated3 = load(second_input_state + n + 3) * decay + second_input_scale * b3;
         }
-        result00 += updated00 * c0;
-        result01 += updated01 * c1;
-        result02 += updated02 * c2;
-        result03 += updated03 * c3;
-        result10 += updated10 * c0;
-        result11 += updated11 * c1;
-        result12 += updated12 * c2;
-        result13 += updated13 * c3;
+
+        if constexpr (StoreState) {
+            store(first_state + n, first_updated0);
+            store(first_state + n + 1, first_updated1);
+            store(first_state + n + 2, first_updated2);
+            store(first_state + n + 3, first_updated3);
+            if constexpr (SliceCount == 2) {
+                store(second_state + n, second_updated0);
+                store(second_state + n + 1, second_updated1);
+                store(second_state + n + 2, second_updated2);
+                store(second_state + n + 3, second_updated3);
+            }
+        }
+
+        first_sum0 += first_updated0 * c0;
+        first_sum1 += first_updated1 * c1;
+        first_sum2 += first_updated2 * c2;
+        first_sum3 += first_updated3 * c3;
+        if constexpr (SliceCount == 2) {
+            second_sum0 += second_updated0 * c0;
+            second_sum1 += second_updated1 * c1;
+            second_sum2 += second_updated2 * c2;
+            second_sum3 += second_updated3 * c3;
+        }
     }
-    float result0 = (result00 + result01) + (result02 + result03);
-    float result1 = (result10 + result11) + (result12 + result13);
+
+    float first_result = (first_sum0 + first_sum1) + (first_sum2 + first_sum3);
+    float second_result = (second_sum0 + second_sum1) + (second_sum2 + second_sum3);
     for (; n < state_size; ++n) {
-        const float b = load(B + n);
-        const float c = load(C + n);
-        const float updated0 = load(input_state0 + n) * decay + input_scale0 * b;
-        const float updated1 = load(input_state1 + n) * decay + input_scale1 * b;
-        if constexpr (StoreState) {
-            store(state0 + n, updated0);
-            store(state1 + n, updated1);
+        const float b_value = load(B + n);
+        const float c_value = load(C + n);
+        const float first_updated = load(first_input_state + n) * decay + first_input_scale * b_value;
+        float second_updated = 0.F;
+        if constexpr (SliceCount == 2) {
+            second_updated = load(second_input_state + n) * decay + second_input_scale * b_value;
         }
-        result0 += updated0 * c;
-        result1 += updated1 * c;
+
+        if constexpr (StoreState) {
+            store(first_state + n, first_updated);
+            if constexpr (SliceCount == 2) {
+                store(second_state + n, second_updated);
+            }
+        }
+
+        first_result += first_updated * c_value;
+        if constexpr (SliceCount == 2) {
+            second_result += second_updated * c_value;
+        }
     }
-    return {result0, result1};
+    return {first_result, second_result};
 }
 
 template <bool StoreState = true, typename StateOutT, typename StateInT, typename DataT, typename ProjectionT>
@@ -278,43 +270,48 @@ inline void update_state_slices_and_reduce(StateOutT* state,
                                            size_t state_size) {
     size_t p = 0;
     for (; p + 1 < p_count; p += 2) {
-        StateOutT* state0 = nullptr;
-        StateOutT* state1 = nullptr;
+        StateOutT* first_state = nullptr;
+        StateOutT* second_state = nullptr;
         if constexpr (StoreState) {
-            state0 = state + p * state_size;
-            state1 = state0 + state_size;
+            first_state = state + p * state_size;
+            second_state = first_state + state_size;
         }
-        const auto* input_state0 = input_state + p * state_size;
-        const auto* input_state1 = input_state0 + state_size;
-        const float input_scale0 = load(x + x_base + p) * delta;
-        const float input_scale1 = load(x + x_base + p + 1) * delta;
-        const auto result = update_state_pair_and_reduce<StoreState>(state0,
-                                                                     state1,
-                                                                     input_state0,
-                                                                     input_state1,
-                                                                     B,
-                                                                     C,
-                                                                     decay,
-                                                                     input_scale0,
-                                                                     input_scale1,
-                                                                     state_size);
+        const auto* first_input_state = input_state + p * state_size;
+        const auto* second_input_state = first_input_state + state_size;
+        const float first_input_scale = load(x + x_base + p) * delta;
+        const float second_input_scale = load(x + x_base + p + 1) * delta;
+        const auto result = update_state_group_and_reduce<2, StoreState>(first_state,
+                                                                         second_state,
+                                                                         first_input_state,
+                                                                         second_input_state,
+                                                                         B,
+                                                                         C,
+                                                                         decay,
+                                                                         first_input_scale,
+                                                                         second_input_scale,
+                                                                         state_size);
         store(output + x_base + p, result.first);
         store(output + x_base + p + 1, result.second);
     }
+
     if (p < p_count) {
-        const float input_scale = load(x + x_base + p) * delta;
-        StateOutT* state_tail = nullptr;
+        StateOutT* tail_state = nullptr;
         if constexpr (StoreState) {
-            state_tail = state + p * state_size;
+            tail_state = state + p * state_size;
         }
-        const float result = update_state_and_reduce<StoreState>(state_tail,
-                                                                 input_state + p * state_size,
-                                                                 B,
-                                                                 C,
-                                                                 decay,
-                                                                 input_scale,
-                                                                 state_size);
-        store(output + x_base + p, result);
+        const float input_scale = load(x + x_base + p) * delta;
+        const auto* tail_input_state = input_state + p * state_size;
+        const auto result = update_state_group_and_reduce<1, StoreState>(tail_state,
+                                                                         tail_state,
+                                                                         tail_input_state,
+                                                                         tail_input_state,
+                                                                         B,
+                                                                         C,
+                                                                         decay,
+                                                                         input_scale,
+                                                                         0.F,
+                                                                         state_size);
+        store(output + x_base + p, result.first);
     }
 }
 
