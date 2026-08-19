@@ -230,7 +230,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
@@ -378,7 +378,7 @@ std::vector<ov::Tensor> VCLCompilerImpl::compileWsOneShot(const std::shared_ptr<
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler,
                                                     false,
                                                     true);
@@ -507,7 +507,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler);
     if (config.isAvailable(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update({{ov::intel_npu::model_serializer_version.name(),

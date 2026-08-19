@@ -36,12 +36,9 @@ namespace compiler_utils {
  *
  * @param compilerVersion The compiler version reported by the driver.
  * @param supportedOpsetVersion The last operators set version supported by the compiler.
- * @param serializerVersion The version of the serialization algorithm that should be applied. If not "AUTO", then only
- * the given version will be attempted. Otherwise, the NPU plugin will choose the version based on the support offered
- * by the compiler-adapter and preference.
+ * @param serializerVersion Retained for source compatibility. The serializer always uses "ALL_WEIGHTS_COPY".
  * @param isOptionSupportedByCompiler Function that allows querying the support offered by the compiler-adapter for a
- * given <config option, value> pair. The serializer will use this function to determine the compatibility of the
- * algorithm. If "nullptr" is passed, then the compatibility check is skipped.
+ * given <config option, value> pair. Retained for source compatibility.
  * @param computeModelHash If true, a hash of the model will also be returned.
  * @param storeWeightlessCacheAttribute If true, the returned serialized model will also contain within its runtime
  * information the WeightlessCacheAttributes stored using a custom format. This format can be interpreted by the

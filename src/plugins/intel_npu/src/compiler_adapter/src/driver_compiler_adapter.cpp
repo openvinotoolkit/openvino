@@ -104,7 +104,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported());
     FilteredConfig updatedConfig = config;
@@ -177,7 +177,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler,
                                                     _zeGraphExt->isPluginModelHashSupported(),
                                                     true);
@@ -278,7 +278,7 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     auto serializedIR = compiler_utils::serializeIR(model,
                                                     compilerVersion,
                                                     maxOpsetVersion,
-                                                    config.get<MODEL_SERIALIZER_VERSION>(),
+                                                    ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY,
                                                     isOptionValueSupportedByCompiler);
 
     FilteredConfig updatedConfig = config;

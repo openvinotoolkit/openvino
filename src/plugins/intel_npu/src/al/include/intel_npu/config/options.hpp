@@ -1398,7 +1398,7 @@ struct MODEL_SERIALIZER_VERSION final : OptionBase<MODEL_SERIALIZER_VERSION, ov:
     }
 
     static ov::intel_npu::ModelSerializerVersion defaultValue() {
-        return ov::intel_npu::ModelSerializerVersion::AUTO;
+        return ov::intel_npu::ModelSerializerVersion::ALL_WEIGHTS_COPY;
     }
 
     static ov::intel_npu::ModelSerializerVersion parse(std::string_view val) {

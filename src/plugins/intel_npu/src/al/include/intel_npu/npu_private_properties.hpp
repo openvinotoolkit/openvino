@@ -353,14 +353,12 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: enum. Default is "AUTO".
+ * Type: enum. Default is "ALL_WEIGHTS_COPY".
  *
  * This config option concerns the algorithm used for serializing the "ov::Model" at compilation time in order to be
  * passed through the driver.
  *
- * The value chosen for this option will impact memory usage, since some versions clone the values of the weights in a
- * separate buffer. If this option is set to "AUTO", the plugin will use the latest version that is compatible with the
- * current compiler.
+ * The NPU plugin always uses the "ALL_WEIGHTS_COPY" version to serialize models for compilation.
  */
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
