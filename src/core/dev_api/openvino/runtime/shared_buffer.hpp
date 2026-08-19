@@ -18,6 +18,9 @@ namespace detail {
 OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
 }  // namespace detail
 
+struct PreserveDescriptorOffset {};
+inline constexpr PreserveDescriptorOffset preserve_descriptor_offset{};
+
 template <typename T>
 class SharedBufferBase : public ov::AlignedBuffer {
 public:
@@ -97,6 +100,18 @@ protected:
         m_byte_size = size;
     }
 
+    SharedBufferBase(char* data,
+                     size_t size,
+                     const T& shared_object,
+                     const std::shared_ptr<IBufferDescriptor>& descriptor,
+                     PreserveDescriptorOffset)
+        : m_shared_object{shared_object},
+          m_source_buffer{descriptor ? descriptor->get_source_buffer() : nullptr},
+          m_descriptor{descriptor} {
+        m_aligned_buffer = data;
+        m_byte_size = size;
+    }
+
     SharedBufferBase(char* data, size_t size, const T& shared_object)
         : m_shared_object{shared_object},
           m_source_buffer{},
@@ -137,6 +152,13 @@ class SharedBuffer : public SharedBufferBase<T> {
 public:
     SharedBuffer(char* data, size_t size, const T& shared_object, const std::shared_ptr<IBufferDescriptor>& descriptor)
         : SharedBufferBase<T>(data, size, shared_object, descriptor) {}
+
+    SharedBuffer(char* data,
+                 size_t size,
+                 const T& shared_object,
+                 const std::shared_ptr<IBufferDescriptor>& descriptor,
+                 PreserveDescriptorOffset preserve_offset)
+        : SharedBufferBase<T>(data, size, shared_object, descriptor, preserve_offset) {}
 
     SharedBuffer(char* data, size_t size, const T& shared_object)
         : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}

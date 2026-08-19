@@ -482,6 +482,20 @@ TEST_F(SharedBufferTest, specialization_overload_resolution) {
             EXPECT_EQ(desc->get_source_buffer(), src_buffer);
         }
         {
+            auto sh_buff = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+                src_buffer->get_ptr<char>(),
+                src_buffer->size(),
+                src_buffer,
+                ov::create_base_descriptor(10, 5, src_buffer),
+                ov::preserve_descriptor_offset);
+
+            auto desc = sh_buff->get_descriptor();
+            ASSERT_NE(desc, nullptr);
+            EXPECT_EQ(desc->get_id(), 10u);
+            EXPECT_EQ(desc->get_offset(), 5u);
+            EXPECT_EQ(desc->get_source_buffer(), src_buffer);
+        }
+        {
             auto sh_buff =
                 std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(src_buffer->get_ptr<char>(),
                                                                                        src_buffer->size(),
