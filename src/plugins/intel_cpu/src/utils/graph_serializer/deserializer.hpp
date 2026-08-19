@@ -30,13 +30,13 @@ bool getParameters(const pugi::xml_node& node, const std::string& name, std::vec
 class XmlDeserializer : public ov::util::XmlDeserializer {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             std::shared_ptr<ov::util::WeightsProvider> weights_provider,
+                             const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                              const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
-        : ov::util::XmlDeserializer(node, std::move(weights_provider), opsets, extensions, variables, version),
+        : ov::util::XmlDeserializer(node, weights_provider, opsets, extensions, variables, version),
           m_origin_weights{origin_weights} {}
 
     explicit XmlDeserializer(const pugi::xml_node& node,
