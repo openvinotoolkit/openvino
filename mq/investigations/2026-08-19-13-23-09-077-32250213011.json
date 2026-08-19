@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-13-23-09-077-32250213011",
+  "timestamp": "2026-08-19T13:23:09Z",
+  "run_id": "32250213011",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32250213011",
+  "workflow_name": "Conformance (OP)",
+  "pr_number": "37016",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37016",
+  "author": "mvafin",
+  "category": "Configuration",
+  "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
+  "signature": "tar file changed as we read it|Configuration",
+  "signature_hash": "c0643d23262bbd29",
+  "confidence": "High",
+  "failed_jobs": ["Conformance (OP) - Pack Conformance Artifacts", "ci/gha_overall_status"],
+  "key_errors": [
+    "tar: conformance_artifacts.tar.gz: file changed as we read it",
+    "Process completed with exit code 1."
+  ],
+  "root_cause": "The Pack Conformance Artifacts step runs 'tar -cvf - * | pigz > ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz' from within CONFORMANCE_ARTIFACTS_DIR itself. This means tar tries to archive conformance_artifacts.tar.gz (the output file) as part of the glob '*', causing tar to detect it changed while being read/written. This is a pre-existing workflow configuration bug unrelated to the PR changes (ONNX FE external data offset fix).",
+  "reproduction_steps": "N/A - occurs only in CI due to configuration issue in Pack Conformance Artifacts step",
+  "recommended_actions": [
+    "Fix the Pack Conformance Artifacts step to write output to a path outside CONFORMANCE_ARTIFACTS_DIR, or exclude the output file from tar's glob (e.g., use --exclude='conformance_artifacts.tar.gz')."
+  ],
+  "prevention_strategies": "Write tar output to a parent/sibling directory, or use tar --exclude to exclude the output file.",
+  "historical_context": "This same failure was seen twice before (2026-07-28 and 2026-08-11) in the Conformance (API) job with the same root cause."
+}

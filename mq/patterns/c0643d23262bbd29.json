@@ -2,20 +2,22 @@
   "schema_version": "1.0",
   "signature": "tar file changed as we read it|Configuration",
   "signature_hash": "c0643d23262bbd29",
-  "title": "Conformance (API) Pack Artifacts fails - tar file changed as we read it",
+  "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
   "category": "Configuration",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-07-28T14:11:02Z",
-  "last_seen": "2026-08-11T01:22:14Z",
+  "last_seen": "2026-08-19T13:23:09Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32250213011",
     "https://github.com/openvinotoolkit/openvino/actions/runs/31443907795",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30356512752"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37016",
     "https://github.com/openvinotoolkit/openvino/pull/37080"
   ],
   "recent_timestamps": [
-    "2026-08-11T01:22:14Z"
+    "2026-08-19T13:23:09Z"
   ],
   "rerun_search_string": null
 }
