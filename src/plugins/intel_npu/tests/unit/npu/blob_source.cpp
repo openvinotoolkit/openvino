@@ -116,6 +116,8 @@ protected:
 
             ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blob_content.size()}, customAllocator);
+            OPENVINO_ASSERT(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE == 0,
+                            "The generated tensor is not page aligned");
             std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
             return BlobSource(tensor);
         }
@@ -133,12 +135,13 @@ protected:
 
 using BlobSourceDifferentBlobsCommon = BlobSourceDifferentBlobs;
 
-// The data types can be contiguous (tensor) or non-contiguous(stream). Some functions behave differently based on this.
+// The data types can be contiguous (tensor) or non-contiguous (stream). Some functions behave differently based on
+// this.
 using BlobSourceDifferentBlobsNonContiguous = BlobSourceDifferentBlobs;
 using BlobSourceDifferentBlobsContiguous = BlobSourceDifferentBlobs;
 
 /**
- * @brief The first byte from the blob source can be coppied correctly
+ * @brief The first byte from the blob source can be copied correctly
  */
 TEST_P(BlobSourceDifferentBlobsCommon, CopyFirstByte) {
     BlobSource blob_source = create_blob_source();
@@ -212,7 +215,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.seekg(0);
+    blob_source.seekg(-blob_content.size(), std::ios::end);
     size_t cursor = 0;
     OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 0);
@@ -452,7 +455,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceEnd) {
 /**
  * @brief Cannot extract data without copying if the underlying buffer is not contiguous.
  */
-TEST_P(BlobSourceDifferentBlobsNonContiguous, ReadWithoutCopyFails) {
+TEST_P(BlobSourceDifferentBlobsNonContiguous, ReadViewFails) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.read_view(0), ov::Exception, _);
 }
@@ -485,7 +488,7 @@ TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguousAndPageAligned) {
 /**
  * @brief Extract the first byte without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByte) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewFirstByte) {
     BlobSource blob_source = create_blob_source();
 
     const size_t read_size = 1;
@@ -503,7 +506,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByte) {
 /**
  * @brief Extract all bytes without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyAllBytes) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewAllBytes) {
     BlobSource blob_source = create_blob_source();
 
     const char* payload_ptr = nullptr;
@@ -520,7 +523,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyAllBytes) {
 /**
  * @brief The move the read cursor and then extract one byte without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByteAfterMove) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
     blob_source.seekg(1);
 
@@ -539,7 +542,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByteAfterMove) {
 /**
  * @brief Attempting to extract more bytes than available without copying should yield an exception
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyTooMuch) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewTooMuch) {
     BlobSource blob_source = create_blob_source();
     OV_EXPECT_THROW(blob_source.read_view(blob_content.size() + 1), ov::Exception, _);
 }
@@ -547,7 +550,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyTooMuch) {
 /**
  * @brief Attempting to extract data (without copying) beyond the end limit should yield an exception
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyAfterEnd) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadViewAfterEnd) {
     BlobSource blob_source = create_blob_source();
     blob_source.seekg(0, std::ios::end);
     OV_EXPECT_THROW(blob_source.read_view(1), ov::Exception, _);
@@ -652,6 +655,7 @@ TEST_F(BlobSourcePageAlignment, TrueIsContiguousAndPageAlignedAfterMove) {
 
     ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
     ov::Tensor tensor = ov::Tensor(ov::element::u8, ov::Shape{utils::STANDARD_PAGE_SIZE}, customAllocator);
+    ASSERT_TRUE(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE == 0);
     std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
 
     BlobSource blob_source = BlobSource(tensor);

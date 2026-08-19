@@ -31,13 +31,13 @@ public:
      * bytes.
      *
      * @param destination The data will be copied into this buffer
-     * @param size The amound of data that will be copied. The data cursor will also be advanced by this amount.
+     * @param size The amount of data that will be copied. The data cursor will also be advanced by this amount.
      */
     void read_into_buffer(void* destination, const size_t size);
 
     /**
      * @brief Extracts data from the blob source without copying it.
-     * @details The returned address is the position where the data cursor currently points at. Before returning, the
+     * @details The returned address is the position where the data cursor currently points to. Before returning, the
      * cursor is also advanced by "size" bytes.
      * @throws ov::Exception if the underlying type does not have a guaranteed contiguous buffer (e.g. "std::istream").
      * @note "BlobSource::is_contiguous" can be used to determine if this function can be called safely.
