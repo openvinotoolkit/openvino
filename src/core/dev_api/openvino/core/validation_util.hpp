@@ -97,6 +97,8 @@ OPENVINO_API bool is_rank_compatible_any_of(const Rank& r, std::initializer_list
 /// \param input_name    Human-readable input name used in validation messages.
 /// \param allowed_ranks Rank whitelist. Empty list means any rank is accepted.
 /// \param allowed_types Element type whitelist. Empty list means any type is accepted.
+///
+/// @throws ov::NodeValidationFailure If the input rank or element type is not allowed.
 OPENVINO_API void validate_input_rank_and_type(const Node* node,
                                                size_t input_idx,
                                                std::string_view input_name,
