@@ -273,3 +273,90 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_mixed,
                          ::testing::ValuesIn(make_micro_sdpa_mixed_test_params()),
                          get_micro_sdpa_mixed_test_name);
 #endif
+
+// ------------------------------------------------------- token_type_ids present but EMPTY ([B_token | 0])
+// has_token_type_ids is decided at COMPILE time from an input shape that may still be dynamic (see
+// plugin/ops/paged_attention.cpp), but the op contract allows the tensor itself to be EMPTY at runtime,
+// meaning "no image tokens" -- intel_cpu gates on getShape().hasZeroDims() and the reference on
+// count > 0. The GPU paged attention impl is shape-agnostic, so it cannot drop the feature per shape;
+// sdpa_ocl instead receives the runtime element count as a scalar and skips every token_type_ids read
+// when it is 0. Without that gate the kernel reads a zero-sized allocation for [0, B_token) and returns
+// silently wrong output.
+//
+// The harness backs the empty tensor with an all-ONES [B_token] allocation whose layout is shrunk to
+// [0] (see PagedAttentionManager::get_token_type_ids_memory), so a kernel that reads it anyway sees
+// "every token is an image token" and cannot pass by luck. Expected output is therefore the plain
+// causal one, which is what PagedAttentionReference already computes.
+//
+// PREFILL only (past_len == 0): in MIXED, has_token_type_ids makes can_use_micro_sdpa_for send the work
+// to sdpa_opt's pa_multi_token, which has no such gate.
+class paged_attention_empty_token_type_ids_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_empty_token_type_ids_test, plain_causal) {
+    auto p = GetParam();
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+
+    // The gate lives in sdpa_ocl only, so check what actually ran instead of re-deriving the
+    // generator choice: TEST_USE_SDPA_OCL=0, a non-DPAS device and a build without micro-kernels all
+    // land on a different PREFILL kernel, and none of those are covered by this case.
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    if (entries.find("sdpa_ocl") == std::string::npos) {
+        GTEST_SKIP() << "the empty token_type_ids gate is implemented in sdpa_ocl only, got: " << entries;
+    }
+
+    auto output_data_mem = result.outputs.at("output_data").get_memory();
+    auto ref_data = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(output_data_mem, nullptr, nullptr, ref_data);
+}
+
+static paged_attention_test_params make_empty_token_type_ids_param(SubsequenceDescriptor subsequence,
+                                                                   int num_heads,
+                                                                   int head_size,
+                                                                   int sliding_window_size) {
+    paged_attention_test_params p;
+    p.subsequences = {subsequence};
+    p.num_heads = num_heads;
+    p.num_kv_heads = num_heads;
+    p.k_head_size = head_size;
+    p.v_head_size = head_size;
+    p.block_size = 16;
+    p.sliding_window_size = sliding_window_size;
+    p.kv_cache_compression = DISABLE_CACHE_COMPRESSION;
+    p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    p.dynamic_paddings = STATIC_INPUT_PAD;
+    p.scores_mode = DISABLE_SCORES;
+    p.rotation_config = DISABLE_ROTATION;
+    p.disable_flashattn_v2 = ENABLE_FA_V2;
+    p.empty_token_type_ids = true;
+    return p;
+}
+
+static std::string get_empty_token_type_ids_test_name(const testing::TestParamInfo<paged_attention_test_params>& obj) {
+    const auto& p = obj.param;
+    return "tokens" + std::to_string(p.subsequences[0].num_tokens) + "_h" + std::to_string(p.num_heads) + "_d" +
+           std::to_string(p.k_head_size) + "_SW" + std::to_string(p.sliding_window_size);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_empty_token_type_ids,
+                         paged_attention_empty_token_type_ids_test,
+                         ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+                             // causal_k extension site, representative shape
+                             make_empty_token_type_ids_param({128, 0}, 2, 64, 0),
+                             // window_k_begin extension site
+                             make_empty_token_type_ids_param({128, 0}, 2, 64, 32),
+                             // the unit-test config of the suites above: head 32, 1 head, i.e. the only
+                             // one where kq_query_blocks == 2 and bidir_group_begin/end is a real array
+                             make_empty_token_type_ids_param({40, 0}, 1, 32, 0),
+                             make_empty_token_type_ids_param({40, 0}, 1, 32, 16),
+                             // fewer queries than one query block
+                             make_empty_token_type_ids_param({10, 0}, 2, 64, 0),
+                         }),
+                         get_empty_token_type_ids_test_name);

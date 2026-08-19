@@ -133,8 +133,12 @@ struct PagedAttentionManager {
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
 
-    // optional token_type_ids; when empty, a default single-element {0} buffer is used
+    // optional token_type_ids; when empty, a default all-zero [B_token] buffer is used
     std::vector<int> token_type_ids;
+    // Materialize token_type_ids as a genuinely EMPTY [0] tensor while the primitive still declares
+    // has_token_type_ids -- the "[B_token | 0]" half of the op contract. See
+    // get_token_type_ids_memory() for why the backing allocation is poisoned rather than zeroed.
+    bool empty_token_type_ids = false;
     cldnn::engine& test_engine;
     cldnn::stream& test_stream;
     tests::random_generator& rg;
@@ -946,15 +950,37 @@ struct PagedAttentionManager {
         if (!token_type_ids.empty()) {
             return get_memory_from_vec(token_type_ids);
         }
+
+        size_t total_tokens = 0;
+        for (const auto& subsequence_desc : subsequence_descs) {
+            total_tokens += static_cast<size_t>(subsequence_desc.num_tokens);
+        }
+
+        if (empty_token_type_ids) {
+            // The other half of the "[B_token | 0]" contract: count() == 0 while the primitive still
+            // declares has_token_type_ids. The backing allocation is [B_token] filled with 1 -- i.e.
+            // "every token is an image token" -- and only the LAYOUT is shrunk to [0]. That makes the
+            // negative control deterministic: a kernel that reads the buffer anyway sees a completely
+            // different mask and must fail, while a kernel that honours count == 0 never touches it
+            // and must match the plain-causal reference. An uninitialized or zeroed backing store
+            // would let an unguarded kernel pass by luck.
+            auto poison_layout = cldnn::layout{ov::PartialShape{static_cast<int>(std::max<size_t>(total_tokens, 1))},
+                                               ov::element::i32,
+                                               cldnn::format::bfyx};
+            auto memory = test_engine.allocate_memory(poison_layout);
+            std::vector<int> poison(std::max<size_t>(total_tokens, 1), 1);
+            set_values(test_stream, memory, poison.data(), poison.size(), 0);
+
+            auto empty_layout = poison_layout;
+            empty_layout.set_partial_shape(ov::PartialShape{0});
+            return test_engine.reinterpret_buffer(*memory, empty_layout);
+        }
+
         // has_token_type_ids promises a [B_token] input -- one entry per query token -- and any
         // kernel honouring the flag indexes it over the whole subsequence. A one-element dummy would
         // therefore be read out of bounds, which matters because has_token_type_ids is also set
         // without a real buffer by the force_flashattn_v2 sink cases. All-zero means "every token is
         // text", i.e. a plain causal mask, so this stays a no-op for those tests.
-        size_t total_tokens = 0;
-        for (const auto& subsequence_desc : subsequence_descs) {
-            total_tokens += static_cast<size_t>(subsequence_desc.num_tokens);
-        }
         std::vector<int> default_token_type_ids(std::max<size_t>(total_tokens, 1), 0);
         return get_memory_from_vec(default_token_type_ids);
     }
@@ -2132,6 +2158,10 @@ public:
             EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
         }
 
+        OPENVINO_ASSERT(!(p.empty_token_type_ids && p.token_type_ids.has_value()),
+                        "empty_token_type_ids and token_type_ids are mutually exclusive");
+        pam.empty_token_type_ids = p.empty_token_type_ids;
+
         if (p.has_sink_input) {
             // Without values the sinks tensor is allocated with shape {0,0,0,0} while the primitive
             // still advertises has_sink_input, so the kernel would read out of bounds AND the
@@ -2317,7 +2347,8 @@ public:
         // rejects every stage but PREFILL when it is set), which is how the FA_V2 sink test pins
         // itself to sdpa_opt.cl. Tie it to force_flashattn_v2 rather than to has_sink_input alone, so
         // a plain sink case still reaches micro / sdpa_ocl in the MIXED stage.
-        pa_prim.has_token_type_ids = p.token_type_ids.has_value() || (p.has_sink_input && p.force_flashattn_v2);
+        pa_prim.has_token_type_ids =
+            p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
         pa_prim.has_sink_input = p.has_sink_input;
 
         int num_outputs = 1;
@@ -3204,8 +3235,15 @@ struct paged_attention_test_params {
     bool run_reference = true;
 
     // optional token_type_ids passed to PagedAttention; if set (non-empty), it is forwarded
-    // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default {0} buffer is used.
+    // to the op as the TOKEN_TYPE_IDS input. When std::nullopt, a default all-zero [B_token] buffer
+    // is used.
     std::optional<std::vector<int>> token_type_ids = std::nullopt;
+
+    // Declare has_token_type_ids but hand the op a genuinely EMPTY tensor, which the PagedAttention
+    // contract ("[B_token | 0]", see intel_cpu/src/nodes/paged_attn.cpp) allows and reads as "no image
+    // tokens". Mutually exclusive with token_type_ids. Expected output is the plain causal one, which
+    // is exactly what PagedAttentionReference computes, so no golden data is needed.
+    bool empty_token_type_ids = false;
 
     // Sink input testing: enables has_sink_input on the primitive. Combined with force_flashattn_v2
     // it ALSO sets has_token_type_ids, which is how the sdpa_opt.cl path is forced (that flag makes

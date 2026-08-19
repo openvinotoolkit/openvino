@@ -89,6 +89,17 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // scope of the feature is readable from the .cl alone.
 #define BIDIR_MASK (HAS_TOKEN_TYPE_IDS && USE_BIDIR_MASK && IS_PAGED_ATTENTION && IS_PREFILL)
 
+// Third axis, and the one that makes the feature safe: HAS_TOKEN_TYPE_IDS is decided at COMPILE time
+// from an input shape that may still be dynamic, while the op contract is "[B_token | 0]" -- a
+// runtime-EMPTY token_type_ids is legal and means "no image tokens". The host cannot re-jit per shape
+// (the paged attention impl is shape-agnostic), so it passes the runtime element count as a scalar and
+// every read below is gated on it. USE_BIDIR_GATE=0 (SDPA_OCL_BIDIR_GATE) removes only that gate, so
+// the empty-buffer case can be A/B'd in one binary. Needs a default because, unlike the macros above,
+// it is used in a C expression rather than a preprocessor conditional.
+#ifndef USE_BIDIR_GATE
+#  define USE_BIDIR_GATE 1
+#endif
+
 // Row pitch of a K / V cache page's DATA region, in elements of the cache dtype. That is HEAD_SIZE
 // for f16 and i8 -- so those paths preprocess to exactly what they were and the host does not jit
 // these at all -- but a u4 page packs two values per byte while its layout dtype is u8, so the pitch
@@ -344,6 +355,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if HAS_TOKEN_TYPE_IDS
         const __global int* token_type_ids,
+        const int token_type_ids_count,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -481,13 +493,27 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #else
         const uint base_block_index = block_indices_begins[gws_mapping];
     #endif
-    #if HAS_TOKEN_TYPE_IDS
+    #if BIDIR_MASK
+        // Workgroup-uniform, so every branch on it below is uniform too: no divergence, and the
+        // subgroup reductions / loop trip counts stay reachable by every lane. False means the host
+        // handed us an empty token_type_ids ("[B_token | 0]", no image tokens), in which case the
+        // buffer must not be touched at all -- not even to form a bumped pointer past its end.
+        #if USE_BIDIR_GATE
+            const bool bidir_active = (token_type_ids_count > 0);
+        #else
+            // Negative control (SDPA_OCL_BIDIR_GATE=0): read token_type_ids unconditionally, exactly
+            // as this kernel did before the gate existed. Folds to a constant, so every branch below
+            // collapses back to its pre-gate form.
+            const bool bidir_active = true;
+        #endif
+
         // token_type_ids is [B_token]: one entry per token of the FLATTENED batch, exactly like the
         // Q rows above, so it needs the same subsequence bump. Every index derived from it below is
         // then subsequence-relative, matching q / k / wg_j0. NOTE: sdpa_micro.cl and sdpa_opt.cl
         // omit this bump and index the flattened buffer with subsequence-relative positions, which
         // only agrees for a single subsequence starting at token 0.
-        token_type_ids += subsequence_begin;
+        if (bidir_active)
+            token_type_ids += subsequence_begin;
     #endif
 #else
     Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
@@ -731,7 +757,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // break are uniform and sub_group_reduce_min() is reached by every lane.
     {
         const int wg_q_end = min((int)wg_j0 + kq_wg_tile_queries, k) - 1;
-        if (wg_q_end >= 0 && token_type_ids[wg_q_end] == 1) {
+        if (bidir_active && wg_q_end >= 0 && token_type_ids[wg_q_end] == 1) {
             int group_end = wg_q_end + 1;
             while (group_end < k) {
                 const int chunk_end = min(k, group_end + SUBGROUP_SIZE);  // exclusive
@@ -766,7 +792,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // start back to the beginning of the group straddling it. Same sufficiency argument -- if a query
     // at or above wg_j0 has a group starting below window_k_begin, then window_k_begin lies inside
     // that (contiguous) group, so scanning from window_k_begin finds the right start.
-    if (window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
+    if (bidir_active && window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
         int group_begin = window_k_begin;
         while (group_begin > 0) {
             const int chunk_begin = max(0, group_begin - SUBGROUP_SIZE);
@@ -810,7 +836,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int query = (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE + (int)lane;
         int group_begin = 0;
         int group_end = 0;
-        if (query < q && token_type_ids[query] == 1) {
+        if (bidir_active && query < q && token_type_ids[query] == 1) {
             group_begin = query;
             while (group_begin > window_k0_begin && token_type_ids[group_begin - 1] == 1)
                 --group_begin;
