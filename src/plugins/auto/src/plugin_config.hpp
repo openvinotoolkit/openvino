@@ -7,13 +7,11 @@
 
 #include "openvino/runtime/auto/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/util/common_util.hpp"
 #include "utils/log.hpp"
 #include "utils/log_util.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <string>
 #include <map>
 #include <set>
@@ -21,89 +19,6 @@
 
 namespace ov {
 namespace auto_plugin {
-
-inline ov::intel_auto::PerfCurveTable parse_perf_curve_table(const ov::Any& v) {
-    if (v.is<ov::intel_auto::PerfCurveTable>()) {
-        return v.as<ov::intel_auto::PerfCurveTable>();
-    }
-
-    const auto parse_unsigned = [](std::string_view text) -> unsigned {
-        const auto trimmed = ov::util::trim(text);
-        size_t parsed_chars = 0;
-        long long utilization = 0;
-        try {
-            utilization = std::stoll(std::string(trimmed), &parsed_chars);
-        } catch (const std::exception& e) {
-            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': ", e.what());
-        }
-        if (parsed_chars != trimmed.size()) {
-            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': trailing characters");
-        }
-        if (utilization < 0) {
-            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': must be non-negative");
-        }
-        if (utilization > static_cast<long long>(std::numeric_limits<unsigned>::max())) {
-            OPENVINO_THROW("Failed to parse perf_curve_table utilization key '", text, "': value is too large");
-        }
-        return static_cast<unsigned>(utilization);
-    };
-
-    const auto parse_float = [](const ov::Any& value) -> float {
-        if (value.is<float>()) {
-            return value.as<float>();
-        }
-        if (value.is<double>()) {
-            return static_cast<float>(value.as<double>());
-        }
-        if (value.is<long double>()) {
-            return static_cast<float>(value.as<long double>());
-        }
-        if (value.is<int>()) {
-            return static_cast<float>(value.as<int>());
-        }
-        if (value.is<unsigned>()) {
-            return static_cast<float>(value.as<unsigned>());
-        }
-        if (value.is<long>()) {
-            return static_cast<float>(value.as<long>());
-        }
-        if (value.is<unsigned long>()) {
-            return static_cast<float>(value.as<unsigned long>());
-        }
-        if (value.is<long long>()) {
-            return static_cast<float>(value.as<long long>());
-        }
-        if (value.is<unsigned long long>()) {
-            return static_cast<float>(value.as<unsigned long long>());
-        }
-
-        const auto text = value.as<std::string>();
-        const auto trimmed = ov::util::trim(text);
-        size_t parsed_chars = 0;
-        float score = 0.f;
-        try {
-            score = std::stof(std::string(trimmed), &parsed_chars);
-        } catch (const std::exception& e) {
-            OPENVINO_THROW("Failed to parse perf_curve_table score '", text, "': ", e.what());
-        }
-        if (parsed_chars != trimmed.size()) {
-            OPENVINO_THROW("Failed to parse perf_curve_table score '", text, "': trailing characters");
-        }
-        return score;
-    };
-
-    ov::AnyMap raw_table = v.as<ov::AnyMap>();
-    ov::intel_auto::PerfCurveTable table;
-    for (const auto& [device_name, curve_value] : raw_table) {
-        ov::AnyMap raw_curve = ov::Any(curve_value).as<ov::AnyMap>();
-        ov::intel_auto::PerfCurveTable::mapped_type curve;
-        for (const auto& [utilization_text, score_text] : raw_curve) {
-            curve.emplace(parse_unsigned(utilization_text), parse_float(score_text));
-        }
-        table.emplace(device_name, std::move(curve));
-    }
-    return table;
-}
 
 class BaseValidator {
 public:
@@ -165,30 +80,24 @@ public:
 
 class PerfCurveTableValidator : public BaseValidator {
 public:
-    static std::string get_error(const ov::intel_auto::PerfCurveTable& table) {
-        static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
-        for (const auto& [device, curve] : table) {
-            if (allowed_devices.find(device) == allowed_devices.end()) {
-                return "unsupported device key '" + device + "'";
-            }
-            if (curve.empty()) {
-                return "curve for device '" + device + "' must not be empty";
-            }
-            for (const auto& [utilization, score] : curve) {
-                if (utilization > 100) {
-                    return "utilization for device '" + device + "' must be in [0,100]";
-                }
-                if (!std::isfinite(score) || score < 0.f) {
-                    return "score for device '" + device + "' must be finite and non-negative";
-                }
-            }
-        }
-        return {};
-    }
-
     bool is_valid(const ov::Any& v) const override {
         try {
-            return get_error(parse_perf_curve_table(v)).empty();
+            const auto& table = v.as<std::map<std::string, std::map<unsigned, float>>>();
+            static const std::set<std::string> allowed_devices = {"CPU", "iGPU", "dGPU", "NPU"};
+            for (const auto& [device, curve] : table) {
+                if (allowed_devices.find(device) == allowed_devices.end()) {
+                    return false;
+                }
+                if (curve.empty()) {
+                    return false;
+                }
+                for (const auto& [utilization, score] : curve) {
+                    if (utilization > 100 || score < 0.f || !std::isfinite(score)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
         } catch (const ov::Exception&) {
             return false;
         }
