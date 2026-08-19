@@ -1261,6 +1261,20 @@ struct PagedAttentionReference {
                 }
             }
 
+            // token_type_ids is the flat [B_token] buffer over the NEW tokens of every subsequence, so
+            // this one's slice starts at subsequence_begins[i] and is num_tokens long -- never
+            // past_len + num_tokens. That is also why an image group can never contain a cached token:
+            // openvino/reference/paged_attention.hpp scans image_group_* over the new tokens alone and
+            // maps them to key coordinates as past + (idx - t_begin).
+            std::vector<int> subsequence_token_type_ids;
+            if (!pam.token_type_ids.empty()) {
+                const auto tt_begin = static_cast<size_t>(pam.subsequence_begins[i]);
+                const auto tt_count = static_cast<size_t>(subsequence_desc.num_tokens);
+                OPENVINO_ASSERT(tt_begin + tt_count <= pam.token_type_ids.size(),
+                                "token_type_ids must hold one entry per new token of every subsequence");
+                subsequence_token_type_ids.assign(pam.token_type_ids.begin() + tt_begin, pam.token_type_ids.begin() + tt_begin + tt_count);
+            }
+
             auto subsequence_ref_results = run_reference(has_xattention,
                                                          pam.query_data[i],
                                                          key_data,
@@ -1277,7 +1291,8 @@ struct PagedAttentionReference {
                                                          xattn_threshold,
                                                          xattn_block_size,
                                                          qq_bias_ptr,
-                                                         pam.sinks.empty() ? nullptr : &pam.sinks);
+                                                         pam.sinks.empty() ? nullptr : &pam.sinks,
+                                                         subsequence_token_type_ids.empty() ? nullptr : &subsequence_token_type_ids);
 
             // concatenate all subsequences into one vector
             ref_data_output.insert(ref_data_output.end(), subsequence_ref_results.first.begin(), subsequence_ref_results.first.end());
@@ -1309,6 +1324,7 @@ private:
                                                                                 size_t block_size,
                                                                                 const std::vector<uint8_t>* qq_bias = nullptr,
                                                                                 const std::vector<ov::float16>* sinks = nullptr,
+                                                                                const std::vector<int>* token_type_ids = nullptr,
                                                                                 size_t stride = 16) {
         auto query_shape = ov::PartialShape{1, num_queries, num_heads, k_head_size};
         auto key_shape = ov::PartialShape{1, num_keys, num_kv_heads, k_head_size};
@@ -1440,7 +1456,8 @@ private:
                                                          sliding_window_size,
                                                          retained_blocks,
                                                          static_cast<int>(block_size),
-                                                         qq_bias);
+                                                         qq_bias,
+                                                         token_type_ids);
         // The sink's score column: one entry per (q-head, query), constant along the query axis. The
         // two topology branches below split the head axis differently -- [1, heads, q, k] against
         // [kv_heads, group, q, k] -- but both enumerate q-heads in the same order (h = kv_head *
@@ -1568,7 +1585,8 @@ private:
                                                         int sliding_window_size,
                                                         const ov::reference::XAttentionRetainedBlockIndicesForAllHeads& retained_blocks,
                                                         int block_size,
-                                                        const std::vector<uint8_t>* qq_bias) {
+                                                        const std::vector<uint8_t>* qq_bias,
+                                                        const std::vector<int>* token_type_ids = nullptr) {
         int heads_per_kv = num_heads / num_kv_heads;
 
         ov::PartialShape mask_shape;
@@ -1658,6 +1676,45 @@ private:
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Bidirectional attention over image-token groups. token_type_ids[t] == 1 marks an image token
+        // and a maximal contiguous run of them is a group whose members attend to each other in BOTH
+        // directions; the allowed key set of a query is
+        //     (causal n sliding-window)  u  (the query's own image group)
+        // so this pass only ever UN-masks, on top of whatever the causal/window loops above wrote.
+        //
+        // Index spaces: token_type_ids covers the NEW tokens only, i.e. it is num_queries long, while
+        // the mask's key axis starts at the oldest CACHED token. past = num_keys - num_queries bridges
+        // them. That also encodes why a group can never contain a cached token -- see
+        // openvino/reference/paged_attention.hpp, where the group bounds are built over
+        // [seq_begins[s], seq_begins[s+1]) and converted as past + (idx - t_begin).
+        if (token_type_ids && !token_type_ids->empty()) {
+            OPENVINO_ASSERT(token_type_ids->size() == static_cast<size_t>(num_queries),
+                            "token_type_ids must hold one entry per NEW token, got ", token_type_ids->size(), " for ", num_queries, " queries");
+            // The retained-block branch above writes a SPARSE mask, and what a bidirectional un-mask
+            // should do to a block XAttention dropped is undefined. Nothing combines the two today;
+            // refuse rather than invent semantics.
+            OPENVINO_ASSERT(retained_blocks.empty(), "bidirectional token_type_ids and XAttention retained blocks are not supported together");
+
+            const int past = num_keys - num_queries;
+            const int head_planes = static_cast<int>(total_elems / (static_cast<size_t>(num_queries) * static_cast<size_t>(num_keys)));
+            for (int i = 0; i < num_queries; i++) {
+                if ((*token_type_ids)[i] != 1)
+                    continue;
+                int group_begin = i;
+                int group_end = i + 1;
+                while (group_begin > 0 && (*token_type_ids)[group_begin - 1] == 1)
+                    group_begin--;
+                while (group_end < num_queries && (*token_type_ids)[group_end] == 1)
+                    group_end++;
+
+                for (int h = 0; h < head_planes; h++) {
+                    const size_t head_offset = static_cast<size_t>(h) * static_cast<size_t>(num_queries) * static_cast<size_t>(num_keys);
+                    for (int j = past + group_begin; j < past + group_end; j++)
+                        mem_ptr[head_offset + static_cast<size_t>(i) * static_cast<size_t>(num_keys) + static_cast<size_t>(j)] = ov::float16(0.f);
                 }
             }
         }
@@ -2155,7 +2212,13 @@ public:
 
         if (p.token_type_ids.has_value()) {
             pam.token_type_ids = p.token_type_ids.value();
-            EXPECT_EQ(pam.token_type_ids.size(), static_cast<size_t>(pam.subsequence_descs.back().num_tokens + pam.subsequence_descs.back().past_len));
+            // "[B_token]" = one entry per NEW token across ALL subsequences -- past_len contributes
+            // nothing, and neither does looking at the last subsequence alone. Both happened to agree
+            // with the old expression only for a single PREFILL subsequence.
+            size_t b_token = 0;
+            for (const auto& subsequence_desc : pam.subsequence_descs)
+                b_token += static_cast<size_t>(subsequence_desc.num_tokens);
+            EXPECT_EQ(pam.token_type_ids.size(), b_token);
         }
 
         OPENVINO_ASSERT(!(p.empty_token_type_ids && p.token_type_ids.has_value()),
@@ -2343,10 +2406,12 @@ public:
         pa_prim.heads_num = p.num_heads;
         pa_prim.scale_val = pam.get_default_scale();
         pa_prim.has_alibi = false;
-        // has_token_type_ids doubles as the "disable micro-SDPA" lever (can_use_micro_sdpa_for
-        // rejects every stage but PREFILL when it is set), which is how the FA_V2 sink test pins
-        // itself to sdpa_opt.cl. Tie it to force_flashattn_v2 rather than to has_sink_input alone, so
-        // a plain sink case still reaches micro / sdpa_ocl in the MIXED stage.
+        // has_token_type_ids used to double as the "disable micro-SDPA" lever, which is how the FA_V2
+        // sink test was pinned to sdpa_opt.cl. It no longer is for sdpa_ocl -- can_use_micro_sdpa_for
+        // now only rejects non-PREFILL stages when sdpa_micro is the generator, because sdpa_ocl
+        // implements the bidirectional mask for MIXED too. The FA_V2 sink cases are all PREFILL, where
+        // the lever never applied anyway, so nothing there changes. Still tied to force_flashattn_v2
+        // rather than to has_sink_input alone, so a plain sink case reaches micro / sdpa_ocl in MIXED.
         pa_prim.has_token_type_ids =
             p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
         pa_prim.has_sink_input = p.has_sink_input;
@@ -3246,9 +3311,10 @@ struct paged_attention_test_params {
     bool empty_token_type_ids = false;
 
     // Sink input testing: enables has_sink_input on the primitive. Combined with force_flashattn_v2
-    // it ALSO sets has_token_type_ids, which is how the sdpa_opt.cl path is forced (that flag makes
-    // can_use_micro_sdpa_for reject every non-PREFILL stage). Leave force_flashattn_v2 off to let
-    // the sink cases reach micro / sdpa_ocl in MIXED as well.
+    // it ALSO sets has_token_type_ids, which used to force the sdpa_opt.cl path by making
+    // can_use_micro_sdpa_for reject every non-PREFILL stage. That now only holds for sdpa_micro
+    // (sdpa_ocl implements the bidirectional mask for MIXED too), so leave force_flashattn_v2 off
+    // when a sink case should reach micro / sdpa_ocl in MIXED.
     bool has_sink_input = false;
     // When set, overrides the default sink values in PAM before memory allocation.
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
