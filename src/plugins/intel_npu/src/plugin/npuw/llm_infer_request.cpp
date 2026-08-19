@@ -1350,13 +1350,13 @@ void ov::npuw::LLMInferRequest::infer_continued_prefill(ov::SoPtr<ov::ITensor> i
                     attention_mask->get_size(),
                     ".");
     validate_continued_position_ids(position_ids, keep);
-    auto plan = m_kvcache_strategy->plan_continued_prefill(keep, delta_len);
 
-    // Mutation starts here. An exception past this point leaves the cache in an
-    // unspecified state with the command still pending; the caller recovers with
-    // reset() and the full history, the same recovery every failing inference
-    // requires.
-    m_kvcache_strategy->apply_continued_prefill(*plan);
+    // The strategy validates its own preconditions before moving any byte, so
+    // mutation starts inside this call. An exception past that leaves the cache
+    // in an unspecified state with the command still pending; the caller
+    // recovers with reset() and the full history, the same recovery every
+    // failing inference requires.
+    m_kvcache_strategy->continue_prefill(keep, delta_len);
     prepare_for_continued_prefill(keep, static_cast<int64_t>(keep + delta_len), attention_mask);
 
     m_continued_prefill_base = keep;

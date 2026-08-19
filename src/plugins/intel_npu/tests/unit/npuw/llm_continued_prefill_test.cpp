@@ -176,10 +176,10 @@ public:
 };
 
 // Delegates every strategy call to the real contiguous strategy but fails the
-// apply step, modelling a failure after the transaction passed preflight.
-class ThrowingApplyStrategy final : public ov::npuw::LLMKVCacheStrategy {
+// continuation, modelling a failure inside the strategy.
+class ThrowingContinuationStrategy final : public ov::npuw::LLMKVCacheStrategy {
 public:
-    ThrowingApplyStrategy(ov::npuw::LLMInferRequest& req, std::unique_ptr<ov::npuw::LLMKVCacheStrategy> inner)
+    ThrowingContinuationStrategy(ov::npuw::LLMInferRequest& req, std::unique_ptr<ov::npuw::LLMKVCacheStrategy> inner)
         : LLMKVCacheStrategy(req),
           m_inner(std::move(inner)) {}
 
@@ -207,11 +207,8 @@ public:
     void on_generate_step_done(uint32_t input_tokens_len) override {
         m_inner->on_generate_step_done(input_tokens_len);
     }
-    std::unique_ptr<ov::npuw::ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) override {
-        return m_inner->plan_continued_prefill(keep, delta_len);
-    }
-    void apply_continued_prefill(ov::npuw::ContinuedPrefillPlan&) override {
-        OPENVINO_THROW("Injected continued-prefill apply failure.");
+    void continue_prefill(uint32_t, uint32_t) override {
+        OPENVINO_THROW("Injected continued-prefill failure.");
     }
 
 private:
@@ -461,7 +458,8 @@ TEST_F(LLMContinuedPrefillTest, InjectedApplyFailureRecoversAfterReset) {
 
     auto inner = LLMContinuedPrefillTestAccess::take_strategy(req);
     ASSERT_NE(inner, nullptr);
-    LLMContinuedPrefillTestAccess::set_strategy(req, std::make_unique<ThrowingApplyStrategy>(req, std::move(inner)));
+    LLMContinuedPrefillTestAccess::set_strategy(req,
+                                                std::make_unique<ThrowingContinuationStrategy>(req, std::move(inner)));
 
     propose(73);
     set_inputs(make_i64({1, 40}, 1), make_i64({1, 104}, 1), make_i64_iota({1, 40}, 64));

@@ -16,17 +16,6 @@ namespace npuw {
 class LLMInferRequest;  // forward declaration — strategy always outlived by its owning request
 
 /**
- * @brief Opaque, strategy-owned plan for a continued prefill.
- *
- * Produced by the non-mutating plan_continued_prefill() preflight and consumed
- * by apply_continued_prefill(). Destroying an unapplied plan releases any
- * staging resources without changing the live cache.
- */
-struct ContinuedPrefillPlan {
-    virtual ~ContinuedPrefillPlan() = default;
-};
-
-/**
  * @brief Abstract strategy interface for LLM KV cache management.
  *
  * Decouples `LLMInferRequest` from the two concrete KV cache implementations:
@@ -100,21 +89,16 @@ public:
 
     // Continuous prefill support.
 
-    /// Validate every dynamic precondition of a continued prefill that keeps the first
-    /// `keep` tokens and prefills `delta_len` new ones. Must not change live KV,
-    /// bindings, block metadata, counters or phase flags. A failure here leaves the
-    /// cache exactly as it was, so a corrected retry may still succeed.
-    virtual std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) {
+    /// Continue a prefill that keeps the first `keep` tokens and will prefill
+    /// `delta_len` new ones. The strategy validates every dynamic precondition
+    /// without touching live state, so a validation failure leaves the cache
+    /// exactly as it was and a corrected retry may still succeed; it then moves
+    /// the preserved prefix into the prefill-side layout. An exception past
+    /// validation leaves the cache in an unspecified state and the caller must
+    /// recover with reset() and a full prefill.
+    virtual void continue_prefill(uint32_t keep, uint32_t delta_len) {
         (void)keep;
         (void)delta_len;
-        OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");
-    }
-
-    /// Apply an already validated plan. Mutation has begun, so any exception from
-    /// this point leaves the cache in an unspecified state and the caller must
-    /// recover with reset() and a full prefill.
-    virtual void apply_continued_prefill(ContinuedPrefillPlan& plan) {
-        (void)plan;
         OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");
     }
 

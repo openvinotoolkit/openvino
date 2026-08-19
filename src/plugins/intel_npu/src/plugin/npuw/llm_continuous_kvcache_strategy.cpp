@@ -153,23 +153,13 @@ void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_l
 
 namespace {
 
-// Per-tensor repack geometry, analyzed at plan time so apply_continued_prefill()
-// only moves bytes.
+// Per-tensor repack geometry, analyzed during validation so the parallel copy
+// below only moves bytes.
 struct RepackEntry {
     uint32_t src_dim = 0u;
     uint32_t dst_dim = 0u;
     bool aliased = false;
     bool same_layout = false;
-};
-
-// Plan for continuing a prefill on the contiguous buffer. The preserved prefix
-// always lives in the generate model's past inputs and is repacked into the
-// prefill layout: the coordinator grants a keep only after a generate step
-// consolidated the prefix there, and grants zero after a prompt-only turn.
-struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
-    uint32_t keep = 0u;
-    // Parallel to the strategy's m_kv_pairs.
-    std::vector<RepackEntry> entries;
 };
 
 // The complete repack geometry for one src/dst tensor pair. The sequence axes
@@ -193,8 +183,12 @@ RepackEntry make_repack_entry(const ov::SoPtr<ov::ITensor>& src,
 
 }  // anonymous namespace
 
-std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continued_prefill(uint32_t keep,
-                                                                                           uint32_t delta_len) {
+// The preserved prefix always lives in the generate model's past inputs and is
+// repacked into the prefill layout: the coordinator grants a keep only after a
+// generate step consolidated the prefix there, and grants zero after a
+// prompt-only turn. Every precondition is validated before any byte moves.
+void LLMContinuousKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delta_len) {
+    namespace uu = ov::npuw::util;
     const auto& compiled = m_req.m_npuw_llm_compiled_model;
     const auto& kvcache_desc = compiled->m_kvcache_desc;
 
@@ -216,12 +210,10 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                     "Continued prefill: the preserved prefix must be sourced from the generate-phase KV; "
                     "the coordinator grants zero after a prompt-only turn.");
 
-    auto plan = std::make_unique<ContinuousContinuationPlan>();
-    plan->keep = keep;
-    plan->entries.reserve(m_kv_pairs.size());
-
     // Validate every layer and analyze its repack geometry before touching
     // any of them.
+    std::vector<RepackEntry> entries;
+    entries.reserve(m_kv_pairs.size());
     for (const auto& pair : m_kv_pairs) {
         OPENVINO_ASSERT(m_req.m_kvcache_in_ports.count(pair.past) && m_req.m_prefill_in_ports.count(pair.past),
                         "Continued prefill: KV input ",
@@ -240,24 +232,14 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
                         "Continued prefill: KV extent of ",
                         pair.past,
                         " cannot cover the granted keep.");
-        plan->entries.push_back(entry);
+        entries.push_back(entry);
     }
-    return plan;
-}
-
-void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan& base_plan) {
-    namespace uu = ov::npuw::util;
-    auto& plan = static_cast<ContinuousContinuationPlan&>(base_plan);
-    const uint32_t keep = plan.keep;
-    OPENVINO_ASSERT(plan.entries.size() == m_kv_pairs.size(),
-                    "Continued prefill: the plan does not match the strategy's KV pair table.");
 
     LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
-    // Every tensor is independent, so repack them in parallel like copy_kvcache
-    // does, executing the geometry analyzed at plan time.
+    // Every tensor is independent, so repack them in parallel like copy_kvcache does.
     ov::parallel_for(m_kv_pairs.size(), [&](size_t idx) {
         const auto& pair = m_kv_pairs[idx];
-        const auto& entry = plan.entries[idx];
+        const auto& entry = entries[idx];
         if (entry.same_layout) {
             // The bytes already sit where the prefill will read them.
             return;

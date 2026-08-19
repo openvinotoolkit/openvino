@@ -41,8 +41,7 @@ public:
 
     // Continuous prefill. Repack the preserved KV prefix [0, keep) into the prefill
     // model's past KV layout so the chunked prefill can resume from `keep`.
-    std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) override;
-    void apply_continued_prefill(ContinuedPrefillPlan& plan) override;
+    void continue_prefill(uint32_t keep, uint32_t delta_len) override;
 
 private:
     // Static per-tensor facts, derived once in on_initialize() so the
