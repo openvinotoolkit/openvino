@@ -239,7 +239,9 @@ function(ov_rpm_add_rpmlint_suppression comp)
                              OUTPUT_VARIABLE rpm_dist_tag
                              OUTPUT_STRIP_TRAILING_WHITESPACE)
         else()
-            set(rpm_dist_tag "")
+            message(FATAL_ERROR
+                "RPM: cannot determine %{?dist}: rpmbuild was not found. "
+                "Set OV_RPM_DIST_TAG explicitly or disable distribution tagging.")
         endif()
         set(OV_RPM_DIST_TAG "${rpm_dist_tag}" CACHE INTERNAL "RPM distribution release tag (%{?dist})")
     endif()
