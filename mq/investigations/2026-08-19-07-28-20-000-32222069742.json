@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-07-28-20-000-32222069742",
+  "timestamp": "2026-08-19T07:28:20Z",
+  "run_id": "32222069742",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32222069742",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "34437",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/34437",
+  "author": "mostafafaheem",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails: Could not connect to azure.archive.ubuntu.com:80, connection timed out"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/perl/perl-modules-5.38_5.38.2-3.2ubuntu0.3_all.deb  Could not connect to azure.archive.ubuntu.com:80 (40.81.13.82), connection timed out",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The GitHub Actions runner could not reach the Ubuntu apt mirror at azure.archive.ubuntu.com:80. The connection attempt to 40.81.13.82:80 timed out after multiple retries. This is a transient network infrastructure issue unrelated to the PR changes (which add RGBtoNV12/BGRtoNV12 operations to the template plugin). The failure is not caused by any code change in the PR.",
+  "reproduction_steps": "N/A - infrastructure/network issue not reproducible locally",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job - the network issue is transient and should resolve on retry",
+    "If the failure persists, check Azure network status for azure.archive.ubuntu.com availability"
+  ],
+  "prevention_strategies": "Consider adding retry logic or fallback mirrors in the Debian package installation step to handle transient apt mirror outages.",
+  "historical_context": "This is the 4th occurrence of this same pattern (signature_hash=7d2e2ff59d37c6b4). Previous occurrences: 2026-08-19T05:25:56Z (run 32212108817), 2026-08-18T16:46:02Z (run 32152867988), 2026-08-18T16:28:00Z (run 32152602590)."
+}
