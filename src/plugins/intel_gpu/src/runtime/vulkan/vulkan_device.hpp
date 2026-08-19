@@ -17,10 +17,15 @@ class vulkan_pipeline_cache;
 
 struct vulkan_external_memory_capabilities {
     VkExternalMemoryHandleTypeFlags importable_buffer_handle_types = 0;
+    VkExternalMemoryHandleTypeFlags dedicated_buffer_handle_types = 0;
     VkDeviceSize min_imported_host_pointer_alignment = 1;
 
     bool supports(VkExternalMemoryHandleTypeFlagBits handle_type) const {
         return (importable_buffer_handle_types & handle_type) != 0;
+    }
+
+    bool requires_dedicated_allocation(VkExternalMemoryHandleTypeFlagBits handle_type) const {
+        return (dedicated_buffer_handle_types & handle_type) != 0;
     }
 };
 

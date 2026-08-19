@@ -47,7 +47,7 @@ bool has_extension(const std::vector<VkExtensionProperties>& extensions, const c
     });
 }
 
-bool supports_external_buffer_import(VkPhysicalDevice device, VkExternalMemoryHandleTypeFlagBits handle_type) {
+VkExternalMemoryProperties query_external_buffer_properties(VkPhysicalDevice device, VkExternalMemoryHandleTypeFlagBits handle_type) {
     VkPhysicalDeviceExternalBufferInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO;
     buffer_info.flags = 0;
@@ -57,8 +57,7 @@ bool supports_external_buffer_import(VkPhysicalDevice device, VkExternalMemoryHa
     VkExternalBufferProperties properties{};
     properties.sType = VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES;
     vkGetPhysicalDeviceExternalBufferProperties(device, &buffer_info, &properties);
-    const auto& external = properties.externalMemoryProperties;
-    return (external.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) != 0 && (external.compatibleHandleTypes & handle_type) != 0;
+    return properties.externalMemoryProperties;
 }
 
 }  // namespace
@@ -220,11 +219,18 @@ void vulkan_device::initialize() {
     }
 
     const auto enable_external_import = [&](const char* extension_name, VkExternalMemoryHandleTypeFlagBits handle_type) {
-        if (!has_extension(extensions, extension_name) || !supports_external_buffer_import(_physical_device, handle_type)) {
+        if (!has_extension(extensions, extension_name)) {
+            return false;
+        }
+        const auto external = query_external_buffer_properties(_physical_device, handle_type);
+        if ((external.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT) == 0 || (external.compatibleHandleTypes & handle_type) == 0) {
             return false;
         }
         enabled_extensions.push_back(extension_name);
         _external_memory_capabilities.importable_buffer_handle_types |= handle_type;
+        if ((external.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT) != 0) {
+            _external_memory_capabilities.dedicated_buffer_handle_types |= handle_type;
+        }
         return true;
     };
 

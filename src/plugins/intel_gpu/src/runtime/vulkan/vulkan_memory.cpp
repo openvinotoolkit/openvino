@@ -232,10 +232,11 @@ vulkan_buffer_allocation::ptr import_external_buffer(vulkan_engine& engine,
     dedicated_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
     dedicated_info.pNext = import.allocation_pnext;
     dedicated_info.buffer = buffer;
+    const bool requires_dedicated_allocation = device_owner->get_external_memory_capabilities().requires_dedicated_allocation(import.handle_type);
 
     VkMemoryAllocateInfo allocation_info{};
     allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocation_info.pNext = &dedicated_info;
+    allocation_info.pNext = requires_dedicated_allocation ? static_cast<const void*>(&dedicated_info) : import.allocation_pnext;
     allocation_info.allocationSize = allocation_size;
     allocation_info.memoryTypeIndex = memory_type.index;
 
