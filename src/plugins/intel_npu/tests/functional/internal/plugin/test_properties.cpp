@@ -46,8 +46,6 @@ namespace behavior {
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
-    std::shared_ptr<::intel_npu::OptionsDesc> options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::FilteredConfig npu_config = ::intel_npu::FilteredConfig(options);
     ov::SoPtr<::intel_npu::IEngineBackend> backend;
     std::unique_ptr<::intel_npu::PluginPropertyManager> propertiesManager;
 
@@ -80,99 +78,14 @@ public:
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
 
-        options->reset();
-
-#define REGISTER_OPTION(OPT_TYPE)                             \
-    do {                                                      \
-        auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
-        std::string o_name = dummyopt.key().data();           \
-        options->add<OPT_TYPE>();                             \
-    } while (0)
-        REGISTER_OPTION(LOG_LEVEL);
-        REGISTER_OPTION(COMPILE_LOG_LEVEL);
-        REGISTER_OPTION(CACHE_DIR);
-        REGISTER_OPTION(CACHE_MODE);
-        REGISTER_OPTION(COMPILED_BLOB);
-        REGISTER_OPTION(DEVICE_ID);
-        REGISTER_OPTION(NUM_STREAMS);
-        REGISTER_OPTION(PERF_COUNT);
-        REGISTER_OPTION(LOADED_FROM_CACHE);
-        REGISTER_OPTION(COMPILATION_NUM_THREADS);
-        REGISTER_OPTION(PERFORMANCE_HINT);
-        REGISTER_OPTION(EXECUTION_MODE_HINT);
-        REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        REGISTER_OPTION(ENABLE_CPU_PINNING);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-        REGISTER_OPTION(MODEL_PRIORITY);
-        REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-        REGISTER_OPTION(DMA_ENGINES);
-        REGISTER_OPTION(TILES);
-        REGISTER_OPTION(COMPILATION_MODE);
-        REGISTER_OPTION(COMPILER_TYPE);
-        REGISTER_OPTION(PLATFORM);
-        REGISTER_OPTION(CREATE_EXECUTOR);
-        REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-        REGISTER_OPTION(PROFILING_TYPE);
-        REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-        REGISTER_OPTION(BATCH_MODE);
-        REGISTER_OPTION(BYPASS_UMD_CACHING);
-        REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-        REGISTER_OPTION(WEIGHTS_PATH);
-        REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-        REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION);
-        REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-        REGISTER_OPTION(STEPPING);
-        REGISTER_OPTION(DISABLE_VERSION_CHECK);
-        REGISTER_OPTION(EXPORT_RAW_BLOB);
-        REGISTER_OPTION(IMPORT_RAW_BLOB);
-        REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-        REGISTER_OPTION(TURBO);
-        REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-        REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-        REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-        REGISTER_OPTION(ENABLE_STRIDES_FOR);
-        REGISTER_OPTION(SHARED_COMMON_QUEUE);
-
-        if (backend) {
-            REGISTER_OPTION(MAX_TILES);
-
-            if (backend->isCommandQueueExtSupported()) {
-                REGISTER_OPTION(WORKLOAD_TYPE);
-            }
-            if (backend->isContextExtSupported()) {
-                REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-            }
-        }
-
-        for_each_exposed_npuw_option([&](auto tag) {
-            using Opt = typename decltype(tag)::type;
-            REGISTER_OPTION(Opt);
-        });
-
-        if (npu_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
-            auto device = backend->getDevice();
-            if (device) {
-                auto platformName = device->getName();
-                CompilerAdapterFactory compilerFactory;
-                auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-                if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                    npu_config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-                }
-            }
-        }
-
         propertiesManager = std::make_unique<PluginPropertyManager>(
-            npu_config,
             backend,
             std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
             ::intel_npu::Logger::global());
     }
 
     void TearDown() override {
-        APIBaseTest::TearDown();
+        OVPluginTestBase::TearDown();
     }
 };
 

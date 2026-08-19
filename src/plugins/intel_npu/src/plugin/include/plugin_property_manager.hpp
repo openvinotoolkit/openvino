@@ -23,8 +23,7 @@ namespace intel_npu {
 
 class PluginPropertyManager final {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
-                          const ov::SoPtr<IEngineBackend>& backend,
+    PluginPropertyManager(const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
 
