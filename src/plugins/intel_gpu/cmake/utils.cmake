@@ -35,11 +35,6 @@ function(ov_gpu_set_opencl_api_version_for TARGET_NAME)
         CL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 endfunction()
 
-function(ov_gpu_set_kernel_language_version_for TARGET_NAME)
-    target_compile_definitions(${TARGET_NAME} PRIVATE
-        OV_GPU_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
-endfunction()
-
 function(ov_gpu_link_runtime_dependencies_for TARGET_NAME)
     foreach(GPU_RUNTIME IN LISTS GPU_RUNTIME_TYPES)
         if(GPU_RUNTIME STREQUAL "ZE")

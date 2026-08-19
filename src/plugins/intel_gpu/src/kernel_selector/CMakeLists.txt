@@ -81,7 +81,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
 endif()
 
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
-ov_gpu_set_kernel_language_version_for(${TARGET_NAME})
+set_property(SOURCE kernel_selector_params.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    OV_GPU_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
