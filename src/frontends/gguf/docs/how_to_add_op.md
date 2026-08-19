@@ -2,7 +2,7 @@
 
 Procedure for enabling a ggml operation. For the *concepts* behind it — the two decoder paths, the
 `GGML_OP_NONE` weight convention, `op_case` numbering, the memory model — read
-[frontend_design.md](frontend_design.md) first; this document does not repeat them.
+`frontend_design.md` first; this document does not repeat them.
 
 Related: [adding_an_architecture.md](adding_an_architecture.md) (enabling a model family, which
 usually needs *no* new op), [debugging_accuracy.md](debugging_accuracy.md) (when a translator
@@ -16,7 +16,7 @@ Check that an op translator is actually what is missing:
   [adding_an_architecture.md](adding_an_architecture.md). Reach for a translator only when the graph
   genuinely contains a ggml op the table does not have.
 - **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  `op_case` section of [frontend_design.md](frontend_design.md) before adding a case — a case that
+  `op_case` section of `frontend_design.md` before adding a case — a case that
   exists only to mean "this came from the builder" is a defect.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
   affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
@@ -118,7 +118,7 @@ your own reading of the op's math:
 
 - Simple elementwise ops with an unambiguous closed form — compute inline in the test.
 - Anything with layout, geometry or head structure (rope, conv, attention, views) — generate the
-  reference from ggml-CPU: an `.npy` fixture via [`gen_ggml_reference.c`](../tests/gen_ggml_reference.c),
+  reference from ggml-CPU: an `.npy` fixture via `gen_ggml_reference.c`,
   or a standalone oracle such as `ssm_conv_oracle.c` / `imrope_oracle.c`, and paste its output with a
   comment naming the oracle.
 

@@ -192,7 +192,7 @@ Same runs as the table above. i9-12900K (16C/24T), OV defaults. Prefill = prompt
 TTFT on a ~90-340-token prompt; decode = 1/TPOT over 32 greedy tokens, steady-state
 iteration. `peak RSS` and `peak anon` are the maxima of `Rss:`/`Anonymous:` from
 `/proc/self/smaps_rollup`, sampled every 20 ms in-process; `anon` is the part that
-genuinely requires RAM (see [`frontend_design.md`](frontend_design.md) on the memory model).
+genuinely requires RAM (see `frontend_design.md` on the memory model).
 `load` is `.gguf` → OV graph → `compile_model`.
 
 | Arch | Model MiB | load s | prefill t/s | decode t/s | peak RSS MiB | peak anon MiB |
@@ -343,7 +343,7 @@ all, which the SDPA-only graph could not do.
 
 **PA vs llama.cpp: decode 0.51-0.64x**, prefill 0.55-1.04x, peak RSS 1.7-2.4x. These ratios match
 what the SDPA path already measured, so PA neither introduces nor closes that gap — see
-[`frontend_design.md`](frontend_design.md) on the memory model for the RSS side.
+`frontend_design.md` on the memory model for the RSS side.
 
 ### MoE expert weights and quantization choice (CPU plugin specific)
 
