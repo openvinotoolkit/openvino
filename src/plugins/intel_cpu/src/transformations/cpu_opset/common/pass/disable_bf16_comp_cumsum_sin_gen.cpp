@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::intel_cpu {
