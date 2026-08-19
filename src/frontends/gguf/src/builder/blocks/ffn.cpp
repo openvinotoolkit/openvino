@@ -13,6 +13,47 @@ namespace blocks {
 
 using ov::element::f32;
 
+namespace {
+
+// "<name>.weight" -> "<name>.bias": every weight tensor in this file follows that naming
+// convention, so a projection's bias weight name can always be derived from its own.
+std::string bias_weight_name(const std::string& weight_name) {
+    static const std::string suffix = ".weight";
+    return weight_name.substr(0, weight_name.size() - suffix.size()) + ".bias";
+}
+
+}  // namespace
+
+// GATE/UP projection -> SwiGLU, shared by dense_ffn's non-fused branch and moe_ffn's shared-expert
+// branch (deepseek2-ocr, bailingmoe2, exaone-moe): the same shape in both, differing only in
+// weight-name prefix and (dense only) an optional per-projection bias. The DOWN projection that
+// follows is left to the caller, since its bias/output-merging conventions differ between the two
+// (a plain residual-style output for dense_ffn vs an ADD into the routed experts' sum for MoE).
+// Callers supply the exact op names so each keeps its own established naming (ffn_* vs shexp_*); a
+// bias ADD op, when emitted, is named "<gate_name|up_name>_b" and reads "<weight_name>.bias".
+std::string swiglu_gate_up(GraphEmitter& e,
+                           const std::string& gate_w,
+                           const std::string& up_w,
+                           const std::string& ffn_norm,
+                           int64_t T,
+                           const std::string& gate_name,
+                           const std::string& up_name,
+                           const std::string& glu_name,
+                           bool has_bias) {
+    e.add_weight(gate_w);
+    const int n_ff = static_cast<int>(e.weight_tensor(gate_w).get_shape()[0]);
+    auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm}, ps({1, 1, T, n_ff}), f32);
+    if (has_bias) {
+        gate = add_bias(e, gate, bias_weight_name(gate_w), gate_name + "_b");
+    }
+    e.add_weight(up_w);
+    auto up = e.add_op("GGML_OP_MUL_MAT", up_name, {up_w, ffn_norm}, ps({1, 1, T, n_ff}), f32);
+    if (has_bias) {
+        up = add_bias(e, up, bias_weight_name(up_w), up_name + "_b");
+    }
+    return e.add_op("GGML_GLU_OP_SWIGLU", glu_name, {gate, up}, ps({1, 1, T, n_ff}), f32, 0, {{"swapped", false}});
+}
+
 std::string geglu_ffn(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const std::string& p,
@@ -51,24 +92,15 @@ std::string dense_ffn(GraphEmitter& e,
                        0,
                        {{"swapped", false}});
     } else {
-        e.add_weight(p + "ffn_gate.weight");
-        const int n_ff = static_cast<int>(e.weight_tensor(p + "ffn_gate.weight").get_shape()[0]);
-        auto gate =
-            e.add_op("GGML_OP_MUL_MAT", p + "ffn_gate", {p + "ffn_gate.weight", ffn_norm}, ps({1, 1, T, n_ff}), f32);
-        if (has_ffn_bias) {
-            gate = add_bias(e, gate, p + "ffn_gate.bias", p + "ffn_gate_b");
-        }
-        auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm}, ps({1, 1, T, n_ff}), f32);
-        if (has_ffn_bias) {
-            up = add_bias(e, up, p + "ffn_up.bias", p + "ffn_up_b");
-        }
-        glu = e.add_op("GGML_GLU_OP_SWIGLU",
-                       p + "ffn_swiglu",
-                       {gate, up},
-                       ps({1, 1, T, n_ff}),
-                       f32,
-                       0,
-                       {{"swapped", false}});
+        glu = swiglu_gate_up(e,
+                             p + "ffn_gate.weight",
+                             p + "ffn_up.weight",
+                             ffn_norm,
+                             T,
+                             p + "ffn_gate",
+                             p + "ffn_up",
+                             p + "ffn_swiglu",
+                             has_ffn_bias);
     }
     auto out = e.add_op("GGML_OP_MUL_MAT", p + "ffn_out", {p + "ffn_down.weight", glu}, ps({1, 1, T, cfg.n_embd}), f32);
     if (has_ffn_bias) {
@@ -210,27 +242,16 @@ std::string moe_ffn(GraphEmitter& e,
     // output is added to the routed experts' weighted sum. Uses plain SwiGLU dense FFN with
     // ffn_{gate,up,down}_shexp.weight (n_ff_shared = shexp rows). Output added to moe_out.
     if (cfg.n_expert_shared > 0 && e.has_weight(p + "ffn_gate_shexp.weight")) {
-        e.add_weight(p + "ffn_gate_shexp.weight");
-        e.add_weight(p + "ffn_up_shexp.weight");
+        auto s_act = swiglu_gate_up(e,
+                                    p + "ffn_gate_shexp.weight",
+                                    p + "ffn_up_shexp.weight",
+                                    ffn_norm,
+                                    T,
+                                    p + "shexp_gate",
+                                    p + "shexp_up",
+                                    p + "shexp_act",
+                                    /*has_bias=*/false);
         e.add_weight(p + "ffn_down_shexp.weight");
-        const int n_ff_s = static_cast<int>(e.weight_tensor(p + "ffn_gate_shexp.weight").get_shape()[0]);
-        auto s_gate = e.add_op("GGML_OP_MUL_MAT",
-                               p + "shexp_gate",
-                               {p + "ffn_gate_shexp.weight", ffn_norm},
-                               ps({1, 1, T, n_ff_s}),
-                               f32);
-        auto s_up = e.add_op("GGML_OP_MUL_MAT",
-                             p + "shexp_up",
-                             {p + "ffn_up_shexp.weight", ffn_norm},
-                             ps({1, 1, T, n_ff_s}),
-                             f32);
-        auto s_act = e.add_op("GGML_GLU_OP_SWIGLU",
-                              p + "shexp_act",
-                              {s_gate, s_up},
-                              ps({1, 1, T, n_ff_s}),
-                              f32,
-                              0,
-                              {{"swapped", false}});
         auto s_down = e.add_op("GGML_OP_MUL_MAT",
                                p + "shexp_out",
                                {p + "ffn_down_shexp.weight", s_act},

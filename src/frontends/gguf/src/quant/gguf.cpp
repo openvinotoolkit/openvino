@@ -305,6 +305,21 @@ int metadata_to_int(const std::unordered_map<std::string, GGUFMetaData>& metadat
     return static_cast<int>(*(tensor.data<ov::element_type_traits<ov::element::u32>::value_type>()));
 }
 
+// `metadata_to_int`/`metadata_to_float`, but returning `default_value` when `key` is absent
+// instead of asserting. Most per-architecture scalars below are optional this way: llama.cpp's
+// hparam loading has the same "missing key -> compile-time default" convention per key.
+int metadata_to_int_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
+                       const std::string& key,
+                       int default_value) {
+    return metadata.count(key) ? metadata_to_int(metadata, key) : default_value;
+}
+
+float metadata_to_float_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
+                           const std::string& key,
+                           float default_value) {
+    return metadata.count(key) ? metadata_to_float(metadata, key) : default_value;
+}
+
 }  // namespace
 
 ov::Shape get_shape(const gguf_tensor& tensor) {
@@ -818,25 +833,20 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
         }
     }
     config["hidden_size"] = metadata_to_int(metadata, arch + ".embedding_length");
-    config["max_position_embeddings"] =
-        metadata.count(arch + ".context_length") ? metadata_to_int(metadata, arch + ".context_length") : 2048;
+    config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
     config["rms_norm_eps"] = metadata_to_float(metadata, arch + ".attention.layer_norm_rms_epsilon");
-    config["rope_freq_base"] =
-        metadata.count(arch + ".rope.freq_base") ? metadata_to_float(metadata, arch + ".rope.freq_base") : 10000.0f;
+    config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
     // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
     // its own type in the tensor info, which is what the dequant path uses. Optional because
     // llama.cpp's own model writer (llama_model_saver, the source of the per-arch test fixtures)
     // does not emit it; requiring it would reject files llama.cpp itself considers valid.
-    config["file_type"] =
-        metadata.count("general.file_type") ? metadata_to_int(metadata, "general.file_type") : 0;
+    config["file_type"] = metadata_to_int_or(metadata, "general.file_type", 0);
 
     // RoPE YaRN scaling: freq_scale = 1/factor (default 1.0 = no scaling), ext_factor = 1.0
     // for YARN type (0.0 otherwise), n_ctx_orig from rope.scaling.original_context_length.
     // Mirrors llama.cpp: hparams.rope_freq_scale_train = 1/ropescale; ext_factor = (yarn?1:0).
     {
-        const float ropescale = metadata.count(arch + ".rope.scaling.factor")
-                                    ? metadata_to_float(metadata, arch + ".rope.scaling.factor")
-                                    : 0.0f;
+        const float ropescale = metadata_to_float_or(metadata, arch + ".rope.scaling.factor", 0.0f);
         config["rope_freq_scale"] = ropescale == 0.0f ? 1.0f : 1.0f / ropescale;
 
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
@@ -845,58 +855,41 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
 
         // n_ctx_orig: use rope.scaling.original_context_length when present; fall back to
         // context_length (the training context, which is also n_ctx_train in llama.cpp).
-        config["rope_n_ctx_orig"] = metadata.count(arch + ".rope.scaling.original_context_length")
-                                        ? metadata_to_int(metadata, arch + ".rope.scaling.original_context_length")
-                                        : std::get<int>(config["max_position_embeddings"]);
+        config["rope_n_ctx_orig"] = metadata_to_int_or(metadata,
+                                                       arch + ".rope.scaling.original_context_length",
+                                                       std::get<int>(config["max_position_embeddings"]));
     }
 
     // Number of rope dimensions (n_rot); defaults to head_size. Some archs (e.g. partial-
     // rotary models) set it smaller. A value of 0 means "no RoPE" or full rotation —
     // treat as head_size to avoid division-by-zero and empty-vector crashes downstream.
     {
-        const int rope_dims = metadata.count(arch + ".rope.dimension_count")
-                                  ? metadata_to_int(metadata, arch + ".rope.dimension_count")
-                                  : 0;
+        const int rope_dims = metadata_to_int_or(metadata, arch + ".rope.dimension_count", 0);
         config["rope_dimension_count"] = (rope_dims > 0) ? rope_dims : std::get<int>(config["head_size"]);
     }
     // Gemma4: SWA layers use a smaller head size (and fewer rope dims) than global layers.
     // key_length_swa / value_length_swa / rope.dimension_count_swa default to key_length.
-    config["head_size_swa"] = metadata.count(arch + ".attention.key_length_swa")
-                                  ? metadata_to_int(metadata, arch + ".attention.key_length_swa")
-                                  : std::get<int>(config["head_size"]);
-    config["rope_dimension_count_swa"] = metadata.count(arch + ".rope.dimension_count_swa")
-                                             ? metadata_to_int(metadata, arch + ".rope.dimension_count_swa")
-                                             : std::get<int>(config["rope_dimension_count"]);
+    config["head_size_swa"] =
+        metadata_to_int_or(metadata, arch + ".attention.key_length_swa", std::get<int>(config["head_size"]));
+    config["rope_dimension_count_swa"] =
+        metadata_to_int_or(metadata, arch + ".rope.dimension_count_swa", std::get<int>(config["rope_dimension_count"]));
     // Gemma4: per-layer embedding dimension (0 = absent / not used).
-    config["n_embd_per_layer"] =
-        metadata.count(arch + ".embedding_length_per_layer_input")
-            ? metadata_to_int(metadata, arch + ".embedding_length_per_layer_input")
-            : 0;
+    config["n_embd_per_layer"] = metadata_to_int_or(metadata, arch + ".embedding_length_per_layer_input", 0);
     // Gemma4: number of layers that have their own KV cache (from the start).
     // shared_kv_layers trailing layers reuse KV from the preceding full-KV layer.
     // 0 = all layers have KV (default for non-Gemma4 architectures).
-    config["shared_kv_layers"] = metadata.count(arch + ".attention.shared_kv_layers")
-                                     ? metadata_to_int(metadata, arch + ".attention.shared_kv_layers")
-                                     : 0;
+    config["shared_kv_layers"] = metadata_to_int_or(metadata, arch + ".attention.shared_kv_layers", 0);
 
     // Mixture-of-experts config (0 when dense).
-    config["expert_count"] =
-        metadata.count(arch + ".expert_count") ? metadata_to_int(metadata, arch + ".expert_count") : 0;
-    config["expert_used_count"] =
-        metadata.count(arch + ".expert_used_count") ? metadata_to_int(metadata, arch + ".expert_used_count") : 0;
-    config["expert_feed_forward_length"] = metadata.count(arch + ".expert_feed_forward_length")
-                                               ? metadata_to_int(metadata, arch + ".expert_feed_forward_length")
-                                               : 0;
+    config["expert_count"] = metadata_to_int_or(metadata, arch + ".expert_count", 0);
+    config["expert_used_count"] = metadata_to_int_or(metadata, arch + ".expert_used_count", 0);
+    config["expert_feed_forward_length"] = metadata_to_int_or(metadata, arch + ".expert_feed_forward_length", 0);
     // Hybrid MoE: first N layers are dense, remainder use MoE routing.
     // Mirrors llama.cpp hparams.n_layer_dense_lead (deepseek2-ocr, ernie4_5-moe, glm4moe).
-    config["n_layer_dense_lead"] = metadata.count(arch + ".leading_dense_block_count")
-                                       ? metadata_to_int(metadata, arch + ".leading_dense_block_count")
-                                       : 0;
+    config["n_layer_dense_lead"] = metadata_to_int_or(metadata, arch + ".leading_dense_block_count", 0);
     // Shared (always-active) experts: run in parallel with routed experts, outputs summed.
     // Mirrors llama.cpp hparams.n_expert_shared (deepseek2-ocr, bailingmoe2, exaone-moe).
-    config["expert_shared_count"] = metadata.count(arch + ".expert_shared_count")
-                                        ? metadata_to_int(metadata, arch + ".expert_shared_count")
-                                        : 0;
+    config["expert_shared_count"] = metadata_to_int_or(metadata, arch + ".expert_shared_count", 0);
 
     // Per-architecture scalars (MiniCPM family). MiniCPM bakes these into hparams with
     // backward-compatible defaults when the GGUF lacks the keys (older exports); newer
@@ -909,18 +902,13 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const float def_residual_scale =
         is_minicpm ? 1.4f / std::sqrt(static_cast<float>(std::get<int>(config["layer_num"]))) : 1.0f;
     const float def_logit_scale = is_minicpm ? 256.0f / static_cast<float>(std::get<int>(config["hidden_size"])) : 1.0f;
-    config["embedding_scale"] = metadata.count(arch + ".embedding_scale")
-                                    ? metadata_to_float(metadata, arch + ".embedding_scale")
-                                    : def_embedding_scale;
-    config["residual_scale"] = metadata.count(arch + ".residual_scale")
-                                   ? metadata_to_float(metadata, arch + ".residual_scale")
-                                   : def_residual_scale;
-    config["logit_scale"] =
-        metadata.count(arch + ".logit_scale") ? metadata_to_float(metadata, arch + ".logit_scale") : def_logit_scale;
+    config["embedding_scale"] = metadata_to_float_or(metadata, arch + ".embedding_scale", def_embedding_scale);
+    config["residual_scale"] = metadata_to_float_or(metadata, arch + ".residual_scale", def_residual_scale);
+    config["logit_scale"] = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
     // Hybrid linear-attention (Gated DeltaNet) parameters: qwen35 / qwen3next / kimi-linear.
     // 0 for every non-SSM architecture, which is what the builder tests against.
     auto ssm_key = [&](const std::string& k) {
-        return metadata.count(arch + "." + k) ? metadata_to_int(metadata, arch + "." + k) : 0;
+        return metadata_to_int_or(metadata, arch + "." + k, 0);
     };
     config["ssm_conv_kernel"] = ssm_key("ssm.conv_kernel");
     config["ssm_state_size"] = ssm_key("ssm.state_size");
@@ -931,8 +919,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // llama.cpp qwen35 is_recr(il) = (il < n_layer) && ((il + 1) % interval != 0).
     // llama.cpp defaults the interval to 4 when the GGUF omits the key, so match that rather
     // than rejecting the model (llama.cpp src/models/qwen35.cpp load_arch_hparams).
-    config["full_attention_interval"] =
-        metadata.count(arch + ".full_attention_interval") ? ssm_key("full_attention_interval") : 4;
+    config["full_attention_interval"] = metadata_to_int_or(metadata, arch + ".full_attention_interval", 4);
     // NextN / MTP: extra decoder blocks stored past the main stack and NOT executed in a normal
     // forward pass. The builder must stop its layer loop before them.
     config["nextn_predict_layers"] = ssm_key("nextn_predict_layers");
@@ -969,9 +956,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Qcur pre-scale with build_attn(scale=1.0), which is numerically 1/sqrt(head_size) --
     // exactly the default branch here, so gemma3 must NOT force scale=1.0.
     const float def_attention_scale = (arch == "gemma4") ? 1.0f : 0.0f;
-    config["attention_scale"] = metadata.count(arch + ".attention.scale")
-                                    ? metadata_to_float(metadata, arch + ".attention.scale")
-                                    : def_attention_scale;
+    config["attention_scale"] = metadata_to_float_or(metadata, arch + ".attention.scale", def_attention_scale);
 
     // gpt-oss SWA: separate RoPE frequency base for sliding-window attention layers.
     // Defaults to the global rope_freq_base when the key is absent (non-SWA or legacy models),
@@ -980,9 +965,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // gemma3 SWA layers rope at freq_base=10000 while global layers use 1000000. See
     // llama.cpp src/models/gemma3.cpp load_arch_hparams.
     const float def_freq_base_swa = (arch == "gemma3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
-    config["rope_freq_base_swa"] = metadata.count(arch + ".rope.freq_base_swa")
-                                       ? metadata_to_float(metadata, arch + ".rope.freq_base_swa")
-                                       : def_freq_base_swa;
+    config["rope_freq_base_swa"] = metadata_to_float_or(metadata, arch + ".rope.freq_base_swa", def_freq_base_swa);
 
     // has_swa: true when the GGUF carries either a sliding_window_pattern or a
     // sliding_window (a finite window length), indicating SWA is active. The builder uses
@@ -1041,21 +1024,15 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     }
 
     // gpt-oss MoE: optional per-expert routing weight scale applied after softmax (0 = 1.0 no-op).
-    config["expert_weights_scale"] = metadata.count(arch + ".expert_weights_scale")
-                                         ? metadata_to_float(metadata, arch + ".expert_weights_scale")
-                                         : 0.0f;
+    config["expert_weights_scale"] = metadata_to_float_or(metadata, arch + ".expert_weights_scale", 0.0f);
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.
     // 0.0 means no soft-cap (default for all non-Gemma2 architectures).
-    config["attn_logit_softcapping"] = metadata.count(arch + ".attn_logit_softcapping")
-                                           ? metadata_to_float(metadata, arch + ".attn_logit_softcapping")
-                                           : 0.0f;
+    config["attn_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".attn_logit_softcapping", 0.0f);
 
     // Gemma2/Gemma3 final logit soft-cap applied after lm_head: tanh(x/cap)*cap.
     // 0.0 means no soft-cap.
-    config["final_logit_softcapping"] = metadata.count(arch + ".final_logit_softcapping")
-                                            ? metadata_to_float(metadata, arch + ".final_logit_softcapping")
-                                            : 0.0f;
+    config["final_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".final_logit_softcapping", 0.0f);
 
     return config;
 }
