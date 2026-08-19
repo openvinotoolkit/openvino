@@ -5,10 +5,10 @@
 #pragma once
 
 #include <cstdint>
-#include "openvino/frontend/node_context.hpp"
 #include <string>
 
 #include "openvino/frontend/gguf/decoder.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -24,20 +24,36 @@ public:
         m_output_names = decoder->get_output_names();
     }
 
-    size_t get_input_size() const override {
-        return m_decoder->get_input_size();
+    const std::vector<std::string>& get_input_names() const {
+        return m_input_names;
     }
 
-    int64_t get_input_view_element_offset(size_t index) const {
-        return m_decoder->get_input_view_element_offset(m_input_names[index]);
+    size_t get_input_size() const override {
+        return m_decoder->get_input_size();
     }
 
     PartialShape get_input_shape(size_t input_index) const {
         return m_decoder->get_input_shape(m_input_names[input_index]);
     }
 
+    // Element offset of a VIEW input into a larger tensor (0 when not a view). The decoder
+    // already divides ggml's raw byte offset by element size, so translators work in elements.
+    int64_t get_input_view_element_offset(size_t index) const {
+        return m_decoder->get_input_view_element_offset(m_input_names[index]);
+    }
+
     PartialShape get_output_shape() const {
         return m_decoder->get_output_shape();
+    }
+
+    // Convenience typed reads over get_attribute, kept so both the attribute-style op bodies and
+    // the accessor-style (op_case / output_type) op bodies compile against one NodeContext.
+    int get_op_case() const {
+        return get_attribute<int>("op_case", 0);
+    }
+
+    ov::element::Type get_output_type() const {
+        return get_attribute<ov::element::Type>("output_type");
     }
 
     Output<Node> get_input(int idx) const override {
