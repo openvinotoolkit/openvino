@@ -33,9 +33,7 @@ const std::set<std::string>& verified_archs() {
         "qwen3",
         "phi3",     // phi-3 (fused QKV)
         "minicpm",  // NORMAL rope + scalar scales
-        "hunyuan-dense",
-        "olmoe",     // OLMoE 1B-7B (MoE)
-        "qwen3moe",  // Qwen3 MoE: same topology as olmoe
+        "olmoe",    // OLMoE 1B-7B (MoE)
         // Qwen3.5/3.6 hybrid: Gated-DeltaNet linear attention on 3 of every 4 layers, full
         // attention with M-RoPE and an interleaved query+gate projection on the rest. Verified
         // token-exact against llama.cpp on Qwen3.5-0.8B-Q8_0 and Ternary-Bonsai-27B-Q2_g64.
@@ -44,8 +42,6 @@ const std::set<std::string>& verified_archs() {
         // (a Concat shape mismatch on the conv window) rather than producing wrong output.
         "qwen35",
         "gpt-oss",  // MoE + sinks + SWA
-        "gemma",    // Gemma 2B / 7B
-        "gemma2",   // Gemma 2: post-norms + attention soft-cap
         "gemma3",   // Gemma 3: post-norms + final logit soft-cap
         "gemma4",   // Gemma 4: SWA, per-layer embeddings, shared KV
     };
@@ -76,6 +72,13 @@ const std::set<std::string>& experimental_archs() {
         "mellum",         // JetBrains Mellum: NEOX rope, pure MoE
         "deepseek2-ocr",  // DeepSeekOCR: NEOX rope, dense lead layers + MoE
         "jais2",          // JAIS-2: NEOX rope, dense (biases auto-detected)
+        // Demoted from verified_archs(): the GenAI-vs-llama.cpp measured status (see
+        // docs/supported_models.md) found these produce degenerate output (or, for `gemma`,
+        // throw) through the native builder despite passing conversion. Re-promote once fixed.
+        "hunyuan-dense",
+        "qwen3moe",  // Qwen3 MoE: same topology as olmoe
+        "gemma",     // Gemma 2B / 7B
+        "gemma2",    // Gemma 2: post-norms + attention soft-cap
     };
     return archs;
 }

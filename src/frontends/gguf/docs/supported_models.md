@@ -64,7 +64,7 @@ The builder's accept-list is the union of two sets, both defined in
 Anything not in either set is rejected with an explicit `OPENVINO_ASSERT` at load time
 rather than converting into a silently wrong graph.
 
-### `verified_archs()` — 14 architectures
+### `verified_archs()` — 10 architectures
 
 | Architecture | Notes |
 |---|---|
@@ -73,17 +73,13 @@ rather than converting into a silently wrong graph.
 | `qwen3` | QK-norm |
 | `phi3` | fused QKV |
 | `minicpm` | NORMAL rope + scalar embedding/residual/logit scales |
-| `hunyuan-dense` | |
 | `olmoe` | OLMoE 1B-7B (MoE) |
-| `qwen3moe` | Qwen3 MoE; same topology as `olmoe` |
 | `qwen35` | Qwen3.5/3.6 (and the Ternary-Bonsai backbone): hybrid Gated-DeltaNet + full attention, M-RoPE, interleaved query+gate projection. Greedy / batch 1 only |
 | `gpt-oss` | MoE + attention sinks + SWA + OAI gated activation |
-| `gemma` | Gemma 2B / 7B |
-| `gemma2` | post-norms + attention soft-cap |
 | `gemma3` | post-norms + final logit soft-cap |
 | `gemma4` | SWA, per-layer embeddings, shared KV |
 
-### `experimental_archs()` — 16 architectures
+### `experimental_archs()` — 20 architectures
 
 | Architecture | Notes |
 |---|---|
@@ -103,6 +99,10 @@ rather than converting into a silently wrong graph.
 | `mellum` | JetBrains Mellum: pure MoE |
 | `deepseek2-ocr` | DeepSeekOCR: dense lead layers + MoE |
 | `jais2` | JAIS-2: dense (biases auto-detected) |
+| `hunyuan-dense` | Demoted from `verified_archs()`: degenerate output through the builder (see below) |
+| `qwen3moe` | Qwen3 MoE; same topology as `olmoe`. Demoted: degenerate output through the builder |
+| `gemma` | Gemma 2B / 7B. Demoted: throws through the builder (see below) |
+| `gemma2` | post-norms + attention soft-cap. Demoted: degenerate output through the builder |
 
 RoPE flavor is **not** in these tables because it is a separate switch: archs listed in
 `arch_uses_neox_rope()` use NEOX (rotate-halves), everything else uses NORMAL (rotate
@@ -124,12 +124,12 @@ model/checkpoint that is simply weak on the prompt.
 | `qwen3` | verified | Qwen3-0.6B Q8_0 | generates (reasoning preamble) | same |
 | `phi3` | verified | Phi-3-mini-4k-instruct Q4 | generates | generates |
 | `minicpm` | verified | MiniCPM-2B-dpo Q4_K_M | generates | generates |
-| `hunyuan-dense` | verified | Hunyuan-0.5B-Instruct Q4_K_M | **degenerate** | generates |
+| `hunyuan-dense` | experimental | Hunyuan-0.5B-Instruct Q4_K_M | **degenerate** | generates |
 | `olmoe` | verified | OLMoE-1B-7B-Instruct Q4_K_M | generates | generates |
-| `qwen3moe` | verified | Qwen3-0.9B-A0.6B Q4_K_M | **degenerate** | generates |
+| `qwen3moe` | experimental | Qwen3-0.9B-A0.6B Q4_K_M | **degenerate** | generates |
 | `gpt-oss` | verified | gpt-oss-20b MXFP4 | generates (harmony format) | same |
-| `gemma` | verified | gemma-2b Q4_K_M | **throws** (SDPA shape mismatch) | degenerate too |
-| `gemma2` | verified | gemma-2-2b-it Q4_K_M | **degenerate** | generates |
+| `gemma` | experimental | gemma-2b Q4_K_M | **throws** (SDPA shape mismatch) | degenerate too |
+| `gemma2` | experimental | gemma-2-2b-it Q4_K_M | **degenerate** | generates |
 | `gemma3` | verified | gemma-3-1b-it Q4_K_M | generates | generates |
 | `gemma4` | verified | gemma-4-E4B-it Q4_K_M | generates | generates |
 | `llama-embed` | experimental | llama-nemotron-embed-1b-v2 Q4_K_M | repeats (embedding model) | degenerate too |
@@ -158,9 +158,10 @@ rather than frontend bugs.
 
 That leaves **5 architectures that generate correctly under llama.cpp but not through the
 builder** — `hunyuan-dense`, `qwen3moe`, `gemma2`, `exaone4` and `ernie4_5-moe` (blank output) —
-i.e. real conversion defects, plus `gemma`, which throws instead of converting cleanly. Four of
-those (`hunyuan-dense`, `qwen3moe`, `gemma2`, `gemma`) are in `verified_archs()`, so that set is
-currently **optimistic** and should be re-validated before it is relied on.
+i.e. real conversion defects, plus `gemma`, which throws instead of converting cleanly.
+`hunyuan-dense`, `qwen3moe`, `gemma2` and `gemma` were previously misclassified as
+`verified_archs()`; they have been moved to `experimental_archs()` (and now emit the one-time
+`OPENVINO_WARN`) until the underlying defects are fixed and re-verified.
 
 **`qwen35` is greedy / batch-1 only.** The recurrent conv and delta states are a single
 static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx` the
