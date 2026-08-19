@@ -5,8 +5,6 @@
 #include "selective_ssm.hpp"
 
 #include <algorithm>
-#include <array>
-#include <iterator>
 
 #include "intel_gpu/primitives/selective_ssm.hpp"
 #include "primitive_ocl_base.hpp"
@@ -15,12 +13,8 @@
 
 namespace ov::intel_gpu::ocl {
 
-using cldnn::BinaryInputBuffer;
-using cldnn::BinaryOutputBuffer;
 using cldnn::BufferDescriptor;
-using cldnn::kernel_arguments_data;
 using cldnn::primitive_impl;
-using cldnn::primitive_inst;
 using cldnn::program_node;
 using cldnn::selective_ssm;
 
@@ -143,42 +137,13 @@ public:
     Stage::Ptr selective_ssm_large_state = make_stage<SelectiveSSMLargeStateGenerator>();
 
     SelectiveSSMOptImpl() : PrimitiveImplOCL(SelectiveSSMOpt::get_type_info_static()) {}
-    SelectiveSSMOptImpl(const program_node& node, const RuntimeParams& params) : SelectiveSSMOptImpl() {
-        std::array<bool, 2> output_used{node.is_output(), false};
-        for (const auto* user : node.get_users()) {
-            for (const auto& dependency : user->get_dependencies()) {
-                if (dependency.first == &node && dependency.second >= 0 && dependency.second < 2)
-                    output_used[dependency.second] = true;
-            }
-        }
-        if (!output_used[0])
-            _scratch_output_idx = 0;
-        else if (!output_used[1])
-            _scratch_output_idx = 1;
+    SelectiveSSMOptImpl(const program_node&, const RuntimeParams& params) : SelectiveSSMOptImpl() {
         add_stage(selective_ssm, params);
         add_stage(selective_ssm_large_state, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
-        auto copy = make_deep_copy<SelectiveSSMOptImpl>(this);
-        copy->_scratch_output_idx = _scratch_output_idx;
-        return copy;
-    }
-
-    [[nodiscard]] kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
-        auto args = PrimitiveImplOCL::get_arguments(instance);
-        const auto missing_output = std::find(args.outputs.begin(), args.outputs.end(), nullptr);
-        if (missing_output != args.outputs.end()) {
-            OPENVINO_ASSERT(_scratch_output_idx >= 0, "SelectiveSSM output is not allocated");
-            OPENVINO_ASSERT(static_cast<size_t>(_scratch_output_idx) == static_cast<size_t>(std::distance(args.outputs.begin(), missing_output)),
-                            "SelectiveSSM allocated an unexpected output port");
-            OPENVINO_ASSERT(args.intermediates.size() == 2 && args.intermediates[1], "SelectiveSSM scratch output is not allocated");
-            *missing_output = args.intermediates[1];
-            OPENVINO_ASSERT(std::find(args.outputs.begin(), args.outputs.end(), nullptr) == args.outputs.end(),
-                            "SelectiveSSM supports at most one unused output");
-        }
-        OPENVINO_ASSERT(std::find(args.inputs.begin(), args.inputs.end(), nullptr) == args.inputs.end(), "SelectiveSSM input is not allocated");
-        return args;
+        return make_deep_copy<SelectiveSSMOptImpl>(this);
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
@@ -192,15 +157,7 @@ public:
                 state_scratch_elements = std::max<size_t>(state_layout.count(), 1);
         }
 
-        std::vector<BufferDescriptor> buffers{BufferDescriptor{state_scratch_elements, ov::element::f32}};
-        if (_scratch_output_idx < 0)
-            return buffers;
-        const auto& scratch_layout = params.get_output_layout(static_cast<size_t>(_scratch_output_idx));
-        if ((scratch_layout.is_dynamic() && !scratch_layout.has_upper_bound()) || (scratch_layout.is_static() && scratch_layout.count() == 0))
-            buffers.emplace_back(1, scratch_layout.data_type);
-        else
-            buffers.emplace_back(scratch_layout);
-        return buffers;
+        return {BufferDescriptor{state_scratch_elements, ov::element::f32}};
     }
 
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const RuntimeParams& params) const override {
@@ -211,19 +168,6 @@ public:
         const size_t lws = selective_ssm_utils::get_lws(state_size, params.get_device_info());
         return {selective_ssm_utils::requires_global_state(state_size, lws, params.get_device_info()) ? 1ul : 0ul};
     }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        PrimitiveImplOCL::save(ob);
-        ob << _scratch_output_idx;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        PrimitiveImplOCL::load(ib);
-        ib >> _scratch_output_idx;
-    }
-
-private:
-    int32_t _scratch_output_idx = -1;
 };
 
 }  // namespace

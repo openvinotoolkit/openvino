@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <sstream>
@@ -239,31 +240,48 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 
     const auto A = make_values(num_heads, -0.03f, -0.25f);
     const auto state = make_values(batch * num_heads * head_dim * state_size, 0.008f);
-    const auto run = [&](ov::Core& core, const std::string& device, size_t seq_len, size_t output_index, bool dynamic) {
-        SCOPED_TRACE(testing::Message() << "seq_len=" << seq_len << ", output_index=" << output_index << ", dynamic=" << dynamic);
+    const auto check = [&](ov::InferRequest& request, size_t seq_len, size_t output_index) {
+        SCOPED_TRACE(testing::Message() << "seq_len=" << seq_len << ", output_index=" << output_index);
         const auto dt = make_values(batch * seq_len * num_heads, 0.007f, 0.08f);
         const auto B = make_values(batch * seq_len * num_groups * state_size, 0.01f);
         const auto x = make_values(batch * seq_len * num_heads * head_dim, 0.015f);
         const auto C = make_values(batch * seq_len * num_groups * state_size, 0.012f);
         const auto expected = selective_reference(A, dt, B, x, C, state, batch, seq_len, num_heads, num_groups, head_dim, state_size);
 
-        const auto check = [&](ov::CompiledModel compiled_model) {
-            auto request = compiled_model.create_infer_request();
-            request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
-            request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
-            request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
-            request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads, head_dim}, x));
-            request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, C));
-            request.set_input_tensor(5, make_tensor<float>(ov::element::f32, {batch, num_heads, head_dim, state_size}, state));
-            request.infer();
-            expect_tensor_near(request.get_output_tensor(0), output_index == 0 ? expected.first : expected.second);
-        };
+        request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
+        request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
+        request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
+        request.set_input_tensor(3, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads, head_dim}, x));
+        request.set_input_tensor(4, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, C));
+        request.set_input_tensor(5, make_tensor<float>(ov::element::f32, {batch, num_heads, head_dim, state_size}, state));
+        request.infer();
+        expect_tensor_near(request.get_output_tensor(0), output_index == 0 ? expected.first : expected.second);
+    };
 
+    const auto run = [&](ov::Core& core, const std::string& device, size_t seq_len, size_t output_index, bool dynamic) {
         auto compiled_model = core.compile_model(make_model(seq_len, output_index, dynamic), device);
-        check(compiled_model);
+        auto request = compiled_model.create_infer_request();
+        check(request, seq_len, output_index);
         std::stringstream blob;
         compiled_model.export_model(blob);
-        check(core.import_model(blob, device));
+        auto imported_request = core.import_model(blob, device).create_infer_request();
+        check(imported_request, seq_len, output_index);
+    };
+
+    const auto run_dynamic_sequence = [&](ov::Core& core, const std::string& device, size_t output_index) {
+        static constexpr std::array<size_t, 4> sequence_lengths{1, 9, 0, 3};
+        auto compiled_model = core.compile_model(make_model(sequence_lengths.front(), output_index, true), device);
+        auto request = compiled_model.create_infer_request();
+        for (const auto seq_len : sequence_lengths) {
+            check(request, seq_len, output_index);
+        }
+
+        std::stringstream blob;
+        compiled_model.export_model(blob);
+        auto imported_request = core.import_model(blob, device).create_infer_request();
+        for (const auto seq_len : sequence_lengths) {
+            check(imported_request, seq_len, output_index);
+        }
     };
 
     ov::Core core;
@@ -272,9 +290,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
         run(core, device, 3, 0, false);
         run(core, device, 1, 1, false);
         run(core, device, 0, 1, false);
-        run(core, device, 3, 0, true);
-        run(core, device, 1, 1, true);
-        run(core, device, 0, 1, true);
+        run_dynamic_sequence(core, device, 0);
+        run_dynamic_sequence(core, device, 1);
     }
 }
 

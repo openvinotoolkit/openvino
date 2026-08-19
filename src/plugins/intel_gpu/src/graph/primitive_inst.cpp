@@ -154,12 +154,6 @@ bool has_any_cpu_user_not_shape_of(const std::list<const program_node*>& users) 
 primitive_id tag_port_number(const primitive_id& in, size_t port = 0) {
     return in + ".port" + std::to_string(port);
 }
-
-bool has_allocated_output(const std::vector<memory::ptr>& outputs) {
-    return std::any_of(outputs.begin(), outputs.end(), [](const memory::ptr& output) {
-        return output != nullptr;
-    });
-}
 }  // namespace
 
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
@@ -676,7 +670,7 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
 
-    if (_impl == nullptr || !has_allocated_output(_outputs))
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
 
     if (get_node().is_type<input_layout>())
@@ -725,6 +719,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
     const auto& users = get_user_insts();
+    std::vector<bool> externally_bound_outputs(_outputs.size(), false);
     const auto get_output_port_for_user = [this](const primitive_inst* user) {
         const auto dependency = std::find_if(user->_deps.begin(), user->_deps.end(), [this](const auto& dep) {
             return dep.first == this;
@@ -743,11 +738,12 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 concat_inst->_allocation_done_by_other = true;
             }
             this->_outputs[output_idx] = concat_inst->_outputs[0];
+            externally_bound_outputs[output_idx] = true;
             GPU_DEBUG_TRACE_DETAIL << id() << ": use concat user's memory " << this->_outputs[output_idx]->buffer_ptr() << std::endl;
-            return;
-        }
-        if (_outputs[output_idx] != nullptr && !concat_inst->_outputs.empty() && concat_inst->_outputs[0] != nullptr &&
-            get_network().get_engine().is_the_same_buffer(*_outputs[output_idx], *concat_inst->_outputs[0])) {
+            if (_outputs.size() == 1)
+                return;
+        } else if (_outputs[output_idx] != nullptr && !concat_inst->_outputs.empty() && concat_inst->_outputs[0] != nullptr &&
+                   get_network().get_engine().is_the_same_buffer(*_outputs[output_idx], *concat_inst->_outputs[0])) {
             // In-place concat optimization is rejected now, but a previous execution with this optimization
             // may have the same memory aliased to its deps' outputs and itself's output. In this case, we
             // need to reallocate the memory for this node to avoid memory corruption.
@@ -770,11 +766,14 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
             if (actual_layouts[output_idx].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
                 this->_outputs[output_idx] = reorder_inst->_outputs[0];
+                externally_bound_outputs[output_idx] = true;
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[output_idx]->buffer_ptr() << std::endl;
-                return;
+                if (_outputs.size() == 1)
+                    return;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
             }
-            GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
-            reorder_inst->set_can_be_optimized(false);
         }
     }
 
@@ -797,14 +796,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 if (ext_block) {
                     ext_block->resize(actual_layouts[output_idx]);
                     _outputs[output_idx] = ext_block->memory();
+                    externally_bound_outputs[output_idx] = true;
                     _max_output_layout_count[output_idx] =
                         _outputs[output_idx]->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[output_idx].data_type);
                     GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> " << next->id() << " - "
                                            << actual_layouts[output_idx].get_linear_size() << "/" << _max_output_layout_count[output_idx] << std::endl;
                     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
-                    return;
+                    if (_outputs.size() == 1)
+                        return;
                 }
-                break;  // output node without ext_block — stop probing
+                break;  // Reached an output node; allocate or reuse the remaining outputs below.
             }
             // Stop at runtime-skippable nodes: their can_be_optimized() is
             // tentative and may flip to false once their prepare_primitive runs.
@@ -1071,6 +1072,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     int32_t tmp_prealloc_count = get_prealloc_iter_num();
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
+        if (externally_bound_outputs[i])
+            continue;
+
         bool reclaim = false;
         size_t required_buffer_size = 0;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -1104,6 +1108,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (externally_bound_outputs[i])
+            continue;
+
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -2556,7 +2563,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_t idx, bool reset, bool lockable, bool shareable) {
-    if (_impl == nullptr || !has_allocated_output(_outputs))
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<primitive_inst*, int32_t> b) {
@@ -2630,7 +2637,7 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
-    if (_impl == nullptr || !has_allocated_output(_outputs))
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
         return;
     const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
     if (buffer_descs.empty())

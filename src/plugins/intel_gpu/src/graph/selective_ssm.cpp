@@ -4,7 +4,6 @@
 
 #include "openvino/op/selective_ssm.hpp"
 
-#include <array>
 #include <string>
 #include <vector>
 
@@ -61,23 +60,6 @@ std::string selective_ssm_inst::to_string(const selective_ssm_node& node) {
     node_info->add("selective_ssm_info", ssm_info);
     node_info->dump(primitive_description);
     return primitive_description.str();
-}
-
-selective_ssm_inst::typed_primitive_inst(network& network, const selective_ssm_node& node) : parent(network, node) {
-    std::array<bool, 2> output_used{node.is_output(), false};
-    for (const auto* user : node.get_users()) {
-        for (const auto& dependency : user->get_dependencies()) {
-            if (dependency.first == &node && dependency.second >= 0 && dependency.second < 2)
-                output_used[dependency.second] = true;
-        }
-    }
-
-    for (size_t output_idx = 0; output_idx < output_used.size(); ++output_idx) {
-        if (!output_used[output_idx]) {
-            _outputs[output_idx] = nullptr;
-            _max_output_layout_count[output_idx] = 0;
-        }
-    }
 }
 
 }  // namespace cldnn

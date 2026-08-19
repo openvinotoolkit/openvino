@@ -36,7 +36,6 @@ public:
     static layout calc_output_layout(const selective_ssm_node& node, const kernel_impl_params& impl_params);
 
     static std::string to_string(const selective_ssm_node& node);
-    typed_primitive_inst(network& network, const selective_ssm_node& node);
 };
 
 using selective_ssm_inst = typed_primitive_inst<selective_ssm>;
