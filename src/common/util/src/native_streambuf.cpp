@@ -107,13 +107,19 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
     workers.reserve(num_threads);
     const size_t base_offset = static_cast<size_t>(abs);
     for (size_t i = 0; i < num_threads; ++i) {
-        workers.emplace_back([&, i]() {
-            const size_t local_off = i * chunk;
-            const size_t read_size = (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
-            if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
-                ok.store(false, std::memory_order_relaxed);
-            }
-        });
+        try {
+            workers.emplace_back([&, i]() {
+                const size_t local_off = i * chunk;
+                const size_t read_size =
+                    (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
+                if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
+                    ok.store(false, std::memory_order_relaxed);
+                }
+            });
+        } catch (...) {
+            ok.store(false, std::memory_order_relaxed);
+            break;
+        }
     }
     for (auto& t : workers) {
         t.join();
