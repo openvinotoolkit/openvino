@@ -425,6 +425,24 @@ TEST_F(LLMContinuedPrefillTest, PromptOnlyTurnGrantsZeroAndFullHistoryRecovers) 
     EXPECT_EQ(stored_tokens(), 96);
 }
 
+// A one-token delta must route through the granted continuation. The legacy
+// length heuristic would classify it as a generate step, so the explicit
+// command has to stay ahead of that heuristic.
+TEST_F(LLMContinuedPrefillTest, SingleTokenDeltaRoutesToContinuedPrefill) {
+    auto& req = request();
+    run_full_prefill(64);
+    run_generate_step(64);
+    EXPECT_EQ(stored_tokens(), 65);
+
+    propose(65);
+    EXPECT_EQ(stored_tokens(), 64);
+
+    run_delta_prefill(64, 1);
+    EXPECT_EQ(stored_tokens(), 65);
+    // The delta ran as a prefill, so the generate phase re-initializes next.
+    EXPECT_FALSE(LLMContinuedPrefillTestAccess::generate_initialized(req));
+}
+
 // A preflight rejection mutates nothing and leaves the command pending, so a
 // corrected delta still completes the continuation.
 TEST_F(LLMContinuedPrefillTest, PreflightRejectionKeepsCommandRetryable) {

@@ -105,19 +105,15 @@ protected:
                         ov::SoPtr<ov::ITensor> position_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
 
-    // Continuous prefill. Runs the granted keep transaction, prefilling only the
-    // delta on top of the preserved KV prefix.
-    void infer_continued_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                                 ov::SoPtr<ov::ITensor> attention_mask,
-                                 ov::SoPtr<ov::ITensor> position_ids,
-                                 ov::SoPtr<ov::ITensor> per_layer_inputs,
-                                 uint32_t keep);
-    // Staging preparation for a continued prefill. Zeroes the prefill staging tensors,
-    // restores the preserved prefix attention mask and selects the generate variant,
-    // without touching KV or resetting the strategy.
+    // Continuation counterpart of prepare_for_new_conversation(), run by
+    // infer_prefill() when a granted keep is armed. Validates the delta inputs,
+    // repacks the preserved prefix through the strategy, restores the history
+    // attention mask and selects the generate variant. The KV state and the
+    // lincache are left alone.
     void prepare_for_continued_prefill(uint32_t keep,
-                                       int64_t total_prompt_length,
-                                       ov::SoPtr<ov::ITensor> attention_mask);
+                                       ov::SoPtr<ov::ITensor> input_ids,
+                                       ov::SoPtr<ov::ITensor> attention_mask,
+                                       ov::SoPtr<ov::ITensor> position_ids);
     // Validates the delta position ids as a sequence against the latched baseline.
     void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids, uint32_t keep) const;
 
