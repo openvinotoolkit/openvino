@@ -131,45 +131,40 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::Node>& node) {
 }  // namespace
 
 ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
-    // Matches the flatten/Concat/Slice/Reshape round-trip that packs a two-output Loop's results
-    // (main output + final recurrent state) into a single 1D blob and immediately unpacks them.
-    // The round-trip is a semantic identity, so consumers are rewired straight to the Loop outputs.
-    // The Loop inputs are intentionally left unconstrained so the pass covers any such export glue
-    // (e.g. GatedDeltaNet and SelectiveSSM loops, which differ in input arity and restored layout).
-    auto loop_output0 = pattern::wrap_type<ov::op::v5::Loop>(pattern::output_index_matches(0));
-    auto loop_output1 = pattern::wrap_type<ov::op::v5::Loop>(pattern::output_index_matches(1));
+    auto value = pattern::any_input(pattern::shape_matches("[?, head_num, ?, v_head_size]"));
+    auto init_state = pattern::any_input(pattern::rank_equals((4)));
+
+    auto loop_inputs = ov::OutputVector{pattern::any_input(),
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        value,
+                                        pattern::any_input(),
+                                        pattern::any_input(),
+                                        init_state,
+                                        pattern::any_input()};
+
+    auto loop_output0 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
+    auto loop_output1 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
 
     auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop_output0, {-1}});
     auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
     auto concat_loop = pattern::wrap_type<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
     auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
-    auto reshape_attn =
-        pattern::wrap_type<v1::Reshape>({slice_attn, pattern::any_input()}, pattern::rank_equals(4));
+    auto reshape_attn = pattern::wrap_type<v1::Reshape>({slice_attn, pattern::any_input()},
+                                                        pattern::shape_matches("[?, head_num, ?, v_head_size]"));
     auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, out_numel, pattern::any_input(), {1}, {0}});
     auto reshape_state =
-        pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()}, pattern::rank_equals(4));
+        pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()},
+                                        pattern::shape_matches("[?, head_num, k_head_size, v_head_size]"));
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
-        // loop_output0/1 are matched independently; both branches must resolve to the same Loop.
-        if (loop_node != pattern_map.at(loop_output1).get_node_shared_ptr()) {
-            return false;
-        }
-        // Rewiring is a semantic identity only if the restored tensor has the same shape and type as
-        // the Loop output it replaces. Equal shapes force out_numel onto the exact o0/o1 seam and make
-        // the flatten/Concat/Slice/Reshape round-trip a proven row-major identity.
-        auto restores_output = [](const ov::Output<ov::Node>& restored, const ov::Output<ov::Node>& loop_out) {
-            return restored.get_partial_shape() == loop_out.get_partial_shape() &&
-                   restored.get_element_type() == loop_out.get_element_type();
-        };
         bool changed = false;
+        auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
         if (pattern_map.count(reshape_attn)) {
             auto reshape_attn_out = pattern_map.at(reshape_attn);
-            if (!restores_output(reshape_attn_out, loop_node->output(0))) {
-                return false;
-            }
-            if (!ov::replace_output_update_name(reshape_attn_out, loop_node->output(0))) {
+            if (!ov::replace_output_update_name(pattern_map.at(reshape_attn), loop_node->output(0))) {
                 reshape_attn_out.replace(loop_node->output(0));
             }
             changed = true;
@@ -177,9 +172,6 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
 
         if (pattern_map.count(reshape_state)) {
             auto reshape_state_out = pattern_map.at(reshape_state);
-            if (!restores_output(reshape_state_out, loop_node->output(1))) {
-                return false;
-            }
             if (!ov::replace_output_update_name(reshape_state_out, loop_node->output(1))) {
                 reshape_state_out.replace(loop_node->output(1));
             }
