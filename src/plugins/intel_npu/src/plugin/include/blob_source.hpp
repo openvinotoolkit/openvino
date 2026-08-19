@@ -33,7 +33,7 @@ public:
      * @param destination The data will be copied into this buffer
      * @param size The amound of data that will be copied. The data cursor will also be advanced by this amount.
      */
-    void copy_from_source(void* destination, const size_t size);
+    void read_into_buffer(void* destination, const size_t size);
 
     /**
      * @brief Extracts data from the blob source without copying it.
@@ -45,7 +45,7 @@ public:
      * @param size The data cursor will be advanced by this amount.
      * @return The blob content location where the data cursor currently points to (prior to advancing the cursor).
      */
-    const void* interpret_from_source(const size_t size);
+    const void* read_view(const size_t size);
 
     /**
      * @brief Extracts a region-of-interest tensor from the blob source without copying it.
@@ -58,7 +58,7 @@ public:
      * @return A region-of-interest tensor as a view towards the content of the blob, delimited by [data cursor:data
      * cursor + size).
      */
-    ov::Tensor get_roi_tensor_from_source(const size_t size);
+    ov::Tensor create_roi_tensor(const size_t size);
 
     /**
      * @brief Moves the data cursor by "offset" bytes starting from the given reference.
@@ -67,12 +67,12 @@ public:
      * @param reference "std::ios::beg", "std::ios::cur" and "std::ios::end" are the only supported values. These
      * corespond to the beggining of the blob source, the current position of the cursor and the end of the source.
      */
-    void move_cursor(const int64_t offset, const std::ios_base::seekdir reference = std::ios::beg);
+    void seekg(const int64_t offset, const std::ios_base::seekdir reference = std::ios::beg);
 
     /**
      * @return The current position of the data cursor
      */
-    size_t get_cursor() const;
+    size_t tellg() const;
 
     /**
      * @return The total size of the blob
@@ -98,10 +98,6 @@ public:
     bool is_contiguous_and_cursor_page_aligned() const;
 
 private:
-    BlobSource(const std::variant<std::reference_wrapper<std::istream>,
-                                  std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>& source,
-               const ov::log::Level log_level);
-
     /**
      * @brief A union that captures all possible data types of the blob. The tensor type also has a separate data cursor
      * attached to it.

@@ -51,7 +51,7 @@ BlobSource::BlobSource(const ov::Tensor& source, const ov::log::Level log_level)
     m_logger.debug("Initialized a BlobSource using a tensor object");
 }
 
-void BlobSource::copy_from_source(void* destination, const size_t size) {
+void BlobSource::read_into_buffer(void* destination, const size_t size) {
     m_logger.trace("Copying %zu bytes", size);
 
     const size_t remaining = get_remaining_size();
@@ -75,7 +75,7 @@ void BlobSource::copy_from_source(void* destination, const size_t size) {
     cursor += size;
 }
 
-const void* BlobSource::interpret_from_source(const size_t size) {
+const void* BlobSource::read_view(const size_t size) {
     m_logger.trace("Reading %zu bytes without copying", size);
     OPENVINO_ASSERT(!std::get_if<std::reference_wrapper<std::istream>>(&m_source), STREAM_READ_WITHOUT_COPY_MESSAGE);
 
@@ -92,7 +92,7 @@ const void* BlobSource::interpret_from_source(const size_t size) {
     return tensor.get().data<const char>() + cursor - size;
 }
 
-ov::Tensor BlobSource::get_roi_tensor_from_source(const size_t size) {
+ov::Tensor BlobSource::create_roi_tensor(const size_t size) {
     m_logger.trace("Creating an roi tensor of %zu bytes without copying", size);
     OPENVINO_ASSERT(!std::get_if<std::reference_wrapper<std::istream>>(&m_source), STREAM_READ_WITHOUT_COPY_MESSAGE);
 
@@ -109,7 +109,7 @@ ov::Tensor BlobSource::get_roi_tensor_from_source(const size_t size) {
     return ov::Tensor(tensor, ov::Coordinate{cursor - size}, ov::Coordinate{cursor});
 }
 
-void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir reference) {
+void BlobSource::seekg(const int64_t offset, const std::ios_base::seekdir reference) {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
         OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
@@ -145,7 +145,7 @@ void BlobSource::move_cursor(const int64_t offset, const std::ios_base::seekdir 
     }
 }
 
-size_t BlobSource::get_cursor() const {
+size_t BlobSource::tellg() const {
     if (const std::reference_wrapper<std::istream>* stream =
             std::get_if<std::reference_wrapper<std::istream>>(&m_source)) {
         OPENVINO_ASSERT(stream->get(), STREAM_BAD_STATUS_MESSAGE);
@@ -163,7 +163,7 @@ size_t BlobSource::get_total_size() const {
 }
 
 size_t BlobSource::get_remaining_size() const {
-    const size_t cursor = get_cursor();
+    const size_t cursor = tellg();
     return m_size - cursor;
 }
 
@@ -180,7 +180,7 @@ bool BlobSource::is_contiguous_and_cursor_page_aligned() const {
         // The buffer behind the stream is not guaranteed to be contiguous
         return false;
     }
-    return get_cursor() % utils::STANDARD_PAGE_SIZE == 0;
+    return tellg() % utils::STANDARD_PAGE_SIZE == 0;
 }
 
 }  // namespace intel_npu

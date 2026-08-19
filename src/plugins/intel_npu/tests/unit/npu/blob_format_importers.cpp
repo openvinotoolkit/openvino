@@ -133,13 +133,13 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, true, nullptr, config));
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, config));
 
-    stream_source.move_cursor(0, std::ios::beg);
-    tensor_source.move_cursor(0, std::ios::beg);
+    stream_source.seekg(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, config));
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, config));
 
-    stream_source.move_cursor(0, std::ios::beg);
-    tensor_source.move_cursor(0, std::ios::beg);
+    stream_source.seekg(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, create_simple_model(), config));
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, create_simple_model(), config));
 }
@@ -157,10 +157,10 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForPageAlignedTensor) {
 
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, config));
 
-    tensor_source.move_cursor(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, config));
 
-    tensor_source.move_cursor(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
     OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, create_simple_model(), config));
 }
 

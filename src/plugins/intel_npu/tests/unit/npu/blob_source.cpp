@@ -145,11 +145,11 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyFirstByte) {
 
     const size_t copy_size = 1;
     std::vector<uint8_t> copied_payload(copy_size);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.begin(), blob_content.begin() + copy_size));
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, copy_size);
 }
 
@@ -160,11 +160,11 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyAllBytes) {
     BlobSource blob_source = create_blob_source();
 
     std::vector<uint8_t> copied_payload(blob_content.size());
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, blob_content);
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size());
 }
 
@@ -174,16 +174,16 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyAllBytes) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceBeginning) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(0, std::ios::beg);
+    blob_source.seekg(0, std::ios::beg);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 0);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.begin(), blob_content.begin() + 1));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, copied_payload.size());
 }
 
@@ -193,16 +193,16 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceBeginning) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(blob_content.size() - 1, std::ios::beg);
+    blob_source.seekg(blob_content.size() - 1, std::ios::beg);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size() - 1);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.end() - 1, blob_content.end()));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size());
 }
 
@@ -212,16 +212,16 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceBeginning) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(0);
+    blob_source.seekg(0);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 0);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.begin(), blob_content.begin() + 1));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, copied_payload.size());
 }
 
@@ -231,16 +231,16 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToStartReferenceEnd) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(-1, std::ios::end);
+    blob_source.seekg(-1, std::ios::end);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size() - 1);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.end() - 1, blob_content.end()));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size());
 }
 
@@ -250,20 +250,20 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorToLastByteReferenceEnd) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceForward) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(1, std::ios::cur);
+    blob_source.seekg(1, std::ios::cur);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 1);
 
-    blob_source.move_cursor(1, std::ios::cur);
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    blob_source.seekg(1, std::ios::cur);
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 2);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.begin() + 2, blob_content.begin() + 3));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 3);
 }
 
@@ -273,21 +273,21 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceForward) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceBackwards) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(0, std::ios::end);
-    blob_source.move_cursor(-1, std::ios::cur);
+    blob_source.seekg(0, std::ios::end);
+    blob_source.seekg(-1, std::ios::cur);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size() - 1);
 
-    blob_source.move_cursor(-1, std::ios::cur);
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    blob_source.seekg(-1, std::ios::cur);
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size() - 2);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.end() - 2, blob_content.end() - 1));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size() - 1);
 }
 
@@ -297,17 +297,17 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorTwiceBackwards) {
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorSamePlaceReferenceCurrent) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(1, std::ios::beg);
-    blob_source.move_cursor(0, std::ios::cur);
+    blob_source.seekg(1, std::ios::beg);
+    blob_source.seekg(0, std::ios::cur);
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 1);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
     ASSERT_EQ(copied_payload, std::vector<uint8_t>(blob_content.begin() + 1, blob_content.begin() + 2));
 
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, 2);
 }
 
@@ -328,7 +328,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromStart) {
 TEST_P(BlobSourceDifferentBlobsCommon, GetRemainingSizeFromEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(blob_content.size());
+    blob_source.seekg(blob_content.size());
 
     size_t remaining_size = 0;
     OV_ASSERT_NO_THROW(remaining_size = blob_source.get_remaining_size());
@@ -352,7 +352,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSize) {
 TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterCursorMove) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(blob_content.size());
+    blob_source.seekg(blob_content.size());
 
     size_t size = 0;
     OV_ASSERT_NO_THROW(size = blob_source.get_total_size());
@@ -366,7 +366,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, GetTotalSizeAfterRead) {
     BlobSource blob_source = create_blob_source();
 
     std::vector<uint8_t> copied_payload(1);
-    OV_ASSERT_NO_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()));
+    OV_ASSERT_NO_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()));
 
     size_t size = 0;
     OV_ASSERT_NO_THROW(size = blob_source.get_total_size());
@@ -380,7 +380,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyTooMuch) {
     BlobSource blob_source = create_blob_source();
 
     std::vector<uint8_t> copied_payload(blob_content.size() + 1);
-    OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()), ov::Exception, _);
 }
 
 /**
@@ -389,10 +389,10 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyTooMuch) {
 TEST_P(BlobSourceDifferentBlobsCommon, CopyAfterEnd) {
     BlobSource blob_source = create_blob_source();
 
-    blob_source.move_cursor(0, std::ios::end);
+    blob_source.seekg(0, std::ios::end);
 
     std::vector<uint8_t> copied_payload(1);
-    OV_EXPECT_THROW(blob_source.copy_from_source(copied_payload.data(), copied_payload.size()), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.read_into_buffer(copied_payload.data(), copied_payload.size()), ov::Exception, _);
 }
 
 /**
@@ -401,7 +401,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, CopyAfterEnd) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceStart) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(-1, std::ios::beg), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(-1, std::ios::beg), ov::Exception, _);
 }
 
 /**
@@ -410,7 +410,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceStart) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceStart) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(blob_content.size() + 1, std::ios::beg), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(blob_content.size() + 1, std::ios::beg), ov::Exception, _);
 }
 
 /**
@@ -419,7 +419,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceStart) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceCurrent) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(-1, std::ios::cur), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(-1, std::ios::cur), ov::Exception, _);
 }
 
 /**
@@ -428,7 +428,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceCurrent) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrnet) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(blob_content.size() + 1, std::ios::cur), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(blob_content.size() + 1, std::ios::cur), ov::Exception, _);
 }
 
 /**
@@ -437,7 +437,7 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceCurrnet) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceEnd) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(-(blob_content.size() + 1), std::ios::end), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(-(blob_content.size() + 1), std::ios::end), ov::Exception, _);
 }
 
 /**
@@ -446,15 +446,15 @@ TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorBeforeStartReferenceEnd) {
  */
 TEST_P(BlobSourceDifferentBlobsCommon, MoveCursorAfterEndReferenceEnd) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.move_cursor(1, std::ios::end), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.seekg(1, std::ios::end), ov::Exception, _);
 }
 
 /**
  * @brief Cannot extract data without copying if the underlying buffer is not contiguous.
  */
-TEST_P(BlobSourceDifferentBlobsNonContiguous, InterpretFails) {
+TEST_P(BlobSourceDifferentBlobsNonContiguous, ReadWithoutCopyFails) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.interpret_from_source(0), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.read_view(0), ov::Exception, _);
 }
 
 /**
@@ -462,7 +462,7 @@ TEST_P(BlobSourceDifferentBlobsNonContiguous, InterpretFails) {
  */
 TEST_P(BlobSourceDifferentBlobsNonContiguous, GetROITensorFails) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(0), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.create_roi_tensor(0), ov::Exception, _);
 }
 
 /**
@@ -485,74 +485,72 @@ TEST_P(BlobSourceDifferentBlobsNonContiguous, FalseIsContiguousAndPageAligned) {
 /**
  * @brief Extract the first byte without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByte) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByte) {
     BlobSource blob_source = create_blob_source();
 
-    const size_t interpret_size = 1;
+    const size_t read_size = 1;
     const char* payload_ptr = nullptr;
-    OV_ASSERT_NO_THROW(payload_ptr = reinterpret_cast<const char*>(blob_source.interpret_from_source(interpret_size)));
+    OV_ASSERT_NO_THROW(payload_ptr = reinterpret_cast<const char*>(blob_source.read_view(read_size)));
 
-    std::vector<uint8_t> extracted_payload(payload_ptr, payload_ptr + interpret_size);
-    ASSERT_EQ(extracted_payload, std::vector<uint8_t>(blob_content.begin(), blob_content.begin() + interpret_size));
+    std::vector<uint8_t> extracted_payload(payload_ptr, payload_ptr + read_size);
+    ASSERT_EQ(extracted_payload, std::vector<uint8_t>(blob_content.begin(), blob_content.begin() + read_size));
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
-    ASSERT_EQ(cursor, interpret_size);
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
+    ASSERT_EQ(cursor, read_size);
 }
 
 /**
  * @brief Extract all bytes without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, InterpretAllBytes) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyAllBytes) {
     BlobSource blob_source = create_blob_source();
 
     const char* payload_ptr = nullptr;
-    OV_ASSERT_NO_THROW(payload_ptr =
-                           reinterpret_cast<const char*>(blob_source.interpret_from_source(blob_content.size())));
+    OV_ASSERT_NO_THROW(payload_ptr = reinterpret_cast<const char*>(blob_source.read_view(blob_content.size())));
 
     std::vector<uint8_t> extracted_payload(payload_ptr, payload_ptr + blob_content.size());
     ASSERT_EQ(extracted_payload, blob_content);
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size());
 }
 
 /**
  * @brief The move the read cursor and then extract one byte without copying
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, InterpretFirstByteAfterMove) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
-    blob_source.move_cursor(1);
+    blob_source.seekg(1);
 
-    const size_t interpret_size = 1;
+    const size_t read_size = 1;
     const char* payload_ptr = nullptr;
-    OV_ASSERT_NO_THROW(payload_ptr = reinterpret_cast<const char*>(blob_source.interpret_from_source(interpret_size)));
+    OV_ASSERT_NO_THROW(payload_ptr = reinterpret_cast<const char*>(blob_source.read_view(read_size)));
 
-    std::vector<uint8_t> extracted_payload(payload_ptr, payload_ptr + interpret_size);
-    ASSERT_EQ(extracted_payload,
-              std::vector<uint8_t>(blob_content.begin() + 1, blob_content.begin() + 1 + interpret_size));
+    std::vector<uint8_t> extracted_payload(payload_ptr, payload_ptr + read_size);
+    ASSERT_EQ(extracted_payload, std::vector<uint8_t>(blob_content.begin() + 1, blob_content.begin() + 1 + read_size));
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
-    ASSERT_EQ(cursor, interpret_size + 1);
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
+    ASSERT_EQ(cursor, read_size + 1);
 }
 
 /**
  * @brief Attempting to extract more bytes than available without copying should yield an exception
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, InterpretTooMuch) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyTooMuch) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.interpret_from_source(blob_content.size() + 1), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.read_view(blob_content.size() + 1), ov::Exception, _);
 }
 
 /**
  * @brief Attempting to extract data (without copying) beyond the end limit should yield an exception
  */
-TEST_P(BlobSourceDifferentBlobsContiguous, InterpretAfterEnd) {
+TEST_P(BlobSourceDifferentBlobsContiguous, ReadWithoutCopyAfterEnd) {
     BlobSource blob_source = create_blob_source();
-    blob_source.move_cursor(0, std::ios::end);
-    OV_EXPECT_THROW(blob_source.interpret_from_source(1), ov::Exception, _);
+    blob_source.seekg(0, std::ios::end);
+    OV_EXPECT_THROW(blob_source.read_view(1), ov::Exception, _);
 }
 
 /**
@@ -563,13 +561,13 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByte) {
 
     const size_t tensor_size = 1;
     ov::Tensor roi_tensor;
-    OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
+    OV_ASSERT_NO_THROW(roi_tensor = blob_source.create_roi_tensor(tensor_size));
 
     ASSERT_EQ(roi_tensor.get_byte_size(), tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), 1), 0);
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, tensor_size);
 }
 
@@ -580,13 +578,13 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAllBytes) {
     BlobSource blob_source = create_blob_source();
 
     ov::Tensor roi_tensor;
-    OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(blob_content.size()));
+    OV_ASSERT_NO_THROW(roi_tensor = blob_source.create_roi_tensor(blob_content.size()));
 
     ASSERT_EQ(roi_tensor.get_byte_size(), blob_content.size());
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data(), blob_content.size()), 0);
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, blob_content.size());
 }
 
@@ -595,17 +593,17 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAllBytes) {
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
     BlobSource blob_source = create_blob_source();
-    blob_source.move_cursor(1);
+    blob_source.seekg(1);
 
     const size_t tensor_size = 1;
     ov::Tensor roi_tensor;
-    OV_ASSERT_NO_THROW(roi_tensor = blob_source.get_roi_tensor_from_source(tensor_size));
+    OV_ASSERT_NO_THROW(roi_tensor = blob_source.create_roi_tensor(tensor_size));
 
     ASSERT_EQ(roi_tensor.get_byte_size(), tensor_size);
     ASSERT_EQ(std::memcmp(roi_tensor.data(), blob_content.data() + 1, 1), 0);
 
     size_t cursor = 0;
-    OV_ASSERT_NO_THROW(cursor = blob_source.get_cursor());
+    OV_ASSERT_NO_THROW(cursor = blob_source.tellg());
     ASSERT_EQ(cursor, tensor_size + 1);
 }
 
@@ -614,7 +612,7 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorFirstByteAfterMove) {
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorTooMuch) {
     BlobSource blob_source = create_blob_source();
-    OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(blob_content.size() + 1), ov::Exception, _);
+    OV_EXPECT_THROW(blob_source.create_roi_tensor(blob_content.size() + 1), ov::Exception, _);
 }
 
 /**
@@ -622,8 +620,8 @@ TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorTooMuch) {
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, GetROITensorAfterEnd) {
     BlobSource blob_source = create_blob_source();
-    blob_source.move_cursor(0, std::ios::end);
-    OV_EXPECT_THROW(blob_source.get_roi_tensor_from_source(1), ov::Exception, _);
+    blob_source.seekg(0, std::ios::end);
+    OV_EXPECT_THROW(blob_source.create_roi_tensor(1), ov::Exception, _);
 }
 
 /**
@@ -657,7 +655,7 @@ TEST_F(BlobSourcePageAlignment, TrueIsContiguousAndPageAlignedAfterMove) {
     std::memcpy(tensor.data(), blob_content.data(), blob_content.size());
 
     BlobSource blob_source = BlobSource(tensor);
-    blob_source.move_cursor(utils::STANDARD_PAGE_SIZE);
+    blob_source.seekg(utils::STANDARD_PAGE_SIZE);
     ASSERT_TRUE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 
@@ -667,7 +665,7 @@ TEST_F(BlobSourcePageAlignment, TrueIsContiguousAndPageAlignedAfterMove) {
  */
 TEST_P(BlobSourceDifferentBlobsContiguous, FalseIsContiguousAndPageAlignedAfterMove) {
     BlobSource blob_source = create_blob_source(true);
-    blob_source.move_cursor(1);
+    blob_source.seekg(1);
     ASSERT_FALSE(blob_source.is_contiguous_and_cursor_page_aligned());
 }
 

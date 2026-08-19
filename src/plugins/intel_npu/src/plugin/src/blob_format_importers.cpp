@@ -187,13 +187,13 @@ public:
 
         if (!compiler_main_schedule.is_contiguous_and_cursor_page_aligned()) {
             m_main_schedule = allocate_aligned_tensor(blob_size);
-            compiler_main_schedule.copy_from_source(m_main_schedule.data(), blob_size);
+            compiler_main_schedule.read_into_buffer(m_main_schedule.data(), blob_size);
 
             m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());
             return;
         }
 
-        m_main_schedule = compiler_main_schedule.get_roi_tensor_from_source(blob_size);
+        m_main_schedule = compiler_main_schedule.create_roi_tensor(blob_size);
     }
 
 private:
@@ -282,12 +282,12 @@ public:
 
         if (!npu_formatted_blob.is_contiguous_and_cursor_page_aligned()) {
             m_compiler_payload = allocate_aligned_tensor(compiler_payload_size);
-            npu_formatted_blob.copy_from_source(m_compiler_payload.data(), compiler_payload_size);
+            npu_formatted_blob.read_into_buffer(m_compiler_payload.data(), compiler_payload_size);
 
             m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());
         } else {
             // ROI tensor to skip the NPU plugin metadata
-            m_compiler_payload = npu_formatted_blob.get_roi_tensor_from_source(compiler_payload_size);
+            m_compiler_payload = npu_formatted_blob.create_roi_tensor(compiler_payload_size);
         }
 
         register_compiler_version();
@@ -502,14 +502,14 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     // The V1 format is identified by some magic bytes at the end of the input
     OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
 
-    const size_t compiler_payload_beggining = npu_formatted_blob.get_cursor();
-    npu_formatted_blob.move_cursor(-MAGIC_BYTES.size(), std::ios::end);
+    const size_t compiler_payload_beggining = npu_formatted_blob.tellg();
+    npu_formatted_blob.seekg(-MAGIC_BYTES.size(), std::ios::end);
 
     std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);
-    npu_formatted_blob.copy_from_source(blob_magic_bytes.data(), MAGIC_BYTES.size());
+    npu_formatted_blob.read_into_buffer(blob_magic_bytes.data(), MAGIC_BYTES.size());
 
     OPENVINO_ASSERT(MAGIC_BYTES == blob_magic_bytes, MISSING_METADATA_MESSAGE);
-    npu_formatted_blob.move_cursor(compiler_payload_beggining, std::ios::beg);
+    npu_formatted_blob.seekg(compiler_payload_beggining, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler using the factory");
     return std::make_unique<BlobFormatV1Importer>(npu_formatted_blob, original_model, config);

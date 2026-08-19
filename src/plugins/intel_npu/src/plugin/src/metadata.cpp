@@ -103,9 +103,9 @@ OpenvinoVersion::OpenvinoVersion(const OpenvinoVersion& version)
       _patch(version.get_patch()) {}
 
 void OpenvinoVersion::read(BlobSource& source) {
-    source.copy_from_source(&_major, sizeof(_major));
-    source.copy_from_source(&_minor, sizeof(_minor));
-    source.copy_from_source(&_patch, sizeof(_patch));
+    source.read_into_buffer(&_major, sizeof(_major));
+    source.read_into_buffer(&_minor, sizeof(_minor));
+    source.read_into_buffer(&_patch, sizeof(_patch));
 }
 
 void OpenvinoVersion::write(std::ostream& stream) {
@@ -260,7 +260,7 @@ void Metadata<METADATA_VERSION_2_1>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_0>::read_unchecked(source);
 
     uint64_t numberOfInits;
-    source.copy_from_source(&numberOfInits, sizeof(numberOfInits));
+    source.read_into_buffer(&numberOfInits, sizeof(numberOfInits));
 
     if (numberOfInits) {
         OPENVINO_ASSERT(
@@ -269,7 +269,7 @@ void Metadata<METADATA_VERSION_2_1>::read_unchecked(BlobSource& source) {
 
         _initSizes = std::vector<uint64_t>(numberOfInits);
         for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-            source.copy_from_source(&_initSizes->at(initIndex), sizeof(_initSizes->at(initIndex)));
+            source.read_into_buffer(&_initSizes->at(initIndex), sizeof(_initSizes->at(initIndex)));
         }
     }
 }
@@ -278,7 +278,7 @@ void Metadata<METADATA_VERSION_2_2>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_1>::read_unchecked(source);
 
     int64_t batchSize;
-    source.copy_from_source(&batchSize, sizeof(batchSize));
+    source.read_into_buffer(&batchSize, sizeof(batchSize));
 
     _batchSize = batchSize != 0 ? std::optional(batchSize) : std::nullopt;
 }
@@ -287,8 +287,8 @@ void Metadata<METADATA_VERSION_2_3>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_2>::read_unchecked(source);
 
     uint64_t numberOfInputLayouts, numberOfOutputLayouts;
-    source.copy_from_source(&numberOfInputLayouts, sizeof(numberOfInputLayouts));
-    source.copy_from_source(&numberOfOutputLayouts, sizeof(numberOfOutputLayouts));
+    source.read_into_buffer(&numberOfInputLayouts, sizeof(numberOfInputLayouts));
+    source.read_into_buffer(&numberOfOutputLayouts, sizeof(numberOfOutputLayouts));
 
     OPENVINO_ASSERT(numberOfInputLayouts + numberOfOutputLayouts <=
                         (get_and_check_remaining_source_size(source) - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE,
@@ -304,12 +304,12 @@ void Metadata<METADATA_VERSION_2_3>::read_unchecked(BlobSource& source) {
         layouts = std::vector<ov::Layout>();
         layouts->reserve(numberOfLayouts);
         for (uint64_t layoutIndex = 0; layoutIndex < numberOfLayouts; ++layoutIndex) {
-            source.copy_from_source(&stringLength, sizeof(stringLength));
+            source.read_into_buffer(&stringLength, sizeof(stringLength));
             OPENVINO_ASSERT(stringLength <= get_and_check_remaining_source_size(source) - FOOTER_SIZE,
                             "The size of at least one layout exceeds the limit of the blob");
 
             std::string layoutString(stringLength, 0);
-            source.copy_from_source(layoutString.data(), stringLength);
+            source.read_into_buffer(layoutString.data(), stringLength);
 
             try {
                 layouts->push_back(ov::Layout(std::move(layoutString)));
@@ -333,7 +333,7 @@ void Metadata<METADATA_VERSION_2_4>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_3>::read_unchecked(source);
 
     uint32_t compilerVersion;
-    source.copy_from_source(&compilerVersion, sizeof(compilerVersion));
+    source.read_into_buffer(&compilerVersion, sizeof(compilerVersion));
     _compilerVersion = compilerVersion != 0 ? std::optional(compilerVersion) : std::nullopt;
 }
 
@@ -341,7 +341,7 @@ void Metadata<METADATA_VERSION_2_5>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_4>::read_unchecked(source);
 
     uint8_t isEncryptedBlob;
-    source.copy_from_source(&isEncryptedBlob, sizeof(isEncryptedBlob));
+    source.read_into_buffer(&isEncryptedBlob, sizeof(isEncryptedBlob));
 
     _isEncryptedBlob = isEncryptedBlob;
 }
@@ -350,13 +350,13 @@ void Metadata<METADATA_VERSION_2_6>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_5>::read_unchecked(source);
 
     uint64_t reqs_len;
-    source.copy_from_source(&reqs_len, sizeof(reqs_len));
+    source.read_into_buffer(&reqs_len, sizeof(reqs_len));
     if (reqs_len > 0) {
         OPENVINO_ASSERT(reqs_len <= (get_and_check_remaining_source_size(source) - FOOTER_SIZE),
                         "The size of the runtime requirements surpasses the limit of the blob");
 
         std::string reqs(reqs_len, '\0');
-        source.copy_from_source(reqs.data(), reqs_len);
+        source.read_into_buffer(reqs.data(), reqs_len);
         _compatibilityDescriptor = std::move(reqs);
     }
 }
@@ -365,7 +365,7 @@ void Metadata<METADATA_VERSION_2_7>::read_unchecked(BlobSource& source) {
     Metadata<METADATA_VERSION_2_6>::read_unchecked(source);
 
     uint8_t blobType;
-    source.copy_from_source(&blobType, sizeof(blobType));
+    source.read_into_buffer(&blobType, sizeof(blobType));
     const auto type = static_cast<BlobType>(blobType);
     OPENVINO_ASSERT(type == BlobType::ELF || type == BlobType::LLVM || type == BlobType::BYTECODE,
                     "Invalid blob type in NPU blob metadata: ",
@@ -590,26 +590,26 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source) {
-    const size_t startingPosition = source.get_cursor();
+    const size_t startingPosition = source.tellg();
     const size_t npuBlobSize = source.get_remaining_size();
 
     OPENVINO_ASSERT(npuBlobSize >= MINIMUM_BLOB_SIZE, BLOB_TOO_SMALL_MESSAGE, npuBlobSize);
 
     std::string blobMagicBytes(MAGIC_BYTES.size(), 0);
-    source.move_cursor(-MAGIC_BYTES.size(), std::ios::end);
-    source.copy_from_source(blobMagicBytes.data(), MAGIC_BYTES.size());
+    source.seekg(-MAGIC_BYTES.size(), std::ios::end);
+    source.read_into_buffer(blobMagicBytes.data(), MAGIC_BYTES.size());
     OPENVINO_ASSERT(MAGIC_BYTES == blobMagicBytes, MISSING_METADATA_MESSAGE);
 
     uint64_t payloadSize;
-    source.move_cursor(-MAGIC_BYTES.size() - sizeof(payloadSize), std::ios::end);
-    source.copy_from_source(&payloadSize, sizeof(payloadSize));
+    source.seekg(-MAGIC_BYTES.size() - sizeof(payloadSize), std::ios::end);
+    source.read_into_buffer(&payloadSize, sizeof(payloadSize));
 
     // Subtraction form avoids integer overflow when payloadSize is near UINT64_MAX.
     OPENVINO_ASSERT(payloadSize <= npuBlobSize - MINIMUM_BLOB_SIZE, INVALID_PAYLOAD_SIZE_MESSAGE, payloadSize);
 
     uint32_t metaVersion;
-    source.move_cursor(startingPosition + payloadSize, std::ios::beg);
-    source.copy_from_source(&metaVersion, sizeof(metaVersion));
+    source.seekg(startingPosition + payloadSize, std::ios::beg);
+    source.read_into_buffer(&metaVersion, sizeof(metaVersion));
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
@@ -621,7 +621,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(BlobSource& source) {
         OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
     }
 
-    source.move_cursor(startingPosition, std::ios::beg);
+    source.seekg(startingPosition, std::ios::beg);
 
     return storedMeta;
 }
