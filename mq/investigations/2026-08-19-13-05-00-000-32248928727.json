@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-13-05-00-000-32248928727",
+  "timestamp": "2026-08-19T13:05:00Z",
+  "run_id": "32248928727",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32248928727",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37338",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37338",
+  "author": "chenhu-wang",
+  "category": "Network",
+  "title": "Debian Packages job fails - Unable to connect to azure.archive.ubuntu.com",
+  "signature": "Failed to fetch Unable to connect to azure archive ubuntu com|Network",
+  "signature_hash": "e65acb49deb19d88",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get failed: E: Failed to fetch libdpkg-perl/dpkg-dev - Unable to connect to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/d/dpkg/libdpkg-perl_1.21.1ubuntu2.6_all.deb  Unable to connect to azure.archive.ubuntu.com:80:",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/d/dpkg/dpkg-dev_1.21.1ubuntu2.6_all.deb  Unable to connect to azure.archive.ubuntu.com:80:",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "Process completed with exit code 100."
+  ],
+  "root_cause": "The Azure Ubuntu package mirror (azure.archive.ubuntu.com) was unreachable from the GitHub Actions runner during the 'Install debian packages & check conflicts' step. The runner could not download libdpkg-perl and dpkg-dev packages, causing apt-get to exit with code 100. This is an infrastructure/network transient failure unrelated to the PR changes (which only touch CPU plugin C++ source files).",
+  "reproduction_steps": "N/A - network connectivity to azure.archive.ubuntu.com from CI runners is not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed job - the network issue is likely transient and the next attempt should succeed.",
+    "If failures persist, check azure.archive.ubuntu.com availability or consider using an alternative Ubuntu mirror."
+  ],
+  "prevention_strategies": "Consider adding retry logic (--fix-missing or retry loop) to apt-get calls in the Debian Packages workflow step to handle transient mirror outages.",
+  "historical_context": "Multiple prior occurrences of azure.archive.ubuntu.com connectivity failures have been recorded in the pattern database (e.g., patterns c8d00529252cfb02, 7d2e2ff59d37c6b4, a3d456bd40bd9f42). This is a known transient infrastructure issue with the Azure Ubuntu package mirror."
+}
