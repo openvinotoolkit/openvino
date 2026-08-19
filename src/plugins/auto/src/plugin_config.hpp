@@ -25,6 +25,8 @@ public:
     using Ptr = std::shared_ptr<BaseValidator>;
     virtual ~BaseValidator() = default;
     virtual bool is_valid(const ov::Any& v) const = 0;
+    // Normalizes a validated value to its canonical typed Any (e.g. parses a string into a map).
+    virtual ov::Any convert(const ov::Any& v) const { return v; }
 };
 
 template<typename T>
@@ -76,6 +78,10 @@ public:
             return false;
         }
     }
+
+    ov::Any convert(const ov::Any& v) const override {
+        return ov::Any(v.as<std::map<std::string, unsigned>>());
+    }
 };
 
 class PerfCurveTableValidator : public BaseValidator {
@@ -101,6 +107,10 @@ public:
         } catch (const ov::Exception&) {
             return false;
         }
+    }
+
+    ov::Any convert(const ov::Any& v) const override {
+        return ov::Any(v.as<std::map<std::string, std::map<unsigned, float>>>());
     }
 };
 
