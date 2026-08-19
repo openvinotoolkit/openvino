@@ -169,7 +169,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
     //   dA  = Reshape(exp(A * dt), [B, T, H, 1, 1])                       -> Loop input 2
     //   dBx = Unsqueeze(dt*B, -2) * Unsqueeze(x, -1)  -> [B, T, H, P, N]  -> Loop input 3
     //   C   = Unsqueeze(B/C-expanded, -2)             -> [B, T, H, 1, N]  -> Loop input 4
-    auto A = pattern::any_input(pattern::rank_equals(1));
+    auto A = pattern::any_input(pattern::shape_matches("[head_num]"));
     auto dA = pattern::wrap_type<v1::Reshape>(
         {pattern::wrap_type<v0::Exp>({pattern::wrap_type<v1::Multiply>({A, dt})}), pattern::any_input()});
 
