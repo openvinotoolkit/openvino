@@ -176,6 +176,9 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                  const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
                                  size_t batch_size)
     : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
+
+    _sync_output_with_fences = false;
+
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
@@ -306,6 +309,8 @@ void DynamicPipeline::push() {
         ze_event_handle_t event = nullptr;
         if (_sync_output_with_fences) {
             fence = _fences.at(i)->handle();
+        } else {
+            event = _events.at(i)->handle();
         }
 
         auto& command_lists = _command_lists.at(i);

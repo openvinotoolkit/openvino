@@ -211,6 +211,10 @@ public:
     void reset() const;
     ~Event();
 
+    inline ze_event_handle_t handle() const {
+        return _handle;
+    }
+
 private:
     std::shared_ptr<EventPool> _event_pool;
     ze_event_handle_t _handle = nullptr;
