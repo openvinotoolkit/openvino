@@ -101,9 +101,9 @@ public:
     // Continuous prefill support.
 
     /// Validate every dynamic precondition of a continued prefill that keeps the first
-    /// `keep` tokens and prefills `delta_len` new ones, and reserve all staging
-    /// resources. Must not change live KV, bindings, block metadata, counters or
-    /// phase flags. A failure here leaves the cache exactly as it was.
+    /// `keep` tokens and prefills `delta_len` new ones. Must not change live KV,
+    /// bindings, block metadata, counters or phase flags. A failure here leaves the
+    /// cache exactly as it was, so a corrected retry may still succeed.
     virtual std::unique_ptr<ContinuedPrefillPlan> plan_continued_prefill(uint32_t keep, uint32_t delta_len) {
         (void)keep;
         (void)delta_len;
@@ -111,8 +111,8 @@ public:
     }
 
     /// Apply an already validated plan. Mutation has begun, so any exception from
-    /// this point poisons the request and must not be converted into a fallback that
-    /// continues inference.
+    /// this point leaves the cache in an unspecified state and the caller must
+    /// recover with reset() and a full prefill.
     virtual void apply_continued_prefill(ContinuedPrefillPlan& plan) {
         (void)plan;
         OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");

@@ -23,13 +23,13 @@ namespace npuw {
  * limit the plugin owns and grants an effective keep K. A granted keep is a
  * command, so the next inference must be the matching delta-only prefill.
  *
- * Three states. While IDLE the state reports the committed live token count
- * and accepts one proposal, a reset, or ordinary inference. PENDING means a
- * command is armed or executing: a positive keep demands the delta-only
- * prefill, a zero keep demands a full prefill from position zero. Any failure
- * after mutation started poisons the request as POISONED, where only reset()
- * is accepted: the caller sent only the delta, so recovering by falling back
- * to an ordinary prefill would treat the delta as the whole conversation.
+ * Two states. While IDLE the state reports the committed live token count and
+ * accepts one proposal, a reset, or ordinary inference. PENDING means a
+ * command is armed: a positive keep demands the delta-only prefill, a zero
+ * keep demands a full prefill from position zero. A failing inference leaves
+ * the command pending and the cache in an unspecified state; the caller
+ * recovers with reset() and the full history, the same recovery every failing
+ * inference requires.
  *
  * The keep rule is K = C * floor(min(K_common, K_max, W) / C), where C is the
  * prefill chunk size, K_max is how many past tokens the chunked prefill can
@@ -46,7 +46,6 @@ public:
     enum class Stage : uint8_t {
         IDLE,
         PENDING,
-        POISONED,
     };
 
     ContinuationCoordinator() = default;
@@ -107,20 +106,12 @@ public:
 
     // The grant returned by get_state(), meaning the prefix the plugin will honour.
     int64_t query() const {
-        switch (m_stage) {
-        case Stage::IDLE:
-            return static_cast<int64_t>(m_live_tokens);
-        case Stage::PENDING:
-            return static_cast<int64_t>(m_pending_keep);
-        case Stage::POISONED:
-            return 0;
-        }
-        return 0;
+        return m_stage == Stage::PENDING ? static_cast<int64_t>(m_pending_keep) : static_cast<int64_t>(m_live_tokens);
     }
 
     // reset() is a control operation rather than a proposal. It discards any pending
     // keep and arms a zero keep, idempotently. The physical reset happens on the
-    // next validated full prefill. This is also the only recovery from POISONED.
+    // next validated full prefill.
     void request_reset() {
         m_pending_keep = 0u;
         m_stage = Stage::PENDING;
@@ -130,41 +121,17 @@ public:
 
     // What the next inference must be: no value means ordinary inference, zero
     // means the pending reset's full prefill, positive means the delta-only
-    // prefill at exactly that keep. Throws if the request is poisoned.
+    // prefill at exactly that keep.
     std::optional<uint32_t> pending() const {
         if (!m_enabled) {
             return std::nullopt;
         }
-        OPENVINO_ASSERT(m_stage != Stage::POISONED,
-                        "Continuous prefill: the request is poisoned by a previous failure. "
-                        "Call reset() on npuw_stored_tokens_state and re-send the full history.");
         return m_stage == Stage::PENDING ? std::optional<uint32_t>(m_pending_keep) : std::nullopt;
     }
 
-    // Preflight failed before any mutation. Consume the command and return to IDLE
-    // with the last committed counters intact. Only a pending keep may be aborted:
-    // a pending reset deliberately stays pending until the full prompt arrives.
-    void abort_preflight() {
-        OPENVINO_ASSERT(m_stage == Stage::PENDING && m_pending_keep > 0u,
-                        "Continuous prefill: abort_preflight() without a pending keep command.");
-        m_pending_keep = 0u;
-        m_stage = Stage::IDLE;
-    }
-
-    // An exception after live state mutation began poisons the request. No new
-    // count is published and only reset() can start recovery. Runs on exception
-    // paths, so it must never throw.
-    void poison() {
-        m_pending_keep = 0u;
-        m_stage = Stage::POISONED;
-    }
-
     // Publish a committed prefill, full or continued. The new live count is also
-    // the new prefill-produced watermark. Legal for an ordinary idle prefill or
-    // a pending command that just executed; a commit must never clear the
-    // poisoning that only reset() owns.
+    // the new prefill-produced watermark.
     void commit_prefill(uint32_t live_tokens) {
-        OPENVINO_ASSERT(m_stage != Stage::POISONED, "Continuous prefill: commit_prefill() on a poisoned request.");
         m_live_tokens = live_tokens;
         m_watermark = live_tokens;
         m_pending_keep = 0u;

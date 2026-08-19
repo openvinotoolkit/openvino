@@ -585,6 +585,10 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_length) {
     namespace uu = ov::npuw::util;
 
+    // A continued prefill that failed mid-way may leave its delta base behind;
+    // a full prefill always addresses the caller tensors from zero.
+    m_continued_prefill_base = 0u;
+
     uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     if (auto type_ids_port = m_prefill_in_ports.find(layer_names::token_type_ids);
         type_ids_port != m_prefill_in_ports.end()) {
@@ -1324,71 +1328,59 @@ void ov::npuw::LLMInferRequest::infer_continued_prefill(ov::SoPtr<ov::ITensor> i
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const uint32_t delta_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
-    // Preflight. Nothing below may touch live tensors, bindings or counters, so a
-    // failure consumes the command and leaves the cache exactly as it was.
-    std::unique_ptr<ContinuedPrefillPlan> plan;
-    try {
-        OPENVINO_ASSERT(m_npuw_llm_compiled_model->m_use_chunk_prefill, "Continued prefill requires chunked prefill.");
-        OPENVINO_ASSERT(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == delta_len,
-                        "Continued prefill: the delta length does not fit the 32-bit token counters.");
-        OPENVINO_ASSERT(delta_len >= 1u, "Continued prefill: the delta must not be empty.");
-        const uint64_t total = static_cast<uint64_t>(keep) + delta_len;
-        OPENVINO_ASSERT(total <= kvcache_desc.max_prompt_size,
-                        "Continued prefill: keep (",
-                        keep,
-                        ") plus delta (",
-                        delta_len,
-                        ") exceeds NPUW_LLM_MAX_PROMPT_LEN (",
-                        kvcache_desc.max_prompt_size,
-                        ").");
-        OPENVINO_ASSERT(attention_mask->get_size() == total,
-                        "Continued prefill: attention mask must cover the whole history. Expected ",
-                        total,
-                        " entries, got ",
-                        attention_mask->get_size(),
-                        ".");
-        validate_continued_position_ids(position_ids, keep);
-        plan = m_kvcache_strategy->plan_continued_prefill(keep, delta_len);
-    } catch (...) {
-        m_continuation.abort_preflight();
-        throw;
+    // Preflight. Nothing here touches live tensors, bindings or counters, and the
+    // command stays pending on failure, so a corrected retry may still succeed.
+    OPENVINO_ASSERT(m_npuw_llm_compiled_model->m_use_chunk_prefill, "Continued prefill requires chunked prefill.");
+    OPENVINO_ASSERT(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] == delta_len,
+                    "Continued prefill: the delta length does not fit the 32-bit token counters.");
+    OPENVINO_ASSERT(delta_len >= 1u, "Continued prefill: the delta must not be empty.");
+    const uint64_t total = static_cast<uint64_t>(keep) + delta_len;
+    OPENVINO_ASSERT(total <= kvcache_desc.max_prompt_size,
+                    "Continued prefill: keep (",
+                    keep,
+                    ") plus delta (",
+                    delta_len,
+                    ") exceeds NPUW_LLM_MAX_PROMPT_LEN (",
+                    kvcache_desc.max_prompt_size,
+                    ").");
+    OPENVINO_ASSERT(attention_mask->get_size() == total,
+                    "Continued prefill: attention mask must cover the whole history. Expected ",
+                    total,
+                    " entries, got ",
+                    attention_mask->get_size(),
+                    ".");
+    validate_continued_position_ids(position_ids, keep);
+    auto plan = m_kvcache_strategy->plan_continued_prefill(keep, delta_len);
+
+    // Mutation starts here. An exception past this point leaves the cache in an
+    // unspecified state with the command still pending; the caller recovers with
+    // reset() and the full history, the same recovery every failing inference
+    // requires.
+    m_kvcache_strategy->apply_continued_prefill(*plan);
+    prepare_for_continued_prefill(keep, static_cast<int64_t>(keep + delta_len), attention_mask);
+
+    m_continued_prefill_base = keep;
+    // Token type ids, visual position masks and deepstack embeds stay empty: the
+    // capability statically excludes every model that carries these inputs.
+    infer_chunked_prefill(input_ids,
+                          attention_mask,
+                          position_ids,
+                          ov::npuw::util::TensorPtr(),
+                          per_layer_inputs,
+                          ov::npuw::util::TensorPtr(),
+                          ov::npuw::util::TensorPtr());
+    m_continued_prefill_base = 0u;
+
+    if (m_lm_head_request) {
+        m_lm_head_request->infer();
+        m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+    } else {
+        m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
     }
 
-    // The command is accepted and mutation starts. Failing closed from here on is
-    // mandatory. The caller sent only the delta, so falling back to a normal reset
-    // would prefill the delta as if it were the whole conversation and produce
-    // fluent but wrong output.
-    try {
-        m_kvcache_strategy->apply_continued_prefill(*plan);
-        prepare_for_continued_prefill(keep, static_cast<int64_t>(keep + delta_len), attention_mask);
-
-        m_continued_prefill_base = keep;
-        // Token type ids, visual position masks and deepstack embeds stay empty: the
-        // capability statically excludes every model that carries these inputs.
-        infer_chunked_prefill(input_ids,
-                              attention_mask,
-                              position_ids,
-                              ov::npuw::util::TensorPtr(),
-                              per_layer_inputs,
-                              ov::npuw::util::TensorPtr(),
-                              ov::npuw::util::TensorPtr());
-        m_continued_prefill_base = 0u;
-
-        if (m_lm_head_request) {
-            m_lm_head_request->infer();
-            m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
-        } else {
-            m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
-        }
-
-        m_generate_initialized = false;
-        m_continuation.commit_prefill(kvcache_desc.num_stored_tokens);
-        m_stored_tokens_state->set_num_stored_tokens(kvcache_desc.num_stored_tokens);
-    } catch (...) {
-        m_continued_prefill_base = 0u;
-        m_continuation.poison();
-        throw;
-    }
+    m_generate_initialized = false;
+    m_continuation.commit_prefill(kvcache_desc.num_stored_tokens);
+    m_stored_tokens_state->set_num_stored_tokens(kvcache_desc.num_stored_tokens);
 
     LOG_DEBUG("Done");
 }
@@ -1651,22 +1643,17 @@ void ov::npuw::LLMInferRequest::infer() {
                         "), got ",
                         position_ids->data<int64_t>()[0],
                         ".");
-        try {
-            // infer_prefill performs the complete physical reset through
-            // prepare_for_new_conversation before prefilling from position zero.
-            infer_prefill(input_ids,
-                          attention_mask,
-                          position_ids,
-                          token_type_ids,
-                          per_layer_inputs,
-                          visual_pos_masks,
-                          deepstack_visual_embeds);
-            m_continuation.commit_prefill(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
-            m_stored_tokens_state->set_num_stored_tokens(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
-        } catch (...) {
-            m_continuation.poison();
-            throw;
-        }
+        // infer_prefill performs the complete physical reset through
+        // prepare_for_new_conversation before prefilling from position zero.
+        infer_prefill(input_ids,
+                      attention_mask,
+                      position_ids,
+                      token_type_ids,
+                      per_layer_inputs,
+                      visual_pos_masks,
+                      deepstack_visual_embeds);
+        m_continuation.commit_prefill(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
+        m_stored_tokens_state->set_num_stored_tokens(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
         return;
     }
 

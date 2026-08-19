@@ -428,10 +428,9 @@ TEST_F(LLMContinuedPrefillTest, PromptOnlyTurnGrantsZeroAndFullHistoryRecovers) 
     EXPECT_EQ(stored_tokens(), 96);
 }
 
-// A preflight rejection consumes the command without mutating anything: the
-// request returns to idle with the committed history intact and ordinary
-// inference keeps working.
-TEST_F(LLMContinuedPrefillTest, PreflightRejectionRestoresIdleWithoutMutation) {
+// A preflight rejection mutates nothing and leaves the command pending, so a
+// corrected delta still completes the continuation.
+TEST_F(LLMContinuedPrefillTest, PreflightRejectionKeepsCommandRetryable) {
     auto& req = request();
     run_full_prefill(72);
     run_generate_step(72);
@@ -445,16 +444,16 @@ TEST_F(LLMContinuedPrefillTest, PreflightRejectionRestoresIdleWithoutMutation) {
     set_inputs(make_i64({1, 40}, 1), make_i64({1, 104}, 1), make_i64_iota({1, 40}, 0));
     EXPECT_THROW(req.infer(), ov::Exception);
 
-    // Back to idle with the pre-proposal history.
-    EXPECT_EQ(stored_tokens(), 73);
-    run_generate_step(73);
-    EXPECT_EQ(stored_tokens(), 74);
+    // The grant stays armed and the corrected delta succeeds.
+    EXPECT_EQ(stored_tokens(), 64);
+    run_delta_prefill(64, 40);
+    EXPECT_EQ(stored_tokens(), 104);
 }
 
-// A failure after preflight passed poisons the request: every inference is
-// refused until the caller resets and re-sends the full history, after which
-// the request works again.
-TEST_F(LLMContinuedPrefillTest, InjectedApplyFailurePoisonsUntilReset) {
+// A failing continuation leaves the command pending and the cache unspecified.
+// The caller's recovery is reset() plus the full history, after which the
+// request works again.
+TEST_F(LLMContinuedPrefillTest, InjectedApplyFailureRecoversAfterReset) {
     auto& req = request();
     run_full_prefill(72);
     run_generate_step(72);
@@ -468,13 +467,9 @@ TEST_F(LLMContinuedPrefillTest, InjectedApplyFailurePoisonsUntilReset) {
     set_inputs(make_i64({1, 40}, 1), make_i64({1, 104}, 1), make_i64_iota({1, 40}, 64));
     EXPECT_THROW(req.infer(), ov::Exception);
 
-    // Poisoned: the state reports no usable history and inference is refused.
-    EXPECT_EQ(stored_tokens(), 0);
-    set_inputs(make_i64({1, 1}, 1), make_i64({1, 105}, 1), make_i64({1, 1}, 104));
-    EXPECT_THROW(req.infer(), ov::Exception);
-
-    // reset() is the only recovery. The next inference must be a full prefill
-    // from position zero, and it re-establishes a working conversation.
+    // The command is still armed; the caller gives up on it with reset() and
+    // re-establishes the conversation with a full prefill from position zero.
+    EXPECT_EQ(stored_tokens(), 64);
     stored_tokens_state()->reset();
     run_full_prefill(80);
     EXPECT_EQ(stored_tokens(), 80);

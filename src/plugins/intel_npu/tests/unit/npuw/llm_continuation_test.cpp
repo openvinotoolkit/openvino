@@ -149,58 +149,6 @@ TEST(NPUWContinuation, PublishingLiveCountDoesNotReArmCommand) {
 
 // The transaction state machine.
 
-TEST(NPUWContinuation, PreflightAbortConsumesCommandAndKeepsCounters) {
-    auto c = make_after_prefill(3000u, 20u);
-    c.propose(3000);
-    c.abort_preflight();
-    EXPECT_EQ(c.stage(), Stage::IDLE);
-    EXPECT_EQ(c.query(), 3020);
-    EXPECT_FALSE(c.pending().has_value());
-}
-
-TEST(NPUWContinuation, PreflightAbortRequiresAPendingKeep) {
-    // Only a pending keep may be aborted. A pending reset stays pending until the
-    // full prompt arrives, and aborting a poisoned request must not clear the
-    // poisoning that only reset() owns.
-    auto idle = make_after_prefill(3000u);
-    EXPECT_THROW(idle.abort_preflight(), ov::Exception);
-
-    auto reset_pending = make_after_prefill(3000u);
-    reset_pending.request_reset();
-    EXPECT_THROW(reset_pending.abort_preflight(), ov::Exception);
-    EXPECT_EQ(reset_pending.stage(), Stage::PENDING);
-    EXPECT_EQ(reset_pending.pending(), 0u);
-
-    auto poisoned = make_after_prefill(3000u);
-    poisoned.propose(3000);
-    poisoned.poison();
-    EXPECT_THROW(poisoned.abort_preflight(), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
-}
-
-TEST(NPUWContinuation, FailureDuringInferencePoisonsTheRequest) {
-    auto c = make_after_prefill(3000u);
-    c.propose(3000);
-    c.poison();
-    EXPECT_EQ(c.stage(), Stage::POISONED);
-    EXPECT_EQ(c.query(), 0);
-    // Poisoned requests reject inference until reset() is called.
-    EXPECT_THROW(c.pending(), ov::Exception);
-}
-
-TEST(NPUWContinuation, ResetRecoversAPoisonedRequest) {
-    auto c = make_after_prefill(3000u);
-    c.propose(3000);
-    c.poison();
-    c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::PENDING);
-    EXPECT_EQ(c.pending(), 0u);
-    // Idempotent while already pending.
-    c.request_reset();
-    EXPECT_EQ(c.stage(), Stage::PENDING);
-    EXPECT_EQ(c.pending(), 0u);
-}
-
 TEST(NPUWContinuation, ResetDiscardsAPendingKeep) {
     auto c = make_after_prefill(3000u, 1u);
     c.propose(3000);
@@ -218,23 +166,24 @@ TEST(NPUWContinuation, CommitAfterResetPrefillReturnsToIdle) {
     EXPECT_EQ(c.watermark(), 500u);
 }
 
-TEST(NPUWContinuation, CommitAndPublishRejectInvalidStates) {
-    // A commit must never clear the poisoning that only reset() owns.
-    auto poisoned = make_after_prefill(3000u);
-    poisoned.propose(3000);
-    poisoned.poison();
-    EXPECT_THROW(poisoned.commit_prefill(3000u), ov::Exception);
-    EXPECT_THROW(poisoned.publish_generate(3000u), ov::Exception);
-    EXPECT_EQ(poisoned.stage(), Stage::POISONED);
-
+TEST(NPUWContinuation, PublishWithArmedCommandIsRejected) {
     // Generate only runs when no command is pending, so a publish with an armed
     // command is a sequencing error. A commit from PENDING is the ordinary
-    // transaction commit and stays legal.
+    // command completion and stays legal.
     auto armed = make_after_prefill(3000u, 1u);
     armed.propose(3000);
     EXPECT_THROW(armed.publish_generate(3100u), ov::Exception);
     EXPECT_EQ(armed.stage(), Stage::PENDING);
     EXPECT_EQ(armed.pending(), 2048u);
+}
+
+TEST(NPUWContinuation, ResetIsIdempotentWhilePending) {
+    auto c = make_after_prefill(3000u, 1u);
+    c.propose(3000);
+    c.request_reset();
+    c.request_reset();
+    EXPECT_EQ(c.stage(), Stage::PENDING);
+    EXPECT_EQ(c.pending(), 0u);
 }
 
 // Watermark accounting.
