@@ -5,6 +5,7 @@
 #include "op_table.hpp"
 
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
@@ -54,13 +55,14 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_MUL", op::translate_1to1_match_2_inputs<v1::Multiply>},
         {"GGML_OP_MUL_MAT", op::translate_mulmat},
         {"GGML_OP_MUL_MAT_ID", op::translate_mul_mat_id},
-        // A GGML_OP_NONE leaf carrying a "data" attribute is a weight (see translate_weight).
+        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one (see translate_weight);
+        // otherwise it is a model input, resolved to a Parameter before the walk.
         {"GGML_OP_NONE", op::translate_weight},
         {"GGML_OP_NORM", op::translate_norm},
         {"GGML_OP_PAD", op::translate_pad},
         {"GGML_OP_PERMUTE", op::translate_permute},
-        {"GGML_OP_RESHAPE", op::translate_reshape},
         {"GGML_OP_REPEAT", op::translate_repeat},
+        {"GGML_OP_RESHAPE", op::translate_reshape},
         {"GGML_OP_RMS_NORM", op::translate_rms_norm},
         {"GGML_OP_ROPE", op::translate_rope},
         {"GGML_OP_SCALE", op::translate_scale},
@@ -74,8 +76,8 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_SUB", op::translate_1to1_match_2_inputs<v1::Subtract>},
         {"GGML_OP_SUM_ROWS", op::translate_sum_rows},
         {"GGML_OP_TOP_K", op::translate_top_k},
-        {"GGML_OP_TRI", op::translate_tri},
         {"GGML_OP_TRANSPOSE", op::translate_transpose},
+        {"GGML_OP_TRI", op::translate_tri},
         {"GGML_OP_VIEW", op::translate_view},
         {"GGML_UNARY_OP_ELU", op::translate_unary_elu},
         {"GGML_UNARY_OP_EXP", op::translate_1to1_match_1_input<v0::Exp>},
