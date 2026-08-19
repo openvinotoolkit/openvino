@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# Intel Platform Framework (IPF) telemetry client from submodule (MSVC only).
-# The static ClientApiLib is linked directly into openvino_auto_plugin so that no
-# separate ClientApi.dll has to be built, signed and packaged with OpenVINO.
-# IPF requires a dynamic CRT (/MD); the static CRT toolchain sets
-# ENABLE_IPF_CLIENT_API=OFF.
+# Intel Platform Framework (IPF) telemetry client (MSVC only).
+# ClientApiLib is linked statically into openvino_auto_plugin.
+# IPF requires the dynamic CRT (/MD); static CRT toolchains disable IPF.
 
 set(_ipf_ef_dir "${CMAKE_CURRENT_SOURCE_DIR}/ipf/IPF_EF")
 
@@ -31,9 +29,7 @@ if(TARGET nlohmann_json::nlohmann_json OR TARGET nlohmann_json)
     set_property(GLOBAL PROPERTY _FetchContent_nlohmann_json_populated TRUE)
 endif()
 
-# IPF pins its own directory scope to the release dynamic CRT. That is required for the
-# stand-alone ClientApi.dll, but objects linked into openvino_auto_plugin must use the very
-# same CRT as the plugin, otherwise MSVC rejects the link (LNK2038, _ITERATOR_DEBUG_LEVEL).
+# Use the same configuration-specific dynamic CRT for ClientApiLib and the plugin.
 if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
     set(_ov_msvc_runtime "${CMAKE_MSVC_RUNTIME_LIBRARY}")
 else()
@@ -57,17 +53,14 @@ if(TARGET ClientApi)
                                                EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 endif()
 
-# nlohmann/json is header-only and is consumed by the IPF sources only. Keeping it in the link
-# interface of a static library (CMake records even PRIVATE dependencies there as $<LINK_ONLY:...>)
-# would drag a target that is not part of OpenVINOTargets into the export set.
+# Keep the header-only nlohmann/json dependency out of the exported link interface.
 get_target_property(_ipf_link_interface ClientApiLib INTERFACE_LINK_LIBRARIES)
 if(_ipf_link_interface)
     list(FILTER _ipf_link_interface EXCLUDE REGEX "nlohmann_json")
     set_property(TARGET ClientApiLib PROPERTY INTERFACE_LINK_LIBRARIES "${_ipf_link_interface}")
 endif()
 
-# Only static OpenVINO builds need the archive: there the plugin itself is a static library,
-# so downstream consumers have to resolve the IPF symbols at their own link step.
+# Install ClientApiLib for static OpenVINO builds.
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ClientApiLib EXPORT OpenVINOTargets
             ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE_DEV} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
