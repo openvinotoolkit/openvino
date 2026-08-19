@@ -32,10 +32,10 @@ EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
         return output.get_names().count("attention_mask");
     });
     auto slice = wrap_type<v8::Slice>({attn_mask, any_input(), any_input(), any_input(), any_input()});
-    auto unsqueeze = pattern::optional<v0::Unsqueeze>({slice, any_input()});
+    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({slice, any_input()});
     auto convert = pattern::optional<v0::Convert>({unsqueeze});
-    auto mul_mask = pattern::optional<v1::Multiply>({convert, any_input()});
-    auto add = pattern::optional<v1::Add>({mul_mask, any_input()});
+    auto scale = pattern::optional<v1::Multiply>({convert, any_input()});
+    auto shift = pattern::optional<v1::Add>({scale, any_input()});
 
     // The mask's scale/shift are compile-time constants, so requiring the non-mask operand to be a
     // runtime value uniquely selects the real gate and rejects the inner mask-scale Multiply, whose
@@ -43,7 +43,7 @@ EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
     auto hidden_states = any_input([](const ov::Output<ov::Node>& out) {
         return ov::util::get_constant_from_source(out) == nullptr;
     });
-    auto mul_gate = wrap_type<v1::Multiply>({hidden_states, add});
+    auto mul_gate = wrap_type<v1::Multiply>({hidden_states, shift});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();

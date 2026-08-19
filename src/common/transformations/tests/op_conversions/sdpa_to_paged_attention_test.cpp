@@ -7216,7 +7216,7 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating_NoAdd) {
     }
 }
 
-// granite-4.0-h-micro (Mamba) shape: hidden_states is gated with the Converted mask directly
+// granite-4.0-h-micro shape: hidden_states is gated with the Converted mask directly
 // (no scale Multiply, no shift Add), so mask_expr ends at Convert.
 TEST_F(SDPAToPATest, SDPAToPA_EliminateConvPaddingMaskGating_GraniteMamba) {
     {
