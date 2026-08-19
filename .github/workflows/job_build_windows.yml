@@ -137,7 +137,7 @@ jobs:
           # python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/frontends/paddle/tests/requirements.txt
 
           # For getting rid of SSL issues during model downloading for unit tests
-          python3 -m pip install certifi==2026.7.22 packaging==26.3
+          python3 -m pip install certifi
 
       #
       # Build
