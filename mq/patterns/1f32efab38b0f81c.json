@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "error response from daemon no such image|Infrastructure",
+  "signature_hash": "1f32efab38b0f81c",
+  "title": "ARM64 cross-compilation Docker build fails — BuildKit image missing from ACR",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-08-19T11:07:51Z",
+  "last_seen": "2026-08-19T11:07:51Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/32245474844"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/34437"],
+  "recent_timestamps": ["2026-08-19T11:07:51Z"],
+  "rerun_search_string": "Error response from daemon: No such image"
+}

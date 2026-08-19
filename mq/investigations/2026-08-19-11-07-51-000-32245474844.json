@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-11-07-51-000-32245474844",
+  "timestamp": "2026-08-19T11:07:51Z",
+  "run_id": "32245474844",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32245474844",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "34437",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/34437",
+  "author": "mostafafaheem",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation Docker build fails — BuildKit image missing from ACR",
+  "signature": "error response from daemon no such image|Infrastructure",
+  "signature_hash": "1f32efab38b0f81c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Error response from daemon: No such image: openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status job failed because Docker job failed"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Error response from daemon: No such image: openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1"
+  ],
+  "root_cause": "The Docker BuildKit image 'openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1' is missing from the Azure Container Registry (ACR) mirror used by GitHub Actions. This is an infrastructure/registry issue unrelated to the PR code changes. The image should be present in the ACR mirror for docker/setup-buildx-action to work correctly.",
+  "reproduction_steps": "N/A",
+  "recommended_actions": [
+    "Verify the BuildKit image is available in the ACR registry: openvinogithubactions.azurecr.io/dockerio/moby/buildkit:buildx-stable-1",
+    "Re-push or re-mirror the moby/buildkit:buildx-stable-1 image to the ACR if missing",
+    "Retry the merge queue run once the image is restored"
+  ],
+  "prevention_strategies": "Monitor ACR image availability and set up alerting for missing mirror images. Consider pinning the buildx version to avoid unexpected tag changes.",
+  "historical_context": "This is the first recorded occurrence of this specific BuildKit ACR image missing failure."
+}

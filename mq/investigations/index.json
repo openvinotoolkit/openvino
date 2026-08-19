@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 174,
+  "total": 175,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -1706,6 +1706,17 @@
       "category": "Network",
       "signature_hash": "7d2e2ff59d37c6b4",
       "pr_number": "37248"
+    },
+    {
+      "investigation_id": "2026-08-19-11-07-51-000-32245474844",
+      "run_id": "32245474844",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32245474844",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-08-19T11:07:51Z",
+      "title": "ARM64 cross-compilation Docker build fails \u2014 BuildKit image missing from ACR",
+      "category": "Infrastructure",
+      "signature_hash": "1f32efab38b0f81c",
+      "pr_number": "34437"
     }
   ]
 }
