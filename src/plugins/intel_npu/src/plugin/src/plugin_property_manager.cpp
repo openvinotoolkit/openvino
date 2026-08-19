@@ -94,10 +94,6 @@ void exclude_model_ptr_from_map(ov::AnyMap& properties) {
     }
 }
 
-std::vector<std::string> getAvailableDevicesNames(const ov::SoPtr<intel_npu::IEngineBackend>& backend) {
-    return backend == nullptr ? std::vector<std::string>() : backend->getDeviceNames();
-}
-
 struct ResolvedRequestContext {
     ov::intel_npu::CompilerType compilerType;
     std::string deviceId;
