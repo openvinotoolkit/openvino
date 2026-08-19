@@ -157,9 +157,9 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
 
     auto jit = Parent::GetJitConstants(params, runInfo);
 
-    auto& input = params.inputs[0];
-    auto& output = params.outputs[0];
-    auto& weights = params.weights;
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
+    const auto& weights = params.weights;
 
     size_t sub_group_pack_size = tuning_data.sub_group_size * tuning_data.pack_size;
 

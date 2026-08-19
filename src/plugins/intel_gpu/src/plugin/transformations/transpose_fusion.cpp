@@ -44,9 +44,8 @@ bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_tran
     cldnn::format fmt_dummy = cldnn::format::bfyx;
     if (is_output_transpose) {
         return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_output_order_onednn(target_order, fmt_dummy);
-    } else {
-        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
     }
+    return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
 }
 
 bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad, bool is_output_transpose = false) {
@@ -326,7 +325,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher(bool supports_immad) {
     // Don't convert MatMul -> Gemm if no transpose input found as
     // CreateMatMulOp factory can now insert extra transpose which improves the performance
     auto matmul_predicate = [](const ov::Output<ov::Node>& output) -> bool {
-        auto node = output.get_node();
+        auto* node = output.get_node();
         if (node->is_dynamic())
             return true;
 
@@ -587,8 +586,8 @@ TransposeSplitMatcher::TransposeSplitMatcher() {
         // This produces 3 outputs of shape [-1, 1, H, S] instead of [1, -1, H, S]
         auto new_split_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto new_split = std::make_shared<ov::op::v1::Split>(input_node, new_split_axis, split->get_num_splits());
-         ov::copy_runtime_info(m.get_matched_nodes(), new_split);
-         ov::replace_node(split, new_split);
+        ov::copy_runtime_info(m.get_matched_nodes(), new_split);
+        ov::replace_node(split, new_split);
         return true;
     };
 

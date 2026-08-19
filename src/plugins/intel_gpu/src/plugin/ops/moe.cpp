@@ -116,7 +116,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
 
 static void CreateMOECompressedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOECompressed>& op) {
     auto inputs = p.GetInputInfo(op);
-    auto& config = op->get_config();
+    const auto& config = op->get_config();
     std::vector<cldnn::input_info> input_infos;
     for (const auto& input : inputs) {
         input_infos.push_back(cldnn::input_info(input));

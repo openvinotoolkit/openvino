@@ -187,9 +187,11 @@ void DynamicGraph::initialize_engine() {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const FilteredConfig& config)
+                           const FilteredConfig& config,
+                           BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
+      _blobType(blobType),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -469,6 +471,10 @@ std::optional<bool> DynamicGraph::is_profiling_blob() const {
 std::optional<std::string_view> DynamicGraph::get_compatibility_descriptor() const {
     _logger.warning("Compatibility descriptor is not supported for DynamicGraph");
     return std::nullopt;
+}
+
+BlobType DynamicGraph::get_blob_type() const {
+    return _blobType;
 }
 
 }  // namespace intel_npu
