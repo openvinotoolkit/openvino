@@ -144,7 +144,7 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
         size_t dispatch_block_num = total_block_num;
-#if defined(OV_GPU_WITH_ZE_RT) && OV_GPU_WITH_ZE_RT
+#ifdef OV_GPU_WITH_ZE_RT
         dispatch_block_num = Align(dispatch_block_num, block_num); //align for ZE RT
 #endif
 
