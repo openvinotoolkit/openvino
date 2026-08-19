@@ -206,8 +206,16 @@ vulkan_buffer_allocation::ptr import_external_buffer(vulkan_engine& engine,
         check_vk_result(create_result, "vkCreateBuffer(external)");
     }
 
-    VkMemoryRequirements requirements{};
-    vkGetBufferMemoryRequirements(engine.get_device_handle(), buffer, &requirements);
+    VkMemoryDedicatedRequirements dedicated_requirements{};
+    dedicated_requirements.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS;
+    VkMemoryRequirements2 requirements_info{};
+    requirements_info.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+    requirements_info.pNext = &dedicated_requirements;
+    VkBufferMemoryRequirementsInfo2 buffer_requirements_info{};
+    buffer_requirements_info.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+    buffer_requirements_info.buffer = buffer;
+    vkGetBufferMemoryRequirements2(engine.get_device_handle(), &buffer_requirements_info, &requirements_info);
+    const auto& requirements = requirements_info.memoryRequirements;
     const auto allowed_types = requirements.memoryTypeBits & import.memory_type_bits;
     vulkan_memory_type_selection memory_type{};
     try {
@@ -232,7 +240,13 @@ vulkan_buffer_allocation::ptr import_external_buffer(vulkan_engine& engine,
     dedicated_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
     dedicated_info.pNext = import.allocation_pnext;
     dedicated_info.buffer = buffer;
-    const bool requires_dedicated_allocation = device_owner->get_external_memory_capabilities().requires_dedicated_allocation(import.handle_type);
+    const bool requires_dedicated_allocation = dedicated_requirements.requiresDedicatedAllocation == VK_TRUE ||
+                                               device_owner->get_external_memory_capabilities().requires_dedicated_allocation(import.handle_type);
+    if (requires_dedicated_allocation && import.handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT) {
+        vkDestroyBuffer(engine.get_device_handle(), buffer, nullptr);
+        close_imported_fd(import);
+        OPENVINO_THROW("[GPU][Vulkan] Imported host allocation cannot satisfy a dedicated buffer requirement");
+    }
 
     VkMemoryAllocateInfo allocation_info{};
     allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
