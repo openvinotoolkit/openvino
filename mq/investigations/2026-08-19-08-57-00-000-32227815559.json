@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-08-57-00-000-32227815559",
+  "timestamp": "2026-08-19T08:57:00Z",
+  "run_id": "32227815559",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32227815559",
+  "workflow_name": "Debian Packages",
+  "pr_number": "37396",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37396",
+  "author": "ahnyoung-paul",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get fails to fetch packages from azure.archive.ubuntu.com with connection timeout"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/python3.10/libpython3.10-minimal_3.10.12-1~22.04.16_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.161.185.214), connection timed out",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/e/expat/libexpat1_2.4.7-1ubuntu0.7_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The GitHub Actions runner could not connect to azure.archive.ubuntu.com:80 (the Ubuntu apt mirror used in Azure), resulting in connection timeouts when fetching Debian packages during the apt-get install step. This is a transient network/infrastructure issue unrelated to the PR changes.",
+  "reproduction_steps": "N/A - infrastructure/network issue not reproducible locally",
+  "recommended_actions": [
+    "Retry the failed jobs - this is a transient network issue",
+    "If persistent, check Azure network status or switch to alternative apt mirrors"
+  ],
+  "prevention_strategies": "Consider retrying apt-get operations with retry logic in workflow scripts or using an apt mirror fallback.",
+  "historical_context": "This exact pattern has been seen 5 times since 2026-08-18, all failing with identical connection timeouts to azure.archive.ubuntu.com:80."
+}
