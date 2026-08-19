@@ -9,6 +9,7 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -22,7 +23,6 @@
 
 #include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -52,6 +52,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
@@ -357,7 +358,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (!withGroups && deconvAttrs.stride.back() > 3) {
         return false;
     }
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+    if (!ov::with_cpu_x86_avx512_core()) {
         const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
         if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) {
                 return dim == Shape::UNDEFINED_DIM;
@@ -384,10 +385,10 @@ bool Deconvolution::canBeExecutedInInt8() const {
 
     // not supported in oneDNN
     int channelBlock = [&]() {
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return 16;
         }
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return 8;
         }
         return 4;
@@ -395,7 +396,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
     }
-    if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3) {
+    if (!ov::with_cpu_x86_avx512_core() && deconvAttrs.stride.back() > 3) {
         return false;
     }
 
@@ -454,10 +455,10 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                 const auto& maxDims = shape.getMaxDims();
                 const auto& dims = shape.getDims();
                 for (size_t i = 0; i < dims.size() - 2; ++i) {
-                    lastOutputSpatialDims[i] =
+                    lastOutputSpatialDims[i] = static_cast<int32_t>(
                         dims[i + 2] == Shape::UNDEFINED_DIM
                             ? std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64)))
-                            : dims[i + 2];
+                            : dims[i + 2]);
                 }
             }
 
@@ -526,7 +527,7 @@ std::vector<memory::format_tag> Deconvolution::getAvailableFormatsForDims(const 
         return {memory::format_tag::nc};
     case 3:
         // Ticket 156640
-        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
             return {memory::format_tag::ncw,
                     memory::format_tag::nCw8c,
                     memory::format_tag::nCw16c,
@@ -1226,7 +1227,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
                                                       Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
     // idx =0 case
-    auto desc = prim_desc.src_desc(idx);
+    auto desc = prim_desc.src_desc(static_cast<int>(idx));
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1234,7 +1235,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
 }
 
 std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    auto desc = prim_desc.dst_desc(idx);
+    auto desc = prim_desc.dst_desc(static_cast<int>(idx));
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }

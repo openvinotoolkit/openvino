@@ -99,7 +99,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
-    auto data = op->get_data_ptr<char>();
+    const auto* data = op->get_data_ptr<char>();
 
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
 
@@ -132,7 +132,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         if (!partial_upload.enabled) {
             auto& stream = p.get_engine().get_service_stream();
             cldnn::mem_lock<char> lock{mem, stream};
-            auto buf = lock.data();
+            auto* buf = lock.data();
             auto bufSize = constLayout.bytes_count();
             auto upload_count = ov::shape_size(const_shape);
 
@@ -142,13 +142,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                 out_dtype == cldnn::data_types::f32 &&
                 op->get_output_element_type(0) == ov::element::f64) {
                 const auto* f64data = op->get_data_ptr<double>();
-                auto f32buf = reinterpret_cast<float*>(buf);
+                auto* f32buf = reinterpret_cast<float*>(buf);
                 f32buf[0] = static_cast<float>(f64data[0]);
             } else if (out_dtype == cldnn::data_types::f32 &&
                        (op->get_output_element_type(0) == ov::element::u16 ||
                         op->get_output_element_type(0) == ov::element::i16)) {
                 size_t count = upload_count;
-                auto f32buf = reinterpret_cast<float*>(buf);
+                auto* f32buf = reinterpret_cast<float*>(buf);
 
                 if (op->get_output_element_type(0) == ov::element::u16) {
                     const auto* u16data = op->get_data_ptr<uint16_t>();
@@ -185,19 +185,15 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     };
 
     auto is_binary_eltwise = [&] (ov::Node* op) -> bool {
-        if (ov::op::util::is_binary_elementwise_arithmetic(op) ||
+        return ov::op::util::is_binary_elementwise_arithmetic(op) ||
             ov::op::util::is_binary_elementwise_logical(op) ||
             ov::op::util::is_binary_elementwise_comparison(op) ||
-            is_btiwise(op)) {
-            return true;
-        } else {
-            return false;
-        }
+            is_btiwise(op);
     };
 
     auto is_all_inputs_1d = [&] (ov::Node* op) -> bool {
         for (size_t i = 0; i < op->get_input_size(); i++) {
-            auto& in_shape = op->get_input_partial_shape(i);
+            const auto& in_shape = op->get_input_partial_shape(i);
             if (in_shape.size() > 1)
                 return false;
         }
@@ -233,14 +229,14 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
     // Also check if constant users is a backprop convolution - in that case O and I need to be swapped.
-    for (auto& node : constUsers) {
-        auto outOp = node.get_node();
+    for (const auto& node : constUsers) {
+        auto* outOp = node.get_node();
         bool apply_rank2_matmul_wa = false;
         size_t user_index = node.get_index();
         auto is_convert_matmul_pattern = [&](ov::Node* convert_node, size_t& matmul_input_index_ref) -> bool {
             if (ov::is_type<ov::op::v0::Convert>(convert_node) && !p.use_new_shape_infer()) {
                 auto convert_consumers = convert_node->get_output_target_inputs(0);
-                for (auto& consumer_input : convert_consumers) {
+                for (const auto& consumer_input : convert_consumers) {
                     if (ov::is_type<ov::op::v0::MatMul>(consumer_input.get_node()) && consumer_input.get_index() < 2) {
                         matmul_input_index_ref = consumer_input.get_index();
                         auto* matmul = consumer_input.get_node();
@@ -253,19 +249,15 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             }
             return false;
         };
-        if (auto castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
+        if (auto* castedOp = ov::as_type<ov::op::v0::Concat>(outOp)) {
             if (castedOp->get_axis() == 0) {
                 consts[op].needsBatchInterpretation = constDims.size() == 1;
             }
         } else if (((is_binary_eltwise(outOp) || ov::is_type<ov::op::v0::SquaredDifference>(outOp)) && is_all_inputs_1d(outOp)) ||
-                     is_convert_into_binary_eltwise(outOp)) {
+                   is_convert_into_binary_eltwise(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (ov::is_type<ov::op::v1::Gather>(outOp) ||
-                   ov::is_type<ov::op::v7::Gather>(outOp) ||
-                   ov::is_type<ov::op::v8::Gather>(outOp) ||
-                   ov::is_type<ov::op::v5::GatherND>(outOp) ||
-                   ov::is_type<ov::op::v8::GatherND>(outOp) ||
-                   ov::is_type<ov::op::v1::Split>(outOp) ||
+        } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
+                   ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
                    ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
@@ -295,7 +287,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does
             }
         } else if (ov::is_type<ov::op::v3::ROIAlign>(outOp) || ov::is_type<ov::op::v9::ROIAlign>(outOp) ||
-                   ov::is_type<ov::op::v15::ROIAlignRotated>(outOp)) { //< Hacks...
+                   ov::is_type<ov::op::v15::ROIAlignRotated>(outOp)) {  //< Hacks...
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if ((ov::is_type<ov::op::v5::Loop>(outOp) || ov::is_type<ov::op::v0::TensorIterator>(outOp))) {
             // when inner network has 1d parameter which is connected to outer loop's constant 1d data,
