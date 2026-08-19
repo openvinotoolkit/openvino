@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-10-14-58-000-32234143786",
+  "timestamp": "2026-08-19T10:14:58Z",
+  "run_id": "32234143786",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32234143786",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37396",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37396",
+  "author": "ahnyoung-paul",
+  "category": "Network",
+  "title": "Debian Packages install fails - Unable to connect to azure.archive.ubuntu.com",
+  "signature": "Unable to connect to azure.archive.ubuntu.com|Network",
+  "signature_hash": "c8d00529252cfb02",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails with 'Unable to connect to azure.archive.ubuntu.com:80' for all packages"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/... Unable to connect to azure.archive.ubuntu.com:80:",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The GitHub Actions runner lost network connectivity to azure.archive.ubuntu.com (Ubuntu package mirror) during the 'Install debian packages & check conflicts' step. All apt-get download requests failed with 'Unable to connect to azure.archive.ubuntu.com:80', indicating a transient network outage or Azure infrastructure issue. This is unrelated to the PR changes (GPU fix in common_utils.cpp).",
+  "reproduction_steps": "N/A - transient network infrastructure issue not reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job.",
+    "If the failure recurs, check Azure infrastructure status for the Ubuntu package mirror."
+  ],
+  "prevention_strategies": "Add retry logic for apt-get commands in CI workflows, or use a mirror fallback.",
+  "historical_context": "Network connectivity failures to azure.archive.ubuntu.com are an occasional transient infrastructure issue in Azure-hosted GitHub Actions runners."
+}
