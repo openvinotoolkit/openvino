@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "could not connect to azure archive ubuntu com connection refused|Network",
+  "signature_hash": "7d52cc57d8ed2a36",
+  "title": "Debian Packages test fails - apt-get cannot connect to azure.archive.ubuntu.com",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-08-19T11:26:28Z",
+  "last_seen": "2026-08-19T11:26:28Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32240444414"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37393"
+  ],
+  "recent_timestamps": [
+    "2026-08-19T11:26:28Z"
+  ],
+  "rerun_search_string": "Could not connect to azure.archive.ubuntu.com"
+}

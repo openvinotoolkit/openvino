@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-11-26-28-683-32240444414",
+  "timestamp": "2026-08-19T11:26:28Z",
+  "run_id": "32240444414",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32240444414",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37393",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37393",
+  "author": "asukhobo",
+  "category": "Network",
+  "title": "Debian Packages test fails - apt-get cannot connect to azure.archive.ubuntu.com",
+  "signature": "could not connect to azure archive ubuntu com connection refused|Network",
+  "signature_hash": "7d52cc57d8ed2a36",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails: Connection refused to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/... Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244). - connect (111: Connection refused)",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The Azure Ubuntu archive mirror (azure.archive.ubuntu.com) became unreachable during the apt-get install step in the Debian Packages job. After multiple retries (~4 minutes of retrying), all package downloads failed with 'Connection refused' on port 80. This is a transient network/infrastructure failure on the Azure-hosted Ubuntu package mirror \u2014 not related to any code changes in PR #37393. Run attempt 2 was automatically triggered and is currently in progress.",
+  "reproduction_steps": "N/A - transient network failure on Azure infrastructure, not reproducible locally",
+  "recommended_actions": [
+    "Wait for run attempt 2 to complete (already in progress)",
+    "If attempt 2 also fails, re-add the PR to the merge queue manually"
+  ],
+  "prevention_strategies": "Add apt-get retry logic with fallback mirrors in Debian package job. Consider using apt-get with --retry or mirrors.ubuntu.com fallback.",
+  "historical_context": "Network failures to azure.archive.ubuntu.com are a known transient infrastructure issue on GitHub Actions Azure runners."
+}
