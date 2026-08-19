@@ -82,7 +82,6 @@ OutputVector translate_soft_max(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
 
     auto input0 = context.get_input(0);
-    auto input_node = input0.get_node_shared_ptr();
     ov::Output<Node> res;
 
     // ggml SOFT_MAX reduces ne[0] == the OV last axis (rank-3 attention -> 2, rank-4 router -> 3);
@@ -94,7 +93,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
     float max_bias = context.get_attribute<float>("max_bias", 0.0f);
 
     auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale});
-    ov::Output<ov::Node> scaled_input = std::make_shared<ov::op::v1::Multiply>(input_node, scale_node);
+    ov::Output<ov::Node> scaled_input = std::make_shared<ov::op::v1::Multiply>(input0, scale_node);
 
     // Disambiguate a 2nd input: it is either the additive mask or (gpt-oss) the attention sinks.
     const bool second_input_is_sinks =
@@ -117,7 +116,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
     if (context.has_input("KQ_mask_sliced")) {
         mask_node_sliced = context.get_input("KQ_mask_sliced");
     } else {
-        auto token_len = get_dimensions(input_node, {1});
+        auto token_len = get_dimensions(input0, {1});
         auto mask_node = context.get_input(1);
         auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
         auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
