@@ -346,12 +346,10 @@ void regmodule_properties(py::module m) {
     m_intel_auto.def("perf_curve_table", []() {
         return ov::intel_auto::perf_curve_table.name();
     });
-    m_intel_auto.def("perf_curve_table", [](const py::dict& value) {
-        std::map<std::string, py::object> properties;
-        properties[ov::intel_auto::perf_curve_table.name()] = value;
-        const auto any_map = Common::utils::properties_to_any_map(properties);
-        return ov::intel_auto::perf_curve_table(
-            any_map.at(ov::intel_auto::perf_curve_table.name()).as<std::map<std::string, std::map<unsigned, float>>>());
+    // Outer key type (str) is enforced by pybind11 argument dispatch via the std::map<std::string, ...>
+    // parameter type, so a non-string outer key raises TypeError rather than reaching the function body.
+    m_intel_auto.def("perf_curve_table", [](const std::map<std::string, py::object>& value) {
+        return ov::intel_auto::perf_curve_table(Common::utils::py_object_to_perf_curve_table(value));
     });
     // String form, e.g. "{CPU:{0:0,100:100}}", consistent with the advertised property formats.
     m_intel_auto.def("perf_curve_table", [](const std::string& value) {
