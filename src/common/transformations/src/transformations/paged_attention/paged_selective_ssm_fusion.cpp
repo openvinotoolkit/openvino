@@ -21,7 +21,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
@@ -48,19 +47,26 @@ ov::PartialShape make_selective_ssm_state_table_shape(const ov::PartialShape& st
     return ov::PartialShape::dynamic(4);
 }
 
-ov::Output<ov::Node> flatten_batch_length(const ov::Output<ov::Node>& input,
-                                          const std::vector<int64_t>& tail_dim_indices) {
-    // Flattens [B, L, ...tail_dims] to [B*L, ...tail_dims] by preserving tail_dim_indices.
+// Flattens [B, L, ...tail] to [B*L, ...tail] via a runtime shape subgraph, keeping every dim past batch and length.
+// The [-1, ...tail] target shape is assembled from ShapeOf so dynamic trailing dims are handled; it constant-folds
+// to a literal shape when the trailing dims are static.
+ov::Output<ov::Node> flatten_batch_length(const ov::Output<ov::Node>& input) {
+    const auto rank = input.get_partial_shape().size();
+    std::vector<int64_t> tail_dim_indices;
+    tail_dim_indices.reserve(rank - 2);
+    for (size_t i = 2; i < rank; ++i) {
+        tail_dim_indices.push_back(static_cast<int64_t>(i));
+    }
+
     const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    const auto idx_const = v0::Constant::create(ov::element::i64, ov::Shape{tail_dim_indices.size()}, tail_dim_indices);
+    const auto tail_idx = v0::Constant::create(ov::element::i64, ov::Shape{tail_dim_indices.size()}, tail_dim_indices);
     const auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto tail_dims = std::make_shared<ov::op::v8::Gather>(shape_of, idx_const, axis_0);
+    const auto tail_dims = std::make_shared<ov::op::v8::Gather>(shape_of, tail_idx, axis_0);
     const auto flat_dim = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     const auto flat_shape = std::make_shared<v0::Concat>(ov::OutputVector{flat_dim, tail_dims}, 0);
     const auto reshaped = std::make_shared<ov::op::v1::Reshape>(input, flat_shape, false);
 
     ov::copy_runtime_info(input.get_node_shared_ptr(), {shape_of, tail_dims, flat_shape, reshaped});
-
     return reshaped;
 }
 }  // namespace
@@ -76,10 +82,9 @@ PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaPa
     auto x = any_input();
     auto c = any_input();
 
-    // recurrent_state must come from ReadValue(cache_param) directly or via Gather(ReadValue, beam_idx, axis).
     auto cache_param = any_input();
     auto read_value = wrap_type<ov::op::util::ReadValueBase>({cache_param});
-    auto gathered_state = ov::pass::pattern::optional<ov::op::v8::Gather>({read_value, any_input(), any_input()});
+    auto gathered_state = wrap_type<ov::op::util::GatherBase>({read_value, any_input(), any_input()});
     auto ssm = wrap_type<ov::op::internal::SelectiveSSM>({a, dt, b, x, c, gathered_state});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
@@ -113,10 +118,10 @@ PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaPa
         var_ids_to_remove.insert(rv->get_variable_id());
 
         // Flatten [B, L, ...] inputs to [B*L, ...]. A carries no batch/length dims and is passed through.
-        const auto dt_flat = flatten_batch_length(pm.at(dt), {2});
-        const auto b_flat = flatten_batch_length(pm.at(b), {2, 3});
-        const auto x_flat = flatten_batch_length(pm.at(x), {2, 3});
-        const auto c_flat = flatten_batch_length(pm.at(c), {2, 3});
+        const auto dt_flat = flatten_batch_length(pm.at(dt));
+        const auto b_flat = flatten_batch_length(pm.at(b));
+        const auto x_flat = flatten_batch_length(pm.at(x));
+        const auto c_flat = flatten_batch_length(pm.at(c));
 
         const auto paged_ssm =
             std::make_shared<ov::op::internal::PagedSelectiveSSM>(pm.at(a),
@@ -140,9 +145,8 @@ PagedSelectiveSSMFusion::PagedSelectiveSSMFusion(ov::pass::paged_attention::PaPa
 
         ov::copy_runtime_info(ssm_node, {paged_ssm, x_shape, paged_ssm_out});
 
-        // Disconnect SelectiveSSM state output consumers; cleanup is driven by ReadValue variable ids.
+        // Reconnect consumer to the original state source so it becomes a dead branch.
         for (const auto& state_consumer : state_consumers) {
-            // Reconnect consumer to the original state source so it becomes a dead branch.
             state_consumer.replace_source_output(ssm_node->input_value(5));
         }
 
