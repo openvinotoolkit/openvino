@@ -63,6 +63,42 @@ bool sdpa_ocl_has_token_type_ids(const kernel_impl_params& params, bool is_prefi
     return params.typed_desc<paged_attention>()->has_token_type_ids;
 }
 
+// Runtime element count of the token_type_ids input, or 0 when the kernel must not read it at all.
+// sdpa_ocl_has_token_type_ids() above is a COMPILE-time answer derived from a possibly-DYNAMIC input
+// shape (plugin/ops/paged_attention.cpp sets has_token_type_ids for a dynamic Parameter), but the op
+// contract is "[B_token | 0]": an empty tensor is legal and means "no image tokens" -- which is also
+// what an infer request that never sets the input produces. intel_cpu gates on
+// getShape().hasZeroDims() and openvino/reference/paged_attention.hpp on count > 0; the GPU paged
+// attention impl is registered as shape_types::any, i.e. it is compiled ONCE from dynamic params and
+// afterwards only refreshes its dispatch data, so HAS_TOKEN_TYPE_IDS cannot be re-jitted per shape.
+// The count therefore travels to the kernel as a scalar and gates the logic there.
+//
+// A non-empty buffer shorter than [B_token] is a contract violation, not a "no image tokens" hint:
+// the kernel reads up to subsequence_end <= B_token, so silently ignoring it would return a wrong
+// mask with no signal. Refuse instead, the same way intel_cpu does with assert_dims({B_token}).
+int sdpa_ocl_token_type_ids_count(const kernel_impl_params& params) {
+    // layout::count() throws on a dynamic layout, so the is_dynamic() check has to come first. Inside
+    // it every input layout is static, which is exactly the state update_dispatch_data() runs in.
+    if (!params.is_type<paged_attention>() || params.is_dynamic() ||
+        params.input_layouts.size() <= static_cast<size_t>(PagedAttentionInputIdx::TOKEN_TYPE_IDS)) {
+        return 0;
+    }
+
+    const auto count = params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS].count();
+    if (count == 0) {
+        return 0;
+    }
+
+    const auto b_token = params.input_layouts[PagedAttentionInputIdx::QUERY].get_partial_shape()[0].get_length();
+    OPENVINO_ASSERT(count >= static_cast<size_t>(b_token),
+                    "[GPU] token_type_ids must be empty or hold one entry per query token, got ",
+                    count,
+                    " entries for ",
+                    b_token,
+                    " tokens");
+    return static_cast<int>(count);
+}
+
 size_t get_subgroup_size(gpu_arch arch) {
     switch (arch) {
     case gpu_arch::gen9:
@@ -1174,6 +1210,14 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             if (const char* env = std::getenv("SDPA_OCL_BIDIR"))
                 use_bidir_mask = std::atoi(env);
             jit.make("USE_BIDIR_MASK", use_bidir_mask);
+            // Toggle for the RUNTIME emptiness gate alone (see sdpa_ocl_token_type_ids_count). With it
+            // off the kernel reads token_type_ids unconditionally, which is what a same-binary
+            // negative control for the [B_token | 0] contract needs: the empty-buffer unit test must
+            // fail here and pass with the gate on.
+            int use_bidir_gate = 1;
+            if (const char* env = std::getenv("SDPA_OCL_BIDIR_GATE"))
+                use_bidir_gate = std::atoi(env);
+            jit.make("USE_BIDIR_GATE", use_bidir_gate);
         }
     }
 
@@ -1420,6 +1464,9 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
 
         if (sdpa_ocl_has_token_type_ids(params, m_is_prefill)) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+            // Runtime element count of the buffer above; 0 means "do not read it". Scalars 0..2 (d/k/q)
+            // belong to the non-paged-attention branch below, so 3 is the first free slot here.
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_type_ids_count
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
@@ -1465,7 +1512,7 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
-        scalars.reserve(3);
+        scalars.reserve(4);
 
         auto params = impl_param;
         if (!params.is_dynamic()) {
@@ -1531,6 +1578,13 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
+
+            // Slot 3, bound only by the paged-attention branch of get_arguments_desc() when
+            // token_type_ids is declared. Pushed unconditionally so the slot index is the same for
+            // every configuration; the helper returns 0 for everything that does not use it.
+            ScalarDescriptor s_token_type_ids_count{ScalarDescriptor::Types::INT32};
+            s_token_type_ids_count.v.s32 = sdpa_ocl_token_type_ids_count(params);
+            scalars.push_back(s_token_type_ids_count);
 
             // ScalarDescriptor s_scale{ScalarDescriptor::Types::FLOAT32};
             // s_scale.v.f32 = static_cast<float>(1.0f / std::sqrt(static_cast<float>(v_head_size)));
