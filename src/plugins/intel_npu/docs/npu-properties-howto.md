@@ -31,6 +31,7 @@ Practical manual for NPU plugin properties
   - [SC.1 Adding a new property which requires custom functions](#sc1-adding-a-new-property-which-requires-custom-functions)
     - [SC.2 Adding a new property without option which requires customization](#sc2-adding-a-new-property-without-option-which-requires-customization)
   - [SC.3 Filtering out options at registration phase](#sc3-filtering-out-options-at-registration-phase)
+    - [SC.4 Filter compiler configuration before serialization](#sc4-filter-compiler-configuration-before-serialization)
 - [Removing a public property](#removing-a-public-property)
 
 ## Glossary
@@ -127,22 +128,29 @@ struct OptionBase {
 }; 
 ```
 
-### OptionDesc  
-is storage for the registered options This is the base map which stores the available optionBase descriptors.  
-This layer implements the option database manipulation functions: add/remove/has/reset
-```` Note: This layer is static, intialized once in plugin constructor with all the options the Plugin has knowledge of. ````
+### OptionsDesc
+is storage for the registered options. This is the base map which stores the available OptionBase descriptors.
+This layer implements the option database manipulation functions: add/has/reset.
+The plugin property manager creates it once, registers the plugin options, and lets the backend add its compiler-specific options.
 
 ### Config
 is the highlevel configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
 Maps and stores the user-defined values for each entry in OptionsDesc layer.
 Implements the top level configuration manipulation functions:
 get/update/has/getString/toString/fromString and handles typecasts, typeverification, parsing and conversions.
-```` Note: This layer is static, initialized once in plugin constructor with the provided (also static) OptionDesc. ````
+```` Note: This layer is initialized once in the plugin property manager from the finalized OptionsDesc. ````
 
 ### FilteredConfig
 is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,
 such as enabling/disabling keys based on their availability/support on the current system configuration.
-```` Note: This layer dynamically changes based on system configuration and compiler_type ````
+```` Note: This layer dynamically changes based on system configuration and compiler_type. ````
+
+The initialization order is:
+1. `Plugin` creates a small temporary `OptionsDesc`/`FilteredConfig` containing only `LOG_LEVEL` so the logger can be initialized from the environment.
+2. `PluginPropertyManager` creates the complete `OptionsDesc` and registers all plugin options.
+3. The backend adds its options through `backend->registerOptions(*options)`.
+4. The manager constructs its `FilteredConfig` from the finalized descriptor and parses environment variables.
+5. The manager resolves the effective compiler type and registers property descriptors.
 
 ### Properties
 is the top level class and serves as the NPU Plugin's interface to OpenVino and the application layer.
@@ -251,21 +259,20 @@ If any is missing, the default function will be used for its call, as defined in
 (see class **OptionBase** in `src/plugins/intel_npu/src/al/include/intel_npu/config/config.hpp` or Class Hierarchy section above)
 
 ## Step 3. Register the new option
-Third step is to register the new option in the plugin:  
-**src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)**
+Third step is to register the new option in the plugin property manager:
+**src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function register_options(...)**
 ```cpp
     REGISTER_OPTION(EXAMPLE_PROPERTY);
 ``` 
 Notes:  
-at this point, the npu plugin will take care of registering and managing the option in the internal configuration.  
-It ensures that it is enabled or disabled based on the current system/environment/application configuration. 
+The manager registers the option in `OptionsDesc` before constructing its `FilteredConfig`. The backend options are registered immediately afterward, and environment variables are parsed on the completed configuration.
 
 ## Step 4. Link the new property to the new option
 Fourth step is to create and register the Property (which is basically the interface to this configuration option) for both Plugin and CompiledModel (if needed) 
 ### For plugin
 src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > function PluginPropertyManager::registerProperties()
 ```cpp
-register_property<EXAMPLE_PROPERTY>(_config, _properties, ov::intel_npu::example_property.name());
+register_property<EXAMPLE_PROPERTY>(_config, _properties, true, ov::PropertyMutability::RW);
 ```
 **Explanation:**
 this helper function registers a property with the name ov::intel_npu::example_property.name()  
@@ -274,9 +281,13 @@ and has a simple callback function of config.get<EXAMPLE_PROPERTY>()
 ### For compiled-model (if required)
 src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp
-register_property_as_read_only_mark_supported_if_set<EXAMPLE_PROPERTY>(_config,
-                                                                        _properties,
-                                                                        ov::intel_npu::example_property.name());
+    register_property_with_support<EXAMPLE_PROPERTY>(_config,
+                                                     _properties,
+                                                     true,
+                                                     ov::PropertyMutability::RO,
+                                                     [hasPropertyValue](const ov::AnyMap&) {
+                                                         return hasPropertyValue(ov::intel_npu::example_property.name());
+                                                     });
 ```
 **Explanation:**
 this helper function registers the compiled-model property with the name ov::intel_npu::example_property.name()
@@ -332,8 +343,9 @@ For properties without option, prefer a support-gated registration so the getter
 
     register_property_with_support_and_custom_function(_properties,
                                                        ov::intel_npu::example_property.name(),
-                                                       has_backend,
                                                        true,
+                                                       ov::PropertyMutability::RO,
+                                                       has_backend,
                                                        [this](const ov::AnyMap&) {
                                                            return utils::getDriverVersion(_backend);
                                                        });
@@ -368,24 +380,42 @@ By internal convention, what needs to be included in compiled-model properties g
 - compiled-model properties (with a few specific exceptions) are all READ-ONLY, for the reason that the model has already been compiled.
 This is to ensure that we only expose settings we are sure were taken into account by compiler.
 
-For read-only config-backed properties in compiled-model, property_registration.hpp provides two related helper functions:
+For read-only config-backed properties in compiled-model, use the same registration helpers as the plugin manager and pass
+`ov::PropertyMutability::RO`. Use plain `register_property` when the option should be advertised whenever it is registered,
+or `register_property_with_support` with a `hasPropertyValue` predicate when it should be advertised only if explicitly set.
 
-#### register_property_as_read_only<OPT_TYPE>(config, properties, propertyName)
-Use this when the property should be read-only in compiled-model and advertised whenever the option is available.
+#### `register_property_with_support<OPT_TYPE>(config, properties, isPublic, mutability, isSupported)
+Use this when availability depends on runtime state. In compiled-model, `hasPropertyValue` checks whether the option was
+explicitly set; default values are resolved from `OptionsDesc` and are not materialized in the compiled-model config.
 Example:
 ```cpp
-    register_property_as_read_only<LOG_LEVEL>(_config,
-                                              _properties,
-                                              ov::log::level.name());
+    const auto hasPropertyValue = [this](std::string_view propertyName) {
+        return _config.hasOpt(propertyName) && _config.has(std::string(propertyName));
+    };
+
+    register_property_with_support<COMPILATION_MODE>(
+        _config,
+        _properties,
+        true,
+        ov::PropertyMutability::RO,
+        [hasPropertyValue](const ov::AnyMap&) {
+            return hasPropertyValue(ov::intel_npu::compilation_mode.name());
+        });
 ```
 
-#### register_property_as_read_only_mark_supported_if_set<OPT_TYPE>(config, properties, propertyName)
-Use this when the property should be exposed only if a value for it exists in config (default values are not materialized in config and are read from OptionsDesc).
+#### `register_property_with_custom_function` for a config-backed option
+Use the overload with `config` and an `OptionType` when the option is registered in `FilteredConfig` but its getter is
+custom. Visibility and mutability are supplied by the caller, and support defaults to `config.hasOpt(option key)`.
 Example:
 ```cpp
-    register_property_as_read_only_mark_supported_if_set<COMPILATION_MODE>(_config,
-                                                                            _properties,
-                                                                            ov::intel_npu::compilation_mode.name());
+    register_property_with_custom_function<COMPILE_LOG_LEVEL>(
+        _config,
+        _properties,
+        false,
+        ov::PropertyMutability::RW,
+        [this](const ov::AnyMap&) {
+            return COMPILE_LOG_LEVEL::resolve(_config);
+        });
 ```
 
 <br><br>
@@ -395,106 +425,7 @@ Example:
 If the new property requires a custom callback function, only Step 4. changes.
 Instead of using register_property helper function, you can choose from the following helper functions:
 
-#### register_property_with_custom_visibility<OPT_TYPE>(config, properties, propertyName, isPublic)
-This can be used when callback is standard, but visibility (public/private) is custom.
-Instead of using automatically the value from the option descriptor, one can pass a runtime bool to determine
-whether the property will be public (included in supported_properties) or private.
-Example:
-```cpp
-    register_property_with_custom_visibility<RUN_INFERENCES_SEQUENTIALLY>(
-        _config,
-        _properties,
-        ov::intel_npu::run_inferences_sequentially.name(),
-        [&] { return _backend && _backend->getInitStructs(); }());
-```
-
-#### register_property_with_custom_function(config, properties, propertyName, getter)
-This helper function can be used whenever a custom callback function/implementation is required for this property,
-provided as a lambda function. The getter receives query-time arguments as `ov::AnyMap` and must return an
-`ov::Any` value. The standard callback function just returns the value from config.
-Example:
-```cpp
-    register_property_with_custom_function(_config, _properties, ov::intel_npu::stepping.name(),
-        [this](const ov::AnyMap&) {
-            if (!_config.has<STEPPING>()) {
-                const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
-                return static_cast<int64_t>(utils::getSteppingNumber(_backend, specifiedDeviceName));
-            }
-            return _config.get<STEPPING>();
-        });
-```
-
-## SC.2 Adding a new property without option which requires customization
-Apart from register_property_with_custom_function, two additional helper functions are available for properties without option:
-
-#### register_property_with_support_and_custom_function(properties, propertyName, isSupported, isPublic, getter)
-Registers a property and gates it through isSupported.
-Use this when availability depends on runtime condition (e.g. backend capability check).
-Example:
-```cpp
-    const auto has_backend_and_valid_device = [this]() {
-        if (_backend == nullptr) {
-            return false;
-        }
-
-        try {
-            const auto specifiedDeviceName = _config.get<intel_npu::DEVICE_ID>();
-            return utils::getDeviceById(_backend, specifiedDeviceName) != nullptr;
-        } catch (...) {
-            return false;
-        }
-    };
-
-    register_property_with_support_and_custom_function(
-        _properties,
-        ov::device::full_name.name(),
-        has_backend_and_valid_device,
-        true,
-        [this](const ov::AnyMap&) {
-            return utils::getFullDeviceName(_backend, _config.get<intel_npu::DEVICE_ID>());
-        });
-```
-
-The same pattern can be used for support-gating compiler-specific properties without option:
-```cpp
-    register_property_with_support_and_custom_function(
-        _properties,
-        ov::intel_npu::compiler_version.name(),
-        [this]() {
-            try {
-                auto compilerType = _config.get<COMPILER_TYPE>();
-                auto deviceId = _config.get<DEVICE_ID>();
-                auto device = utils::getDeviceById(_backend, deviceId);
-
-                auto compilationPlatform = utils::getCompilationPlatform(
-                    _config.get<PLATFORM>(),
-                    device == nullptr ? std::move(deviceId) : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-                CompilerAdapterFactory factory;
-                return factory.getCompiler(_backend, compilerType, compilationPlatform) != nullptr;
-            } catch (...) {
-                return false;
-            }
-        },
-        true,
-        [this](const ov::AnyMap&) {
-            auto compilerType = _config.get<COMPILER_TYPE>();
-            auto deviceId = _config.get<DEVICE_ID>();
-            auto device = utils::getDeviceById(_backend, deviceId);
-
-            auto compilationPlatform = utils::getCompilationPlatform(
-                _config.get<PLATFORM>(),
-                device == nullptr ? std::move(deviceId) : device->getName(),
-                _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
-
-            CompilerAdapterFactory factory;
-            auto dummyCompiler = factory.getCompiler(_backend, compilerType, compilationPlatform);
-            return dummyCompiler->get_version();
-        });
-```
-
-#### register_property_with_support_custom_function_and_args(properties, propertyName, isSupported, isPublic, getter)
+#### `register_property_with_support_custom_function_and_args(properties, propertyName, isPublic, mutability, isSupported, getter)`
 Same as register_property_with_support_and_custom_function, but for properties whose getter also receives an ov::AnyMap of additional
 arguments at get_property call time. Use this for properties such as `ov::compatibility_check` that accept
 extra input arguments.
@@ -503,31 +434,111 @@ Example:
     register_property_with_support_custom_function_and_args(
         _properties,
         ov::compatibility_check.name(),
-        [this, compatibilityCheckSupported = std::optional<bool>{}]() mutable {
-            if (!compatibilityCheckSupported.has_value()) {
-                compatibilityCheckSupported = isCompatibilityCheckSupported(_backend);
-            }
-            return compatibilityCheckSupported.value();
-        },
         true,
+        ov::PropertyMutability::RO,
+        [this](const ov::AnyMap&) {
+            return isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
+        },
         [this](const ov::AnyMap& arguments) {
-            return validateCompatibilityDescriptor(_backend, arguments);
+            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
         });
 ```
 
-## SC.3 Register all options, gate availability with enable flags
-Enable/disable options based on runtime/backend support.
-Do not skip registration for normal capability gating. Keep options known to the stack and control availability via config.enable(...).
-For WORKLOAD_TYPE, this is exactly how availability is gated when backend support is missing.
-Implementation point:
-src/plugins/intel_npu/src/plugin/src/plugin.cpp > function init_config(...)
+#### `register_property_with_custom_function` for a config-backed option
+This helper function can be used whenever a custom callback function/implementation is required for this property,
+provided as a lambda function. The getter receives query-time arguments as `ov::AnyMap` and must return an
+`ov::Any` value. The standard callback function just returns the value from config.
 Example:
 ```cpp
-    register_options</* base options..., */ WORKLOAD_TYPE>(options, config);
-
-    config.enable(ov::workload_type.name(), backend != nullptr && backend->isCommandQueueExtSupported());
+    register_property_with_custom_function<COMPILE_LOG_LEVEL>(_config, _properties, false, ov::PropertyMutability::RW,
+        [this](const ov::AnyMap&) {
+            return COMPILE_LOG_LEVEL::resolve(_config);
+        });
 ```
-With this pattern, WORKLOAD_TYPE remains registered, but is disabled whenever backend is absent or command queue extension is not supported.
+
+## SC.2 Adding a new property without option which requires customization
+For properties without an option, use the explicit-name overload of `register_property_with_custom_function` for an
+always-supported property, or `register_property_with_support_and_custom_function` when availability depends on runtime state.
+
+#### `register_property_with_support_and_custom_function(properties, propertyName, isPublic, mutability, isSupported, getter)`
+Registers a property and gates it through isSupported.
+Use this when availability depends on runtime condition (e.g. backend capability check).
+Example:
+```cpp
+    const auto has_backend_and_valid_device = [this](const ov::AnyMap& arguments) {
+        if (_backend == nullptr) {
+            return false;
+        }
+
+        try {
+            const auto deviceId = arguments.at(ov::device::id.name()).as<std::string>();
+            return utils::getDeviceById(_backend, deviceId) != nullptr;
+        } catch (...) {
+            return false;
+        }
+    };
+
+    register_property_with_support_and_custom_function(
+        _properties,
+        ov::device::full_name.name(),
+        true,
+        ov::PropertyMutability::RO,
+        has_backend_and_valid_device,
+        [this](const ov::AnyMap& arguments) {
+            return utils::getFullDeviceName(_backend, arguments.at(ov::device::id.name()).as<std::string>());
+        });
+```
+
+Compiler-specific properties without options, such as `COMPILER_VERSION`, use the same overload but resolve the compiler
+from query-time `COMPILER_TYPE`, `DEVICE_ID`, and `PLATFORM` arguments. The plugin manager normalizes these arguments
+before invoking the support predicate and getter; use `CompilerAdapterFactory` and return `false` if compiler creation fails.
+
+#### `register_property_with_support_custom_function_and_args`
+Use this when the getter needs additional query-time arguments, such as `ov::compatibility_check`:
+Example:
+```cpp
+    register_property_with_support_custom_function_and_args(
+        _properties,
+        ov::compatibility_check.name(),
+        true,
+        ov::PropertyMutability::RO,
+        [this](const ov::AnyMap&) {
+            return isCompatibilityCheckSupported(_backend, *_compilerOptionSupportHelper);
+        },
+        [this](const ov::AnyMap& arguments) {
+            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+        });
+```
+
+## SC.3 Register options and gate availability with support checks
+Register normal options in `OptionsDesc` even when their runtime or compiler support is conditional. Backend-dependent options may be registered conditionally when the option cannot exist without the required backend capability. Gate property support through the appropriate support predicate.
+
+The plugin property manager builds the complete configuration and registers backend options through `backend->registerOptions(*options)`. Backend-dependent options can use support predicates such as `hasBackendPredicate` or a compiler support query.
+
+For example, `WORKLOAD_TYPE` remains registered when the backend is present, while its availability is controlled by the backend capability used during option registration.
+Implementation point:
+src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp > functions `register_options(...)` and `PluginPropertyManager::registerProperties()`
+Example:
+```cpp
+    if (backend != nullptr && backend->isCommandQueueExtSupported()) {
+        options.add<WORKLOAD_TYPE>();
+    }
+```
+The logger configuration is initialized separately in `Plugin` with only `LOG_LEVEL`; the complete configuration is owned by `PluginPropertyManager`.
+
+NPUW options exposed by `for_each_exposed_npuw_option` are registered with `register_npuw_property`. These properties are
+private, read-write config-backed properties and should not be registered individually. Cached NPUW options are included
+in the compiler cache-property list through `for_each_cached_npuw_option`.
+
+## SC.4 Filter compiler configuration before serialization
+Before compiler serialization in `compiler_adapter/src/model_serializer.cpp`, use the predicate-based overload of
+`FilteredConfig::toStringForCompiler(...)`:
+```cpp
+content += config.toStringForCompiler([&isOptionSupportedByCompiler](std::string_view key) {
+    return isOptionSupportedByCompiler != nullptr && isOptionSupportedByCompiler(std::string(key));
+});
+```
+This traverses compile-time and `Both` options from the normal configuration and all internal compiler options. Only keys for which the predicate returns `true` are serialized. Runtime-only options are skipped, and unsupported options are not sent to the compiler.
 
 <br><br>
 
