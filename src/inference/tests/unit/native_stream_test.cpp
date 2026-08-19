@@ -111,12 +111,41 @@ TEST_F(NativeStreamTest, ChunkedReads) {
     EXPECT_EQ(got, expected);
 }
 
+class NativeStreamParallelTest : public NativeStreamTest, public ::testing::WithParamInterface<size_t> {};
+
+TEST_P(NativeStreamParallelTest, ParallelReadsAllWorkers) {
+    const size_t k_payload = GetParam();
+    std::vector<char> expected(k_payload);
+    fill_pattern(expected);
+    write_temp_file_impl(m_tmp_path, expected, 0);
+
+    HandleGuard hg{util::open_file(m_tmp_path)};
+    ASSERT_NE(hg.handle, ov::invalid_handle);
+    util::NativeStreamBuf buf(hg.handle,
+                              /*offset=*/0,
+                              static_cast<std::streamoff>(k_payload),
+                              /*window=*/4 * 1024,  // małe okno → parallel_io_threshold = 4 KiB
+                              /*threshold=*/1);
+    std::istream stream(&buf);
+
+    std::vector<char> got(k_payload);
+    ASSERT_TRUE(stream.read(got.data(), static_cast<std::streamsize>(k_payload)));
+    EXPECT_EQ(got, expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(WorkerCounts,
+                         NativeStreamParallelTest,
+                         ::testing::Values(size_t{4 * 1024 * 1024 + 1},     // 2 wątki, ostatni z 1-bajtowym ogonem
+                                           size_t{6 * 1024 * 1024 + 4097},  // 3 wątki, cross-page ogon
+                                           size_t{16 * 1024 * 1024 + 1}));  // 8 wątków (pełen pool_cap)
+
 class NativeStreamTestSizes
     : public NativeStreamTest,
-      public ::testing::WithParamInterface<std::tuple</*payload*/ size_t, /*threshold*/ size_t, /*prefix*/ size_t>> {};
+      public ::testing::WithParamInterface<
+          std::tuple</*payload*/ size_t, /*amortization window*/ size_t, /*threshold*/ size_t, /*prefix*/ size_t>> {};
 
 TEST_P(NativeStreamTestSizes, FullFileReadTest) {
-    const auto [k_payload, k_treshold, k_prefix] = GetParam();
+    const auto [k_payload, k_window, k_treshold, k_prefix] = GetParam();
     std::vector<char> expected(k_payload);
     fill_pattern(expected);
     write_temp_file_impl(m_tmp_path, expected, k_prefix);
@@ -124,9 +153,9 @@ TEST_P(NativeStreamTestSizes, FullFileReadTest) {
     HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)};  // CVS-192237
     ASSERT_NE(hg.handle, ov::invalid_handle);
     util::NativeStreamBuf buf(hg.handle,
-                              k_prefix,
+                              /*offset=*/k_prefix,
                               static_cast<std::streamoff>(k_payload),
-                              util::default_native_window,
+                              /*amortization_win=*/k_window,
                               k_treshold);
     std::istream stream(&buf);
 
@@ -137,7 +166,7 @@ TEST_P(NativeStreamTestSizes, FullFileReadTest) {
 
 // the test below satisfies O_DIRECT requirement - destination buffer is aligned to 4096 bytes
 TEST_P(NativeStreamTestSizes, AlignedDestBufferFullFileReadTest) {
-    const auto [k_size, treshold, k_prefix] = GetParam();
+    const auto [k_size, k_window, k_treshold, k_prefix] = GetParam();
     std::vector<char> expected(k_size);
     fill_pattern(expected);
     write_temp_file_impl(m_tmp_path, expected, k_prefix);
@@ -147,8 +176,8 @@ TEST_P(NativeStreamTestSizes, AlignedDestBufferFullFileReadTest) {
     util::NativeStreamBuf buf(hg.handle,
                               /*offset=*/k_prefix,
                               static_cast<std::streamoff>(k_size),
-                              util::default_native_window,
-                              treshold);
+                              /*amortization_win=*/k_window,
+                              k_treshold);
     std::istream stream(&buf);
 
     constexpr size_t k_align = 4096;
@@ -167,15 +196,17 @@ INSTANTIATE_TEST_SUITE_P(
     NativeStreamTestSizes,
     testing::Combine(
         read_testing_values,
+        ::testing::Values(size_t{1}, size_t{util::default_native_window}, size_t{4 * 1024}, size_t{8 * 1024}),
         ::testing::Values(
             size_t{1},
             size_t{ov::util::default_native_threshold}),  // this value shows issues, decrease threshold to make this
                                                           // test smaller. best to add a parameter for threshold and
                                                           // run the test with a smaller threshold
         ::testing::Values(size_t{0}, size_t{511})),       // a garbage prefix offset
-    [](const ::testing::TestParamInfo<std::tuple<size_t, size_t, size_t>>& info) {
-        return "payload_" + std::to_string(std::get<0>(info.param)) + "_treshold_" +
-               std::to_string(std::get<1>(info.param)) + "_prefix_" + std::to_string(std::get<2>(info.param));
+    [](const ::testing::TestParamInfo<std::tuple<size_t, size_t, size_t, size_t>>& info) {
+        return "payload_" + std::to_string(std::get<0>(info.param)) + "window_" +
+               std::to_string(std::get<1>(info.param)) + "_treshold_" + std::to_string(std::get<2>(info.param)) +
+               "_prefix_" + std::to_string(std::get<3>(info.param));
     });
 
 class NativeIfstreamTest : public NativeStreamTest {};

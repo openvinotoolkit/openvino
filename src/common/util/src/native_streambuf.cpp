@@ -89,14 +89,19 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
         return false;
     }
 
-    const size_t hw = std::max<size_t>(1, std::min<size_t>(max_threads_number, std::thread::hardware_concurrency()));
-    const size_t max_by_size = size / default_parallel_io_min_chunk;
-    const size_t num_threads = std::max<size_t>(1, std::min(hw, max_by_size));
-    if (size < default_parallel_io_threshold || num_threads == 1) {
+    const size_t pool_cap =
+        std::max<size_t>(1, std::min<size_t>(max_threads_number, std::thread::hardware_concurrency()));
+    size_t num_threads = split_chunk_count(size, default_parallel_io_min_chunk, pool_cap);
+
+    // fill_window() can call read_into() for small reads, additional check is needed before spawning threads
+    const size_t parallel_io_threshold = std::max(m_bypass_size, m_window_capacity);
+    if (size < parallel_io_threshold || num_threads == 1) {
         return positional_read(m_handle, dst, size, static_cast<size_t>(abs));
     }
 
     size_t chunk = align_size_up(size / num_threads, min_page_alignment);
+    num_threads =
+        (size + chunk - 1) / chunk;  // guard: page-aligned chunk may leave trailing workers with no bytes to read
     std::atomic<bool> ok{true};
     std::vector<std::thread> workers;
     workers.reserve(num_threads);
@@ -104,9 +109,6 @@ bool NativeStreamBuf::read_into(char* dst, size_t size, std::streamoff abs) {
     for (size_t i = 0; i < num_threads; ++i) {
         workers.emplace_back([&, i]() {
             const size_t local_off = i * chunk;
-            if (local_off >= size) {
-                return;
-            }
             const size_t read_size = (i == num_threads - 1) ? (size - local_off) : std::min(chunk, size - local_off);
             if (!positional_read(m_handle, dst + local_off, read_size, base_offset + local_off)) {
                 ok.store(false, std::memory_order_relaxed);
