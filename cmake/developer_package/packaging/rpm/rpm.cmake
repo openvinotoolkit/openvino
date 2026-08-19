@@ -232,7 +232,7 @@ function(ov_rpm_add_rpmlint_suppression comp)
 
     # resolve rpm's native distribution release tag (e.g. .el8, .el9) once, so the computed
     # rpmlint override file name matches the actual RPM file name produced by CPack
-    if(NOT DEFINED OV_RPM_DIST_TAG)
+    if(CPACK_RPM_PACKAGE_RELEASE_DIST AND NOT DEFINED OV_RPM_DIST_TAG)
         find_program(rpm_PROGRAM NAMES rpm)
         if(rpm_PROGRAM)
             execute_process(COMMAND "${rpm_PROGRAM}" --eval "%{?dist}"
