@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
-#include "utils.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/slice.hpp"
 #include <limits>
 #include <vector>
+
+#include "op_table.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "utils.hpp"
+
 namespace ov {
 namespace frontend {
 namespace gguf {
@@ -51,10 +57,15 @@ void place_dynamic_token_axis(std::vector<int64_t> & tgt, const ov::PartialShape
 }
 }  // namespace
 
+// Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
+// into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
+// views the same way. Case 104 is builder-only: it takes a second (shape-reference) input the
+// cgraph path does not supply, so it has a different arity than the shared cases. See its comment
+// below, and docs/frontend_design.md for the other two builder-only cases in the frontend.
 OutputVector translate_view(const NodeContext & context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 2);
 
-    if (context.get_attribute<int>("op_case", 0) == 2) {
+    if (context.get_op_case() == 2) {
         auto dst_shape = context.get_output_shape().to_shape();
         return rename_outputs_with_suffix(
             {process_view_input(context, 0, static_cast<int>(dst_shape[2] * dst_shape[3]))},
@@ -206,6 +217,51 @@ OutputVector translate_view(const NodeContext & context) {
             return {result};
         }
         return rename_outputs_with_suffix({result}, context.get_name());
+    }
+    // op_case 104 (builder): layer-index slice for per-layer embedding.
+    // Input [1, n_layer, T, D] -> slice the layer axis (1) -> [1, 1, T, D].
+    if (context.get_op_case() == 104) {
+        const int64_t layer_idx = context.get_attribute<int64_t>("layer_idx");
+        auto input = context.get_input(0);
+        auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {layer_idx});
+        auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {layer_idx + 1});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        ov::Output<ov::Node> sliced = std::make_shared<ov::op::v8::Slice>(input, start, stop, step, axes);
+
+        // The slice keeps the token count on the axis per_layer_embd stores it on (dim 1, since
+        // it is layer-major). But every consumer is an elementwise op against the layer's own
+        // activation, and OV broadcasts positionally, so both operands must agree which leading
+        // axis holds the tokens: [1, T, ..] under plain SDPA, [T, 1, ..] once
+        // ov::pass::SDPAToPagedAttention moves the token count into dim 0. Both hold the same T*D
+        // values contiguously, so when the builder supplies the activation as a second
+        // (shape-reference) input, reinterpret the slice into that operand's leading dims --
+        // otherwise the multiply below broadcasts to a T x T outer product under PA.
+        if (context.get_input_size() > 1) {
+            const auto& ref = context.get_input(1);
+            const auto ref_rank = ref.get_partial_shape().rank();
+            FRONT_END_OP_CONVERSION_CHECK(ref_rank.is_static(),
+                                          "VIEW case 104 shape reference must have a static rank");
+            const auto d_ps = context.get_output_shape();
+            const int64_t rank = ref_rank.get_length();
+            FRONT_END_OP_CONVERSION_CHECK(d_ps.rank().is_static() && d_ps[d_ps.rank().get_length() - 1].is_static(),
+                                          "VIEW case 104 requires a static per-layer embedding width");
+            const int64_t d = d_ps[d_ps.rank().get_length() - 1].get_length();
+
+            std::vector<int64_t> lead(rank - 1);
+            for (int64_t i = 0; i < rank - 1; ++i) {
+                lead[i] = i;
+            }
+            auto lead_dims = std::make_shared<ov::op::v8::Gather>(
+                std::make_shared<ov::op::v3::ShapeOf>(ref, ov::element::i64),
+                ov::op::v0::Constant::create(ov::element::i64, {lead.size()}, lead),
+                ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+            auto target = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{lead_dims, ov::op::v0::Constant::create(ov::element::i64, {1}, {d})},
+                0);
+            sliced = std::make_shared<ov::op::v1::Reshape>(sliced, target, false);
+        }
+        return rename_outputs_with_suffix({sliced.get_node_shared_ptr()}, context.get_name());
     }
     return {context.get_input(0)};
 }
