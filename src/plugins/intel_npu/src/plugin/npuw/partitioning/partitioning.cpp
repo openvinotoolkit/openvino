@@ -2100,42 +2100,35 @@ void Partitioner::attention(const std::string& func_name) {
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
 
-        // Safety check: HostFlashAttention::from() only inspects f._model -- a single
-        // representative instance of this repeated "attn" function -- to decide whether
-        // the compiled tile model can structurally drop the mask input (mask-skipping
-        // optimization). If funcall instances sharing this function actually have
-        // different mask types (e.g. mixed SWA + global attention, as in Gemma-4), that
-        // decision could be wrong for the non-representative instances -- e.g. a Causal
-        // representative would silently strip the mask a SlidingWindow instance needs, a
-        // correctness bug, not just a missed optimization. Until per-funcall mask
-        // handling exists, disable mask-skipping for the whole function instead: this
-        // only forgoes an optimization, so it's always safe and doesn't need to fail
-        // compilation.
+        // Consistency check: HostFlashAttention::from() inspects a single representative
+        // instance (f._model) of this repeated "attn" function to decide whether the
+        // compiled tile model can structurally drop the mask input. That decision is only
+        // valid if all funcall instances sharing this function have the same mask kind --
+        // otherwise it's a correctness bug (e.g. a Causal representative stripping a mask
+        // a SlidingWindow instance still needs), not just a missed optimization. This is a
+        // defensive backstop, not the primary separation mechanism: distinct mask kinds
+        // normally yield structurally distinct subgraphs, so partitioning already tends to
+        // keep them in separate functions. If a mix is still found here, disable
+        // mask-skipping for the whole function (safe: only forgoes an optimization).
         //
-        // NPUW_SDPA_MASK_RT_KEY encodes both mask kind and (for sliding window) window
-        // size in one int64_t, so comparing raw encoded values also catches two
-        // SlidingWindow instances with different window sizes -- otherwise they'd look
-        // like "the same kind" despite differing mask-skipping safety.
+        // NPUW_SDPA_MASK_RT_KEY encodes mask kind + (for sliding window) window size in
+        // one int64_t, so raw-value comparison also catches differing window sizes.
         std::optional<int64_t> common_mask_value;
-        bool mask_skipping_safe = true;
+        bool mask_kind_consistent = true;
         for (const auto& mdl : all_functions.at(func_name).mdls) {
             const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(mdl);
             if (!pattern_nodes.add_node) {
                 continue;
             }
-            int64_t mask_value = 0;  // Unknown, if no rt_info annotation is present
-            bool is_unknown = true;
+
+            int64_t mask_value = std::numeric_limits<int64_t>::min();
             const auto& rt_info = pattern_nodes.add_node->get_rt_info();
             if (auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY); it != rt_info.end()) {
                 mask_value = it->second.as<int64_t>();
-                is_unknown = false;
             }
-            // Represent "Unknown" with a value that can't collide with a real encoded
-            // one (Causal is negative, SlidingWindow window_size is >= 0).
-            const int64_t comparable_value = is_unknown ? std::numeric_limits<int64_t>::min() : mask_value;
             if (!common_mask_value) {
-                common_mask_value = comparable_value;
-            } else if (*common_mask_value != comparable_value) {
+                common_mask_value = mask_value;
+            } else if (*common_mask_value != mask_value) {
                 LOG_WARN("NPUW: mixed mask types (e.g. sliding-window + global/causal attention, or different "
                          "sliding window sizes) detected across funcall instances sharing the same repeated 'attn' "
                          "function '"
@@ -2143,7 +2136,7 @@ void Partitioner::attention(const std::string& func_name) {
                          << "'. The mask-skipping optimization's compile-time decision is based on a single "
                             "representative instance, which would be unsafe here -- disabling mask skipping for "
                             "this function.");
-                mask_skipping_safe = false;
+                mask_kind_consistent = false;
                 break;
             }
         }
@@ -2151,7 +2144,7 @@ void Partitioner::attention(const std::string& func_name) {
         f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(
             f._model,
             cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
-            mask_skipping_safe && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
+            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
