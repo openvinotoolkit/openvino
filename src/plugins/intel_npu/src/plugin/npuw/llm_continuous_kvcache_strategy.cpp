@@ -4,7 +4,6 @@
 
 #include "llm_continuous_kvcache_strategy.hpp"
 
-#include <regex>
 #include <unordered_map>
 
 #include "infer_request_utils.hpp"
@@ -23,14 +22,11 @@ namespace npuw {
 //   3. Zero-fill the shared KV buffer so the first chunk sees clean state.
 // Steps 2–3 are only applicable when chunk prefill is enabled.
 void LLMContinuousKVCacheStrategy::on_initialize() {
-    // Derive the static per-tensor naming facts once. The present name mirrors
-    // the replacement update_kvcache_for() performs on every call.
+    // Classify every KV tensor once instead of on each use.
     m_kv_pairs.clear();
     m_kv_pairs.reserve(m_req.m_kvcache_past_names.size());
     for (const auto& name : m_req.m_kvcache_past_names) {
-        const auto present_name =
-            std::regex_replace(name, std::regex(LLMInferRequest::layer_names::past_key_values), "present");
-        m_kv_pairs.push_back({name, present_name, ov::npuw::util::isPastValueParam(name)});
+        m_kv_pairs.push_back({name, ov::npuw::util::isPastValueParam(name)});
     }
 
     // Step 1: share past KV buffers across generate variants.
@@ -166,18 +162,12 @@ struct RepackEntry {
     bool same_layout = false;
 };
 
-// Plan for continuing a prefill on the contiguous buffer. The live KV prefix can sit
-// in two places. If generation ran, the generate model's past inputs hold the whole
-// history in the generate layout and must be repacked into the prefill layout. If the
-// request finished straight from the prompt logits, the decode loop never executed,
-// so the prefix is split between the prefill past inputs and the last chunk still
-// sitting in the prefill present outputs.
+// Plan for continuing a prefill on the contiguous buffer. The preserved prefix
+// always lives in the generate model's past inputs and is repacked into the
+// prefill layout: the coordinator grants a keep only after a generate step
+// consolidated the prefix there, and grants zero after a prompt-only turn.
 struct ContinuousContinuationPlan final : ContinuedPrefillPlan {
     uint32_t keep = 0u;
-    bool source_is_generate = false;
-    // Used when the source is the prefill request itself.
-    uint32_t past_tokens = 0u;
-    uint32_t present_tokens = 0u;
     // Parallel to the strategy's m_kv_pairs.
     std::vector<RepackEntry> entries;
 };
@@ -222,52 +212,35 @@ std::unique_ptr<ContinuedPrefillPlan> LLMContinuousKVCacheStrategy::plan_continu
 
     OPENVINO_ASSERT(m_kv_pairs.size() == m_req.m_kvcache_past_names.size(),
                     "Continued prefill: the KV pair table was not initialized.");
+    OPENVINO_ASSERT(m_req.m_generate_initialized,
+                    "Continued prefill: the preserved prefix must be sourced from the generate-phase KV; "
+                    "the coordinator grants zero after a prompt-only turn.");
 
     auto plan = std::make_unique<ContinuousContinuationPlan>();
     plan->keep = keep;
-    plan->source_is_generate = m_req.m_generate_initialized;
     plan->entries.reserve(m_kv_pairs.size());
 
-    if (plan->source_is_generate) {
-        // Validate every layer and analyze its repack geometry before touching
-        // any of them.
-        for (const auto& pair : m_kv_pairs) {
-            OPENVINO_ASSERT(m_req.m_kvcache_in_ports.count(pair.past) && m_req.m_prefill_in_ports.count(pair.past),
-                            "Continued prefill: KV input ",
-                            pair.past,
-                            " is missing from the generate or prefill port map.");
-            auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(pair.past));
-            auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
-            OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
-                            "Continued prefill: element type mismatch for ",
-                            pair.past);
+    // Validate every layer and analyze its repack geometry before touching
+    // any of them.
+    for (const auto& pair : m_kv_pairs) {
+        OPENVINO_ASSERT(m_req.m_kvcache_in_ports.count(pair.past) && m_req.m_prefill_in_ports.count(pair.past),
+                        "Continued prefill: KV input ",
+                        pair.past,
+                        " is missing from the generate or prefill port map.");
+        auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(pair.past));
+        auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
+        OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
+                        "Continued prefill: element type mismatch for ",
+                        pair.past);
 
-            const uint32_t src_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
-            const uint32_t dst_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
-            const auto entry = make_repack_entry(src, dst, src_dim, dst_dim);
-            OPENVINO_ASSERT(src->get_shape()[entry.src_dim] >= keep && dst->get_shape()[entry.dst_dim] >= keep,
-                            "Continued prefill: KV extent of ",
-                            pair.past,
-                            " cannot cover the granted keep.");
-            plan->entries.push_back(entry);
-        }
-    } else {
-        // The prompt-phase finish case. The prefill past inputs hold everything except
-        // the last chunk, which is still in the present outputs.
-        const uint32_t live = kvcache_desc.num_stored_tokens;
-        plan->present_tokens = static_cast<uint32_t>(m_req.m_tokens_in_present_chunk);
-        OPENVINO_ASSERT(live >= plan->present_tokens, "Continued prefill: inconsistent stored token accounting.");
-        plan->past_tokens = live - plan->present_tokens;
-        OPENVINO_ASSERT(keep <= live, "Continued prefill: keep exceeds the live token count.");
-        for (const auto& pair : m_kv_pairs) {
-            OPENVINO_ASSERT(m_req.m_prefill_in_ports.count(pair.past) && m_req.m_prefill_out_ports.count(pair.present),
-                            "Continued prefill: prefill ports are missing for ",
-                            pair.past);
-            auto present = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(pair.present));
-            auto past = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
-            const uint32_t kv_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
-            plan->entries.push_back(make_repack_entry(present, past, kv_dim, kv_dim));
-        }
+        const uint32_t src_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_gen) ? 3u : kvcache_desc.dim;
+        const uint32_t dst_dim = (pair.is_value && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+        const auto entry = make_repack_entry(src, dst, src_dim, dst_dim);
+        OPENVINO_ASSERT(src->get_shape()[entry.src_dim] >= keep && dst->get_shape()[entry.dst_dim] >= keep,
+                        "Continued prefill: KV extent of ",
+                        pair.past,
+                        " cannot cover the granted keep.");
+        plan->entries.push_back(entry);
     }
     return plan;
 }
@@ -279,62 +252,39 @@ void LLMContinuousKVCacheStrategy::apply_continued_prefill(ContinuedPrefillPlan&
     OPENVINO_ASSERT(plan.entries.size() == m_kv_pairs.size(),
                     "Continued prefill: the plan does not match the strategy's KV pair table.");
 
-    if (plan.source_is_generate) {
-        LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
-        // Every tensor is independent, so repack them in parallel like copy_kvcache
-        // does, executing the geometry analyzed at plan time.
-        ov::parallel_for(m_kv_pairs.size(), [&](size_t idx) {
-            const auto& pair = m_kv_pairs[idx];
-            const auto& entry = plan.entries[idx];
-            if (entry.same_layout) {
-                // The bytes already sit where the prefill will read them.
-                return;
-            }
-            auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(pair.past));
-            auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
+    LOG_DEBUG("Continued prefill: repacking " << keep << " tokens from generate past KV into prefill layout.");
+    // Every tensor is independent, so repack them in parallel like copy_kvcache
+    // does, executing the geometry analyzed at plan time.
+    ov::parallel_for(m_kv_pairs.size(), [&](size_t idx) {
+        const auto& pair = m_kv_pairs[idx];
+        const auto& entry = plan.entries[idx];
+        if (entry.same_layout) {
+            // The bytes already sit where the prefill will read them.
+            return;
+        }
+        auto src = m_req.m_kvcache_request->get_tensor(m_req.m_kvcache_in_ports.at(pair.past));
+        auto dst = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
 
-            // Both slices start at zero. Chunked prefill accumulates past KV
-            // left-aligned from position zero and copy_kvcache() fills the generate
-            // cache the same way; the right-aligned KV layout exists only in the
-            // non-chunked prefill path, which continued prefill excludes.
-            auto src_slice = uu::make_tensor_slice(src, entry.src_dim, 0u, keep);
-            auto dst_slice = uu::make_tensor_slice(dst, entry.dst_dim, 0u, keep);
-            if (entry.aliased) {
-                // Shared backing memory is an aliasing hazard, not layout compatibility.
-                // Identical bytes are addressed with different per-head strides whenever
-                // the sequence extents differ, so the repack stages through a temporary.
-                // The temporary lives inside the loop body, so only the tensors in
-                // flight hold staging memory at any moment rather than the whole
-                // preserved prefix at once.
-                auto temp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
-                src_slice->copy_to(temp._ptr);
-                uu::copy_tensor_by_dim(temp, dst_slice, entry.src_dim, entry.dst_dim);
-            } else {
-                uu::copy_tensor_by_dim(src_slice, dst_slice, entry.src_dim, entry.dst_dim);
-            }
-        });
-    } else if (keep > plan.past_tokens) {
-        // Persist the final present chunk into the past inputs before the next prefill
-        // overwrites it. Repacking from the generate request here would copy stale data
-        // over a valid prefix.
-        LOG_DEBUG("Continued prefill: persisting " << plan.present_tokens
-                                                   << " present-chunk tokens into prefill past KV.");
-        const auto chunk = static_cast<uint32_t>(m_req.m_npuw_llm_compiled_model->m_prefill_chunk_size);
-        ov::parallel_for(m_kv_pairs.size(), [&](size_t idx) {
-            const auto& pair = m_kv_pairs[idx];
-            const auto& entry = plan.entries[idx];
-            auto present = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(pair.present));
-            auto past = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(pair.past));
-
-            // The present chunk window is right-aligned like every prefill input,
-            // while the past accumulation is left-aligned.
-            auto src_slice = uu::make_tensor_slice(present, entry.src_dim, chunk - plan.present_tokens, chunk);
-            auto dst_slice =
-                uu::make_tensor_slice(past, entry.dst_dim, plan.past_tokens, plan.past_tokens + plan.present_tokens);
+        // Both slices start at zero. Chunked prefill accumulates past KV
+        // left-aligned from position zero and copy_kvcache() fills the generate
+        // cache the same way; the right-aligned KV layout exists only in the
+        // non-chunked prefill path, which continued prefill excludes.
+        auto src_slice = uu::make_tensor_slice(src, entry.src_dim, 0u, keep);
+        auto dst_slice = uu::make_tensor_slice(dst, entry.dst_dim, 0u, keep);
+        if (entry.aliased) {
+            // Shared backing memory is an aliasing hazard, not layout compatibility.
+            // Identical bytes are addressed with different per-head strides whenever
+            // the sequence extents differ, so the repack stages through a temporary.
+            // The temporary lives inside the loop body, so only the tensors in
+            // flight hold staging memory at any moment rather than the whole
+            // preserved prefix at once.
+            auto temp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+            src_slice->copy_to(temp._ptr);
+            uu::copy_tensor_by_dim(temp, dst_slice, entry.src_dim, entry.dst_dim);
+        } else {
             uu::copy_tensor_by_dim(src_slice, dst_slice, entry.src_dim, entry.dst_dim);
-        });
-    }
-    // Otherwise the prefill past inputs already hold the whole preserved prefix.
+        }
+    });
 }
 
 }  // namespace npuw

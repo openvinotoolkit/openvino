@@ -45,12 +45,10 @@ public:
     void apply_continued_prefill(ContinuedPrefillPlan& plan) override;
 
 private:
-    // Static per-tensor naming facts, derived once in on_initialize() so the
-    // continuation paths do not rebuild them on every call: the matching
-    // "present" output name and whether the tensor is a V cache.
+    // Static per-tensor facts, derived once in on_initialize() so the
+    // continuation paths do not reclassify tensors on every call.
     struct KVPairNames {
         std::string past;
-        std::string present;
         bool is_value = false;
     };
     std::vector<KVPairNames> m_kv_pairs;

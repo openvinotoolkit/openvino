@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <regex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -38,10 +37,6 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_npuw_llm_compiled_model->m_kvcache_desc;
     }
 
-    static uint32_t chunk_size(Request& req) {
-        return static_cast<uint32_t>(req.m_npuw_llm_compiled_model->m_prefill_chunk_size);
-    }
-
     static const std::vector<std::string>& past_names(Request& req) {
         return req.m_kvcache_past_names;
     }
@@ -54,20 +49,12 @@ struct LLMContinuedPrefillTestAccess {
         return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(name));
     }
 
-    static ov::SoPtr<ov::ITensor> prefill_present(Request& req, const std::string& present_name) {
-        return req.m_prefill_request->get_tensor(req.m_prefill_out_ports.at(present_name));
-    }
-
     static ov::SoPtr<ov::ITensor> prefill_attention_mask(Request& req) {
         return req.m_prefill_request->get_tensor(req.m_prefill_in_ports.at(Request::layer_names::attention_mask));
     }
 
     static bool generate_initialized(Request& req) {
         return req.m_generate_initialized;
-    }
-
-    static uint64_t tokens_in_present_chunk(Request& req) {
-        return req.m_tokens_in_present_chunk;
     }
 
     static std::unique_ptr<ov::npuw::LLMKVCacheStrategy> take_strategy(Request& req) {
@@ -261,10 +248,6 @@ ov::Tensor make_i64_iota(std::initializer_list<size_t> shape, int64_t start) {
 
 class LLMContinuedPrefillTest : public ::testing::Test {
 protected:
-    // Chunk size 32 with a 256-token prompt window gives K_max = 224 and keeps
-    // every KV tensor small. All keeps granted below are multiples of 32.
-    static constexpr uint32_t kChunk = 32u;
-
     void SetUp() override {
         m_plugin = std::make_shared<NullPlugin>();
         ContinuedPrefillFactory factory;
@@ -345,10 +328,6 @@ protected:
         m_request->infer();
     }
 
-    static std::string present_name_of(const std::string& past_name) {
-        return std::regex_replace(past_name, std::regex("past_key_values"), "present");
-    }
-
     uint32_t generate_seq_dim(const std::string& past_name) {
         const auto& desc = LLMContinuedPrefillTestAccess::desc(*m_request);
         const bool is_value = ov::npuw::util::isPastValueParam(past_name);
@@ -425,49 +404,28 @@ TEST_F(LLMContinuedPrefillTest, GrantedContinuationRepacksGenerateKvAndRunsDelta
 }
 
 // A conversation that ends on its prompt logits never runs a generate step, so
-// the live prefix stays split between the prefill past inputs and the final
-// chunk still sitting in the present outputs. A continuation must persist that
-// present chunk into the past region before the delta overwrites it.
-TEST_F(LLMContinuedPrefillTest, PromptOnlyCompletionPersistsPresentChunkIntoPast) {
+// the live prefix stays split between the prefill past inputs and the present
+// outputs, where no continuation source exists. The coordinator grants zero
+// and the caller re-sends the full history as an ordinary reset prefill.
+TEST_F(LLMContinuedPrefillTest, PromptOnlyTurnGrantsZeroAndFullHistoryRecovers) {
     auto& req = request();
     run_full_prefill(96);
     EXPECT_EQ(stored_tokens(), 96);
     ASSERT_FALSE(LLMContinuedPrefillTestAccess::generate_initialized(req));
-    ASSERT_EQ(LLMContinuedPrefillTestAccess::tokens_in_present_chunk(req), kChunk);
 
-    // Chunks 1-2 live in the past inputs, chunk 3 in the present outputs.
-    constexpr uint32_t kPastTokens = 64u;
-    std::unordered_map<std::string, std::vector<uint8_t>> expected_past_bytes;
-    std::unordered_map<std::string, std::vector<uint8_t>> expected_present_bytes;
-    uint8_t seed = 57u;
-    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
-        auto past = LLMContinuedPrefillTestAccess::prefill_past(req, name);
-        auto past_slice = ov::npuw::util::make_tensor_slice(past, prefill_seq_dim(name), 0u, kPastTokens);
-        fill_tensor_pattern(past_slice, seed);
-        expected_past_bytes.emplace(name, materialize_bytes(past_slice));
-
-        auto present = LLMContinuedPrefillTestAccess::prefill_present(req, present_name_of(name));
-        auto present_slice = ov::npuw::util::make_tensor_slice(present, prefill_seq_dim(name), 0u, kChunk);
-        fill_tensor_pattern(present_slice, static_cast<uint8_t>(seed + 101u));
-        expected_present_bytes.emplace(name, materialize_bytes(present_slice));
-        seed = static_cast<uint8_t>(seed + 43u);
-    }
-
-    // 96 live tokens are all prefill-produced, so the full history is granted.
     propose(96);
-    EXPECT_EQ(stored_tokens(), 96);
+    EXPECT_EQ(stored_tokens(), 0);
 
-    run_delta_prefill(96, 16);
+    // The full 112-token history at position zero satisfies the armed reset.
+    run_full_prefill(112);
     EXPECT_EQ(stored_tokens(), 112);
 
-    for (const auto& name : LLMContinuedPrefillTestAccess::past_names(req)) {
-        auto past = LLMContinuedPrefillTestAccess::prefill_past(req, name);
-        auto old_slice = ov::npuw::util::make_tensor_slice(past, prefill_seq_dim(name), 0u, kPastTokens);
-        EXPECT_EQ(materialize_bytes(old_slice), expected_past_bytes.at(name)) << name;
-        auto persisted_slice =
-            ov::npuw::util::make_tensor_slice(past, prefill_seq_dim(name), kPastTokens, kPastTokens + kChunk);
-        EXPECT_EQ(materialize_bytes(persisted_slice), expected_present_bytes.at(name)) << name;
-    }
+    // Once a generate step consolidates the prefix into the generate KV, the
+    // next turn negotiates a real keep again.
+    run_generate_step(112);
+    EXPECT_EQ(stored_tokens(), 113);
+    propose(113);
+    EXPECT_EQ(stored_tokens(), 96);
 }
 
 // A preflight rejection consumes the command without mutating anything: the

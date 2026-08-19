@@ -33,8 +33,10 @@ namespace npuw {
  *
  * The keep rule is K = C * floor(min(K_common, K_max, W) / C), where C is the
  * prefill chunk size, K_max is how many past tokens the chunked prefill can
- * represent, and W is the prefill-produced watermark. The rule is evaluated
- * here at propose time and nowhere else.
+ * represent, and W is the prefill-produced watermark. A proposal arriving after
+ * a prompt-only turn is granted zero: the live prefix is then split between the
+ * prefill model's past inputs and its present outputs, where no continuation
+ * source exists. The rule is evaluated here at propose time and nowhere else.
  *
  * Note for callers of the variable state: a write is not idempotent. You write
  * X and read back Y <= X, and must always slice at the granted value.
@@ -90,7 +92,10 @@ public:
                         m_live_tokens,
                         "). Growth is an error.");
 
-        const uint32_t clamped = std::min({static_cast<uint32_t>(k_common), m_k_max, m_watermark});
+        // Only the generate-side KV can serve as a continuation source, so a
+        // proposal after a prompt-only turn is granted zero, which arms an
+        // ordinary full-history reset.
+        const uint32_t clamped = m_continuable ? std::min({static_cast<uint32_t>(k_common), m_k_max, m_watermark}) : 0u;
         const uint32_t granted = m_chunk_size * (clamped / m_chunk_size);
 
         m_pending_keep = granted;
@@ -164,6 +169,10 @@ public:
         m_watermark = live_tokens;
         m_pending_keep = 0u;
         m_stage = Stage::IDLE;
+        // The freshly prefilled prefix is split with the last chunk still in the
+        // present outputs; it becomes a continuation source only after a generate
+        // step consolidates it into the generate past KV.
+        m_continuable = false;
     }
 
     // Publish the result of an ordinary generate step. Generate-produced KV must
@@ -174,6 +183,7 @@ public:
         OPENVINO_ASSERT(m_stage == Stage::IDLE, "Continuous prefill: publish_generate() outside the idle state.");
         m_live_tokens = live_tokens;
         m_watermark = std::min(m_watermark, live_tokens);
+        m_continuable = true;
     }
 
     uint32_t live_tokens() const {
@@ -202,6 +212,9 @@ private:
     uint32_t m_watermark = 0u;
     uint32_t m_chunk_size = 0u;
     uint32_t m_k_max = 0u;
+    // Whether the live prefix sits in the generate past KV, the only layout a
+    // continuation can be sourced from. Prefills clear it, generate steps set it.
+    bool m_continuable = false;
 };
 
 }  // namespace npuw
