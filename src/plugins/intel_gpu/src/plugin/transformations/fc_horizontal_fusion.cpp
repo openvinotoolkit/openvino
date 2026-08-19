@@ -241,6 +241,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
 
         std::shared_ptr<ov::Node> fused_zps;
         if (zp_nodes.size() > 0) {
+            // GGUF-style FC nodes use Placeholder as the zero-point (no explicit zp).
+            // Skip horizontal fusion for this pattern since Placeholder has dynamic shape.
+            if (ov::as_type_ptr<op::Placeholder>(zp_nodes[0])) {
+                return false;
+            }
             // scalar zp
             auto zp_shape = zp_nodes[0]->get_output_shape(0);
             bool is_scalar = (ov::shape_size(zp_nodes[0]->get_output_shape(0)) == 1);
@@ -267,6 +272,10 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                         auto zp_const =
                             ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
                         cur_zp_val = zp_const->cast_vector<int32_t>()[0];
+                    } else if (ov::as_type_ptr<op::Placeholder>(zp_nodes[i])) {
+                        // GGUF-style FC has a Placeholder (no explicit zero-point);
+                        // skip horizontal fusion for this pattern rather than throw.
+                        return false;
                     } else {
                         OPENVINO_THROW("Unsupported zp input node for FC horizontal fusion");
                     }

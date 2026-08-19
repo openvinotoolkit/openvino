@@ -25,6 +25,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
@@ -878,7 +879,6 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
-    OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
@@ -892,25 +892,94 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+    const auto el_type = ov::element::Type(el_type_str);
+
+    // External GGUF weight reference: the raw block bytes live in a sibling GGUF file rather than in
+    // the model .bin. Resolve the source relative to the model directory, mmap it once (cached), and
+    // bind the Constant's bytes directly to the mapped region (zero-copy, no dequantization).
+    std::string source;
+    if (getStrAttribute(dn, "source", source) && !source.empty()) {
+        OPENVINO_ASSERT(!m_weights_path.empty(),
+                        "GGUF external weight '",
+                        source,
+                        "' cannot be resolved: model directory is unknown (read the model from a file path).");
+        // `source` is a bare filename resolved against the model directory; reject path traversal.
+        const auto source_name = std::filesystem::path(source).filename();
+        OPENVINO_ASSERT(source_name.string() == source,
+                        "GGUF external weight source must be a bare filename, got '",
+                        source,
+                        "'.");
+        const auto gguf_path = std::filesystem::path(m_weights_path).parent_path() / source_name;
+        const auto gguf_key = gguf_path.string();
+
+        static const bool gguf_memory_diagnostics = [] {
+            const auto* value = std::getenv("OV_GPU_GGUF_MEMORY_DIAGNOSTICS");
+            return value && std::atoi(value) != 0;
+        }();
+        static size_t diagnostic_external_weight_count = 0;
+        static size_t diagnostic_external_weight_bytes = 0;
+
+        if (!m_gguf_mmap_cache) {
+            m_gguf_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+        }
+        auto it = m_gguf_mmap_cache->find(gguf_key);
+        if (it == m_gguf_mmap_cache->end()) {
+            OPENVINO_ASSERT(std::filesystem::exists(gguf_path),
+                            "GGUF external weight source not found next to the model: ",
+                            gguf_key);
+            auto mapped = ov::load_mmap_object(gguf_path.string());
+            OPENVINO_ASSERT(mapped, "Failed to memory-map GGUF external weight source: ", gguf_key);
+            it = m_gguf_mmap_cache->emplace(gguf_key, mapped).first;
+            if (gguf_memory_diagnostics) {
+                std::cerr << "[GGUF_XML_MEM] mmap_new source=" << gguf_key
+                          << " base=" << static_cast<const void*>(mapped->data())
+                          << " file_bytes=" << mapped->size() << std::endl;
+            }
+        }
+        const auto& mapped = it->second;
+        OPENVINO_ASSERT(mapped->size() >= offset + size,
+                        "GGUF external weight [",
+                        offset,
+                        ", ",
+                        offset + size,
+                        ") exceeds source file size ",
+                        mapped->size(),
+                        " (",
+                        gguf_key,
+                        ").");
+        char* data = mapped->data() + offset;
+        auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(data, size, mapped);
+        adapter.set(buffer);
+        if (gguf_memory_diagnostics) {
+            ++diagnostic_external_weight_count;
+            diagnostic_external_weight_bytes += size;
+            std::cerr << "[GGUF_XML_MEM] weight index=" << diagnostic_external_weight_count
+                      << " source=" << gguf_key
+                      << " offset=" << offset
+                      << " size=" << size
+                      << " data=" << static_cast<const void*>(data)
+                      << " cumulative_bytes=" << diagnostic_external_weight_bytes
+                      << std::endl;
+        }
+        return;
+    }
+
+    OPENVINO_ASSERT(m_weights, "Empty weights data in bin file or bin file cannot be found!");
     OPENVINO_ASSERT(m_weights->size() >= offset + size, "Incorrect weights in bin file!");
 
     char* data = m_weights->get_ptr<char>() + offset;
 
-    const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
         auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
         adapter.set(buffer);
     } else {
-        if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
+        // Use block-aware sizing so packed block types (e.g. GGUF q4_0/q8_0/q4_k) whose
+        // per-element bit-width is not an integer are accepted; bitwidth-based rounding
+        // over-estimates their byte size and would reject otherwise valid weights.
+        const auto expected_size = ov::util::get_memory_size(el_type, ov::shape_size(shape));
+        if (size < expected_size) {
             const auto type = pugixml::get_str_attr(m_node, "type");
-            OPENVINO_THROW("Attribute and shape size are inconsistent for ",
-                           type,
-                           " op!",
-                           size,
-                           ", ",
-                           ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3),
-                           ", ",
-                           ov::util::get_memory_size(el_type, ov::shape_size(shape)));
+            OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!", size, ", ", expected_size);
         }
 
         auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
@@ -938,6 +1007,15 @@ std::shared_ptr<ov::Model> XmlDeserializer::parse_function(const pugi::xml_node&
     };
 
     std::map<size_t /*layer-id*/, NodeParams> params;
+
+    // Ensure the GGUF mmap cache is alive for the entire model-parsing scope so that
+    // all per-node child visitors share one map.  Without this the lazy init inside
+    // set_constant_num_buffer creates a fresh map per node (each child copies from the
+    // parent before its lazy init runs), causing each Constant to mmap the entire
+    // GGUF file independently instead of reusing the single resident mapping.
+    if (!m_gguf_mmap_cache) {
+        m_gguf_mmap_cache = std::make_shared<std::map<std::string, std::shared_ptr<ov::MappedMemory>>>();
+    }
 
     std::vector<size_t /*layer-id*/> outputs;
 
@@ -1334,6 +1412,20 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         if (auto wl_attribute = parse_weightless_cache_attribute(node); !wl_attribute.empty()) {
             ovNode->get_rt_info().emplace(ov::WeightlessCacheAttribute::get_type_info_static(),
                                           std::move(wl_attribute));
+        }
+
+        // Restore GGUF external weight identity attributes on Constant nodes.
+        // These were written by xml_serialize_util when the IR was first saved from a
+        // direct GGUF load.  Restoring them here ensures the GPU Constant cache can
+        // use a stable (source, offset, size) key rather than a raw data pointer, so
+        // the XML and direct-GGUF load paths deduplicate correctly.
+        if (ov::as_type_ptr<ov::op::v0::Constant>(ovNode)) {
+            std::string gguf_source;
+            if (getStrAttribute(dn, "source", gguf_source) && !gguf_source.empty()) {
+                rtInfo["gguf_ext_source"] = gguf_source;
+                rtInfo["gguf_ext_offset"] = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "offset"));
+                rtInfo["gguf_ext_size"]   = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "size"));
+            }
         }
     }
 

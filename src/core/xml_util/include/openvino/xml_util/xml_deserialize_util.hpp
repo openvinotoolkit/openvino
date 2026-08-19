@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <pugixml.hpp>
@@ -18,6 +19,10 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+
+namespace ov {
+class MappedMemory;
+}  // namespace ov
 
 namespace ov::util {
 struct GenericLayerParams;
@@ -71,6 +76,12 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override;
+
+    // Directory context used to resolve external GGUF weight references (`<data source=...>`).
+    // Set on the top-level deserializer; propagated to per-node child visitors via make_visitor.
+    void set_weights_path(const std::filesystem::path& weights_path) {
+        m_weights_path = weights_path;
+    }
 
 protected:
     virtual ov::Any parse_weightless_cache_attribute(const pugi::xml_node& node) const;
@@ -135,7 +146,10 @@ private:
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const {
-        return std::make_unique<XmlDeserializer>(node, weights, opsets, extensions, variables, version);
+        auto child = std::make_unique<XmlDeserializer>(node, weights, opsets, extensions, variables, version);
+        child->m_weights_path = m_weights_path;
+        child->m_gguf_mmap_cache = m_gguf_mmap_cache;
+        return child;
     }
 
     // -- DATA --
@@ -152,6 +166,12 @@ private:
     IoMap io_map;
 
     int64_t m_version;
+
+    // Directory context (parent of the model .bin/.xml) used to resolve external GGUF weight
+    // references, and a shared cache of mmap'd GGUF files keyed by resolved absolute path so each
+    // sibling GGUF is memory-mapped only once across all Const nodes.
+    std::filesystem::path m_weights_path;
+    std::shared_ptr<std::map<std::string, std::shared_ptr<ov::MappedMemory>>> m_gguf_mmap_cache;
 };
 
 }  // namespace ov::util
