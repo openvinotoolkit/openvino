@@ -10,6 +10,7 @@
 
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
+#include "compiler_option_support_helper.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -80,6 +81,7 @@ private:
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;
+    std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
 
     static std::atomic<int> _compiledModelLoadCounter;
 };
