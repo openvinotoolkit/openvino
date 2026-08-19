@@ -117,6 +117,13 @@ public:
      */
     std::string toStringForCompiler() const;
 
+    /**
+     * @brief Generates a compiler configuration string for options supported by the current compiler.
+     * @param isSupported Predicate used to filter compile-time and internal compiler options.
+     * @return A string containing the supported configuration keys and values.
+     */
+    std::string toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const;
+
 private:
     EnableMap _enabled;  ///< Map to track whether specific configuration keys are enabled or disabled.
 
