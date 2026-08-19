@@ -1475,7 +1475,15 @@ public:
         if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
             return false;
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL)
+        // The bidirectional image-token mask exists for PREFILL and MIXED in sdpa_ocl, but for PREFILL
+        // only in sdpa_micro (sdpa_micro.cl still gates its bidir block on IS_PREFILL), so MIXED has to
+        // follow use_ocl. GENERATE is excluded by valid_micro_stage() above and needs nothing anyway:
+        // that stage is defined by one new token per subsequence, so a query's image group is the
+        // query itself and the rule degenerates to plain causal.
+        // The fallback this leaves -- pa_multi_token / paged_attention_opt.cl -- has NO token_type_ids
+        // support at all and silently applies a plain causal mask; update_rt_params() logs when that
+        // combination is actually dispatched.
+        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL && !use_ocl)
             return false;
         // sdpa_micro's MIXED variant reads the K cache d-major (problem_kq.A.layout = N, ldk =
         // block_size, plus a K0 pointer pre-compensation for micro's Layout::N A-offset), so it
@@ -1638,6 +1646,21 @@ public:
 #else
         rt_params->use_micro_sdpa = false;
 #endif
+
+        // Only sdpa_ocl / sdpa_micro implement the bidirectional image-token mask; the MIXED fallback
+        // (pa_multi_token -> paged_attention_opt.cl) has no token_type_ids support at all and returns a
+        // plain causal result with no other signal. Reachable on a non-DPAS device, in a build without
+        // micro kernels, and for the KV-compression layouts can_use_micro_sdpa_for() rejects. The
+        // buffer count matters because has_token_type_ids is a COMPILE-time flag over a possibly
+        // dynamic shape while "[B_token | 0]" makes an empty tensor legal and harmless. layout::count()
+        // throws on a dynamic layout, hence the is_dynamic() guard first (same order as
+        // sdpa_ocl_token_type_ids_count()).
+        if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_token_type_ids && !rt_params->use_micro_sdpa &&
+            !params.is_dynamic() && params.input_layouts.size() > static_cast<size_t>(PagedAttentionInputIdx::TOKEN_TYPE_IDS) &&
+            params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS].count() > 0) {
+            GPU_DEBUG_LOG << "paged_attention: MIXED with non-empty token_type_ids fell back to pa_multi_token, which "
+                             "ignores it -- the bidirectional image-token mask will NOT be applied to this step\n";
+        }
 
         rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
 
