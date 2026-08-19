@@ -557,6 +557,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 if (do_copy && ov::shape_size(shape) > 0) {
                                     const auto& dst = ctx.target_request->get_tensor(iport);
                                     dst->set_shape(shape);
+                                    NPUW_ASSERT(dst._ptr && "target request returned null tensor for KV param port — "
+                                                            "request may be uninitialized");
                                     view->copy_to(dst._ptr);
                                 } else if (do_copy && ov::shape_size(shape) == 0) {
                                     ctx.target_request->get_tensor(iport)->set_shape(shape);
@@ -753,6 +755,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             } else {
                                 const auto& dst = ctx.target_request->get_tensor(mask_iport);
                                 dst->set_shape(view->get_shape());
+                                NPUW_ASSERT(
+                                    dst._ptr &&
+                                    "target request returned null tensor for mask port — request may be uninitialized");
                                 view->copy_to(dst._ptr);
                             }
                         };
@@ -785,11 +790,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      ATTN_KV_DIM,
                                                      full_mask_shape[ATTN_KV_DIM] - present_len,
                                                      present_len);
+                            NPUW_ASSERT(present_dst_view._ptr && "null tensor view for present mask segment — target "
+                                                                 "request tensor may be uninitialized or zero-sized");
                             present_src_view->copy_to(present_dst_view._ptr);
 
                             if (past_len > 0) {
                                 const auto& past_dst_view = ov::npuw::util::view(dst, ATTN_KV_DIM, 0, past_len);
                                 const auto& past_src_view = ov::npuw::util::view(graph_mask, ATTN_KV_DIM, 0, past_len);
+                                NPUW_ASSERT(past_dst_view._ptr && "null tensor view for past mask segment — target "
+                                                                  "request tensor may be uninitialized or zero-sized");
                                 past_src_view->copy_to(past_dst_view._ptr);
                             }
                             state.cached_attention_mask = dst;

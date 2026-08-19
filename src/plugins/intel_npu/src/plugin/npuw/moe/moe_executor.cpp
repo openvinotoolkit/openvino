@@ -791,6 +791,9 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
             for (size_t position = 0; position < K; ++position) {
                 const auto& iport = compiled_inputs[unrolled_indices[position]];
                 if (do_copy) {
+                    NPUW_ASSERT(request->get_tensor(iport)._ptr &&
+                                "request returned null tensor for closure port — request may be uninitialized or port "
+                                "index is invalid");
                     batched_impl->copy_to(request->get_tensor(iport)._ptr);
                 } else {
                     request->set_tensor(iport, batched_impl);
