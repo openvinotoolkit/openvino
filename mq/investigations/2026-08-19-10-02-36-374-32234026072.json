@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-10-02-36-374-32234026072",
+  "timestamp": "2026-08-19T10:02:36Z",
+  "run_id": "32234026072",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32234026072",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37393",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37393",
+  "author": "asukhobo",
+  "category": "Network",
+  "title": "Debian Packages install fails \u2014 apt-get cannot connect to azure.archive.ubuntu.com",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails \u2014 connection timed out to azure.archive.ubuntu.com:80"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/g/glibc/libc-devtools_2.39-0ubuntu8.8_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.161.185.214), connection timed out [IP: 52.250.76.244 80]",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The Debian Packages job failed during the 'Install debian packages & check conflicts' step because the GitHub Actions runner could not establish TCP connections to azure.archive.ubuntu.com:80. Multiple packages (libc-devtools, libgfortran5, libheif-plugin-aomenc, libhwloc15, libtbb12, and others) timed out after retries. This is a transient Azure CDN/network connectivity issue on the runner side \u2014 the PR changes (NPU model_hub_tests CI config) are unrelated to this failure.",
+  "reproduction_steps": "N/A \u2014 transient runner network failure, not reproducible locally.",
+  "recommended_actions": [
+    "Re-queue the PR or re-run the failed jobs \u2014 the failure is unrelated to the PR changes.",
+    "If the failure persists, check Azure status page for azure.archive.ubuntu.com CDN availability."
+  ],
+  "prevention_strategies": "Consider adding apt retry settings (e.g., Acquire::Retries) or a fallback mirror in the debian packages workflow step to handle transient Azure CDN outages.",
+  "historical_context": "First occurrence of this specific signature in the CI Doctor MQ database, but azure.archive.ubuntu.com connectivity timeouts are a known transient infrastructure pattern on Azure-hosted GitHub Actions runners."
+}
