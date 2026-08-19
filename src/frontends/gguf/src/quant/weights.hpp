@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -15,6 +16,10 @@ class Node;
 }
 
 namespace ov::frontend::gguf {
+
+// Element type of the zero-point constant for an asymmetric quantized weight. Both ingest
+// paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
+ov::element::Type gguf_zero_point_type(const std::string& name, gguf_tensor_type qtype);
 
 // Build the OpenVINO node for a GGUF weight with base name `base` (the tensor name without
 // the trailing ".weight", e.g. "blk.0.attn_q" or "token_embd"). Quantized weights become a
@@ -47,5 +52,33 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
 
 // Map a ggml quant type name (e.g. "Q4_K") to its gguf_tensor_type id. Throws if unknown.
 gguf_tensor_type gguf_type_from_name(const std::string& quant_type);
+
+// One split part of a fused attn_qkv weight: the extracted tensors keyed as "<part>.weight"
+// [+ ".scales" [+ ".zp"]] plus the shared quant type. Used by the GGUF builder to emit a
+// GGML_OP_NONE weight leaf per q/k/v part (routing them through translate_weight like any other
+// weight) instead of building the decompression nodes eagerly.
+struct FusedQkvPart {
+    std::unordered_map<std::string, ov::Tensor> extracted;
+    gguf_tensor_type qtype = GGUF_TYPE_F16;
+};
+
+// Row-slice a fused `<base>` attn_qkv weight into q/k/v extracted-tensor sub-maps (no OV nodes).
+// The returned parts' tensors are keyed "<base>.q.weight"/".scales"/".zp" etc. Same slicing as
+// make_fused_qkv_weights, but returns the extracted payload for GGML_OP_NONE emission.
+std::array<FusedQkvPart, 3> split_fused_qkv_extracted(
+    const std::string& base,
+    const std::unordered_map<std::string, ov::Tensor>& weights,
+    const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+    size_t n_q,
+    size_t n_k,
+    size_t n_v);
+
+// De-interleave a qwen35 `<base>` attn_q weight, which packs the query and the attention output
+// gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...], into two plain projections.
+// Returns {query, gate}, keyed "<base>.q.*" and "<base>.gate.*".
+std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
+                                                     const std::unordered_map<std::string, ov::Tensor>& weights,
+                                                     const std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+                                                     size_t head_dim);
 
 }  // namespace ov::frontend::gguf

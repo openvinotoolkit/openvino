@@ -19,15 +19,21 @@ void LatencyMetrics::write_to_stream(std::ostream& stream) const {
     std::cout.flags(fmt);
 }
 
-void LatencyMetrics::write_to_slog() const {
+void LatencyMetrics::write_to_slog(bool adaptive_latency_unit) const {
     std::string percentileStr = (percentile_boundary == 50)
                                     ? "   Median:           "
                                     : "   " + std::to_string(percentile_boundary) + " percentile:     ";
 
-    slog::info << percentileStr << double_to_string(median_or_percentile) << " ms" << slog::endl;
-    slog::info << "   Average:          " << double_to_string(avg) << " ms" << slog::endl;
-    slog::info << "   Min:              " << double_to_string(min) << " ms" << slog::endl;
-    slog::info << "   Max:              " << double_to_string(max) << " ms" << slog::endl;
+    const bool use_microseconds = adaptive_latency_unit && avg < 1.0;
+    auto format_value = [use_microseconds](double value) -> std::string {
+        return double_to_string(use_microseconds ? value * 1000.0 : value);
+    };
+    const char* unit = use_microseconds ? " us" : " ms";
+
+    slog::info << percentileStr << format_value(median_or_percentile) << unit << slog::endl;
+    slog::info << "   Average:          " << format_value(avg) << unit << slog::endl;
+    slog::info << "   Min:              " << format_value(min) << unit << slog::endl;
+    slog::info << "   Max:              " << format_value(max) << unit << slog::endl;
 }
 
 void LatencyMetrics::fill_data(std::vector<double> latencies, size_t percentile_boundary) {

@@ -21,8 +21,10 @@ ParamsKey QuantizeKernelScaleShift_vload8::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -132,9 +134,8 @@ static inline size_t CalculateTotalWorkItemCount(const quantize_params& params) 
             spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
 
         return (feature * batch * spatial);
-    } else {
-        return params.outputs[0].LogicalSize();
     }
+    return params.outputs[0].LogicalSize();
 }
 
 static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
