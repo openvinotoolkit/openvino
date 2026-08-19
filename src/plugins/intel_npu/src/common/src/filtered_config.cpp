@@ -119,4 +119,31 @@ std::string FilteredConfig::toStringForCompiler() const {
     return resultStream.str();
 }
 
+std::string FilteredConfig::toStringForCompiler(const std::function<bool(std::string_view)>& isSupported) const {
+    std::stringstream resultStream;
+    bool hasSerializedValue = false;
+
+    for (const auto& [key, value] : _impl) {
+        if (_desc->has(key) && _desc->get(key).mode() != OptionMode::RunTime && isSupported(key)) {
+            if (hasSerializedValue) {
+                resultStream << " ";
+            }
+            resultStream << key << "=\"" << value->toString() << "\"";
+            hasSerializedValue = true;
+        }
+    }
+
+    for (const auto& [key, value] : _internal_compiler_configs) {
+        if (isSupported(key)) {
+            if (hasSerializedValue) {
+                resultStream << " ";
+            }
+            resultStream << key << "=\"" << value << "\"";
+            hasSerializedValue = true;
+        }
+    }
+
+    return resultStream.str();
+}
+
 }  // namespace intel_npu
