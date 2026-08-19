@@ -28,7 +28,7 @@ using PropertyMap = std::map<std::string, PropertyDescriptor>;
  *
  * Use this when the property name maps to an option stored in the provided config and the getter is just
  * config.get<OptionType>(). The property is registered unconditionally, while runtime support is checked via
- * config.isAvailable(propertyName).
+ * config.hasOpt(propertyName).
  */
 template <typename OptionType>
 inline void register_property(const FilteredConfig& config,
