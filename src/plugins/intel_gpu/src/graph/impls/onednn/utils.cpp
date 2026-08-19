@@ -158,6 +158,7 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
         case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
         case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::u2: return dnnl::memory::data_type::u2;
         case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
         case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
         case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
@@ -273,6 +274,9 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
+        case dnnl::memory::data_type::s2:
+        case dnnl::memory::data_type::u2:
+            return offset / 4;
         case dnnl::memory::data_type::s4:
         case dnnl::memory::data_type::u4:
         case dnnl::memory::data_type::f4_e2m1:

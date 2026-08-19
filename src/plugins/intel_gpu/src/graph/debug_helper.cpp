@@ -297,6 +297,28 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
         dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u2) {
+        // u2: 4 elements per byte, dump each 2-bit value
+        auto&& size = actual_mem->get_layout().get_tensor();
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count()
+                    << ", original format: " << cldnn::fmt_to_str(actual_mem->get_layout().format) << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+        if (size.count() == 0) { file_stream << "Empty buffer" << std::endl; }
+        else {
+            mem_lock<uint8_t, mem_lock_type::read> lock(actual_mem, stream);
+            auto mem_ptr = lock.data();
+            std::stringstream buffer;
+            for (size_t i = 0; i < lock.size(); ++i) {
+                uint8_t byte = mem_ptr[i];
+                buffer << static_cast<int>((byte >> 0) & 0x3) << std::endl;
+                buffer << static_cast<int>((byte >> 2) & 0x3) << std::endl;
+                buffer << static_cast<int>((byte >> 4) & 0x3) << std::endl;
+                buffer << static_cast<int>((byte >> 6) & 0x3) << std::endl;
+            }
+            file_stream << buffer.str();
+        }
+    }
     else
         GPU_DEBUG_COUT << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
