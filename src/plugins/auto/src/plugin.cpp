@@ -637,17 +637,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceIn
         if (device_info.device_name.find("CPU") == 0) {
             CPU.push_back(device_info);
         } else if (device_info.device_name.find("GPU") == 0) {
-            std::string device_type;
-            try {
-                // can optimize to typed function when gpu swith to 2.0 api
-                device_type =
-                    get_core()->get_property(device_info.device_name, ov::device::type.name(), {}).as<std::string>();
-            } catch (const ov::Exception&) {
-                LOG_DEBUG_TAG("get property :%s for %s failed ", "DEVICE_TYPE", device_info.device_name.c_str());
-            }
-            if (device_type == "integrated") {
+            const auto device_key = resolve_device_key(device_info.device_name);
+            if (device_key.logical_key == "iGPU") {
                 iGPU.push_back(device_info);
-            } else if (device_type == "discrete") {
+            } else if (device_key.logical_key == "dGPU") {
                 dGPU.push_back(device_info);
             } else {
                 LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());

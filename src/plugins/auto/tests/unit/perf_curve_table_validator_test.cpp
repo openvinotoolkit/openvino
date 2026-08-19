@@ -48,6 +48,8 @@ const std::vector<PerfCurveValidatorParams> perfCurveValidatorConfigs = {
     // Wrong Any type that cannot be parsed into a PerfCurveTable.
     PerfCurveValidatorParams{ov::Any(std::string("not-a-table")), false},
     PerfCurveValidatorParams{ov::Any(42), false},
+    // Validate the minimum and maximum utilization values with corresponding scores.
+    PerfCurveValidatorParams{ov::Any(PerfCurveTable{{"CPU", {{0, 0.f}, {100, 100.f}}}}), true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_PerfCurveTableValidator,
