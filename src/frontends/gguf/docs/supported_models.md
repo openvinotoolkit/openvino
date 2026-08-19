@@ -227,14 +227,15 @@ Numbers from architectures marked degenerate above still describe real compute c
 graph runs, it is just numerically wrong), so they are kept for completeness.
 
 Notable outliers: Bonsai (`qwen35`, Q2_g64) decodes **6.5x faster** than llama.cpp (3.75 vs
-0.58 tok/s) — not an OpenVINO win, but an upstream gap: ggml ships no x86 SIMD kernel for
-`Q2_0`, so it falls back to a scalar reference, while the frontend lowers Q2_0 into the ordinary
-u2 compressed-weights MatMul the CPU plugin already optimizes; the trade-off is memory (llama.cpp
-mmaps and peaks at 7.5 GiB, the frontend materializes decompression constants and peaks at
-22.7 GiB). `gpt-oss` is the opposite kind of outlier: it peaks at **124 GiB from an 11.5 GiB
-file (11x)**, versus a typical 3-4x elsewhere, because its MoE expert type (MXFP4) is dequantized
-on-graph in `MUL_MAT_ID` rather than routed through `GatherMatmul` — the plugin-side widening
-described below does not reach it, and on a smaller-RAM host this would OOM.
+0.58 tok/s) — not an OpenVINO win, but an upstream gap: ggml ships no x86 SIMD kernel for its
+2-bit format, so it falls back to a scalar reference, while OpenVINO's compressed-weight matmul
+kernel is already optimized for it; the trade-off is memory (llama.cpp mmaps and peaks at
+7.5 GiB, the frontend materializes decompression constants and peaks at 22.7 GiB). `gpt-oss` is
+the opposite kind of outlier: it peaks at **124 GiB from an 11.5 GiB file (11x)**, versus a
+typical 3-4x elsewhere, because its MoE expert quantization type isn't one the plugin's
+compressed-matmul path recognizes yet, so it gets dequantized eagerly instead of staying
+compressed — see "MoE expert weights and quantization choice" below for the general issue. On a
+smaller-RAM host this would OOM.
 
 ### Measuring performance correctly
 
@@ -343,33 +344,19 @@ all, which the SDPA-only graph could not do.
 what the SDPA path already measured, so PA neither introduces nor closes that gap — see
 [`frontend_design.md`](frontend_design.md) on the memory model for the RSS side.
 
-### MoE expert weights and the compressed-weights type gate (CPU plugin specific)
+### MoE expert weights and quantization choice (CPU plugin specific)
 
-Worth knowing when picking a quantization for a MoE model on the **CPU plugin**; this is entirely
-plugin-side behavior; the frontend itself emits the same compressed weight nodes regardless of
-target device. MoE expert weights do not go through `FullyConnected`: `MUL_MAT_ID` lowers to the
-CPU plugin's `GatherMatmul` (equally, to `GroupedMatMul` on the public-op side — on CPU
-`ConvertGroupedMatMulToGatherMatmul` rewrites it into the same node *before* the compression
-pass, so the two are indistinguishable here). That node accepts a **narrower set of compressed
-weight types than `FullyConnected` does**:
+Worth knowing when picking a quantization for a MoE model — this is entirely plugin-side
+behavior; the frontend itself emits the same compressed weight representation regardless of
+target device. On the CPU plugin, not every compressed weight type is recognized by the
+grouped/expert matmul kernel MoE routing lowers to. When an expert weight's type falls outside
+that supported set, the plugin dequantizes it eagerly at compile time instead of keeping it
+compressed — a large, avoidable memory expansion (up to 16x for a 2-bit type).
 
-| | accepted compressed weight types |
-|---|---|
-| `FullyConnected` | `u8, i8, u4, i4, nf4, f4e2m1, u2` |
-| `GatherMatmul` / GPU grouped-matmul | `u8, i8, u4, i4` |
-
-If an expert weight's element type is outside the second set, `ConvertGatherMatmulToGather
-MatmulCompressed` does not fire, the `Convert -> Subtract -> Multiply` dequantization block stays
-in the graph, and constant folding materializes the experts **in f32** — a 16x expansion off a
-2-bit type, i.e. far more than the quantization was saving.
-
-Q2_K is the case this affects: its weights map to `u2`. The CPU plugin's
-`WidenGatherMatmulWeights` pass handles it by re-emitting *expert* weight constants as `u4`
-(lossless — raw Q2_K values are `[0..3]`, which fit a nibble) at 2x the weight bytes, which is
-much cheaper than falling off the compressed path. Dense `u2` weights are left alone. This is a
-CPU-plugin-side workaround for a missing `u2` expert-matmul executor and needs nothing from the
-frontend, which emits plain `u2` on every device. Measured on Q2_K models on CPU, peak anonymous
-memory:
+Q2_K is the case that hits this today. The CPU plugin works around it by re-packing the affected
+expert weights into a supported 4-bit type (lossless — raw Q2_K values are `[0..3]`, which fit a
+nibble) at 2x the weight bytes, which is still far cheaper than losing compression entirely; dense
+`u2` weights are unaffected. Measured on Q2_K models on CPU, peak anonymous memory:
 
 | Model | file MiB | before | after |
 |---|---|---|---|

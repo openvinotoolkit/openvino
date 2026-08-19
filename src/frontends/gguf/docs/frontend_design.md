@@ -136,7 +136,7 @@ because the operation itself genuinely differs rather than for numbering reasons
 
 | case | op | why |
 | --- | --- | --- |
-| 100 | `FLASH_ATTN_EXT` | The builder keeps q/k/v ggml-natural so the order is Concat -> GQA tile -> one Transpose -> SDPA, matching the shape plugins' stateful-SDPA fusion passes look for (e.g. the CPU plugin's `stateful_sdpa_fusion` into `ScaledDotProductAttentionWithKVCache`); permuting first blocks that fuse on any plugin that has one. A deliberately *better* graph, not an equivalent one. |
+| 100 | `FLASH_ATTN_EXT` | The builder keeps q/k/v ggml-natural so the order is Concat -> GQA tile -> one Transpose -> SDPA, the shape a plugin's own attention-fusion pass expects; permuting first would block that fusion. A deliberately *better* graph, not an equivalent one. |
 | 104 | `VIEW` | Takes a second (shape-reference) input the cgraph path does not supply, so it has a different arity than the shared cases. |
 | 10 | `GET_ROWS` | llama.cpp reshapes `probs` before the MoE gating gather, so the cgraph decoder sees a different input shape that the generic path already handles. |
 
@@ -162,28 +162,24 @@ which is the only plugin verified so far.
 
 **Compile / `compile_model` (plugin-dependent — CPU measured):**
 - Weights stay compressed through compilation only if the target plugin recognizes the compressed
-  weight subgraph rather than constant-folding it to f32; on the CPU plugin dense models fold the
-  decompression into `FullyConnected` and MoE experts fold into `GatherMatmulCompressed`. Measured:
-  OLMoE compile peak ≈ 8.7 GB on CPU (vs a ~53 GB blow-up if the expert decompression is *not* kept
-  compressed).
-- A plugin that does not recognize the chain will constant-fold u4/u8 experts to f32 (the 53 GB
-  case above). On CPU this is handled by `SnippetsMarkSkipped` skipping the `GatherMatmul` weight
-  chain and `is_decompression_multiply` accepting `GatherMatmul` consumers. A related, narrower
-  gap on CPU — `u2` experts (Q2_K) falling off the compressed path entirely — is fixed by the CPU
-  plugin's `WidenGatherMatmulWeights` pass; see [`supported_models.md`](supported_models.md) "MoE
-  expert weights and the compressed-weights type gate".
-- KV cache precision: the stateful KV cache is f16 (set in `translate_session`); leaving it at the
-  CPU default of u8 causes NaNs in some decode paths.
+  weight subgraph and keeps the decompression fused into its own kernel rather than folding it to
+  a plain f32 constant. Measured on CPU: OLMoE compile peak ≈ 8.7 GB (vs a ~53 GB blow-up when
+  that recognition doesn't happen for the MoE experts).
+- A plugin's compressed-weight recognition can also be narrower for some specific quantization
+  types than others, which can make a model's experts fall off the compressed path for that type
+  alone even though other types on the same model stay compressed; see
+  [`supported_models.md`](supported_models.md) "MoE expert weights and quantization choice" for a
+  measured CPU example (Q2_K) and its impact.
+- KV cache precision: the stateful KV cache is f16 (set in `translate_session`); leaving it at a
+  narrower default type has caused NaNs in some decode paths on CPU.
 
 **Inference:** on a plugin that keeps weights compressed through compile, they are decompressed on
-the fly (CPU: dense fused into the FC kernel, MoE via `GatherMatmulCompressed`) with no persistent
-f32 weight copy.
+the fly, with no persistent f32 weight copy.
 
 **Rule of thumb:** peak host memory ≈ `max(file_size_for_read, compressed_graph + plugin_scratch)`,
 NOT the dequantized model size — *provided* the target plugin recognizes the compressed weight
-subgraph (as CPU does above). If a future change makes a model's weights expand to f32 at compile
-on a given plugin, that is the regression to look for (compile peak jumping toward the dequantized
-size).
+subgraph. If a future change makes a model's weights expand to f32 at compile on a given plugin,
+that is the regression to look for (compile peak jumping toward the dequantized size).
 
 ## Statefulness & the attention backends
 
@@ -234,8 +230,8 @@ gguf-native IO (`inp_tokens`/`inp_pos`/`self_kq_mask`/...) into GenAI's contract
 optimum-intel export. The two concerns are separate passes precisely because they are independent:
 cache form vs IO contract.
 
-Either way the stateful graph is shaped so that plugins with a stateful-SDPA fusion pass (e.g. the
-CPU plugin's `stateful_sdpa_fusion`) fold attention into `ScaledDotProductAttentionWithKVCache`.
+Either way the stateful graph is shaped so that a plugin's own attention-fusion pass can fold it
+into a single fused SDPA-with-cache kernel, where the plugin has one.
 
 The result is valid under **both** attention backends: plain stateful SDPA inference, and
 `ov::pass::SDPAToPagedAttention` (the transform GenAI's ContinuousBatching adapter applies for

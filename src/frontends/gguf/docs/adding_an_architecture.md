@@ -92,7 +92,7 @@ The generic decoder builder assumes the standard block: `norm -> QKV -> RoPE -> 
 norm -> FFN/MoE -> residual`. Architectures that break this shape need a new detected flag on
 `DecoderConfig` plus a branch in the relevant block. Examples of what required code in the past:
 
-- **MoE routing** — `blocks::moe_ffn()` (`MUL_MAT_ID` / `GatherMatmul`, top-k, gated activation).
+- **MoE routing** — `blocks::moe_ffn()` (`MUL_MAT_ID` lowering, top-k, gated activation).
 - **gpt-oss** — attention sinks (5th `FLASH_ATTN_EXT` input), OAI gated activation
   (`GGML_GLU_OP_SWIGLU_OAI`), softmax-after-topk gating.
 - **gemma2/3** — post-attention / post-FFN norms, attention & final-logit soft-caps.
@@ -143,8 +143,8 @@ passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built 
 1. **Converts + compiles**: convert through the frontend, then `core.compile_model(m, "CPU")`.
    The frontend is not auto-selectable, so ask for it by name:
    `fe = FrontEndManager().load_by_framework("gguf"); m = fe.convert(fe.load("model.gguf"))`.
-2. **Graph is sane**: check the op-type histogram and that attention fused to
-   `ScaledDotProductAttention` and MoE to `GatherMatmul`.
+2. **Graph is sane**: check the op-type histogram — attention should collapse to a single SDPA op
+   and MoE routing to a single grouped-matmul op, not a long chain of primitives.
 3. **Numerics**: run generation through OpenVINO GenAI (`greedy_causal_lm model.gguf "..."`) and
    compare to native llama.cpp (`build-ref/bin/llama-cli`) on the same prompt — the greedy tokens
    should match (small drift after ~dozens of tokens is expected from kernel differences).
