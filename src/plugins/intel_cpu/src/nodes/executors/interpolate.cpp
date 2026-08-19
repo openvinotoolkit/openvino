@@ -115,9 +115,7 @@ float ov::intel_cpu::InterpolateExecutor::coordTransToInput(int outCoord,
                                                             float scale,
                                                             int inShape,
                                                             int outShape) const {
-    if (inShape == 0) {
-        OPENVINO_THROW("Interpolate executor: inShape must not be zero in coordTransToInput");
-    }
+    OPENVINO_ASSERT(inShape != 0, "Interpolate executor: inShape must not be zero in coordTransToInput");
     if (scale == 1.0F || (inShape == outShape)) {
         return static_cast<float>(outCoord);
     }
