@@ -76,9 +76,11 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
             weights_stream.read(file_region->get_ptr<char>(), static_cast<std::streamsize>(size));
             OPENVINO_ASSERT(weights_stream, "Failed to read weights from ", m_weights_path);
         }
-        buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(file_region->get_ptr<char>(),
-                                                                                        size,
-                                                                                        file_region);
+        buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+            file_region->get_ptr<char>(),
+            size,
+            file_region,
+            ov::create_base_descriptor(ov::util::get_id_for_file(m_weights_path, offset, size), 0, file_region));
     }
 
     m_loaded_weights_regions.emplace(key, buffer);
