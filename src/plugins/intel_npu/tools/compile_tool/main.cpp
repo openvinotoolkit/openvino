@@ -130,6 +130,15 @@ std::vector<std::string> splitStringList(const std::string& str, char delim) {
     return result;
 }
 
+// Splits a device string such as "NPU.3720" into the base device name ("NPU") and platform suffix ("3720").
+std::pair<std::string, std::string> splitDeviceAndPlatform(const std::string& device) {
+    const auto separator = device.find('.');
+    if (separator == std::string::npos) {
+        return {device, std::string()};
+    }
+    return {device.substr(0, separator), device.substr(separator + 1)};
+}
+
 std::map<std::string, std::string> parseArgMap(std::string argMap) {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
@@ -505,9 +514,20 @@ int main(int argc, char* argv[]) {
         auto configs = parseConfigFile();
         if (FLAGS_pc) {
             configs["PERF_COUNT"] = "YES";
+        }        
+        const auto [device, platform] = splitDeviceAndPlatform(FLAGS_d);
+        if (!platform.empty()) {
+            if (device == "NPU") {
+                // set only if was not previously parsed from config
+                if (configs.find("NPU_PLATFORM") == configs.end()) {
+                    configs["NPU_PLATFORM"] = platform;
+                } else {
+                    std::cout << "Ignoring -d platform suffix already set via -load_config." << std::endl;
+                }
+            }   
         }
         if (FLAGS_raw_blob) {
-            if (FLAGS_d == "NPU") {
+            if (device == "NPU") {
                 // set only if was not previously parsed from config
                 if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
                     configs["NPU_EXPORT_RAW_BLOB"] = "YES";
