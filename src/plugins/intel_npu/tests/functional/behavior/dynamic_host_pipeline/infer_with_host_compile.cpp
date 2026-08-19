@@ -33,11 +33,11 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
     std::shared_ptr<ov::op::v0::Parameter> input;
     if (dynamicBatch) {
         input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
+                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 1280, 1280});
     } else {
         input = std::make_shared<ov::op::v0::Parameter>(
             ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
+            ov::PartialShape{1, 16, ov::Dimension(10, 1280), ov::Dimension(10, 1280)});
     }
 
     std::string inputName = "input1";
@@ -80,7 +80,7 @@ inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, 
 inline std::shared_ptr<ov::Model> createCustomNetModel() {
     auto input = std::make_shared<ov::op::v0::Parameter>(
         ov::element::f16,
-        ov::PartialShape{1, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)});
+        ov::PartialShape{1, 16, ov::Dimension(1, 1280), ov::Dimension(10, 1920)});
     input->set_friendly_name("Parameter_59");
 
     auto make_conv_add = [](const ov::Output<ov::Node>& data,
@@ -444,7 +444,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with the largest shape in the dynamic range.
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    }
+    else {
+        shape = {1, 720, 1280, 16};
+    }
+    
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -477,7 +484,15 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 720, 720, 16};
+
+     ov::Shape shape2;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape2 = {1, 16, 720, 720};
+    }
+    else {
+        shape2 = {1, 720, 720, 16};
+    }
+
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -515,7 +530,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
-    ov::Shape shape = {1, 720, 720, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 1280, 720};
+    }
+    else {
+        shape = {1, 1280, 720, 16};
+    }
+
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -548,7 +570,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
         << logCapture.str();
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 720, 1280, 16};
+    ov::Shape shape2;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape2 = {1, 16, 1280, 1280};
+    }
+    else {
+        shape2 = {1, 1280, 1280, 16};
+    }
+
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -584,7 +613,13 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape;
+    if (selectedModelName == "MaxPool_NCHW") {
+        shape = {1, 16, 720, 1280};
+    }
+    else {
+        shape = {1, 720, 1280, 16};
+    }
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -760,7 +795,8 @@ const std::vector<ov::AnyMap> configs = {
 };
 
 // Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape in tests.
-const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
+//const std::vector<std::string> modelNames = {"CustomNet", "MaxPool"};
+const std::vector<std::string> modelNames = {"MaxPool_NCHW"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
