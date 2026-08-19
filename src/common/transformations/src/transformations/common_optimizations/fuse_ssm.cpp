@@ -168,14 +168,15 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
     // All discretization is performed outside the loop and consumed as 5D per-step slices:
     //   dA  = Reshape(exp(A * dt), [B, T, H, 1, 1])                       -> Loop input 2
     //   dBx = Unsqueeze(dt*B, -2) * Unsqueeze(x, -1)  -> [B, T, H, P, N]  -> Loop input 3
-    //   C   = Unsqueeze(B/C-expanded, -2)            -> [B, T, H, 1, N]   -> Loop input 4
-    auto A = pattern::any_input(pattern::rank_equals(1));
+    //   C   = Unsqueeze(B/C-expanded, -2)             -> [B, T, H, 1, N]  -> Loop input 4
+    auto A = pattern::any_input(pattern::shape_matches("[head_num]"));
     auto dA = pattern::wrap_type<v1::Reshape>(
         {pattern::wrap_type<v0::Exp>({pattern::wrap_type<v1::Multiply>({A, dt})}), pattern::any_input()});
 
     auto B = pattern::any_input(pattern::shape_matches("[?, ?, group_num, state_size]"));
     auto B_expanded = pattern::wrap_type<v1::Reshape>(
-        {pattern::wrap_type<v0::Tile>({pattern::wrap_type<v0::Unsqueeze>({B, 3}), pattern::any_input()}),
+        {pattern::wrap_type<v0::Tile>(
+             {pattern::wrap_type<v0::Unsqueeze>({B, pattern::any_input()}), pattern::any_input()}),
          pattern::any_input()});
 
     // dB = Unsqueeze(dt, -1) * B_expanded ; dBx = Unsqueeze(dB, -2) * Unsqueeze(x, -1).
@@ -186,7 +187,8 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
 
     auto C = pattern::any_input(pattern::shape_matches("[?, ?, group_num, state_size]"));
     auto C_expanded = pattern::wrap_type<v1::Reshape>(
-        {pattern::wrap_type<v0::Tile>({pattern::wrap_type<v0::Unsqueeze>({C, 3}), pattern::any_input()}),
+        {pattern::wrap_type<v0::Tile>(
+             {pattern::wrap_type<v0::Unsqueeze>({C, pattern::any_input()}), pattern::any_input()}),
          pattern::any_input()});
     auto C_5d = pattern::wrap_type<v0::Unsqueeze>({C_expanded, pattern::any_input()});
 
@@ -207,14 +209,8 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
             return false;
         }
 
-        // `A` is discretized outside the loop and must fold to a constant.
-        auto A_const = ov::util::get_constant_from_source(pattern_map.at(A));
-        if (!A_const) {
-            return false;
-        }
-
         ov::OutputVector inputs = {
-            A_const,                     // A
+            pattern_map.at(A),           // A
             pattern_map.at(dt),          // dt
             pattern_map.at(B),           // B (per group)
             pattern_map.at(x),           // x
@@ -225,7 +221,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
         auto selective_ssm = std::make_shared<ov::op::internal::SelectiveSSM>(inputs);
         selective_ssm->set_friendly_name(loop_node->get_friendly_name());
 
-        ov::copy_runtime_info(loop_node, selective_ssm);
+        ov::copy_runtime_info(m.get_matched_nodes(), selective_ssm);
         ov::replace_node(loop_node, selective_ssm);
         return true;
     };
@@ -234,8 +230,8 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
     register_matcher(m, callback);
 }
 
-bool ov::pass::SSMFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(SSMFusion);
+bool ov::pass::SelectiveSSMFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(SelectiveSSMFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoopSSM>();

@@ -214,33 +214,33 @@ std::shared_ptr<ov::Model> build_fused_ssm(int32_t num_heads,
 
 }  // namespace
 
-TEST_F(TransformationTestsF, SSMFusion_FuseLoop) {
+TEST_F(TransformationTestsF, SelectiveSSMFusion_FuseLoop) {
     model = build_looped_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
     model_ref = build_fused_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
-    manager.register_pass<ov::pass::SSMFusion>();
+    manager.register_pass<ov::pass::SelectiveSSMFusion>();
 }
 
-TEST_F(TransformationTestsF, SSMFusion_FuseLoopWithPostLoopReshape) {
+TEST_F(TransformationTestsF, SelectiveSSMFusion_FuseLoopWithPostLoopReshape) {
     model = build_looped_ssm(/*num_heads=*/4,
                              /*num_groups=*/2,
                              /*head_dim=*/8,
                              /*state_size=*/16,
                              /*with_post_loop=*/true);
     model_ref = build_fused_ssm(/*num_heads=*/4, /*num_groups=*/2, /*head_dim=*/8, /*state_size=*/16);
-    manager.register_pass<ov::pass::SSMFusion>();
+    manager.register_pass<ov::pass::SelectiveSSMFusion>();
     // Removing the post-loop reshape reconnects the original Result to a different producer,
     // so its friendly name differs from the reference.
     disable_result_friendly_names_check();
 }
 
-TEST_F(TransformationTestsF, SSMFusion_DoesNotFuseOnBrokenBody) {
+TEST_F(TransformationTestsF, SelectiveSSMFusion_DoesNotFuseOnBrokenBody) {
     model = build_looped_ssm(/*num_heads=*/4,
                              /*num_groups=*/2,
                              /*head_dim=*/8,
                              /*state_size=*/16,
                              /*with_post_loop=*/false,
                              /*break_body=*/true);
-    manager.register_pass<ov::pass::SSMFusion>();
+    manager.register_pass<ov::pass::SelectiveSSMFusion>();
 }
 
 }  // namespace ov::test
