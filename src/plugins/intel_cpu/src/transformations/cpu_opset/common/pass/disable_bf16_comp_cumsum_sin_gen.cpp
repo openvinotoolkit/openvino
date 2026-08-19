@@ -54,7 +54,7 @@ DisableBF16CompCumSumSinGen::DisableBF16CompCumSumSinGen() {
     auto transpose3_m = wrap_type<ov::op::v1::Transpose>({interp_down_m, any_input()});
     auto sin_m = wrap_type<ov::op::v0::Sin>({transpose3_m});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sin_node = pattern_map.at(sin_m).get_node_shared_ptr();

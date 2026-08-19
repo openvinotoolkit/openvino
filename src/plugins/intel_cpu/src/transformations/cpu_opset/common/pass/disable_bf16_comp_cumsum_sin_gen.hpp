@@ -25,9 +25,6 @@ namespace ov::intel_cpu {
  *          -> Multiply   -> Transpose -> Multiply
  *          -> Interpolate -> Transpose -> Sin
  *
- *  The pass is intentionally scoped to nodes with `l_sin_gen` in friendly
- *  names to avoid matching unrelated structurally similar chains.
- *
  */
 class DisableBF16CompCumSumSinGen : public ov::pass::MatcherPass {
 public:
