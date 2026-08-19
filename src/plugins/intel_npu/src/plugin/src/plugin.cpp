@@ -132,98 +132,6 @@ std::shared_ptr<const ov::Model> get_model_ptr_from_map(const ov::AnyMap& proper
     return nullptr;
 }
 
-void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredConfig& config) {
-    // Initialize (note: it will reset registered options)
-    options.reset();
-
-#define REGISTER_OPTION(OPT_TYPE) \
-    do {                          \
-        options.add<OPT_TYPE>();  \
-    } while (0)
-
-    REGISTER_OPTION(LOG_LEVEL);
-    REGISTER_OPTION(COMPILE_LOG_LEVEL);
-    REGISTER_OPTION(CACHE_DIR);
-    REGISTER_OPTION(CACHE_MODE);
-    REGISTER_OPTION(COMPILED_BLOB);
-    REGISTER_OPTION(DEVICE_ID);
-    REGISTER_OPTION(NUM_STREAMS);
-    REGISTER_OPTION(PERF_COUNT);
-    REGISTER_OPTION(LOADED_FROM_CACHE);
-    REGISTER_OPTION(COMPILATION_NUM_THREADS);
-    REGISTER_OPTION(PERFORMANCE_HINT);
-    REGISTER_OPTION(EXECUTION_MODE_HINT);
-    REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
-    REGISTER_OPTION(INFERENCE_PRECISION_HINT);
-    REGISTER_OPTION(MODEL_PRIORITY);
-    REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-    REGISTER_OPTION(DMA_ENGINES);
-    REGISTER_OPTION(TILES);
-    REGISTER_OPTION(COMPILATION_MODE);
-    REGISTER_OPTION(COMPILER_TYPE);
-    REGISTER_OPTION(COMPILER_VERSION);
-    REGISTER_OPTION(PLATFORM);
-    REGISTER_OPTION(CREATE_EXECUTOR);
-    REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING_TYPE);
-    REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
-    REGISTER_OPTION(BATCH_MODE);
-    REGISTER_OPTION(BYPASS_UMD_CACHING);
-    REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
-    REGISTER_OPTION(WEIGHTS_PATH);
-    REGISTER_OPTION(RUN_INFERENCES_SEQUENTIALLY);
-    REGISTER_OPTION(COMPILER_DYNAMIC_QUANTIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION);
-    REGISTER_OPTION(QDQ_OPTIMIZATION_AGGRESSIVE);
-    REGISTER_OPTION(STEPPING);
-    REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(EXPORT_RAW_BLOB);
-    REGISTER_OPTION(IMPORT_RAW_BLOB);
-    REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
-    REGISTER_OPTION(TURBO);
-    REGISTER_OPTION(ENABLE_WEIGHTLESS);
-    REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
-    REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-    REGISTER_OPTION(MODEL_SERIALIZER_VERSION);
-    REGISTER_OPTION(ENABLE_STRIDES_FOR);
-    REGISTER_OPTION(SHARED_COMMON_QUEUE);
-    REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(RUNTIME_REQUIREMENTS);
-    REGISTER_OPTION(COMPATIBILITY_CHECK);
-    REGISTER_OPTION(MAX_TILES);
-    REGISTER_OPTION(WORKLOAD_TYPE);
-    REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    REGISTER_OPTION(ENABLE_CPU_PINNING);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    // parse again env_variables to update registered configs which
-    // have env vars set
-    config.parseEnvVars();
-
-    // NPUW properties are requested by OV Core during caching and
-    // have no effect on the NPU plugin. But we still need to enable
-    // those for OV Core to query. Note: do this last to not filter
-    // them out. register npuw caching properties
-    for_each_exposed_npuw_option([&](auto tag) {
-        using Opt = typename decltype(tag)::type;
-        REGISTER_OPTION(Opt);
-    });
-
-    if (config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && backend != nullptr) {
-        auto device = backend->getDevice();
-        if (device) {
-            auto platformName = device->getName();
-            CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType)}});
-            }
-        }
-    }
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -232,10 +140,9 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
-    std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
     // parse env_variables to get LOG_LEVEL if needed
+    std::shared_ptr<OptionsDesc> options = std::make_shared<OptionsDesc>();
     options->add<LOG_LEVEL>();
-
     FilteredConfig config(options);
     config.parseEnvVars();
     Logger::global().setLevel(config.get<LOG_LEVEL>());
@@ -246,19 +153,10 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
 
-    OV_ITT_TASK_NEXT(PLUGIN, "InitConfig");
-    init_config(_backend._ptr.get(), *options, config);
-
-    if (_backend) {
-        OV_ITT_TASK_NEXT(PLUGIN, "RegisterBackendOptions");
-        _backend->registerOptions(*options);
-    }
-
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory());
-    _propertiesManager =
-        std::make_unique<PluginPropertyManager>(config, _backend, _compilerOptionSupportHelper, _logger);
+    _propertiesManager = std::make_unique<PluginPropertyManager>(_backend, _compilerOptionSupportHelper, _logger);
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
