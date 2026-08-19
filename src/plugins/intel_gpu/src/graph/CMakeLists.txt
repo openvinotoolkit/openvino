@@ -104,6 +104,7 @@ macro(ov_gpu_add_backend_target)
     if (ENABLE_ONEDNN_FOR_GPU)
         target_include_directories(${ARG_NAME} SYSTEM BEFORE PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
         add_dependencies(openvino_intel_gpu_${IMPL_TYPE}_obj onednn_gpu_tgt)
+        ov_gpu_set_opencl_api_version_for(${ARG_NAME})
     endif()
 
     # The graph backend implementations are compiled in these per-backend OBJECT
@@ -165,6 +166,9 @@ target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+if(ENABLE_ONEDNN_FOR_GPU)
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 

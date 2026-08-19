@@ -113,6 +113,9 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
+set(INTEL_GPU_TARGET_OCL_VERSION "300"
+    CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 

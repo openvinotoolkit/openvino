@@ -77,9 +77,11 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::
 # backend-neutral kernel metadata or Vulkan-only builds.
 if(ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::NewHeaders)
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 endif()
 
 ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
+ov_gpu_set_kernel_language_version_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 

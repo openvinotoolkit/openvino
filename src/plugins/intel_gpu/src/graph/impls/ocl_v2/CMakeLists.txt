@@ -55,6 +55,7 @@ ov_gpu_add_backend_target(
         DEPENDENCIES run_ocl_codegen
         ADD_CLANG_FORMAT
 )
+ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 

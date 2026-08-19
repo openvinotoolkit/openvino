@@ -30,6 +30,16 @@ function(ov_gpu_set_runtime_definitions_for TARGET_NAME)
     endif()
 endfunction()
 
+function(ov_gpu_set_opencl_api_version_for TARGET_NAME)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        CL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+endfunction()
+
+function(ov_gpu_set_kernel_language_version_for TARGET_NAME)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        OV_GPU_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+endfunction()
+
 function(ov_gpu_link_runtime_dependencies_for TARGET_NAME)
     foreach(GPU_RUNTIME IN LISTS GPU_RUNTIME_TYPES)
         if(GPU_RUNTIME STREQUAL "ZE")
@@ -49,4 +59,7 @@ endfunction()
 function(ov_gpu_set_runtime_interface_for TARGET_NAME)
     ov_gpu_set_runtime_definitions_for(${TARGET_NAME})
     ov_gpu_link_runtime_dependencies_for(${TARGET_NAME})
+    if(OV_GPU_RUNTIME_OCL_ENABLED OR OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+        ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+    endif()
 endfunction()
