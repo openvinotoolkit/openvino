@@ -139,6 +139,11 @@ threshold-able signal — this is exactly what `test-llama-archs` already comput
 Generated-text checks stay useful as a *coarse* smoke gate (gibberish is unmistakable) but must not
 be the primary numerical assertion.
 
+Until this tier is wired into a scheduled job, [`compare_with_llama.py`](../tests/compare_with_llama.py)
+is the ad-hoc local stand-in: it greedy-decodes a prompt through the frontend's own stateless gguf-IO
+contract (round-tripping the KV cache itself, via `gguf_io_utils.py`) so the generated text/ids can be
+diffed by hand against `llama-simple -m model.gguf <prompt>`.
+
 ### T4 — end-to-end product (real models, nightly)
 GenAI `LLMPipeline` on a `.gguf`: tokenizer built from `rt_info`, `MakeStateful` + `AdaptToGenAI`,
 sampling, chat template. **[exists]** — `test_gguf_reader.py` in precommit,
@@ -151,6 +156,10 @@ Fixed small model set; record TTFT / TPOT / peak *anonymous* memory (not RSS —
 of the weights dominates RSS and is not the interesting number) against a tracked baseline, with the
 llama.cpp default ggml CPU backend as the control on the same file. Measured noise floor on this
 machine is ±2 %, so a threshold tighter than ~5 % will flap.
+
+Until this tier is wired into a scheduled job, [`bench_gguf.py`](../tests/bench_gguf.py) is the ad-hoc
+local stand-in: it reports load/compile time and prefill/decode throughput for the frontend versus
+`llama-simple`, on the same file.
 
 ## 4. Fixtures — the load-bearing decision
 
