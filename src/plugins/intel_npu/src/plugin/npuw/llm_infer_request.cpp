@@ -421,9 +421,9 @@ std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
 }
 
 void ov::npuw::LLMInferRequest::bind_past_kv() {
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    if (kvcache_desc.v_tensors_transposed_pre != kvcache_desc.v_tensors_transposed_gen) {
-        // FIXME: disable kv cache sharing when one of the models is transposed for now
+    const auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    if (kvcache_desc.kv_seq_dims != kvcache_desc.kv_seq_dims_gen) {
+        // Different layouts require an explicit copy/transpose between prefill and generate.
         return;
     }
 
@@ -632,7 +632,11 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         auto it = kv_seq_dims.find(input_name);
         OPENVINO_ASSERT(it != kv_seq_dims.end(), "KV seq dim not found for parameter: ", input_name);
         const uint32_t seq_dim_pre = it->second;
-        const uint32_t seq_dim_gen = seq_dim_pre;
+
+        const auto& kv_seq_dims_gen = m_npuw_llm_compiled_model->m_kvcache_desc.kv_seq_dims_gen;
+        auto it_gen = kv_seq_dims_gen.find(input_name);
+        OPENVINO_ASSERT(it_gen != kv_seq_dims_gen.end(), "KV seq dim (gen) not found for parameter: ", input_name);
+        const uint32_t seq_dim_gen = it_gen->second;
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
@@ -699,7 +703,9 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto prefill_out_slice =
                 uu::make_tensor_slice(prefill_out_tensor, seq_dim_pre, pre_seq - copy_len, pre_seq);
 
-            auto kvcache_in_slice = uu::make_tensor_slice(kvcache_in_tensor, seq_dim_gen, 0u, copy_len);
+            const auto dst_begin = kvcache_desc.num_stored_tokens - copy_len;
+            auto kvcache_in_slice =
+                uu::make_tensor_slice(kvcache_in_tensor, seq_dim_gen, dst_begin, kvcache_desc.num_stored_tokens);
 
             uu::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, seq_dim_pre, seq_dim_gen);
         }
@@ -730,8 +736,10 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
 
-        // Look up per-parameter seq dim from compile-time analysis.
-        const auto& kv_seq_dims = m_npuw_llm_compiled_model->m_kvcache_desc.kv_seq_dims;
+        // Choose the correct seq dim map: prefill or generate side.
+        const bool is_prefill = (request == m_prefill_request);
+        const auto& kv_seq_dims = is_prefill ? m_npuw_llm_compiled_model->m_kvcache_desc.kv_seq_dims
+                                             : m_npuw_llm_compiled_model->m_kvcache_desc.kv_seq_dims_gen;
         auto it = kv_seq_dims.find(input_name);
         OPENVINO_ASSERT(it != kv_seq_dims.end(), "KV seq dim not found for parameter: ", input_name);
         const uint32_t kv_dim = it->second;

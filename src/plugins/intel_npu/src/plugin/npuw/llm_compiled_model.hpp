@@ -49,9 +49,12 @@ public:
         uint32_t max_generation_token_len = 0u;
         bool v_tensors_transposed_pre = false;  // prefill
         bool v_tensors_transposed_gen = false;  // generate
-        // Per-parameter KV cache sequence dimension.
+        // Per-parameter KV cache sequence dimension (prefill model).
         // Key: past_key_values parameter name. Value: seq_dim index (from Concat axis).
         std::unordered_map<std::string, uint32_t> kv_seq_dims;
+        // Per-parameter KV cache sequence dimension (generate model).
+        // May differ from kv_seq_dims when prefill and generate use different V layouts
+        std::unordered_map<std::string, uint32_t> kv_seq_dims_gen;
     };
 
     // Factory type for creating sub-compiled-models (prefill / generate / lm_head).

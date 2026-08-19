@@ -111,14 +111,14 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
 
     LOG_DEBUG("Migrating " << num_stored << " KV tokens to new generate variant.");
 
-    const auto& kv_seq_dims = kvcache_desc.kv_seq_dims;
+    const auto& kv_seq_dims_gen = kvcache_desc.kv_seq_dims_gen;
     for (const auto& name : m_req.m_kvcache_past_names) {
         auto src = old_req->get_tensor(old_in_ports.at(name));
         auto dst = new_req->get_tensor(new_in_ports.at(name));
 
-        // Look up per-parameter seq dim from compile-time analysis.
-        auto it = kv_seq_dims.find(name);
-        OPENVINO_ASSERT(it != kv_seq_dims.end(), "KV seq dim not found for parameter: ", name);
+        // Look up per-parameter seq dim from compile-time analysis (generate side).
+        auto it = kv_seq_dims_gen.find(name);
+        OPENVINO_ASSERT(it != kv_seq_dims_gen.end(), "KV seq dim (gen) not found for parameter: ", name);
         const uint32_t kv_dim = it->second;
 
         auto src_slice = uu::make_tensor_slice(src, kv_dim, 0u, num_stored);

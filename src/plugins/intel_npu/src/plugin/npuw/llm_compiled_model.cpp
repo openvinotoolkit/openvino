@@ -1051,6 +1051,31 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
+
+    const auto extract_kv_seq_dims = [](const std::shared_ptr<ov::Model>& model) {
+        std::unordered_map<std::string, uint32_t> kv_seq_dims;
+        for (const auto& param : model->get_parameters()) {
+            const auto& name = param->get_friendly_name();
+            const auto key_layer = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
+            const auto value_layer = ov::npuw::util::isPastKeyValuesValueContiguous(name);
+            if (!key_layer && !value_layer) {
+                continue;
+            }
+            auto [concat, _] = ov::npuw::pass::find_concat_for_param(param);
+            if (!concat) {
+                continue;
+            }
+            const int64_t raw_axis = concat->get_axis();
+            const int64_t rank = static_cast<int64_t>(param->get_partial_shape().rank().get_length());
+            const uint32_t axis = static_cast<uint32_t>((raw_axis < 0) ? raw_axis + rank : raw_axis);
+            kv_seq_dims[name] = axis;
+        }
+        return kv_seq_dims;
+    };
+
+    // Non-chunk prefill removes empty KV parameters below, so preserve their concat axes first.
+    m_kvcache_desc.kv_seq_dims = extract_kv_seq_dims(prefill_model);
+
     if (!m_is_embedding) {
         if (!m_use_chunk_prefill) {
             LOG_DEBUG("Removing EmptyKVInputs");
@@ -1241,24 +1266,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    // Extract per-parameter KV sequence dimensions from Concat axes in the prefill model.
-    // This is done unconditionally (before any block/continuous decision) so that both
-    // paths can look up seq_dim by parameter name without runtime heuristics.
-    for (const auto& param : prefill_model->get_parameters()) {
-        const auto& name = param->get_friendly_name();
-        auto key_layer = ov::npuw::util::isPastKeyValuesKeyContiguous(name);
-        auto value_layer = ov::npuw::util::isPastKeyValuesValueContiguous(name);
-        if (!key_layer && !value_layer) {
-            continue;
+    // Extract per-parameter KV sequence dimensions from the generate model.
+    // This may differ from prefill when V layout differs (e.g. GPU offload attention).
+    if (!generate_model_variants.empty()) {
+        m_kvcache_desc.kv_seq_dims_gen = extract_kv_seq_dims(generate_model_variants.front());
+        for (size_t idx = 1; idx < generate_model_variants.size(); ++idx) {
+            const auto variant_kv_seq_dims = extract_kv_seq_dims(generate_model_variants[idx]);
+            OPENVINO_ASSERT(variant_kv_seq_dims == m_kvcache_desc.kv_seq_dims_gen,
+                            "Generate model variants have inconsistent KV sequence dimensions: variant 0 and variant ",
+                            idx,
+                            " differ.");
         }
-        auto [concat, _] = ov::npuw::pass::find_concat_for_param(param);
-        if (!concat) {
-            continue;
-        }
-        const int64_t raw_axis = concat->get_axis();
-        const int64_t rank = static_cast<int64_t>(param->get_partial_shape().rank().get_length());
-        const uint32_t axis = static_cast<uint32_t>((raw_axis < 0) ? raw_axis + rank : raw_axis);
-        m_kvcache_desc.kv_seq_dims[name] = axis;
+    } else {
+        // No generate model (e.g. encoder-only): mirror prefill dims.
+        m_kvcache_desc.kv_seq_dims_gen = m_kvcache_desc.kv_seq_dims;
     }
 
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
@@ -1268,7 +1289,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
                         "Please disable one of the two options.");
-        if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid)) {
+        const bool block_kv_axes_compatible = m_kvcache_desc.kv_seq_dims == m_kvcache_desc.kv_seq_dims_gen;
+        if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid) &&
+            block_kv_axes_compatible) {
             const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
 
             LOG_DEBUG("Applying SplitKVCacheIntoBlocks (block_size=" << block_size << ")");
@@ -1300,7 +1323,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
                      "Block-based KV cache requires: chunk prefill enabled, "
-                     "HFA or Pyramid attention, and a non-embedding model. "
+                     "HFA or Pyramid attention, a non-embedding model, and matching prefill/generate KV axes. "
                      "Falling back to monolithic (continuous) KV cache.");
         }
     }
@@ -1439,10 +1462,11 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
         // Serialize LLMCompiledModel-specific data
         stream & m_kvcache_desc.max_prompt_size & m_kvcache_desc.total_size & m_kvcache_desc.num_stored_tokens &
             m_kvcache_desc.dim & m_kvcache_desc.max_generation_token_len & m_kvcache_desc.v_tensors_transposed_pre &
-            m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
-            m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
-            m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding;
+            m_kvcache_desc.v_tensors_transposed_gen & m_kvcache_desc.kv_seq_dims & m_kvcache_desc.kv_seq_dims_gen &
+            m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank & m_enable_prefix_caching &
+            m_prefix_caching_block_size & m_prefix_caching_max_num_blocks & m_longrope_context_limit & m_is_whisper &
+            m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle & m_is_embedding & m_is_block_kv_cache &
+            m_is_encoder_embedding;
 
         // Write config
         stream & m_cfg;
@@ -1664,12 +1688,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         stream & compiled->m_kvcache_desc.max_prompt_size & compiled->m_kvcache_desc.total_size &
             compiled->m_kvcache_desc.num_stored_tokens & compiled->m_kvcache_desc.dim &
             compiled->m_kvcache_desc.max_generation_token_len & compiled->m_kvcache_desc.v_tensors_transposed_pre &
-            compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_prefill_chunk_size &
-            compiled->m_use_chunk_prefill & compiled->m_max_lora_rank & compiled->m_enable_prefix_caching &
-            compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
-            compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
-            compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
+            compiled->m_kvcache_desc.v_tensors_transposed_gen & compiled->m_kvcache_desc.kv_seq_dims &
+            compiled->m_kvcache_desc.kv_seq_dims_gen & compiled->m_prefill_chunk_size & compiled->m_use_chunk_prefill &
+            compiled->m_max_lora_rank & compiled->m_enable_prefix_caching & compiled->m_prefix_caching_block_size &
+            compiled->m_prefix_caching_max_num_blocks & compiled->m_longrope_context_limit & compiled->m_is_whisper &
+            compiled->m_eos_token_id & compiled->m_decomposed_sdpa_size & compiled->m_is_eagle &
+            compiled->m_is_embedding & compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
 
         // Deserialize config
         stream & compiled->m_cfg;
