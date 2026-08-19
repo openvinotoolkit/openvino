@@ -7,7 +7,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <unordered_map>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -40,14 +39,14 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& error_message) noexcept;
 
 private:
+    void bind_memory_arguments();
     SelectiveSSMAttrs m_attrs;
     ExecutorFactoryPtr<SelectiveSSMAttrs> m_factory;
     ExecutorPtr m_executor;
     MemoryArgs m_memory;
-    std::unordered_map<int, int> m_atoi;
 };
 
 }  // namespace ov::intel_cpu::node

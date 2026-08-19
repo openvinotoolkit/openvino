@@ -157,6 +157,8 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
     const auto outer_work = node::kernel::checked_size_product({sequence_count, x_dims[1]}, "outer work items");
     const auto expected_scratch_head_dim =
         node::kernel::get_scratch_head_dim(x_dims[2], state_dims[3], outer_work, thread_count);
+    const auto expected_state_scratch_elements =
+        node::kernel::checked_size_product({thread_count, expected_scratch_head_dim, state_dims[3]}, "state scratch");
     const auto expected_projection_scratch_elements =
         precision == ov::element::f32
             ? size_t{0}
@@ -165,8 +167,10 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
                         block_begins_dims[0] == sequence_count + 1 && processed_dims[0] == sequence_count &&
                         interval_dims[0] == sequence_count,
                     "PagedSelectiveSSM metadata tensor lengths are inconsistent.");
+    // The node prepares parameters when input shapes change. Keep the executor self-contained as well: direct users
+    // and a changed worker count must refresh every scratch region before pointer offsets below are calculated.
     if (!m_scratch || m_scratch_state_size != state_dims[3] || m_scratch_head_dim != expected_scratch_head_dim ||
-        m_cached_physical_blocks != state_dims[0] ||
+        m_state_scratch_elements != expected_state_scratch_elements || m_cached_physical_blocks != state_dims[0] ||
         m_projection_scratch_elements != expected_projection_scratch_elements ||
         m_cached_projection_elements != projection_elements) {
         OPENVINO_ASSERT(update_scratchpad(memory));

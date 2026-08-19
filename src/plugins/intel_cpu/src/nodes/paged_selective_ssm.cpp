@@ -4,10 +4,12 @@
 
 #include "paged_selective_ssm.h"
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "graph_context.h"
@@ -30,24 +32,32 @@
 
 namespace ov::intel_cpu::node {
 
+namespace {
+
+using InputPortBinding = std::pair<int, size_t>;
+
+constexpr std::array input_port_bindings{
+    InputPortBinding{ARG_PAGED_SSM_A, 0},
+    InputPortBinding{ARG_PAGED_SSM_DT, 1},
+    InputPortBinding{ARG_PAGED_SSM_B, 2},
+    InputPortBinding{ARG_PAGED_SSM_X, 3},
+    InputPortBinding{ARG_PAGED_SSM_C, 4},
+    InputPortBinding{ARG_PAGED_SSM_STATE, 5},
+    InputPortBinding{ARG_PAGED_SSM_SUBSEQUENCE_BEGINS, 6},
+    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES, 7},
+    InputPortBinding{ARG_PAGED_SSM_BLOCK_INDICES_BEGINS, 8},
+    InputPortBinding{ARG_PAGED_SSM_NUM_PROCESSED_TOKENS, 9},
+    InputPortBinding{ARG_PAGED_SSM_CACHE_INTERVAL, 10},
+};
+
+}  // namespace
+
 PagedSelectiveSSM::PagedSelectiveSSM(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
-    std::string errorMessage;
-    if (!isSupportedOperation(op, errorMessage)) {
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    std::string error_message;
+    if (!isSupportedOperation(op, error_message)) {
+        OPENVINO_THROW_NOT_IMPLEMENTED(error_message);
     }
-
-    m_atoi[ARG_PAGED_SSM_A] = 0;
-    m_atoi[ARG_PAGED_SSM_DT] = 1;
-    m_atoi[ARG_PAGED_SSM_B] = 2;
-    m_atoi[ARG_PAGED_SSM_X] = 3;
-    m_atoi[ARG_PAGED_SSM_C] = 4;
-    m_atoi[ARG_PAGED_SSM_STATE] = 5;
-    m_atoi[ARG_PAGED_SSM_SUBSEQUENCE_BEGINS] = 6;
-    m_atoi[ARG_PAGED_SSM_BLOCK_INDICES] = 7;
-    m_atoi[ARG_PAGED_SSM_BLOCK_INDICES_BEGINS] = 8;
-    m_atoi[ARG_PAGED_SSM_NUM_PROCESSED_TOKENS] = 9;
-    m_atoi[ARG_PAGED_SSM_CACHE_INTERVAL] = 10;
 }
 
 void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
@@ -72,7 +82,7 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
 
     const auto& creators_map = BlockedDescCreator::getCommonCreators();
     MemoryDescArgs descs;
-    for (const auto& [arg_id, port_id] : m_atoi) {
+    for (const auto& [arg_id, port_id] : input_port_bindings) {
         descs[arg_id] = creators_map.at(LayoutType::ncsp)
                             ->createSharedDesc(getOriginalInputPrecisionAtPort(port_id), getInputShapeAtPort(port_id));
     }
@@ -86,7 +96,7 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
     for (const auto& node_descriptors : node_descriptors_list) {
         NodeConfig node_config;
         node_config.inConfs.resize(getParentEdges().size());
-        for (const auto& [arg_id, port_id] : m_atoi) {
+        for (const auto& [arg_id, port_id] : input_port_bindings) {
             if (node_descriptors.count(arg_id)) {
                 node_config.inConfs[port_id] = PortConfig{node_descriptors.at(arg_id)};
             }
@@ -96,11 +106,15 @@ void PagedSelectiveSSM::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void PagedSelectiveSSM::createPrimitive() {
-    for (const auto& [arg_id, port_id] : m_atoi) {
+void PagedSelectiveSSM::bind_memory_arguments() {
+    for (const auto& [arg_id, port_id] : input_port_bindings) {
         m_memory[arg_id] = getSrcMemoryAtPort(port_id);
     }
     m_memory[ARG_PAGED_SSM_OUT] = getDstMemoryAtPort(0);
+}
+
+void PagedSelectiveSSM::createPrimitive() {
+    bind_memory_arguments();
 
     m_executor = m_factory->make(m_memory);
     Node::createPrimitive();
@@ -108,28 +122,22 @@ void PagedSelectiveSSM::createPrimitive() {
 }
 
 void PagedSelectiveSSM::prepareParams() {
-    for (const auto& [arg_id, port_id] : m_atoi) {
-        m_memory[arg_id] = getSrcMemoryAtPort(port_id);
-    }
-    m_memory[ARG_PAGED_SSM_OUT] = getDstMemoryAtPort(0);
+    bind_memory_arguments();
 
     m_executor->update(m_memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
 }
 
 void PagedSelectiveSSM::execute([[maybe_unused]] const dnnl::stream& strm) {
-    for (const auto& [arg_id, port_id] : m_atoi) {
-        m_memory[arg_id] = getSrcMemoryAtPort(port_id);
-    }
-    m_memory[ARG_PAGED_SSM_OUT] = getDstMemoryAtPort(0);
+    bind_memory_arguments();
 
     m_executor->execute(m_memory);
 }
 
 bool PagedSelectiveSSM::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                             std::string& errorMessage) noexcept {
+                                             std::string& error_message) noexcept {
     if (op == nullptr || !ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
-        errorMessage = "Node is not an instance of ov::op::internal::PagedSelectiveSSM.";
+        error_message = "Node is not an instance of ov::op::internal::PagedSelectiveSSM.";
         return false;
     }
     return true;

@@ -380,12 +380,13 @@ TEST(SelectiveSSMKernel, PortableF16StoreMatchesCoreAtRoundingBoundaries) {
     }
 }
 
-TEST(SelectiveSSMKernel, ScratchBlockingBalancesParallelismAndCacheFootprint) {
+TEST(SelectiveSSMKernel, ScratchTilingBalancesParallelismAndPortableMemoryBudget) {
     EXPECT_EQ(get_scratch_head_dim(64, 128, 64, 14), 64U);
     EXPECT_EQ(get_scratch_head_dim(64, 128, 1, 16), 4U);
     EXPECT_EQ(get_scratch_head_dim(7, 9000, 1, 16), 1U);
     EXPECT_EQ(get_scratch_head_dim(7, 3, 2, 8), 2U);
     EXPECT_EQ(get_scratch_head_dim(7, 3, 8, 8), 7U);
+    EXPECT_EQ(get_scratch_head_dim(2, 1, std::numeric_limits<size_t>::max(), 16), 2U);
 }
 
 TEST(SelectiveSSMKernel, SizeArithmeticRejectsOverflowAndHonorsZeroDimensions) {
@@ -1407,6 +1408,13 @@ TEST(PagedSelectiveSSMKernel, RejectsOversizedSequenceCountBeforeReadingMetadata
                  ov::Exception);
 }
 
+TEST(PagedSelectiveSSMKernel, RejectsMissingBlockOwnerScratch) {
+    const PagedSelectiveSSMShape shape{0, 1, 1, 1, 1, 1, 0, 0};
+    const int32_t zero = 0;
+    EXPECT_THROW(validate_paged_selective_ssm_metadata(&zero, &zero, &zero, &zero, &zero, shape, element::i32, nullptr),
+                 ov::Exception);
+}
+
 TEST(PagedSelectiveSSMKernel, RejectsMalformedMetadataBoundaryMatrix) {
     const auto expect_invalid = [](const PagedSelectiveSSMShape& shape,
                                    const std::vector<int64_t>& subsequence_begins,
@@ -1488,6 +1496,20 @@ TEST(SelectiveSSMKernel, RejectsInvalidShapeAndDispatchConfiguration) {
                                cpu_parallel,
                                &value,
                                nullptr),
+                 ov::Exception);
+    EXPECT_THROW(selective_ssm(&value,
+                               &value,
+                               &value,
+                               &value,
+                               &value,
+                               &value,
+                               &value,
+                               &value,
+                               shape,
+                               element::f32,
+                               &scratch,
+                               1,
+                               CpuParallelPtr{}),
                  ov::Exception);
 }
 
