@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-19-10-34-27-000-32234146558",
+  "timestamp": "2026-08-19T10:34:27Z",
+  "run_id": "32234146558",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32234146558",
+  "workflow_name": "Debian Packages / Debian Packages",
+  "pr_number": "37248",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37248",
+  "author": "Akihiro-Tabuchi",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timeout)",
+  "signature": "Could not connect to azure.archive.ubuntu.com connection timed out|Network",
+  "signature_hash": "7d2e2ff59d37c6b4",
+  "confidence": "High",
+  "failed_jobs": ["Debian Packages / Debian Packages"],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/b/build-essential/build-essential_12.10ubuntu1_amd64.deb  Could not connect to azure.archive.ubuntu.com:80 (52.250.76.244), connection timed out",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?"
+  ],
+  "root_cause": "The apt-get install step timed out trying to reach azure.archive.ubuntu.com. This is a transient network infrastructure failure on the Azure package mirror, unrelated to PR changes.",
+  "reproduction_steps": "N/A - transient network failure, not reproducible on demand.",
+  "recommended_actions": ["Re-run the failed Debian Packages job or re-queue the PR once the azure mirror is accessible."],
+  "prevention_strategies": ["Add apt-get retry logic or fallback mirrors in the Debian Packages workflow."],
+  "historical_context": "This is the 9th recorded occurrence of this pattern. It has been recurring frequently on 2026-08-19."
+}
