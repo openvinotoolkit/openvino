@@ -486,14 +486,15 @@ void remove_redundant_reorders::run(program& p) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 const bool is_onednn_fc = (input.get_preferred_impl_type() == impl_types::onednn) && input.is_type<fully_connected>();
-                const bool same_unpadded_dynamic_layout =
-                    old_output_layout_of_input.is_dynamic() && output_layout.is_dynamic() &&
-                    old_output_layout_of_input.data_type == output_layout.data_type &&
+                const bool backend_accepts_same_unpadded_dynamic_layout =
+                    backend_decision == fusion_decision::accept && old_output_layout_of_input.is_dynamic() &&
+                    output_layout.is_dynamic() && old_output_layout_of_input.data_type == output_layout.data_type &&
                     old_output_layout_of_input.format == output_layout.format &&
                     !static_cast<bool>(old_output_layout_of_input.data_padding) &&
                     !static_cast<bool>(output_layout.data_padding) &&
                     old_output_layout_of_input.get_partial_shape().same_scheme(output_layout.get_partial_shape());
-                if (!old_output_layout_of_input.identical(output_layout) && !same_unpadded_dynamic_layout &&
+                if (!old_output_layout_of_input.identical(output_layout) &&
+                    !backend_accepts_same_unpadded_dynamic_layout &&
                     ((input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
                     input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
                     input.is_type<rms>() ||
