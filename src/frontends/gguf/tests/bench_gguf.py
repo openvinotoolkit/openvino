@@ -28,11 +28,57 @@ import sys
 import time
 
 import numpy as np
+import openvino as ov
+from openvino.frontend import FrontEndManager
 
 
 # ---------------------------------------------------------------------------
 # OpenVINO helpers
 # ---------------------------------------------------------------------------
+
+def convert_gguf(model_path: str):
+    """Convert a .gguf through the GGUF frontend.
+
+    The frontend is not auto-selectable (see is_hidden_frontend in
+    src/frontends/common/src/manager.cpp), so core.read_model(".gguf") does not reach it and it
+    has to be requested by name.
+
+    No DecoderTransformationExtension is registered (GGUFMakeStateful is a C++-only pass with
+    no Python binding), so this returns the frontend's plain STATELESS graph: every per-layer KV
+    cache is a Parameter/Result pair rather than an OpenVINO Variable, and there is no beam_idx.
+    KVCache below round-trips those Parameters/Results across decode steps in Python instead.
+    """
+    fe = FrontEndManager().load_by_framework("gguf")
+    return fe.convert(fe.load(model_path))
+
+
+class KVCache:
+    """Round-trips the stateless graph's per-layer KV cache Parameter/Result pairs across decode
+    steps, since no DecoderTransformationExtension is registered to fold them into OpenVINO state
+    (see convert_gguf). See compare_with_llama.py's KVCache for the full rationale; identical here.
+    """
+
+    def __init__(self, compiled):
+        self._names = sorted(n for p in compiled.inputs for n in p.get_names() if n.startswith("cache_"))
+        self._dtypes = {n: compiled.input(n).get_element_type().to_dtype() for n in self._names}
+        self._shapes = {}
+        for n in self._names:
+            ps = compiled.input(n).get_partial_shape()
+            self._shapes[n] = (ps[2].get_length(), ps[3].get_length())
+        self._buf = {n: np.zeros((1, 0, *self._shapes[n]), dtype=self._dtypes[n]) for n in self._names}
+
+    def inputs_for_step(self, n_new):
+        feed = {}
+        for name in self._names:
+            new_rows = np.zeros((1, n_new, *self._shapes[name]), dtype=self._dtypes[name])
+            self._buf[name] = np.concatenate([self._buf[name], new_rows], axis=1)
+            feed[name] = ov.Tensor(self._buf[name])
+        return feed
+
+    def update_from(self, req):
+        for name in self._names:
+            self._buf[name] = np.array(req.get_tensor(name).data)
+
 
 def build_inputs(tokens, past_len):
     n = len(tokens)
@@ -44,6 +90,9 @@ def build_inputs(tokens, past_len):
         mask[0, 0, i, past_len + i + 1:] = -np.inf
     token_len = np.array([n], dtype=np.int64)
     beam_idx = np.zeros((1,), dtype=np.int32)
+    # KV-cache write index for the stateless graph: the new rows' absolute positions, same
+    # values as inp_pos (see KVCache).
+    inp_kv_idx = np.arange(past_len, past_len + n, dtype=np.int32).reshape(1, 1, 1, n)
     return {
         "inp_tokens": inp_tokens,
         "inp_pos": inp_pos,
@@ -52,24 +101,11 @@ def build_inputs(tokens, past_len):
         "self_kq_mask_swa": mask.copy(),
         "token_len_per_seq": token_len,
         "beam_idx": beam_idx,
+        "inp_kv_idx": inp_kv_idx,
     }
 
 
 def bench_openvino(gguf_path, prompt_ids, gen_tokens, device="CPU"):
-    import openvino as ov
-from openvino.frontend import FrontEndManager
-
-
-def convert_gguf(model_path: str):
-    """Convert a .gguf through the GGUF frontend.
-
-    The frontend is not auto-selectable (see is_hidden_frontend in
-    src/frontends/common/src/manager.cpp), so core.read_model(".gguf") does not reach it and it
-    has to be requested by name.
-    """
-    fe = FrontEndManager().load_by_framework("gguf")
-    return fe.convert(fe.load(model_path))
-
     core = ov.Core()
 
     t0 = time.perf_counter()
@@ -82,6 +118,7 @@ def convert_gguf(model_path: str):
 
     req = compiled.create_infer_request()
     model_inputs = {n for p in compiled.inputs for n in p.get_names()}
+    kv_cache = KVCache(compiled)
 
     def run(tokens, past):
         raw = build_inputs(tokens, past)
@@ -89,15 +126,16 @@ def convert_gguf(model_path: str):
         for k, v in raw.items():
             if k in model_inputs:
                 feed[k] = ov.Tensor(v)
-        out = req.infer(feed)
-        return list(out.values())[0]
+        feed.update({k: v for k, v in kv_cache.inputs_for_step(len(tokens)).items() if k in model_inputs})
+        req.infer(feed)
+        kv_cache.update_from(req)
+        return np.array(req.get_output_tensor(0).data)
 
     # warm-up: 1-token prefill + 1 decode
     run(prompt_ids[:1], 0)
     run([0], 1)
-    # reset states
-    for state in req.query_state():
-        state.reset()
+    # reset the (Python-side) KV cache so the timed run below starts from an empty context.
+    kv_cache = KVCache(compiled)
 
     # prefill
     t0 = time.perf_counter()

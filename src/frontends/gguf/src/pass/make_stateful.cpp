@@ -82,6 +82,11 @@ const std::string& gguf_imrope_key() {
     return key;
 }
 
+const std::string& gguf_swa_window_key() {
+    static const std::string key = "gguf_swa_window_size";
+    return key;
+}
+
 // Rewrite the recurrent (overwritten, non-appending) states into OpenVINO Variables.
 //
 // A KV cache is found by walking the SetRows writes and is grown with a Concat along its token

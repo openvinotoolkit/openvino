@@ -108,6 +108,10 @@ struct DecoderConfig {
     int shared_kv_layers = 0;              // gemma4: N trailing layers that share KV from earlier layers
     int head_size_swa = 0;                 // gemma4: head size for SWA layers (differs from global)
     int rope_dim_swa = 0;                  // gemma4: rope dims for SWA layers
+    // Sliding-window length in tokens, when the GGUF metadata carries an explicit
+    // "<arch>.attention.sliding_window" value (0 -> not present, e.g. an SWA layout described only
+    // by sinks or a per-layer boolean pattern with no accompanying token count).
+    int swa_window_size = 0;
 
     // ---- RoPE ----
     int rope_op_case = 0;

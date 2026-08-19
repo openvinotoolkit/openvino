@@ -245,6 +245,16 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
+    // Sliding-window length, when the metadata carries one; AdaptToGenAI needs it to build a
+    // correctly windowed self_kq_mask_swa instead of reusing the full causal mask (it runs on the
+    // model alone and cannot ask the decoder).
+    {
+        const auto swa_any = gguf_model_decoder->get_attribute("swa_window_size");
+        if (!swa_any.empty() && swa_any.as<int>() > 0) {
+            resulting_model->get_rt_info()[pass::gguf_swa_window_key()] = static_cast<int64_t>(swa_any.as<int>());
+        }
+    }
+
     // Record the recurrent (overwritten, non-appending) states BEFORE transformations: a caller
     // that registered MakeStateful runs it inside apply_transformations, and unlike a KV cache
     // these carry nothing in the graph that identifies them (see gguf_recurrent_states_key).

@@ -45,6 +45,7 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
     graph.has_rope = true;
     graph.rope_config = m_cfg.rope_config;
     graph.use_per_op_rope = m_cfg.use_per_op_rope;
+    graph.swa_window_size = m_cfg.swa_window_size;
 }
 
 void DecoderBuilder::build_inputs() {

@@ -223,6 +223,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // Gemma4: SWA layers use a smaller head size than global attention layers.
     head_size_swa = cfg_i("head_size_swa");
     rope_dim_swa = cfg_i("rope_dimension_count_swa");
+    swa_window_size = cfg_i("swa_window_size");
 
     // Interleaved M-RoPE (qwen35 / qwen3vl) is its own mode, so it must be decided here rather
     // than in the per-arch block above -- this assignment runs later and would overwrite it.

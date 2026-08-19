@@ -122,9 +122,15 @@ public:
         return m_data + m_off;
     }
 
+    // Bytes left before the end of the mapped file. m_off never exceeds m_size (every mutator
+    // below asserts that before advancing it), so this cannot underflow.
+    uint64_t remaining() const {
+        return m_size - m_off;
+    }
+
     template <typename T>
     T read() {
-        OPENVINO_ASSERT(m_off + sizeof(T) <= m_size, "[load_gguf] unexpected end of file");
+        OPENVINO_ASSERT(sizeof(T) <= remaining(), "[load_gguf] unexpected end of file");
         T v;
         std::memcpy(&v, m_data + m_off, sizeof(T));
         m_off += sizeof(T);
@@ -133,14 +139,17 @@ public:
 
     std::string read_string() {
         uint64_t len = read<uint64_t>();
-        OPENVINO_ASSERT(m_off + len <= m_size, "[load_gguf] string runs past end of file");
+        // Checked against `remaining()` (a subtraction), not `m_off + len` (an addition): len is
+        // an attacker-controlled 64-bit value from the file and could otherwise overflow the
+        // addition, wrapping it back under m_size and defeating the bounds check.
+        OPENVINO_ASSERT(len <= remaining(), "[load_gguf] string runs past end of file");
         std::string s(reinterpret_cast<const char*>(m_data + m_off), static_cast<size_t>(len));
         m_off += len;
         return s;
     }
 
     void skip(uint64_t n) {
-        OPENVINO_ASSERT(m_off + n <= m_size, "[load_gguf] skip past end of file");
+        OPENVINO_ASSERT(n <= remaining(), "[load_gguf] skip past end of file");
         m_off += n;
     }
 
@@ -212,6 +221,12 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
         uint64_t len = cur.read<uint64_t>();
         OPENVINO_ASSERT(elem_type != GGUF_VALUE_TYPE_ARRAY, "[load_gguf] nested arrays are not supported.");
         if (elem_type == GGUF_VALUE_TYPE_STRING) {
+            // Each string costs at least 8 bytes (its own length prefix), so this bounds the
+            // vector allocation below the same way the fixed-size branch bounds its Tensor.
+            OPENVINO_ASSERT(len <= cur.remaining() / sizeof(uint64_t),
+                            "[load_gguf] string array length ",
+                            len,
+                            " overflows the remaining file size");
             std::vector<std::string> strs(len);
             for (auto& s : strs) {
                 s = cur.read_string();
@@ -220,8 +235,18 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
             return;
         }
         auto dtype = value_type_to_dtype(elem_type);
+        const size_t elem_size = value_type_size(elem_type);
+        // `len` and `elem_size` are both attacker-controlled (elem_size indirectly, via
+        // elem_type) and size a Tensor allocation and a memcpy below; validate `len` against the
+        // cursor's remaining bytes -- via a division, not `len * elem_size`, which could itself
+        // overflow and wrap under the real remaining size -- before allocating or copying
+        // anything.
+        OPENVINO_ASSERT(len <= cur.remaining() / elem_size,
+                        "[load_gguf] array length ",
+                        len,
+                        " overflows the remaining file size");
+        const size_t nbytes = static_cast<size_t>(len) * elem_size;
         ov::Tensor t(dtype, ov::Shape{static_cast<size_t>(len)});
-        const size_t nbytes = static_cast<size_t>(len) * value_type_size(elem_type);
         std::memcpy(t.data(), cur.ptr(), nbytes);
         cur.skip(nbytes);
         out = std::move(t);
@@ -231,6 +256,7 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
     auto dtype = value_type_to_dtype(type);
     ov::Tensor t(dtype, ov::Shape(0));
     const size_t nbytes = value_type_size(type);
+    OPENVINO_ASSERT(nbytes <= cur.remaining(), "[load_gguf] scalar metadata value runs past end of file");
     std::memcpy(t.data(), cur.ptr(), nbytes);
     cur.skip(nbytes);
     out = std::move(t);
@@ -963,17 +989,24 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // this to add the self_kq_mask_swa input and route SWA layers to the windowed mask.
     // Architectures that always use sinks (gpt-oss) or per-layer flags (gemma4) are handled
     // separately inside the builder; has_swa catches newly-added archs like smollm3.
+    //
+    // The same "positive finite" value, when present, is also the window's length in tokens
+    // (swa_window_size below): a token at position q may then attend to keys in
+    // [q - swa_window_size + 1, q], which AdaptToGenAI needs to build a correctly windowed
+    // self_kq_mask_swa instead of reusing the full causal mask.
+    uint32_t swa_window_value = 0;
+    if (metadata.count(arch + ".attention.sliding_window")) {
+        const auto& t = std::get<ov::Tensor>(metadata.at(arch + ".attention.sliding_window"));
+        const uint32_t v = *t.data<uint32_t>();
+        // A value of 0 or UINT32_MAX typically means "no SWA"; treat only positive finite
+        // values as a real window.
+        if (v > 0 && v < 0xFFFFFFFFu) {
+            swa_window_value = v;
+        }
+    }
     config["has_swa"] =
-        (metadata.count(arch + ".attention.sliding_window_pattern") ||
-         (metadata.count(arch + ".attention.sliding_window") &&
-          // A value of 0 or UINT32_MAX typically means "no SWA"; treat only positive finite
-          // values as real SWA.  We check the tensor value directly.
-          [&]() {
-              const auto& t = std::get<ov::Tensor>(metadata.at(arch + ".attention.sliding_window"));
-              const uint32_t v = *t.data<uint32_t>();
-              return v > 0 && v < 0xFFFFFFFFu;
-          }()))
-        ? 1 : 0;
+        (metadata.count(arch + ".attention.sliding_window_pattern") || swa_window_value > 0) ? 1 : 0;
+    config["swa_window_size"] = static_cast<int>(swa_window_value);
 
     // gpt-oss SWA: alternation period (default 2: even layers are SWA). Matches llama.cpp's
     // set_swa_pattern(swa_period, dense_first=false): il is SWA if il % period < period - 1.

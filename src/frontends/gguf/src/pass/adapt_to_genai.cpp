@@ -13,7 +13,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/read_value.hpp"
@@ -199,10 +201,32 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         false);  // [1, 1, seq, kv_len]
     self_kq_mask->output(0).replace(mask_4d->output(0));
 
-    // gpt-oss sliding-window mask: for prompts within the window it equals the full causal
-    // mask, so the same value is correct here.
+    // Sliding-window mask: for prompts within the window this equals the full causal mask, but
+    // once the context (prompt + generated tokens) exceeds it, reusing the causal mask would
+    // leave every older key visible and produce wrong logits. When the model's metadata records
+    // an explicit window length (see gguf_swa_window_key), AND the causal mask with "key not
+    // more than window - 1 steps behind the query"; a token at position q may attend to keys in
+    // [q - window + 1, q]. Absent a recorded length (e.g. gpt-oss/gemma4, whose SWA is described
+    // by sinks / a per-layer pattern with no accompanying token count here), fall back to the
+    // full causal mask, matching the previous behavior.
     if (auto self_kq_mask_swa = find_param(model, "self_kq_mask_swa")) {
-        self_kq_mask_swa->output(0).replace(mask_4d->output(0));
+        ov::Output<ov::Node> swa_mask_4d = mask_4d->output(0);
+        const auto& rt_info = model->get_rt_info();
+        const auto swa_it = rt_info.find(gguf_swa_window_key());
+        if (swa_it != rt_info.end()) {
+            const auto window = swa_it->second.as<int64_t>();
+            auto window_m1 =
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(window - 1)});
+            auto window_start = make_shared<ov::op::v1::Subtract>(q_pos_col, window_m1);      // [seq, 1]
+            auto within_window = make_shared<ov::op::v1::GreaterEqual>(k_row, window_start);  // [seq, kv_len]
+            auto allowed_swa = make_shared<ov::op::v1::LogicalAnd>(allowed, within_window);    // [seq, kv_len]
+            auto mask2d_swa = make_shared<ov::op::v1::Select>(allowed_swa, zero_f, neg_f);     // [seq, kv_len]
+            swa_mask_4d = make_shared<ov::op::v1::Reshape>(
+                mask2d_swa,
+                make_shared<ov::op::v0::Concat>(ov::OutputVector{const_i64({1, 1}), seq_len, kv_len}, 0),
+                false);  // [1, 1, seq, kv_len]
+        }
+        self_kq_mask_swa->output(0).replace(swa_mask_4d);
     }
 
     // inp_out_ids selects which rows the output head runs on. Emit the LAST row only: genai reads

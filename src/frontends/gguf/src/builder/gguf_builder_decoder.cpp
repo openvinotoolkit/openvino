@@ -34,6 +34,8 @@ const GgufOp& GgufBuilderDecoder::node() const {
 //   "output_shape"         -> ov::PartialShape of the node output
 //   "output_type"          -> ov::element::Type of the node output
 //   "rope_config"          -> RopeConfig (model-scope RoPE config; see get_attribute below)
+//   "swa_window_size"      -> int (model-scope sliding-window length in tokens; 0 -> not
+//                              configured in this model's metadata; see get_attribute below)
 
 static bool parse_indexed_key(const std::string& name, const std::string& prefix, size_t& out_idx) {
     if (name.size() <= prefix.size() + 2)
@@ -64,6 +66,12 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
             cfg.n_dims = 0;
         }
         return cfg;
+    }
+
+    // Sliding-window length, queried at model scope only (TranslateSession, to record it in
+    // rt_info for AdaptToGenAI; see gguf_swa_window_key).
+    if (name == "swa_window_size" && m_node_idx < 0) {
+        return m_graph->swa_window_size;
     }
 
     const auto& n = node();

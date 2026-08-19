@@ -58,6 +58,13 @@ GGUF_FRONTEND_API const std::string& gguf_recurrent_states_key();
 /// feeding it plain per-token positions (as OpenVINO GenAI does) has to expand them first.
 GGUF_FRONTEND_API const std::string& gguf_imrope_key();
 
+/// Key under which the frontend records the model's sliding-window length in tokens (int64_t),
+/// when the GGUF metadata carries an explicit value. Recorded so AdaptToGenAI can build a
+/// correctly windowed self_kq_mask_swa (rather than reusing the full causal mask) without
+/// re-reading the .gguf file. Absent from rt_info when the model has no SWA, or its SWA is
+/// described only by sinks / a per-layer boolean pattern with no accompanying token count.
+GGUF_FRONTEND_API const std::string& gguf_swa_window_key();
+
 class GGUF_FRONTEND_API GGUFMakeStateful : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("gguf::GGUFMakeStateful");
