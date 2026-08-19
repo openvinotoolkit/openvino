@@ -147,6 +147,8 @@ ov_add_plugin(NAME ${TARGET_NAME}
               # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
               ADD_CLANG_TIDY)
 
+set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_gpu_plugin")
+
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
