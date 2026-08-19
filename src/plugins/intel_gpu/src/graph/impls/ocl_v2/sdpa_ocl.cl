@@ -81,13 +81,20 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // marks an "image" token; a maximal contiguous run of them is a group whose members attend to each
 // other in BOTH directions, on top of the usual causal + sliding-window region.
 //
-// HAS_TOKEN_TYPE_IDS declares the kernel parameter and is set by the host only for paged-attention
-// PREFILL with a token_type_ids input. USE_BIDIR_MASK is the no-rebuild bisection toggle
-// (SDPA_OCL_BIDIR=0) and is deliberately a SEPARATE macro: it elides the logic but leaves the
-// parameter declared, so the env knob can never desync get_arguments_desc() from the signature.
-// The IS_PAGED_ATTENTION / IS_PREFILL terms are redundant with the host gate and kept only so the
-// scope of the feature is readable from the .cl alone.
-#define BIDIR_MASK (HAS_TOKEN_TYPE_IDS && USE_BIDIR_MASK && IS_PAGED_ATTENTION && IS_PREFILL)
+// HAS_TOKEN_TYPE_IDS declares the kernel parameter and is set by the host for paged attention with a
+// token_type_ids input. USE_BIDIR_MASK is the no-rebuild bisection toggle (SDPA_OCL_BIDIR=0) and is
+// deliberately a SEPARATE macro: it elides the logic but leaves the parameter declared, so the env
+// knob can never desync get_arguments_desc() from the signature. The IS_PAGED_ATTENTION term is
+// redundant with the host gate and kept only so the scope of the feature is readable from the .cl
+// alone.
+//
+// PREFILL and MIXED both take this path. token_type_ids covers the NEW tokens only, so it is indexed
+// in LOCAL (subsequence-relative, new-token) coordinates while keys/queries run in KEY coordinates
+// key = query_position_offset + local -- see the extensions below. PREFILL is the past_len == 0 case
+// of the same code. GENERATE never reaches this kernel and would not need it anyway: that stage is
+// defined by every subsequence having exactly ONE new token, so a query's image group is the query
+// itself and the bidirectional rule degenerates to plain causal.
+#define BIDIR_MASK (HAS_TOKEN_TYPE_IDS && USE_BIDIR_MASK && IS_PAGED_ATTENTION)
 
 // Third axis, and the one that makes the feature safe: HAS_TOKEN_TYPE_IDS is decided at COMPILE time
 // from an input shape that may still be dynamic, while the op contract is "[B_token | 0]" -- a
@@ -507,11 +514,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             const bool bidir_active = true;
         #endif
 
-        // token_type_ids is [B_token]: one entry per token of the FLATTENED batch, exactly like the
-        // Q rows above, so it needs the same subsequence bump. Every index derived from it below is
-        // then subsequence-relative, matching q / k / wg_j0. NOTE: sdpa_micro.cl and sdpa_opt.cl
-        // omit this bump and index the flattened buffer with subsequence-relative positions, which
-        // only agrees for a single subsequence starting at token 0.
+        // token_type_ids is [B_token]: one entry per NEW token of the FLATTENED batch, exactly like
+        // the Q rows above, so it needs the same subsequence bump. Every index derived from it below
+        // is then LOCAL -- subsequence-relative and new-token-relative, i.e. in [0, q) -- matching
+        // wg_j0 and `query`, but NOT `key` / `causal_k` / `window_k_begin`, which count from the
+        // start of the CACHED context (key = query_position_offset + local). PREFILL is the
+        // query_position_offset == 0 case where the two spaces coincide. NOTE: sdpa_micro.cl and
+        // sdpa_opt.cl omit this bump and index the flattened buffer with subsequence-relative
+        // positions, which only agrees for a single subsequence starting at token 0.
         if (bidir_active)
             token_type_ids += subsequence_begin;
     #endif
@@ -753,14 +763,24 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // wg_q_end in that same group and therefore has the same group end.
     // Counterpart of sdpa_micro.cl's bidir_causal_k, but the scan is subgroup-cooperative
     // (SUBGROUP_SIZE positions per step) instead of a lane-0 serial walk. Everything here is
-    // subgroup-uniform -- wg_q_end, k and the reduction result -- so the loop trip count and the
+    // subgroup-uniform -- wg_q_end, q and the reduction result -- so the loop trip count and the
     // break are uniform and sub_group_reduce_min() is reached by every lane.
+    //
+    // The whole scan runs in LOCAL space and is bounded by q, the NEW token count, not by k: groups
+    // never leave the new-token region (openvino/reference/paged_attention.hpp builds image_group_*
+    // over [seq_begins[s], seq_begins[s+1]) alone and maps it to keys as past + (idx - t_begin)), and
+    // token_type_ids only has q entries for this subsequence. PREFILL, where q == k, is unchanged.
+    //
+    // Reaching a future key means reading it from the cache, which in MIXED holds the new tokens only
+    // because pa_kv_cache_update runs before this stage (PagedAttentionOptImpl::execute()). The
+    // reference relies on the same ordering and states it explicitly ("Populate cache with all new
+    // tokens before computing attention"); nothing here asserts it.
     {
-        const int wg_q_end = min((int)wg_j0 + kq_wg_tile_queries, k) - 1;
+        const int wg_q_end = min((int)wg_j0 + kq_wg_tile_queries, q) - 1;
         if (bidir_active && wg_q_end >= 0 && token_type_ids[wg_q_end] == 1) {
             int group_end = wg_q_end + 1;
-            while (group_end < k) {
-                const int chunk_end = min(k, group_end + SUBGROUP_SIZE);  // exclusive
+            while (group_end < q) {
+                const int chunk_end = min(q, group_end + SUBGROUP_SIZE);  // exclusive
                 const int idx = group_end + (int)lane;
                 const bool ends_group = (idx < chunk_end) && (token_type_ids[idx] != 1);
                 const int first = sub_group_reduce_min(ends_group ? idx : INT_MAX);
@@ -770,8 +790,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 }
                 group_end = chunk_end;
             }
-            // group_end <= k: the loop only ever assigns an index below k or the clamped chunk end.
-            causal_k = max(causal_k, group_end);
+            // group_end <= q: the loop only ever assigns an index below q or the clamped chunk end,
+            // so the KEY-space result stays <= query_position_offset + q == k.
+            causal_k = max(causal_k, query_position_offset + group_end);
         }
     }
 #endif
@@ -792,8 +813,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // start back to the beginning of the group straddling it. Same sufficiency argument -- if a query
     // at or above wg_j0 has a group starting below window_k_begin, then window_k_begin lies inside
     // that (contiguous) group, so scanning from window_k_begin finds the right start.
-    if (bidir_active && window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
-        int group_begin = window_k_begin;
+    //
+    // window_k_begin is a KEY coordinate, token_type_ids is indexed LOCALly, hence the shift. Once
+    // window_begin_local <= 0 the window already reaches at or below the first new token, and since
+    // groups never extend below that there is nothing left to extend -- which is also what keeps the
+    // index in range. In PREFILL query_position_offset is 0 and this reduces to the old form.
+    const int window_begin_local = window_k_begin - query_position_offset;
+    if (bidir_active && window_begin_local > 0 && token_type_ids[window_begin_local] == 1) {
+        int group_begin = window_begin_local;
         while (group_begin > 0) {
             const int chunk_begin = max(0, group_begin - SUBGROUP_SIZE);
             const int idx = chunk_begin + (int)lane;
@@ -805,7 +832,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
             group_begin = chunk_begin;
         }
-        window_k_begin = group_begin;
+        window_k_begin = query_position_offset + group_begin;
     }
     #endif
     const int window_k0_begin = (window_k_begin / kq_wg_tile_keys) * kq_wg_tile_keys;
@@ -827,7 +854,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // keys below window_k0_begin are never visited by the k0 loop, and keys at or above causal_k
     // already read as -INFINITY through k_mask, so widening either bound cannot change a score. The
     // two extensions above make the clamps no-ops for real inputs anyway; they are the safety net.
-    // An empty range (0, 0) is the "not an image token" encoding -- no key satisfies it.
+    // An empty range (0, 0) is the "not an image token" encoding -- no key satisfies it, and it stays
+    // valid whatever query_position_offset is, because the offset is only applied to a REAL group.
+    //
+    // The scan runs on token_type_ids, i.e. in LOCAL space, so the window bounds are mapped back
+    // through key = query_position_offset + local and then clipped to the [0, q) range the buffer
+    // actually covers. The stored result goes back to KEY space, which is what the mask loop compares
+    // `key` against. PREFILL keeps its old form: query_position_offset folds to 0.
+    const int bidir_scan_lo = max(0, window_k0_begin - query_position_offset);
+    const int bidir_scan_hi = min(q, causal_k - query_position_offset);
     int bidir_group_begin[kq_query_blocks];
     int bidir_group_end[kq_query_blocks];
     #pragma unroll
@@ -838,11 +873,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         int group_end = 0;
         if (bidir_active && query < q && token_type_ids[query] == 1) {
             group_begin = query;
-            while (group_begin > window_k0_begin && token_type_ids[group_begin - 1] == 1)
+            while (group_begin > bidir_scan_lo && token_type_ids[group_begin - 1] == 1)
                 --group_begin;
             group_end = query + 1;
-            while (group_end < causal_k && token_type_ids[group_end] == 1)
+            while (group_end < bidir_scan_hi && token_type_ids[group_end] == 1)
                 ++group_end;
+            group_begin += query_position_offset;
+            group_end += query_position_offset;
         }
         bidir_group_begin[qb] = group_begin;
         bidir_group_end[qb] = group_end;
