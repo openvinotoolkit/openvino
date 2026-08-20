@@ -210,6 +210,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
+    expert_weights_norm = cfg_i("expert_weights_norm") != 0;
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).

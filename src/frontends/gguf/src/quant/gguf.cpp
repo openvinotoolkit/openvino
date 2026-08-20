@@ -320,6 +320,24 @@ float metadata_to_float_or(const std::unordered_map<std::string, GGUFMetaData>& 
     return metadata.count(key) ? metadata_to_float(metadata, key) : default_value;
 }
 
+// GGUF stores true/false flags (e.g. "<arch>.expert_weights_norm") as a 1-byte
+// element::boolean scalar tensor, not the u32 metadata_to_int reinterprets; reading it through
+// metadata_to_int would read 4 bytes out of a 1-byte allocation. Read the boolean storage
+// directly instead.
+bool metadata_to_bool_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
+                         const std::string& key,
+                         bool default_value) {
+    if (!metadata.count(key)) {
+        return default_value;
+    }
+    const auto& tensor = metadata_scalar_tensor(metadata, key);
+    OPENVINO_ASSERT(tensor.get_element_type() == ov::element::boolean,
+                    "[GGUF] metadata key '",
+                    key,
+                    "' is not a boolean value as expected");
+    return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>()) != 0;
+}
+
 }  // namespace
 
 ov::Shape get_shape(const gguf_tensor& tensor) {
@@ -365,6 +383,12 @@ GGUFLoad get_gguf_data(const std::string& file) {
             alignment = *(t->data<ov::element_type_traits<ov::element::u32>::value_type>());
         }
     }
+    // The GGUF spec requires alignment to be a non-zero power of two; it is also used below as a
+    // modulo divisor, so an unvalidated 0 (a perfectly well-formed u32 scalar KV) would be an
+    // uncatchable SIGFPE crash in read_model on a crafted or corrupt file.
+    OPENVINO_ASSERT(alignment != 0 && (alignment & (alignment - 1)) == 0,
+                    "[load_gguf] invalid general.alignment ",
+                    alignment);
 
     // ---- Tensor info section ----
     struct TensorInfo {
@@ -534,6 +558,18 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
         auto tr = type_traits(ti.type);
         OPENVINO_ASSERT(tr.bytes_per_block != 0, "[load_gguf] tensor '", ti.name, "' has unsupported type ", ti.type);
+        // ggml requires the innermost (block) dimension to be a whole number of blocks (e.g.
+        // ne[0] % 256 == 0 for Q6_K). Without this, a crafted or truncated file's flooring
+        // integer division below silently produces a `bsize` that disagrees with the
+        // independently-flooring `scale_shape` computed in quant_sizes, letting fill_* write
+        // scales past the end of its (too-small) AlignedBuffer slice.
+        OPENVINO_ASSERT(ti.dim[0] % tr.items_per_block == 0,
+                        "[load_gguf] tensor '",
+                        ti.name,
+                        "' innermost dimension ",
+                        ti.dim[0],
+                        " is not a multiple of its block size ",
+                        tr.items_per_block);
         tensor.bsize = (nelem / tr.items_per_block) * tr.bytes_per_block;
 
         // Subtraction-based bounds checks: ti.offset comes straight from the file, so a crafted
@@ -812,6 +848,15 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["architecture"] = arch;
     config["layer_num"] = metadata_to_int(metadata, arch + ".block_count");
     config["head_num"] = metadata_to_int(metadata, arch + ".attention.head_count");
+    // When key_length is absent, head_size falls back to embedding_length / head_count, which
+    // runs before supported_archs() can reject anything; a malformed/adversarial file with
+    // head_count == 0 would otherwise be an uncatchable SIGFPE crash rather than a clear error.
+    if (!metadata.count(arch + ".attention.key_length")) {
+        OPENVINO_ASSERT(std::get<int>(config["head_num"]) > 0,
+                        "[GGUF] '",
+                        arch,
+                        ".attention.head_count' must be positive");
+    }
     config["head_size"] = metadata.count(arch + ".attention.key_length")
                               ? metadata_to_int(metadata, arch + ".attention.key_length")
                               : (metadata_to_int(metadata, arch + ".embedding_length") /
@@ -1029,6 +1074,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
 
     // gpt-oss MoE: optional per-expert routing weight scale applied after softmax (0 = 1.0 no-op).
     config["expert_weights_scale"] = metadata_to_float_or(metadata, arch + ".expert_weights_scale", 0.0f);
+
+    // qwen3moe/glm4moe/bailingmoe2 MoE: renormalize the selected top-K gate weights to sum to 1
+    // (llama.cpp build_moe_ffn's norm_w / "norm_topk_prob"); absent -> no renormalization.
+    config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.
     // 0.0 means no soft-cap (default for all non-Gemma2 architectures).

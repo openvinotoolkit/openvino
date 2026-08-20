@@ -284,7 +284,14 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         }
         auto ffn_inp_r = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa}, ps({1, 1, T, m_cfg.n_embd}), f32);
         auto ffn_norm_r = blocks::rms_norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
-        auto down_r = blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r, T);
+        // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
+        // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
+        // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
+        // would assert.
+        const bool is_moe_layer_r = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
+        auto down_r = is_moe_layer_r     ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
+                      : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
+                                       : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r, T);
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r}, ps({1, 1, T, m_cfg.n_embd}), f32);
     }
 

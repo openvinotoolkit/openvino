@@ -4,6 +4,8 @@
 
 #include "builder/blocks/ffn.hpp"
 
+#include <limits>
+
 #include "builder/blocks/common.hpp"
 
 namespace ov {
@@ -152,6 +154,26 @@ std::string moe_ffn(GraphEmitter& e,
                            0,
                            {{"softmax_axis", int64_t(2)}});
     }
+    // Renormalize the selected top-K gating weights to sum to 1 (llama.cpp build_moe_ffn's
+    // norm_w path, e.g. qwen3moe/glm4moe/bailingmoe2). On the softmax-before-topk path the
+    // weights above are a slice of a softmax over all E experts, so the K<E kept values no
+    // longer sum to 1 without this; the softmax-after-topk (gpt-oss) path already sums to 1
+    // and needs no correction. weights is [1,T,K,1]; transpose K to the last axis, SUM_ROWS,
+    // clamp away from 0 (matches llama.cpp's 6.1e-5 floor), then DIV back (broadcasts the
+    // [1,T,1,1] sum over K via repeat_input_to_match).
+    if (cfg.expert_weights_norm && !cfg.moe_softmax_weight) {
+        auto w_tr = e.add_op("GGML_OP_TRANSPOSE", p + "moe_w_tr", {weights}, ps({1, T, 1, K}), f32);
+        auto w_sum = e.add_op("GGML_OP_SUM_ROWS", p + "moe_w_sum", {w_tr}, ps({1, T, 1, 1}), f32);
+        w_sum = e.add_op("GGML_OP_CLAMP",
+                         p + "moe_w_sum_clamped",
+                         {w_sum},
+                         ps({1, T, 1, 1}),
+                         f32,
+                         0,
+                         {{"clamp_min", 6.1e-5f}, {"clamp_max", std::numeric_limits<float>::max()}});
+        weights = e.add_op("GGML_OP_DIV", p + "moe_w_norm", {weights, w_sum}, ps({1, T, K, 1}), f32);
+    }
+
     // gpt-oss expert_weights_scale: optional constant multiplier applied after softmax
     // (mirrors llama.cpp build_moe_ffn w_scale != 0 && w_scale != 1.0 path).
     if (cfg.expert_weights_scale != 0.0f && cfg.expert_weights_scale != 1.0f) {

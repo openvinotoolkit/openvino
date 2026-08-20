@@ -97,6 +97,7 @@ struct DecoderConfig {
     float logit_scale = 1.0f;
     float attention_scale = 0.0f;       // 0 -> 1/sqrt(head_size)
     float expert_weights_scale = 0.0f;  // 0 -> 1.0 no-op
+    bool expert_weights_norm = false;   // renormalize top-K gate weights to sum to 1 (qwen3moe etc.)
     float attn_soft_cap = 0.0f;
     float final_logit_soft_cap = 0.0f;
 
