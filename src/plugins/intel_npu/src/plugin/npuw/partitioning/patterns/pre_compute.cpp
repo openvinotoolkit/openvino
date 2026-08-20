@@ -5,6 +5,7 @@
 #include "pre_compute.hpp"
 
 #include "../../logging.hpp"
+#include "../../orc.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -21,15 +22,20 @@ namespace {
 // When duplicate=true (LLama2-style rotate_half), rotary_ndims = inv_freq_size*2
 // and the second half mirrors the first (torch.cat([freqs, freqs], dim=-1)).
 // When duplicate=false (GPT-style), rotary_ndims = inv_freq_size with no mirroring.
-static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
-                                        const std::shared_ptr<ov::Node> inverse_frequencies,
-                                        bool duplicate = true) {
-    const auto inverse_freq_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(inverse_frequencies)->cast_vector<float>();
-    const size_t inv_freq_size = ov::shape_size(inverse_frequencies->get_shape());
+//
+// Coefficients are computed in f32 and stored as f16 - the precision the graph-side
+// RoPE cache has always used.
+static std::pair<ov::Tensor, ov::Tensor> makeCosSinTables(const size_t max_position_embeddings,
+                                                          const std::vector<float>& inverse_freq_fp32,
+                                                          bool duplicate = true) {
+    const size_t inv_freq_size = inverse_freq_fp32.size();
     const size_t rotary_ndims = duplicate ? inv_freq_size * 2 : inv_freq_size;
 
-    std::vector<ov::float16> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
-    std::vector<ov::float16> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
+    const ov::Shape table_shape{1, max_position_embeddings, rotary_ndims};
+    ov::Tensor lut_cos(ov::element::f16, table_shape);
+    ov::Tensor lut_sin(ov::element::f16, table_shape);
+    std::fill_n(lut_cos.data<ov::float16>(), lut_cos.get_size(), ov::float16{0.0f});
+    std::fill_n(lut_sin.data<ov::float16>(), lut_sin.get_size(), ov::float16{0.0f});
 
     // rotate_half style cos/sin table:
     //   y1 = cos(m*xita_i) * x1 - sin(m*xita_i) * x2
@@ -37,8 +43,8 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
     //
     for (size_t k = 0; k < inv_freq_size; k++) {
         auto xita_i = inverse_freq_fp32[k];
-        ov::float16* psin = lut_sin.data();
-        ov::float16* pcos = lut_cos.data();
+        ov::float16* psin = lut_sin.data<ov::float16>();
+        ov::float16* pcos = lut_cos.data<ov::float16>();
         for (size_t m = 0; m < max_position_embeddings; m++, psin += rotary_ndims, pcos += rotary_ndims) {
             pcos[k] = ov::float16{std::cos(xita_i * static_cast<float>(m))};
             psin[k] = ov::float16{std::sin(xita_i * static_cast<float>(m))};
@@ -49,10 +55,19 @@ static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
         }
     }
 
-    auto Cos =
-        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_cos);
-    auto Sin =
-        ov::op::v0::Constant::create(ov::element::f16, ov::Shape({1, max_position_embeddings, rotary_ndims}), lut_sin);
+    return {lut_cos, lut_sin};
+}
+
+// Wraps makeCosSinTables()' output into graph Constants. Used by every RoPE flavour
+// except LongRoPE (LongRopePatternPhi_v5), which gets host-fed model inputs instead.
+static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings,
+                                        const std::shared_ptr<ov::Node> inverse_frequencies,
+                                        bool duplicate = true) {
+    const auto inverse_freq_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(inverse_frequencies)->cast_vector<float>();
+    auto tables = makeCosSinTables(max_position_embeddings, inverse_freq_fp32, duplicate);
+
+    auto Cos = std::make_shared<ov::op::v0::Constant>(tables.first);
+    auto Sin = std::make_shared<ov::op::v0::Constant>(tables.second);
 
     return {Cos, Sin};
 }
@@ -351,7 +366,8 @@ std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_phi_v5_longrope
 
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
                                                                     const std::shared_ptr<ov::Model>& model,
-                                                                    const std::string& longrope_input_name) {
+                                                                    const std::string& longrope_input_name,
+                                                                    LongRopeCosSin* out_tables) {
     auto rpe = std::make_shared<RopePatternLLama2>();
 
     rpe->transform_cb = [&]() {
@@ -381,36 +397,59 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
 
     auto long_rpe_v5 = std::make_shared<LongRopePatternPhi_v5>();
 
+    // LongRoPE cos/sin LUTs are model inputs, not Constants: the host picks the
+    // short/long factor regime and copies the matching table in (see the lr_cos_param
+    // comment below), so no in-graph Select - and hence no npuw_longrope_input scalar -
+    // is created for this pattern.
+    std::shared_ptr<ov::op::v0::Parameter> lr_cos_param;
+    std::shared_ptr<ov::op::v0::Parameter> lr_sin_param;
     long_rpe_v5->transform_cb = [&]() {
+        if (lr_cos_param) {
+            return;  // one cos/sin cache per model
+        }
         auto inv_freq = calculate_freq(long_rpe_v5->matched_short_factor,
                                        long_rpe_v5->matched_long_factor,
                                        long_rpe_v5->matched_multiply_const,
                                        long_rpe_v5->matched_power_const);
 
-        auto cache_short = makeCosSinCache(max_prompt_len, inv_freq[0]);
-        auto cache_long = makeCosSinCache(max_prompt_len, inv_freq[1]);
+        const auto inv_freq_short = ov::as_type_ptr<ov::op::v0::Constant>(inv_freq[0])->cast_vector<float>();
+        const auto inv_freq_long = ov::as_type_ptr<ov::op::v0::Constant>(inv_freq[1])->cast_vector<float>();
+        const size_t rotary_ndims = inv_freq_short.size() * 2;
 
-        auto select_cos =
-            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[0], cache_short[0]);
-        auto select_sin =
-            std::make_shared<ov::op::v1::Select>(long_rpe_v5->matched_cond, cache_long[1], cache_short[1]);
+        const ov::Shape lut_shape{1, max_prompt_len, rotary_ndims};
+        lr_cos_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, lut_shape);
+        lr_sin_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, lut_shape);
+        lr_cos_param->set_friendly_name(longrope_cos_input);
+        lr_sin_param->set_friendly_name(longrope_sin_input);
 
         // WA: to get correct sin-cos cache size
         long_rpe_v5->matched_inv_freq = inv_freq[0];
-        replaceSinCosByCache(max_prompt_len, {select_cos, select_sin}, long_rpe_v5.get());
+        replaceSinCosByCache(max_prompt_len, {lr_cos_param, lr_sin_param}, long_rpe_v5.get());
 
-        auto max_pos_id_out = long_rpe_v5->max_pos_id->output(0);
-        max_pos_id_param.reset(new ov::op::v0::Parameter(max_pos_id_out.get_element_type(), {1}));
-        max_pos_id_param->set_friendly_name(longrope_input_name);
-        max_pos_id_out.replace(max_pos_id_param->output(0));
+        if (out_tables) {
+            out_tables->max_len = max_prompt_len;
+            out_tables->rotary_ndims = rotary_ndims;
+            out_tables->inv_freq_short = inv_freq_short;
+            out_tables->inv_freq_long = inv_freq_long;
+        }
     };
     long_rpe_v5->run_on_model(model);
 
+    ov::ParameterVector new_params;
     if (max_pos_id_param) {
-        model->add_parameters({max_pos_id_param});
+        new_params.push_back(max_pos_id_param);
+    }
+    if (lr_cos_param) {
+        new_params.push_back(lr_cos_param);
+        new_params.push_back(lr_sin_param);
+    }
+    if (!new_params.empty()) {
+        model->add_parameters(new_params);
         for (auto&& input : model->inputs()) {
-            if (input.get_node() == max_pos_id_param.get()) {
-                input.set_names({max_pos_id_param->get_friendly_name()});
+            for (const auto& param : new_params) {
+                if (input.get_node() == param.get()) {
+                    input.set_names({param->get_friendly_name()});
+                }
             }
         }
     }
@@ -434,6 +473,31 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
 }
 
 bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len, model, m_longrope_input_name);
+    ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len,
+                                                                model,
+                                                                m_longrope_input_name,
+                                                                &m_host_tables);
     return true;
+}
+
+void ov::npuw::patterns::pre_compute::LongRopeCosSin::rebuild_tables() {
+    if (max_len == 0 || rotary_ndims == 0 || inv_freq_short.empty() || inv_freq_long.empty()) {
+        return;
+    }
+    auto tables_short = makeCosSinTables(max_len, inv_freq_short);
+    auto tables_long = makeCosSinTables(max_len, inv_freq_long);
+    cos_short = tables_short.first;
+    sin_short = tables_short.second;
+    cos_long = tables_long.first;
+    sin_long = tables_long.second;
+}
+
+void ov::npuw::patterns::pre_compute::LongRopeCosSin::serialize(ov::npuw::orc::Stream& stream) {
+    stream & max_len & rotary_ndims & inv_freq_short & inv_freq_long;
+    if (stream.input()) {
+        // Deserialization imports already-compiled child models, so RopeCache never runs
+        // again - rebuild the tables here, otherwise the imported graph's npuw_lr_cos/sin
+        // inputs would be left uninitialized.
+        rebuild_tables();
+    }
 }

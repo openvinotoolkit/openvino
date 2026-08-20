@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -223,6 +224,52 @@ void process_longrope(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
         auto longrope_input = infer_req->get_tensor(longrope_port_it->second);
         longrope_input->data<int64_t>()[0] = get_max_position_id(position_ids);
     }
+}
+
+// Fills the npuw_lr_cos/npuw_lr_sin model inputs the LongRoPE RoPE-cache rewrite
+// created (see RopeCacheMatcher, pre_compute.cpp). Those inputs are the model's only
+// source of RoPE coefficients, so the short/long-factor choice the graph used to make
+// with an in-graph Select is made here instead - by the very same criterion:
+// max(position_ids) + 1 > original_max_position_embeddings.
+//
+// A no-op for models without those inputs (feature not applicable, or the RoPE cache
+// pass didn't run).
+void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infer_req,
+                             const LLMInferRequest::PortsMap& ports,
+                             const ov::npuw::patterns::pre_compute::LongRopeCosSin& tables,
+                             const ov::SoPtr<ov::ITensor>& position_ids,
+                             uint64_t context_limit) {
+    namespace pc = ov::npuw::patterns::pre_compute;
+
+    const auto cos_port_it = ports.find(pc::longrope_cos_input);
+    const auto sin_port_it = ports.find(pc::longrope_sin_input);
+    if (cos_port_it == ports.end() || sin_port_it == ports.end()) {
+        return;
+    }
+    // The graph has no other cos/sin source, so missing tables would silently produce
+    // garbage instead of failing. This guards an imported blob whose LongRoPE metadata
+    // failed to come back.
+    OPENVINO_ASSERT(tables.is_valid(),
+                    "NPUW: the compiled model has npuw_lr_cos/npuw_lr_sin inputs but no precomputed LongRoPE "
+                    "cos/sin table to fill them with.");
+
+    const auto max_position_id = get_max_position_id(position_ids);
+    const bool is_long = max_position_id >= 0 && static_cast<uint64_t>(max_position_id) >= context_limit;
+
+    const auto& cos_table = is_long ? tables.cos_long : tables.cos_short;
+    const auto& sin_table = is_long ? tables.sin_long : tables.sin_short;
+
+    auto cos_input = infer_req->get_tensor(cos_port_it->second);
+    auto sin_input = infer_req->get_tensor(sin_port_it->second);
+    // Row i holds position i, so a LUT shorter than the shared table takes its
+    // leading rows.
+    OPENVINO_ASSERT(cos_input->get_byte_size() <= cos_table.get_byte_size() &&
+                        sin_input->get_byte_size() <= sin_table.get_byte_size() &&
+                        cos_input->get_shape().back() == tables.rotary_ndims,
+                    "NPUW: LongRoPE cos/sin table does not cover the npuw_lr_cos/npuw_lr_sin model inputs.");
+
+    std::memcpy(cos_input->data(), cos_table.data(), cos_input->get_byte_size());
+    std::memcpy(sin_input->data(), sin_table.data(), sin_input->get_byte_size());
 }
 }  // anonymous namespace
 
@@ -1189,6 +1236,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     });
 
     process_longrope(m_prefill_request, m_prefill_in_ports, position_ids);
+    // One regime decision for the whole logical prompt - chunked prefill reuses it, as
+    // the in-graph Select did when it was fed from these same position_ids.
+    process_longrope_tables(m_prefill_request,
+                            m_prefill_in_ports,
+                            m_npuw_llm_compiled_model->m_longrope_tables,
+                            position_ids,
+                            m_npuw_llm_compiled_model->m_longrope_context_limit);
 
     m_llm_profile["1/prefill:2.apply_lora"].record([&]() {
         apply_lora();
@@ -1303,6 +1357,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             std::fill_n(reinterpret_cast<uint8_t*>(deepstack_local->data()), deepstack_local->get_byte_size(), 0);
         }
         process_longrope(m_kvcache_request, m_kvcache_in_ports, position_ids);
+        process_longrope_tables(m_kvcache_request,
+                                m_kvcache_in_ports,
+                                m_npuw_llm_compiled_model->m_longrope_tables,
+                                position_ids,
+                                m_npuw_llm_compiled_model->m_longrope_context_limit);
         // FIXME: these tensors should be shared between the parent & child models
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));

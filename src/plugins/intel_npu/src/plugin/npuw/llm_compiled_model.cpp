@@ -1182,12 +1182,28 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
         const bool force_rope_cache = m_longrope_context_limit > 0u;
 
+        // Every variant derives its coefficients from the same model constants and
+        // indexes them by absolute position, so the tables only differ in length -
+        // keep one set covering the longest LUT.
+        auto absorb_longrope_tables = [this](const auto& tables) {
+            if (tables.rotary_ndims == 0) {
+                return;
+            }
+            if (m_longrope_tables.rotary_ndims == 0) {
+                m_longrope_tables = tables;
+            } else {
+                NPUW_ASSERT(m_longrope_tables.rotary_ndims == tables.rotary_ndims);
+                m_longrope_tables.max_len = std::max(m_longrope_tables.max_len, tables.max_len);
+            }
+        };
+
         if (!is_best || (max_prompt_len >= CACHE_ROPE_START || force_rope_cache)) {
             LOG_DEBUG("Enable RoPE Cache for prefill");
             ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(
                 max_prompt_len,
                 ov::npuw::LLMInferRequest::layer_names::longrope_input);
             rope_prefill_cacher.run_on_model(prefill_model);
+            absorb_longrope_tables(rope_prefill_cacher.host_tables());
         }
 
         // Apply RoPE Cache to all generate variant models
@@ -1199,8 +1215,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                     kv_size,
                     ov::npuw::LLMInferRequest::layer_names::longrope_input);
                 rope_cacher.run_on_model(generate_model_variants[i]);
+                absorb_longrope_tables(rope_cacher.host_tables());
             }
         }
+
+        m_longrope_tables.rebuild_tables();
     }
 
     if (is_moe) {
@@ -1428,6 +1447,13 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
             m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding;
 
+        // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
+        // inputs the host must fill every call, but deserialization imports already-
+        // compiled children and never re-runs RopeCache - so they have to travel with
+        // the blob. Only the dimensions and the two inverse-frequency arrays are
+        // written; LongRopeCosSin::serialize() rebuilds the tables on read.
+        stream & m_longrope_tables;
+
         // Write config
         stream & m_cfg;
 
@@ -1654,6 +1680,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
             compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
+
+        // LongRoPE cos/sin tables - see the matching comment in serialize()
+        stream & compiled->m_longrope_tables;
 
         // Deserialize config
         stream & compiled->m_cfg;

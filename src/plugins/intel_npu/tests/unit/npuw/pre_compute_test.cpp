@@ -147,7 +147,23 @@ TEST(PreComputeTest, RopeCacheTransformsLongRopeV5Pattern) {
 
     EXPECT_EQ(sin_count, 0);
     EXPECT_EQ(cos_count, 0);
-    EXPECT_TRUE(has_input_name(model, "longrope_input"));
+    // LongRoPE coefficients are model inputs, so the graph keeps no short/long Select
+    // and needs no max-position-id scalar to drive it.
+    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_cos_input));
+    EXPECT_TRUE(has_input_name(model, ov::npuw::patterns::pre_compute::longrope_sin_input));
+    EXPECT_FALSE(has_input_name(model, "longrope_input"));
+
+    const auto& tables = pass.host_tables();
+    EXPECT_EQ(tables.max_len, 16u);
+    EXPECT_EQ(tables.rotary_ndims, 4u);  // 2 factors, mirrored
+    EXPECT_EQ(tables.inv_freq_short.size(), 2u);
+    EXPECT_EQ(tables.inv_freq_long.size(), 2u);
+
+    auto built = tables;
+    built.rebuild_tables();
+    ASSERT_TRUE(built.is_valid());
+    EXPECT_EQ(built.cos_short.get_shape(), (ov::Shape{1, 16, 4}));
+    EXPECT_EQ(built.cos_long.get_shape(), (ov::Shape{1, 16, 4}));
 }
 
 TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {
