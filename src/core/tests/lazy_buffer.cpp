@@ -12,6 +12,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/util/demand_pager.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 using namespace testing;
@@ -46,6 +47,15 @@ protected:
         fs.seekp(offset);
         fs.write(data.data(), data.size());
         ASSERT_TRUE(fs.good());
+    }
+
+    /**
+     * @brief A single cached probe: constructing a DemandPager on Linux opens a userfaultfd and spawns a fault-handling
+     * thread, so this should not be done once per test.
+     */
+    static bool is_fault_delegation_available() {
+        static const bool available = util::DemandPager{}.is_available();
+        return available;
     }
 };
 
@@ -85,6 +95,11 @@ TEST_F(LazyBufferTest, read_file) {
 }
 
 TEST_F(LazyBufferTest, load_on_first_get_ptr) {
+    if (!is_fault_delegation_available()) {
+        GTEST_SKIP() << "Fault delegation is unavailable on this platform/kernel: LazyBuffer populates the region up "
+                        "front, so lazy-load semantics cannot be observed.";
+    }
+
     write_test_data(128);
 
     constexpr size_t offset = 37;
@@ -112,6 +127,11 @@ TEST_F(LazyBufferTest, load_on_first_get_ptr) {
 }
 
 TEST_F(LazyBufferTest, evict_and_reload) {
+    if (!is_fault_delegation_available()) {
+        GTEST_SKIP() << "Fault delegation is unavailable on this platform/kernel: hint_evict() is a no-op without it, "
+                        "so reload semantics cannot be observed.";
+    }
+
     write_test_data(128);
 
     constexpr size_t offset = 31;
@@ -166,7 +186,7 @@ TEST_F(LazyBufferTest, move_constructor_loaded) {
     const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
 
     // Overwrite file after prefetch; moved object should serve cached data, not re-read
-    overwrite_test_data(offset, std::vector<char>(size, 0xFF));
+    overwrite_test_data(offset, std::vector<char>(size, '\xFF'));
 
     LazyBuffer dest{std::move(source)};
 
@@ -204,7 +224,7 @@ TEST_F(LazyBufferTest, move_assignment_loaded) {
     const std::vector<char> expected(src_buf_ptr, src_buf_ptr + size);
 
     // Overwrite file after prefetch; dest should keep cached data, not re-read
-    overwrite_test_data(offset, std::vector<char>(size, 0xFF));
+    overwrite_test_data(offset, std::vector<char>(size, '\xFF'));
 
     LazyBuffer dest{m_file_path, 0, 5};
     dest = std::move(source);
