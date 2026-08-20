@@ -16,10 +16,12 @@
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/decompose_gqa.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
@@ -467,6 +469,38 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 
+// Detect Gemma-4 E2B/E4B by a consumed "per_layer_inputs" input with nonzero PLE dim.
+// Gemma4 26B A4B (MoE) also has this input, but dangling (proj_dim==0, unconsumed).
+bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& input : model->inputs()) {
+        const auto& input_name = input.get_any_name();
+        if (input_name.find("per_layer_inputs") == std::string::npos) {
+            continue;
+        }
+        const auto& partial_shape = input.get_partial_shape();
+        if (partial_shape.size() != 4u) {
+            continue;
+        }
+        const auto& proj_dim = partial_shape[3];
+        if (proj_dim.is_static() && proj_dim.get_length() == 0) {
+            // Dangling PLE (e.g. Gemma4 26B A4B MoE) - not a real per-layer input.
+            LOG_DEBUG("Found per_layer_inputs parameter with proj_dim==0 (dangling PLE, MoE model), skipping - "
+                      << input_name);
+            continue;
+        }
+        if (input.get_target_inputs().empty()) {
+            // Not actually consumed anywhere in the graph.
+            LOG_DEBUG("Found per_layer_inputs parameter with no consumers, skipping - " << input_name);
+            continue;
+        }
+        LOG_INFO("Detected cross-group KV sharing model (Gemma-4 E2B/E4B): "
+                 "found consumed per_layer_inputs parameter with nonzero PLE dim - "
+                 << input_name);
+        return true;
+    }
+    return false;
+}
+
 // Detect if the model is a Mixture-of-Experts (MoE) architecture
 // by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
@@ -895,6 +929,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
+    // Detect attention mask type before the SDPA subgraph is isolated by partitioning.
+    // Mask-skipping optimization on HFA regular tiles will be enabled depending on the mask type.
+    ov::npuw::DetectAttentionMask detect_mask;
+    detect_mask.run_on_model(kvcache_model);
+    const auto mask_info = detect_mask.get_mask_info();
+
     if (!m_is_whisper) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
@@ -962,6 +1002,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
+    // In case of Gemma3, we should remove `token_type_ids` from generate version of the model,
+    // as it leads to inaccurate output otherwise.
+    // NOTE: It is important to preserve `token_type_ids` in prefill model, however, as `token_type_ids`
+    //       controls creation of correct blockwise attention mask for image tokens.
+    ov::npuw::RemoveTokenTypeIds().run_on_model(kvcache_model);
     // Create generate model variants with different sizes.
     // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
     // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
@@ -1068,6 +1113,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
+    if (prefill_attn_hfa) {
+        prefill_config[ov::intel_npu::npuw::partitioning::attn_hfa_mask_skipping.name()] =
+            mask_info.mask_type == ov::npuw::MaskInfo::MaskType::Causal ||
+                    (mask_info.mask_type == ov::npuw::MaskInfo::MaskType::SlidingWindow &&
+                     mask_info.window_size >= max_prompt_len)
+                ? "YES"
+                : "NO";
+    }
+
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
         OPENVINO_THROW("GENERATE_HINT only works with default generate config!");
@@ -1117,6 +1171,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (m_use_chunk_prefill && (prefill_attn_pyramid || prefill_attn_hfa || prefill_attn_dyn)) {
         prefill_config["NPUW_ATTN"] = ::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT::toString(prefill_attn_hint);
         merge_config_with(prefill_config, dyn_attn_opts);
+        // Gemma-4 E2B/E4B: the SWA<->Global boundary subgraphs (FFN tail + Global Q-proj
+        // prefix) appear in two structurally distinct variants depending on the K/V source
+        // of the preceding SWA layer:
+        //   Variant A (L3->L4, L8->L9, L13->L14): SWA layer uses its own group K/V  -> 3 instances
+        //   Variant B (L18->L19, L23->L24, L28->L29, L33->L34): SWA layer uses L13
+        //             borrowed K/V (cloned by DuplicateSharedKVConcat)              -> 4 instances
+        // Both variants fall below the default keep_blocks=5 threshold and remain as
+        // separate FCE compile units.  Lower to 3 so both are folded into REP and
+        // reused across their respective instances.
+        if (has_per_layer_inputs(prefill_model)) {
+            prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
+        }
     }
 
     if (generate_attn_pyramid || generate_attn_hfa || generate_attn_dyn) {
