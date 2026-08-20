@@ -152,6 +152,10 @@ void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info, boo
         }
     }
 }
+
+bool is_valid_weights_range(size_t weights_size, size_t offset, size_t size) {
+    return offset <= weights_size && size <= weights_size - offset;
+}
 }  // namespace
 
 struct GenericLayerParams {
