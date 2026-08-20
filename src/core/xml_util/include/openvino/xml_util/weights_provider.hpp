@@ -8,6 +8,8 @@
 #include <map>
 #include <memory>
 
+#include "openvino/util/file_util.hpp"
+
 namespace ov {
 class AlignedBuffer;
 }  // namespace ov
@@ -91,6 +93,17 @@ public:
      * @param weights_path Path to the weights file.
      */
     explicit FileWeightsProvider(std::filesystem::path weights_path);
+    /**
+     * @brief Destructor for the file-backed weights provider - releases the file handle.
+     */
+    ~FileWeightsProvider() override;
+
+    /**
+     * @brief Copy constructor is deleted to prevent copying of the file-backed weights provider - in order to avoid
+     * double release from file handle.
+     */
+    FileWeightsProvider(const FileWeightsProvider&) = delete;
+    FileWeightsProvider& operator=(const FileWeightsProvider&) = delete;
 
     /**
      * @brief Loads the requested region from the weights file.
@@ -122,6 +135,7 @@ private:
 
     std::filesystem::path m_weights_path{};
     size_t m_weights_size{};
+    ov::FileHandle m_weights_handle{ov::invalid_handle};
     // Cache of previously loaded weights regions, keyed by (offset, size) of the region in the weights file.
     std::map<WeightsRegionKey, std::weak_ptr<ov::AlignedBuffer>> m_loaded_weights_regions;
 };

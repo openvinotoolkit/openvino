@@ -4,13 +4,12 @@
 
 #include "openvino/xml_util/weights_provider.hpp"
 
-#include <fstream>
-
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/parallel_io.hpp"
 
 namespace ov::util {
 
@@ -44,9 +43,15 @@ size_t BufferWeightsProvider::size() const {
     return m_weights->size();
 }
 
-FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path)
-    : m_weights_path(std::move(weights_path)),
-      m_weights_size(ov::util::file_size(m_weights_path)) {}
+FileWeightsProvider::FileWeightsProvider(std::filesystem::path weights_path) : m_weights_path(std::move(weights_path)) {
+    std::streamoff weights_size{};
+    ov::util::get_file_handle_and_size(m_weights_path, 0, m_weights_handle, weights_size);
+    m_weights_size = static_cast<size_t>(weights_size);
+}
+
+FileWeightsProvider::~FileWeightsProvider() {
+    ov::util::close_file_handle(m_weights_handle);
+}
 
 std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(offset <= m_weights_size && size <= m_weights_size - offset, "Incorrect weights in bin file!");
@@ -61,18 +66,16 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
 
     std::shared_ptr<ov::AlignedBuffer> buffer;
     if (size >= get_mmap_region_threshold()) {
-        auto mapped_memory = ov::load_mmap_object(m_weights_path, offset, size);
+        auto mapped_memory = ov::load_mmap_object(m_weights_handle, offset, size);
         buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
                                                                                        mapped_memory->size(),
                                                                                        mapped_memory);
     } else {
         auto file_region = std::make_shared<ov::AlignedBuffer>(size);
         if (size > 0) {
-            std::ifstream weights_stream(m_weights_path, std::ios::binary);
-            OPENVINO_ASSERT(weights_stream.is_open(), m_weights_path, " cannot be opened");
-            weights_stream.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
-            weights_stream.read(file_region->get_ptr<char>(), static_cast<std::streamsize>(size));
-            OPENVINO_ASSERT(weights_stream, "Failed to read weights from ", m_weights_path);
+            OPENVINO_ASSERT(ov::util::positional_read(m_weights_handle, file_region->get_ptr<char>(), size, offset),
+                            "Failed to read weights from ",
+                            m_weights_path);
         }
         buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
             file_region->get_ptr<char>(),
