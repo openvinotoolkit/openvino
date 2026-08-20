@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "conformance api test crashed ov plugin corethreadingtestswithiter nightly asyncinfer shareinput|Flaky Test",
+  "signature_hash": "9ccdd0e30ddfa489",
+  "title": "Conformance API test ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput crashes on CPU",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-08-20T11:33:29Z",
+  "last_seen": "2026-08-20T11:33:29Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/32357793589"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37499"
+  ],
+  "recent_timestamps": [
+    "2026-08-20T11:33:29Z"
+  ],
+  "rerun_search_string": "crashed test counter is"
+}

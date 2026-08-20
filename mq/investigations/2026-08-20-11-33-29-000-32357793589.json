@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-08-20-11-33-29-000-32357793589",
+  "timestamp": "2026-08-20T11:33:29Z",
+  "run_id": "32357793589",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32357793589",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37499",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37499",
+  "author": "jade-cho",
+  "category": "Flaky Test",
+  "title": "Conformance API test ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput crashes on CPU",
+  "signature": "conformance api test crashed ov plugin corethreadingtestswithiter nightly asyncinfer shareinput|Flaky Test",
+  "signature_hash": "9ccdd0e30ddfa489",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Conformance (API)",
+      "conclusion": "failure",
+      "symptom": "1 test crashed \u2014 ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput/targetDevice=CPU \u2014 exit code 255"
+    }
+  ],
+  "key_errors": [
+    "ERROR:test_parallel_runner:Unexpected failures: {'ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput/targetDevice=CPU_config=PERF_COUNT=NO_numThreads=4_numIter=50'}",
+    "INFO:test_parallel_runner:crashed test counter is: 1",
+    "##[error]Process completed with exit code 255."
+  ],
+  "root_cause": "The conformance test runner reports 1 crashed test: ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput running with 4 threads and 50 iterations. This is a multi-threaded concurrency test (CoreThreadingTests) exercising shared-input async inference, which is a known source of intermittent crashes under race conditions. The PR changes GPU Gemm batch broadcasting (gemm.cpp, op/gemm.cpp) and adds GPU unit tests, which should not affect CPU conformance threading tests. This crash is consistent with a flaky/intermittent test failure unrelated to the PR diff.",
+  "reproduction_steps": "Run: ov_api_conformance_tests --device=CPU --gtest_filter='ov_plugin/CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput*' with numThreads=4 numIter=50",
+  "recommended_actions": [
+    "Re-run the failed Conformance (API) job to see if the crash reproduces consistently.",
+    "If intermittent, file a tracking issue for CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput flakiness on CPU.",
+    "Consider disabling or marking this specific test as known-flaky if it fails repeatedly across unrelated PRs."
+  ],
+  "prevention_strategies": "Add nightly_AsyncInfer_ShareInput to the known-flaky test list to prevent it from blocking merge queue PRs.",
+  "historical_context": "No prior investigation records found for this specific failure."
+}
