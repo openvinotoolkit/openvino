@@ -46,11 +46,11 @@ public:
 private:
     // Static per-tensor facts, derived once in on_initialize() so the
     // continuation paths do not reclassify tensors on every call.
-    struct KVPairNames {
+    struct KVPairInfo {
         std::string past;
         bool is_value = false;
     };
-    std::vector<KVPairNames> m_kv_pairs;
+    std::vector<KVPairInfo> m_kv_pairs;
 };
 
 }  // namespace npuw

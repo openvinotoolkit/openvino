@@ -89,13 +89,13 @@ public:
 
     // Continuous prefill support.
 
-    /// Continue a prefill that keeps the first `keep` tokens and will prefill
-    /// `delta_len` new ones. The strategy validates every dynamic precondition
-    /// without touching live state, so a validation failure leaves the cache
-    /// exactly as it was and a corrected retry may still succeed; it then moves
-    /// the preserved prefix into the prefill-side layout. An exception past
-    /// validation leaves the cache in an unspecified state and the caller must
-    /// recover with reset() and a full prefill.
+    // Continue a prefill that keeps the first `keep` tokens and will prefill
+    // `delta_len` new ones. The strategy validates every dynamic precondition
+    // without touching live state, so a validation failure leaves the cache
+    // exactly as it was and a corrected retry may still succeed; it then moves
+    // the preserved prefix into the prefill-side layout. An exception past
+    // validation leaves the cache in an unspecified state and the caller must
+    // recover with reset() and a full prefill.
     virtual void continue_prefill(uint32_t keep, uint32_t delta_len) {
         (void)keep;
         (void)delta_len;

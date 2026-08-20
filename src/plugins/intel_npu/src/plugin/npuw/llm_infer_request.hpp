@@ -114,8 +114,18 @@ protected:
                                        ov::SoPtr<ov::ITensor> input_ids,
                                        ov::SoPtr<ov::ITensor> attention_mask,
                                        ov::SoPtr<ov::ITensor> position_ids);
-    // Validates the delta position ids as a sequence against the latched baseline.
-    void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids, uint32_t keep) const;
+    // Validates the delta position ids as a sequence against the latched baseline
+    // and the delta length.
+    void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
+                                         uint32_t keep,
+                                         uint32_t delta_len) const;
+
+    // Zeroes the prefill model's staging inputs (input ids, token type ids,
+    // attention mask, position ids, per-layer inputs), leaving KV state alone.
+    void zero_prefill_staging();
+    // Selects the generate variant for the given prompt length and rebinds the
+    // request, its port maps and the variant index together.
+    void bind_generate_variant(int64_t prompt_length);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
