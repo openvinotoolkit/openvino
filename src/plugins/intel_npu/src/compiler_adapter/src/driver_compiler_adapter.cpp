@@ -325,7 +325,6 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 
     if (compilerOptionsStr.has_value()) {
         if (compilerOptionsStr->empty()) {
-            _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
             return {};
         }
 
@@ -366,6 +365,9 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     if (optionSupportCache) {
         const auto cachedSupport = _optionSupportCache->isOptionSupported(driverOptionSupportKey, optName);
         if (cachedSupport.has_value()) {
+            _logger.debug("Option %s %s by DriverCompilerAdapter",
+                          optName.c_str(),
+                          cachedSupport.value() ? "is supported" : "is not supported");
             return cachedSupport.value();
         }
     }
@@ -377,6 +379,10 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
             _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
         }
 
+        _logger.debug("Option %s with value '%s' %s by DriverCompilerAdapter",
+                      optName.c_str(),
+                      optValue.has_value() ? optValue->c_str() : "null",
+                      supported ? "is supported" : "is not supported");
         return supported;
     }
 
@@ -388,6 +394,9 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
             if (_optionSupportCache) {
                 _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
             }
+            _logger.debug("Option %s %s by DriverCompilerAdapter",
+                          optName.c_str(),
+                          supported ? "is supported" : "is not supported");
             return supported;
         }
     }

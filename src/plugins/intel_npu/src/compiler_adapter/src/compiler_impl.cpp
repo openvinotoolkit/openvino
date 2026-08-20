@@ -630,9 +630,6 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-        _logger.debug("is_option_supported start for option: %s, value: %s",
-                      optname_ch,
-                      optvalue_ch ? optvalue_ch : "null");
         THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
                               vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
@@ -641,7 +638,6 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
-    _logger.debug("option: %s is not supported", option.c_str());
     return false;
 }
 

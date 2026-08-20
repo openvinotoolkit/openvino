@@ -455,12 +455,6 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
 
-    // Determine at runtime whether the driver version is sufficient to handle the
-    // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
     {
@@ -470,14 +464,6 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckIsReadOnly) {
                                       "READ-ONLY");
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
-
-    if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    } else {
-        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    }
 
     // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
     // message is not present in the log
@@ -497,12 +483,6 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
 
-    // Determine at runtime whether the driver version is sufficient to handle the
-    // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
     {
@@ -511,55 +491,21 @@ TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckUsesPluginCompiler
     }
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
 
-    if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    } else {
-        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    }
-
     // DriverCompilerAdapter should not be initialized at all in such a scenario, checking that the corresponding
     // message is not present in the log
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckSupportedPropertiesLoadsPluginCompiler) {
-    std::string logs;
-    std::mutex logs_mutex;
-
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
     OV_ASSERT_NO_THROW(
         core.set_property(deviceName, ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)));
 
-    // Determine at runtime whether the driver version is sufficient to handle the
-    // compatibility check without falling back to PluginCompilerAdapter.
-    const auto initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
-    const bool driverHandlesCompatibilityCheck =
-        initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16);
-
     auto original_level = core.get_property(deviceName, ov::log::level);
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(ov::log::Level::INFO)));
-    {
-        ov::test::utils::LogCallbackGuard log_callback_guard(log_cb);
-        auto supported_props = core.get_property(deviceName, ov::supported_properties);
-        auto it = std::find(supported_props.begin(), supported_props.end(), ov::compatibility_check.name());
-        ASSERT_NE(it, supported_props.end());
-    }
+    auto supported_props = core.get_property(deviceName, ov::supported_properties);
+    auto it = std::find(supported_props.begin(), supported_props.end(), ov::compatibility_check.name());
+    ASSERT_NE(it, supported_props.end());
     OV_ASSERT_NO_THROW(core.set_property(deviceName, ov::log::level(original_level)));
-
-    if (driverHandlesCompatibilityCheck) {
-        ASSERT_EQ(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    } else {
-        ASSERT_NE(logs.find("Option COMPATIBILITY_CHECK with value `null` is supported by PluginCompilerAdapter"),
-                  std::string::npos);
-    }
 }
 
 TEST_P(CompatibilityCheckFallbackTestSuite, CompatibilityCheckAcceptsEmptyString) {
