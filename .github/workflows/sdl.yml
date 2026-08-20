@@ -25,6 +25,7 @@ jobs:
   bandit:
     name: Bandit
     runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
     timeout-minutes: 10
     defaults:
       run:
